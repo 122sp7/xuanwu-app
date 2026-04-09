@@ -2571,503 +2571,6 @@ venv/
 .tmp-eslint*.json
 ````
 
-## File: app/(public)/page.tsx
-````typescript
-"use client";
-
-/**
- * app/(public)/page.tsx
- * Public landing page with top-right auth entry and inline auth panel.
- * Uses identity module use cases directly on the client so Firebase auth state
- * actually updates AuthProvider via onAuthStateChanged.
- */
-
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
-
-import { useAuth } from "@/app/providers/auth-provider";
-import { createClientAuthUseCases } from "@/modules/identity/api";
-import { createClientAccountUseCases } from "@/modules/account/api";
-import {
-  createDevDemoUser,
-  isDevDemoCredential,
-  isLocalDevDemoAllowed,
-  writeDevDemoSession,
-} from "@/app/providers/dev-demo-auth";
-
-type Tab = "login" | "register";
-
-export default function PublicPage() {
-  const { state, dispatch } = useAuth();
-  const router = useRouter();
-
-  const [tab, setTab] = useState<Tab>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [resetSent, setResetSent] = useState(false);
-  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
-
-  const {
-    signInUseCase,
-    signInAnonymouslyUseCase,
-    registerUseCase,
-    sendPasswordResetEmailUseCase,
-    createUserAccountUseCase,
-  } =
-    useMemo(() => ({
-      ...createClientAuthUseCases(),
-      ...createClientAccountUseCases(),
-    }), []);
-
-  useEffect(() => {
-    if (state.status === "authenticated") {
-      router.replace("/dashboard");
-    }
-  }, [state.status, router]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    try {
-      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
-        writeDevDemoSession(createDevDemoUser());
-        window.location.assign("/dashboard");
-        return;
-      }
-
-      const result =
-        tab === "login"
-          ? await signInUseCase.execute({ email, password })
-          : await registerUseCase.execute({ email, password, name });
-
-      if (!result.success) {
-        setError(result.error.message);
-        return;
-      }
-
-      if (tab === "register") {
-        const accountResult = await createUserAccountUseCase.execute(
-          result.aggregateId,
-          name,
-          email,
-        );
-        if (!accountResult.success) {
-          setError(accountResult.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleGuestAccess() {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const result = await signInAnonymouslyUseCase.execute();
-      if (!result.success) {
-        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
-        // blocked in sandboxes), create a local guest session so the shell can be tested.
-        if (isLocalDevDemoAllowed()) {
-          const guestUser = createDevDemoUser();
-          writeDevDemoSession(guestUser);
-          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
-        } else {
-          setError(result.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handlePasswordReset() {
-    if (!email) {
-      setError("Enter your email address first.");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const result = await sendPasswordResetEmailUseCase.execute(email);
-      if (result.success) {
-        setResetSent(true);
-        setError(null);
-      } else {
-        setError(result.error.message);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  if (state.status === "initializing") {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  return (
-    <main className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
-        <button
-          type="button"
-          onClick={() => {
-            setError(null);
-            setResetSent(false);
-            setIsAuthPanelOpen((prev) => !prev);
-          }}
-          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
-        >
-          {isAuthPanelOpen ? "Close" : "Sign In"}
-        </button>
-      </header>
-
-      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
-        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
-            Unified MDDD/Hexagonal workspace for identity, account, and organization modules.
-            Use the top-right sign in button to access your dashboard.
-          </p>
-        </div>
-
-        {isAuthPanelOpen && (
-          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
-            <div className="flex flex-col items-center pb-4 pt-8">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
-                <ShieldCheck className="h-7 w-7 text-primary/90" />
-              </div>
-            </div>
-
-            <div className="px-6">
-              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
-                {(["login", "register"] as Tab[]).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => {
-                      setTab(t);
-                      setError(null);
-                    }}
-                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
-                      tab === t
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {t === "login" ? "Sign In" : "Register"}
-                  </button>
-                ))}
-              </div>
-
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                {tab === "register" && (
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
-                    <input
-                      id="register-name"
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Your display name"
-                      required
-                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
-                  <input
-                    id="auth-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    autoComplete="email"
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
-                    {tab === "login" && (
-                      <button
-                        type="button"
-                        onClick={handlePasswordReset}
-                        className="text-xs text-primary/70 hover:text-primary"
-                      >
-                        {resetSent ? "Email sent!" : "Forgot password?"}
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    id="auth-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete={tab === "login" ? "current-password" : "new-password"}
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                {error && (
-                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    {error}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : tab === "login" ? (
-                    "Enter Dimension"
-                  ) : (
-                    "Create Account"
-                  )}
-                </button>
-              </form>
-            </div>
-
-            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
-              <button
-                type="button"
-                onClick={handleGuestAccess}
-                disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-    </main>
-  );
-}
-````
-
-## File: app/(shell)/_components/account-switcher.tsx
-````typescript
-"use client";
-
-import { type FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import type { AuthUser } from "@/app/providers/auth-context";
-import { useApp } from "@/app/providers/app-provider";
-import type { AccountEntity } from "@/modules/account/api";
-import { createOrganization } from "@/modules/organization/api";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-interface AccountSwitcherProps {
-  personalAccount: AuthUser | null;
-  organizationAccounts: AccountEntity[];
-  activeAccountId: string | null;
-  onSelectPersonal: () => void;
-  onSelectOrganization: (account: AccountEntity) => void;
-  onOrganizationCreated?: (account: AccountEntity) => void;
-}
-
-export function AccountSwitcher({
-  personalAccount,
-  organizationAccounts,
-  activeAccountId,
-  onSelectPersonal,
-  onSelectOrganization,
-  onOrganizationCreated,
-}: AccountSwitcherProps) {
-  const router = useRouter();
-  const {
-    state: { accountsHydrated, bootstrapPhase },
-  } = useApp();
-  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
-  const [organizationName, setOrganizationName] = useState("");
-  const [organizationError, setOrganizationError] = useState<string | null>(null);
-  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
-
-  function resetCreateOrganizationDialog() {
-    setOrganizationName("");
-    setOrganizationError(null);
-    setIsCreatingOrganization(false);
-  }
-
-  async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!personalAccount) {
-      setOrganizationError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-
-    const nextOrganizationName = organizationName.trim();
-    if (!nextOrganizationName) {
-      setOrganizationError("請輸入組織名稱。");
-      return;
-    }
-
-    setIsCreatingOrganization(true);
-    setOrganizationError(null);
-
-    const result = await createOrganization({
-      organizationName: nextOrganizationName,
-      ownerId: personalAccount.id,
-      ownerName: personalAccount.name,
-      ownerEmail: personalAccount.email,
-    });
-
-    if (!result.success) {
-      setOrganizationError(result.error.message);
-      setIsCreatingOrganization(false);
-      return;
-    }
-
-    onOrganizationCreated?.({
-      id: result.aggregateId,
-      name: nextOrganizationName,
-      accountType: "organization",
-      ownerId: personalAccount.id,
-    });
-
-    resetCreateOrganizationDialog();
-    setIsCreateOrganizationOpen(false);
-    router.push("/organization");
-  }
-
-  return (
-    <>
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          帳號情境
-        </p>
-        <select
-          aria-label="切換帳號情境"
-          value={activeAccountId ?? ""}
-          onChange={(event) => {
-            const nextId = event.target.value;
-            if (nextId === "__create_organization__") {
-              setIsCreateOrganizationOpen(true);
-              return;
-            }
-
-            if (!nextId || nextId === personalAccount?.id) {
-              onSelectPersonal();
-              return;
-            }
-
-            const nextAccount = organizationAccounts.find((account) => account.id === nextId);
-            if (nextAccount) {
-              onSelectOrganization(nextAccount);
-            }
-          }}
-          className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground"
-        >
-          {personalAccount && (
-            <option value={personalAccount.id}>{personalAccount.name}（個人）</option>
-          )}
-          {organizationAccounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.name}（組織）
-            </option>
-          ))}
-          <option value="__create_organization__">+建立組織</option>
-        </select>
-        {!accountsHydrated && (
-          <p className="text-xs text-muted-foreground">
-            {bootstrapPhase === "seeded" ? "正在同步組織上下文…" : "正在載入帳號上下文…"}
-          </p>
-        )}
-      </div>
-
-      <Dialog
-        open={isCreateOrganizationOpen}
-        onOpenChange={(open) => {
-          setIsCreateOrganizationOpen(open);
-          if (!open) {
-            resetCreateOrganizationDialog();
-          }
-        }}
-      >
-        <DialogContent aria-describedby="create-organization-description">
-          <DialogHeader>
-            <DialogTitle>建立新組織</DialogTitle>
-            <DialogDescription id="create-organization-description">
-              輸入名稱後會直接建立組織並切換到新的組織內容。
-            </DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={handleCreateOrganization}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="organization-name">
-                組織名稱
-              </label>
-              <Input
-                id="organization-name"
-                value={organizationName}
-                onChange={(event) => {
-                  setOrganizationName(event.target.value);
-                  if (organizationError) {
-                    setOrganizationError(null);
-                  }
-                }}
-                placeholder="例如：Gig Team"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreatingOrganization}
-                maxLength={80}
-              />
-              {organizationError && <p className="text-sm text-destructive">{organizationError}</p>}
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetCreateOrganizationDialog();
-                  setIsCreateOrganizationOpen(false);
-                }}
-                disabled={isCreatingOrganization}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingOrganization || !personalAccount}>
-                {isCreatingOrganization ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-````
-
 ## File: app/(shell)/_components/app-breadcrumbs.tsx
 ````typescript
 "use client";
@@ -3133,145 +2636,6 @@ export function AppBreadcrumbs() {
         </span>
       ))}
     </nav>
-  );
-}
-````
-
-## File: app/(shell)/_components/create-organization-dialog.tsx
-````typescript
-"use client";
-
-import { type FormEvent, useState } from "react";
-
-import type { AuthUser } from "@/app/providers/auth-context";
-import type { AccountEntity } from "@/modules/account/api";
-import { createOrganization } from "@/modules/organization/api";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-interface CreateOrganizationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  user: AuthUser | null;
-  onOrganizationCreated?: (account: AccountEntity) => void;
-  onNavigate: (href: string) => void;
-}
-
-export function CreateOrganizationDialog({
-  open,
-  onOpenChange,
-  user,
-  onOrganizationCreated,
-  onNavigate,
-}: CreateOrganizationDialogProps) {
-  const [orgName, setOrgName] = useState("");
-  const [orgError, setOrgError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-
-  function reset() {
-    setOrgName("");
-    setOrgError(null);
-    setIsCreating(false);
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!user) {
-      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-    const name = orgName.trim();
-    if (!name) {
-      setOrgError("請輸入組織名稱。");
-      return;
-    }
-    setIsCreating(true);
-    setOrgError(null);
-    const result = await createOrganization({
-      organizationName: name,
-      ownerId: user.id,
-      ownerName: user.name,
-      ownerEmail: user.email,
-    });
-    if (!result.success) {
-      setOrgError(result.error.message);
-      setIsCreating(false);
-      return;
-    }
-    const newAccount: AccountEntity = {
-      id: result.aggregateId,
-      name,
-      accountType: "organization",
-      ownerId: user.id,
-    };
-    onOrganizationCreated?.(newAccount);
-    reset();
-    onOpenChange(false);
-    onNavigate("/organization");
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(isOpen) => {
-        onOpenChange(isOpen);
-        if (!isOpen) reset();
-      }}
-    >
-      <DialogContent aria-describedby="rail-create-org-description">
-        <DialogHeader>
-          <DialogTitle>建立新組織</DialogTitle>
-          <DialogDescription id="rail-create-org-description">
-            輸入名稱後會直接建立組織並切換到新的組織內容。
-          </DialogDescription>
-        </DialogHeader>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
-              組織名稱
-            </label>
-            <Input
-              id="rail-organization-name"
-              value={orgName}
-              onChange={(e) => {
-                setOrgName(e.target.value);
-                if (orgError) setOrgError(null);
-              }}
-              placeholder="例如：Gig Team"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-              disabled={isCreating}
-              maxLength={80}
-            />
-            {orgError && <p className="text-sm text-destructive">{orgError}</p>}
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                reset();
-                onOpenChange(false);
-              }}
-              disabled={isCreating}
-            >
-              取消
-            </Button>
-            <Button type="submit" disabled={isCreating || !user}>
-              {isCreating ? "建立中…" : "直接建立"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }
 ````
@@ -3373,68 +2737,6 @@ export function useGlobalSearch() {
   }, []);
 
   return { open, setOpen };
-}
-````
-
-## File: app/(shell)/_components/header-controls.tsx
-````typescript
-"use client";
-
-/**
- * Module: header-controls.tsx
- * Purpose: compose shell header utility controls.
- * Responsibilities: language switch, theme toggle, and notification entry.
- * Constraints: presentation-only, no domain orchestration.
- */
-
-import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
-
-import { useAuth } from "@/app/providers/auth-provider";
-import { NotificationBell } from "@/modules/notification/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { TranslationSwitcher } from "./translation-switcher";
-
-const THEME_KEY = "xuanwu_theme";
-
-export function HeaderControls() {
-  const { state: authState } = useAuth();
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window === "undefined") return "light";
-    const storedTheme = window.localStorage.getItem(THEME_KEY);
-    if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
-    return document.documentElement.classList.contains("dark") ? "dark" : "light";
-  });
-
-  const recipientId = authState.user?.id ?? "";
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    window.localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
-
-  function toggleTheme() {
-    setTheme((current) => (current === "light" ? "dark" : "light"));
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <TranslationSwitcher />
-
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-sm"
-        onClick={toggleTheme}
-        aria-label="Toggle theme"
-        className="text-muted-foreground"
-      >
-        {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-      </Button>
-
-      <NotificationBell recipientId={recipientId} />
-    </div>
-  );
 }
 ````
 
@@ -3840,60 +3142,6 @@ export function NavUser({ name, email, onSignOut }: NavUserProps) {
       </Button>
     </div>
   );
-}
-````
-
-## File: app/(shell)/_components/shell-guard.tsx
-````typescript
-"use client";
-
-/**
- * shell-guard.tsx
- * Client-side auth guard for the authenticated shell.
- *
- * Responsibilities:
- *  1. Redirect to `/` (public auth page) when auth status is "unauthenticated"
- *  2. Mount useTokenRefreshListener for [S6] Claims refresh (Party 3)
- *  3. Show a loading state while auth is initializing
- */
-
-import { useEffect, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
-
-import { useAuth } from "@/app/providers/auth-provider";
-import { useTokenRefreshListener } from "@/modules/identity/api";
-
-interface ShellGuardProps {
-  children: ReactNode;
-}
-
-export function ShellGuard({ children }: ShellGuardProps) {
-  const { state } = useAuth();
-  const { user, status } = state;
-  const router = useRouter();
-
-  // [S6] Party 3: force-refresh ID token when a TOKEN_REFRESH_SIGNAL is emitted
-  useTokenRefreshListener(user?.id ?? null);
-
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.replace("/");
-    }
-  }, [status, router]);
-
-  if (status === "initializing") {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
-  }
-
-  if (status === "unauthenticated") {
-    return null;
-  }
-
-  return <>{children}</>;
 }
 ````
 
@@ -6950,368 +6198,12 @@ export default function KnowledgePagesPage() {
 }
 ````
 
-## File: app/(shell)/layout.tsx
-````typescript
-"use client";
-
-/**
- * Module: shell layout
- * Purpose: compose authenticated shell frame with sidebar, header, and content area.
- * Responsibilities: account switching, route guards, and shell-level UI composition.
- * Constraints: keep business logic in modules and providers, not layout rendering.
- */
-
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { PanelLeftOpen, Search } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import type { AccountEntity } from "@/modules/account/api";
-import { AccountSwitcher } from "./_components/account-switcher";
-import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
-import { AppRail } from "./_components/app-rail";
-import { DashboardSidebar } from "./_components/dashboard-sidebar";
-import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
-import { HeaderControls } from "./_components/header-controls";
-import { HeaderUserAvatar } from "./_components/header-user-avatar";
-import { ShellGuard } from "./_components/shell-guard";
-
-const routeTitles: Record<string, string> = {
-  "/organization": "組織治理",
-  "/organization/daily": "Account · 每日",
-  "/organization/schedule": "Account · 排程",
-  "/organization/schedule/dispatcher": "Account · 調度台",
-  "/organization/audit": "Account · 稽核",
-  "/workspace": "工作區中心",
-  "/knowledge": "Knowledge Hub",
-  "/knowledge/pages": "Knowledge · 頁面",
-  "/knowledge/block-editor": "Knowledge · 區塊編輯器",
-  "/knowledge-base/articles": "Knowledge Base · 文章",
-  "/knowledge-database/databases": "Knowledge Database · 資料庫",
-  "/source/documents": "Source · 文件來源",
-  "/source/libraries": "Source · Libraries",
-  "/notebook/rag-query": "Notebook · Ask / Cite",
-  "/ai-chat": "AI Chat",
-  "/dev-tools": "開發工具",
-};
-
-/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
-const mobileNavItems = [
-  { href: "/workspace", label: "工作區" },
-];
-
-const orgPrimaryItems = [
-  { label: "成員", href: "/organization/members" },
-  { label: "團隊", href: "/organization/teams" },
-  { label: "權限", href: "/organization/permissions" },
-  { label: "工作區", href: "/organization/workspaces" },
-] as const;
-
-const orgSecondaryItems = [
-  { label: "排程", href: "/organization/schedule" },
-  { label: "每日", href: "/organization/daily" },
-  { label: "稽核", href: "/organization/audit" },
-] as const;
-
-function isOrganizationAccount(
-  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-function resolveShellRouteForAccount(
-  pathname: string,
-  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
-) {
-  const nextAccountIsOrganization =
-    nextAccount != null && "accountType" in nextAccount && nextAccount.accountType === "organization";
-
-  if (pathname === "/organization" && !nextAccountIsOrganization) {
-    return "/workspace";
-  }
-
-  return null;
-}
-
-export default function ShellLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { state: authState, logout } = useAuth();
-  const { state: appState, dispatch } = useApp();
-  const [logoutError, setLogoutError] = useState<string | null>(null);
-  const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
-  });
-
-  function toggleSidebar() {
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
-      }
-      return next;
-    });
-  }
-
-  const pageTitle = routeTitles[pathname] ?? "工作區";
-  const organizationAccounts = Object.values(appState.accounts ?? {});
-  const accountWorkspaces = Object.values(appState.workspaces ?? {});
-  const showAccountManagement = isOrganizationAccount(appState.activeAccount);
-
-  function isActiveRoute(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  function handleSelectOrganization(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    const nextRoute = resolveShellRouteForAccount(pathname, account);
-    if (nextRoute) {
-      router.replace(nextRoute);
-    }
-  }
-
-  function handleSelectPersonal() {
-    if (!authState.user) return;
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
-    const nextRoute = resolveShellRouteForAccount(pathname, authState.user);
-    if (nextRoute) {
-      router.replace(nextRoute);
-    }
-  }
-
-  function handleOrganizationCreated(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-  }
-
-  function handleSelectWorkspace(workspaceId: string | null) {
-    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspaceId });
-  }
-
-  useEffect(() => {
-    if (!appState.accountsHydrated || !appState.activeAccount) {
-      return;
-    }
-
-    const nextRoute = resolveShellRouteForAccount(pathname, appState.activeAccount);
-    if (nextRoute && nextRoute !== pathname) {
-      router.replace(nextRoute);
-    }
-  }, [appState.accountsHydrated, appState.activeAccount, pathname, router]);
-
-  async function handleLogout() {
-    setLogoutError(null);
-    try {
-      await logout();
-    } catch {
-      setLogoutError("登出失敗，請稍後再試。");
-    }
-  }
-
-  return (
-    <ShellGuard>
-      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
-      <div className="flex h-screen overflow-hidden bg-background">
-        <AppRail
-          pathname={pathname}
-          user={authState.user}
-          activeAccount={appState.activeAccount}
-          organizationAccounts={organizationAccounts}
-          workspaces={accountWorkspaces}
-          workspacesHydrated={appState.workspacesHydrated}
-          isOrganizationAccount={showAccountManagement}
-          onSelectPersonal={handleSelectPersonal}
-          onSelectOrganization={handleSelectOrganization}
-          activeWorkspaceId={appState.activeWorkspaceId}
-          onSelectWorkspace={handleSelectWorkspace}
-          onOrganizationCreated={handleOrganizationCreated}
-          onSignOut={() => {
-            void handleLogout();
-          }}
-        />
-        <DashboardSidebar
-          pathname={pathname}
-          activeAccount={appState.activeAccount}
-          workspaces={accountWorkspaces}
-          workspacesHydrated={appState.workspacesHydrated}
-          activeWorkspaceId={appState.activeWorkspaceId}
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={toggleSidebar}
-          onSelectWorkspace={handleSelectWorkspace}
-        />
-
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
-            <div className="flex h-12 items-center justify-between gap-4">
-              <div className="min-w-0 flex items-center gap-3">
-                {sidebarCollapsed && (
-                  <button
-                    type="button"
-                    onClick={toggleSidebar}
-                    aria-label="展開側欄"
-                    title="展開側欄"
-                    className="hidden size-7 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground md:flex"
-                  >
-                    <PanelLeftOpen className="size-4" />
-                  </button>
-                )}
-                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
-                <AppBreadcrumbs />
-                {/* Global search */}
-                <button
-                  type="button"
-                  aria-label="全域搜尋"
-                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
-                  onClick={() => setSearchOpen(true)}
-                >
-                  <Search className="size-3 shrink-0" />
-                  <span>搜尋…</span>
-                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
-                </button>
-              </div>
-
-              <div className="ml-auto flex items-center gap-3">
-                <HeaderControls />
-                <HeaderUserAvatar
-                  name={authState.user?.name ?? "Dimension Member"}
-                  email={authState.user?.email ?? "—"}
-                  onSignOut={() => {
-                    void handleLogout();
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3 pb-3 md:hidden">
-              <AccountSwitcher
-                personalAccount={authState.user}
-                organizationAccounts={organizationAccounts}
-                activeAccountId={appState.activeAccount?.id ?? null}
-                onSelectPersonal={handleSelectPersonal}
-                onSelectOrganization={handleSelectOrganization}
-                onOrganizationCreated={handleOrganizationCreated}
-              />
-            </div>
-
-            {showAccountManagement && (
-              <>
-                <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
-                  {orgPrimaryItems.map((item) => {
-                    const isActive = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive ? "page" : undefined}
-                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "border border-border/60 text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-                <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
-                  {orgSecondaryItems.map((item) => {
-                    const isActive = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive ? "page" : undefined}
-                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "border border-border/60 text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-              </>
-            )}
-            <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
-              {mobileNavItems.map((item) => {
-                const isActive = isActiveRoute(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "border border-border/60 text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </header>
-
-          {logoutError && (
-            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
-          )}
-
-          <main className="flex-1 overflow-auto p-6">{children}</main>
-        </div>
-      </div>
-    </ShellGuard>
-  );
-}
-````
-
 ## File: app/(shell)/notebook/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
 
 export default function NotebookPage() {
   redirect("/notebook/rag-query");
-}
-````
-
-## File: app/(shell)/organization/_utils.ts
-````typescript
-import type { AccountEntity } from "@/modules/account/api";
-import type { ActiveAccount } from "@/app/providers/app-context";
-
-export function isOrganizationAccount(
-  activeAccount: ActiveAccount | null,
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-export function formatDateTime(value: string | Date | null | undefined): string {
-  if (!value) return "—";
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(value instanceof Date ? value : new Date(value));
-  } catch {
-    return value instanceof Date ? value.toISOString() : String(value);
-  }
 }
 ````
 
@@ -7328,659 +6220,6 @@ export default function OrganizationKnowledgePage() {
 }
 ````
 
-## File: app/(shell)/organization/members/page.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { dismissMember, getOrganizationMembers, inviteMember } from "@/modules/organization/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { isOrganizationAccount } from "../_utils";
-
-type MemberRole = "Admin" | "Member" | "Guest";
-
-export default function OrganizationMembersPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  const [members, setMembers] = useState<Awaited<ReturnType<typeof getOrganizationMembers>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<MemberRole>("Member");
-  const [inviteSubmitting, setInviteSubmitting] = useState(false);
-  const [inviteError, setInviteError] = useState<string | null>(null);
-
-  const [removingId, setRemovingId] = useState<string | null>(null);
-
-  async function loadMembers(organizationId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getOrganizationMembers(organizationId);
-      setMembers(data);
-      setLoadState("loaded");
-    } catch {
-      setMembers([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    const organizationId: string = activeOrganizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrganizationMembers(organizationId);
-        if (!cancelled) {
-          setMembers(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setMembers([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
-
-  async function handleInvite() {
-    if (!activeOrganizationId || !inviteEmail.trim()) return;
-    setInviteSubmitting(true);
-    setInviteError(null);
-    const result = await inviteMember({
-      organizationId: activeOrganizationId,
-      email: inviteEmail.trim(),
-      teamId: "",
-      role: inviteRole,
-      protocol: "email",
-    });
-    setInviteSubmitting(false);
-    if (result.success) {
-      setInviteOpen(false);
-      setInviteEmail("");
-      setInviteRole("Member");
-      await loadMembers(activeOrganizationId);
-    } else {
-      setInviteError(result.error.message);
-    }
-  }
-
-  async function handleDismiss(memberId: string) {
-    if (!activeOrganizationId) return;
-    setRemovingId(memberId);
-    await dismissMember(activeOrganizationId, memberId);
-    setRemovingId(null);
-    await loadMembers(activeOrganizationId);
-  }
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">成員</h1>
-          <p className="mt-1 text-sm text-muted-foreground">組織成員清單與目前角色。</p>
-        </div>
-        <Button onClick={() => setInviteOpen(true)}>邀請成員</Button>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Members</CardTitle>
-          <CardDescription>組織成員清單與目前角色。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入成員資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取成員資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && members.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的成員資料。</p>
-          )}
-          {loadState === "loaded" &&
-            members.map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center justify-between rounded-lg border border-border/40 px-3 py-2"
-              >
-                <div>
-                  <p className="text-sm font-medium">{member.name}</p>
-                  <p className="text-xs text-muted-foreground">{member.email}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{member.role}</Badge>
-                  <Badge variant="secondary">{member.presence}</Badge>
-                  {member.role !== "Owner" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={removingId === member.id}
-                      onClick={() => handleDismiss(member.id)}
-                    >
-                      移除
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>邀請成員</DialogTitle>
-            <DialogDescription>輸入電子信箱以邀請新成員加入組織。</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="invite-email">電子信箱</Label>
-              <Input
-                id="invite-email"
-                type="email"
-                placeholder="member@example.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="invite-role">角色</Label>
-              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as MemberRole)}>
-                <SelectTrigger id="invite-role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Admin">Admin</SelectItem>
-                  <SelectItem value="Member">Member</SelectItem>
-                  <SelectItem value="Guest">Guest</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setInviteOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleInvite} disabled={inviteSubmitting || !inviteEmail.trim()}>
-              {inviteSubmitting ? "邀請中…" : "送出邀請"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/organization/page.tsx
-````typescript
-"use client";
-
-/**
- * Organization Overview Page — /organization
- * Lists organizations visible to the current user and allows switching
- * to an organization account context.
- * Section pages live under /organization/[section].
- */
-
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import type { AccountEntity } from "@/modules/account/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-function isOrganizationAccount(
-  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-export default function OrganizationPage() {
-  const router = useRouter();
-  const { state: appState, dispatch } = useApp();
-  const { state: authState } = useAuth();
-  const { user } = authState;
-  const { accounts, activeAccount, accountsHydrated, bootstrapPhase } = appState;
-
-  const orgList = Object.values(accounts);
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  function handleSwitch(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    router.replace("/workspace");
-  }
-
-  function handleSwitchToPersonal() {
-    if (!user) return;
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
-    router.replace("/workspace");
-  }
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Account Context Switcher</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          先選擇個人或組織帳號情境，再回到 workspace-first 主流程。
-        </p>
-      </div>
-
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="text-base font-semibold">Recommended flow</h2>
-        <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
-          <li>
-            <span className="font-medium text-foreground">1. Identity</span>：登入後確認你目前要操作的個人／組織帳號。
-          </li>
-          <li>
-            <span className="font-medium text-foreground">2. Organization</span>：在這裡切換 active account。
-          </li>
-          <li>
-            <span className="font-medium text-foreground">3. Workspace</span>：回到工作區，再進入 Knowledge、知識頁面、Notebook / AI。
-          </li>
-        </ol>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button asChild size="sm">
-            <Link href="/workspace">回到 Workspace Hub</Link>
-          </Button>
-          {activeOrganizationId && (
-            <Button asChild size="sm" variant="outline">
-              <Link href="/organization/members">組織治理模組</Link>
-            </Button>
-          )}
-        </div>
-      </section>
-
-      {/* Quick-access dashboard — visible only when an org context is active */}
-      {activeOrganizationId && (
-        <section className="space-y-3">
-          <h2 className="text-base font-semibold">組織功能</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {[
-              { href: "/organization/members", title: "成員管理", desc: "邀請與管理組織成員" },
-              { href: "/organization/teams", title: "團隊管理", desc: "建立與編輯團隊" },
-              { href: "/organization/permissions", title: "權限政策", desc: "設定存取規則" },
-              { href: "/organization/workspaces", title: "工作區", desc: "組織下的工作區清單" },
-              { href: "/organization/schedule", title: "工作需求排程", desc: "排程與容量總覽" },
-              { href: "/organization/audit", title: "稽核記錄", desc: "操作歷史追蹤" },
-              { href: "/organization/daily", title: "動態牆", desc: "組織工作區動態" },
-            ].map((item) => (
-              <Link key={item.href} href={item.href} className="group">
-                <Card className="h-full transition-colors group-hover:border-primary/50 group-hover:bg-accent/40">
-                  <CardHeader className="pb-2 pt-4">
-                    <CardTitle className="text-sm">{item.title}</CardTitle>
-                    <CardDescription className="text-xs">{item.desc}</CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          {bootstrapPhase === "seeded"
-            ? "正在同步你的組織清單，完成後就能切換到對應的組織上下文。"
-            : "正在載入組織資料…"}
-        </div>
-      )}
-
-      {/* Personal account */}
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold">Personal Account</h2>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-medium">{user?.name ?? "—"}</p>
-            <p className="text-xs text-muted-foreground">{user?.email}</p>
-          </div>
-          {activeAccount?.id === user?.id ? (
-            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-              Active
-            </span>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleSwitchToPersonal}
-            >
-              Switch
-            </Button>
-          )}
-        </div>
-      </section>
-
-      {/* Organizations */}
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold">
-          Organizations
-          <span className="ml-2 text-xs font-normal text-muted-foreground">
-            ({orgList.length})
-          </span>
-        </h2>
-
-        {orgList.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            You are not a member of any organization yet.
-          </p>
-        ) : (
-          <ul className="space-y-3">
-            {orgList.map((org) => (
-              <li
-                key={org.id}
-                className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3"
-              >
-                <div>
-                  <p className="font-medium">{org.name}</p>
-                  {org.description && (
-                    <p className="text-xs text-muted-foreground">{org.description}</p>
-                  )}
-                </div>
-                {activeAccount?.id === org.id ? (
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                    Active
-                  </span>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSwitch(org)}
-                  >
-                    Switch
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {activeOrganizationId && (
-        <p className="text-sm text-muted-foreground">
-          已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
-        </p>
-      )}
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/organization/permissions/page.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { createOrgPolicy, getOrgPolicies } from "@/modules/organization/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { isOrganizationAccount } from "../_utils";
-
-type PolicyScope = "workspace" | "member" | "global";
-
-export default function OrganizationPermissionsPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  const [policies, setPolicies] = useState<Awaited<ReturnType<typeof getOrgPolicies>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newScope, setNewScope] = useState<PolicyScope>("member");
-  const [createSubmitting, setCreateSubmitting] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  async function loadPolicies(organizationId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getOrgPolicies(organizationId);
-      setPolicies(data);
-      setLoadState("loaded");
-    } catch {
-      setPolicies([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    const organizationId: string = activeOrganizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrgPolicies(organizationId);
-        if (!cancelled) {
-          setPolicies(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setPolicies([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
-
-  async function handleCreate() {
-    if (!activeOrganizationId || !newName.trim()) return;
-    setCreateSubmitting(true);
-    setCreateError(null);
-    const result = await createOrgPolicy({
-      orgId: activeOrganizationId,
-      name: newName.trim(),
-      description: newDescription.trim(),
-      rules: [],
-      scope: newScope,
-    });
-    setCreateSubmitting(false);
-    if (result.success) {
-      setCreateOpen(false);
-      setNewName("");
-      setNewDescription("");
-      setNewScope("member");
-      await loadPolicies(activeOrganizationId);
-    } else {
-      setCreateError(result.error.message);
-    }
-  }
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">權限</h1>
-          <p className="mt-1 text-sm text-muted-foreground">組織層級政策規則與 scope。</p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>新增政策</Button>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Permissions</CardTitle>
-          <CardDescription>組織層級政策規則與 scope。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入政策資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取政策資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && policies.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的政策資料。</p>
-          )}
-          {loadState === "loaded" &&
-            policies.map((policy) => (
-              <div key={policy.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium">{policy.name}</p>
-                  <Badge variant="outline">{policy.scope}</Badge>
-                  <Badge variant={policy.isActive ? "default" : "secondary"}>
-                    {policy.isActive ? "active" : "inactive"}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{policy.description}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Rules: {policy.rules.length}</p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>新增政策</DialogTitle>
-            <DialogDescription>建立組織層級存取控制政策。</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="policy-name">名稱</Label>
-              <Input
-                id="policy-name"
-                placeholder="政策名稱"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="policy-description">描述</Label>
-              <Input
-                id="policy-description"
-                placeholder="選填"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="policy-scope">Scope</Label>
-              <Select value={newScope} onValueChange={(v) => setNewScope(v as PolicyScope)}>
-                <SelectTrigger id="policy-scope">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="member">Member（成員）</SelectItem>
-                  <SelectItem value="workspace">Workspace（工作區）</SelectItem>
-                  <SelectItem value="global">Global（全域）</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {createError && <p className="text-sm text-destructive">{createError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
-              {createSubmitting ? "建立中…" : "建立"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/organization/schedule/dispatcher/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
@@ -7994,224 +6233,6 @@ export default function DispatcherPage() {
 }
 ````
 
-## File: app/(shell)/organization/teams/page.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { createTeam, getOrganizationTeams } from "@/modules/organization/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { isOrganizationAccount } from "../_utils";
-
-export default function OrganizationTeamsPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  const [teams, setTeams] = useState<Awaited<ReturnType<typeof getOrganizationTeams>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newType, setNewType] = useState<"internal" | "external">("internal");
-  const [createSubmitting, setCreateSubmitting] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  async function loadTeams(organizationId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getOrganizationTeams(organizationId);
-      setTeams(data);
-      setLoadState("loaded");
-    } catch {
-      setTeams([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    const organizationId: string = activeOrganizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrganizationTeams(organizationId);
-        if (!cancelled) {
-          setTeams(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setTeams([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
-
-  async function handleCreate() {
-    if (!activeOrganizationId || !newName.trim()) return;
-    setCreateSubmitting(true);
-    setCreateError(null);
-    const result = await createTeam({
-      organizationId: activeOrganizationId,
-      name: newName.trim(),
-      description: newDescription.trim(),
-      type: newType,
-    });
-    setCreateSubmitting(false);
-    if (result.success) {
-      setCreateOpen(false);
-      setNewName("");
-      setNewDescription("");
-      setNewType("internal");
-      await loadTeams(activeOrganizationId);
-    } else {
-      setCreateError(result.error.message);
-    }
-  }
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">團隊</h1>
-          <p className="mt-1 text-sm text-muted-foreground">組織團隊與成員關聯。</p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>建立團隊</Button>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Teams</CardTitle>
-          <CardDescription>組織團隊與成員關聯。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入團隊資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取團隊資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && teams.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的團隊資料。</p>
-          )}
-          {loadState === "loaded" &&
-            teams.map((team) => (
-              <div key={team.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">{team.name}</p>
-                  <Badge variant="outline">{team.type}</Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{team.description || "—"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Members: {team.memberIds.length}
-                </p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>建立團隊</DialogTitle>
-            <DialogDescription>填寫團隊名稱與類型以建立新團隊。</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="team-name">名稱</Label>
-              <Input
-                id="team-name"
-                placeholder="團隊名稱"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="team-description">描述</Label>
-              <Input
-                id="team-description"
-                placeholder="選填"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="team-type">類型</Label>
-              <Select
-                value={newType}
-                onValueChange={(v) => setNewType(v as "internal" | "external")}
-              >
-                <SelectTrigger id="team-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="internal">Internal（內部）</SelectItem>
-                  <SelectItem value="external">External（外部）</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {createError && <p className="text-sm text-destructive">{createError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
-              {createSubmitting ? "建立中…" : "建立"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/settings/general/page.tsx
 ````typescript
 /**
@@ -8221,180 +6242,6 @@ import { redirect } from "next/navigation";
 
 export default function SettingsGeneralPage() {
   redirect("/workspace");
-}
-````
-
-## File: app/(shell)/settings/notifications/page.tsx
-````typescript
-/**
- * Route: /settings/notifications
- * Purpose: Full-page notification center showing all notifications for the
- *          authenticated user with read/unread filtering and bulk actions.
- */
-"use client";
-
-import { Bell, CheckCheck, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-
-import { useAuth } from "@/app/providers/auth-provider";
-import {
-  markAllNotificationsRead,
-  markNotificationRead,
-  getNotificationsForRecipient,
-  type NotificationEntity,
-} from "@/modules/notification/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-type Filter = "all" | "unread";
-
-const TYPE_BADGE: Record<string, string> = {
-  info: "bg-blue-100 text-blue-800",
-  alert: "bg-red-100 text-red-800",
-  success: "bg-green-100 text-green-800",
-  warning: "bg-yellow-100 text-yellow-800",
-};
-
-function formatTime(ts: number) {
-  return new Intl.DateTimeFormat("zh-TW", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(ts));
-}
-
-export default function NotificationCenterPage() {
-  const { state: authState } = useAuth();
-  const recipientId = authState.user?.id ?? "";
-
-  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState<Filter>("all");
-  const [isPending, startTransition] = useTransition();
-
-  const load = useCallback(async () => {
-    if (!recipientId) { setIsLoading(false); return; }
-    setIsLoading(true);
-    try {
-      const data = await getNotificationsForRecipient(recipientId, 100);
-      setNotifications(data);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [recipientId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  const displayed = useMemo(
-    () => filter === "unread" ? notifications.filter((n) => !n.read) : notifications,
-    [notifications, filter],
-  );
-
-  const unreadCount = useMemo(
-    () => notifications.filter((n) => !n.read).length,
-    [notifications],
-  );
-
-  function handleMarkOne(id: string) {
-    startTransition(async () => {
-      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
-      await markNotificationRead(id, recipientId);
-    });
-  }
-
-  function handleMarkAll() {
-    startTransition(async () => {
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      await markAllNotificationsRead(recipientId);
-    });
-  }
-
-  return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-xl font-semibold">通知中心</h1>
-          {unreadCount > 0 && (
-            <Badge variant="secondary" className="ml-1">{unreadCount} 未讀</Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setFilter((f) => f === "all" ? "unread" : "all")}
-            className="text-xs"
-          >
-            {filter === "all" ? "只看未讀" : "顯示全部"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isPending || unreadCount === 0}
-            onClick={handleMarkAll}
-            className="text-xs gap-1"
-          >
-            <CheckCheck className="h-3.5 w-3.5" />
-            全部標為已讀
-          </Button>
-        </div>
-      </div>
-
-      {/* Body */}
-      {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : displayed.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground">
-          <Bell className="h-10 w-10 opacity-30" />
-          <p className="text-sm">{filter === "unread" ? "沒有未讀通知" : "目前沒有通知"}</p>
-        </div>
-      ) : (
-        <ul className="divide-y divide-border rounded-lg border">
-          {displayed.map((n) => (
-            <li
-              key={n.id}
-              className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40 ${n.read ? "opacity-60" : ""}`}
-            >
-              {!n.read && (
-                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />
-              )}
-              {n.read && <span className="mt-2 h-2 w-2 shrink-0" />}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-medium">{n.title}</p>
-                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${TYPE_BADGE[n.type] ?? ""}`}>
-                    {n.type}
-                  </span>
-                </div>
-                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.message}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">{formatTime(n.timestamp)}</p>
-              </div>
-              {!n.read && (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={isPending}
-                  onClick={() => handleMarkOne(n.id)}
-                  title="標為已讀"
-                  className="shrink-0 text-muted-foreground hover:text-foreground"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
 }
 ````
 
@@ -9883,272 +7730,6 @@ Application layer 只負責：
 - 模組 README：`../../../modules/account/README.md`
 - 模組 AGENT：`../../../modules/account/AGENT.md`
 - 與 application layer 有關的模組內就地文件：`../../../modules/account/application-services.md`
-````
-
-## File: modules/account/application/use-cases/account-policy.use-cases.ts
-````typescript
-/**
- * Account Policy Use Cases — pure business workflows.
- * Per [S6]: account policy changes trigger CUSTOM_CLAIMS refresh (via TOKEN_REFRESH_SIGNAL).
- * No React, no Firebase, no UI framework.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { AccountPolicyRepository } from "../../domain/repositories/AccountPolicyRepository";
-import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
-import { identityApi } from "@/modules/identity/api";
-
-// ─── Create Account Policy ────────────────────────────────────────────────────
-
-export class CreateAccountPolicyUseCase {
-  constructor(
-    private readonly policyRepo: AccountPolicyRepository,
-  ) {}
-
-  async execute(input: CreatePolicyInput): Promise<CommandResult> {
-    try {
-      const policy = await this.policyRepo.create(input);
-      // [S6] Emit token refresh signal after policy change so frontend refreshes claims.
-      await identityApi.emitTokenRefreshSignal({
-        accountId: input.accountId,
-        reason: "policy:changed",
-        ...(input.traceId ? { traceId: input.traceId } : {}),
-      });
-      return commandSuccess(policy.id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_ACCOUNT_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to create account policy",
-      );
-    }
-  }
-}
-
-// ─── Update Account Policy ────────────────────────────────────────────────────
-
-export class UpdateAccountPolicyUseCase {
-  constructor(
-    private readonly policyRepo: AccountPolicyRepository,
-  ) {}
-
-  async execute(
-    policyId: string,
-    accountId: string,
-    data: UpdatePolicyInput,
-  ): Promise<CommandResult> {
-    try {
-      const existing = await this.policyRepo.findById(policyId);
-      if (!existing) {
-        return commandFailureFrom("ACCOUNT_POLICY_NOT_FOUND", `Policy ${policyId} not found`);
-      }
-      await this.policyRepo.update(policyId, data);
-      // [S6] Emit refresh signal after policy change.
-      await identityApi.emitTokenRefreshSignal({
-        accountId,
-        reason: "policy:changed",
-      });
-      return commandSuccess(policyId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_ACCOUNT_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to update account policy",
-      );
-    }
-  }
-}
-
-// ─── Delete Account Policy ────────────────────────────────────────────────────
-
-export class DeleteAccountPolicyUseCase {
-  constructor(
-    private readonly policyRepo: AccountPolicyRepository,
-  ) {}
-
-  async execute(policyId: string, accountId: string): Promise<CommandResult> {
-    try {
-      const existing = await this.policyRepo.findById(policyId);
-      if (!existing) {
-        return commandFailureFrom("ACCOUNT_POLICY_NOT_FOUND", `Policy ${policyId} not found`);
-      }
-      await this.policyRepo.delete(policyId);
-      // [S6] Emit refresh signal after policy deletion.
-      await identityApi.emitTokenRefreshSignal({
-        accountId,
-        reason: "policy:changed",
-      });
-      return commandSuccess(policyId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DELETE_ACCOUNT_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to delete account policy",
-      );
-    }
-  }
-}
-````
-
-## File: modules/account/application/use-cases/account.use-cases.ts
-````typescript
-/**
- * Account Use Cases — pure business workflows.
- * No React, no Firebase, no UI framework.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { AccountRepository } from "../../domain/repositories/AccountRepository";
-import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
-import { identityApi } from "@/modules/identity/api";
-
-// ─── Create Account ───────────────────────────────────────────────────────────
-
-export class CreateUserAccountUseCase {
-  constructor(private readonly accountRepo: AccountRepository) {}
-
-  async execute(userId: string, name: string, email: string): Promise<CommandResult> {
-    try {
-      await this.accountRepo.save({
-        id: userId,
-        name,
-        email,
-        accountType: "user",
-      });
-      return commandSuccess(userId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_USER_ACCOUNT_FAILED",
-        err instanceof Error ? err.message : "Failed to create user account",
-      );
-    }
-  }
-}
-
-// ─── Update Profile ───────────────────────────────────────────────────────────
-
-export class UpdateUserProfileUseCase {
-  constructor(private readonly accountRepo: AccountRepository) {}
-
-  async execute(userId: string, data: UpdateProfileInput): Promise<CommandResult> {
-    try {
-      await this.accountRepo.updateProfile(userId, data);
-      return commandSuccess(userId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_USER_PROFILE_FAILED",
-        err instanceof Error ? err.message : "Failed to update user profile",
-      );
-    }
-  }
-}
-
-// ─── Credit Wallet ────────────────────────────────────────────────────────────
-
-export class CreditWalletUseCase {
-  constructor(private readonly accountRepo: AccountRepository) {}
-
-  async execute(
-    accountId: string,
-    amount: number,
-    description: string,
-  ): Promise<CommandResult> {
-    try {
-      if (amount <= 0) {
-        return commandFailureFrom("WALLET_INVALID_AMOUNT", "Credit amount must be positive");
-      }
-      const tx = await this.accountRepo.creditWallet(accountId, amount, description);
-      return commandSuccess(tx.id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WALLET_CREDIT_FAILED",
-        err instanceof Error ? err.message : "Failed to credit wallet",
-      );
-    }
-  }
-}
-
-// ─── Debit Wallet ─────────────────────────────────────────────────────────────
-
-export class DebitWalletUseCase {
-  constructor(private readonly accountRepo: AccountRepository) {}
-
-  async execute(
-    accountId: string,
-    amount: number,
-    description: string,
-  ): Promise<CommandResult> {
-    try {
-      if (amount <= 0) {
-        return commandFailureFrom("WALLET_INVALID_AMOUNT", "Debit amount must be positive");
-      }
-      const balance = await this.accountRepo.getWalletBalance(accountId);
-      if (balance < amount) {
-        return commandFailureFrom("WALLET_INSUFFICIENT_FUNDS", "Insufficient wallet balance");
-      }
-      const tx = await this.accountRepo.debitWallet(accountId, amount, description);
-      return commandSuccess(tx.id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WALLET_DEBIT_FAILED",
-        err instanceof Error ? err.message : "Failed to debit wallet",
-      );
-    }
-  }
-}
-
-// ─── Assign Role ──────────────────────────────────────────────────────────────
-
-export class AssignAccountRoleUseCase {
-  constructor(
-    private readonly accountRepo: AccountRepository,
-  ) {}
-
-  async execute(
-    accountId: string,
-    role: OrganizationRole,
-    grantedBy: string,
-    traceId?: string,
-  ): Promise<CommandResult> {
-    try {
-      const record = await this.accountRepo.assignRole(accountId, role, grantedBy);
-      // [S6] Emit TOKEN_REFRESH_SIGNAL so frontend force-refreshes Custom Claims.
-      await identityApi.emitTokenRefreshSignal({
-        accountId,
-        reason: "role:changed",
-        ...(traceId ? { traceId } : {}),
-      });
-      return commandSuccess(record.accountId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "ASSIGN_ROLE_FAILED",
-        err instanceof Error ? err.message : "Failed to assign role",
-      );
-    }
-  }
-}
-
-// ─── Revoke Role ──────────────────────────────────────────────────────────────
-
-export class RevokeAccountRoleUseCase {
-  constructor(
-    private readonly accountRepo: AccountRepository,
-  ) {}
-
-  async execute(accountId: string): Promise<CommandResult> {
-    try {
-      await this.accountRepo.revokeRole(accountId);
-      // [S6] Emit TOKEN_REFRESH_SIGNAL after role revocation.
-      await identityApi.emitTokenRefreshSignal({
-        accountId,
-        reason: "role:changed",
-      });
-      return commandSuccess(accountId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "REVOKE_ROLE_FAILED",
-        err instanceof Error ? err.message : "Failed to revoke role",
-      );
-    }
-  }
-}
 ````
 
 ## File: modules/account/context-map.md
@@ -12113,1035 +9694,6 @@ export class InMemoryIngestionJobRepository implements IngestionJobRepository {
 | `IngestionDocument` | `Document`, `File`（在 ai BC 內） |
 | `IngestionChunk` | `Chunk`, `VectorEntry` |
 | `IngestionStatus` | `JobStatus`, `State` |
-````
-
-## File: modules/identity/AGENT.md
-````markdown
-# AGENT.md — identity BC
-
-## 模組定位
-
-`identity` 是 Firebase Authentication 的 domain 薄層封裝。無業務邏輯，只有驗證基礎設施抽象。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Identity` | User、CurrentUser、AuthUser |
-| `TokenRefreshSignal` | TokenEvent、RefreshToken |
-| `signIn` | login、authenticate |
-| `signOut` | logout |
-| `uid` | userId、id（在此 BC 內） |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { identityApi } from "@/modules/identity/api";
-import type { IdentityDTO } from "@/modules/identity/api";
-```
-
-### ❌ 禁止
-```typescript
-import { useTokenRefreshListener } from "@/modules/identity/interfaces/hooks/useTokenRefreshListener";
-// ❌ api/ 不能含 "use client" 匯出 — account use-cases 在 server 端 import api/
-```
-
-## 關鍵守衛
-
-- `modules/identity/api/index.ts` 不得 re-export 任何含 `"use client"` 的檔案
-- hooks（`useTokenRefreshListener`）只能從 interfaces 層使用，不可進入 api barrel
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/identity/aggregates.md
-````markdown
-# Aggregates — identity
-
-## 聚合根：Identity
-
-### 職責
-代表一個已通過 Firebase Authentication 驗證的使用者。提供讀取身份資訊的能力。
-
-### 屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `uid` | `string` | Firebase UID（主鍵） |
-| `email` | `string \| null` | 使用者 Email |
-| `displayName` | `string \| null` | 顯示名稱 |
-| `photoURL` | `string \| null` | 頭像 URL |
-
-### 不變數
-
-- `uid` 永遠不為空（由 Firebase 保證）
-- `Identity` 物件是唯讀的（由 Firebase Auth SDK 產生）
-
----
-
-## 值物件：TokenRefreshSignal
-
-### 職責
-代表「token 需要刷新」的事件訊號，觸發 `account` 域更新 custom claims。
-
-### 屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `uid` | `string` | 需要刷新 token 的使用者 UID |
-| `occurredAt` | `string` | ISO 8601 時間戳 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 | 說明 |
-|------|---------|------|
-| `IdentityRepository` | `signIn()`, `signOut()`, `getCurrentIdentity()` | Firebase Auth 操作 |
-| `TokenRefreshRepository` | `listenToTokenRefresh()` | 監聽 token 刷新事件 |
-````
-
-## File: modules/identity/api/index.ts
-````typescript
-/**
- * identity 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 identity 模組內部實作。
- */
-
-import { FirebaseTokenRefreshRepository } from "../infrastructure/firebase/FirebaseTokenRefreshRepository";
-import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
-import type { TokenRefreshReason } from "../domain/entities/TokenRefreshSignal";
-
-// ─── DTO ──────────────────────────────────────────────────────────────────────
-
-/** 發送 Token Refresh 訊號所需的輸入參數。 */
-export interface EmitTokenRefreshSignalInput {
-  accountId: string;
-  reason: TokenRefreshReason;
-  traceId?: string;
-}
-
-// ─── 內部單例 ──────────────────────────────────────────────────────────────────
-
-const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
-const emitUseCase = new EmitTokenRefreshSignalUseCase(tokenRefreshRepo);
-
-// ─── 公開 API Facade ──────────────────────────────────────────────────────────
-
-export const identityApi = {
-  /**
-   * [S6] 發送 TOKEN_REFRESH_SIGNAL，通知前端重新整理 Custom Claims。
-   * 應在角色或政策變更後呼叫。
-   */
-  async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void> {
-    await emitUseCase.execute(input.accountId, input.reason, input.traceId);
-  },
-} as const;
-
-// ─── 公開 Use Cases & Infrastructure (供 composition root 使用) ──────────────
-
-export { FirebaseIdentityRepository } from "../infrastructure/firebase/FirebaseIdentityRepository";
-export {
-  SignInUseCase,
-  SignInAnonymouslyUseCase,
-  RegisterUseCase,
-  SendPasswordResetEmailUseCase,
-  SignOutUseCase,
-} from "../application/use-cases/identity.use-cases";
-
-// ─── Client-side use-case factory (client-only — do NOT import in Server Components) ──
-
-import { FirebaseIdentityRepository as _IdentityRepo } from "../infrastructure/firebase/FirebaseIdentityRepository";
-import {
-  SignInUseCase as _SignIn,
-  SignInAnonymouslyUseCase as _SignInAnon,
-  RegisterUseCase as _Register,
-  SendPasswordResetEmailUseCase as _ResetEmail,
-} from "../application/use-cases/identity.use-cases";
-
-/**
- * Creates a wired set of client-side auth use cases for use in "use client" components.
- * Keeps infrastructure wiring in the module boundary rather than in UI files.
- */
-export function createClientAuthUseCases() {
-  const repo = new _IdentityRepo();
-  return {
-    signInUseCase: new _SignIn(repo),
-    signInAnonymouslyUseCase: new _SignInAnon(repo),
-    registerUseCase: new _Register(repo),
-    sendPasswordResetEmailUseCase: new _ResetEmail(repo),
-  };
-}
-
-// ─── Server Actions ───────────────────────────────────────────────────────────
-
-export {
-  signIn,
-  signInAnonymously,
-  register,
-  sendPasswordResetEmail,
-  signOut,
-} from "../interfaces/_actions/identity.actions";
-
-// ─── Client-only hook (import only from "use client" files) ──────────────────
-
-export { useTokenRefreshListener } from "../interfaces/hooks/useTokenRefreshListener";
-````
-
-## File: modules/identity/application-services.md
-````markdown
-# identity — Application Services
-
-> **Canonical bounded context:** `identity`
-> **模組路徑:** `modules/identity/`
-> **Domain Type:** Generic Subdomain
-
-本文件記錄 `identity` 的 application layer 服務與 use cases。內容與 `modules/identity/application/` 實作保持一致。
-
-## Application Layer 職責
-
-封裝 Firebase Authentication，提供登入、登出與 token refresh 能力。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/identity-error-message.ts`
-- `application/use-cases/identity.use-cases.ts`
-- `application/use-cases/token-refresh.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/identity/README.md`
-- 模組 AGENT：`../../../modules/identity/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/identity/application-services.md`
-````
-
-## File: modules/identity/application/identity-error-message.ts
-````typescript
-/**
- * Narrow error shape used by auth flows when SDK or browser-thrown errors expose
- * only a code/message pair.
- */
-type StructuredError = {
-  code?: string
-  message?: string
-}
-
-const IDENTITY_ERROR_MESSAGES: Record<string, string> = {
-  // Firebase/browser-thrown auth failures have surfaced both hyphenated and
-  // underscored credential codes in different environments, so we normalize both.
-  "auth/network-request-failed": "We couldn’t reach the sign-in service. Check your connection and try again.",
-  "auth/invalid-credential": "The email or password is incorrect.",
-  "auth/invalid-login-credentials": "The email or password is incorrect.",
-  "auth/invalid_login_credentials": "The email or password is incorrect.",
-  "auth/user-not-found": "The email or password is incorrect.",
-  "auth/wrong-password": "The email or password is incorrect.",
-  "auth/email-already-in-use": "This email is already registered. Try signing in instead.",
-  "auth/weak-password": "Password must be at least 6 characters long.",
-  "auth/too-many-requests": "Too many attempts were made. Please wait a moment and try again.",
-  "auth/user-disabled": "This account is currently disabled. Contact support for help.",
-  "auth/operation-not-allowed": "This sign-in method is not available right now.",
-  "auth/invalid-email": "Enter a valid email address.",
-  "auth/missing-email": "Enter an email address.",
-  "auth/missing-password": "Enter a password.",
-}
-
-/**
- * Convert Firebase/browser auth failures into stable user-facing copy.
- * Falls back to the supplied message when no mapped auth code can be found.
- */
-export function toIdentityErrorMessage(error: unknown, fallback: string): string {
-  /**
-   * Extract Firebase auth codes from raw error messages and strip SDK-specific
-   * prefixes so the UI never renders noisy Firebase boilerplate.
-   */
-  const resolveFromMessage = (message: string) => {
-    const normalizedMessage = message.trim()
-    const matchedCode = normalizedMessage.match(/auth\/[a-z][a-z0-9_-]*/)?.[0]?.toLowerCase()
-
-    if (matchedCode && matchedCode in IDENTITY_ERROR_MESSAGES) {
-      return IDENTITY_ERROR_MESSAGES[matchedCode]
-    }
-
-    return normalizedMessage
-      .replace(/^Firebase:\s*/i, "")
-      .replace(/^Error\s*/i, "")
-      .trim()
-  }
-
-  if (typeof error === "object" && error !== null) {
-    const { code, message } = error as StructuredError
-
-    if (code && code in IDENTITY_ERROR_MESSAGES) {
-      return IDENTITY_ERROR_MESSAGES[code]
-    }
-
-    if (typeof message === "string" && message.trim().length > 0) {
-      return resolveFromMessage(message)
-    }
-  }
-
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return resolveFromMessage(error.message)
-  }
-
-  return fallback
-}
-````
-
-## File: modules/identity/application/use-cases/identity.use-cases.ts
-````typescript
-/**
- * Identity Use Cases — pure business workflows.
- * No React, no Firebase SDK, no UI framework.
- * Depends only on the IdentityRepository port.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { IdentityRepository } from "../../domain/repositories/IdentityRepository";
-import type { SignInCredentials, RegistrationInput } from "../../domain/entities/Identity";
-import { toIdentityErrorMessage } from "../identity-error-message";
-
-// ─── Sign In ──────────────────────────────────────────────────────────────────
-
-export class SignInUseCase {
-  constructor(private readonly identityRepo: IdentityRepository) {}
-
-  async execute(credentials: SignInCredentials): Promise<CommandResult> {
-    try {
-      const identity = await this.identityRepo.signInWithEmailAndPassword(credentials);
-      return commandSuccess(identity.uid, 0);
-    } catch (err) {
-      return commandFailureFrom(
-        "SIGN_IN_FAILED",
-        toIdentityErrorMessage(err, "Sign-in failed"),
-      );
-    }
-  }
-}
-
-// ─── Anonymous Sign In ────────────────────────────────────────────────────────
-
-export class SignInAnonymouslyUseCase {
-  constructor(private readonly identityRepo: IdentityRepository) {}
-
-  async execute(): Promise<CommandResult> {
-    try {
-      const identity = await this.identityRepo.signInAnonymously();
-      return commandSuccess(identity.uid, 0);
-    } catch (err) {
-      return commandFailureFrom(
-        "SIGN_IN_ANONYMOUS_FAILED",
-        toIdentityErrorMessage(err, "Anonymous sign-in failed"),
-      );
-    }
-  }
-}
-
-// ─── Register ─────────────────────────────────────────────────────────────────
-
-export class RegisterUseCase {
-  constructor(private readonly identityRepo: IdentityRepository) {}
-
-  async execute(input: RegistrationInput): Promise<CommandResult> {
-    try {
-      const identity = await this.identityRepo.createUserWithEmailAndPassword(input);
-      await this.identityRepo.updateDisplayName(identity.uid, input.name);
-      return commandSuccess(identity.uid, 0);
-    } catch (err) {
-      return commandFailureFrom(
-        "REGISTRATION_FAILED",
-        toIdentityErrorMessage(err, "Registration failed"),
-      );
-    }
-  }
-}
-
-// ─── Password Reset ───────────────────────────────────────────────────────────
-
-export class SendPasswordResetEmailUseCase {
-  constructor(private readonly identityRepo: IdentityRepository) {}
-
-  async execute(email: string): Promise<CommandResult> {
-    try {
-      await this.identityRepo.sendPasswordResetEmail(email);
-      return commandSuccess(email, 0);
-    } catch (err) {
-      return commandFailureFrom(
-        "PASSWORD_RESET_FAILED",
-        toIdentityErrorMessage(err, "Password reset failed"),
-      );
-    }
-  }
-}
-
-// ─── Sign Out ─────────────────────────────────────────────────────────────────
-
-export class SignOutUseCase {
-  constructor(private readonly identityRepo: IdentityRepository) {}
-
-  async execute(): Promise<CommandResult> {
-    const currentUser = this.identityRepo.getCurrentUser();
-    const aggregateId = currentUser?.uid ?? "anonymous";
-    try {
-      await this.identityRepo.signOut();
-      return commandSuccess(aggregateId, 0);
-    } catch (err) {
-      return commandFailureFrom(
-        "SIGN_OUT_FAILED",
-        toIdentityErrorMessage(err, "Sign-out failed"),
-      );
-    }
-  }
-}
-````
-
-## File: modules/identity/application/use-cases/token-refresh.use-cases.ts
-````typescript
-/**
- * Token Refresh Use Cases — pure business workflows for [S6] Claims refresh.
- * No React, no Firebase SDK, no UI framework.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { TokenRefreshRepository } from "../../domain/repositories/TokenRefreshRepository";
-import type { TokenRefreshReason } from "../../domain/entities/TokenRefreshSignal";
-
-/**
- * EmitTokenRefreshSignalUseCase — Claims Handler [S6].
- * Emits a TOKEN_REFRESH_SIGNAL after role or policy changes.
- * Party 1 of the three-way Claims refresh handshake.
- */
-export class EmitTokenRefreshSignalUseCase {
-  constructor(private readonly tokenRefreshRepo: TokenRefreshRepository) {}
-
-  async execute(
-    accountId: string,
-    reason: TokenRefreshReason,
-    traceId?: string,
-  ): Promise<CommandResult> {
-    // Guard: accountId must be a safe document ID (alphanumeric + hyphen/underscore)
-    if (!/^[\w-]+$/.test(accountId)) {
-      return commandFailureFrom(
-        "TOKEN_REFRESH_INVALID_ACCOUNT_ID",
-        `accountId '${accountId}' is not a valid Firestore document ID`,
-      );
-    }
-    try {
-      await this.tokenRefreshRepo.emit({
-        accountId,
-        reason,
-        issuedAt: new Date().toISOString(),
-        ...(traceId ? { traceId } : {}),
-      });
-      return commandSuccess(accountId, 0);
-    } catch (err) {
-      return commandFailureFrom(
-        "TOKEN_REFRESH_EMIT_FAILED",
-        err instanceof Error ? err.message : "Failed to emit token refresh signal",
-      );
-    }
-  }
-}
-````
-
-## File: modules/identity/context-map.md
-````markdown
-# Context Map — identity
-
-## 此 BC 的整合模式
-
-### 上游（依賴）
-
-`identity` 是最基礎的 Generic Subdomain，不依賴任何其他業務 BC。
-
-**外部依賴：** Firebase Authentication SDK（第三方服務，Anti-Corruption Layer 在 infrastructure 層）
-
----
-
-### 下游（被依賴）
-
-#### `account` ← identity（Customer/Supplier）
-
-- **模式：** Customer/Supplier
-- **方向：** `identity` 是 Supplier（上游），`account` 是 Customer（下游）
-- **整合方式：** `account` application use-cases 在 server 端 import `identity/api` 取得身份上下文
-- **關鍵規則：** `identity/api` 不得含任何 `"use client"` 匯出
-
-```
-identity/api ──import──► account/application/use-cases/*.ts（server-side）
-```
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| identity → account | identity | account | Customer/Supplier |
-| Firebase Auth → identity | Firebase | identity | Anti-Corruption Layer |
-````
-
-## File: modules/identity/domain-events.md
-````markdown
-# Domain Events — identity
-
-## 發出事件
-
-`identity` 域目前不發出 DomainEvent（Firebase Auth 事件由 SDK 直接處理，不經過領域事件匯流排）。
-
-未來如需追蹤登入稽核，可考慮加入：
-
-| 潛在事件 | 觸發條件 | 說明 |
-|---------|---------|------|
-| `identity.signed_in` | 使用者成功登入 | 供 `workspace-audit` 消費 |
-| `identity.signed_out` | 使用者登出 | 供稽核紀錄消費 |
-
-## 訂閱事件
-
-`identity` 不訂閱其他 BC 的事件。
-
-## TokenRefreshSignal（非正式事件）
-
-`TokenRefreshSignal` 是透過 `TokenRefreshRepository.listenToTokenRefresh()` 的 Observable 訊號，不是正式的 DomainEvent，但語意上扮演事件角色：
-
-```typescript
-// account use-case 消費此訊號
-identityApi.listenToTokenRefresh()
-  .subscribe(() => accountApi.refreshCustomClaims(uid));
-```
-````
-
-## File: modules/identity/domain-services.md
-````markdown
-# identity — Domain Services
-
-> **Canonical bounded context:** `identity`
-> **模組路徑:** `modules/identity/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `identity` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/identity/domain-services.md`
-- `../../../modules/identity/aggregates.md`
-````
-
-## File: modules/identity/domain/entities/Identity.ts
-````typescript
-/**
- * Identity Domain Entity — represents an authenticated user session.
- * Zero external dependencies.
- */
-export interface IdentityEntity {
-  readonly uid: string;
-  readonly email: string | null;
-  readonly displayName: string | null;
-  readonly photoURL: string | null;
-  readonly isAnonymous: boolean;
-  readonly emailVerified: boolean;
-}
-
-/** Value Object — credentials for sign-in */
-export interface SignInCredentials {
-  readonly email: string;
-  readonly password: string;
-}
-
-/** Value Object — registration input */
-export interface RegistrationInput {
-  readonly email: string;
-  readonly password: string;
-  readonly name: string;
-}
-````
-
-## File: modules/identity/domain/entities/TokenRefreshSignal.ts
-````typescript
-/**
- * TokenRefreshSignal — Domain Value Object.
- * Represents the signal written to Firestore when Custom Claims change.
- * Per 00-logic-overview.md [S6] three-way Claims refresh handshake.
- * Zero external dependencies.
- */
-
-export type TokenRefreshReason = "role:changed" | "policy:changed";
-
-export interface TokenRefreshSignal {
-  readonly accountId: string;
-  readonly reason: TokenRefreshReason;
-  readonly issuedAt: string; // ISO-8601
-  readonly traceId?: string;
-}
-````
-
-## File: modules/identity/domain/repositories/IdentityRepository.ts
-````typescript
-/**
- * IdentityRepository — Port (interface) for auth operations.
- * Domain layer defines this interface; Infrastructure layer implements it.
- * No Firebase SDK or framework leakage here.
- */
-
-import type { IdentityEntity, SignInCredentials, RegistrationInput } from "../entities/Identity";
-
-export interface IdentityRepository {
-  /** Sign in with email + password. Returns the authenticated identity. */
-  signInWithEmailAndPassword(credentials: SignInCredentials): Promise<IdentityEntity>;
-
-  /** Sign in anonymously. */
-  signInAnonymously(): Promise<IdentityEntity>;
-
-  /** Register a new user. Returns the new identity. */
-  createUserWithEmailAndPassword(input: RegistrationInput): Promise<IdentityEntity>;
-
-  /** Update the display name of the current user. */
-  updateDisplayName(uid: string, displayName: string): Promise<void>;
-
-  /** Send a password reset email. */
-  sendPasswordResetEmail(email: string): Promise<void>;
-
-  /** Sign out the current user. */
-  signOut(): Promise<void>;
-
-  /** Get the currently authenticated user, or null. */
-  getCurrentUser(): IdentityEntity | null;
-}
-````
-
-## File: modules/identity/domain/repositories/TokenRefreshRepository.ts
-````typescript
-/**
- * TokenRefreshRepository — Port for emitting and observing token refresh signals.
- * Defined in domain; implemented in infrastructure.
- * Per [S6] SK_TOKEN_REFRESH_CONTRACT.
- */
-
-import type { TokenRefreshSignal } from "../entities/TokenRefreshSignal";
-
-export interface TokenRefreshRepository {
-  /**
-   * Emit a token refresh signal for the given account.
-   * Called by Claims Handler after role or policy changes.
-   */
-  emit(signal: TokenRefreshSignal): Promise<void>;
-
-  /**
-   * Subscribe to token refresh signals for a given accountId.
-   * Fires callback on every signal change (skip first emission to avoid no-op refresh).
-   * Returns an unsubscribe function.
-   */
-  subscribe(accountId: string, onSignal: () => void): () => void;
-}
-````
-
-## File: modules/identity/index.ts
-````typescript
-/**
- * identity module public API
- */
-export type { IdentityEntity, SignInCredentials, RegistrationInput } from "./domain/entities/Identity";
-export type { TokenRefreshSignal, TokenRefreshReason } from "./domain/entities/TokenRefreshSignal";
-export type { IdentityRepository } from "./domain/repositories/IdentityRepository";
-export type { TokenRefreshRepository } from "./domain/repositories/TokenRefreshRepository";
-export {
-  SignInUseCase,
-  SignInAnonymouslyUseCase,
-  RegisterUseCase,
-  SendPasswordResetEmailUseCase,
-  SignOutUseCase,
-} from "./application/use-cases/identity.use-cases";
-export { EmitTokenRefreshSignalUseCase } from "./application/use-cases/token-refresh.use-cases";
-export { FirebaseIdentityRepository } from "./infrastructure/firebase/FirebaseIdentityRepository";
-export { FirebaseTokenRefreshRepository } from "./infrastructure/firebase/FirebaseTokenRefreshRepository";
-export {
-  signIn,
-  signInAnonymously,
-  register,
-  sendPasswordResetEmail,
-  signOut,
-} from "./interfaces/_actions/identity.actions";
-// Client-only hook — must be imported from the module barrel only from "use client" files
-// to avoid RSC bundle contamination.
-export { useTokenRefreshListener } from "./interfaces/hooks/useTokenRefreshListener";
-````
-
-## File: modules/identity/infrastructure/firebase/FirebaseIdentityRepository.ts
-````typescript
-/**
- * FirebaseIdentityRepository — Infrastructure adapter implementing IdentityRepository port.
- * Translates Firebase Auth SDK calls into domain entities.
- * Firebase SDK only exists in this file, never in domain or application layers.
- */
-
-import {
-  getAuth,
-  signInWithEmailAndPassword as fbSignIn,
-  signInAnonymously as fbSignInAnonymously,
-  createUserWithEmailAndPassword as fbCreateUser,
-  updateProfile,
-  sendPasswordResetEmail as fbSendPasswordResetEmail,
-  signOut as fbSignOut,
-  type User,
-} from "firebase/auth";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { IdentityRepository } from "../../domain/repositories/IdentityRepository";
-import type {
-  IdentityEntity,
-  SignInCredentials,
-  RegistrationInput,
-} from "../../domain/entities/Identity";
-
-// ─── Mapper: Firebase User → Domain IdentityEntity ──────────────────────────
-
-function toIdentityEntity(user: User): IdentityEntity {
-  return {
-    uid: user.uid,
-    email: user.email,
-    displayName: user.displayName,
-    photoURL: user.photoURL,
-    isAnonymous: user.isAnonymous,
-    emailVerified: user.emailVerified,
-  };
-}
-
-// ─── Adapter ─────────────────────────────────────────────────────────────────
-
-export class FirebaseIdentityRepository implements IdentityRepository {
-  private get auth() {
-    return getAuth(firebaseClientApp);
-  }
-
-  async signInWithEmailAndPassword(
-    credentials: SignInCredentials,
-  ): Promise<IdentityEntity> {
-    const result = await fbSignIn(this.auth, credentials.email, credentials.password);
-    return toIdentityEntity(result.user);
-  }
-
-  async signInAnonymously(): Promise<IdentityEntity> {
-    const result = await fbSignInAnonymously(this.auth);
-    return toIdentityEntity(result.user);
-  }
-
-  async createUserWithEmailAndPassword(
-    input: RegistrationInput,
-  ): Promise<IdentityEntity> {
-    const result = await fbCreateUser(this.auth, input.email, input.password);
-    return toIdentityEntity(result.user);
-  }
-
-  async updateDisplayName(uid: string, displayName: string): Promise<void> {
-    const currentUser = this.auth.currentUser;
-    if (currentUser && currentUser.uid === uid) {
-      await updateProfile(currentUser, { displayName });
-    }
-  }
-
-  async sendPasswordResetEmail(email: string): Promise<void> {
-    await fbSendPasswordResetEmail(this.auth, email);
-  }
-
-  async signOut(): Promise<void> {
-    await fbSignOut(this.auth);
-  }
-
-  getCurrentUser(): IdentityEntity | null {
-    const user = this.auth.currentUser;
-    return user ? toIdentityEntity(user) : null;
-  }
-}
-````
-
-## File: modules/identity/infrastructure/firebase/FirebaseTokenRefreshRepository.ts
-````typescript
-/**
- * FirebaseTokenRefreshRepository — Infrastructure adapter for [S6] TOKEN_REFRESH_SIGNAL.
- * Writes/reads `tokenRefreshSignals/{accountId}` in Firestore.
- * Firebase SDK only exists in this file.
- */
-
-import {
-  getFirestore,
-  doc,
-  setDoc,
-  onSnapshot,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { TokenRefreshRepository } from "../../domain/repositories/TokenRefreshRepository";
-import type { TokenRefreshSignal } from "../../domain/entities/TokenRefreshSignal";
-
-const COLLECTION = "tokenRefreshSignals";
-
-export class FirebaseTokenRefreshRepository implements TokenRefreshRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async emit(signal: TokenRefreshSignal): Promise<void> {
-    await setDoc(
-      doc(this.db, COLLECTION, signal.accountId),
-      {
-        accountId: signal.accountId,
-        reason: signal.reason,
-        issuedAt: signal.issuedAt,
-        ...(signal.traceId ? { traceId: signal.traceId } : {}),
-      },
-      { merge: true },
-    );
-  }
-
-  subscribe(accountId: string, onSignal: () => void): () => void {
-    let isFirstEmission = true;
-    const ref = doc(this.db, COLLECTION, accountId);
-    return onSnapshot(ref, () => {
-      if (isFirstEmission) {
-        isFirstEmission = false;
-        return;
-      }
-      onSignal();
-    });
-  }
-}
-````
-
-## File: modules/identity/interfaces/_actions/identity.actions.ts
-````typescript
-"use server";
-
-/**
- * Identity Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.
- * Responsibilities: call use cases, NO business logic.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  SignInUseCase,
-  SignInAnonymouslyUseCase,
-  RegisterUseCase,
-  SendPasswordResetEmailUseCase,
-  SignOutUseCase,
-} from "../../application/use-cases/identity.use-cases";
-import { toIdentityErrorMessage } from "../../application/identity-error-message";
-import { FirebaseIdentityRepository } from "../../infrastructure/firebase/FirebaseIdentityRepository";
-
-const identityRepo = new FirebaseIdentityRepository();
-
-export async function signIn(email: string, password: string): Promise<CommandResult> {
-  try {
-    return await new SignInUseCase(identityRepo).execute({ email, password });
-  } catch (err) {
-    return commandFailureFrom("SIGN_IN_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
-  }
-}
-
-export async function signInAnonymously(): Promise<CommandResult> {
-  try {
-    return await new SignInAnonymouslyUseCase(identityRepo).execute();
-  } catch (err) {
-    return commandFailureFrom("SIGN_IN_ANONYMOUS_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
-  }
-}
-
-export async function register(
-  email: string,
-  password: string,
-  name: string,
-): Promise<CommandResult> {
-  try {
-    return await new RegisterUseCase(identityRepo).execute({ email, password, name });
-  } catch (err) {
-    return commandFailureFrom("REGISTRATION_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
-  }
-}
-
-export async function sendPasswordResetEmail(email: string): Promise<CommandResult> {
-  try {
-    return await new SendPasswordResetEmailUseCase(identityRepo).execute(email);
-  } catch (err) {
-    return commandFailureFrom("PASSWORD_RESET_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
-  }
-}
-
-export async function signOut(): Promise<CommandResult> {
-  try {
-    return await new SignOutUseCase(identityRepo).execute();
-  } catch (err) {
-    return commandFailureFrom("SIGN_OUT_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
-  }
-}
-````
-
-## File: modules/identity/interfaces/hooks/useTokenRefreshListener.tsx
-````typescript
-"use client";
-
-/**
- * useTokenRefreshListener — Client Token Refresh Listener [S6].
- *
- * Party 3 of the three-way Claims refresh handshake:
- *   Party 1 (Claims Handler) — emits TOKEN_REFRESH_SIGNAL to `tokenRefreshSignals/{accountId}`
- *   Party 2 (IER CRITICAL_LANE) — routes role/policy change events
- *   Party 3 (this hook) — listens for signal and force-refreshes Firebase ID token
- *
- * Client obligation per SK_TOKEN_REFRESH_CONTRACT [S6]:
- *   On receiving TOKEN_REFRESH_SIGNAL → getIdToken(true) → new token on subsequent requests.
- *
- * Must be mounted once per authenticated session (e.g. shell layout).
- */
-
-import { useEffect } from "react";
-import { getFirebaseAuth } from "@integration-firebase";
-import { FirebaseTokenRefreshRepository } from "../../infrastructure/firebase/FirebaseTokenRefreshRepository";
-
-const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
-
-/**
- * @param accountId - Authenticated user's account ID, or null/undefined when signed out.
- */
-export function useTokenRefreshListener(accountId: string | null | undefined): void {
-  useEffect(() => {
-    if (!accountId) return;
-    // Guard: accountId must be a valid Firestore document ID
-    if (!/^[\w-]+$/.test(accountId)) return;
-
-    const unsubscribe = tokenRefreshRepo.subscribe(accountId, () => {
-      const auth = getFirebaseAuth();
-      const currentUser = auth.currentUser;
-      if (!currentUser) return;
-      // [S6] Force-refresh the ID token so subsequent requests carry updated Custom Claims.
-      void currentUser.getIdToken(/* forceRefresh */ true).catch(() => {
-        // Non-fatal: token refreshes naturally on next expiry cycle.
-      });
-    });
-
-    return () => unsubscribe();
-  }, [accountId]);
-}
-````
-
-## File: modules/identity/ports/.gitkeep
-````
-
-````
-
-## File: modules/identity/README.md
-````markdown
-# identity — 身份驗證上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/identity/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`identity` 是整個平台的身份入口，封裝 Firebase Authentication 與 session 起點。它對產品價值並不差異化，但所有工作區、知識與 AI 互動都建立在正確的身份語意之上。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 登入 / 登出 | 處理 signIn、signOut 與身份狀態切換 |
-| Token 生命週期 | 管理 token refresh 與相關身份訊號 |
-| 身份上下文供應 | 向 `account`、`organization`、`workspace` 提供穩定的身份讀取入口 |
-
-## 與其他 Bounded Context 協作
-
-- `account` 直接消費 `identity/api` 提供的身份上下文。
-- `organization` 與 `workspace` 依賴身份語意建立成員與存取規則。
-
-## 核心聚合 / 核心概念
-
-- **`Identity`**
-- **`AuthenticatedUser`**
-- **`TokenRefreshSignal`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/identity/repositories.md
-````markdown
-# identity — Repositories
-
-> **Canonical bounded context:** `identity`
-> **模組路徑:** `modules/identity/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `identity` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/IdentityRepository.ts`
-- `domain/repositories/TokenRefreshRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseIdentityRepository.ts`
-- `infrastructure/firebase/FirebaseTokenRefreshRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/identity/repositories.md`
-- `../../../modules/identity/aggregates.md`
-````
-
-## File: modules/identity/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — identity
-
-> **範圍：** 僅限 `modules/identity/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 身份 | Identity | Firebase Auth 驗證後的使用者記錄，以 `uid` 為唯一識別碼 | `modules/identity/domain/entities/` |
-| 唯一身份碼 | uid | Firebase Authentication 產生的使用者全域唯一 ID | `Identity.uid` |
-| Token 刷新訊號 | TokenRefreshSignal | 代表 Firebase ID token 需要更新的訊號物件 | `domain/entities/` |
-| 登入 | signIn | 透過 Email 或 OAuth 建立 Firebase Auth session | `IdentityRepository.signIn()` |
-| 登出 | signOut | 終止 Firebase Auth session | `IdentityRepository.signOut()` |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `Identity` | `User`, `AuthUser`, `CurrentUser` |
-| `uid` | `userId`, `id`, `accountId`（在此 BC 內） |
-| `TokenRefreshSignal` | `RefreshToken`, `TokenEvent` |
 ````
 
 ## File: modules/knowledge-base/AGENT.md
@@ -15534,84 +12086,6 @@ export class FirebaseVersionRepository implements IVersionRepository {
     const db = this.db();
     const { deleteDoc } = await import("firebase/firestore");
     await deleteDoc(versionDoc(db, accountId, versionId));
-  }
-}
-````
-
-## File: modules/knowledge-collaboration/interfaces/_actions/comment.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: knowledge-collaboration
- * Layer: interfaces/_actions
- * Purpose: Comment Aggregate Server Actions — create, update, resolve, delete.
- * Version actions: see version.actions.ts
- * Permission actions: see permission.actions.ts
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { dispatchNotification } from "@/modules/notification/api";
-import {
-  CreateCommentUseCase,
-  UpdateCommentUseCase,
-  ResolveCommentUseCase,
-  DeleteCommentUseCase,
-} from "../../application/use-cases/comment.use-cases";
-import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
-import type {
-  CreateCommentDto,
-  UpdateCommentDto,
-  ResolveCommentDto,
-  DeleteCommentDto,
-} from "../../application/dto/knowledge-collaboration.dto";
-
-function makeCommentRepo() { return new FirebaseCommentRepository(); }
-
-export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
-  try {
-    const result = await new CreateCommentUseCase(makeCommentRepo()).execute(input);
-    if (result.success && input.mentionedUserIds && input.mentionedUserIds.length > 0) {
-      await Promise.allSettled(
-        input.mentionedUserIds.map((recipientId) =>
-          dispatchNotification({
-            recipientId,
-            title: "有人提及了你",
-            message: input.body.slice(0, 100),
-            type: "info",
-            sourceEventType: "comment.mention",
-            metadata: { authorId: input.authorId, contentId: input.contentId, contentType: input.contentType },
-          }),
-        ),
-      );
-    }
-    return result;
-  } catch (err) {
-    return commandFailureFrom("COMMENT_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateComment(input: UpdateCommentDto): Promise<CommandResult> {
-  try {
-    return await new UpdateCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function resolveComment(input: ResolveCommentDto): Promise<CommandResult> {
-  try {
-    return await new ResolveCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteComment(input: DeleteCommentDto): Promise<CommandResult> {
-  try {
-    return await new DeleteCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
 ````
@@ -29346,6 +25820,36 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/events/contracts/.gitkeep
+````
+
+````
+
+## File: modules/platform/events/handlers/.gitkeep
+````
+
+````
+
+## File: modules/platform/events/ingress/.gitkeep
+````
+
+````
+
+## File: modules/platform/events/mappers/.gitkeep
+````
+
+````
+
+## File: modules/platform/events/published/.gitkeep
+````
+
+````
+
+## File: modules/platform/events/routing/.gitkeep
+````
+
+````
+
 ## File: modules/platform/infrastructure/cache/.gitkeep
 ````
 
@@ -29416,14 +25920,39 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/access-control/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'access-control'.
+````
+
 ## File: modules/platform/subdomains/access-control/application/.gitkeep
 ````
 
 ````
 
+## File: modules/platform/subdomains/access-control/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'access-control'.
+````
+
 ## File: modules/platform/subdomains/access-control/domain/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/access-control/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'access-control'.
+````
+
+## File: modules/platform/subdomains/access-control/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'access-control'.
+````
+
+## File: modules/platform/subdomains/access-control/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'access-control'. -->
 ````
 
 ## File: modules/platform/subdomains/account-profile/adapters/.gitkeep
@@ -29441,6 +25970,16 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/account-profile/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'account-profile'.
+````
+
+## File: modules/platform/subdomains/account-profile/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'account-profile'. -->
+````
+
 ## File: modules/platform/subdomains/account/adapters/.gitkeep
 ````
 
@@ -29456,9 +25995,24 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/account/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'account'.
+````
+
+## File: modules/platform/subdomains/account/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'account'. -->
+````
+
 ## File: modules/platform/subdomains/analytics/adapters/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/analytics/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'analytics'.
 ````
 
 ## File: modules/platform/subdomains/analytics/application/.gitkeep
@@ -29466,9 +26020,29 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/analytics/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'analytics'.
+````
+
 ## File: modules/platform/subdomains/analytics/domain/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/analytics/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'analytics'.
+````
+
+## File: modules/platform/subdomains/analytics/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'analytics'.
+````
+
+## File: modules/platform/subdomains/analytics/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'analytics'. -->
 ````
 
 ## File: modules/platform/subdomains/audit-log/adapters/.gitkeep
@@ -29476,9 +26050,19 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/audit-log/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'audit-log'.
+````
+
 ## File: modules/platform/subdomains/audit-log/application/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/audit-log/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'audit-log'.
 ````
 
 ## File: modules/platform/subdomains/audit-log/domain/.gitkeep
@@ -29486,9 +26070,29 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/audit-log/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'audit-log'.
+````
+
+## File: modules/platform/subdomains/audit-log/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'audit-log'.
+````
+
+## File: modules/platform/subdomains/audit-log/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'audit-log'. -->
+````
+
 ## File: modules/platform/subdomains/background-job/adapters/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/background-job/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'background-job'.
 ````
 
 ## File: modules/platform/subdomains/background-job/application/.gitkeep
@@ -29496,9 +26100,29 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/background-job/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'background-job'.
+````
+
 ## File: modules/platform/subdomains/background-job/domain/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/background-job/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'background-job'.
+````
+
+## File: modules/platform/subdomains/background-job/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'background-job'.
+````
+
+## File: modules/platform/subdomains/background-job/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'background-job'. -->
 ````
 
 ## File: modules/platform/subdomains/billing/adapters/.gitkeep
@@ -29506,9 +26130,19 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/billing/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'billing'.
+````
+
 ## File: modules/platform/subdomains/billing/application/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/billing/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'billing'.
 ````
 
 ## File: modules/platform/subdomains/billing/domain/.gitkeep
@@ -29516,9 +26150,29 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/billing/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'billing'.
+````
+
+## File: modules/platform/subdomains/billing/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'billing'.
+````
+
+## File: modules/platform/subdomains/billing/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'billing'. -->
+````
+
 ## File: modules/platform/subdomains/compliance/adapters/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/compliance/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'compliance'.
 ````
 
 ## File: modules/platform/subdomains/compliance/application/.gitkeep
@@ -29526,9 +26180,29 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/compliance/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'compliance'.
+````
+
 ## File: modules/platform/subdomains/compliance/domain/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/compliance/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'compliance'.
+````
+
+## File: modules/platform/subdomains/compliance/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'compliance'.
+````
+
+## File: modules/platform/subdomains/compliance/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'compliance'. -->
 ````
 
 ## File: modules/platform/subdomains/content/adapters/.gitkeep
@@ -29536,9 +26210,19 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/content/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'content'.
+````
+
 ## File: modules/platform/subdomains/content/application/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/content/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'content'.
 ````
 
 ## File: modules/platform/subdomains/content/domain/.gitkeep
@@ -29546,9 +26230,29 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/content/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'content'.
+````
+
+## File: modules/platform/subdomains/content/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'content'.
+````
+
+## File: modules/platform/subdomains/content/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'content'. -->
+````
+
 ## File: modules/platform/subdomains/feature-flag/adapters/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/feature-flag/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'feature-flag'.
 ````
 
 ## File: modules/platform/subdomains/feature-flag/application/.gitkeep
@@ -29556,9 +26260,29 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/feature-flag/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'feature-flag'.
+````
+
 ## File: modules/platform/subdomains/feature-flag/domain/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/feature-flag/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'feature-flag'.
+````
+
+## File: modules/platform/subdomains/feature-flag/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'feature-flag'.
+````
+
+## File: modules/platform/subdomains/feature-flag/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'feature-flag'. -->
 ````
 
 ## File: modules/platform/subdomains/identity/adapters/.gitkeep
@@ -29576,9 +26300,19 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/identity/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'identity'. -->
+````
+
 ## File: modules/platform/subdomains/integration/adapters/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/integration/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'integration'.
 ````
 
 ## File: modules/platform/subdomains/integration/application/.gitkeep
@@ -29586,9 +26320,29 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/integration/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'integration'.
+````
+
 ## File: modules/platform/subdomains/integration/domain/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/integration/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'integration'.
+````
+
+## File: modules/platform/subdomains/integration/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'integration'.
+````
+
+## File: modules/platform/subdomains/integration/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'integration'. -->
 ````
 
 ## File: modules/platform/subdomains/notification/adapters/.gitkeep
@@ -29606,9 +26360,24 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/notification/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'notification'.
+````
+
+## File: modules/platform/subdomains/notification/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'notification'. -->
+````
+
 ## File: modules/platform/subdomains/observability/adapters/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/observability/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'observability'.
 ````
 
 ## File: modules/platform/subdomains/observability/application/.gitkeep
@@ -29616,9 +26385,29 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/observability/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'observability'.
+````
+
 ## File: modules/platform/subdomains/observability/domain/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/observability/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'observability'.
+````
+
+## File: modules/platform/subdomains/observability/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'observability'.
+````
+
+## File: modules/platform/subdomains/observability/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'observability'. -->
 ````
 
 ## File: modules/platform/subdomains/onboarding/adapters/.gitkeep
@@ -29626,14 +26415,39 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/onboarding/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'onboarding'.
+````
+
 ## File: modules/platform/subdomains/onboarding/application/.gitkeep
 ````
 
 ````
 
+## File: modules/platform/subdomains/onboarding/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'onboarding'.
+````
+
 ## File: modules/platform/subdomains/onboarding/domain/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/onboarding/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'onboarding'.
+````
+
+## File: modules/platform/subdomains/onboarding/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'onboarding'.
+````
+
+## File: modules/platform/subdomains/onboarding/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'onboarding'. -->
 ````
 
 ## File: modules/platform/subdomains/organization/adapters/.gitkeep
@@ -29651,9 +26465,24 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/organization/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'organization'.
+````
+
+## File: modules/platform/subdomains/organization/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'organization'. -->
+````
+
 ## File: modules/platform/subdomains/platform-config/adapters/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/platform-config/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'platform-config'.
 ````
 
 ## File: modules/platform/subdomains/platform-config/application/.gitkeep
@@ -29661,9 +26490,29 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/platform-config/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'platform-config'.
+````
+
 ## File: modules/platform/subdomains/platform-config/domain/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/platform-config/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'platform-config'.
+````
+
+## File: modules/platform/subdomains/platform-config/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'platform-config'.
+````
+
+## File: modules/platform/subdomains/platform-config/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'platform-config'. -->
 ````
 
 ## File: modules/platform/subdomains/referral/adapters/.gitkeep
@@ -29671,9 +26520,19 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/referral/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'referral'.
+````
+
 ## File: modules/platform/subdomains/referral/application/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/referral/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'referral'.
 ````
 
 ## File: modules/platform/subdomains/referral/domain/.gitkeep
@@ -29681,9 +26540,29 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/referral/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'referral'.
+````
+
+## File: modules/platform/subdomains/referral/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'referral'.
+````
+
+## File: modules/platform/subdomains/referral/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'referral'. -->
+````
+
 ## File: modules/platform/subdomains/search/adapters/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/search/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'search'.
 ````
 
 ## File: modules/platform/subdomains/search/application/.gitkeep
@@ -29691,9 +26570,29 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/search/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'search'.
+````
+
 ## File: modules/platform/subdomains/search/domain/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/search/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'search'.
+````
+
+## File: modules/platform/subdomains/search/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'search'.
+````
+
+## File: modules/platform/subdomains/search/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'search'. -->
 ````
 
 ## File: modules/platform/subdomains/security-policy/adapters/.gitkeep
@@ -29701,9 +26600,19 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/security-policy/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'security-policy'.
+````
+
 ## File: modules/platform/subdomains/security-policy/application/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/security-policy/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'security-policy'.
 ````
 
 ## File: modules/platform/subdomains/security-policy/domain/.gitkeep
@@ -29711,9 +26620,29 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/security-policy/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'security-policy'.
+````
+
+## File: modules/platform/subdomains/security-policy/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'security-policy'.
+````
+
+## File: modules/platform/subdomains/security-policy/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'security-policy'. -->
+````
+
 ## File: modules/platform/subdomains/subscription/adapters/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/subscription/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'subscription'.
 ````
 
 ## File: modules/platform/subdomains/subscription/application/.gitkeep
@@ -29721,9 +26650,29 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/subscription/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'subscription'.
+````
+
 ## File: modules/platform/subdomains/subscription/domain/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/subscription/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'subscription'.
+````
+
+## File: modules/platform/subdomains/subscription/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'subscription'.
+````
+
+## File: modules/platform/subdomains/subscription/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'subscription'. -->
 ````
 
 ## File: modules/platform/subdomains/support/adapters/.gitkeep
@@ -29731,9 +26680,19 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/support/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'support'.
+````
+
 ## File: modules/platform/subdomains/support/application/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/support/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'support'.
 ````
 
 ## File: modules/platform/subdomains/support/domain/.gitkeep
@@ -29741,9 +26700,29 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/support/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'support'.
+````
+
+## File: modules/platform/subdomains/support/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'support'.
+````
+
+## File: modules/platform/subdomains/support/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'support'. -->
+````
+
 ## File: modules/platform/subdomains/workflow/adapters/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/workflow/adapters/index.ts
+````typescript
+// Purpose: Adapter layer placeholder for platform subdomain 'workflow'.
 ````
 
 ## File: modules/platform/subdomains/workflow/application/.gitkeep
@@ -29751,9 +26730,29 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/subdomains/workflow/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for platform subdomain 'workflow'.
+````
+
 ## File: modules/platform/subdomains/workflow/domain/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/workflow/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for platform subdomain 'workflow'.
+````
+
+## File: modules/platform/subdomains/workflow/index.ts
+````typescript
+// Purpose: Public entry point placeholder for platform subdomain 'workflow'.
+````
+
+## File: modules/platform/subdomains/workflow/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'workflow'. -->
 ````
 
 ## File: modules/search/AGENT.md
@@ -56795,6 +53794,412 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
+## File: app/(shell)/_components/account-switcher.tsx
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { AuthUser } from "@/app/providers/auth-context";
+import { useApp } from "@/app/providers/app-provider";
+import type { AccountEntity } from "@/modules/platform/subdomains/account";
+import { createOrganization } from "@/modules/platform/subdomains/organization";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+interface AccountSwitcherProps {
+  personalAccount: AuthUser | null;
+  organizationAccounts: AccountEntity[];
+  activeAccountId: string | null;
+  onSelectPersonal: () => void;
+  onSelectOrganization: (account: AccountEntity) => void;
+  onOrganizationCreated?: (account: AccountEntity) => void;
+}
+
+export function AccountSwitcher({
+  personalAccount,
+  organizationAccounts,
+  activeAccountId,
+  onSelectPersonal,
+  onSelectOrganization,
+  onOrganizationCreated,
+}: AccountSwitcherProps) {
+  const router = useRouter();
+  const {
+    state: { accountsHydrated, bootstrapPhase },
+  } = useApp();
+  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
+  const [organizationName, setOrganizationName] = useState("");
+  const [organizationError, setOrganizationError] = useState<string | null>(null);
+  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
+
+  function resetCreateOrganizationDialog() {
+    setOrganizationName("");
+    setOrganizationError(null);
+    setIsCreatingOrganization(false);
+  }
+
+  async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!personalAccount) {
+      setOrganizationError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+
+    const nextOrganizationName = organizationName.trim();
+    if (!nextOrganizationName) {
+      setOrganizationError("請輸入組織名稱。");
+      return;
+    }
+
+    setIsCreatingOrganization(true);
+    setOrganizationError(null);
+
+    const result = await createOrganization({
+      organizationName: nextOrganizationName,
+      ownerId: personalAccount.id,
+      ownerName: personalAccount.name,
+      ownerEmail: personalAccount.email,
+    });
+
+    if (!result.success) {
+      setOrganizationError(result.error.message);
+      setIsCreatingOrganization(false);
+      return;
+    }
+
+    onOrganizationCreated?.({
+      id: result.aggregateId,
+      name: nextOrganizationName,
+      accountType: "organization",
+      ownerId: personalAccount.id,
+    });
+
+    resetCreateOrganizationDialog();
+    setIsCreateOrganizationOpen(false);
+    router.push("/organization");
+  }
+
+  return (
+    <>
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          帳號情境
+        </p>
+        <select
+          aria-label="切換帳號情境"
+          value={activeAccountId ?? ""}
+          onChange={(event) => {
+            const nextId = event.target.value;
+            if (nextId === "__create_organization__") {
+              setIsCreateOrganizationOpen(true);
+              return;
+            }
+
+            if (!nextId || nextId === personalAccount?.id) {
+              onSelectPersonal();
+              return;
+            }
+
+            const nextAccount = organizationAccounts.find((account) => account.id === nextId);
+            if (nextAccount) {
+              onSelectOrganization(nextAccount);
+            }
+          }}
+          className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground"
+        >
+          {personalAccount && (
+            <option value={personalAccount.id}>{personalAccount.name}（個人）</option>
+          )}
+          {organizationAccounts.map((account) => (
+            <option key={account.id} value={account.id}>
+              {account.name}（組織）
+            </option>
+          ))}
+          <option value="__create_organization__">+建立組織</option>
+        </select>
+        {!accountsHydrated && (
+          <p className="text-xs text-muted-foreground">
+            {bootstrapPhase === "seeded" ? "正在同步組織上下文…" : "正在載入帳號上下文…"}
+          </p>
+        )}
+      </div>
+
+      <Dialog
+        open={isCreateOrganizationOpen}
+        onOpenChange={(open) => {
+          setIsCreateOrganizationOpen(open);
+          if (!open) {
+            resetCreateOrganizationDialog();
+          }
+        }}
+      >
+        <DialogContent aria-describedby="create-organization-description">
+          <DialogHeader>
+            <DialogTitle>建立新組織</DialogTitle>
+            <DialogDescription id="create-organization-description">
+              輸入名稱後會直接建立組織並切換到新的組織內容。
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="space-y-4" onSubmit={handleCreateOrganization}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="organization-name">
+                組織名稱
+              </label>
+              <Input
+                id="organization-name"
+                value={organizationName}
+                onChange={(event) => {
+                  setOrganizationName(event.target.value);
+                  if (organizationError) {
+                    setOrganizationError(null);
+                  }
+                }}
+                placeholder="例如：Gig Team"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                disabled={isCreatingOrganization}
+                maxLength={80}
+              />
+              {organizationError && <p className="text-sm text-destructive">{organizationError}</p>}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetCreateOrganizationDialog();
+                  setIsCreateOrganizationOpen(false);
+                }}
+                disabled={isCreatingOrganization}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingOrganization || !personalAccount}>
+                {isCreatingOrganization ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+````
+
+## File: app/(shell)/_components/create-organization-dialog.tsx
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+
+import type { AuthUser } from "@/app/providers/auth-context";
+import type { AccountEntity } from "@/modules/platform/subdomains/account";
+import { createOrganization } from "@/modules/platform/subdomains/organization";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+interface CreateOrganizationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: AuthUser | null;
+  onOrganizationCreated?: (account: AccountEntity) => void;
+  onNavigate: (href: string) => void;
+}
+
+export function CreateOrganizationDialog({
+  open,
+  onOpenChange,
+  user,
+  onOrganizationCreated,
+  onNavigate,
+}: CreateOrganizationDialogProps) {
+  const [orgName, setOrgName] = useState("");
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  function reset() {
+    setOrgName("");
+    setOrgError(null);
+    setIsCreating(false);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user) {
+      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+    const name = orgName.trim();
+    if (!name) {
+      setOrgError("請輸入組織名稱。");
+      return;
+    }
+    setIsCreating(true);
+    setOrgError(null);
+    const result = await createOrganization({
+      organizationName: name,
+      ownerId: user.id,
+      ownerName: user.name,
+      ownerEmail: user.email,
+    });
+    if (!result.success) {
+      setOrgError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+    const newAccount: AccountEntity = {
+      id: result.aggregateId,
+      name,
+      accountType: "organization",
+      ownerId: user.id,
+    };
+    onOrganizationCreated?.(newAccount);
+    reset();
+    onOpenChange(false);
+    onNavigate("/organization");
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        onOpenChange(isOpen);
+        if (!isOpen) reset();
+      }}
+    >
+      <DialogContent aria-describedby="rail-create-org-description">
+        <DialogHeader>
+          <DialogTitle>建立新組織</DialogTitle>
+          <DialogDescription id="rail-create-org-description">
+            輸入名稱後會直接建立組織並切換到新的組織內容。
+          </DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
+              組織名稱
+            </label>
+            <Input
+              id="rail-organization-name"
+              value={orgName}
+              onChange={(e) => {
+                setOrgName(e.target.value);
+                if (orgError) setOrgError(null);
+              }}
+              placeholder="例如：Gig Team"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+              disabled={isCreating}
+              maxLength={80}
+            />
+            {orgError && <p className="text-sm text-destructive">{orgError}</p>}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                reset();
+                onOpenChange(false);
+              }}
+              disabled={isCreating}
+            >
+              取消
+            </Button>
+            <Button type="submit" disabled={isCreating || !user}>
+              {isCreating ? "建立中…" : "直接建立"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: app/(shell)/_components/header-controls.tsx
+````typescript
+"use client";
+
+/**
+ * Module: header-controls.tsx
+ * Purpose: compose shell header utility controls.
+ * Responsibilities: language switch, theme toggle, and notification entry.
+ * Constraints: presentation-only, no domain orchestration.
+ */
+
+import { Moon, Sun } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { useAuth } from "@/app/providers/auth-provider";
+import { NotificationBell } from "@/modules/platform/subdomains/notification";
+import { Button } from "@ui-shadcn/ui/button";
+import { TranslationSwitcher } from "./translation-switcher";
+
+const THEME_KEY = "xuanwu_theme";
+
+export function HeaderControls() {
+  const { state: authState } = useAuth();
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") return "light";
+    const storedTheme = window.localStorage.getItem(THEME_KEY);
+    if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
+    return document.documentElement.classList.contains("dark") ? "dark" : "light";
+  });
+
+  const recipientId = authState.user?.id ?? "";
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    window.localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((current) => (current === "light" ? "dark" : "light"));
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <TranslationSwitcher />
+
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        onClick={toggleTheme}
+        aria-label="Toggle theme"
+        className="text-muted-foreground"
+      >
+        {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+      </Button>
+
+      <NotificationBell recipientId={recipientId} />
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/ai-chat/_actions.ts
 ````typescript
 "use server";
@@ -56819,6 +54224,362 @@ export async function sendChatMessage(
 
 export { saveThread, loadThread };
 export type { Thread };
+````
+
+## File: app/(shell)/layout.tsx
+````typescript
+"use client";
+
+/**
+ * Module: shell layout
+ * Purpose: compose authenticated shell frame with sidebar, header, and content area.
+ * Responsibilities: account switching, route guards, and shell-level UI composition.
+ * Constraints: keep business logic in modules and providers, not layout rendering.
+ */
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { PanelLeftOpen, Search } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import type { AccountEntity } from "@/modules/platform/subdomains/account";
+import { AccountSwitcher } from "./_components/account-switcher";
+import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
+import { AppRail } from "./_components/app-rail";
+import { DashboardSidebar } from "./_components/dashboard-sidebar";
+import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
+import { HeaderControls } from "./_components/header-controls";
+import { HeaderUserAvatar } from "./_components/header-user-avatar";
+import { ShellGuard } from "./_components/shell-guard";
+
+const routeTitles: Record<string, string> = {
+  "/organization": "組織治理",
+  "/organization/daily": "Account · 每日",
+  "/organization/schedule": "Account · 排程",
+  "/organization/schedule/dispatcher": "Account · 調度台",
+  "/organization/audit": "Account · 稽核",
+  "/workspace": "工作區中心",
+  "/knowledge": "Knowledge Hub",
+  "/knowledge/pages": "Knowledge · 頁面",
+  "/knowledge/block-editor": "Knowledge · 區塊編輯器",
+  "/knowledge-base/articles": "Knowledge Base · 文章",
+  "/knowledge-database/databases": "Knowledge Database · 資料庫",
+  "/source/documents": "Source · 文件來源",
+  "/source/libraries": "Source · Libraries",
+  "/notebook/rag-query": "Notebook · Ask / Cite",
+  "/ai-chat": "AI Chat",
+  "/dev-tools": "開發工具",
+};
+
+/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
+const mobileNavItems = [
+  { href: "/workspace", label: "工作區" },
+];
+
+const orgPrimaryItems = [
+  { label: "成員", href: "/organization/members" },
+  { label: "團隊", href: "/organization/teams" },
+  { label: "權限", href: "/organization/permissions" },
+  { label: "工作區", href: "/organization/workspaces" },
+] as const;
+
+const orgSecondaryItems = [
+  { label: "排程", href: "/organization/schedule" },
+  { label: "每日", href: "/organization/daily" },
+  { label: "稽核", href: "/organization/audit" },
+] as const;
+
+function isOrganizationAccount(
+  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
+function resolveShellRouteForAccount(
+  pathname: string,
+  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
+) {
+  const nextAccountIsOrganization =
+    nextAccount != null && "accountType" in nextAccount && nextAccount.accountType === "organization";
+
+  if (pathname === "/organization" && !nextAccountIsOrganization) {
+    return "/workspace";
+  }
+
+  return null;
+}
+
+export default function ShellLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { state: authState, logout } = useAuth();
+  const { state: appState, dispatch } = useApp();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+  const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
+  });
+
+  function toggleSidebar() {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
+      }
+      return next;
+    });
+  }
+
+  const pageTitle = routeTitles[pathname] ?? "工作區";
+  const organizationAccounts = Object.values(appState.accounts ?? {});
+  const accountWorkspaces = Object.values(appState.workspaces ?? {});
+  const showAccountManagement = isOrganizationAccount(appState.activeAccount);
+
+  function isActiveRoute(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  function handleSelectOrganization(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+    const nextRoute = resolveShellRouteForAccount(pathname, account);
+    if (nextRoute) {
+      router.replace(nextRoute);
+    }
+  }
+
+  function handleSelectPersonal() {
+    if (!authState.user) return;
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
+    const nextRoute = resolveShellRouteForAccount(pathname, authState.user);
+    if (nextRoute) {
+      router.replace(nextRoute);
+    }
+  }
+
+  function handleOrganizationCreated(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+  }
+
+  function handleSelectWorkspace(workspaceId: string | null) {
+    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspaceId });
+  }
+
+  useEffect(() => {
+    if (!appState.accountsHydrated || !appState.activeAccount) {
+      return;
+    }
+
+    const nextRoute = resolveShellRouteForAccount(pathname, appState.activeAccount);
+    if (nextRoute && nextRoute !== pathname) {
+      router.replace(nextRoute);
+    }
+  }, [appState.accountsHydrated, appState.activeAccount, pathname, router]);
+
+  async function handleLogout() {
+    setLogoutError(null);
+    try {
+      await logout();
+    } catch {
+      setLogoutError("登出失敗，請稍後再試。");
+    }
+  }
+
+  return (
+    <ShellGuard>
+      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <div className="flex h-screen overflow-hidden bg-background">
+        <AppRail
+          pathname={pathname}
+          user={authState.user}
+          activeAccount={appState.activeAccount}
+          organizationAccounts={organizationAccounts}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={appState.workspacesHydrated}
+          isOrganizationAccount={showAccountManagement}
+          onSelectPersonal={handleSelectPersonal}
+          onSelectOrganization={handleSelectOrganization}
+          activeWorkspaceId={appState.activeWorkspaceId}
+          onSelectWorkspace={handleSelectWorkspace}
+          onOrganizationCreated={handleOrganizationCreated}
+          onSignOut={() => {
+            void handleLogout();
+          }}
+        />
+        <DashboardSidebar
+          pathname={pathname}
+          activeAccount={appState.activeAccount}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={appState.workspacesHydrated}
+          activeWorkspaceId={appState.activeWorkspaceId}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebar}
+          onSelectWorkspace={handleSelectWorkspace}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
+            <div className="flex h-12 items-center justify-between gap-4">
+              <div className="min-w-0 flex items-center gap-3">
+                {sidebarCollapsed && (
+                  <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    aria-label="展開側欄"
+                    title="展開側欄"
+                    className="hidden size-7 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground md:flex"
+                  >
+                    <PanelLeftOpen className="size-4" />
+                  </button>
+                )}
+                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
+                <AppBreadcrumbs />
+                {/* Global search */}
+                <button
+                  type="button"
+                  aria-label="全域搜尋"
+                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
+                  onClick={() => setSearchOpen(true)}
+                >
+                  <Search className="size-3 shrink-0" />
+                  <span>搜尋…</span>
+                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
+                </button>
+              </div>
+
+              <div className="ml-auto flex items-center gap-3">
+                <HeaderControls />
+                <HeaderUserAvatar
+                  name={authState.user?.name ?? "Dimension Member"}
+                  email={authState.user?.email ?? "—"}
+                  onSignOut={() => {
+                    void handleLogout();
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3 pb-3 md:hidden">
+              <AccountSwitcher
+                personalAccount={authState.user}
+                organizationAccounts={organizationAccounts}
+                activeAccountId={appState.activeAccount?.id ?? null}
+                onSelectPersonal={handleSelectPersonal}
+                onSelectOrganization={handleSelectOrganization}
+                onOrganizationCreated={handleOrganizationCreated}
+              />
+            </div>
+
+            {showAccountManagement && (
+              <>
+                <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
+                  {orgPrimaryItems.map((item) => {
+                    const isActive = isActiveRoute(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "border border-border/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+                <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
+                  {orgSecondaryItems.map((item) => {
+                    const isActive = isActiveRoute(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "border border-border/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </>
+            )}
+            <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
+              {mobileNavItems.map((item) => {
+                const isActive = isActiveRoute(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "border border-border/60 text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </header>
+
+          {logoutError && (
+            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
+          )}
+
+          <main className="flex-1 overflow-auto p-6">{children}</main>
+        </div>
+      </div>
+    </ShellGuard>
+  );
+}
+````
+
+## File: app/(shell)/organization/_utils.ts
+````typescript
+import type { AccountEntity } from "@/modules/platform/subdomains/account";
+import type { ActiveAccount } from "@/app/providers/app-context";
+
+export function isOrganizationAccount(
+  activeAccount: ActiveAccount | null,
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
+export function formatDateTime(value: string | Date | null | undefined): string {
+  if (!value) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(value instanceof Date ? value : new Date(value));
+  } catch {
+    return value instanceof Date ? value.toISOString() : String(value);
+  }
+}
 ````
 
 ## File: app/(shell)/organization/audit/page.tsx
@@ -56993,6 +54754,659 @@ export default function OrganizationDailyPage() {
 }
 ````
 
+## File: app/(shell)/organization/members/page.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { dismissMember, getOrganizationMembers, inviteMember } from "@/modules/platform/subdomains/organization";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { isOrganizationAccount } from "../_utils";
+
+type MemberRole = "Admin" | "Member" | "Guest";
+
+export default function OrganizationMembersPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  const [members, setMembers] = useState<Awaited<ReturnType<typeof getOrganizationMembers>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<MemberRole>("Member");
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
+  async function loadMembers(organizationId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getOrganizationMembers(organizationId);
+      setMembers(data);
+      setLoadState("loaded");
+    } catch {
+      setMembers([]);
+      setLoadState("error");
+    }
+  }
+
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrganizationMembers(organizationId);
+        if (!cancelled) {
+          setMembers(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setMembers([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId]);
+
+  async function handleInvite() {
+    if (!activeOrganizationId || !inviteEmail.trim()) return;
+    setInviteSubmitting(true);
+    setInviteError(null);
+    const result = await inviteMember({
+      organizationId: activeOrganizationId,
+      email: inviteEmail.trim(),
+      teamId: "",
+      role: inviteRole,
+      protocol: "email",
+    });
+    setInviteSubmitting(false);
+    if (result.success) {
+      setInviteOpen(false);
+      setInviteEmail("");
+      setInviteRole("Member");
+      await loadMembers(activeOrganizationId);
+    } else {
+      setInviteError(result.error.message);
+    }
+  }
+
+  async function handleDismiss(memberId: string) {
+    if (!activeOrganizationId) return;
+    setRemovingId(memberId);
+    await dismissMember(activeOrganizationId, memberId);
+    setRemovingId(null);
+    await loadMembers(activeOrganizationId);
+  }
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">成員</h1>
+          <p className="mt-1 text-sm text-muted-foreground">組織成員清單與目前角色。</p>
+        </div>
+        <Button onClick={() => setInviteOpen(true)}>邀請成員</Button>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Members</CardTitle>
+          <CardDescription>組織成員清單與目前角色。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入成員資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取成員資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && members.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的成員資料。</p>
+          )}
+          {loadState === "loaded" &&
+            members.map((member) => (
+              <div
+                key={member.id}
+                className="flex items-center justify-between rounded-lg border border-border/40 px-3 py-2"
+              >
+                <div>
+                  <p className="text-sm font-medium">{member.name}</p>
+                  <p className="text-xs text-muted-foreground">{member.email}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{member.role}</Badge>
+                  <Badge variant="secondary">{member.presence}</Badge>
+                  {member.role !== "Owner" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={removingId === member.id}
+                      onClick={() => handleDismiss(member.id)}
+                    >
+                      移除
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>邀請成員</DialogTitle>
+            <DialogDescription>輸入電子信箱以邀請新成員加入組織。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="invite-email">電子信箱</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder="member@example.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="invite-role">角色</Label>
+              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as MemberRole)}>
+                <SelectTrigger id="invite-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Member">Member</SelectItem>
+                  <SelectItem value="Guest">Guest</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleInvite} disabled={inviteSubmitting || !inviteEmail.trim()}>
+              {inviteSubmitting ? "邀請中…" : "送出邀請"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/organization/page.tsx
+````typescript
+"use client";
+
+/**
+ * Organization Overview Page — /organization
+ * Lists organizations visible to the current user and allows switching
+ * to an organization account context.
+ * Section pages live under /organization/[section].
+ */
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import type { AccountEntity } from "@/modules/platform/subdomains/account";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+
+function isOrganizationAccount(
+  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
+export default function OrganizationPage() {
+  const router = useRouter();
+  const { state: appState, dispatch } = useApp();
+  const { state: authState } = useAuth();
+  const { user } = authState;
+  const { accounts, activeAccount, accountsHydrated, bootstrapPhase } = appState;
+
+  const orgList = Object.values(accounts);
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  function handleSwitch(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+    router.replace("/workspace");
+  }
+
+  function handleSwitchToPersonal() {
+    if (!user) return;
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
+    router.replace("/workspace");
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Account Context Switcher</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          先選擇個人或組織帳號情境，再回到 workspace-first 主流程。
+        </p>
+      </div>
+
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="text-base font-semibold">Recommended flow</h2>
+        <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+          <li>
+            <span className="font-medium text-foreground">1. Identity</span>：登入後確認你目前要操作的個人／組織帳號。
+          </li>
+          <li>
+            <span className="font-medium text-foreground">2. Organization</span>：在這裡切換 active account。
+          </li>
+          <li>
+            <span className="font-medium text-foreground">3. Workspace</span>：回到工作區，再進入 Knowledge、知識頁面、Notebook / AI。
+          </li>
+        </ol>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button asChild size="sm">
+            <Link href="/workspace">回到 Workspace Hub</Link>
+          </Button>
+          {activeOrganizationId && (
+            <Button asChild size="sm" variant="outline">
+              <Link href="/organization/members">組織治理模組</Link>
+            </Button>
+          )}
+        </div>
+      </section>
+
+      {/* Quick-access dashboard — visible only when an org context is active */}
+      {activeOrganizationId && (
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold">組織功能</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {[
+              { href: "/organization/members", title: "成員管理", desc: "邀請與管理組織成員" },
+              { href: "/organization/teams", title: "團隊管理", desc: "建立與編輯團隊" },
+              { href: "/organization/permissions", title: "權限政策", desc: "設定存取規則" },
+              { href: "/organization/workspaces", title: "工作區", desc: "組織下的工作區清單" },
+              { href: "/organization/schedule", title: "工作需求排程", desc: "排程與容量總覽" },
+              { href: "/organization/audit", title: "稽核記錄", desc: "操作歷史追蹤" },
+              { href: "/organization/daily", title: "動態牆", desc: "組織工作區動態" },
+            ].map((item) => (
+              <Link key={item.href} href={item.href} className="group">
+                <Card className="h-full transition-colors group-hover:border-primary/50 group-hover:bg-accent/40">
+                  <CardHeader className="pb-2 pt-4">
+                    <CardTitle className="text-sm">{item.title}</CardTitle>
+                    <CardDescription className="text-xs">{item.desc}</CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          {bootstrapPhase === "seeded"
+            ? "正在同步你的組織清單，完成後就能切換到對應的組織上下文。"
+            : "正在載入組織資料…"}
+        </div>
+      )}
+
+      {/* Personal account */}
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold">Personal Account</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium">{user?.name ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
+          </div>
+          {activeAccount?.id === user?.id ? (
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              Active
+            </span>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleSwitchToPersonal}
+            >
+              Switch
+            </Button>
+          )}
+        </div>
+      </section>
+
+      {/* Organizations */}
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold">
+          Organizations
+          <span className="ml-2 text-xs font-normal text-muted-foreground">
+            ({orgList.length})
+          </span>
+        </h2>
+
+        {orgList.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            You are not a member of any organization yet.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {orgList.map((org) => (
+              <li
+                key={org.id}
+                className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3"
+              >
+                <div>
+                  <p className="font-medium">{org.name}</p>
+                  {org.description && (
+                    <p className="text-xs text-muted-foreground">{org.description}</p>
+                  )}
+                </div>
+                {activeAccount?.id === org.id ? (
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    Active
+                  </span>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSwitch(org)}
+                  >
+                    Switch
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {activeOrganizationId && (
+        <p className="text-sm text-muted-foreground">
+          已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
+        </p>
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/organization/permissions/page.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { createOrgPolicy, getOrgPolicies } from "@/modules/platform/subdomains/organization";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { isOrganizationAccount } from "../_utils";
+
+type PolicyScope = "workspace" | "member" | "global";
+
+export default function OrganizationPermissionsPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  const [policies, setPolicies] = useState<Awaited<ReturnType<typeof getOrgPolicies>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newScope, setNewScope] = useState<PolicyScope>("member");
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  async function loadPolicies(organizationId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getOrgPolicies(organizationId);
+      setPolicies(data);
+      setLoadState("loaded");
+    } catch {
+      setPolicies([]);
+      setLoadState("error");
+    }
+  }
+
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrgPolicies(organizationId);
+        if (!cancelled) {
+          setPolicies(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setPolicies([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId]);
+
+  async function handleCreate() {
+    if (!activeOrganizationId || !newName.trim()) return;
+    setCreateSubmitting(true);
+    setCreateError(null);
+    const result = await createOrgPolicy({
+      orgId: activeOrganizationId,
+      name: newName.trim(),
+      description: newDescription.trim(),
+      rules: [],
+      scope: newScope,
+    });
+    setCreateSubmitting(false);
+    if (result.success) {
+      setCreateOpen(false);
+      setNewName("");
+      setNewDescription("");
+      setNewScope("member");
+      await loadPolicies(activeOrganizationId);
+    } else {
+      setCreateError(result.error.message);
+    }
+  }
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">權限</h1>
+          <p className="mt-1 text-sm text-muted-foreground">組織層級政策規則與 scope。</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>新增政策</Button>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Permissions</CardTitle>
+          <CardDescription>組織層級政策規則與 scope。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入政策資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取政策資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && policies.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的政策資料。</p>
+          )}
+          {loadState === "loaded" &&
+            policies.map((policy) => (
+              <div key={policy.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">{policy.name}</p>
+                  <Badge variant="outline">{policy.scope}</Badge>
+                  <Badge variant={policy.isActive ? "default" : "secondary"}>
+                    {policy.isActive ? "active" : "inactive"}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{policy.description}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Rules: {policy.rules.length}</p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新增政策</DialogTitle>
+            <DialogDescription>建立組織層級存取控制政策。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="policy-name">名稱</Label>
+              <Input
+                id="policy-name"
+                placeholder="政策名稱"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="policy-description">描述</Label>
+              <Input
+                id="policy-description"
+                placeholder="選填"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="policy-scope">Scope</Label>
+              <Select value={newScope} onValueChange={(v) => setNewScope(v as PolicyScope)}>
+                <SelectTrigger id="policy-scope">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Member（成員）</SelectItem>
+                  <SelectItem value="workspace">Workspace（工作區）</SelectItem>
+                  <SelectItem value="global">Global（全域）</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
+              {createSubmitting ? "建立中…" : "建立"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/organization/schedule/page.tsx
 ````typescript
 "use client";
@@ -57033,6 +55447,398 @@ export default function OrganizationSchedulePage() {
         currentUserId={activeOrganizationId}
       />
     </section>
+  );
+}
+````
+
+## File: app/(shell)/organization/teams/page.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { createTeam, getOrganizationTeams } from "@/modules/platform/subdomains/organization";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { isOrganizationAccount } from "../_utils";
+
+export default function OrganizationTeamsPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  const [teams, setTeams] = useState<Awaited<ReturnType<typeof getOrganizationTeams>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newType, setNewType] = useState<"internal" | "external">("internal");
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  async function loadTeams(organizationId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getOrganizationTeams(organizationId);
+      setTeams(data);
+      setLoadState("loaded");
+    } catch {
+      setTeams([]);
+      setLoadState("error");
+    }
+  }
+
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrganizationTeams(organizationId);
+        if (!cancelled) {
+          setTeams(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setTeams([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId]);
+
+  async function handleCreate() {
+    if (!activeOrganizationId || !newName.trim()) return;
+    setCreateSubmitting(true);
+    setCreateError(null);
+    const result = await createTeam({
+      organizationId: activeOrganizationId,
+      name: newName.trim(),
+      description: newDescription.trim(),
+      type: newType,
+    });
+    setCreateSubmitting(false);
+    if (result.success) {
+      setCreateOpen(false);
+      setNewName("");
+      setNewDescription("");
+      setNewType("internal");
+      await loadTeams(activeOrganizationId);
+    } else {
+      setCreateError(result.error.message);
+    }
+  }
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">團隊</h1>
+          <p className="mt-1 text-sm text-muted-foreground">組織團隊與成員關聯。</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>建立團隊</Button>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Teams</CardTitle>
+          <CardDescription>組織團隊與成員關聯。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入團隊資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取團隊資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && teams.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的團隊資料。</p>
+          )}
+          {loadState === "loaded" &&
+            teams.map((team) => (
+              <div key={team.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">{team.name}</p>
+                  <Badge variant="outline">{team.type}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{team.description || "—"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Members: {team.memberIds.length}
+                </p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>建立團隊</DialogTitle>
+            <DialogDescription>填寫團隊名稱與類型以建立新團隊。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="team-name">名稱</Label>
+              <Input
+                id="team-name"
+                placeholder="團隊名稱"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="team-description">描述</Label>
+              <Input
+                id="team-description"
+                placeholder="選填"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="team-type">類型</Label>
+              <Select
+                value={newType}
+                onValueChange={(v) => setNewType(v as "internal" | "external")}
+              >
+                <SelectTrigger id="team-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internal">Internal（內部）</SelectItem>
+                  <SelectItem value="external">External（外部）</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
+              {createSubmitting ? "建立中…" : "建立"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/settings/notifications/page.tsx
+````typescript
+/**
+ * Route: /settings/notifications
+ * Purpose: Full-page notification center showing all notifications for the
+ *          authenticated user with read/unread filtering and bulk actions.
+ */
+"use client";
+
+import { Bell, CheckCheck, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+
+import { useAuth } from "@/app/providers/auth-provider";
+import {
+  markAllNotificationsRead,
+  markNotificationRead,
+  getNotificationsForRecipient,
+  type NotificationEntity,
+} from "@/modules/platform/subdomains/notification";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+type Filter = "all" | "unread";
+
+const TYPE_BADGE: Record<string, string> = {
+  info: "bg-blue-100 text-blue-800",
+  alert: "bg-red-100 text-red-800",
+  success: "bg-green-100 text-green-800",
+  warning: "bg-yellow-100 text-yellow-800",
+};
+
+function formatTime(ts: number) {
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(ts));
+}
+
+export default function NotificationCenterPage() {
+  const { state: authState } = useAuth();
+  const recipientId = authState.user?.id ?? "";
+
+  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [isPending, startTransition] = useTransition();
+
+  const load = useCallback(async () => {
+    if (!recipientId) { setIsLoading(false); return; }
+    setIsLoading(true);
+    try {
+      const data = await getNotificationsForRecipient(recipientId, 100);
+      setNotifications(data);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [recipientId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const displayed = useMemo(
+    () => filter === "unread" ? notifications.filter((n) => !n.read) : notifications,
+    [notifications, filter],
+  );
+
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications],
+  );
+
+  function handleMarkOne(id: string) {
+    startTransition(async () => {
+      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+      await markNotificationRead(id, recipientId);
+    });
+  }
+
+  function handleMarkAll() {
+    startTransition(async () => {
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      await markAllNotificationsRead(recipientId);
+    });
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-6">
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bell className="h-5 w-5 text-muted-foreground" />
+          <h1 className="text-xl font-semibold">通知中心</h1>
+          {unreadCount > 0 && (
+            <Badge variant="secondary" className="ml-1">{unreadCount} 未讀</Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setFilter((f) => f === "all" ? "unread" : "all")}
+            className="text-xs"
+          >
+            {filter === "all" ? "只看未讀" : "顯示全部"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isPending || unreadCount === 0}
+            onClick={handleMarkAll}
+            className="text-xs gap-1"
+          >
+            <CheckCheck className="h-3.5 w-3.5" />
+            全部標為已讀
+          </Button>
+        </div>
+      </div>
+
+      {/* Body */}
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : displayed.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground">
+          <Bell className="h-10 w-10 opacity-30" />
+          <p className="text-sm">{filter === "unread" ? "沒有未讀通知" : "目前沒有通知"}</p>
+        </div>
+      ) : (
+        <ul className="divide-y divide-border rounded-lg border">
+          {displayed.map((n) => (
+            <li
+              key={n.id}
+              className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40 ${n.read ? "opacity-60" : ""}`}
+            >
+              {!n.read && (
+                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />
+              )}
+              {n.read && <span className="mt-2 h-2 w-2 shrink-0" />}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-medium">{n.title}</p>
+                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${TYPE_BADGE[n.type] ?? ""}`}>
+                    {n.type}
+                  </span>
+                </div>
+                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.message}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{formatTime(n.timestamp)}</p>
+              </div>
+              {!n.read && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={isPending}
+                  onClick={() => handleMarkOne(n.id)}
+                  title="標為已讀"
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 ````
@@ -57794,6 +56600,84 @@ When adding or changing docs:
 
 If a question is broad, inspect summaries and README indexes before opening detailed files.
 If multiple files appear to overlap, identify the canonical file and treat others as supporting context.
+````
+
+## File: modules/knowledge-collaboration/interfaces/_actions/comment.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: knowledge-collaboration
+ * Layer: interfaces/_actions
+ * Purpose: Comment Aggregate Server Actions — create, update, resolve, delete.
+ * Version actions: see version.actions.ts
+ * Permission actions: see permission.actions.ts
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { dispatchNotification } from "@/modules/platform/subdomains/notification";
+import {
+  CreateCommentUseCase,
+  UpdateCommentUseCase,
+  ResolveCommentUseCase,
+  DeleteCommentUseCase,
+} from "../../application/use-cases/comment.use-cases";
+import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
+import type {
+  CreateCommentDto,
+  UpdateCommentDto,
+  ResolveCommentDto,
+  DeleteCommentDto,
+} from "../../application/dto/knowledge-collaboration.dto";
+
+function makeCommentRepo() { return new FirebaseCommentRepository(); }
+
+export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
+  try {
+    const result = await new CreateCommentUseCase(makeCommentRepo()).execute(input);
+    if (result.success && input.mentionedUserIds && input.mentionedUserIds.length > 0) {
+      await Promise.allSettled(
+        input.mentionedUserIds.map((recipientId) =>
+          dispatchNotification({
+            recipientId,
+            title: "有人提及了你",
+            message: input.body.slice(0, 100),
+            type: "info",
+            sourceEventType: "comment.mention",
+            metadata: { authorId: input.authorId, contentId: input.contentId, contentType: input.contentType },
+          }),
+        ),
+      );
+    }
+    return result;
+  } catch (err) {
+    return commandFailureFrom("COMMENT_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateComment(input: UpdateCommentDto): Promise<CommandResult> {
+  try {
+    return await new UpdateCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function resolveComment(input: ResolveCommentDto): Promise<CommandResult> {
+  try {
+    return await new ResolveCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteComment(input: DeleteCommentDto): Promise<CommandResult> {
+  try {
+    return await new DeleteCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
 ````
 
 ## File: modules/knowledge/subdomains/ai/application/.gitkeep
@@ -59138,6 +58022,182 @@ export { answerRagQuery, generateNotebookResponse } from "./_actions/notebook.ac
 ## File: modules/notion/core/domain/.gitkeep
 ````
 
+````
+
+## File: modules/notion/core/domain/events/index.ts
+````typescript
+export type { NotionDomainEvent } from "./NotionDomainEvent";
+````
+
+## File: modules/notion/core/domain/events/NotionDomainEvent.ts
+````typescript
+/**
+ * Module: notion/core
+ * Layer: domain/events
+ * Purpose: Base interface for all Notion domain events.
+ */
+
+export interface NotionDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string; // ISO 8601 string
+  readonly type: string;
+  readonly payload: Record<string, unknown>;
+}
+````
+
+## File: modules/notion/core/domain/index.ts
+````typescript
+export * from "./value-objects";
+export * from "./events";
+````
+
+## File: modules/notion/core/domain/value-objects/BlockContent.ts
+````typescript
+/**
+ * Module: notion/core
+ * Layer: domain/value-objects
+ * Purpose: BlockContent value object — immutable typed content snapshot for a Block.
+ *
+ * Re-implementation of the original knowledge domain block-content.
+ * This is a VALUE OBJECT: equality is determined by value, not identity.
+ */
+
+// ── RichText Annotation Model ─────────────────────────────────────────────────
+
+export type RichTextSpanType = "text" | "mention_page" | "mention_user" | "link";
+
+export interface TextAnnotations {
+  readonly bold?: boolean;
+  readonly italic?: boolean;
+  readonly underline?: boolean;
+  readonly strikethrough?: boolean;
+  readonly code?: boolean;
+  readonly color?: string;
+}
+
+interface BaseRichTextSpan {
+  readonly annotations?: TextAnnotations;
+}
+
+export interface TextSpan extends BaseRichTextSpan {
+  readonly type: "text";
+  readonly plainText: string;
+}
+
+export interface MentionPageSpan extends BaseRichTextSpan {
+  readonly type: "mention_page";
+  readonly pageId: string;
+  readonly label: string;
+}
+
+export interface MentionUserSpan extends BaseRichTextSpan {
+  readonly type: "mention_user";
+  readonly userId: string;
+  readonly displayName: string;
+}
+
+export interface LinkSpan extends BaseRichTextSpan {
+  readonly type: "link";
+  readonly url: string;
+  readonly label: string;
+}
+
+export type RichTextSpan = TextSpan | MentionPageSpan | MentionUserSpan | LinkSpan;
+
+export function richTextToPlainText(spans: ReadonlyArray<RichTextSpan>): string {
+  return spans
+    .map((s) => {
+      switch (s.type) {
+        case "text": return s.plainText;
+        case "mention_page": return s.label;
+        case "mention_user": return `@${s.displayName}`;
+        case "link": return s.label;
+      }
+    })
+    .join("");
+}
+
+export function extractMentionedPageIds(spans: ReadonlyArray<RichTextSpan>): ReadonlyArray<string> {
+  return spans
+    .filter((s): s is MentionPageSpan => s.type === "mention_page")
+    .map((s) => s.pageId);
+}
+
+export function extractMentionedUserIds(spans: ReadonlyArray<RichTextSpan>): ReadonlyArray<string> {
+  return spans
+    .filter((s): s is MentionUserSpan => s.type === "mention_user")
+    .map((s) => s.userId);
+}
+
+// ── Block types ───────────────────────────────────────────────────────────────
+
+export type BlockType =
+  | "text"
+  | "heading-1"
+  | "heading-2"
+  | "heading-3"
+  | "image"
+  | "code"
+  | "bullet-list"
+  | "numbered-list"
+  | "divider"
+  | "quote"
+  | "callout"
+  | "toggle"
+  | "toc"
+  | "synced";
+
+export const BLOCK_TYPES = [
+  "text",
+  "heading-1",
+  "heading-2",
+  "heading-3",
+  "image",
+  "code",
+  "bullet-list",
+  "numbered-list",
+  "divider",
+  "quote",
+  "callout",
+  "toggle",
+  "toc",
+  "synced",
+] as const satisfies readonly BlockType[];
+
+export interface BlockContent {
+  readonly type: BlockType;
+  readonly richText: ReadonlyArray<RichTextSpan>;
+  readonly properties?: Readonly<Record<string, unknown>>;
+}
+
+export function blockContentEquals(a: BlockContent, b: BlockContent): boolean {
+  if (a.type !== b.type) return false;
+  if (JSON.stringify(a.richText) !== JSON.stringify(b.richText)) return false;
+  if (a.properties === undefined && b.properties === undefined) return true;
+  if (a.properties === undefined || b.properties === undefined) return false;
+  const sortedKeys = (obj: Record<string, unknown>): string =>
+    JSON.stringify(obj, Object.keys(obj).sort());
+  return sortedKeys(a.properties) === sortedKeys(b.properties);
+}
+
+export function emptyTextBlockContent(): BlockContent {
+  return { type: "text", richText: [] };
+}
+
+export function plainTextBlockContent(text: string, type: BlockType = "text"): BlockContent {
+  return { type, richText: [{ type: "text", plainText: text }] };
+}
+````
+
+## File: modules/notion/core/domain/value-objects/index.ts
+````typescript
+export type { BlockContent, BlockType, RichTextSpan, TextSpan, MentionPageSpan, MentionUserSpan, LinkSpan, TextAnnotations, RichTextSpanType } from "./BlockContent";
+export { BLOCK_TYPES, blockContentEquals, emptyTextBlockContent, plainTextBlockContent, richTextToPlainText, extractMentionedPageIds, extractMentionedUserIds } from "./BlockContent";
+````
+
+## File: modules/notion/core/index.ts
+````typescript
+export * from "./domain";
 ````
 
 ## File: modules/notion/core/infrastructure/.gitkeep
@@ -60503,6 +59563,2336 @@ modules/notion/
 
 ````
 
+## File: modules/notion/subdomains/knowledge/application/dto/ContentBlockDto.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: application/dto
+ * Purpose: Zod-validated input schemas for ContentBlock use cases.
+ */
+
+import { z } from "@lib-zod";
+import { BLOCK_TYPES } from "../../../../core/domain/value-objects/BlockContent";
+
+export const BlockTypeSchema = z.enum(BLOCK_TYPES);
+
+export const BlockContentSchema = z.object({
+  type: BlockTypeSchema,
+  richText: z.array(z.unknown()).readonly(),
+  properties: z.record(z.string(), z.unknown()).optional(),
+});
+export type BlockContentDto = z.infer<typeof BlockContentSchema>;
+
+const AccountScopeSchema = z.object({ accountId: z.string().min(1) });
+
+export const AddKnowledgeBlockSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  content: BlockContentSchema,
+  index: z.number().int().nonnegative().optional(),
+  parentBlockId: z.string().min(1).nullable().optional(),
+});
+export type AddKnowledgeBlockDto = z.infer<typeof AddKnowledgeBlockSchema>;
+
+export const UpdateKnowledgeBlockSchema = AccountScopeSchema.extend({
+  blockId: z.string().min(1),
+  content: BlockContentSchema,
+});
+export type UpdateKnowledgeBlockDto = z.infer<typeof UpdateKnowledgeBlockSchema>;
+
+export const DeleteKnowledgeBlockSchema = AccountScopeSchema.extend({
+  blockId: z.string().min(1),
+});
+export type DeleteKnowledgeBlockDto = z.infer<typeof DeleteKnowledgeBlockSchema>;
+
+export const NestKnowledgeBlockSchema = z.object({
+  accountId: z.string().min(1),
+  blockId: z.string().min(1),
+  parentBlockId: z.string().min(1),
+  index: z.number().int().min(0).optional(),
+});
+export type NestKnowledgeBlockDto = z.infer<typeof NestKnowledgeBlockSchema>;
+
+export const UnnestKnowledgeBlockSchema = z.object({
+  accountId: z.string().min(1),
+  blockId: z.string().min(1),
+  index: z.number().int().min(0).optional(),
+});
+export type UnnestKnowledgeBlockDto = z.infer<typeof UnnestKnowledgeBlockSchema>;
+````
+
+## File: modules/notion/subdomains/knowledge/application/dto/index.ts
+````typescript
+export * from "./KnowledgePageDto";
+export * from "./ContentBlockDto";
+export * from "./KnowledgeCollectionDto";
+export * from "./KnowledgeWikiDto";
+````
+
+## File: modules/notion/subdomains/knowledge/application/dto/KnowledgeCollectionDto.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: application/dto
+ * Purpose: Zod-validated input schemas for KnowledgeCollection use cases.
+ */
+
+import { z } from "@lib-zod";
+
+const AccountScopeSchema = z.object({ accountId: z.string().min(1) });
+
+export const CollectionColumnTypeSchema = z.enum([
+  "text", "number", "select", "multi-select", "date", "checkbox", "url", "relation",
+]);
+export type CollectionColumnTypeDto = z.infer<typeof CollectionColumnTypeSchema>;
+
+export const CollectionColumnInputSchema = z.object({
+  name: z.string().min(1).max(100),
+  type: CollectionColumnTypeSchema,
+  options: z.array(z.string()).optional(),
+});
+export type CollectionColumnInputDto = z.infer<typeof CollectionColumnInputSchema>;
+
+export const CreateKnowledgeCollectionSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1).optional(),
+  name: z.string().min(1).max(300),
+  description: z.string().max(1000).optional(),
+  columns: z.array(CollectionColumnInputSchema).optional(),
+  createdByUserId: z.string().min(1),
+});
+export type CreateKnowledgeCollectionDto = z.infer<typeof CreateKnowledgeCollectionSchema>;
+
+export const RenameKnowledgeCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  name: z.string().min(1).max(300),
+});
+export type RenameKnowledgeCollectionDto = z.infer<typeof RenameKnowledgeCollectionSchema>;
+
+export const AddPageToCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  pageId: z.string().min(1),
+});
+export type AddPageToCollectionDto = z.infer<typeof AddPageToCollectionSchema>;
+
+export const RemovePageFromCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  pageId: z.string().min(1),
+});
+export type RemovePageFromCollectionDto = z.infer<typeof RemovePageFromCollectionSchema>;
+
+export const AddCollectionColumnSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  column: CollectionColumnInputSchema,
+});
+export type AddCollectionColumnDto = z.infer<typeof AddCollectionColumnSchema>;
+
+export const ArchiveKnowledgeCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+});
+export type ArchiveKnowledgeCollectionDto = z.infer<typeof ArchiveKnowledgeCollectionSchema>;
+````
+
+## File: modules/notion/subdomains/knowledge/application/dto/KnowledgePageDto.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: application/dto
+ * Purpose: Zod-validated input schemas for KnowledgePage use cases.
+ */
+
+import { z } from "@lib-zod";
+
+const AccountScopeSchema = z.object({ accountId: z.string().min(1) });
+
+export const CreateKnowledgePageSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1),
+  title: z.string().min(1).max(300),
+  parentPageId: z.string().min(1).nullable().optional(),
+  createdByUserId: z.string().min(1),
+});
+export type CreateKnowledgePageDto = z.infer<typeof CreateKnowledgePageSchema>;
+
+export const RenameKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  title: z.string().min(1).max(300),
+});
+export type RenameKnowledgePageDto = z.infer<typeof RenameKnowledgePageSchema>;
+
+export const MoveKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  targetParentPageId: z.string().min(1).nullable(),
+});
+export type MoveKnowledgePageDto = z.infer<typeof MoveKnowledgePageSchema>;
+
+export const ArchiveKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+});
+export type ArchiveKnowledgePageDto = z.infer<typeof ArchiveKnowledgePageSchema>;
+
+export const ReorderKnowledgePageBlocksSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  blockIds: z.array(z.string().min(1)),
+});
+export type ReorderKnowledgePageBlocksDto = z.infer<typeof ReorderKnowledgePageBlocksSchema>;
+
+export const ExtractedTaskSchema = z.object({
+  title: z.string().min(1).max(300),
+  dueDate: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export const ExtractedInvoiceSchema = z.object({
+  amount: z.number().positive(),
+  description: z.string().min(1),
+  currency: z.string().optional(),
+});
+
+export const ApproveKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  actorId: z.string().min(1),
+  causationId: z.string().min(1).optional(),
+  extractedTasks: z.array(ExtractedTaskSchema).default([]),
+  extractedInvoices: z.array(ExtractedInvoiceSchema).default([]),
+  correlationId: z.string().optional(),
+  workspaceId: z.string().optional(),
+});
+export type ApproveKnowledgePageDto = z.infer<typeof ApproveKnowledgePageSchema>;
+
+export const CreateKnowledgeVersionSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  label: z.string().max(100).optional(),
+  createdByUserId: z.string().min(1),
+});
+export type CreateKnowledgeVersionDto = z.infer<typeof CreateKnowledgeVersionSchema>;
+````
+
+## File: modules/notion/subdomains/knowledge/application/dto/KnowledgeWikiDto.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: application/dto
+ * Purpose: Zod-validated input schemas for wiki/knowledge-base use cases.
+ */
+
+import { z } from "@lib-zod";
+
+const AccountScopeSchema = z.object({ accountId: z.string().min(1) });
+
+export const VerifyKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  verifiedByUserId: z.string().min(1),
+  verificationExpiresAtISO: z.string().datetime({ offset: true }).optional(),
+});
+export type VerifyKnowledgePageDto = z.infer<typeof VerifyKnowledgePageSchema>;
+
+export const RequestPageReviewSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  requestedByUserId: z.string().min(1),
+});
+export type RequestPageReviewDto = z.infer<typeof RequestPageReviewSchema>;
+
+export const AssignPageOwnerSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  ownerId: z.string().min(1),
+  assignedByUserId: z.string().min(1),
+});
+export type AssignPageOwnerDto = z.infer<typeof AssignPageOwnerSchema>;
+
+export const CreateWikiSpaceSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1).optional(),
+  name: z.string().min(1).max(300),
+  description: z.string().max(1000).optional(),
+  createdByUserId: z.string().min(1),
+});
+export type CreateWikiSpaceDto = z.infer<typeof CreateWikiSpaceSchema>;
+
+export const UpdatePageIconSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  iconUrl: z.string().max(2000),
+});
+export type UpdatePageIconDto = z.infer<typeof UpdatePageIconSchema>;
+
+export const UpdatePageCoverSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  coverUrl: z.string().max(2000),
+});
+export type UpdatePageCoverDto = z.infer<typeof UpdatePageCoverSchema>;
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/BacklinkUseCases.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { BacklinkIndexSnapshot } from "../../domain/aggregates/BacklinkIndex";
+import type { IBacklinkIndexRepository } from "../../domain/repositories/IBacklinkIndexRepository";
+
+export class UpdatePageBacklinksUseCase {
+  constructor(private readonly repo: IBacklinkIndexRepository) {}
+  async execute(input: {
+    readonly accountId: string;
+    readonly sourcePageId: string;
+    readonly sourcePageTitle: string;
+    readonly mentionsByTarget: ReadonlyMap<string, ReadonlyArray<{ blockId: string; lastSeenAtISO: string }>>;
+  }): Promise<CommandResult> {
+    const { accountId, sourcePageId, sourcePageTitle, mentionsByTarget } = input;
+    if (!accountId || !sourcePageId) return commandFailureFrom("BACKLINK_INVALID_INPUT", "accountId and sourcePageId required.");
+    for (const [targetPageId, mentions] of mentionsByTarget) {
+      await this.repo.upsertFromSource({ accountId, targetPageId, sourcePageId, entries: mentions.map(m => ({ sourcePageTitle, blockId: m.blockId, lastSeenAtISO: m.lastSeenAtISO })) });
+    }
+    const currentTargets = await this.repo.listOutboundTargets(accountId, sourcePageId);
+    const newTargetSet = new Set(mentionsByTarget.keys());
+    for (const old of currentTargets) {
+      if (!newTargetSet.has(old)) await this.repo.upsertFromSource({ accountId, targetPageId: old, sourcePageId, entries: [] });
+    }
+    return commandSuccess(sourcePageId, Date.now());
+  }
+}
+
+export class RemovePageBacklinksUseCase {
+  constructor(private readonly repo: IBacklinkIndexRepository) {}
+  async execute(accountId: string, sourcePageId: string): Promise<CommandResult> {
+    await this.repo.removeFromSource({ accountId, sourcePageId });
+    return commandSuccess(sourcePageId, Date.now());
+  }
+}
+
+export class GetPageBacklinksUseCase {
+  constructor(private readonly repo: IBacklinkIndexRepository) {}
+  async execute(accountId: string, targetPageId: string): Promise<BacklinkIndexSnapshot | null> {
+    const idx = await this.repo.findByTargetPage(accountId, targetPageId);
+    return idx ? idx.getSnapshot() : null;
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/ContentBlockUseCases.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import { v7 as generateId } from "@lib-uuid";
+import { ContentBlock } from "../../domain/aggregates/ContentBlock";
+import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
+import type { IContentBlockRepository } from "../../domain/repositories/IContentBlockRepository";
+import type { BlockContent } from "../../../../core/domain/value-objects/BlockContent";
+import {
+  AddKnowledgeBlockSchema, type AddKnowledgeBlockDto,
+  UpdateKnowledgeBlockSchema, type UpdateKnowledgeBlockDto,
+  DeleteKnowledgeBlockSchema, type DeleteKnowledgeBlockDto,
+  NestKnowledgeBlockSchema, type NestKnowledgeBlockDto,
+  UnnestKnowledgeBlockSchema, type UnnestKnowledgeBlockDto,
+} from "../dto/ContentBlockDto";
+
+export class AddContentBlockUseCase {
+  constructor(private readonly repo: IContentBlockRepository) {}
+  async execute(input: AddKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = AddKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    const { accountId, pageId, content, index, parentBlockId } = parsed.data;
+    const count = await this.repo.countByPageId(accountId, pageId);
+    const order = index !== undefined ? index : count;
+    const id = generateId();
+    const block = ContentBlock.create(id, { pageId, accountId, content: content as BlockContent, order, parentBlockId });
+    await this.repo.save(block);
+    return commandSuccess(block.id, Date.now());
+  }
+}
+
+export class UpdateContentBlockUseCase {
+  constructor(private readonly repo: IContentBlockRepository) {}
+  async execute(input: UpdateKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = UpdateKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    const { accountId, blockId, content } = parsed.data;
+    const block = await this.repo.findById(accountId, blockId);
+    if (!block) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
+    block.update(content as BlockContent);
+    await this.repo.save(block);
+    return commandSuccess(block.id, Date.now());
+  }
+}
+
+export class DeleteContentBlockUseCase {
+  constructor(private readonly repo: IContentBlockRepository) {}
+  async execute(input: DeleteKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = DeleteKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    await this.repo.delete(parsed.data.accountId, parsed.data.blockId);
+    return commandSuccess(parsed.data.blockId, Date.now());
+  }
+}
+
+export class NestContentBlockUseCase {
+  constructor(private readonly repo: IContentBlockRepository) {}
+  async execute(input: NestKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = NestKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    const { accountId, blockId, parentBlockId, index } = parsed.data;
+    const [block, parent] = await Promise.all([this.repo.findById(accountId, blockId), this.repo.findById(accountId, parentBlockId)]);
+    if (!block || !parent) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block or parent not found.");
+    block.nest(parentBlockId, index);
+    parent.addChild(blockId, index);
+    await Promise.all([this.repo.save(block), this.repo.save(parent)]);
+    return commandSuccess(block.id, Date.now());
+  }
+}
+
+export class UnnestContentBlockUseCase {
+  constructor(private readonly repo: IContentBlockRepository) {}
+  async execute(input: UnnestKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = UnnestKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    const { accountId, blockId, index } = parsed.data;
+    const block = await this.repo.findById(accountId, blockId);
+    if (!block) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
+    const parentId = block.parentBlockId;
+    block.unnest(index);
+    if (parentId) {
+      const parent = await this.repo.findById(accountId, parentId);
+      if (parent) { parent.removeChild(blockId); await this.repo.save(parent); }
+    }
+    await this.repo.save(block);
+    return commandSuccess(block.id, Date.now());
+  }
+}
+
+export class ListContentBlocksUseCase {
+  constructor(private readonly repo: IContentBlockRepository) {}
+  async execute(accountId: string, pageId: string): Promise<ContentBlockSnapshot[]> {
+    if (!accountId || !pageId) return [];
+    const blocks = await this.repo.listByPageId(accountId, pageId);
+    return blocks.map(b => b.getSnapshot());
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgeCollectionUseCases.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import { v7 as generateId } from "@lib-uuid";
+import { KnowledgeCollection } from "../../domain/aggregates/KnowledgeCollection";
+import type { KnowledgeCollectionSnapshot, CollectionColumn } from "../../domain/aggregates/KnowledgeCollection";
+import type { IKnowledgeCollectionRepository } from "../../domain/repositories/IKnowledgeCollectionRepository";
+import {
+  CreateKnowledgeCollectionSchema, type CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionSchema, type RenameKnowledgeCollectionDto,
+  AddPageToCollectionSchema, type AddPageToCollectionDto,
+  RemovePageFromCollectionSchema, type RemovePageFromCollectionDto,
+  AddCollectionColumnSchema, type AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionSchema, type ArchiveKnowledgeCollectionDto,
+} from "../dto/KnowledgeCollectionDto";
+
+export class CreateKnowledgeCollectionUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(input: CreateKnowledgeCollectionDto): Promise<CommandResult> {
+    const parsed = CreateKnowledgeCollectionSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    const { accountId, workspaceId, name, description, columns, createdByUserId } = parsed.data;
+    const columnIds = (columns ?? []).map(() => generateId());
+    const id = generateId();
+    const collection = KnowledgeCollection.create(id, columnIds, {
+      accountId, workspaceId, name: name.trim(), description,
+      columns: columns?.map(c => ({ name: c.name, type: c.type as CollectionColumn["type"], options: c.options })),
+      createdByUserId,
+    });
+    await this.repo.save(collection);
+    return commandSuccess(collection.id, Date.now());
+  }
+}
+
+export class RenameKnowledgeCollectionUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(input: RenameKnowledgeCollectionDto): Promise<CommandResult> {
+    const parsed = RenameKnowledgeCollectionSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    const { accountId, collectionId, name } = parsed.data;
+    const collection = await this.repo.findById(accountId, collectionId);
+    if (!collection) return commandFailureFrom("COLLECTION_NOT_FOUND", "Collection not found.");
+    collection.rename(name.trim());
+    await this.repo.save(collection);
+    return commandSuccess(collection.id, Date.now());
+  }
+}
+
+export class AddPageToCollectionUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(input: AddPageToCollectionDto): Promise<CommandResult> {
+    const parsed = AddPageToCollectionSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    const { accountId, collectionId, pageId } = parsed.data;
+    const collection = await this.repo.findById(accountId, collectionId);
+    if (!collection) return commandFailureFrom("COLLECTION_NOT_FOUND", "Collection not found.");
+    collection.addPage(pageId);
+    await this.repo.save(collection);
+    return commandSuccess(collection.id, Date.now());
+  }
+}
+
+export class RemovePageFromCollectionUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(input: RemovePageFromCollectionDto): Promise<CommandResult> {
+    const parsed = RemovePageFromCollectionSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    const { accountId, collectionId, pageId } = parsed.data;
+    const collection = await this.repo.findById(accountId, collectionId);
+    if (!collection) return commandFailureFrom("COLLECTION_NOT_FOUND", "Collection not found.");
+    collection.removePage(pageId);
+    await this.repo.save(collection);
+    return commandSuccess(collection.id, Date.now());
+  }
+}
+
+export class AddCollectionColumnUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(input: AddCollectionColumnDto): Promise<CommandResult> {
+    const parsed = AddCollectionColumnSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    const { accountId, collectionId, column } = parsed.data;
+    const collection = await this.repo.findById(accountId, collectionId);
+    if (!collection) return commandFailureFrom("COLLECTION_NOT_FOUND", "Collection not found.");
+    collection.addColumn({ id: generateId(), name: column.name, type: column.type as CollectionColumn["type"], options: column.options });
+    await this.repo.save(collection);
+    return commandSuccess(collection.id, Date.now());
+  }
+}
+
+export class ArchiveKnowledgeCollectionUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(input: ArchiveKnowledgeCollectionDto): Promise<CommandResult> {
+    const parsed = ArchiveKnowledgeCollectionSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    const { accountId, collectionId } = parsed.data;
+    const collection = await this.repo.findById(accountId, collectionId);
+    if (!collection) return commandFailureFrom("COLLECTION_NOT_FOUND", "Collection not found.");
+    collection.archive();
+    await this.repo.save(collection);
+    return commandSuccess(collection.id, Date.now());
+  }
+}
+
+export class GetKnowledgeCollectionUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(accountId: string, collectionId: string): Promise<KnowledgeCollectionSnapshot | null> {
+    const c = await this.repo.findById(accountId, collectionId);
+    return c ? c.getSnapshot() : null;
+  }
+}
+
+export class ListKnowledgeCollectionsUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(accountId: string): Promise<KnowledgeCollectionSnapshot[]> {
+    const cs = await this.repo.listByAccountId(accountId);
+    return cs.map(c => c.getSnapshot());
+  }
+}
+
+export class ListKnowledgeCollectionsByWorkspaceUseCase {
+  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
+  async execute(accountId: string, workspaceId: string): Promise<KnowledgeCollectionSnapshot[]> {
+    const cs = await this.repo.listByWorkspaceId(accountId, workspaceId);
+    return cs.map(c => c.getSnapshot());
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageAppearanceUseCases.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: application/use-cases
+ * Purpose: Page appearance use cases — update icon, update cover.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+import {
+  UpdatePageIconSchema,
+  type UpdatePageIconDto,
+  UpdatePageCoverSchema,
+  type UpdatePageCoverDto,
+} from "../dto/KnowledgeWikiDto";
+
+export class UpdatePageIconUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: UpdatePageIconDto): Promise<CommandResult> {
+    const parsed = UpdatePageIconSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, iconUrl } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.updateIcon(iconUrl);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class UpdatePageCoverUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: UpdatePageCoverDto): Promise<CommandResult> {
+    const parsed = UpdatePageCoverSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, coverUrl } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.updateCover(coverUrl);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageReviewUseCases.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: application/use-cases
+ * Purpose: Page review/wiki use cases — approve, verify, request review, assign owner.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import { v7 as generateId } from "@lib-uuid";
+
+import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+import {
+  PublishDomainEventUseCase,
+  type IEventStoreRepository,
+  type IEventBusRepository,
+} from "@/modules/shared/api";
+import {
+  ApproveKnowledgePageSchema,
+  type ApproveKnowledgePageDto,
+  VerifyKnowledgePageSchema,
+  type VerifyKnowledgePageDto,
+  RequestPageReviewSchema,
+  type RequestPageReviewDto,
+  AssignPageOwnerSchema,
+  type AssignPageOwnerDto,
+} from "../dto/KnowledgeWikiDto";
+
+export class ApproveKnowledgePageUseCase {
+  constructor(
+    private readonly repo: IKnowledgePageRepository,
+    private readonly eventStore: IEventStoreRepository,
+    private readonly eventBus: IEventBusRepository,
+  ) {}
+
+  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ApproveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const {
+      accountId,
+      pageId,
+      actorId,
+      causationId: inputCausationId,
+      extractedTasks,
+      extractedInvoices,
+      correlationId: inputCorrelationId,
+      workspaceId,
+    } = parsed.data;
+
+    const causationId = inputCausationId ?? generateId();
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    if (page.status === "archived") return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
+    if (page.approvalState === "approved") return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
+
+    const nowISO = new Date().toISOString();
+    page.approve(actorId, nowISO);
+    await this.repo.save(page);
+
+    const correlationId = inputCorrelationId ?? generateId();
+    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
+      id: generateId(),
+      eventName: "knowledge.page_approved",
+      aggregateType: "KnowledgePage",
+      aggregateId: pageId,
+      payload: {
+        pageId,
+        accountId,
+        workspaceId: workspaceId ?? page.workspaceId,
+        extractedTasks,
+        extractedInvoices,
+        actorId,
+        causationId: inputCausationId,
+        correlationId,
+      },
+      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
+    });
+
+    return commandSuccess(pageId, Date.now());
+  }
+}
+
+export class VerifyKnowledgePageUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+    const parsed = VerifyKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.verify(verifiedByUserId, verificationExpiresAtISO);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class RequestPageReviewUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
+    const parsed = RequestPageReviewSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, requestedByUserId } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.requestReview(requestedByUserId);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class AssignPageOwnerUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
+    const parsed = AssignPageOwnerSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, ownerId } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.assignOwner(ownerId);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageUseCases.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: application/use-cases
+ * Purpose: Page lifecycle use cases — create, rename, move, archive, reorder.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import { v7 as generateId } from "@lib-uuid";
+
+import { KnowledgePage } from "../../domain/aggregates/KnowledgePage";
+import type { KnowledgePageSnapshot, KnowledgePageTreeNode } from "../../domain/aggregates/KnowledgePage";
+import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+import {
+  CreateKnowledgePageSchema,
+  type CreateKnowledgePageDto,
+  RenameKnowledgePageSchema,
+  type RenameKnowledgePageDto,
+  MoveKnowledgePageSchema,
+  type MoveKnowledgePageDto,
+  ArchiveKnowledgePageSchema,
+  type ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksSchema,
+  type ReorderKnowledgePageBlocksDto,
+} from "../dto/KnowledgePageDto";
+
+export function buildKnowledgePageTree(pages: KnowledgePageSnapshot[]): KnowledgePageTreeNode[] {
+  const map = new Map<string, KnowledgePageTreeNode>();
+  for (const page of pages) {
+    map.set(page.id, { ...page, children: [] });
+  }
+  const roots: KnowledgePageTreeNode[] = [];
+  for (const node of map.values()) {
+    if (node.parentPageId === null || !map.has(node.parentPageId)) {
+      roots.push(node);
+    } else {
+      const parent = map.get(node.parentPageId)!;
+      (parent.children as KnowledgePageTreeNode[]).push(node);
+    }
+  }
+  const sortByOrder = (nodes: KnowledgePageTreeNode[]): void => {
+    nodes.sort((a, b) => a.order - b.order);
+    for (const n of nodes) sortByOrder(n.children as KnowledgePageTreeNode[]);
+  };
+  sortByOrder(roots);
+  return roots;
+}
+
+export class CreateKnowledgePageUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: CreateKnowledgePageDto): Promise<CommandResult> {
+    const parsed = CreateKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, workspaceId, title, parentPageId, createdByUserId } = parsed.data;
+    const order = await this.repo.countByParent(accountId, parentPageId ?? null);
+    const id = generateId();
+    const page = KnowledgePage.create(id, {
+      accountId,
+      workspaceId,
+      title: title.trim(),
+      parentPageId: parentPageId ?? null,
+      createdByUserId,
+      order,
+    });
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class RenameKnowledgePageUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: RenameKnowledgePageDto): Promise<CommandResult> {
+    const parsed = RenameKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, title } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.rename(title.trim());
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class MoveKnowledgePageUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: MoveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = MoveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, targetParentPageId } = parsed.data;
+    if (pageId === targetParentPageId) {
+      return commandFailureFrom("CONTENT_PAGE_CIRCULAR_MOVE", "A page cannot be its own parent.");
+    }
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.move(targetParentPageId);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class ArchiveKnowledgePageUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ArchiveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.archive();
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class ReorderKnowledgePageBlocksUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
+    const parsed = ReorderKnowledgePageBlocksSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, blockIds } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.reorderBlocks(blockIds);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class GetKnowledgePageUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
+    if (!accountId.trim() || !pageId.trim()) return null;
+    return this.repo.findSnapshotById(accountId, pageId);
+  }
+}
+
+export class ListKnowledgePagesUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(accountId: string): Promise<KnowledgePageSnapshot[]> {
+    if (!accountId.trim()) return [];
+    return this.repo.listSnapshotsByAccountId(accountId);
+  }
+}
+
+export class ListKnowledgePagesByWorkspaceUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
+    if (!accountId.trim() || !workspaceId.trim()) return [];
+    return this.repo.listSnapshotsByWorkspaceId(accountId, workspaceId);
+  }
+}
+
+export class GetKnowledgePageTreeUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(accountId: string): Promise<KnowledgePageTreeNode[]> {
+    if (!accountId.trim()) return [];
+    const pages = await this.repo.listSnapshotsByAccountId(accountId);
+    return buildKnowledgePageTree(pages);
+  }
+}
+
+export class GetKnowledgePageTreeByWorkspaceUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(accountId: string, workspaceId: string): Promise<KnowledgePageTreeNode[]> {
+    if (!accountId.trim() || !workspaceId.trim()) return [];
+    const pages = await this.repo.listSnapshotsByWorkspaceId(accountId, workspaceId);
+    return buildKnowledgePageTree(pages);
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgeVersionUseCases.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { CreateKnowledgeVersionDto } from "../dto/KnowledgePageDto";
+import { CreateKnowledgeVersionSchema } from "../dto/KnowledgePageDto";
+
+export class PublishKnowledgeVersionUseCase {
+  async execute(input: CreateKnowledgeVersionDto): Promise<CommandResult> {
+    const parsed = CreateKnowledgeVersionSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_VERSION_INVALID_INPUT", parsed.error.message);
+    return commandFailureFrom("CONTENT_VERSION_NOT_IMPLEMENTED", "Version persistence is not yet implemented.");
+  }
+}
+
+export class ListKnowledgeVersionsUseCase {
+  async execute(_accountId: string, _pageId: string): Promise<never[]> { return []; }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/domain/aggregates/BacklinkIndex.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/aggregates
+ * Purpose: BacklinkIndex — read model tracking which pages reference a given page.
+ */
+
+export interface BacklinkEntry {
+  readonly sourcePageId: string;
+  readonly sourcePageTitle: string;
+  readonly blockId: string;
+  readonly lastSeenAtISO: string;
+}
+
+export interface BacklinkIndexSnapshot {
+  readonly targetPageId: string;
+  readonly accountId: string;
+  readonly entries: ReadonlyArray<BacklinkEntry>;
+  readonly updatedAtISO: string;
+}
+
+export class BacklinkIndex {
+  private constructor(private readonly _props: BacklinkIndexSnapshot) {}
+
+  static reconstitute(snapshot: BacklinkIndexSnapshot): BacklinkIndex {
+    return new BacklinkIndex({ ...snapshot });
+  }
+
+  get targetPageId(): string { return this._props.targetPageId; }
+  get accountId(): string { return this._props.accountId; }
+  get entries(): ReadonlyArray<BacklinkEntry> { return this._props.entries; }
+  get updatedAtISO(): string { return this._props.updatedAtISO; }
+
+  getSnapshot(): Readonly<BacklinkIndexSnapshot> {
+    return Object.freeze({ ...this._props });
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/domain/aggregates/ContentBlock.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/aggregates
+ * Purpose: ContentBlock aggregate root — atomic content unit inside a Page.
+ */
+
+import type { BlockContent } from "../../../../core/domain/value-objects/BlockContent";
+import { richTextToPlainText } from "../../../../core/domain/value-objects/BlockContent";
+import type { NotionDomainEvent } from "../../../../core/domain/events/NotionDomainEvent";
+
+export interface ContentBlockSnapshot {
+  readonly id: string;
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly content: BlockContent;
+  readonly order: number;
+  readonly parentBlockId: string | null;
+  readonly childBlockIds: ReadonlyArray<string>;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+export interface CreateContentBlockInput {
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly content: BlockContent;
+  readonly order: number;
+  readonly parentBlockId?: string | null;
+}
+
+export class ContentBlock {
+  private readonly _domainEvents: NotionDomainEvent[] = [];
+
+  private constructor(private _props: ContentBlockSnapshot) {}
+
+  static create(id: string, input: CreateContentBlockInput): ContentBlock {
+    const now = new Date().toISOString();
+    const block = new ContentBlock({
+      id,
+      pageId: input.pageId,
+      accountId: input.accountId,
+      content: input.content,
+      order: input.order,
+      parentBlockId: input.parentBlockId ?? null,
+      childBlockIds: [],
+      createdAtISO: now,
+      updatedAtISO: now,
+    });
+    const contentText = richTextToPlainText(input.content.richText);
+    block._domainEvents.push({
+      type: "notion.knowledge.block_added",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { blockId: id, pageId: input.pageId, accountId: input.accountId, contentText },
+    });
+    return block;
+  }
+
+  static reconstitute(snapshot: ContentBlockSnapshot): ContentBlock {
+    return new ContentBlock({ ...snapshot });
+  }
+
+  update(newContent: BlockContent): void {
+    const now = new Date().toISOString();
+    const contentText = richTextToPlainText(newContent.richText);
+    this._props = { ...this._props, content: newContent, updatedAtISO: now };
+    this._domainEvents.push({
+      type: "notion.knowledge.block_updated",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: {
+        blockId: this._props.id,
+        pageId: this._props.pageId,
+        accountId: this._props.accountId,
+        contentText,
+      },
+    });
+  }
+
+  delete(): void {
+    const now = new Date().toISOString();
+    this._domainEvents.push({
+      type: "notion.knowledge.block_deleted",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: {
+        blockId: this._props.id,
+        pageId: this._props.pageId,
+        accountId: this._props.accountId,
+      },
+    });
+  }
+
+  nest(parentId: string, index?: number): void {
+    const now = new Date().toISOString();
+    this._props = { ...this._props, parentBlockId: parentId, updatedAtISO: now };
+    void index;
+  }
+
+  unnest(index?: number): void {
+    const now = new Date().toISOString();
+    this._props = { ...this._props, parentBlockId: null, updatedAtISO: now };
+    void index;
+  }
+
+  addChild(childId: string, index?: number): void {
+    const now = new Date().toISOString();
+    const children = [...this._props.childBlockIds];
+    const idx = index !== undefined ? index : children.length;
+    children.splice(idx, 0, childId);
+    this._props = { ...this._props, childBlockIds: children, updatedAtISO: now };
+  }
+
+  removeChild(childId: string): void {
+    const now = new Date().toISOString();
+    const children = this._props.childBlockIds.filter((id) => id !== childId);
+    this._props = { ...this._props, childBlockIds: children, updatedAtISO: now };
+  }
+
+  // ── Getters ───────────────────────────────────────────────────────────────
+
+  get id(): string { return this._props.id; }
+  get pageId(): string { return this._props.pageId; }
+  get accountId(): string { return this._props.accountId; }
+  get content(): BlockContent { return this._props.content; }
+  get order(): number { return this._props.order; }
+  get parentBlockId(): string | null { return this._props.parentBlockId; }
+  get childBlockIds(): ReadonlyArray<string> { return this._props.childBlockIds; }
+  get createdAtISO(): string { return this._props.createdAtISO; }
+  get updatedAtISO(): string { return this._props.updatedAtISO; }
+
+  getSnapshot(): Readonly<ContentBlockSnapshot> {
+    return Object.freeze({ ...this._props });
+  }
+
+  pullDomainEvents(): NotionDomainEvent[] {
+    const events = [...this._domainEvents];
+    this._domainEvents.length = 0;
+    return events;
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/domain/aggregates/index.ts
+````typescript
+export { KnowledgePage } from "./KnowledgePage";
+export type { KnowledgePageSnapshot, CreateKnowledgePageInput, KnowledgePageTreeNode } from "./KnowledgePage";
+
+export { ContentBlock } from "./ContentBlock";
+export type { ContentBlockSnapshot, CreateContentBlockInput } from "./ContentBlock";
+
+export { KnowledgeCollection } from "./KnowledgeCollection";
+export type { KnowledgeCollectionSnapshot, CreateKnowledgeCollectionInput, CollectionColumn, CollectionColumnType, CollectionStatus, CollectionSpaceType } from "./KnowledgeCollection";
+
+export { BacklinkIndex } from "./BacklinkIndex";
+export type { BacklinkIndexSnapshot, BacklinkEntry } from "./BacklinkIndex";
+````
+
+## File: modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/aggregates
+ * Purpose: KnowledgeCollection aggregate root — named grouping / database-view of pages.
+ */
+
+import type { NotionDomainEvent } from "../../../../core/domain/events/NotionDomainEvent";
+
+export type CollectionColumnType =
+  | "text"
+  | "number"
+  | "select"
+  | "multi-select"
+  | "date"
+  | "checkbox"
+  | "url"
+  | "relation";
+
+export interface CollectionColumn {
+  readonly id: string;
+  readonly name: string;
+  readonly type: CollectionColumnType;
+  readonly options?: readonly string[];
+}
+
+export type CollectionStatus = "active" | "archived";
+export type CollectionSpaceType = "database" | "wiki";
+
+export interface KnowledgeCollectionSnapshot {
+  readonly id: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly name: string;
+  readonly description?: string;
+  readonly columns: readonly CollectionColumn[];
+  readonly pageIds: readonly string[];
+  readonly status: CollectionStatus;
+  readonly spaceType: CollectionSpaceType;
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+export interface CreateKnowledgeCollectionInput {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly name: string;
+  readonly description?: string;
+  readonly columns?: readonly Omit<CollectionColumn, "id">[];
+  readonly createdByUserId: string;
+  readonly spaceType?: CollectionSpaceType;
+}
+
+export class KnowledgeCollection {
+  private readonly _domainEvents: NotionDomainEvent[] = [];
+
+  private constructor(private _props: KnowledgeCollectionSnapshot) {}
+
+  static create(id: string, columnIds: readonly string[], input: CreateKnowledgeCollectionInput): KnowledgeCollection {
+    const now = new Date().toISOString();
+    const columns: CollectionColumn[] = (input.columns ?? []).map((c, i) => ({
+      id: columnIds[i] ?? crypto.randomUUID(),
+      name: c.name,
+      type: c.type,
+      options: c.options,
+    }));
+    const collection = new KnowledgeCollection({
+      id,
+      accountId: input.accountId,
+      workspaceId: input.workspaceId,
+      name: input.name,
+      description: input.description,
+      columns,
+      pageIds: [],
+      status: "active",
+      spaceType: input.spaceType ?? "database",
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    });
+    collection._domainEvents.push({
+      type: "notion.knowledge.collection_created",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: {
+        collectionId: id,
+        accountId: input.accountId,
+        workspaceId: input.workspaceId,
+        name: input.name,
+        createdByUserId: input.createdByUserId,
+      },
+    });
+    return collection;
+  }
+
+  static reconstitute(snapshot: KnowledgeCollectionSnapshot): KnowledgeCollection {
+    return new KnowledgeCollection({ ...snapshot });
+  }
+
+  rename(newName: string): void {
+    if (this._props.status === "archived") {
+      throw new Error("Cannot rename an archived collection.");
+    }
+    const previousName = this._props.name;
+    const now = new Date().toISOString();
+    this._props = { ...this._props, name: newName, updatedAtISO: now };
+    this._domainEvents.push({
+      type: "notion.knowledge.collection_renamed",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: {
+        collectionId: this._props.id,
+        accountId: this._props.accountId,
+        previousName,
+        newName,
+      },
+    });
+  }
+
+  addPage(pageId: string): void {
+    if (this._props.pageIds.includes(pageId)) return;
+    const now = new Date().toISOString();
+    this._props = {
+      ...this._props,
+      pageIds: [...this._props.pageIds, pageId],
+      updatedAtISO: now,
+    };
+  }
+
+  removePage(pageId: string): void {
+    const now = new Date().toISOString();
+    this._props = {
+      ...this._props,
+      pageIds: this._props.pageIds.filter((id) => id !== pageId),
+      updatedAtISO: now,
+    };
+  }
+
+  addColumn(column: CollectionColumn): void {
+    const now = new Date().toISOString();
+    this._props = {
+      ...this._props,
+      columns: [...this._props.columns, column],
+      updatedAtISO: now,
+    };
+  }
+
+  archive(): void {
+    if (this._props.status === "archived") {
+      throw new Error("Collection is already archived.");
+    }
+    const now = new Date().toISOString();
+    this._props = { ...this._props, status: "archived", updatedAtISO: now };
+    this._domainEvents.push({
+      type: "notion.knowledge.collection_archived",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { collectionId: this._props.id, accountId: this._props.accountId },
+    });
+  }
+
+  // ── Getters ───────────────────────────────────────────────────────────────
+
+  get id(): string { return this._props.id; }
+  get accountId(): string { return this._props.accountId; }
+  get workspaceId(): string | undefined { return this._props.workspaceId; }
+  get name(): string { return this._props.name; }
+  get description(): string | undefined { return this._props.description; }
+  get columns(): readonly CollectionColumn[] { return this._props.columns; }
+  get pageIds(): readonly string[] { return this._props.pageIds; }
+  get status(): CollectionStatus { return this._props.status; }
+  get spaceType(): CollectionSpaceType { return this._props.spaceType; }
+  get createdByUserId(): string { return this._props.createdByUserId; }
+  get createdAtISO(): string { return this._props.createdAtISO; }
+  get updatedAtISO(): string { return this._props.updatedAtISO; }
+
+  getSnapshot(): Readonly<KnowledgeCollectionSnapshot> {
+    return Object.freeze({ ...this._props });
+  }
+
+  pullDomainEvents(): NotionDomainEvent[] {
+    const events = [...this._domainEvents];
+    this._domainEvents.length = 0;
+    return events;
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/aggregates
+ * Purpose: KnowledgePage aggregate root — proper DDD class with private constructor,
+ *          static factory methods, business methods, and domain events.
+ */
+
+import type { NotionDomainEvent } from "../../../../core/domain/events/NotionDomainEvent";
+
+export interface KnowledgePageSnapshot {
+  readonly id: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly slug: string;
+  readonly parentPageId: string | null;
+  readonly order: number;
+  readonly blockIds: readonly string[];
+  readonly status: "active" | "archived";
+  readonly approvalState?: "pending" | "approved";
+  readonly approvedAtISO?: string;
+  readonly approvedByUserId?: string;
+  readonly verificationState?: "verified" | "needs_review";
+  readonly ownerId?: string;
+  readonly verifiedByUserId?: string;
+  readonly verifiedAtISO?: string;
+  readonly verificationExpiresAtISO?: string;
+  readonly iconUrl?: string;
+  readonly coverUrl?: string;
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+export interface CreateKnowledgePageInput {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly parentPageId: string | null;
+  readonly createdByUserId: string;
+  readonly order: number;
+}
+
+export class KnowledgePage {
+  private readonly _domainEvents: NotionDomainEvent[] = [];
+
+  private constructor(private _props: KnowledgePageSnapshot) {}
+
+  static create(id: string, input: CreateKnowledgePageInput): KnowledgePage {
+    const now = new Date().toISOString();
+    const slug = KnowledgePage.slugify(input.title);
+    const page = new KnowledgePage({
+      id,
+      accountId: input.accountId,
+      workspaceId: input.workspaceId,
+      title: input.title,
+      slug,
+      parentPageId: input.parentPageId,
+      order: input.order,
+      blockIds: [],
+      status: "active",
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    });
+    page._domainEvents.push({
+      type: "notion.knowledge.page_created",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: {
+        pageId: id,
+        accountId: input.accountId,
+        workspaceId: input.workspaceId,
+        title: input.title,
+        createdByUserId: input.createdByUserId,
+      },
+    });
+    return page;
+  }
+
+  static reconstitute(snapshot: KnowledgePageSnapshot): KnowledgePage {
+    return new KnowledgePage({ ...snapshot });
+  }
+
+  rename(newTitle: string): void {
+    if (this._props.status === "archived") {
+      throw new Error("Cannot rename an archived page.");
+    }
+    const previousTitle = this._props.title;
+    const now = new Date().toISOString();
+    this._props = {
+      ...this._props,
+      title: newTitle,
+      slug: KnowledgePage.slugify(newTitle),
+      updatedAtISO: now,
+    };
+    this._domainEvents.push({
+      type: "notion.knowledge.page_renamed",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { pageId: this._props.id, accountId: this._props.accountId, previousTitle, newTitle },
+    });
+  }
+
+  move(targetParentId: string | null): void {
+    if (this._props.status === "archived") {
+      throw new Error("Cannot move an archived page.");
+    }
+    if (targetParentId === this._props.id) {
+      throw new Error("A page cannot be its own parent.");
+    }
+    const previousParentPageId = this._props.parentPageId;
+    const now = new Date().toISOString();
+    this._props = { ...this._props, parentPageId: targetParentId, updatedAtISO: now };
+    this._domainEvents.push({
+      type: "notion.knowledge.page_moved",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: {
+        pageId: this._props.id,
+        accountId: this._props.accountId,
+        previousParentPageId,
+        newParentPageId: targetParentId,
+      },
+    });
+  }
+
+  archive(): void {
+    if (this._props.status === "archived") {
+      throw new Error("Page is already archived.");
+    }
+    const now = new Date().toISOString();
+    this._props = { ...this._props, status: "archived", updatedAtISO: now };
+    this._domainEvents.push({
+      type: "notion.knowledge.page_archived",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { pageId: this._props.id, accountId: this._props.accountId },
+    });
+  }
+
+  approve(byUserId: string, atISO: string): void {
+    if (this._props.status === "archived") {
+      throw new Error("Cannot approve an archived page.");
+    }
+    if (this._props.approvalState === "approved") {
+      throw new Error("Page is already approved.");
+    }
+    const now = new Date().toISOString();
+    this._props = {
+      ...this._props,
+      approvalState: "approved",
+      approvedByUserId: byUserId,
+      approvedAtISO: atISO,
+      updatedAtISO: now,
+    };
+    this._domainEvents.push({
+      type: "notion.knowledge.page_approved",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: {
+        pageId: this._props.id,
+        accountId: this._props.accountId,
+        workspaceId: this._props.workspaceId,
+        actorId: byUserId,
+        extractedTasks: [],
+        extractedInvoices: [],
+        causationId: crypto.randomUUID(),
+        correlationId: crypto.randomUUID(),
+      },
+    });
+  }
+
+  verify(byUserId: string, expiresAtISO?: string): void {
+    const now = new Date().toISOString();
+    this._props = {
+      ...this._props,
+      verificationState: "verified",
+      verifiedByUserId: byUserId,
+      verifiedAtISO: now,
+      verificationExpiresAtISO: expiresAtISO,
+      updatedAtISO: now,
+    };
+    this._domainEvents.push({
+      type: "notion.knowledge.page_verified",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: {
+        pageId: this._props.id,
+        accountId: this._props.accountId,
+        verifiedByUserId: byUserId,
+        verificationExpiresAtISO: expiresAtISO,
+      },
+    });
+  }
+
+  requestReview(byUserId: string): void {
+    const now = new Date().toISOString();
+    this._props = { ...this._props, verificationState: "needs_review", updatedAtISO: now };
+    this._domainEvents.push({
+      type: "notion.knowledge.page_review_requested",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { pageId: this._props.id, accountId: this._props.accountId, requestedByUserId: byUserId },
+    });
+  }
+
+  assignOwner(ownerId: string): void {
+    const now = new Date().toISOString();
+    this._props = { ...this._props, ownerId, updatedAtISO: now };
+    this._domainEvents.push({
+      type: "notion.knowledge.page_owner_assigned",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { pageId: this._props.id, accountId: this._props.accountId, ownerId },
+    });
+  }
+
+  updateIcon(iconUrl: string): void {
+    const now = new Date().toISOString();
+    this._props = {
+      ...this._props,
+      iconUrl: iconUrl || undefined,
+      updatedAtISO: now,
+    };
+    this._domainEvents.push({
+      type: "notion.knowledge.page_icon_updated",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { pageId: this._props.id, accountId: this._props.accountId, iconUrl },
+    });
+  }
+
+  updateCover(coverUrl: string): void {
+    const now = new Date().toISOString();
+    this._props = {
+      ...this._props,
+      coverUrl: coverUrl || undefined,
+      updatedAtISO: now,
+    };
+    this._domainEvents.push({
+      type: "notion.knowledge.page_cover_updated",
+      eventId: crypto.randomUUID(),
+      occurredAt: now,
+      payload: { pageId: this._props.id, accountId: this._props.accountId, coverUrl },
+    });
+  }
+
+  reorderBlocks(blockIds: ReadonlyArray<string>): void {
+    const now = new Date().toISOString();
+    this._props = { ...this._props, blockIds, updatedAtISO: now };
+  }
+
+  // ── Getters ───────────────────────────────────────────────────────────────
+
+  get id(): string { return this._props.id; }
+  get accountId(): string { return this._props.accountId; }
+  get workspaceId(): string | undefined { return this._props.workspaceId; }
+  get title(): string { return this._props.title; }
+  get slug(): string { return this._props.slug; }
+  get parentPageId(): string | null { return this._props.parentPageId; }
+  get order(): number { return this._props.order; }
+  get blockIds(): readonly string[] { return this._props.blockIds; }
+  get status(): "active" | "archived" { return this._props.status; }
+  get approvalState(): "pending" | "approved" | undefined { return this._props.approvalState; }
+  get approvedAtISO(): string | undefined { return this._props.approvedAtISO; }
+  get approvedByUserId(): string | undefined { return this._props.approvedByUserId; }
+  get verificationState(): "verified" | "needs_review" | undefined { return this._props.verificationState; }
+  get ownerId(): string | undefined { return this._props.ownerId; }
+  get verifiedByUserId(): string | undefined { return this._props.verifiedByUserId; }
+  get verifiedAtISO(): string | undefined { return this._props.verifiedAtISO; }
+  get verificationExpiresAtISO(): string | undefined { return this._props.verificationExpiresAtISO; }
+  get iconUrl(): string | undefined { return this._props.iconUrl; }
+  get coverUrl(): string | undefined { return this._props.coverUrl; }
+  get createdByUserId(): string { return this._props.createdByUserId; }
+  get createdAtISO(): string { return this._props.createdAtISO; }
+  get updatedAtISO(): string { return this._props.updatedAtISO; }
+
+  getSnapshot(): Readonly<KnowledgePageSnapshot> {
+    return Object.freeze({ ...this._props });
+  }
+
+  pullDomainEvents(): NotionDomainEvent[] {
+    const events = [...this._domainEvents];
+    this._domainEvents.length = 0;
+    return events;
+  }
+
+  private static slugify(title: string): string {
+    return (
+      title
+        .trim()
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, "")
+        .replace(/[\s_]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 100) || "page"
+    );
+  }
+}
+
+/** Tree node for hierarchical views */
+export interface KnowledgePageTreeNode extends KnowledgePageSnapshot {
+  readonly children: readonly KnowledgePageTreeNode[];
+}
+````
+
+## File: modules/notion/subdomains/knowledge/domain/events/index.ts
+````typescript
+export * from "./KnowledgePageEvents";
+export * from "./KnowledgeBlockEvents";
+export * from "./KnowledgeCollectionEvents";
+````
+
+## File: modules/notion/subdomains/knowledge/domain/events/KnowledgeBlockEvents.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/events
+ * Purpose: ContentBlock domain events.
+ */
+
+import type { NotionDomainEvent } from "../../../../core/domain/events/NotionDomainEvent";
+
+export interface BlockAddedPayload {
+  readonly blockId: string;
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly contentText: string;
+}
+
+export interface BlockAddedEvent extends NotionDomainEvent {
+  readonly type: "notion.knowledge.block_added";
+  readonly payload: BlockAddedPayload;
+}
+
+export interface BlockUpdatedPayload {
+  readonly blockId: string;
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly contentText: string;
+}
+
+export interface BlockUpdatedEvent extends NotionDomainEvent {
+  readonly type: "notion.knowledge.block_updated";
+  readonly payload: BlockUpdatedPayload;
+}
+
+export interface BlockDeletedPayload {
+  readonly blockId: string;
+  readonly pageId: string;
+  readonly accountId: string;
+}
+
+export interface BlockDeletedEvent extends NotionDomainEvent {
+  readonly type: "notion.knowledge.block_deleted";
+  readonly payload: BlockDeletedPayload;
+}
+
+export type KnowledgeBlockDomainEvent =
+  | BlockAddedEvent
+  | BlockUpdatedEvent
+  | BlockDeletedEvent;
+````
+
+## File: modules/notion/subdomains/knowledge/domain/events/KnowledgeCollectionEvents.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/events
+ * Purpose: KnowledgeCollection domain events.
+ */
+
+import type { NotionDomainEvent } from "../../../../core/domain/events/NotionDomainEvent";
+
+export interface CollectionCreatedPayload {
+  readonly collectionId: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly name: string;
+  readonly createdByUserId: string;
+}
+
+export interface CollectionCreatedEvent extends NotionDomainEvent {
+  readonly type: "notion.knowledge.collection_created";
+  readonly payload: CollectionCreatedPayload;
+}
+
+export interface CollectionRenamedPayload {
+  readonly collectionId: string;
+  readonly accountId: string;
+  readonly previousName: string;
+  readonly newName: string;
+}
+
+export interface CollectionRenamedEvent extends NotionDomainEvent {
+  readonly type: "notion.knowledge.collection_renamed";
+  readonly payload: CollectionRenamedPayload;
+}
+
+export interface CollectionArchivedPayload {
+  readonly collectionId: string;
+  readonly accountId: string;
+}
+
+export interface CollectionArchivedEvent extends NotionDomainEvent {
+  readonly type: "notion.knowledge.collection_archived";
+  readonly payload: CollectionArchivedPayload;
+}
+
+export type KnowledgeCollectionDomainEvent =
+  | CollectionCreatedEvent
+  | CollectionRenamedEvent
+  | CollectionArchivedEvent;
+````
+
+## File: modules/notion/subdomains/knowledge/domain/events/KnowledgePageEvents.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/events
+ * Purpose: KnowledgePage domain events.
+ */
+
+import type { NotionDomainEvent } from "../../../../core/domain/events/NotionDomainEvent";
+
+export interface PageCreatedPayload {
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly createdByUserId: string;
+}
+
+export interface PageCreatedEvent extends NotionDomainEvent {
+  readonly type: "notion.knowledge.page_created";
+  readonly payload: PageCreatedPayload;
+}
+
+export interface PageRenamedPayload {
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly previousTitle: string;
+  readonly newTitle: string;
+}
+
+export interface PageRenamedEvent extends NotionDomainEvent {
+  readonly type: "notion.knowledge.page_renamed";
+  readonly payload: PageRenamedPayload;
+}
+
+export interface PageMovedPayload {
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly previousParentPageId: string | null;
+  readonly newParentPageId: string | null;
+}
+
+export interface PageMovedEvent extends NotionDomainEvent {
+  readonly type: "notion.knowledge.page_moved";
+  readonly payload: PageMovedPayload;
+}
+
+export interface PageArchivedPayload {
+  readonly pageId: string;
+  readonly accountId: string;
+}
+
+export interface PageArchivedEvent extends NotionDomainEvent {
+  readonly type: "notion.knowledge.page_archived";
+  readonly payload: PageArchivedPayload;
+}
+
+export interface ExtractedTask {
+  readonly title: string;
+  readonly dueDate?: string;
+  readonly description?: string;
+}
+
+export interface ExtractedInvoice {
+  readonly amount: number;
+  readonly description: string;
+  readonly currency?: string;
+}
+
+export interface PageApprovedPayload {
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly extractedTasks: ReadonlyArray<ExtractedTask>;
+  readonly extractedInvoices: ReadonlyArray<ExtractedInvoice>;
+  readonly actorId: string;
+  readonly causationId: string;
+  readonly correlationId: string;
+}
+
+export interface PageApprovedEvent extends NotionDomainEvent {
+  readonly type: "notion.knowledge.page_approved";
+  readonly payload: PageApprovedPayload;
+}
+
+export interface PageVerifiedPayload {
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly verifiedByUserId: string;
+  readonly verificationExpiresAtISO?: string;
+}
+
+export interface PageVerifiedEvent extends NotionDomainEvent {
+  readonly type: "notion.knowledge.page_verified";
+  readonly payload: PageVerifiedPayload;
+}
+
+export interface PageReviewRequestedPayload {
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly requestedByUserId: string;
+}
+
+export interface PageReviewRequestedEvent extends NotionDomainEvent {
+  readonly type: "notion.knowledge.page_review_requested";
+  readonly payload: PageReviewRequestedPayload;
+}
+
+export interface PageOwnerAssignedPayload {
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly ownerId: string;
+}
+
+export interface PageOwnerAssignedEvent extends NotionDomainEvent {
+  readonly type: "notion.knowledge.page_owner_assigned";
+  readonly payload: PageOwnerAssignedPayload;
+}
+
+export interface PageIconUpdatedPayload {
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly iconUrl: string;
+}
+
+export interface PageIconUpdatedEvent extends NotionDomainEvent {
+  readonly type: "notion.knowledge.page_icon_updated";
+  readonly payload: PageIconUpdatedPayload;
+}
+
+export interface PageCoverUpdatedPayload {
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly coverUrl: string;
+}
+
+export interface PageCoverUpdatedEvent extends NotionDomainEvent {
+  readonly type: "notion.knowledge.page_cover_updated";
+  readonly payload: PageCoverUpdatedPayload;
+}
+
+export type KnowledgePageDomainEvent =
+  | PageCreatedEvent
+  | PageRenamedEvent
+  | PageMovedEvent
+  | PageArchivedEvent
+  | PageApprovedEvent
+  | PageVerifiedEvent
+  | PageReviewRequestedEvent
+  | PageOwnerAssignedEvent
+  | PageIconUpdatedEvent
+  | PageCoverUpdatedEvent;
+````
+
+## File: modules/notion/subdomains/knowledge/domain/index.ts
+````typescript
+export * from "./aggregates";
+export * from "./value-objects";
+export * from "./events";
+export * from "./repositories";
+export * from "./services";
+````
+
+## File: modules/notion/subdomains/knowledge/domain/repositories/IBacklinkIndexRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/repositories
+ * Purpose: Port interface for BacklinkIndex read model persistence.
+ */
+
+import type { BacklinkIndex, BacklinkEntry } from "../aggregates/BacklinkIndex";
+
+export interface UpsertBacklinkEntriesInput {
+  readonly accountId: string;
+  readonly targetPageId: string;
+  readonly sourcePageId: string;
+  readonly entries: ReadonlyArray<Omit<BacklinkEntry, "sourcePageId">>;
+}
+
+export interface RemoveBacklinksFromSourceInput {
+  readonly accountId: string;
+  readonly sourcePageId: string;
+}
+
+export interface IBacklinkIndexRepository {
+  upsertFromSource(input: UpsertBacklinkEntriesInput): Promise<void>;
+  removeFromSource(input: RemoveBacklinksFromSourceInput): Promise<void>;
+  findByTargetPage(accountId: string, targetPageId: string): Promise<BacklinkIndex | null>;
+  listOutboundTargets(accountId: string, sourcePageId: string): Promise<ReadonlyArray<string>>;
+}
+````
+
+## File: modules/notion/subdomains/knowledge/domain/repositories/IContentBlockRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/repositories
+ * Purpose: Port interface for ContentBlock persistence.
+ */
+
+import type { ContentBlock } from "../aggregates/ContentBlock";
+
+export interface IContentBlockRepository {
+  save(block: ContentBlock): Promise<void>;
+  findById(accountId: string, blockId: string): Promise<ContentBlock | null>;
+  listByPageId(accountId: string, pageId: string): Promise<ContentBlock[]>;
+  delete(accountId: string, blockId: string): Promise<void>;
+  countByPageId(accountId: string, pageId: string): Promise<number>;
+}
+````
+
+## File: modules/notion/subdomains/knowledge/domain/repositories/IKnowledgeCollectionRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/repositories
+ * Purpose: Port interface for KnowledgeCollection persistence.
+ */
+
+import type { KnowledgeCollection } from "../aggregates/KnowledgeCollection";
+
+export interface IKnowledgeCollectionRepository {
+  save(collection: KnowledgeCollection): Promise<void>;
+  findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null>;
+  listByAccountId(accountId: string): Promise<KnowledgeCollection[]>;
+  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]>;
+}
+````
+
+## File: modules/notion/subdomains/knowledge/domain/repositories/IKnowledgePageRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/repositories
+ * Purpose: Port interface for KnowledgePage persistence.
+ */
+
+import type { KnowledgePage, KnowledgePageSnapshot } from "../aggregates/KnowledgePage";
+
+export interface IKnowledgePageRepository {
+  save(page: KnowledgePage): Promise<void>;
+  findById(accountId: string, pageId: string): Promise<KnowledgePage | null>;
+  listByAccountId(accountId: string): Promise<KnowledgePage[]>;
+  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]>;
+  /** Count pages at same parent level for ordering */
+  countByParent(accountId: string, parentPageId: string | null): Promise<number>;
+  /** Snapshot type for direct projection queries */
+  findSnapshotById(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null>;
+  listSnapshotsByAccountId(accountId: string): Promise<KnowledgePageSnapshot[]>;
+  listSnapshotsByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]>;
+}
+````
+
+## File: modules/notion/subdomains/knowledge/domain/repositories/index.ts
+````typescript
+export type { IKnowledgePageRepository } from "./IKnowledgePageRepository";
+export type { IContentBlockRepository } from "./IContentBlockRepository";
+export type { IKnowledgeCollectionRepository } from "./IKnowledgeCollectionRepository";
+export type { IBacklinkIndexRepository, UpsertBacklinkEntriesInput, RemoveBacklinksFromSourceInput } from "./IBacklinkIndexRepository";
+````
+
+## File: modules/notion/subdomains/knowledge/domain/services/BacklinkExtractorService.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: domain/services
+ * Purpose: BacklinkExtractorService — domain service that extracts page IDs mentioned in block content.
+ */
+
+import type { ContentBlockSnapshot } from "../aggregates/ContentBlock";
+import { extractMentionedPageIds } from "../../../../core/domain/value-objects/BlockContent";
+
+export interface BacklinkMention {
+  readonly targetPageId: string;
+  readonly blockId: string;
+  readonly lastSeenAtISO: string;
+}
+
+export class BacklinkExtractorService {
+  /**
+   * Extract all page mentions from a list of block snapshots.
+   * Returns a map of targetPageId -> list of mentions.
+   */
+  extractMentions(
+    blocks: ReadonlyArray<ContentBlockSnapshot>,
+  ): ReadonlyMap<string, ReadonlyArray<{ blockId: string; lastSeenAtISO: string }>> {
+    const result = new Map<string, Array<{ blockId: string; lastSeenAtISO: string }>>();
+    const now = new Date().toISOString();
+
+    for (const block of blocks) {
+      const pageIds = extractMentionedPageIds(block.content.richText);
+      for (const pageId of pageIds) {
+        if (!result.has(pageId)) {
+          result.set(pageId, []);
+        }
+        result.get(pageId)!.push({ blockId: block.id, lastSeenAtISO: now });
+      }
+    }
+
+    return result;
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/domain/services/index.ts
+````typescript
+export { BacklinkExtractorService } from "./BacklinkExtractorService";
+export type { BacklinkMention } from "./BacklinkExtractorService";
+````
+
+## File: modules/notion/subdomains/knowledge/domain/value-objects/ApprovalState.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const ApprovalStateSchema = z.enum(["pending", "approved"]);
+export type ApprovalState = z.infer<typeof ApprovalStateSchema>;
+````
+
+## File: modules/notion/subdomains/knowledge/domain/value-objects/BlockId.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const BlockIdSchema = z.string().uuid().brand("BlockId");
+export type BlockId = z.infer<typeof BlockIdSchema>;
+
+export function createBlockId(id: string): BlockId {
+  return BlockIdSchema.parse(id);
+}
+
+export function unsafeBlockId(id: string): BlockId {
+  return id as BlockId;
+}
+````
+
+## File: modules/notion/subdomains/knowledge/domain/value-objects/CollectionId.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const CollectionIdSchema = z.string().uuid().brand("CollectionId");
+export type CollectionId = z.infer<typeof CollectionIdSchema>;
+
+export function createCollectionId(id: string): CollectionId {
+  return CollectionIdSchema.parse(id);
+}
+
+export function unsafeCollectionId(id: string): CollectionId {
+  return id as CollectionId;
+}
+````
+
+## File: modules/notion/subdomains/knowledge/domain/value-objects/index.ts
+````typescript
+export { PageIdSchema, createPageId, unsafePageId } from "./PageId";
+export type { PageId } from "./PageId";
+
+export { BlockIdSchema, createBlockId, unsafeBlockId } from "./BlockId";
+export type { BlockId } from "./BlockId";
+
+export { CollectionIdSchema, createCollectionId, unsafeCollectionId } from "./CollectionId";
+export type { CollectionId } from "./CollectionId";
+
+export { PageStatusSchema, PAGE_STATUSES } from "./PageStatus";
+export type { PageStatus } from "./PageStatus";
+
+export { ApprovalStateSchema } from "./ApprovalState";
+export type { ApprovalState } from "./ApprovalState";
+
+export { VerificationStateSchema } from "./VerificationState";
+export type { VerificationState } from "./VerificationState";
+````
+
+## File: modules/notion/subdomains/knowledge/domain/value-objects/PageId.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const PageIdSchema = z.string().uuid().brand("PageId");
+export type PageId = z.infer<typeof PageIdSchema>;
+
+export function createPageId(id: string): PageId {
+  return PageIdSchema.parse(id);
+}
+
+export function unsafePageId(id: string): PageId {
+  return id as PageId;
+}
+````
+
+## File: modules/notion/subdomains/knowledge/domain/value-objects/PageStatus.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const PageStatusSchema = z.enum(["active", "archived"]);
+export type PageStatus = z.infer<typeof PageStatusSchema>;
+
+export const PAGE_STATUSES = ["active", "archived"] as const satisfies readonly PageStatus[];
+````
+
+## File: modules/notion/subdomains/knowledge/domain/value-objects/VerificationState.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const VerificationStateSchema = z.enum(["verified", "needs_review"]);
+export type VerificationState = z.infer<typeof VerificationStateSchema>;
+````
+
+## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseContentBlockRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing IContentBlockRepository.
+ * Firestore path: accounts/{accountId}/contentBlocks/{blockId}
+ */
+
+import {
+  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
+  query, serverTimestamp, setDoc, updateDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import { ContentBlock } from "../../domain/aggregates/ContentBlock";
+import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
+import type { IContentBlockRepository } from "../../domain/repositories/IContentBlockRepository";
+import type { BlockContent } from "../../../../core/domain/value-objects/BlockContent";
+import { BLOCK_TYPES } from "../../../../core/domain/value-objects/BlockContent";
+
+const VALID_TYPES = new Set<string>(BLOCK_TYPES);
+
+function blocksCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "contentBlocks");
+}
+function blockDoc(db: ReturnType<typeof getFirestore>, accountId: string, blockId: string) {
+  return doc(db, "accounts", accountId, "contentBlocks", blockId);
+}
+
+function toBlockContent(raw: unknown): BlockContent {
+  if (typeof raw !== "object" || raw === null) return { type: "text", richText: [] };
+  const obj = raw as Record<string, unknown>;
+  const type = typeof obj.type === "string" && VALID_TYPES.has(obj.type) ? (obj.type as BlockContent["type"]) : "text";
+  return {
+    type,
+    richText: Array.isArray(obj.richText) ? (obj.richText as BlockContent["richText"]) : [],
+    properties: typeof obj.properties === "object" && obj.properties !== null ? (obj.properties as Record<string, unknown>) : undefined,
+  };
+}
+
+function toSnapshot(id: string, d: Record<string, unknown>): ContentBlockSnapshot {
+  return {
+    id,
+    pageId: typeof d.pageId === "string" ? d.pageId : "",
+    accountId: typeof d.accountId === "string" ? d.accountId : "",
+    content: toBlockContent(d.content),
+    order: typeof d.order === "number" ? d.order : 0,
+    parentBlockId: typeof d.parentBlockId === "string" ? d.parentBlockId : null,
+    isDeleted: d.isDeleted === true,
+    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
+    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
+  };
+}
+
+export class FirebaseContentBlockRepository implements IContentBlockRepository {
+  private get db() { return getFirestore(firebaseClientApp); }
+
+  async save(block: ContentBlock): Promise<void> {
+    const snap = block.getSnapshot();
+    const ref = blockDoc(this.db, snap.accountId, snap.id);
+    const existing = await getDoc(ref);
+    const data: Record<string, unknown> = { ...snap, updatedAt: serverTimestamp() };
+    if (!existing.exists()) {
+      data.createdAt = serverTimestamp();
+      await setDoc(ref, data);
+    } else {
+      await updateDoc(ref, data);
+    }
+  }
+
+  async findById(accountId: string, blockId: string): Promise<ContentBlock | null> {
+    const snap = await getDoc(blockDoc(this.db, accountId, blockId));
+    if (!snap.exists()) return null;
+    return ContentBlock.reconstitute(toSnapshot(snap.id, snap.data() as Record<string, unknown>));
+  }
+
+  async listByPageId(accountId: string, pageId: string): Promise<ContentBlock[]> {
+    const snaps = await getDocs(
+      query(blocksCol(this.db, accountId), where("pageId", "==", pageId), where("isDeleted", "==", false)),
+    );
+    return snaps.docs.map((d) => ContentBlock.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
+  }
+
+  async delete(accountId: string, blockId: string): Promise<void> {
+    await deleteDoc(blockDoc(this.db, accountId, blockId));
+  }
+
+  async nextOrder(accountId: string, pageId: string): Promise<number> {
+    const snaps = await getDocs(
+      query(blocksCol(this.db, accountId), where("pageId", "==", pageId), where("isDeleted", "==", false)),
+    );
+    return snaps.size;
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseKnowledgePageRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing IKnowledgePageRepository.
+ * Firestore path: accounts/{accountId}/contentPages/{pageId}
+ */
+
+import {
+  collection, doc, getDoc, getDocs, getFirestore,
+  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import { KnowledgePage } from "../../domain/aggregates/KnowledgePage";
+import type { KnowledgePageSnapshot } from "../../domain/aggregates/KnowledgePage";
+import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+
+function pagesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "contentPages");
+}
+function pageDoc(db: ReturnType<typeof getFirestore>, accountId: string, pageId: string) {
+  return doc(db, "accounts", accountId, "contentPages", pageId);
+}
+
+function toSnapshot(id: string, d: Record<string, unknown>): KnowledgePageSnapshot {
+  return {
+    id,
+    accountId: typeof d.accountId === "string" ? d.accountId : "",
+    workspaceId: typeof d.workspaceId === "string" ? d.workspaceId : undefined,
+    title: typeof d.title === "string" ? d.title : "",
+    slug: typeof d.slug === "string" ? d.slug : "",
+    parentPageId: typeof d.parentPageId === "string" ? d.parentPageId : null,
+    order: typeof d.order === "number" ? d.order : 0,
+    blockIds: Array.isArray(d.blockIds) ? (d.blockIds as string[]) : [],
+    status: d.status === "archived" ? "archived" : "active",
+    approvalState: d.approvalState === "approved" ? "approved" : d.approvalState === "pending" ? "pending" : undefined,
+    approvedAtISO: typeof d.approvedAtISO === "string" ? d.approvedAtISO : undefined,
+    approvedByUserId: typeof d.approvedByUserId === "string" ? d.approvedByUserId : undefined,
+    verificationState: d.verificationState === "verified" ? "verified" : d.verificationState === "needs_review" ? "needs_review" : undefined,
+    ownerId: typeof d.ownerId === "string" ? d.ownerId : undefined,
+    verifiedByUserId: typeof d.verifiedByUserId === "string" ? d.verifiedByUserId : undefined,
+    verifiedAtISO: typeof d.verifiedAtISO === "string" ? d.verifiedAtISO : undefined,
+    verificationExpiresAtISO: typeof d.verificationExpiresAtISO === "string" ? d.verificationExpiresAtISO : undefined,
+    iconUrl: typeof d.iconUrl === "string" ? d.iconUrl : undefined,
+    coverUrl: typeof d.coverUrl === "string" ? d.coverUrl : undefined,
+    createdByUserId: typeof d.createdByUserId === "string" ? d.createdByUserId : "",
+    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
+    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
+  };
+}
+
+export class FirebaseKnowledgePageRepository implements IKnowledgePageRepository {
+  private get db() { return getFirestore(firebaseClientApp); }
+
+  async save(page: KnowledgePage): Promise<void> {
+    const snap = page.getSnapshot();
+    const ref = pageDoc(this.db, snap.accountId, snap.id);
+    const existing = await getDoc(ref);
+    const data: Record<string, unknown> = {
+      ...snap,
+      blockIds: [...snap.blockIds],
+      updatedAt: serverTimestamp(),
+    };
+    if (!existing.exists()) {
+      data.createdAt = serverTimestamp();
+      await setDoc(ref, data);
+    } else {
+      await updateDoc(ref, data);
+    }
+  }
+
+  async findById(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    const snap = await getDoc(pageDoc(this.db, accountId, pageId));
+    if (!snap.exists()) return null;
+    return KnowledgePage.reconstitute(toSnapshot(snap.id, snap.data() as Record<string, unknown>));
+  }
+
+  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
+    const snaps = await getDocs(
+      query(pagesCol(this.db, accountId), where("status", "==", "active"), orderBy("order", "asc")),
+    );
+    return snaps.docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
+    const snaps = await getDocs(
+      query(pagesCol(this.db, accountId), where("workspaceId", "==", workspaceId), where("status", "==", "active"), orderBy("order", "asc")),
+    );
+    return snaps.docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
+  }
+
+  async nextOrder(accountId: string, parentPageId: string | null): Promise<number> {
+    const snaps = await getDocs(
+      query(pagesCol(this.db, accountId), where("parentPageId", "==", parentPageId ?? null)),
+    );
+    return snaps.size;
+  }
+}
+````
+
 ## File: modules/notion/subdomains/knowledge/README.md
 ````markdown
 # notion/subdomains/knowledge
@@ -60564,6 +61954,21 @@ modules/notion/
 ## File: modules/notion/subdomains/versioning/.gitkeep
 ````
 
+````
+
+## File: modules/platform/adapters/cli/index.ts
+````typescript
+/**
+ * platform CLI driving adapter placeholder module.
+ */
+
+export const PLATFORM_ADAPTER_CLI_FUNCTIONS = [
+	"parseCliInputToCommand",
+	"runPlatformCliCommand",
+	"renderPlatformCliResult",
+] as const;
+
+export type PlatformAdapterCliFunction = (typeof PLATFORM_ADAPTER_CLI_FUNCTIONS)[number];
 ````
 
 ## File: modules/platform/adapters/cli/parseCliInputToCommand.ts
@@ -60670,6 +62075,21 @@ modules/notion/
 // TODO: implement dispatchExternalDelivery function
 ````
 
+## File: modules/platform/adapters/external/index.ts
+````typescript
+/**
+ * platform external driven adapter placeholder module.
+ */
+
+export const PLATFORM_ADAPTER_EXTERNAL_FUNCTIONS = [
+	"buildExternalDeliveryRequest",
+	"dispatchExternalDelivery",
+	"mapExternalResponseToDispatchOutcome",
+] as const;
+
+export type PlatformAdapterExternalFunction = (typeof PLATFORM_ADAPTER_EXTERNAL_FUNCTIONS)[number];
+````
+
 ## File: modules/platform/adapters/external/mapExternalResponseToDispatchOutcome.ts
 ````typescript
 /**
@@ -60688,6 +62108,34 @@ modules/notion/
  */
 
 // TODO: implement mapExternalResponseToDispatchOutcome mapper function
+````
+
+## File: modules/platform/adapters/index.ts
+````typescript
+/**
+ * platform adapter layer barrel.
+ */
+
+export * from "./cli";
+export * from "./external";
+export * from "./persistence";
+export * from "./web";
+````
+
+## File: modules/platform/adapters/persistence/index.ts
+````typescript
+/**
+ * platform persistence driven adapter placeholder module.
+ */
+
+export const PLATFORM_ADAPTER_PERSISTENCE_FUNCTIONS = [
+	"mapAggregateToPersistenceRecord",
+	"mapPersistenceRecordToAggregate",
+	"persistPlatformAggregate",
+	"loadPlatformAggregate",
+] as const;
+
+export type PlatformAdapterPersistenceFunction = (typeof PLATFORM_ADAPTER_PERSISTENCE_FUNCTIONS)[number];
 ````
 
 ## File: modules/platform/adapters/persistence/mapIntegrationContractToPersistenceRecord.ts
@@ -60829,6 +62277,22 @@ modules/notion/
 // TODO: implement handlePlatformQueryHttp server action / route handler
 ````
 
+## File: modules/platform/adapters/web/index.ts
+````typescript
+/**
+ * platform web driving adapter placeholder module.
+ */
+
+export const PLATFORM_ADAPTER_WEB_FUNCTIONS = [
+	"mapHttpRequestToPlatformCommand",
+	"handlePlatformCommandHttp",
+	"handlePlatformQueryHttp",
+	"mapPlatformResultToHttpResponse",
+] as const;
+
+export type PlatformAdapterWebFunction = (typeof PLATFORM_ADAPTER_WEB_FUNCTIONS)[number];
+````
+
 ## File: modules/platform/adapters/web/mapHttpRequestToPlatformCommand.ts
 ````typescript
 /**
@@ -60871,6 +62335,105 @@ modules/notion/
  */
 
 // TODO: implement mapPlatformResultToHttpResponse mapping function
+````
+
+## File: modules/platform/api/facade.ts
+````typescript
+/**
+ * platform API facade.
+ */
+
+import type {
+	ActivateSubscriptionAgreementInput,
+	ApplyConfigurationProfileInput,
+	EmitObservabilitySignalInput,
+	FireWorkflowTriggerInput,
+	GetPlatformContextViewInput,
+	GetPolicyCatalogViewInput,
+	GetSubscriptionEntitlementsInput,
+	GetWorkflowPolicyViewInput,
+	ListEnabledCapabilitiesInput,
+	PlatformCommandResult,
+	PlatformContextView,
+	PolicyCatalogView,
+	PublishPolicyCatalogInput,
+	RecordAuditSignalInput,
+	RegisterIntegrationContractInput,
+	RegisterPlatformContextInput,
+	RequestNotificationDispatchInput,
+	SubscriptionEntitlementsView,
+	WorkflowPolicyView,
+} from "./contracts";
+import type { PlatformCommandPort, PlatformQueryPort } from "../ports/input";
+
+export interface PlatformFacade {
+	registerPlatformContext(input: RegisterPlatformContextInput): Promise<PlatformCommandResult>;
+	publishPolicyCatalog(input: PublishPolicyCatalogInput): Promise<PlatformCommandResult>;
+	applyConfigurationProfile(input: ApplyConfigurationProfileInput): Promise<PlatformCommandResult>;
+	registerIntegrationContract(input: RegisterIntegrationContractInput): Promise<PlatformCommandResult>;
+	activateSubscriptionAgreement(input: ActivateSubscriptionAgreementInput): Promise<PlatformCommandResult>;
+	fireWorkflowTrigger(input: FireWorkflowTriggerInput): Promise<PlatformCommandResult>;
+	requestNotificationDispatch(input: RequestNotificationDispatchInput): Promise<PlatformCommandResult>;
+	recordAuditSignal(input: RecordAuditSignalInput): Promise<PlatformCommandResult>;
+	emitObservabilitySignal(input: EmitObservabilitySignalInput): Promise<PlatformCommandResult>;
+	getPlatformContextView(input: GetPlatformContextViewInput): Promise<PlatformContextView>;
+	listEnabledCapabilities(input: ListEnabledCapabilitiesInput): Promise<string[]>;
+	getPolicyCatalogView(input: GetPolicyCatalogViewInput): Promise<PolicyCatalogView>;
+	getSubscriptionEntitlements(input: GetSubscriptionEntitlementsInput): Promise<SubscriptionEntitlementsView>;
+	getWorkflowPolicyView(input: GetWorkflowPolicyViewInput): Promise<WorkflowPolicyView>;
+}
+
+export function createPlatformFacade(ports: {
+	commandPort: PlatformCommandPort;
+	queryPort: PlatformQueryPort;
+}): PlatformFacade {
+	const { commandPort, queryPort } = ports;
+
+	return {
+		registerPlatformContext(input) {
+			return commandPort.executeCommand({ name: "registerPlatformContext", payload: input });
+		},
+		publishPolicyCatalog(input) {
+			return commandPort.executeCommand({ name: "publishPolicyCatalog", payload: input });
+		},
+		applyConfigurationProfile(input) {
+			return commandPort.executeCommand({ name: "applyConfigurationProfile", payload: input });
+		},
+		registerIntegrationContract(input) {
+			return commandPort.executeCommand({ name: "registerIntegrationContract", payload: input });
+		},
+		activateSubscriptionAgreement(input) {
+			return commandPort.executeCommand({ name: "activateSubscriptionAgreement", payload: input });
+		},
+		fireWorkflowTrigger(input) {
+			return commandPort.executeCommand({ name: "fireWorkflowTrigger", payload: input });
+		},
+		requestNotificationDispatch(input) {
+			return commandPort.executeCommand({ name: "requestNotificationDispatch", payload: input });
+		},
+		recordAuditSignal(input) {
+			return commandPort.executeCommand({ name: "recordAuditSignal", payload: input });
+		},
+		emitObservabilitySignal(input) {
+			return commandPort.executeCommand({ name: "emitObservabilitySignal", payload: input });
+		},
+		getPlatformContextView(input) {
+			return queryPort.executeQuery({ name: "getPlatformContextView", payload: input });
+		},
+		listEnabledCapabilities(input) {
+			return queryPort.executeQuery({ name: "listEnabledCapabilities", payload: input });
+		},
+		getPolicyCatalogView(input) {
+			return queryPort.executeQuery({ name: "getPolicyCatalogView", payload: input });
+		},
+		getSubscriptionEntitlements(input) {
+			return queryPort.executeQuery({ name: "getSubscriptionEntitlements", payload: input });
+		},
+		getWorkflowPolicyView(input) {
+			return queryPort.executeQuery({ name: "getWorkflowPolicyView", payload: input });
+		},
+	};
+}
 ````
 
 ## File: modules/platform/application/commands/ActivateSubscriptionAgreementCommand.ts
@@ -60959,6 +62522,27 @@ modules/notion/
  */
 
 // TODO: implement FireWorkflowTriggerCommand command payload type
+````
+
+## File: modules/platform/application/commands/index.ts
+````typescript
+/**
+ * platform command models placeholder module.
+ */
+
+export const PLATFORM_APPLICATION_COMMANDS = [
+	"RegisterPlatformContext",
+	"PublishPolicyCatalog",
+	"ApplyConfigurationProfile",
+	"RegisterIntegrationContract",
+	"ActivateSubscriptionAgreement",
+	"FireWorkflowTrigger",
+	"RequestNotificationDispatch",
+	"RecordAuditSignal",
+	"EmitObservabilitySignal",
+] as const;
+
+export type PlatformApplicationCommand = (typeof PLATFORM_APPLICATION_COMMANDS)[number];
 ````
 
 ## File: modules/platform/application/commands/PublishPolicyCatalogCommand.ts
@@ -61448,6 +63032,32 @@ modules/notion/
 // TODO: implement GetWorkflowPolicyViewHandler use case handler class
 ````
 
+## File: modules/platform/application/handlers/index.ts
+````typescript
+/**
+ * platform handler placeholder module.
+ */
+
+export const PLATFORM_APPLICATION_HANDLERS = [
+	"RegisterPlatformContextHandler.execute",
+	"PublishPolicyCatalogHandler.execute",
+	"ApplyConfigurationProfileHandler.execute",
+	"RegisterIntegrationContractHandler.execute",
+	"ActivateSubscriptionAgreementHandler.execute",
+	"FireWorkflowTriggerHandler.execute",
+	"RequestNotificationDispatchHandler.execute",
+	"RecordAuditSignalHandler.execute",
+	"EmitObservabilitySignalHandler.execute",
+	"GetPlatformContextViewHandler.execute",
+	"ListEnabledCapabilitiesHandler.execute",
+	"GetPolicyCatalogViewHandler.execute",
+	"GetSubscriptionEntitlementsHandler.execute",
+	"GetWorkflowPolicyViewHandler.execute",
+] as const;
+
+export type PlatformApplicationHandler = (typeof PLATFORM_APPLICATION_HANDLERS)[number];
+````
+
 ## File: modules/platform/application/handlers/ListEnabledCapabilitiesHandler.ts
 ````typescript
 /**
@@ -61639,6 +63249,18 @@ modules/notion/
 // TODO: implement RequestNotificationDispatchHandler use case handler class
 ````
 
+## File: modules/platform/application/index.ts
+````typescript
+/**
+ * platform application layer barrel.
+ */
+
+export * from "./commands";
+export * from "./queries";
+export * from "./handlers";
+export * from "./dtos";
+````
+
 ## File: modules/platform/application/queries/GetPlatformContextViewQuery.ts
 ````typescript
 /**
@@ -61727,6 +63349,23 @@ modules/notion/
 // TODO: implement GetWorkflowPolicyViewQuery query input type
 ````
 
+## File: modules/platform/application/queries/index.ts
+````typescript
+/**
+ * platform query models placeholder module.
+ */
+
+export const PLATFORM_APPLICATION_QUERIES = [
+	"GetPlatformContextView",
+	"ListEnabledCapabilities",
+	"GetPolicyCatalogView",
+	"GetSubscriptionEntitlements",
+	"GetWorkflowPolicyView",
+] as const;
+
+export type PlatformApplicationQuery = (typeof PLATFORM_APPLICATION_QUERIES)[number];
+````
+
 ## File: modules/platform/application/queries/ListEnabledCapabilitiesQuery.ts
 ````typescript
 /**
@@ -61747,6 +63386,26 @@ modules/notion/
  */
 
 // TODO: implement ListEnabledCapabilitiesQuery query input type
+````
+
+## File: modules/platform/domain/aggregates/index.ts
+````typescript
+/**
+ * platform aggregate placeholder module.
+ */
+
+export const PLATFORM_DOMAIN_AGGREGATE_FUNCTIONS = [
+	"registerPlatformContext",
+	"enablePlatformCapability",
+	"disablePlatformCapability",
+	"publishPolicyCatalogRevision",
+	"registerIntegrationContractAggregate",
+	"activateSubscriptionAgreementAggregate",
+	"renewSubscriptionAgreementAggregate",
+	"cancelSubscriptionAgreementAggregate",
+] as const;
+
+export type PlatformDomainAggregateFunction = (typeof PLATFORM_DOMAIN_AGGREGATE_FUNCTIONS)[number];
 ````
 
 ## File: modules/platform/domain/aggregates/IntegrationContract.ts
@@ -61922,6 +63581,21 @@ modules/notion/
  */
 
 // TODO: implement DispatchContextEntity interface / class
+````
+
+## File: modules/platform/domain/entities/index.ts
+````typescript
+/**
+ * platform entity placeholder module.
+ */
+
+export const PLATFORM_DOMAIN_ENTITY_FUNCTIONS = [
+	"definePolicyRuleEntity",
+	"defineSignalSubscriptionEntity",
+	"defineDispatchContextEntity",
+] as const;
+
+export type PlatformDomainEntityFunction = (typeof PLATFORM_DOMAIN_ENTITY_FUNCTIONS)[number];
 ````
 
 ## File: modules/platform/domain/entities/PolicyRuleEntity.ts
@@ -62595,6 +64269,35 @@ modules/notion/
 // TODO: implement createSubscriptionAgreementAggregate factory function
 ````
 
+## File: modules/platform/domain/factories/index.ts
+````typescript
+/**
+ * platform domain factory placeholder module.
+ */
+
+export const PLATFORM_DOMAIN_FACTORY_FUNCTIONS = [
+	"createPlatformContextAggregate",
+	"createPolicyCatalogAggregate",
+	"createIntegrationContractAggregate",
+	"createSubscriptionAgreementAggregate",
+] as const;
+
+export type PlatformDomainFactoryFunction = (typeof PLATFORM_DOMAIN_FACTORY_FUNCTIONS)[number];
+````
+
+## File: modules/platform/domain/index.ts
+````typescript
+/**
+ * platform domain layer barrel.
+ */
+
+export * from "./aggregates";
+export * from "./entities";
+export * from "./value-objects";
+export * from "./services";
+export * from "./events";
+````
+
 ## File: modules/platform/domain/services/AuditClassificationService.ts
 ````typescript
 /**
@@ -62648,6 +64351,26 @@ modules/notion/
  */
 
 // TODO: implement ConfigurationCompositionService domain service
+````
+
+## File: modules/platform/domain/services/index.ts
+````typescript
+/**
+ * platform domain service placeholder module.
+ */
+
+export const PLATFORM_DOMAIN_SERVICE_FUNCTIONS = [
+	"evaluateCapabilityEntitlement",
+	"resolvePermissionDecision",
+	"composeConfigurationProfile",
+	"validateIntegrationCompatibility",
+	"decideWorkflowDispatch",
+	"decideNotificationRouting",
+	"classifyAuditSignal",
+	"correlateObservabilitySignal",
+] as const;
+
+export type PlatformDomainServiceFunction = (typeof PLATFORM_DOMAIN_SERVICE_FUNCTIONS)[number];
 ````
 
 ## File: modules/platform/domain/services/IntegrationCompatibilityService.ts
@@ -62822,6 +64545,52 @@ modules/notion/
 // TODO: implement Entitlement value object
 ````
 
+## File: modules/platform/domain/value-objects/index.ts
+````typescript
+/**
+ * platform domain value-object derivation inventory.
+ */
+
+export const PLATFORM_DOMAIN_VALUE_OBJECT_TYPES = [
+	"PlatformCapability",
+	"SubjectScope",
+	"PolicyRule",
+	"ConfigurationProfileRef",
+	"Entitlement",
+	"UsageLimit",
+	"SignalSubscription",
+	"DeliveryPolicy",
+	"NotificationRoute",
+	"ObservabilitySignal",
+	"PermissionDecision",
+	"AuditClassification",
+	"PlanConstraint",
+	"DeliveryAllowance",
+] as const;
+
+export type PlatformDomainValueObjectType = (typeof PLATFORM_DOMAIN_VALUE_OBJECT_TYPES)[number];
+
+export const PLATFORM_DOMAIN_VALUE_OBJECT_FACTORY_FUNCTIONS = [
+	"createPlatformCapability",
+	"createSubjectScope",
+	"createPolicyRule",
+	"createConfigurationProfileRef",
+	"createEntitlement",
+	"createUsageLimit",
+	"createSignalSubscription",
+	"createDeliveryPolicy",
+	"createNotificationRoute",
+	"createObservabilitySignal",
+	"createPermissionDecision",
+	"createAuditClassification",
+	"createPlanConstraint",
+	"createDeliveryAllowance",
+] as const;
+
+export type PlatformDomainValueObjectFactoryFunction =
+	(typeof PLATFORM_DOMAIN_VALUE_OBJECT_FACTORY_FUNCTIONS)[number];
+````
+
 ## File: modules/platform/domain/value-objects/NotificationRoute.ts
 ````typescript
 /**
@@ -62966,11 +64735,6 @@ modules/notion/
 // TODO: implement UsageLimit value object
 ````
 
-## File: modules/platform/events/contracts/.gitkeep
-````
-
-````
-
 ## File: modules/platform/events/contracts/index.ts
 ````typescript
 /**
@@ -62978,11 +64742,6 @@ modules/notion/
  */
 
 export * from "../../domain/events";
-````
-
-## File: modules/platform/events/handlers/.gitkeep
-````
-
 ````
 
 ## File: modules/platform/events/handlers/handleIngressAccountProfileAmended.ts
@@ -63183,9 +64942,18 @@ export const PLATFORM_EVENT_HANDLER_FUNCTIONS = [
 export type PlatformEventHandlerFunction = (typeof PLATFORM_EVENT_HANDLER_FUNCTIONS)[number];
 ````
 
-## File: modules/platform/events/ingress/.gitkeep
-````
+## File: modules/platform/events/index.ts
+````typescript
+/**
+ * platform events barrel.
+ */
 
+export * from "./contracts/index";
+export * from "./handlers/index";
+export * from "./ingress/index";
+export * from "./mappers/index";
+export * from "./published/index";
+export * from "./routing/index";
 ````
 
 ## File: modules/platform/events/ingress/index.ts
@@ -63368,11 +65136,6 @@ export type PlatformEventIngressFunction = (typeof PLATFORM_EVENT_INGRESS_FUNCTI
 // TODO: implement ingestWorkflowExecutionCompleted ingress parser / Zod schema validation
 ````
 
-## File: modules/platform/events/mappers/.gitkeep
-````
-
-````
-
 ## File: modules/platform/events/mappers/index.ts
 ````typescript
 /**
@@ -63451,11 +65214,6 @@ export type PlatformEventMapperFunction = (typeof PLATFORM_EVENT_MAPPER_FUNCTION
  */
 
 // TODO: implement mapIngressEventToCommand mapper function
-````
-
-## File: modules/platform/events/published/.gitkeep
-````
-
 ````
 
 ## File: modules/platform/events/published/buildPublishedEventEnvelope.ts
@@ -63537,11 +65295,6 @@ export type PlatformPublishedEventFunction = (typeof PLATFORM_PUBLISHED_EVENT_FU
 // TODO: implement publishSinglePlatformEvent utility function
 ````
 
-## File: modules/platform/events/routing/.gitkeep
-````
-
-````
-
 ## File: modules/platform/events/routing/index.ts
 ````typescript
 /**
@@ -63620,6 +65373,17 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
  */
 
 // TODO: implement routeIngressEvent routing function and routing table
+````
+
+## File: modules/platform/index.ts
+````typescript
+/**
+ * platform local module entry.
+ *
+ * Prefer importing from ./api for cross-module access.
+ */
+
+export * from "./api";
 ````
 
 ## File: modules/platform/infrastructure/cache/CachedPlatformContextViewRepository.ts
@@ -63704,6 +65468,21 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
  */
 
 // TODO: implement CachedUsageMeterRepository cache-aside repository
+````
+
+## File: modules/platform/infrastructure/cache/index.ts
+````typescript
+/**
+ * platform cache infrastructure placeholder module.
+ */
+
+export const PLATFORM_INFRA_CACHE_FACTORIES = [
+	"createCachedPlatformContextViewRepository",
+	"createCachedPolicyCatalogViewRepository",
+	"createCachedUsageMeterRepository",
+] as const;
+
+export type PlatformInfraCacheFactory = (typeof PLATFORM_INFRA_CACHE_FACTORIES)[number];
 ````
 
 ## File: modules/platform/infrastructure/db/FirebaseIntegrationContractRepository.ts
@@ -63818,6 +65597,35 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 // TODO: implement FirebaseSubscriptionAgreementRepository Firestore repository
 ````
 
+## File: modules/platform/infrastructure/db/index.ts
+````typescript
+/**
+ * platform database infrastructure placeholder module.
+ */
+
+export const PLATFORM_INFRA_DB_FACTORIES = [
+	"createDbPlatformContextRepository",
+	"createDbPolicyCatalogRepository",
+	"createDbIntegrationContractRepository",
+	"createDbSubscriptionAgreementRepository",
+] as const;
+
+export type PlatformInfraDbFactory = (typeof PLATFORM_INFRA_DB_FACTORIES)[number];
+````
+
+## File: modules/platform/infrastructure/email/index.ts
+````typescript
+/**
+ * platform email infrastructure placeholder module.
+ */
+
+export const PLATFORM_INFRA_EMAIL_FACTORIES = [
+	"createEmailNotificationGateway",
+] as const;
+
+export type PlatformInfraEmailFactory = (typeof PLATFORM_INFRA_EMAIL_FACTORIES)[number];
+````
+
 ## File: modules/platform/infrastructure/email/SmtpNotificationGateway.ts
 ````typescript
 /**
@@ -63845,6 +65653,35 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
  */
 
 // TODO: implement SmtpNotificationGateway
+````
+
+## File: modules/platform/infrastructure/index.ts
+````typescript
+/**
+ * platform infrastructure layer barrel.
+ */
+
+export * from "./cache";
+export * from "./db";
+export * from "./email";
+export * from "./messaging";
+export * from "./monitoring";
+export * from "./storage";
+````
+
+## File: modules/platform/infrastructure/messaging/index.ts
+````typescript
+/**
+ * platform messaging infrastructure placeholder module.
+ */
+
+export const PLATFORM_INFRA_MESSAGING_FACTORIES = [
+	"createMessagingDomainEventPublisher",
+	"createMessagingWorkflowDispatcher",
+	"createMessagingJobQueuePort",
+] as const;
+
+export type PlatformInfraMessagingFactory = (typeof PLATFORM_INFRA_MESSAGING_FACTORIES)[number];
 ````
 
 ## File: modules/platform/infrastructure/messaging/QStashDomainEventPublisher.ts
@@ -63942,6 +65779,21 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 // TODO: implement FirebaseObservabilitySink
 ````
 
+## File: modules/platform/infrastructure/monitoring/index.ts
+````typescript
+/**
+ * platform monitoring infrastructure placeholder module.
+ */
+
+export const PLATFORM_INFRA_MONITORING_FACTORIES = [
+	"createMetricsObservabilitySink",
+	"createTracingObservabilitySink",
+	"createAnalyticsSink",
+] as const;
+
+export type PlatformInfraMonitoringFactory = (typeof PLATFORM_INFRA_MONITORING_FACTORIES)[number];
+````
+
 ## File: modules/platform/infrastructure/storage/FirebaseStorageAuditSignalStore.ts
 ````typescript
 /**
@@ -63968,6 +65820,31 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
  */
 
 // TODO: implement FirebaseStorageAuditSignalStore
+````
+
+## File: modules/platform/infrastructure/storage/index.ts
+````typescript
+/**
+ * platform storage infrastructure placeholder module.
+ */
+
+export const PLATFORM_INFRA_STORAGE_FACTORIES = [
+	"createStorageAuditSignalStore",
+	"createStorageDeliveryHistoryRepository",
+	"createStorageContentRepository",
+] as const;
+
+export type PlatformInfraStorageFactory = (typeof PLATFORM_INFRA_STORAGE_FACTORIES)[number];
+````
+
+## File: modules/platform/ports/index.ts
+````typescript
+/**
+ * platform ports barrel.
+ */
+
+export * from "./input";
+export * from "./output";
 ````
 
 ## File: modules/platform/ports/input/PlatformCommandPort.ts
@@ -64724,6 +66601,21 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 // TODO: implement / re-export WorkflowPolicyRepository interface
 ````
 
+## File: modules/platform/shared/constants/index.ts
+````typescript
+/**
+ * platform shared constants placeholder module.
+ */
+
+export const PLATFORM_SHARED_CONSTANT_GROUPS = [
+	"PlatformLifecycleConstants",
+	"PlatformEventTypeConstants",
+	"PlatformErrorCodeConstants",
+] as const;
+
+export type PlatformSharedConstantGroup = (typeof PLATFORM_SHARED_CONSTANT_GROUPS)[number];
+````
+
 ## File: modules/platform/shared/constants/PlatformErrorCodeConstants.ts
 ````typescript
 /**
@@ -64856,6 +66748,34 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 // TODO: implement createPolicyConflictError factory function
 ````
 
+## File: modules/platform/shared/errors/index.ts
+````typescript
+/**
+ * platform shared errors placeholder module.
+ */
+
+export const PLATFORM_SHARED_ERROR_FACTORIES = [
+	"createEntitlementDeniedError",
+	"createPolicyConflictError",
+	"createDeliveryNotAllowedError",
+] as const;
+
+export type PlatformSharedErrorFactory = (typeof PLATFORM_SHARED_ERROR_FACTORIES)[number];
+````
+
+## File: modules/platform/shared/index.ts
+````typescript
+/**
+ * platform shared utilities barrel.
+ */
+
+export * from "./constants";
+export * from "./errors";
+export * from "./types";
+export * from "./utils";
+export * from "./value-objects";
+````
+
 ## File: modules/platform/shared/types/CorrelationContext.ts
 ````typescript
 /**
@@ -64908,6 +66828,21 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
  */
 
 // TODO: implement DispatchOutcome discriminated union type
+````
+
+## File: modules/platform/shared/types/index.ts
+````typescript
+/**
+ * platform shared types placeholder module.
+ */
+
+export const PLATFORM_SHARED_TYPE_GROUPS = [
+	"CorrelationContextType",
+	"ResourceDescriptorType",
+	"DispatchOutcomeType",
+] as const;
+
+export type PlatformSharedTypeGroup = (typeof PLATFORM_SHARED_TYPE_GROUPS)[number];
 ````
 
 ## File: modules/platform/shared/types/ResourceDescriptor.ts
@@ -64988,6 +66923,22 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 // TODO: implement buildCorrelationId UUID generator
 ````
 
+## File: modules/platform/shared/utils/index.ts
+````typescript
+/**
+ * platform shared utilities placeholder module.
+ */
+
+export const PLATFORM_SHARED_UTILITY_FUNCTIONS = [
+	"buildCorrelationId",
+	"buildCausationId",
+	"toIsoTimestamp",
+	"assertNever",
+] as const;
+
+export type PlatformSharedUtilityFunction = (typeof PLATFORM_SHARED_UTILITY_FUNCTIONS)[number];
+````
+
 ## File: modules/platform/shared/utils/toIsoTimestamp.ts
 ````typescript
 /**
@@ -65064,6 +67015,43 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
  */
 
 // TODO: implement EndpointRef value object
+````
+
+## File: modules/platform/shared/value-objects/index.ts
+````typescript
+/**
+ * platform shared value-object derivation inventory.
+ */
+
+export const PLATFORM_SHARED_VALUE_OBJECT_TYPES = [
+	"PlatformContextId",
+	"PolicyCatalogId",
+	"IntegrationContractId",
+	"SubscriptionAgreementId",
+	"PlatformLifecycleState",
+	"ContractState",
+	"BillingState",
+	"EffectivePeriod",
+	"EndpointRef",
+	"SecretReference",
+] as const;
+
+export type PlatformSharedValueObjectType = (typeof PLATFORM_SHARED_VALUE_OBJECT_TYPES)[number];
+
+export const PLATFORM_SHARED_VALUE_OBJECT_FACTORIES = [
+	"createPlatformContextId",
+	"createPolicyCatalogId",
+	"createIntegrationContractId",
+	"createSubscriptionAgreementId",
+	"createPlatformLifecycleState",
+	"createContractState",
+	"createBillingState",
+	"createEffectivePeriod",
+	"createEndpointRef",
+	"createSecretReference",
+] as const;
+
+export type PlatformSharedValueObjectFactory = (typeof PLATFORM_SHARED_VALUE_OBJECT_FACTORIES)[number];
 ````
 
 ## File: modules/platform/shared/value-objects/IntegrationContractId.ts
@@ -65159,31 +67147,6 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 // TODO: implement SubscriptionAgreementId branded type and createSubscriptionAgreementId factory
 ````
 
-## File: modules/platform/subdomains/access-control/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'access-control'.
-````
-
-## File: modules/platform/subdomains/access-control/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'access-control'.
-````
-
-## File: modules/platform/subdomains/access-control/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'access-control'.
-````
-
-## File: modules/platform/subdomains/access-control/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'access-control'.
-````
-
-## File: modules/platform/subdomains/access-control/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'access-control'. -->
-````
-
 ## File: modules/platform/subdomains/account-profile/adapters/create-legacy-account-profile-application.adapter.ts
 ````typescript
 import { getUserProfile, subscribeToUserProfile } from "@/modules/account/api";
@@ -65197,6 +67160,16 @@ export function createLegacyAccountProfileApplicationAdapter(): LegacyAccountPro
 }
 ````
 
+## File: modules/platform/subdomains/account-profile/adapters/index.ts
+````typescript
+export { createLegacyAccountProfileApplicationAdapter } from "./create-legacy-account-profile-application.adapter";
+````
+
+## File: modules/platform/subdomains/account-profile/application/index.ts
+````typescript
+export type { LegacyAccountProfileApplicationPort } from "./legacy-account-profile-application.port";
+````
+
 ## File: modules/platform/subdomains/account-profile/application/legacy-account-profile-application.port.ts
 ````typescript
 import { getUserProfile, subscribeToUserProfile } from "@/modules/account/api";
@@ -65208,16 +67181,6 @@ export interface LegacyAccountProfileApplicationPort {
 	getUserProfile: typeof getUserProfile;
 	subscribeToUserProfile: typeof subscribeToUserProfile;
 }
-````
-
-## File: modules/platform/subdomains/account-profile/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'account-profile'.
-````
-
-## File: modules/platform/subdomains/account-profile/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'account-profile'. -->
 ````
 
 ## File: modules/platform/subdomains/account/adapters/create-legacy-account-application.adapter.ts
@@ -65248,6 +67211,16 @@ export function createLegacyAccountApplicationAdapter(): LegacyAccountApplicatio
 }
 ````
 
+## File: modules/platform/subdomains/account/adapters/index.ts
+````typescript
+export { createLegacyAccountApplicationAdapter } from "./create-legacy-account-application.adapter";
+````
+
+## File: modules/platform/subdomains/account/application/index.ts
+````typescript
+export type { LegacyAccountApplicationPort } from "./legacy-account-application.port";
+````
+
 ## File: modules/platform/subdomains/account/application/legacy-account-application.port.ts
 ````typescript
 import {
@@ -65276,279 +67249,555 @@ export interface LegacyAccountApplicationPort {
 }
 ````
 
-## File: modules/platform/subdomains/account/domain/index.ts
+## File: modules/platform/subdomains/identity/adapters/firebase/FirebaseIdentityRepository.ts
 ````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'account'.
-````
-
-## File: modules/platform/subdomains/account/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'account'. -->
-````
-
-## File: modules/platform/subdomains/analytics/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'analytics'.
-````
-
-## File: modules/platform/subdomains/analytics/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'analytics'.
-````
-
-## File: modules/platform/subdomains/analytics/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'analytics'.
-````
-
-## File: modules/platform/subdomains/analytics/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'analytics'.
-````
-
-## File: modules/platform/subdomains/analytics/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'analytics'. -->
-````
-
-## File: modules/platform/subdomains/audit-log/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'audit-log'.
-````
-
-## File: modules/platform/subdomains/audit-log/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'audit-log'.
-````
-
-## File: modules/platform/subdomains/audit-log/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'audit-log'.
-````
-
-## File: modules/platform/subdomains/audit-log/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'audit-log'.
-````
-
-## File: modules/platform/subdomains/audit-log/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'audit-log'. -->
-````
-
-## File: modules/platform/subdomains/background-job/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'background-job'.
-````
-
-## File: modules/platform/subdomains/background-job/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'background-job'.
-````
-
-## File: modules/platform/subdomains/background-job/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'background-job'.
-````
-
-## File: modules/platform/subdomains/background-job/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'background-job'.
-````
-
-## File: modules/platform/subdomains/background-job/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'background-job'. -->
-````
-
-## File: modules/platform/subdomains/billing/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'billing'.
-````
-
-## File: modules/platform/subdomains/billing/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'billing'.
-````
-
-## File: modules/platform/subdomains/billing/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'billing'.
-````
-
-## File: modules/platform/subdomains/billing/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'billing'.
-````
-
-## File: modules/platform/subdomains/billing/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'billing'. -->
-````
-
-## File: modules/platform/subdomains/compliance/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'compliance'.
-````
-
-## File: modules/platform/subdomains/compliance/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'compliance'.
-````
-
-## File: modules/platform/subdomains/compliance/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'compliance'.
-````
-
-## File: modules/platform/subdomains/compliance/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'compliance'.
-````
-
-## File: modules/platform/subdomains/compliance/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'compliance'. -->
-````
-
-## File: modules/platform/subdomains/content/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'content'.
-````
-
-## File: modules/platform/subdomains/content/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'content'.
-````
-
-## File: modules/platform/subdomains/content/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'content'.
-````
-
-## File: modules/platform/subdomains/content/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'content'.
-````
-
-## File: modules/platform/subdomains/content/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'content'. -->
-````
-
-## File: modules/platform/subdomains/feature-flag/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'feature-flag'.
-````
-
-## File: modules/platform/subdomains/feature-flag/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'feature-flag'.
-````
-
-## File: modules/platform/subdomains/feature-flag/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'feature-flag'.
-````
-
-## File: modules/platform/subdomains/feature-flag/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'feature-flag'.
-````
-
-## File: modules/platform/subdomains/feature-flag/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'feature-flag'. -->
-````
-
-## File: modules/platform/subdomains/identity/adapters/create-legacy-identity-application.adapter.ts
-````typescript
+import { firebaseClientApp } from "@integration-firebase/client";
 import {
-	identityApi,
-	register,
-	sendPasswordResetEmail,
-	signIn,
-	signInAnonymously,
-	signOut,
-} from "@/modules/identity/api";
-import type { LegacyIdentityApplicationPort } from "../application";
+	createUserWithEmailAndPassword as fbCreateUser,
+	getAuth,
+	sendPasswordResetEmail as fbSendPasswordResetEmail,
+	signInAnonymously as fbSignInAnonymously,
+	signInWithEmailAndPassword as fbSignIn,
+	signOut as fbSignOut,
+	type User,
+	updateProfile,
+} from "firebase/auth";
+import type { IdentityEntity, IdentityRepository, RegistrationInput, SignInCredentials } from "../../domain";
 
-export function createLegacyIdentityApplicationAdapter(): LegacyIdentityApplicationPort {
+function toIdentityEntity(user: User): IdentityEntity {
 	return {
-		emitTokenRefreshSignal(input) {
-			return identityApi.emitTokenRefreshSignal(input);
-		},
-		signIn,
-		signInAnonymously,
-		register,
-		sendPasswordResetEmail,
-		signOut,
+		uid: user.uid,
+		email: user.email,
+		displayName: user.displayName,
+		photoURL: user.photoURL,
+		isAnonymous: user.isAnonymous,
+		emailVerified: user.emailVerified,
+	};
+}
+
+export class FirebaseIdentityRepository implements IdentityRepository {
+	private get auth() {
+		return getAuth(firebaseClientApp);
+	}
+
+	async signInWithEmailAndPassword(credentials: SignInCredentials): Promise<IdentityEntity> {
+		const result = await fbSignIn(this.auth, credentials.email, credentials.password);
+		return toIdentityEntity(result.user);
+	}
+
+	async signInAnonymously(): Promise<IdentityEntity> {
+		const result = await fbSignInAnonymously(this.auth);
+		return toIdentityEntity(result.user);
+	}
+
+	async createUserWithEmailAndPassword(input: RegistrationInput): Promise<IdentityEntity> {
+		const result = await fbCreateUser(this.auth, input.email, input.password);
+		return toIdentityEntity(result.user);
+	}
+
+	async updateDisplayName(uid: string, displayName: string): Promise<void> {
+		const currentUser = this.auth.currentUser;
+		if (currentUser && currentUser.uid === uid) {
+			await updateProfile(currentUser, { displayName });
+		}
+	}
+
+	async sendPasswordResetEmail(email: string): Promise<void> {
+		await fbSendPasswordResetEmail(this.auth, email);
+	}
+
+	async signOut(): Promise<void> {
+		await fbSignOut(this.auth);
+	}
+
+	getCurrentUser(): IdentityEntity | null {
+		const user = this.auth.currentUser;
+		return user ? toIdentityEntity(user) : null;
+	}
+}
+````
+
+## File: modules/platform/subdomains/identity/adapters/firebase/FirebaseTokenRefreshRepository.ts
+````typescript
+import { firebaseClientApp } from "@integration-firebase/client";
+import { doc, getFirestore, onSnapshot, setDoc } from "firebase/firestore";
+import type { TokenRefreshRepository, TokenRefreshSignal } from "../../domain";
+
+const COLLECTION = "tokenRefreshSignals";
+
+export class FirebaseTokenRefreshRepository implements TokenRefreshRepository {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	async emit(signal: TokenRefreshSignal): Promise<void> {
+		await setDoc(
+			doc(this.db, COLLECTION, signal.accountId),
+			{
+				accountId: signal.accountId,
+				reason: signal.reason,
+				issuedAt: signal.issuedAt,
+				...(signal.traceId ? { traceId: signal.traceId } : {}),
+			},
+			{ merge: true },
+		);
+	}
+
+	subscribe(accountId: string, onSignal: () => void): () => void {
+		let isFirstEmission = true;
+		const ref = doc(this.db, COLLECTION, accountId);
+		return onSnapshot(ref, () => {
+			if (isFirstEmission) {
+				isFirstEmission = false;
+				return;
+			}
+			onSignal();
+		});
+	}
+}
+````
+
+## File: modules/platform/subdomains/identity/adapters/hooks/useTokenRefreshListener.tsx
+````typescript
+"use client";
+
+import { getFirebaseAuth } from "@integration-firebase";
+import { useEffect } from "react";
+import { FirebaseTokenRefreshRepository } from "../firebase/FirebaseTokenRefreshRepository";
+
+const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
+
+export function useTokenRefreshListener(accountId: string | null | undefined): void {
+	useEffect(() => {
+		if (!accountId) return;
+		if (!/^[\w-]+$/.test(accountId)) return;
+
+		const unsubscribe = tokenRefreshRepo.subscribe(accountId, () => {
+			const auth = getFirebaseAuth();
+			const currentUser = auth.currentUser;
+			if (!currentUser) return;
+			void currentUser.getIdToken(true).catch(() => {
+				// Non-fatal: token refreshes naturally on next expiry cycle.
+			});
+		});
+
+		return () => unsubscribe();
+	}, [accountId]);
+}
+````
+
+## File: modules/platform/subdomains/identity/adapters/identity-service.ts
+````typescript
+/**
+ * identity-service.ts — Adapter-layer composition root.
+ *
+ * Wires Firebase-backed repositories into identity use cases.
+ * Lives in adapters/ because it instantiates infrastructure adapters.
+ * Dependency direction: adapters/ -> application/ -> domain/ (correct, no violation).
+ */
+
+import type { TokenRefreshReason } from "../domain";
+import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
+import {
+	RegisterUseCase,
+	SendPasswordResetEmailUseCase,
+	SignInAnonymouslyUseCase,
+	SignInUseCase,
+} from "../application/use-cases/identity.use-cases";
+import { FirebaseIdentityRepository } from "./firebase/FirebaseIdentityRepository";
+import { FirebaseTokenRefreshRepository } from "./firebase/FirebaseTokenRefreshRepository";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface EmitTokenRefreshSignalInput {
+	accountId: string;
+	reason: TokenRefreshReason;
+	traceId?: string;
+}
+
+// ─── Server-side token refresh signal emitter ─────────────────────────────────
+
+const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
+const emitUseCase = new EmitTokenRefreshSignalUseCase(tokenRefreshRepo);
+
+/**
+ * identityApi — server-side operations for identity management.
+ * Intended for use in Server Actions and server-side code paths.
+ */
+export const identityApi = {
+	async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void> {
+		await emitUseCase.execute(input.accountId, input.reason, input.traceId);
+	},
+} as const;
+
+// ─── Client-side use-case factory ─────────────────────────────────────────────
+
+/**
+ * createClientAuthUseCases — creates Firebase-wired client-side auth use cases.
+ * Each call returns fresh use-case instances sharing one repository instance.
+ * Use only in "use client" components or client-side hooks.
+ */
+export function createClientAuthUseCases() {
+	const repo = new FirebaseIdentityRepository();
+	return {
+		signInUseCase: new SignInUseCase(repo),
+		signInAnonymouslyUseCase: new SignInAnonymouslyUseCase(repo),
+		registerUseCase: new RegisterUseCase(repo),
+		sendPasswordResetEmailUseCase: new SendPasswordResetEmailUseCase(repo),
 	};
 }
 ````
 
-## File: modules/platform/subdomains/identity/application/legacy-identity-application.port.ts
+## File: modules/platform/subdomains/identity/adapters/server-actions/identity.actions.ts
 ````typescript
-import {
-	identityApi,
-	register,
-	sendPasswordResetEmail,
-	signIn,
-	signInAnonymously,
-	signOut,
-} from "@/modules/identity/api";
+"use server";
 
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { toIdentityErrorMessage } from "../../application/identity-error-message";
+import {
+	RegisterUseCase,
+	SendPasswordResetEmailUseCase,
+	SignInAnonymouslyUseCase,
+	SignInUseCase,
+	SignOutUseCase,
+} from "../../application/use-cases/identity.use-cases";
+import { FirebaseIdentityRepository } from "../firebase/FirebaseIdentityRepository";
+
+const identityRepo = new FirebaseIdentityRepository();
+
+export async function signIn(email: string, password: string): Promise<CommandResult> {
+	try {
+		return await new SignInUseCase(identityRepo).execute({ email, password });
+	} catch (err) {
+		return commandFailureFrom("SIGN_IN_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
+	}
+}
+
+export async function signInAnonymously(): Promise<CommandResult> {
+	try {
+		return await new SignInAnonymouslyUseCase(identityRepo).execute();
+	} catch (err) {
+		return commandFailureFrom(
+			"SIGN_IN_ANONYMOUS_FAILED",
+			toIdentityErrorMessage(err, "Unexpected error"),
+		);
+	}
+}
+
+export async function register(email: string, password: string, name: string): Promise<CommandResult> {
+	try {
+		return await new RegisterUseCase(identityRepo).execute({ email, password, name });
+	} catch (err) {
+		return commandFailureFrom("REGISTRATION_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
+	}
+}
+
+export async function sendPasswordResetEmail(email: string): Promise<CommandResult> {
+	try {
+		return await new SendPasswordResetEmailUseCase(identityRepo).execute(email);
+	} catch (err) {
+		return commandFailureFrom("PASSWORD_RESET_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
+	}
+}
+
+export async function signOut(): Promise<CommandResult> {
+	try {
+		return await new SignOutUseCase(identityRepo).execute();
+	} catch (err) {
+		return commandFailureFrom("SIGN_OUT_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
+	}
+}
+````
+
+## File: modules/platform/subdomains/identity/application/identity-error-message.ts
+````typescript
+type StructuredError = {
+	code?: string;
+	message?: string;
+};
+
+const IDENTITY_ERROR_MESSAGES: Record<string, string> = {
+	"auth/network-request-failed": "We couldn’t reach the sign-in service. Check your connection and try again.",
+	"auth/invalid-credential": "The email or password is incorrect.",
+	"auth/invalid-login-credentials": "The email or password is incorrect.",
+	"auth/invalid_login_credentials": "The email or password is incorrect.",
+	"auth/user-not-found": "The email or password is incorrect.",
+	"auth/wrong-password": "The email or password is incorrect.",
+	"auth/email-already-in-use": "This email is already registered. Try signing in instead.",
+	"auth/weak-password": "Password must be at least 6 characters long.",
+	"auth/too-many-requests": "Too many attempts were made. Please wait a moment and try again.",
+	"auth/user-disabled": "This account is currently disabled. Contact support for help.",
+	"auth/operation-not-allowed": "This sign-in method is not available right now.",
+	"auth/invalid-email": "Enter a valid email address.",
+	"auth/missing-email": "Enter an email address.",
+	"auth/missing-password": "Enter a password.",
+};
+
+export function toIdentityErrorMessage(error: unknown, fallback: string): string {
+	const resolveFromMessage = (message: string) => {
+		const normalizedMessage = message.trim();
+		const matchedCode = normalizedMessage.match(/auth\/[a-z][a-z0-9_-]*/)?.[0]?.toLowerCase();
+
+		if (matchedCode && matchedCode in IDENTITY_ERROR_MESSAGES) {
+			return IDENTITY_ERROR_MESSAGES[matchedCode];
+		}
+
+		return normalizedMessage
+			.replace(/^Firebase:\s*/i, "")
+			.replace(/^Error\s*/i, "")
+			.trim();
+	};
+
+	if (typeof error === "object" && error !== null) {
+		const { code, message } = error as StructuredError;
+
+		if (code && code in IDENTITY_ERROR_MESSAGES) {
+			return IDENTITY_ERROR_MESSAGES[code];
+		}
+
+		if (typeof message === "string" && message.trim().length > 0) {
+			return resolveFromMessage(message);
+		}
+	}
+
+	if (error instanceof Error && error.message.trim().length > 0) {
+		return resolveFromMessage(error.message);
+	}
+
+	return fallback;
+}
+````
+
+## File: modules/platform/subdomains/identity/application/use-cases/identity.use-cases.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { RegistrationInput, SignInCredentials } from "../../domain";
+import type { IdentityRepository } from "../../domain";
+import { toIdentityErrorMessage } from "../identity-error-message";
+
+export class SignInUseCase {
+	constructor(private readonly identityRepo: IdentityRepository) {}
+
+	async execute(credentials: SignInCredentials): Promise<CommandResult> {
+		try {
+			const identity = await this.identityRepo.signInWithEmailAndPassword(credentials);
+			return commandSuccess(identity.uid, 0);
+		} catch (err) {
+			return commandFailureFrom("SIGN_IN_FAILED", toIdentityErrorMessage(err, "Sign-in failed"));
+		}
+	}
+}
+
+export class SignInAnonymouslyUseCase {
+	constructor(private readonly identityRepo: IdentityRepository) {}
+
+	async execute(): Promise<CommandResult> {
+		try {
+			const identity = await this.identityRepo.signInAnonymously();
+			return commandSuccess(identity.uid, 0);
+		} catch (err) {
+			return commandFailureFrom(
+				"SIGN_IN_ANONYMOUS_FAILED",
+				toIdentityErrorMessage(err, "Anonymous sign-in failed"),
+			);
+		}
+	}
+}
+
+export class RegisterUseCase {
+	constructor(private readonly identityRepo: IdentityRepository) {}
+
+	async execute(input: RegistrationInput): Promise<CommandResult> {
+		try {
+			const identity = await this.identityRepo.createUserWithEmailAndPassword(input);
+			await this.identityRepo.updateDisplayName(identity.uid, input.name);
+			return commandSuccess(identity.uid, 0);
+		} catch (err) {
+			return commandFailureFrom("REGISTRATION_FAILED", toIdentityErrorMessage(err, "Registration failed"));
+		}
+	}
+}
+
+export class SendPasswordResetEmailUseCase {
+	constructor(private readonly identityRepo: IdentityRepository) {}
+
+	async execute(email: string): Promise<CommandResult> {
+		try {
+			await this.identityRepo.sendPasswordResetEmail(email);
+			return commandSuccess(email, 0);
+		} catch (err) {
+			return commandFailureFrom(
+				"PASSWORD_RESET_FAILED",
+				toIdentityErrorMessage(err, "Password reset failed"),
+			);
+		}
+	}
+}
+
+export class SignOutUseCase {
+	constructor(private readonly identityRepo: IdentityRepository) {}
+
+	async execute(): Promise<CommandResult> {
+		const currentUser = this.identityRepo.getCurrentUser();
+		const aggregateId = currentUser?.uid ?? "anonymous";
+
+		try {
+			await this.identityRepo.signOut();
+			return commandSuccess(aggregateId, 0);
+		} catch (err) {
+			return commandFailureFrom("SIGN_OUT_FAILED", toIdentityErrorMessage(err, "Sign-out failed"));
+		}
+	}
+}
+````
+
+## File: modules/platform/subdomains/identity/application/use-cases/token-refresh.use-cases.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { TokenRefreshReason } from "../../domain";
+import type { TokenRefreshRepository } from "../../domain";
+
+export class EmitTokenRefreshSignalUseCase {
+	constructor(private readonly tokenRefreshRepo: TokenRefreshRepository) {}
+
+	async execute(accountId: string, reason: TokenRefreshReason, traceId?: string): Promise<CommandResult> {
+		if (!/^[\w-]+$/.test(accountId)) {
+			return commandFailureFrom(
+				"TOKEN_REFRESH_INVALID_ACCOUNT_ID",
+				`accountId '${accountId}' is not a valid Firestore document ID`,
+			);
+		}
+
+		try {
+			await this.tokenRefreshRepo.emit({
+				accountId,
+				reason,
+				issuedAt: new Date().toISOString(),
+				...(traceId ? { traceId } : {}),
+			});
+			return commandSuccess(accountId, 0);
+		} catch (err) {
+			return commandFailureFrom(
+				"TOKEN_REFRESH_EMIT_FAILED",
+				err instanceof Error ? err.message : "Failed to emit token refresh signal",
+			);
+		}
+	}
+}
+````
+
+## File: modules/platform/subdomains/identity/domain/entities/Identity.ts
+````typescript
 /**
- * Temporary compatibility port during migration from modules/identity.
- *
- * NOTE:
- * - This port preserves existing behaviors while platform subdomain
- *   implementations are incrementally introduced.
- * - The final target is platform-native use case handlers behind platform/api.
+ * Identity Domain Entity — represents an authenticated user session.
+ * Zero external dependencies.
  */
-export interface LegacyIdentityApplicationPort {
-	emitTokenRefreshSignal: typeof identityApi.emitTokenRefreshSignal;
-	signIn: typeof signIn;
-	signInAnonymously: typeof signInAnonymously;
-	register: typeof register;
-	sendPasswordResetEmail: typeof sendPasswordResetEmail;
-	signOut: typeof signOut;
+export interface IdentityEntity {
+	readonly uid: string;
+	readonly email: string | null;
+	readonly displayName: string | null;
+	readonly photoURL: string | null;
+	readonly isAnonymous: boolean;
+	readonly emailVerified: boolean;
+}
+
+/** Value Object — credentials for sign-in */
+export interface SignInCredentials {
+	readonly email: string;
+	readonly password: string;
+}
+
+/** Value Object — registration input */
+export interface RegistrationInput {
+	readonly email: string;
+	readonly password: string;
+	readonly name: string;
+}
+````
+
+## File: modules/platform/subdomains/identity/domain/entities/TokenRefreshSignal.ts
+````typescript
+/**
+ * TokenRefreshSignal — Domain Value Object.
+ * Represents the signal written to Firestore when Custom Claims change.
+ */
+
+export type TokenRefreshReason = "role:changed" | "policy:changed";
+
+export interface TokenRefreshSignal {
+	readonly accountId: string;
+	readonly reason: TokenRefreshReason;
+	readonly issuedAt: string;
+	readonly traceId?: string;
 }
 ````
 
 ## File: modules/platform/subdomains/identity/domain/index.ts
 ````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'identity'.
+export type { IdentityEntity, RegistrationInput, SignInCredentials } from "./entities/Identity";
+export type { TokenRefreshReason, TokenRefreshSignal } from "./entities/TokenRefreshSignal";
+export type { IdentityRepository } from "./repositories/IdentityRepository";
+export type { TokenRefreshRepository } from "./repositories/TokenRefreshRepository";
 ````
 
-## File: modules/platform/subdomains/identity/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'identity'. -->
-````
-
-## File: modules/platform/subdomains/integration/adapters/index.ts
+## File: modules/platform/subdomains/identity/domain/repositories/IdentityRepository.ts
 ````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'integration'.
+import type { IdentityEntity, RegistrationInput, SignInCredentials } from "../entities/Identity";
+
+export interface IdentityRepository {
+	signInWithEmailAndPassword(credentials: SignInCredentials): Promise<IdentityEntity>;
+	signInAnonymously(): Promise<IdentityEntity>;
+	createUserWithEmailAndPassword(input: RegistrationInput): Promise<IdentityEntity>;
+	updateDisplayName(uid: string, displayName: string): Promise<void>;
+	sendPasswordResetEmail(email: string): Promise<void>;
+	signOut(): Promise<void>;
+	getCurrentUser(): IdentityEntity | null;
+}
 ````
 
-## File: modules/platform/subdomains/integration/application/index.ts
+## File: modules/platform/subdomains/identity/domain/repositories/TokenRefreshRepository.ts
 ````typescript
-// Purpose: Application layer placeholder for platform subdomain 'integration'.
+import type { TokenRefreshSignal } from "../entities/TokenRefreshSignal";
+
+export interface TokenRefreshRepository {
+	emit(signal: TokenRefreshSignal): Promise<void>;
+	subscribe(accountId: string, onSignal: () => void): () => void;
+}
 ````
 
-## File: modules/platform/subdomains/integration/domain/index.ts
+## File: modules/platform/subdomains/index.ts
 ````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'integration'.
-````
+/**
+ * platform subdomain inventory module.
+ */
 
-## File: modules/platform/subdomains/integration/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'integration'.
-````
+export const PLATFORM_SUBDOMAIN_INVENTORY = [
+	"identity",
+	"account",
+	"account-profile",
+	"organization",
+	"access-control",
+	"security-policy",
+	"platform-config",
+	"feature-flag",
+	"onboarding",
+	"compliance",
+	"billing",
+	"subscription",
+	"referral",
+	"integration",
+	"workflow",
+	"notification",
+	"background-job",
+	"content",
+	"search",
+	"audit-log",
+	"observability",
+	"analytics",
+	"support",
+] as const;
 
-## File: modules/platform/subdomains/integration/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'integration'. -->
+export type PlatformSubdomain = (typeof PLATFORM_SUBDOMAIN_INVENTORY)[number];
 ````
 
 ## File: modules/platform/subdomains/notification/adapters/create-legacy-notification-application.adapter.ts
@@ -65569,6 +67818,16 @@ export function createLegacyNotificationApplicationAdapter(): LegacyNotification
 }
 ````
 
+## File: modules/platform/subdomains/notification/adapters/index.ts
+````typescript
+export { createLegacyNotificationApplicationAdapter } from "./create-legacy-notification-application.adapter";
+````
+
+## File: modules/platform/subdomains/notification/application/index.ts
+````typescript
+export type { LegacyNotificationApplicationPort } from "./legacy-notification-application.port";
+````
+
 ## File: modules/platform/subdomains/notification/application/legacy-notification-application.port.ts
 ````typescript
 import {
@@ -65585,66 +67844,6 @@ export interface LegacyNotificationApplicationPort {
 	markNotificationRead: typeof markNotificationRead;
 	markAllNotificationsRead: typeof markAllNotificationsRead;
 }
-````
-
-## File: modules/platform/subdomains/notification/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'notification'.
-````
-
-## File: modules/platform/subdomains/notification/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'notification'. -->
-````
-
-## File: modules/platform/subdomains/observability/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'observability'.
-````
-
-## File: modules/platform/subdomains/observability/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'observability'.
-````
-
-## File: modules/platform/subdomains/observability/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'observability'.
-````
-
-## File: modules/platform/subdomains/observability/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'observability'.
-````
-
-## File: modules/platform/subdomains/observability/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'observability'. -->
-````
-
-## File: modules/platform/subdomains/onboarding/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'onboarding'.
-````
-
-## File: modules/platform/subdomains/onboarding/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'onboarding'.
-````
-
-## File: modules/platform/subdomains/onboarding/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'onboarding'.
-````
-
-## File: modules/platform/subdomains/onboarding/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'onboarding'.
-````
-
-## File: modules/platform/subdomains/onboarding/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'onboarding'. -->
 ````
 
 ## File: modules/platform/subdomains/organization/adapters/create-legacy-organization-application.adapter.ts
@@ -65693,6 +67892,16 @@ export function createLegacyOrganizationApplicationAdapter(): LegacyOrganization
 }
 ````
 
+## File: modules/platform/subdomains/organization/adapters/index.ts
+````typescript
+export { createLegacyOrganizationApplicationAdapter } from "./create-legacy-organization-application.adapter";
+````
+
+## File: modules/platform/subdomains/organization/application/index.ts
+````typescript
+export type { LegacyOrganizationApplicationPort } from "./legacy-organization-application.port";
+````
+
 ## File: modules/platform/subdomains/organization/application/legacy-organization-application.port.ts
 ````typescript
 import {
@@ -65737,191 +67946,6 @@ export interface LegacyOrganizationApplicationPort {
 	updateOrgPolicy: typeof updateOrgPolicy;
 	deleteOrgPolicy: typeof deleteOrgPolicy;
 }
-````
-
-## File: modules/platform/subdomains/organization/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'organization'.
-````
-
-## File: modules/platform/subdomains/organization/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'organization'. -->
-````
-
-## File: modules/platform/subdomains/platform-config/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'platform-config'.
-````
-
-## File: modules/platform/subdomains/platform-config/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'platform-config'.
-````
-
-## File: modules/platform/subdomains/platform-config/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'platform-config'.
-````
-
-## File: modules/platform/subdomains/platform-config/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'platform-config'.
-````
-
-## File: modules/platform/subdomains/platform-config/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'platform-config'. -->
-````
-
-## File: modules/platform/subdomains/referral/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'referral'.
-````
-
-## File: modules/platform/subdomains/referral/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'referral'.
-````
-
-## File: modules/platform/subdomains/referral/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'referral'.
-````
-
-## File: modules/platform/subdomains/referral/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'referral'.
-````
-
-## File: modules/platform/subdomains/referral/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'referral'. -->
-````
-
-## File: modules/platform/subdomains/search/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'search'.
-````
-
-## File: modules/platform/subdomains/search/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'search'.
-````
-
-## File: modules/platform/subdomains/search/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'search'.
-````
-
-## File: modules/platform/subdomains/search/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'search'.
-````
-
-## File: modules/platform/subdomains/search/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'search'. -->
-````
-
-## File: modules/platform/subdomains/security-policy/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'security-policy'.
-````
-
-## File: modules/platform/subdomains/security-policy/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'security-policy'.
-````
-
-## File: modules/platform/subdomains/security-policy/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'security-policy'.
-````
-
-## File: modules/platform/subdomains/security-policy/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'security-policy'.
-````
-
-## File: modules/platform/subdomains/security-policy/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'security-policy'. -->
-````
-
-## File: modules/platform/subdomains/subscription/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'subscription'.
-````
-
-## File: modules/platform/subdomains/subscription/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'subscription'.
-````
-
-## File: modules/platform/subdomains/subscription/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'subscription'.
-````
-
-## File: modules/platform/subdomains/subscription/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'subscription'.
-````
-
-## File: modules/platform/subdomains/subscription/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'subscription'. -->
-````
-
-## File: modules/platform/subdomains/support/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'support'.
-````
-
-## File: modules/platform/subdomains/support/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'support'.
-````
-
-## File: modules/platform/subdomains/support/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'support'.
-````
-
-## File: modules/platform/subdomains/support/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'support'.
-````
-
-## File: modules/platform/subdomains/support/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'support'. -->
-````
-
-## File: modules/platform/subdomains/workflow/adapters/index.ts
-````typescript
-// Purpose: Adapter layer placeholder for platform subdomain 'workflow'.
-````
-
-## File: modules/platform/subdomains/workflow/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'workflow'.
-````
-
-## File: modules/platform/subdomains/workflow/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'workflow'.
-````
-
-## File: modules/platform/subdomains/workflow/index.ts
-````typescript
-// Purpose: Public entry point placeholder for platform subdomain 'workflow'.
-````
-
-## File: modules/platform/subdomains/workflow/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'workflow'. -->
 ````
 
 ## File: modules/workspace/aggregates.md
@@ -66341,225 +68365,6 @@ export class FirebaseWikiWorkspaceRepository implements WikiWorkspaceRepository 
       id: workspace.id,
       name: workspace.name,
     }));
-  }
-}
-````
-
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
-````typescript
-import type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../../domain/entities/WorkspaceMemberView";
-import type { WorkspaceQueryRepository } from "../../ports/output/WorkspaceQueryRepository";
-import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import {
-  organizationApi,
-  type OrganizationMemberDTO,
-  type OrganizationTeamDTO,
-} from "@/modules/organization/api";
-import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
-
-const personnelLabels = {
-  managerId: "Manager",
-  supervisorId: "Supervisor",
-  safetyOfficerId: "Safety officer",
-} as const;
-
-const personnelLabelEntries = Object.entries(personnelLabels) as Array<
-  [keyof typeof personnelLabels, string]
->;
-
-function toPresence(value: OrganizationMemberDTO["presence"] | undefined): WorkspaceMemberPresence {
-  if (value === "active" || value === "away" || value === "offline") {
-    return value;
-  }
-
-  return "unknown";
-}
-
-function createFallbackMember(id: string): WorkspaceMemberView {
-  return {
-    id,
-    displayName: id,
-    presence: "unknown",
-    isExternal: false,
-    accessChannels: [],
-  };
-}
-
-export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
-
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ) {
-    const normalizedAccountId = accountId.trim();
-    if (!normalizedAccountId) {
-      onUpdate([]);
-      return () => {};
-    }
-
-    const q = query(
-      collection(this.db, "workspaces"),
-      where("accountId", "==", normalizedAccountId),
-    );
-
-    return onSnapshot(q, (snap) => {
-      const workspaces = snap.docs.map((docSnap) =>
-        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
-      );
-      onUpdate(workspaces);
-    });
-  }
-
-  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    const workspace = await this.workspaceRepo.findById(workspaceId);
-    if (!workspace) {
-      return [];
-    }
-
-    const members = new Map<string, WorkspaceMemberView>();
-    const memberChannelKeys = new Map<string, Set<string>>();
-
-    const mergeMember = (
-      memberId: string,
-      channel: WorkspaceMemberAccessChannel,
-      orgMember?: OrganizationMemberDTO,
-    ) => {
-      const current = members.get(memberId) ?? createFallbackMember(memberId);
-      const channelKey = [
-        channel.source,
-        channel.label,
-        channel.role ?? "",
-        channel.protocol ?? "",
-        channel.teamId ?? "",
-      ].join("::");
-      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
-      memberChannelKeys.set(memberId, knownChannelKeys);
-      const hasSameChannel = knownChannelKeys.has(channelKey);
-      if (!hasSameChannel) {
-        knownChannelKeys.add(channelKey);
-      }
-
-      members.set(memberId, {
-        id: memberId,
-        displayName: orgMember?.name || current.displayName,
-        email: orgMember?.email ?? current.email,
-        organizationRole: orgMember?.role ?? current.organizationRole,
-        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
-        isExternal: orgMember?.isExternal ?? current.isExternal,
-        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
-      });
-    };
-
-    if (workspace.accountType === "organization") {
-      const [organizationMembers, teams] = await Promise.all([
-        organizationApi.getMembers(workspace.accountId),
-        organizationApi.getTeams(workspace.accountId),
-      ]);
-
-      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
-      const teamMap = new Map(teams.map((team) => [team.id, team]));
-
-      const mergeTeam = (team: OrganizationTeamDTO, role?: string, protocol?: string) => {
-        const label = team.name || team.id;
-        team.memberIds.forEach((memberId) => {
-          mergeMember(
-            memberId,
-            {
-              source: "team",
-              label,
-              role,
-              protocol,
-              teamId: team.id,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        });
-      };
-
-      workspace.teamIds.forEach((teamId) => {
-        const team = teamMap.get(teamId);
-        if (team) {
-          mergeTeam(team);
-        }
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(
-            grant.userId,
-            {
-              source: "direct",
-              label: "Direct access",
-              role: grant.role,
-              protocol: grant.protocol,
-            },
-            organizationMemberMap.get(grant.userId),
-          );
-        }
-
-        if (grant.teamId) {
-          const team = teamMap.get(grant.teamId);
-          if (team) {
-            mergeTeam(team, grant.role, grant.protocol);
-          }
-        }
-      });
-
-      personnelLabelEntries.forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field];
-        if (memberId) {
-          mergeMember(
-            memberId,
-            {
-              source: "personnel",
-              label,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        }
-      });
-    } else {
-      mergeMember(workspace.accountId, {
-        source: "owner",
-        label: "Workspace owner",
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(grant.userId, {
-            source: "direct",
-            label: "Direct access",
-            role: grant.role,
-            protocol: grant.protocol,
-          });
-        }
-      });
-
-      personnelLabelEntries.forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field];
-        if (memberId) {
-          mergeMember(memberId, {
-            source: "personnel",
-            label,
-          });
-        }
-      });
-    }
-
-    return Array.from(members.values()).sort((left, right) =>
-      left.displayName.localeCompare(right.displayName),
-    );
   }
 }
 ````
@@ -78183,370 +79988,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: app/(shell)/_components/app-rail.tsx
-````typescript
-"use client";
-
-/**
- * Module: app-rail.tsx
- * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
- * Responsibilities: app logo, account context switcher, top-level section icon nav with
- *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
- * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
- *   `h-full` ensures it fills the parent `h-screen` container.
- */
-
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import type { AuthUser } from "@/app/providers/auth-context";
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import { type WorkspaceEntity } from "@/modules/workspace/api";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-import { CreateOrganizationDialog } from "./create-organization-dialog";
-import { CreateWorkspaceDialogRail } from "./create-workspace-dialog-rail";
-
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-
-interface RailItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  /** When false the item is hidden; defaults to true */
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-
-function isExactOrChildPath(targetPath: string, pathname: string) {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
-}
-
-function getInitial(name: string | undefined | null): string {
-  return name?.trim().charAt(0).toUpperCase() || "U";
-}
-
-export function AppRail({
-  pathname,
-  user,
-  activeAccount,
-  organizationAccounts,
-  workspaces,
-  workspacesHydrated,
-  isOrganizationAccount,
-  onSelectPersonal,
-  onSelectOrganization,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onOrganizationCreated,
-  onSignOut: _onSignOut,
-}: AppRailProps) {
-  const router = useRouter();
-  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const railItems: RailItem[] = [
-    // ── Organization / hub layer ─────────────────────────────────────
-    {
-      href: "/workspace",
-      label: "工作區中心",
-      icon: <Building2 className="size-[18px]" />,
-    },
-    // ── People (org-only) ─────────────────────────────────────────
-    {
-      href: "/organization/members",
-      label: "成員",
-      icon: <UserRound className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
-    },
-    {
-      href: "/organization/teams",
-      label: "團隊",
-      icon: <Users className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
-    },
-    // ── Operations (org-only) ─────────────────────────────────────
-    {
-      href: "/organization/daily",
-      label: "每日",
-      icon: <NotebookText className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
-    },
-    {
-      href: "/organization/schedule",
-      label: "排程",
-      icon: <CalendarDays className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
-    },
-    // ── Admin (org-only) ──────────────────────────────────────────
-    {
-      href: "/organization/audit",
-      label: "稽核",
-      icon: <ClipboardList className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
-    },
-    {
-      href: "/organization/permissions",
-      label: "權限",
-      icon: <SlidersHorizontal className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
-    },
-    // ── Developer ────────────────────────────────────────────────
-    {
-      href: "/dev-tools",
-      label: "開發工具",
-      icon: <FlaskConical className="size-[18px]" />,
-    },
-  ];
-
-  const visibleRailItems = railItems.filter((item) => item.show !== false);
-
-  const sortedWorkspaces = useMemo(
-    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces],
-  );
-
-  const accountName = activeAccount?.name ?? user?.name ?? "—";
-
-  return (
-    <TooltipProvider delayDuration={400}>
-      <aside
-        aria-label="App navigation rail"
-        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
-      >
-        {/* ── Workspace / account logo tile ─────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
-                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[180px]">
-              <p className="text-xs font-medium">{accountName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => {
-                  onSelectOrganization(account);
-                }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                setIsCreateOrgOpen(true);
-              }}
-              className="gap-2 text-primary"
-            >
-              <Plus className="size-3.5 shrink-0" />
-              <span>建立組織</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="my-2 h-px w-7 bg-border/50" />
-
-        {/* ── Section nav icons ─────────────────────────────────────── */}
-        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
-          {visibleRailItems.map((item) => {
-            const active = item.isActive?.(pathname) ?? isActive(item.href);
-
-            if (item.href === "/workspace") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="工作區中心：切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">工作區中心：切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        router.push("/workspace");
-                      }}
-                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
-                    >
-                      工作區中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(`/workspace/${workspace.id}`);
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setIsCreateWorkspaceOpen(true);
-                      }}
-                      className="gap-2 text-primary"
-                    >
-                      <Plus className="size-3.5 shrink-0" />
-                      <span>建立工作區</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">{item.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
-
-        {/* ── Spacer ────────────────────────────────────────────────── */}
-        <div className="flex-1" />
-
-        <div className="h-1" />
-      </aside>
-
-      {/* ── Create organization dialog ─────────────────────────────── */}
-      <CreateOrganizationDialog
-        open={isCreateOrgOpen}
-        onOpenChange={setIsCreateOrgOpen}
-        user={user}
-        onOrganizationCreated={onOrganizationCreated}
-        onNavigate={(href) => { router.push(href); }}
-      />
-
-      {/* ── Create workspace dialog ────────────────────────────────── */}
-      <CreateWorkspaceDialogRail
-        open={isCreateWorkspaceOpen}
-        onOpenChange={setIsCreateWorkspaceOpen}
-        activeAccount={activeAccount}
-        isOrganizationAccount={isOrganizationAccount}
-        onNavigate={(href) => { router.push(href); }}
-      />
-    </TooltipProvider>
-  );
-}
-````
-
 ## File: app/(shell)/_components/create-workspace-dialog-rail.tsx
 ````typescript
 "use client";
@@ -79556,158 +80997,57 @@ export function writeNavPreferences(prefs: NavPreferences): void {
 }
 ````
 
-## File: app/(shell)/_components/sidebar-nav-data.tsx
+## File: app/(shell)/_components/shell-guard.tsx
 ````typescript
-import {
-  BookOpen,
-  Bot,
-  Brain,
-  Building2,
-  Database,
-  FileText,
-  UserRound,
-  Users,
-} from "lucide-react";
-import Link from "next/link";
+"use client";
 
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import {
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
+/**
+ * shell-guard.tsx
+ * Client-side auth guard for the authenticated shell.
+ *
+ * Responsibilities:
+ *  1. Redirect to `/` (public auth page) when auth status is "unauthenticated"
+ *  2. Mount useTokenRefreshListener for [S6] Claims refresh (Party 3)
+ *  3. Show a loading state while auth is initializing
+ */
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+import { useEffect, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 
-export interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+import { useAuth } from "@/app/providers/auth-provider";
+import { useTokenRefreshListener } from "@/modules/platform/api";
+
+interface ShellGuardProps {
+  children: ReactNode;
 }
 
-export type NavSection =
-  | "workspace"
-  | "knowledge"
-  | "knowledge-base"
-  | "knowledge-database"
-  | "source"
-  | "notebook"
-  | "ai-chat"
-  | "account"
-  | "organization"
-  | "other";
+export function ShellGuard({ children }: ShellGuardProps) {
+  const { state } = useAuth();
+  const { user, status } = state;
+  const router = useRouter();
 
-// ── Static nav constants ──────────────────────────────────────────────────────
+  // [S6] Party 3: force-refresh ID token when a TOKEN_REFRESH_SIGNAL is emitted
+  useTokenRefreshListener(user?.id ?? null);
 
-export const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.replace("/");
+    }
+  }, [status, router]);
 
-export const ACCOUNT_NAV_ITEMS = [
-  { id: "schedule", label: "排程", href: "/organization/schedule" },
-  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
-  { id: "daily", label: "每日", href: "/organization/daily" },
-  { id: "audit", label: "稽核", href: "/organization/audit" },
-] as const;
+  if (status === "initializing") {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
 
-export const ACCOUNT_SECTION_MATCHERS = [
-  "/organization/daily",
-  "/organization/schedule",
-  "/organization/audit",
-] as const;
+  if (status === "unauthenticated") {
+    return null;
+  }
 
-export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
-  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  knowledge: { label: "Knowledge", icon: <BookOpen className="size-3" /> },
-  "knowledge-base": { label: "Knowledge Base", icon: <BookOpen className="size-3" /> },
-  "knowledge-database": { label: "Knowledge Database", icon: <Database className="size-3" /> },
-  source: { label: "Source", icon: <FileText className="size-3" /> },
-  notebook: { label: "Notebook", icon: <Brain className="size-3" /> },
-  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
-  account: { label: "Account", icon: <UserRound className="size-3" /> },
-  organization: { label: "組織", icon: <Users className="size-3" /> },
-  other: { label: "導覽", icon: null },
-};
-
-// ── CSS class helpers ─────────────────────────────────────────────────────────
-
-export function sidebarItemClass(active: boolean) {
-  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
-    active
-      ? "border-primary/30 bg-primary/10 text-primary"
-      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
-  }`;
-}
-
-export const sidebarSectionTitleClass =
-  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
-
-export const sidebarGroupButtonClass =
-  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
-
-// ── Pure section helpers ──────────────────────────────────────────────────────
-
-export function resolveNavSection(pathname: string): NavSection {
-  if (pathname.startsWith("/workspace")) return "workspace";
-  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
-  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
-  if (pathname.startsWith("/knowledge")) return "knowledge";
-  if (pathname.startsWith("/source")) return "source";
-  if (pathname.startsWith("/notebook")) return "notebook";
-  if (pathname.startsWith("/ai-chat")) return "ai-chat";
-  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)))
-    return "account";
-  if (pathname.startsWith("/organization")) return "organization";
-  return "other";
-}
-
-export function isActiveOrganizationAccount(
-  activeAccount: ActiveAccount | null,
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-// ── Simple section nav component ──────────────────────────────────────────────
-
-export function SimpleNavLinks({
-  items,
-  title,
-  isActiveRoute,
-}: {
-  items: readonly { href: string; label: string }[];
-  title: string;
-  isActiveRoute: (href: string) => boolean;
-}) {
-  return (
-    <nav className="space-y-0.5" aria-label={`${title} navigation`}>
-      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-        {title}
-      </p>
-      {items.map((item) => {
-        const active = isActiveRoute(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-              active
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
+  return <>{children}</>;
 }
 ````
 
@@ -80548,320 +81888,6 @@ export default function WorkspacePage() {
 }
 ````
 
-## File: app/providers/app-context.ts
-````typescript
-"use client";
-
-/**
- * app-context.ts
- * Defines the AppContext contract: the cross-cutting "active account" state.
- *
- * Holds the set of accounts visible to the current user plus the currently
- * active account selection. Consumed by feature pages and sidebar nav.
- */
-
-import { createContext, type Dispatch } from "react";
-
-import type { AccountEntity } from "@/modules/account/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import type { AuthUser } from "./auth-context";
-
-export type ActiveAccount = AccountEntity | AuthUser;
-
-export interface AppState {
-  /** All organization accounts visible to the signed-in user. */
-  accounts: Record<string, AccountEntity>;
-  /** True once the first Firestore snapshot has been received. */
-  accountsHydrated: boolean;
-  /** Bootstrap phase for optimistic seeding. */
-  bootstrapPhase: "idle" | "seeded" | "hydrated";
-  /** Currently selected account (personal user account or an organization). */
-  activeAccount: ActiveAccount | null;
-  /** Currently selected workspace context under the active account. */
-  activeWorkspaceId: string | null;
-  /** Workspaces visible under the active account (single source for shell UI). */
-  workspaces: Record<string, WorkspaceEntity>;
-  /** True once the first active-account workspace snapshot has been received. */
-  workspacesHydrated: boolean;
-}
-
-export type AppAction =
-  | {
-      type: "SEED_ACTIVE_ACCOUNT";
-      payload: { user: AuthUser };
-    }
-  | {
-      type: "SET_ACCOUNTS";
-      payload: {
-        accounts: Record<string, AccountEntity>;
-        user: AuthUser;
-        preferredActiveAccountId?: string | null;
-      };
-    }
-  | {
-      type: "SET_WORKSPACES";
-      payload: {
-        workspaces: Record<string, WorkspaceEntity>;
-        hydrated: boolean;
-      };
-    }
-  | { type: "SET_ACTIVE_ACCOUNT"; payload: ActiveAccount | null }
-  | { type: "SET_ACTIVE_WORKSPACE"; payload: string | null }
-  | { type: "RESET_STATE" };
-
-export interface AppContextValue {
-  state: AppState;
-  dispatch: Dispatch<AppAction>;
-}
-
-export const AppContext = createContext<AppContextValue | null>(null);
-````
-
-## File: app/providers/app-provider.tsx
-````typescript
-"use client";
-
-/**
- * app-provider.tsx
- * Hosts the app-level active-account lifecycle and exposes useApp().
- *
- * Responsibilities:
- *  1. Watch AuthProvider state for sign-in / sign-out events
- *  2. Subscribe to the user's visible accounts (orgs) via account module queries
- *  3. Maintain activeAccount selection (default: personal user account from auth)
- *  4. Expose state + dispatch via AppContext
- */
-
-import {
-  useReducer,
-  useEffect,
-  useContext,
-  type ReactNode,
-} from "react";
-
-import { subscribeToAccountsForUser, type AccountEntity } from "@/modules/account/api";
-import { subscribeToWorkspacesForAccount } from "@/modules/workspace/api";
-import {
-  getWorkspaceStorageKey,
-  toWorkspaceMap,
-} from "@/modules/workspace/api";
-
-import { AppContext, type AppState, type AppAction } from "./app-context";
-import type { AuthUser } from "./auth-context";
-import { useAuth } from "./auth-provider";
-
-// ─── Initial State ────────────────────────────────────────────────────────────
-
-const LAST_ACTIVE_ACCOUNT_STORAGE_KEY = "xuanwu_last_active_account";
-
-const initialState: AppState = {
-  accounts: {},
-  accountsHydrated: false,
-  bootstrapPhase: "idle",
-  activeAccount: null,
-  activeWorkspaceId: null,
-  workspaces: {},
-  workspacesHydrated: false,
-};
-
-// ─── Reducer ──────────────────────────────────────────────────────────────────
-
-function resolveActiveAccount(
-  state: AppState,
-  accounts: Record<string, AccountEntity>,
-  user: AuthUser,
-  preferredActiveAccountId?: string | null,
-) {
-  const validIds = new Set([user.id, ...Object.keys(accounts)]);
-  const currentActiveId = state.activeAccount?.id;
-  let currentActive = null;
-
-  if (currentActiveId && validIds.has(currentActiveId)) {
-    currentActive = currentActiveId === user.id ? user : accounts[currentActiveId] ?? null;
-  }
-
-  let preferredActive = null;
-  if (preferredActiveAccountId && validIds.has(preferredActiveAccountId)) {
-    preferredActive =
-      preferredActiveAccountId === user.id
-        ? user
-        : accounts[preferredActiveAccountId] ?? null;
-  }
-
-  // During the initial seeded phase we only know about the personal account.
-  // Once the real organization snapshot arrives, prefer the last persisted
-  // account so re-login restores the user's previous working context instead of
-  // leaving them in the optimistic personal fallback.
-  if (
-    preferredActive &&
-    (!currentActive || state.bootstrapPhase === "seeded" || currentActive.id === user.id)
-  ) {
-    return preferredActive;
-  }
-
-  return currentActive ?? user;
-}
-
-function appReducer(state: AppState, action: AppAction): AppState {
-  switch (action.type) {
-    case "SEED_ACTIVE_ACCOUNT":
-      return {
-        ...state,
-        accounts: {},
-        accountsHydrated: false,
-        bootstrapPhase: "seeded",
-        activeAccount: action.payload.user,
-        activeWorkspaceId: null,
-      };
-    case "SET_ACCOUNTS": {
-      const { accounts, user, preferredActiveAccountId } = action.payload;
-      return {
-        ...state,
-        accounts,
-        accountsHydrated: true,
-        bootstrapPhase: "hydrated",
-        activeAccount: resolveActiveAccount(state, accounts, user, preferredActiveAccountId),
-      };
-    }
-    case "SET_WORKSPACES":
-      return {
-        ...state,
-        workspaces: action.payload.workspaces,
-        workspacesHydrated: action.payload.hydrated,
-      };
-    case "SET_ACTIVE_ACCOUNT":
-      if (state.activeAccount?.id === action.payload?.id) return state;
-      return {
-        ...state,
-        activeAccount: action.payload,
-        activeWorkspaceId: null,
-        workspaces: {},
-        workspacesHydrated: false,
-      };
-    case "SET_ACTIVE_WORKSPACE":
-      if (state.activeWorkspaceId === action.payload) return state;
-      return { ...state, activeWorkspaceId: action.payload };
-    case "RESET_STATE":
-      return initialState;
-    default:
-      return state;
-  }
-}
-
-// ─── Provider ─────────────────────────────────────────────────────────────────
-
-export function AppProvider({ children }: { children: ReactNode }) {
-  const { state: authState } = useAuth();
-  const { user, status } = authState;
-  const [state, dispatch] = useReducer(appReducer, initialState);
-
-  useEffect(() => {
-    if (status === "initializing") return;
-
-    if (!user) {
-      dispatch({ type: "RESET_STATE" });
-      return;
-    }
-
-    dispatch({ type: "SEED_ACTIVE_ACCOUNT", payload: { user } });
-    const preferredActiveAccountId =
-      typeof window === "undefined"
-        ? null
-        : window.localStorage.getItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
-
-    const unsubscribe = subscribeToAccountsForUser(user.id, (accounts) => {
-      dispatch({
-        type: "SET_ACCOUNTS",
-        payload: { accounts, user, preferredActiveAccountId },
-      });
-    });
-
-    return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, user?.id]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const activeAccountId = state.activeAccount?.id;
-
-    if (!user || !activeAccountId) {
-      window.localStorage.removeItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
-      return;
-    }
-
-    window.localStorage.setItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY, activeAccountId);
-  }, [state.activeAccount?.id, user]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const activeAccountId = state.activeAccount?.id;
-    if (!activeAccountId) {
-      dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: null });
-      return;
-    }
-
-    const storedWorkspaceId = window.localStorage.getItem(getWorkspaceStorageKey(activeAccountId));
-    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: storedWorkspaceId || null });
-  }, [state.activeAccount?.id]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const activeAccountId = state.activeAccount?.id;
-    if (!activeAccountId) return;
-
-    const storageKey = getWorkspaceStorageKey(activeAccountId);
-    if (!state.activeWorkspaceId) {
-      window.localStorage.removeItem(storageKey);
-      return;
-    }
-
-    window.localStorage.setItem(storageKey, state.activeWorkspaceId);
-  }, [state.activeAccount?.id, state.activeWorkspaceId]);
-
-  useEffect(() => {
-    const activeAccountId = state.activeAccount?.id;
-    if (!activeAccountId) {
-      dispatch({
-        type: "SET_WORKSPACES",
-        payload: { workspaces: {}, hydrated: true },
-      });
-      return;
-    }
-
-    dispatch({
-      type: "SET_WORKSPACES",
-      payload: { workspaces: {}, hydrated: false },
-    });
-
-    const unsubscribe = subscribeToWorkspacesForAccount(activeAccountId, (workspaces) => {
-      dispatch({
-        type: "SET_WORKSPACES",
-        payload: {
-          workspaces: toWorkspaceMap(workspaces),
-          hydrated: true,
-        },
-      });
-    });
-
-    return () => unsubscribe();
-  }, [state.activeAccount?.id]);
-
-  return (
-    <AppContext.Provider value={{ state, dispatch }}>
-      {children}
-    </AppContext.Provider>
-  );
-}
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-
-export function useApp() {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error("useApp must be used within AppProvider");
-  return ctx;
-}
-````
-
 ## File: docs/README.md
 ````markdown
 # Xuanwu Strategic Architecture Docs
@@ -81058,177 +82084,288 @@ export default defineConfig([
 ]);
 ````
 
-## File: modules/platform/adapters/cli/index.ts
+## File: modules/account/application/use-cases/account-policy.use-cases.ts
 ````typescript
 /**
- * platform CLI driving adapter placeholder module.
+ * Account Policy Use Cases — pure business workflows.
+ * Per [S6]: account policy changes trigger CUSTOM_CLAIMS refresh (via TOKEN_REFRESH_SIGNAL).
+ * No React, no Firebase, no UI framework.
  */
 
-export const PLATFORM_ADAPTER_CLI_FUNCTIONS = [
-	"parseCliInputToCommand",
-	"runPlatformCliCommand",
-	"renderPlatformCliResult",
-] as const;
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { AccountPolicyRepository } from "../../domain/repositories/AccountPolicyRepository";
+import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
+import { identityApi } from "@/modules/platform/api";
 
-export type PlatformAdapterCliFunction = (typeof PLATFORM_ADAPTER_CLI_FUNCTIONS)[number];
+// ─── Create Account Policy ────────────────────────────────────────────────────
+
+export class CreateAccountPolicyUseCase {
+  constructor(
+    private readonly policyRepo: AccountPolicyRepository,
+  ) {}
+
+  async execute(input: CreatePolicyInput): Promise<CommandResult> {
+    try {
+      const policy = await this.policyRepo.create(input);
+      // [S6] Emit token refresh signal after policy change so frontend refreshes claims.
+      await identityApi.emitTokenRefreshSignal({
+        accountId: input.accountId,
+        reason: "policy:changed",
+        ...(input.traceId ? { traceId: input.traceId } : {}),
+      });
+      return commandSuccess(policy.id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CREATE_ACCOUNT_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to create account policy",
+      );
+    }
+  }
+}
+
+// ─── Update Account Policy ────────────────────────────────────────────────────
+
+export class UpdateAccountPolicyUseCase {
+  constructor(
+    private readonly policyRepo: AccountPolicyRepository,
+  ) {}
+
+  async execute(
+    policyId: string,
+    accountId: string,
+    data: UpdatePolicyInput,
+  ): Promise<CommandResult> {
+    try {
+      const existing = await this.policyRepo.findById(policyId);
+      if (!existing) {
+        return commandFailureFrom("ACCOUNT_POLICY_NOT_FOUND", `Policy ${policyId} not found`);
+      }
+      await this.policyRepo.update(policyId, data);
+      // [S6] Emit refresh signal after policy change.
+      await identityApi.emitTokenRefreshSignal({
+        accountId,
+        reason: "policy:changed",
+      });
+      return commandSuccess(policyId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_ACCOUNT_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to update account policy",
+      );
+    }
+  }
+}
+
+// ─── Delete Account Policy ────────────────────────────────────────────────────
+
+export class DeleteAccountPolicyUseCase {
+  constructor(
+    private readonly policyRepo: AccountPolicyRepository,
+  ) {}
+
+  async execute(policyId: string, accountId: string): Promise<CommandResult> {
+    try {
+      const existing = await this.policyRepo.findById(policyId);
+      if (!existing) {
+        return commandFailureFrom("ACCOUNT_POLICY_NOT_FOUND", `Policy ${policyId} not found`);
+      }
+      await this.policyRepo.delete(policyId);
+      // [S6] Emit refresh signal after policy deletion.
+      await identityApi.emitTokenRefreshSignal({
+        accountId,
+        reason: "policy:changed",
+      });
+      return commandSuccess(policyId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "DELETE_ACCOUNT_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to delete account policy",
+      );
+    }
+  }
+}
 ````
 
-## File: modules/platform/adapters/external/index.ts
+## File: modules/account/application/use-cases/account.use-cases.ts
 ````typescript
 /**
- * platform external driven adapter placeholder module.
+ * Account Use Cases — pure business workflows.
+ * No React, no Firebase, no UI framework.
  */
 
-export const PLATFORM_ADAPTER_EXTERNAL_FUNCTIONS = [
-	"buildExternalDeliveryRequest",
-	"dispatchExternalDelivery",
-	"mapExternalResponseToDispatchOutcome",
-] as const;
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { AccountRepository } from "../../domain/repositories/AccountRepository";
+import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
+import { identityApi } from "@/modules/platform/api";
 
-export type PlatformAdapterExternalFunction = (typeof PLATFORM_ADAPTER_EXTERNAL_FUNCTIONS)[number];
+// ─── Create Account ───────────────────────────────────────────────────────────
+
+export class CreateUserAccountUseCase {
+  constructor(private readonly accountRepo: AccountRepository) {}
+
+  async execute(userId: string, name: string, email: string): Promise<CommandResult> {
+    try {
+      await this.accountRepo.save({
+        id: userId,
+        name,
+        email,
+        accountType: "user",
+      });
+      return commandSuccess(userId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CREATE_USER_ACCOUNT_FAILED",
+        err instanceof Error ? err.message : "Failed to create user account",
+      );
+    }
+  }
+}
+
+// ─── Update Profile ───────────────────────────────────────────────────────────
+
+export class UpdateUserProfileUseCase {
+  constructor(private readonly accountRepo: AccountRepository) {}
+
+  async execute(userId: string, data: UpdateProfileInput): Promise<CommandResult> {
+    try {
+      await this.accountRepo.updateProfile(userId, data);
+      return commandSuccess(userId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_USER_PROFILE_FAILED",
+        err instanceof Error ? err.message : "Failed to update user profile",
+      );
+    }
+  }
+}
+
+// ─── Credit Wallet ────────────────────────────────────────────────────────────
+
+export class CreditWalletUseCase {
+  constructor(private readonly accountRepo: AccountRepository) {}
+
+  async execute(
+    accountId: string,
+    amount: number,
+    description: string,
+  ): Promise<CommandResult> {
+    try {
+      if (amount <= 0) {
+        return commandFailureFrom("WALLET_INVALID_AMOUNT", "Credit amount must be positive");
+      }
+      const tx = await this.accountRepo.creditWallet(accountId, amount, description);
+      return commandSuccess(tx.id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WALLET_CREDIT_FAILED",
+        err instanceof Error ? err.message : "Failed to credit wallet",
+      );
+    }
+  }
+}
+
+// ─── Debit Wallet ─────────────────────────────────────────────────────────────
+
+export class DebitWalletUseCase {
+  constructor(private readonly accountRepo: AccountRepository) {}
+
+  async execute(
+    accountId: string,
+    amount: number,
+    description: string,
+  ): Promise<CommandResult> {
+    try {
+      if (amount <= 0) {
+        return commandFailureFrom("WALLET_INVALID_AMOUNT", "Debit amount must be positive");
+      }
+      const balance = await this.accountRepo.getWalletBalance(accountId);
+      if (balance < amount) {
+        return commandFailureFrom("WALLET_INSUFFICIENT_FUNDS", "Insufficient wallet balance");
+      }
+      const tx = await this.accountRepo.debitWallet(accountId, amount, description);
+      return commandSuccess(tx.id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WALLET_DEBIT_FAILED",
+        err instanceof Error ? err.message : "Failed to debit wallet",
+      );
+    }
+  }
+}
+
+// ─── Assign Role ──────────────────────────────────────────────────────────────
+
+export class AssignAccountRoleUseCase {
+  constructor(
+    private readonly accountRepo: AccountRepository,
+  ) {}
+
+  async execute(
+    accountId: string,
+    role: OrganizationRole,
+    grantedBy: string,
+    traceId?: string,
+  ): Promise<CommandResult> {
+    try {
+      const record = await this.accountRepo.assignRole(accountId, role, grantedBy);
+      // [S6] Emit TOKEN_REFRESH_SIGNAL so frontend force-refreshes Custom Claims.
+      await identityApi.emitTokenRefreshSignal({
+        accountId,
+        reason: "role:changed",
+        ...(traceId ? { traceId } : {}),
+      });
+      return commandSuccess(record.accountId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "ASSIGN_ROLE_FAILED",
+        err instanceof Error ? err.message : "Failed to assign role",
+      );
+    }
+  }
+}
+
+// ─── Revoke Role ──────────────────────────────────────────────────────────────
+
+export class RevokeAccountRoleUseCase {
+  constructor(
+    private readonly accountRepo: AccountRepository,
+  ) {}
+
+  async execute(accountId: string): Promise<CommandResult> {
+    try {
+      await this.accountRepo.revokeRole(accountId);
+      // [S6] Emit TOKEN_REFRESH_SIGNAL after role revocation.
+      await identityApi.emitTokenRefreshSignal({
+        accountId,
+        reason: "role:changed",
+      });
+      return commandSuccess(accountId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "REVOKE_ROLE_FAILED",
+        err instanceof Error ? err.message : "Failed to revoke role",
+      );
+    }
+  }
+}
 ````
 
-## File: modules/platform/adapters/index.ts
+## File: modules/platform/api/contracts.ts
 ````typescript
 /**
- * platform adapter layer barrel.
+ * platform API contracts boundary.
+ *
+ * Keep the source of truth in application/domain and re-export here for API consumers.
  */
 
-export * from "./cli";
-export * from "./external";
-export * from "./persistence";
-export * from "./web";
-````
-
-## File: modules/platform/adapters/persistence/index.ts
-````typescript
-/**
- * platform persistence driven adapter placeholder module.
- */
-
-export const PLATFORM_ADAPTER_PERSISTENCE_FUNCTIONS = [
-	"mapAggregateToPersistenceRecord",
-	"mapPersistenceRecordToAggregate",
-	"persistPlatformAggregate",
-	"loadPlatformAggregate",
-] as const;
-
-export type PlatformAdapterPersistenceFunction = (typeof PLATFORM_ADAPTER_PERSISTENCE_FUNCTIONS)[number];
-````
-
-## File: modules/platform/adapters/web/index.ts
-````typescript
-/**
- * platform web driving adapter placeholder module.
- */
-
-export const PLATFORM_ADAPTER_WEB_FUNCTIONS = [
-	"mapHttpRequestToPlatformCommand",
-	"handlePlatformCommandHttp",
-	"handlePlatformQueryHttp",
-	"mapPlatformResultToHttpResponse",
-] as const;
-
-export type PlatformAdapterWebFunction = (typeof PLATFORM_ADAPTER_WEB_FUNCTIONS)[number];
-````
-
-## File: modules/platform/api/facade.ts
-````typescript
-/**
- * platform API facade.
- */
-
-import type {
-	ActivateSubscriptionAgreementInput,
-	ApplyConfigurationProfileInput,
-	EmitObservabilitySignalInput,
-	FireWorkflowTriggerInput,
-	GetPlatformContextViewInput,
-	GetPolicyCatalogViewInput,
-	GetSubscriptionEntitlementsInput,
-	GetWorkflowPolicyViewInput,
-	ListEnabledCapabilitiesInput,
-	PlatformCommandResult,
+export * from "../application/dtos";
+export type {
 	PlatformContextView,
 	PolicyCatalogView,
-	PublishPolicyCatalogInput,
-	RecordAuditSignalInput,
-	RegisterIntegrationContractInput,
-	RegisterPlatformContextInput,
-	RequestNotificationDispatchInput,
 	SubscriptionEntitlementsView,
 	WorkflowPolicyView,
-} from "./contracts";
-import type { PlatformCommandPort, PlatformQueryPort } from "../ports/input";
-
-export interface PlatformFacade {
-	registerPlatformContext(input: RegisterPlatformContextInput): Promise<PlatformCommandResult>;
-	publishPolicyCatalog(input: PublishPolicyCatalogInput): Promise<PlatformCommandResult>;
-	applyConfigurationProfile(input: ApplyConfigurationProfileInput): Promise<PlatformCommandResult>;
-	registerIntegrationContract(input: RegisterIntegrationContractInput): Promise<PlatformCommandResult>;
-	activateSubscriptionAgreement(input: ActivateSubscriptionAgreementInput): Promise<PlatformCommandResult>;
-	fireWorkflowTrigger(input: FireWorkflowTriggerInput): Promise<PlatformCommandResult>;
-	requestNotificationDispatch(input: RequestNotificationDispatchInput): Promise<PlatformCommandResult>;
-	recordAuditSignal(input: RecordAuditSignalInput): Promise<PlatformCommandResult>;
-	emitObservabilitySignal(input: EmitObservabilitySignalInput): Promise<PlatformCommandResult>;
-	getPlatformContextView(input: GetPlatformContextViewInput): Promise<PlatformContextView>;
-	listEnabledCapabilities(input: ListEnabledCapabilitiesInput): Promise<string[]>;
-	getPolicyCatalogView(input: GetPolicyCatalogViewInput): Promise<PolicyCatalogView>;
-	getSubscriptionEntitlements(input: GetSubscriptionEntitlementsInput): Promise<SubscriptionEntitlementsView>;
-	getWorkflowPolicyView(input: GetWorkflowPolicyViewInput): Promise<WorkflowPolicyView>;
-}
-
-export function createPlatformFacade(ports: {
-	commandPort: PlatformCommandPort;
-	queryPort: PlatformQueryPort;
-}): PlatformFacade {
-	const { commandPort, queryPort } = ports;
-
-	return {
-		registerPlatformContext(input) {
-			return commandPort.executeCommand({ name: "registerPlatformContext", payload: input });
-		},
-		publishPolicyCatalog(input) {
-			return commandPort.executeCommand({ name: "publishPolicyCatalog", payload: input });
-		},
-		applyConfigurationProfile(input) {
-			return commandPort.executeCommand({ name: "applyConfigurationProfile", payload: input });
-		},
-		registerIntegrationContract(input) {
-			return commandPort.executeCommand({ name: "registerIntegrationContract", payload: input });
-		},
-		activateSubscriptionAgreement(input) {
-			return commandPort.executeCommand({ name: "activateSubscriptionAgreement", payload: input });
-		},
-		fireWorkflowTrigger(input) {
-			return commandPort.executeCommand({ name: "fireWorkflowTrigger", payload: input });
-		},
-		requestNotificationDispatch(input) {
-			return commandPort.executeCommand({ name: "requestNotificationDispatch", payload: input });
-		},
-		recordAuditSignal(input) {
-			return commandPort.executeCommand({ name: "recordAuditSignal", payload: input });
-		},
-		emitObservabilitySignal(input) {
-			return commandPort.executeCommand({ name: "emitObservabilitySignal", payload: input });
-		},
-		getPlatformContextView(input) {
-			return queryPort.executeQuery({ name: "getPlatformContextView", payload: input });
-		},
-		listEnabledCapabilities(input) {
-			return queryPort.executeQuery({ name: "listEnabledCapabilities", payload: input });
-		},
-		getPolicyCatalogView(input) {
-			return queryPort.executeQuery({ name: "getPolicyCatalogView", payload: input });
-		},
-		getSubscriptionEntitlements(input) {
-			return queryPort.executeQuery({ name: "getSubscriptionEntitlements", payload: input });
-		},
-		getWorkflowPolicyView(input) {
-			return queryPort.executeQuery({ name: "getWorkflowPolicyView", payload: input });
-		},
-	};
-}
+} from "../ports/output";
+export * from "../domain/events";
 ````
 
 ## File: modules/platform/api/index.ts
@@ -81239,82 +82376,124 @@ export function createPlatformFacade(ports: {
 
 export * from "./contracts";
 export * from "./facade";
+export * from "../subdomains/identity";
 ````
 
-## File: modules/platform/application/commands/index.ts
+## File: modules/platform/application/dtos/index.ts
 ````typescript
 /**
- * platform command models placeholder module.
+ * platform application contracts and DTOs.
  */
 
-export const PLATFORM_APPLICATION_COMMANDS = [
-	"RegisterPlatformContext",
-	"PublishPolicyCatalog",
-	"ApplyConfigurationProfile",
-	"RegisterIntegrationContract",
-	"ActivateSubscriptionAgreement",
-	"FireWorkflowTrigger",
-	"RequestNotificationDispatch",
-	"RecordAuditSignal",
-	"EmitObservabilitySignal",
-] as const;
+export type PlatformCommandName =
+	| "registerPlatformContext"
+	| "publishPolicyCatalog"
+	| "applyConfigurationProfile"
+	| "registerIntegrationContract"
+	| "activateSubscriptionAgreement"
+	| "fireWorkflowTrigger"
+	| "requestNotificationDispatch"
+	| "recordAuditSignal"
+	| "emitObservabilitySignal";
 
-export type PlatformApplicationCommand = (typeof PLATFORM_APPLICATION_COMMANDS)[number];
-````
+export type PlatformQueryName =
+	| "getPlatformContextView"
+	| "listEnabledCapabilities"
+	| "getPolicyCatalogView"
+	| "getSubscriptionEntitlements"
+	| "getWorkflowPolicyView";
 
-## File: modules/platform/application/handlers/index.ts
-````typescript
-/**
- * platform handler placeholder module.
- */
+export interface PlatformCommand<TName extends PlatformCommandName = PlatformCommandName, TPayload = unknown> {
+	name: TName;
+	payload: TPayload;
+}
 
-export const PLATFORM_APPLICATION_HANDLERS = [
-	"RegisterPlatformContextHandler.execute",
-	"PublishPolicyCatalogHandler.execute",
-	"ApplyConfigurationProfileHandler.execute",
-	"RegisterIntegrationContractHandler.execute",
-	"ActivateSubscriptionAgreementHandler.execute",
-	"FireWorkflowTriggerHandler.execute",
-	"RequestNotificationDispatchHandler.execute",
-	"RecordAuditSignalHandler.execute",
-	"EmitObservabilitySignalHandler.execute",
-	"GetPlatformContextViewHandler.execute",
-	"ListEnabledCapabilitiesHandler.execute",
-	"GetPolicyCatalogViewHandler.execute",
-	"GetSubscriptionEntitlementsHandler.execute",
-	"GetWorkflowPolicyViewHandler.execute",
-] as const;
+export interface PlatformQuery<TName extends PlatformQueryName = PlatformQueryName, TPayload = unknown> {
+	name: TName;
+	payload: TPayload;
+}
 
-export type PlatformApplicationHandler = (typeof PLATFORM_APPLICATION_HANDLERS)[number];
-````
+export interface PlatformCommandResult {
+	ok: boolean;
+	code?: string;
+	message?: string;
+	metadata?: Record<string, unknown>;
+}
 
-## File: modules/platform/application/index.ts
-````typescript
-/**
- * platform application layer barrel.
- */
+export interface RegisterPlatformContextInput {
+	contextId: string;
+	subjectScope: string;
+}
 
-export * from "./commands";
-export * from "./queries";
-export * from "./handlers";
-export * from "./dtos";
-````
+export interface PublishPolicyCatalogInput {
+	contextId: string;
+	revision: number;
+}
 
-## File: modules/platform/application/queries/index.ts
-````typescript
-/**
- * platform query models placeholder module.
- */
+export interface ApplyConfigurationProfileInput {
+	contextId: string;
+	profileRef: string;
+}
 
-export const PLATFORM_APPLICATION_QUERIES = [
-	"GetPlatformContextView",
-	"ListEnabledCapabilities",
-	"GetPolicyCatalogView",
-	"GetSubscriptionEntitlements",
-	"GetWorkflowPolicyView",
-] as const;
+export interface RegisterIntegrationContractInput {
+	contextId: string;
+	integrationContractId: string;
+	endpointRef: string;
+	protocol: "http" | "webhook" | "queue" | "topic" | "file";
+}
 
-export type PlatformApplicationQuery = (typeof PLATFORM_APPLICATION_QUERIES)[number];
+export interface ActivateSubscriptionAgreementInput {
+	contextId: string;
+	subscriptionAgreementId: string;
+	planCode: string;
+}
+
+export interface FireWorkflowTriggerInput {
+	contextId: string;
+	triggerKey: string;
+	triggeredBy: string;
+}
+
+export interface RequestNotificationDispatchInput {
+	contextId: string;
+	channel: string;
+	recipientRef: string;
+	templateKey: string;
+}
+
+export interface RecordAuditSignalInput {
+	contextId: string;
+	signalType: string;
+	severity: string;
+}
+
+export interface EmitObservabilitySignalInput {
+	contextId: string;
+	signalName: string;
+	signalLevel: string;
+	sourceRef: string;
+}
+
+export interface GetPlatformContextViewInput {
+	contextId: string;
+}
+
+export interface ListEnabledCapabilitiesInput {
+	contextId: string;
+}
+
+export interface GetPolicyCatalogViewInput {
+	contextId: string;
+}
+
+export interface GetSubscriptionEntitlementsInput {
+	contextId: string;
+}
+
+export interface GetWorkflowPolicyViewInput {
+	contextId: string;
+	triggerKey: string;
+}
 ````
 
 ## File: modules/platform/docs/aggregates.md
@@ -81502,498 +82681,1432 @@ export type PlatformApplicationQuery = (typeof PLATFORM_APPLICATION_QUERIES)[num
 跨聚合規則若無法收斂到單一聚合，應交由 `domain-services.md` 中的 domain services 處理。
 ````
 
-## File: modules/platform/domain/aggregates/index.ts
-````typescript
-/**
- * platform aggregate placeholder module.
- */
+## File: modules/platform/docs/application-services.md
+````markdown
+# platform — Application Services
 
-export const PLATFORM_DOMAIN_AGGREGATE_FUNCTIONS = [
-	"registerPlatformContext",
-	"enablePlatformCapability",
-	"disablePlatformCapability",
-	"publishPolicyCatalogRevision",
-	"registerIntegrationContractAggregate",
-	"activateSubscriptionAgreementAggregate",
-	"renewSubscriptionAgreementAggregate",
-	"cancelSubscriptionAgreementAggregate",
-] as const;
+platform 的 application layer 是輸入介面與 domain core 之間的協調層。application services 的工作，是接收由 driving adapters 翻譯過的請求、實作 input port 語言、協調聚合與 output ports，並回傳穩定結果。
 
-export type PlatformDomainAggregateFunction = (typeof PLATFORM_DOMAIN_AGGREGATE_FUNCTIONS)[number];
+## Application Layer 職責
+
+- 接住來自 API、webhook、scheduler、queue consumer、CLI 的輸入請求
+- 將輸入模型轉成 domain 能理解的 command / query / event-ingress 語言
+- 載入聚合、呼叫聚合行為與 domain services
+- 透過 repositories 與其他 output ports 完成持久化、事件發佈與外部 side effects
+- 組裝 command result 或 query projection
+
+## Input Port Inventory
+
+| Input Port | 用途 | 主要對應的 Driving Adapters |
+|---|---|---|
+| `PlatformCommandPort` | 接收命令型請求並執行狀態變更 | API controllers, CLI commands, scheduler, webhook handlers |
+| `PlatformQueryPort` | 提供唯讀查詢與投影 | API queries, UI read adapters, reporting adapters |
+| `PlatformEventIngressPort` | 吸收外部或相鄰子域的事實訊號 | event consumers, queue consumers, callback handlers |
+
+## Use Case Execution Flow
+
+1. driving adapter 完成 transport 驗證與輸入轉譯
+2. application service 呼叫 input port 對應的 use case
+3. use case 載入聚合或必要 read models
+4. 聚合 / domain services 執行平台規則
+5. application service 透過 output ports 保存狀態與發布事件
+6. application service 回傳 command result 或 query projection
+
+## Command-oriented Services
+
+| Application Service | 主要用途 | 典型輸入 | 依賴的 Output Ports |
+|---|---|---|---|
+| `RegisterPlatformContextService` | 建立或啟用平台範圍 | `RegisterPlatformContext` | `PlatformContextRepository`, `SubscriptionAgreementRepository`, `DomainEventPublisher` |
+| `PublishPolicyCatalogService` | 發佈新的規則版本 | `PublishPolicyCatalog` | `PolicyCatalogRepository`, `DomainEventPublisher` |
+| `ApplyConfigurationProfileService` | 套用配置輪廓與 capability toggles | `ApplyConfigurationProfile` | `PlatformContextRepository`, `ConfigurationProfileStore`, `DomainEventPublisher` |
+| `RegisterIntegrationContractService` | 建立或更新外部整合契約 | `RegisterIntegrationContract` | `IntegrationContractRepository`, `SecretReferenceResolver`, `DomainEventPublisher` |
+| `ActivateSubscriptionAgreementService` | 啟用、續約或停用訂閱協議 | `ActivateSubscriptionAgreement` | `SubscriptionAgreementRepository`, `PlatformContextRepository`, `DomainEventPublisher` |
+| `FireWorkflowTriggerService` | 發出 workflow trigger 並交給下游 adapter 執行 | `FireWorkflowTrigger` | `WorkflowPolicyRepository`, `WorkflowDispatcherPort`, `DomainEventPublisher` |
+| `RequestNotificationDispatchService` | 建立通知派送請求 | `RequestNotificationDispatch` | `NotificationGateway`, `PolicyCatalogRepository`, `AuditSignalStore` |
+| `RecordAuditSignalService` | 將決策或行為寫成稽核訊號 | `RecordAuditSignal` | `AuditSignalStore`, `DomainEventPublisher` |
+| `EmitObservabilitySignalService` | 發出 metrics / trace / alert 訊號 | `EmitObservabilitySignal` | `ObservabilitySink`, `AuditSignalStore` |
+
+## Query-oriented Services
+
+| Application Service | 主要用途 | 典型輸入 | 依賴的 Query Ports |
+|---|---|---|---|
+| `GetPlatformContextViewService` | 查詢 platform 範圍總覽 | `GetPlatformContextView` | `PlatformContextViewRepository` |
+| `ListEnabledCapabilitiesService` | 列出當前可用能力 | `ListEnabledCapabilities` | `PlatformContextViewRepository`, `SubscriptionAgreementRepository` |
+| `GetPolicyCatalogViewService` | 查詢政策版本與規則摘要 | `GetPolicyCatalogView` | `PolicyCatalogViewRepository` |
+| `GetSubscriptionEntitlementsService` | 查詢方案權益與限制 | `GetSubscriptionEntitlements` | `SubscriptionAgreementRepository`, `UsageMeterRepository` |
+| `GetWorkflowPolicyViewService` | 查詢 trigger 對應的 workflow policy | `GetWorkflowPolicyView` | `WorkflowPolicyRepository`, `PolicyCatalogViewRepository` |
+
+## 計畫吸收模組的 Use Cases（Migration-Pending）
+
+下列 use cases 目前定義於對應的**獨立模組**，計畫在合并進 platform 後成為各子域 application layer 的正式 use case handlers。
+
+| 模組 | 現有 Use Case | 目標子域 | 說明 |
+|---|---|---|---|
+| `modules/identity/` | `identity.use-cases.ts` — signIn, signOut, getCurrentIdentity | `identity` | 驗證、登出與身份狀態；合并後對應 `PlatformEventIngressPort` 的身份訊號接收路徑 |
+| `modules/identity/` | `token-refresh.use-cases.ts` — refreshCustomClaims | `identity` | token 刷新觸發 custom claims 更新 |
+| `modules/account/` | `account.use-cases.ts` — createAccount, updateAccount, deleteAccount | `account` | 帳號 CRUD；合并後對應 `PlatformCommandPort` 的 `RegisterPlatformContext` 或新增 account 命令 |
+| `modules/account/` | `account-policy.use-cases.ts` — upsertPolicy | `account` | AccountPolicy 管理；合并後對齊 `PublishPolicyCatalogService` 的 account-scoped 規則 |
+| `modules/organization/` | `organization.use-cases.ts` — createOrg | `organization` | 組織建立 |
+| `modules/organization/` | `organization-lifecycle.use-cases.ts` | `organization` | 組織生命週期管理 |
+| `modules/organization/` | `organization-member.use-cases.ts` | `organization` | 成員邀請、加入、移除 |
+| `modules/organization/` | `organization-team.use-cases.ts` | `organization` | Team 管理 |
+| `modules/organization/` | `organization-partner.use-cases.ts` | `organization` | PartnerInvite 管理 |
+| `modules/organization/` | `organization-policy.use-cases.ts` | `organization` | 組織政策管理；合并後對齊 platform `PolicyCatalog` 規則 |
+| `modules/notification/` | `notification.use-cases.ts` — dispatchNotification, markAsRead | `notification` | 通知建立與已讀標記；合并後對應 `RequestNotificationDispatchService` |
+
+**合并優先序：** 建議按 `identity → account → organization → notification` 順序合并，以保持語意依賴方向。
+
+## Orchestration Rules
+
+- application services 可以協調多個 aggregates，但不應把跨聚合規則硬塞進 handler 本身
+- 所有 persistence 與 side effects 都必須透過 output ports，不直接寫在 service 裡
+- 所有 transport concern 都由 driving adapters 處理；application services 不理解 HTTP status、queue headers 或 webhook signature
+- input validation 可以在 driving adapters 與 application layer 邊界做，但 domain invariants 仍由 aggregates 與 domain services 守護
+- domain events 應在狀態持久化成功後發布，而不是先發後存
+
+## Input Ports 與 Use Case Handlers
+
+輸入請求應先表達成 input ports 定義的語言，再交由 application services 實作。這讓 API controller、message consumer、CLI 或 scheduler 都能共用同一個 use case handler，而不必把業務邏輯寫進 adapter。若新增新的 handler，但沒有對應 input port 語言，表示藍圖仍有缺口。
+
+## 輸出結果
+
+application services 應回傳兩種結果之一：
+
+- command result：描述是否成功、主體識別值與版本資訊
+- query projection：為查詢或 UI 組裝的唯讀模型
+
+無論哪一種，application services 都不應回傳 adapter-specific payload。
 ````
 
-## File: modules/platform/domain/entities/index.ts
-````typescript
-/**
- * platform entity placeholder module.
- */
+## File: modules/platform/docs/bounded-context.md
+````markdown
+# Bounded Context — platform
 
-export const PLATFORM_DOMAIN_ENTITY_FUNCTIONS = [
-	"definePolicyRuleEntity",
-	"defineSignalSubscriptionEntity",
-	"defineDispatchContextEntity",
-] as const;
+本文件定義 `platform` 這份本地藍圖的邊界。platform 的任務，是把平台級的主體治理、政策規則、能力啟用、外部交付、稽核與可觀測性收斂成一個 **Hexagonal + DDD** 邊界，而不是把這些能力散落成沒有語言與責任的共享雜物間。
 
-export type PlatformDomainEntityFunction = (typeof PLATFORM_DOMAIN_ENTITY_FUNCTIONS)[number];
+## Context Purpose
+
+platform 這個 bounded context 負責回答五類問題：
+
+- 誰是平台可治理的主體
+- 主體在什麼條件下可以做什麼
+- 哪些能力在當前方案、設定與安全政策下可用
+- 平台如何把事實轉成流程、外部交付與通知
+- 平台如何留下證據並暴露診斷訊號
+
+## Canonical Capability Groups
+
+### 主體與名錄
+
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+
+### 治理與安全
+
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+
+### 商業與權益
+
+- `billing`
+- `subscription`
+- `referral`
+
+### 流程與交付
+
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+
+### 內容與檢索
+
+- `content`
+- `search`
+
+### 證據與診斷
+
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
+
+## 邊界包含什麼
+
+platform 包含：
+
+- 可被 platform 通用語言描述的聚合、值物件、規則與事件
+- 可被 application layer 協調的 use cases、commands、queries 與 read models
+- 可被 ports 表達的輸入契約與外部依賴契約
+- 可被稽核與可觀測性需求追蹤的 published language
+
+## 邊界刻意不包含什麼
+
+- 產品內容本身的建立、編排與發布策略
+- 檢索、推理、內容相關性或知識生成演算法
+- 任何 UI 呈現細節本身
+- 直接綁定 HTTP、queue、webhook、SDK、資料庫的 adapter 細節
+- 以「暫時先開個資料夾」為名的未定義能力
+
+## Hexagonal Layer Mapping
+
+| Layer / concept | platform 位置 | 說明 |
+|---|---|---|
+| Public boundary | `api/` | 對外公開的 cross-module boundary；只做投影與 re-export |
+| Driving adapters | `adapters/` | CLI、web、external ingress 等輸入端轉譯 |
+| Application | `application/` | use case orchestration、command/query handling |
+| Domain | `domain/` | 聚合、值物件、domain services、domain events |
+| Input ports | `ports/input/` | 進入 application 的穩定契約 |
+| Output ports | `ports/output/` | repository、store、gateway、sink 等依賴契約 |
+| Driven adapters | `infrastructure/` | 對 output ports 的具體技術實作 |
+
+## Layer Responsibilities
+
+### Domain
+
+- 擁有聚合、值物件、domain services、domain events
+- 維持不變數與 published language
+- 不直接理解 repository implementation、HTTP、DB、queue 或 SDK
+
+### Application
+
+- 實作 use case handlers 與 input port 語言
+- 協調 aggregates、domain services 與 output ports
+- 在持久化成功後拉取並發布 domain events
+
+### Ports
+
+- input ports：命令、查詢、事件匯入入口
+- output ports：repositories、support stores、gateways、sinks
+- 由 core/application 擁有，不以 `api/` 為型別真實來源
+
+### Adapters / Infrastructure
+
+- driving adapters：把 HTTP、CLI、scheduler、webhook、queue ingress 翻譯成 input port 語言
+- driven adapters：把 repository、event publishing、notification、telemetry、external delivery 實作成具體技術方案
+
+## Public Boundary Rule
+
+- `api/` 是 platform 對其他模組的正式 public boundary
+- `index.ts` 只作 aggregate export convenience，不應被當成邊界設計來源
+- `ports/` 的契約來源在 `application/` 與 `domain/`，不是 `api/`
+
+## Closed Inventory Boundary Rule
+
+這個 bounded context 以 23 個子域作為封閉 inventory。任何新需求預設都應被視為既有子域的責任延伸，而不是新增第 24 個子域。只有在既有 23 個子域無法吸收時，才允許重新打開 inventory。
+
+## 計畫吸收模組
+
+以下四個現有獨立模組的能力**計畫在未來重構中合并進 platform**，成為對應子域的正式實作。在合并完成前，這些模組作為各自子域的前身實作繼續運作，platform blueprint 定義語言與 port 契約的規範形式。
+
+| 獨立模組 | 目標子域 | 現有核心概念 | 合并備注 |
+|---|---|---|---|
+| `modules/identity/` | `identity` | `Identity`, `uid`, `TokenRefreshSignal`, `IdentityRepository`, `TokenRefreshRepository` | 提供 `AuthenticatedSubject` 與 `IdentitySignal` 的前身語意 |
+| `modules/account/` | `account` + `account-profile` | `Account`, `AccountPolicy`, `AccountProfile`, `AccountRepository`, `AccountQueryRepository`, `AccountPolicyRepository` | `account` 承接帳號聚合根；`account-profile` 承接可治理輪廓屬性 |
+| `modules/organization/` | `organization` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`, `OrganizationRepository`, `OrgPolicyRepository` | 提供 `MembershipBoundary` 與 `RoleAssignment` 的前身語意 |
+| `modules/notification/` | `notification` | `NotificationEntity`, `NotificationRepository`，conformist 消費者 | 提供 `NotificationDispatch` 與 `NotificationRoute` 的前身語意 |
+
+**合并優先序：** `identity` → `account` → `organization` → `notification`（按語意依賴順序）
+
+**合并後規則：**
+- 獨立模組應設為 deprecated，並把 `api/index.ts` 指向 `modules/platform/api`
+- Platform blueprint 的語言定義優先；若有術語歧異，以本文件與 `ubiquitous-language.md` 為準
+
+## 邊界測試問題
+
+1. 這個變更屬於哪個既有子域
+2. 它需要的是新語言、既有語言的細化，還是新的 port contract
+3. 它是 domain rule、application orchestration、adapter concern，還是 public boundary projection
+4. 它是否會破壞 closed inventory 或 dependency direction
+5. 若涉及 identity / account / organization / notification，是否與計畫吸收方向一致
+
+若第 1 題答不出來，表示 platform 邊界尚未被正確理解。
 ````
 
-## File: modules/platform/domain/factories/index.ts
-````typescript
-/**
- * platform domain factory placeholder module.
- */
+## File: modules/platform/docs/context-map.md
+````markdown
+# Context Map — platform
 
-export const PLATFORM_DOMAIN_FACTORY_FUNCTIONS = [
-	"createPlatformContextAggregate",
-	"createPolicyCatalogAggregate",
-	"createIntegrationContractAggregate",
-	"createSubscriptionAgreementAggregate",
-] as const;
+本文件描述 platform 的 23 個子域如何在同一個 bounded context 內協作。這是一張 **local platform map**，目的是說明共享語言、事件事實與 use case 協作，不是全系統上下文圖。
 
-export type PlatformDomainFactoryFunction = (typeof PLATFORM_DOMAIN_FACTORY_FUNCTIONS)[number];
+## Collaboration Rule
+
+- 子域之間透過 published language、input ports、output ports 與 read models 協作
+- 不應讓某個子域的 adapter 直接依賴另一個子域的 adapter
+- 若跨子域互動需要新的共享語言，先更新 `ubiquitous-language.md` 與本文件
+- 若跨子域互動需要新的依賴契約，先更新 `application-services.md` 或 `repositories.md`
+
+## Local Platform Map
+
+以下是核心協作關係圖。新增到 canonical inventory 的子域（例如 `onboarding`、`compliance`、`content`、`search`、`analytics`、`support`、`background-job`、`referral`）在不同實作階段可先以最小路徑接入，待對應 port 穩定後再擴展協作邊。
+
+```text
+identity -> account -> account-profile -> access-control
+identity -> audit-log
+
+organization -> access-control
+organization -> audit-log
+
+security-policy -> access-control
+security-policy -> compliance
+security-policy -> workflow
+security-policy -> audit-log
+
+platform-config -> feature-flag
+platform-config -> access-control
+platform-config -> integration
+platform-config -> workflow
+platform-config -> notification
+platform-config -> observability
+
+onboarding -> account-profile
+onboarding -> notification
+
+subscription -> billing
+subscription -> feature-flag
+subscription -> access-control
+subscription -> integration
+subscription -> workflow
+
+referral -> account
+referral -> billing
+referral -> analytics
+
+access-control -> integration
+access-control -> workflow
+access-control -> audit-log
+
+workflow -> notification
+workflow -> background-job
+workflow -> audit-log
+workflow -> observability
+
+integration -> audit-log
+integration -> observability
+
+notification -> audit-log
+notification -> observability
+
+billing -> audit-log
+billing -> observability
+
+content -> search
+content -> audit-log
+
+search -> analytics
+search -> observability
+
+background-job -> observability
+background-job -> audit-log
+
+compliance -> audit-log
+compliance -> observability
+
+support -> analytics
+support -> audit-log
+
+audit-log -> observability
+audit-log -> analytics
+
+analytics -> observability
+```
+
+## 協作關係
+
+| Source | Target | 共享語言 | 為何需要這個關係 |
+|---|---|---|---|
+| `identity` | `account` | `AuthenticatedSubject`, `AccountLifecycle` | 驗證後主體需映射到可治理帳戶 |
+| `identity` | `account-profile` | `AuthenticatedSubject`, `SubjectScope` | 驗證過的主體需要被映射成可治理輪廓 |
+| `account-profile` | `access-control` | `AccountProfile`, `SubjectPreference` | 授權決策需要主體屬性與偏好 |
+| `organization` | `access-control` | `MembershipBoundary`, `RoleAssignment` | 存取控制需要群組與角色資訊 |
+| `onboarding` | `account-profile` | `OnboardingFlow`, `SetupProgress` | 初始設定結果要轉成可治理輪廓 |
+| `security-policy` | `access-control` | `PolicyCatalog`, `AccessPolicy` | 授權判斷要遵守安全政策 |
+| `security-policy` | `compliance` | `PolicyCatalog`, `CompliancePolicy` | 合規檢查需套用統一政策版本 |
+| `platform-config` | `feature-flag` | `ConfigurationProfile`, `CapabilityToggle` | 能力開關需要設定輪廓與 rollout 參數 |
+| `platform-config` | `workflow` | `ConfigurationProfile` | 流程啟動依賴設定化規則與參數 |
+| `subscription` | `feature-flag` | `Entitlement`, `UsageLimit` | feature rollout 必須受方案權益約束 |
+| `subscription` | `integration` | `PlanConstraint`, `DeliveryAllowance` | 某些整合只在特定方案與配額下可用 |
+| `subscription` | `billing` | `SubscriptionAgreement`, `BillingState` | 訂閱生命週期與計費狀態互相影響 |
+| `referral` | `billing` | `ReferralReward`, `BillingState` | 推薦回饋會影響帳務處理 |
+| `access-control` | `workflow` | `PermissionDecision` | 流程觸發前要先通過授權 |
+| `workflow` | `notification` | `WorkflowTrigger`, `NotificationDispatch` | 流程結果常需轉成通知請求 |
+| `workflow` | `background-job` | `WorkflowTrigger`, `JobSchedule` | 長時程任務由背景排程承接 |
+| `workflow` | `audit-log` | `AuditSignal`, `CorrelationContext` | 重要流程節點需要留下證據 |
+| `integration` | `audit-log` | `AuditSignal`, `DispatchOutcome` | 外部交付結果屬治理軌跡 |
+| `notification` | `audit-log` | `DispatchOutcome`, `AuditSignal` | 派送成功或失敗都要記錄 |
+| `content` | `search` | `ContentAsset`, `SearchQuery` | 內容發布需可被檢索索引與查詢 |
+| `support` | `analytics` | `SupportTicket`, `BehaviorMetric` | 支援流程輸出服務品質指標 |
+| `audit-log` | `observability` | `AuditClassification`, `ObservabilitySignal` | 稽核分類可轉為運維診斷訊號 |
+| `analytics` | `observability` | `BehaviorMetric`, `ObservabilitySignal` | 分析結果需進入告警與健康視圖 |
+| `billing` | `observability` | `BillingState`, `ObservabilitySignal` | 計費異常需要被量測與告警 |
+
+## 計畫吸收模組的協作現狀
+
+下列子域目前有對應的獨立模組，在合并前以「上游獨立模組 → platform subdomain blueprint」的方向映射：
+
+| 子域 | 目前獨立模組 | 現有協作語言 |
+|---|---|---|
+| `identity` | `modules/identity/` | `Identity`, `uid`, `TokenRefreshSignal`；identity 不訂閱任何事件，是最上游的身份來源 |
+| `account` | `modules/account/` | `Account`, `AccountPolicy`；訂閱 `TokenRefreshSignal` 以更新 custom claims |
+| `account-profile` | `modules/account/`（AccountProfile 概念） | `AccountProfile`, `SubjectPreference`；目前與 account 同住 |
+| `organization` | `modules/organization/` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`；發出 `organization.member_joined` 等事件，被 `access-control`、`notification` 消費 |
+| `notification` | `modules/notification/` | `NotificationEntity`, `NotificationRepository`；為 conformist 消費者，訂閱 `workspace.member_joined`、`workspace-flow.task_status_changed` 等事件，不發出 domain events |
+
+**合并前的協作規則：** platform blueprint 只定義語言與 port 契約；獨立模組仍是語意的事實來源，直到完成合并並退役為止。
+
+## Context Map Rule
+
+若某個新需求無法被這張 map 中的既有節點、共享語言與既有 ports 吸收，先調整 map、`subdomains.md` 與相關 ports 文件，而不是直接再加新資料夾。
 ````
 
-## File: modules/platform/domain/index.ts
-````typescript
-/**
- * platform domain layer barrel.
- */
+## File: modules/platform/docs/domain-events.md
+````markdown
+# Domain Events — platform
 
-export * from "./aggregates";
-export * from "./entities";
-export * from "./value-objects";
-export * from "./services";
-export * from "./events";
+platform blueprint 將 domain event 視為已發生事實的 published language。事件 schema 由 `domain/events` 擁有；application layer 負責在正確時機拉取事件；event publisher adapter 只負責 transport 與 delivery。
+
+## Event Envelope
+
+platform 事件應至少包含以下欄位：
+
+| 欄位 | 用途 |
+|---|---|
+| `type` | 事件名稱，格式採用 `<subdomain>.<fact>` |
+| `aggregateType` | 事件所屬聚合型別 |
+| `aggregateId` | 聚合識別值 |
+| `contextId` | 平台範圍識別值 |
+| `occurredAt` | 事件發生時間，使用 ISO 8601 |
+| `version` | 聚合版本或事件版本 |
+| `correlationId` | 關聯整串工作流程 |
+| `causationId` | 指出直接觸發來源 |
+| `actorId` | 觸發此事實的主體 |
+| `payload` | 事件特定資料 |
+
+## Publish Lifecycle
+
+1. 聚合狀態變更或 application orchestration 完成一個 business fact
+2. domain 產生 event 並暫存於 aggregate 或 orchestration 結果中
+3. application service 完成持久化與必要 output port 呼叫
+4. `DomainEventPublisher` 再把事件送往 bus、topic 或其他 delivery adapter
+
+事件不應由聚合直接推送到 message bus，也不應在持久化前先發送。
+
+## 發出事件
+
+| 事件 | 何時發出 | 核心 payload |
+|---|---|---|
+| `platform.context_registered` | 平台範圍建立完成 | `subjectScope`, `lifecycleState` |
+| `platform.capability_enabled` | 某項 capability 被啟用 | `capabilityKey`, `entitlementRef` |
+| `platform.capability_disabled` | 某項 capability 被停用 | `capabilityKey`, `reason` |
+| `policy.catalog_published` | 新的政策版本生效 | `policyCatalogId`, `revision` |
+| `config.profile_applied` | 配置輪廓完成套用 | `configurationProfileRef`, `changedKeys` |
+| `permission.decision_recorded` | 完成一次可追蹤授權決策 | `decision`, `subjectRef`, `resourceRef` |
+| `integration.contract_registered` | 整合契約生效或更新 | `integrationContractId`, `protocol`, `endpointRef` |
+| `integration.delivery_failed` | 外部交付失敗 | `integrationContractId`, `deliveryAttempt`, `failureCode` |
+| `subscription.agreement_activated` | 訂閱協議進入生效狀態 | `subscriptionAgreementId`, `planCode`, `validUntil` |
+| `onboarding.flow_completed` | 新主體完成 onboarding 主要流程 | `onboardingId`, `subjectRef`, `completedSteps` |
+| `compliance.policy_verified` | 合規政策檢核通過或更新 | `policyRef`, `verificationResult`, `effectivePeriod` |
+| `referral.reward_recorded` | 推薦獎勵被核算並記錄 | `referralId`, `rewardType`, `rewardAmount` |
+| `workflow.trigger_fired` | workflow trigger 被成功發出 | `triggerKey`, `triggeredBy`, `triggeredAt` |
+| `background-job.enqueued` | 背景作業被提交到佇列 | `jobId`, `jobType`, `scheduleAt` |
+| `content.asset_published` | 內容資產進入發布狀態 | `assetId`, `publicationState`, `publishedAt` |
+| `search.query_executed` | 搜尋查詢完成並產生結果 | `queryId`, `queryText`, `resultCount` |
+| `notification.dispatch_requested` | 建立通知派送請求 | `channel`, `recipientRef`, `templateKey` |
+| `audit.signal_recorded` | 寫入一條不可變 audit signal | `signalType`, `severity`, `subjectRef` |
+| `observability.signal_emitted` | 發出指標、追蹤或告警訊號 | `signalName`, `signalLevel`, `sourceRef` |
+| `analytics.event_recorded` | 分析事件被記錄與聚合 | `eventName`, `metricRef`, `subjectRef` |
+| `support.ticket_opened` | 支援工單被建立 | `ticketId`, `priority`, `requesterRef` |
+
+## 事件擁有者
+
+| 事件 | 主要擁有者 |
+|---|---|
+| `platform.context_registered` / `platform.capability_*` | `PlatformContext` |
+| `policy.catalog_published` | `PolicyCatalog` |
+| `integration.contract_registered` / `integration.delivery_failed` | `IntegrationContract` |
+| `subscription.agreement_activated` | `SubscriptionAgreement` |
+| `onboarding.flow_completed` | application layer 在 onboarding 決策完成後發出 |
+| `compliance.policy_verified` | application layer 在合規檢核完成後發出 |
+| `referral.reward_recorded` | application layer 在推薦獎勵核算後發出 |
+| `workflow.trigger_fired` | application layer 在 domain rule 通過後發出 |
+| `background-job.enqueued` | application layer 在工作流轉交背景作業後發出 |
+| `content.asset_published` | application layer 在內容發布決策完成後發出 |
+| `search.query_executed` | application layer 在搜尋執行完成後發出 |
+| `notification.dispatch_requested` | application layer 在 delivery request 建立後發出 |
+| `audit.signal_recorded` | application layer 在 evidence sink 接受記錄後發出 |
+| `observability.signal_emitted` | application layer 在 observability sink 接受訊號後發出 |
+| `analytics.event_recorded` | application layer 在分析匯流接收事件後發出 |
+| `support.ticket_opened` | application layer 在支援案件建立後發出 |
+
+## 訂閱事件
+
+platform 也會透過 input ports 接收外部或相鄰子域傳入的事件型訊號。這些訊號通常會被轉成 application commands，再由 use case handlers 處理。
+
+| 輸入訊號 | 用途 |
+|---|---|
+| `identity.subject_authenticated` | 建立或更新主體上下文 |
+| `account.profile_amended` | 更新帳戶輪廓相關治理判斷 |
+| `organization.membership_changed` | 更新組織邊界與角色映射 |
+| `subscription.entitlement_changed` | 調整 capability enablement 與限制 |
+| `integration.callback_received` | 接收外部系統回呼結果 |
+| `workflow.execution_completed` | 接收工作流執行結果以觸發後續通知、稽核與觀測 |
+
+## 計畫吸收模組的事件（Migration-Pending）
+
+下列事件目前由對應的**獨立模組**定義與發出，在合并進 platform 後將成為 platform published language 的一部分。合并前，platform blueprint 定義的事件命名以本文件為準；若與獨立模組現有命名有差異，合并時以本文件的命名為遷移目標。
+
+### 來自 `modules/account/`
+
+| 事件 | 何時發出 | 核心 payload |
+|---|---|---|
+| `account.created` | 新帳號建立完成 | `accountId`, `email`, `occurredAt` |
+| `account.policy_updated` | AccountPolicy 更新，觸發 custom claims 刷新 | `accountId`, `policyId`, `occurredAt` |
+
+### 來自 `modules/organization/`
+
+| 事件 | 何時發出 | 核心 payload |
+|---|---|---|
+| `organization.created` | 新組織建立時 | `organizationId`, `name`, `ownerId`, `occurredAt` |
+| `organization.member_invited` | 成員被邀請加入 | `organizationId`, `inviteId`, `email`, `role`, `occurredAt` |
+| `organization.member_joined` | 邀請被接受，成員加入 | `organizationId`, `accountId`, `role`, `occurredAt` |
+| `organization.member_removed` | 成員被移除 | `organizationId`, `accountId`, `occurredAt` |
+| `organization.team_created` | 新 Team 建立 | `organizationId`, `teamId`, `occurredAt` |
+
+### 來自 `modules/identity/`（計畫中）
+
+`identity` 模組目前不發出正式 domain event（Firebase Auth 事件由 SDK 直接處理）。合并後建議加入：
+
+| 計畫事件 | 觸發條件 | 用途 |
+|---|---|---|
+| `identity.signed_in` | 使用者成功登入 | 供 `audit-log`、`account` 消費 |
+| `identity.signed_out` | 使用者登出 | 供稽核記錄消費 |
+
+### `modules/notification/` 的訂閱現狀
+
+`notification` 模組目前為純消費者（不發出事件），合并後保持此角色。它目前訂閱：
+- `workspace.member_joined`
+- `workspace-flow.task_status_changed`
+
+這些訂閱關係在 platform 的 `notification` 子域保持不變，但在合并後路由邏輯移至 platform 的 `events/ingress/`。
+
+## 事件設計規則
+
+- 事件名稱必須描述事實，而不是請求
+- domain event 只描述業務語意，不攜帶 adapter-specific metadata
+- event publisher 是 output port，不能被聚合直接取代
+- 事件 payload 應足以讓下游 adapter 或 handler 理解事實，但不應把整個聚合序列化出去
+- 若事件來自 application orchestration 而不是單一 aggregate，必須在文件中標示其擁有位置，避免假裝它來自不存在的 aggregate
+
+## 事件命名規則
+
+推薦格式：
+
+```text
+<subdomain>.<fact>
+```
+
+例如：
+
+- `policy.catalog_published`
+- `workflow.trigger_fired`
+- `notification.dispatch_requested`
+- `audit.signal_recorded`
+
+這種命名能讓事件在 transport 層之外仍保持可讀性與一致性。
 ````
 
-## File: modules/platform/domain/services/index.ts
-````typescript
-/**
- * platform domain service placeholder module.
- */
+## File: modules/platform/docs/domain-services.md
+````markdown
+# platform — Domain Services
 
-export const PLATFORM_DOMAIN_SERVICE_FUNCTIONS = [
-	"evaluateCapabilityEntitlement",
-	"resolvePermissionDecision",
-	"composeConfigurationProfile",
-	"validateIntegrationCompatibility",
-	"decideWorkflowDispatch",
-	"decideNotificationRouting",
-	"classifyAuditSignal",
-	"correlateObservabilitySignal",
-] as const;
+platform 的 domain services 承載那些無法只靠單一 aggregate 完成、但仍屬於純平台規則的決策。它們位於 domain core，負責輸出 decision object 或 rule evaluation，不做 persistence、不直接發送事件，也不接觸 transport 或 SDK。
 
-export type PlatformDomainServiceFunction = (typeof PLATFORM_DOMAIN_SERVICE_FUNCTIONS)[number];
+## Domain Services 清單
+
+| Domain Service | 處理的問題 | 主要輸入 |
+|---|---|---|
+| `CapabilityEntitlementPolicy` | capability 是否可因 entitlement 生效 | `PlatformCapability`, `SubscriptionAgreement` |
+| `PermissionResolutionService` | 如何根據主體、資源與政策做授權決策 | `SubjectScope`, `PolicyCatalog`, `ResourceDescriptor` |
+| `ConfigurationCompositionService` | 多層配置如何組裝成單一有效視圖 | `ConfigurationProfile`, `PolicyCatalog`, `SubscriptionAgreement` |
+| `IntegrationCompatibilityService` | 外部契約是否與 policy、plan、protocol 相容 | `IntegrationContract`, `SubscriptionAgreement`, `PolicyCatalog` |
+| `WorkflowDispatchPolicy` | 某個 trigger 是否該被允許、延遲、抑制或升級 | `WorkflowTrigger`, `PolicyCatalog`, `PermissionDecision` |
+| `NotificationRoutingPolicy` | 某條通知該走哪個通道、是否應被抑制 | `NotificationDispatch`, `PolicyCatalog`, `SubjectPreference` |
+| `AuditClassificationService` | 什麼樣的行為需要記錄、記成何種等級 | `AuditSignal`, `PolicyCatalog` |
+| `ObservabilityCorrelationService` | 如何把 workflow、integration、notification、audit 連成可追蹤鏈 | `ObservabilitySignal`, `CorrelationContext` |
+
+## 何時該抽成 Domain Service
+
+以下情況適合使用 domain service：
+
+- 規則跨越兩個以上 aggregates
+- 規則本身不需要持有狀態
+- 規則對 adapters 完全不感興趣，但對平台語意很重要
+- 需要回傳清楚 decision object，而不是把規則散落在多個 use case 中
+
+以下情況不該抽成 domain service：
+
+- 只是某個 aggregate 自己的不變數
+- 只是資料庫查詢方便性的封裝
+- 只是 HTTP、queue、webhook 的轉譯邏輯
+- 只是 SDK 調用流程包裝
+
+## 與 Application Layer 的關係
+
+- application services 可以呼叫 domain services
+- domain services 不應反向知道 application service 的存在
+- 若規則需要外部狀態，應由 application 先透過 output ports 取回資料，再把乾淨的 domain inputs 傳給 domain service
+- 若規則需要 I/O，應拆成 domain rule + output port，而不是把 I/O 留在 domain service 裡
+
+## 設計原則
+
+- domain services 應優先回傳明確的 decision object，而不是鬆散布林值
+- 錯誤應描述治理語意，例如 `entitlement_denied`, `policy_conflict`, `delivery_not_allowed`
+- 每個 service 都應可在不啟動任何 adapter 的情況下被測試
+- service 介面應只依賴 domain 語言，不依賴 transport 或 persistence 細節
+
+## 主要 Decision Objects
+
+| Decision Object | 用途 |
+|---|---|
+| `PermissionDecision` | 表達允許、拒絕、條件允許或需要升級 |
+| `DispatchOutcome` | 表達通知或外部交付的結果 |
+| `AuditClassification` | 表達此事實需要何種稽核等級 |
+| `PlanConstraint` | 表達 subscription 對 capability 或 delivery 的限制 |
+| `DeliveryAllowance` | 表達整合或通知在當前條件下是否允許交付 |
+
+## 與平台子域的對應
+
+- `identity`（目前對應 `modules/identity/`）、`account`（目前對應 `modules/account/`）、`organization`（目前對應 `modules/organization/`）主要提供主體與邊界輸入
+- `access-control`, `platform-config`, `subscription` 提供治理輸入
+- `integration`, `workflow`, `notification`（目前對應 `modules/notification/`）提供執行輸入
+- `audit-log`, `observability` 將決策轉成可追蹤訊號
+
+**計畫吸收語意：** `PermissionResolutionService` 合并 `modules/account/` 的 AccountPolicy 規則語意後，須能同時處理帳號層與組織層的授權判斷。`NotificationRoutingPolicy` 在 `modules/notification/` 合并後，應把現有的 `DispatchNotificationInput` 語言對齊 platform 的 `NotificationDispatch`。
 ````
 
-## File: modules/platform/domain/value-objects/index.ts
-````typescript
-/**
- * platform domain value-object derivation inventory.
- */
+## File: modules/platform/docs/README.md
+````markdown
+# platform docs
 
-export const PLATFORM_DOMAIN_VALUE_OBJECT_TYPES = [
-	"PlatformCapability",
-	"SubjectScope",
-	"PolicyRule",
-	"ConfigurationProfileRef",
-	"Entitlement",
-	"UsageLimit",
-	"SignalSubscription",
-	"DeliveryPolicy",
-	"NotificationRoute",
-	"ObservabilitySignal",
-	"PermissionDecision",
-	"AuditClassification",
-	"PlanConstraint",
-	"DeliveryAllowance",
-] as const;
+`platform/docs/` 是 platform blueprint 的文件索引入口。這組文件以 **Hexagonal Architecture with Domain-Driven Design** 為閱讀骨架：先確認邊界與通用語言，再確認聚合、use case、ports、events 與 adapters 的責任分工。
 
-export type PlatformDomainValueObjectType = (typeof PLATFORM_DOMAIN_VALUE_OBJECT_TYPES)[number];
+## Hexagonal + DDD 閱讀框架
 
-export const PLATFORM_DOMAIN_VALUE_OBJECT_FACTORY_FUNCTIONS = [
-	"createPlatformCapability",
-	"createSubjectScope",
-	"createPolicyRule",
-	"createConfigurationProfileRef",
-	"createEntitlement",
-	"createUsageLimit",
-	"createSignalSubscription",
-	"createDeliveryPolicy",
-	"createNotificationRoute",
-	"createObservabilitySignal",
-	"createPermissionDecision",
-	"createAuditClassification",
-	"createPlanConstraint",
-	"createDeliveryAllowance",
-] as const;
+| 關注點 | 文件 | 說明 |
+|---|---|---|
+| Bounded Context 邊界 | `bounded-context.md` | platform 的責任範圍、封板規則與 public boundary |
+| Canonical subdomains | `subdomains.md` | 23 個正式子域與 capability inventory |
+| Shared language | `ubiquitous-language.md` | 聚合、ports、事件與協作的命名權威 |
+| Domain core | `aggregates.md`, `domain-services.md`, `domain-events.md` | 聚合、不變數、純規則與 published language |
+| Application orchestration | `application-services.md` | use case handlers、input ports 與 command/query 協調 |
+| Driven ports | `repositories.md` | repositories、query ports、support ports、delivery ports |
+| Collaboration map | `context-map.md` | 子域間的共享語言與協作方向 |
 
-export type PlatformDomainValueObjectFactoryFunction =
-	(typeof PLATFORM_DOMAIN_VALUE_OBJECT_FACTORY_FUNCTIONS)[number];
+## 文件分工
+
+| 文件 | 主題 |
+|---|---|
+| `aggregates.md` | 核心聚合、值物件、不變數與 aggregate lifecycle |
+| `application-services.md` | use case handlers、input ports、command/query 協調 |
+| `bounded-context.md` | platform 邊界、責任範圍、public boundary 與 layer mapping |
+| `context-map.md` | 23 個子域間的協作關係與共享語言 |
+| `domain-events.md` | 事件命名、事件擁有者、發出/訂閱與 publish lifecycle |
+| `domain-services.md` | 跨聚合純規則、decision objects 與 service 抽取準則 |
+| `repositories.md` | repository ports、query ports、support ports、delivery ports |
+| `subdomains.md` | 正式 23 子域 inventory 與責任對照 |
+| `ubiquitous-language.md` | platform 通用語言與 Hexagonal vocabulary |
+
+## 讀取順序
+
+1. 先讀 `bounded-context.md` 確認 platform 這個 bounded context 的責任與 public boundary
+2. 讀 `subdomains.md` 與 `context-map.md`，理解 23 個子域如何協作
+3. 讀 `ubiquitous-language.md`，鎖定 aggregate、port、event、adapter 的命名
+4. 最後讀 `aggregates.md`、`domain-services.md`、`application-services.md`、`repositories.md`、`domain-events.md` 進入設計細節
+
+## Hexagonal 對照
+
+| Hexagonal concept | platform blueprint |
+|---|---|
+| Public boundary | `api/` |
+| Driving adapters | `adapters/`（CLI、web、external ingress 等） |
+| Application layer | `application/` |
+| Domain core | `domain/` |
+| Input ports | `ports/input/` |
+| Output ports | `ports/output/` |
+| Driven adapters | `infrastructure/` |
+| Published language | `domain/events/` + `application/dtos/` |
+
+## 計畫吸收模組
+
+以下四個獨立模組計畫重構進 platform 子域，詳見各文件的 **Migration-Pending** 節：
+
+| 獨立模組 | 目標子域 | 語言文件 |
+|---|---|---|
+| `modules/identity/` | `identity` | [subdomains.md](./subdomains.md), [ubiquitous-language.md](./ubiquitous-language.md) |
+| `modules/account/` | `account` + `account-profile` | [subdomains.md](./subdomains.md), [aggregates.md](./aggregates.md) |
+| `modules/organization/` | `organization` | [subdomains.md](./subdomains.md), [domain-events.md](./domain-events.md) |
+| `modules/notification/` | `notification` | [subdomains.md](./subdomains.md), [repositories.md](./repositories.md) |
+
+## 變更同步規則
+
+- 變更聚合或值物件：同步更新 `aggregates.md` 與 `ubiquitous-language.md`
+- 變更 use case handlers、input ports 或 command/query 語言：同步更新 `application-services.md`
+- 變更 repositories、support ports 或 delivery ports：同步更新 `repositories.md`
+- 變更事件名稱、payload 或事件擁有者：同步更新 `domain-events.md`
+- 變更子域責任：同步更新 `subdomains.md` 與 `context-map.md`
+- 變更 platform 邊界或 public boundary：同步更新 `bounded-context.md`、`../README.md` 與 `../AGENT.md`
+
+## 文件閉環檢查清單
+
+每次調整 platform 文件後，至少確認以下幾點：
+
+1. `api/`、`ports/`、`adapters/`、`infrastructure/` 的角色敘述沒有互相重疊
+2. `subdomains.md` 出現的術語都能在 `ubiquitous-language.md` 找到定義
+3. `application-services.md` 與 `subdomains.md` 提到的 ports 都能在 `repositories.md` 找到契約
+4. `domain-events.md` 的事件命名、事件擁有者與 `context-map.md` 協作語言沒有衝突
+5. 文件沒有把 adapter concern 寫回 domain/application 規則
 ````
 
-## File: modules/platform/events/index.ts
-````typescript
-/**
- * platform events barrel.
- */
+## File: modules/platform/docs/repositories.md
+````markdown
+# platform — Repositories
 
-export * from "./contracts/index";
-export * from "./handlers/index";
-export * from "./ingress/index";
-export * from "./mappers/index";
-export * from "./published/index";
-export * from "./routing/index";
+在這份 blueprint 中，repository 與各種 gateway / sink 都屬於 **output ports**。repository 專門負責聚合狀態的載入與保存；其他 output ports 則處理查詢支援、事件發佈、外部交付與診斷輸出。契約由 core/application 擁有，具體技術實作放在 `infrastructure/`。
+
+## Output Port Ownership Rule
+
+- repository、query port、support port、delivery port 的語言來源在 `application/` 與 `domain/`
+- `api/` 只做 public boundary projection，不是 output port 的真實來源
+- infrastructure adapters 實作 ports，但不改寫其業務語意
+
+## Aggregate Repository Ports
+
+| Repository Port | 服務的聚合 | 核心職責 |
+|---|---|---|
+| `PlatformContextRepository` | `PlatformContext` | `findById`, `save`, `findBySubjectScope` |
+| `PolicyCatalogRepository` | `PolicyCatalog` | `findActiveByContextId`, `saveRevision`, `findByRevision` |
+| `IntegrationContractRepository` | `IntegrationContract` | `findById`, `save`, `findActiveByContextId` |
+| `SubscriptionAgreementRepository` | `SubscriptionAgreement` | `findEffectiveByContextId`, `save`, `findByPlanCode` |
+
+## Subdomain Repository / Store Ports
+
+下列 ports 在 `subdomains.md` 與 `application-services.md` 已被使用，需在 repository 契約層明確列出，避免文件引用缺口。
+
+| Port | 子域 | 用途 |
+|---|---|---|
+| `AccountRepository` | `account` | 載入與保存帳號聚合與生命週期狀態 |
+| `OnboardingRepository` | `onboarding` | 載入與保存 onboarding flow / setup progress |
+| `CompliancePolicyStore` | `compliance` | 查詢與保存合規規則、保留策略、審查結果 |
+| `ReferralRepository` | `referral` | 載入與保存推薦關係、獎勵狀態與結算參照 |
+| `ContentRepository` | `content` | 載入與保存內容資產與發布狀態 |
+| `SupportRepository` | `support` | 載入與保存支援工單與知識關聯狀態 |
+
+## Query / Read-model Ports
+
+某些查詢模型不需要完整 aggregate，可透過專門的 query ports 提供：
+
+| Query Port | 用途 |
+|---|---|
+| `PlatformContextViewRepository` | 提供平台範圍總覽 |
+| `PolicyCatalogViewRepository` | 提供規則摘要與 revision history |
+| `UsageMeterRepository` | 提供 entitlement / quota 的使用情況 |
+| `DeliveryHistoryRepository` | 提供 integration / notification 的交付紀錄查詢 |
+| `WorkflowPolicyRepository` | 提供 trigger 與 workflow policy 的讀取介面 |
+
+## Supporting State / Lookup Ports
+
+這些 ports 不直接保存聚合，但會為 application services 與 domain services 提供必要支援資料：
+
+| Support Port | 用途 |
+|---|---|
+| `ConfigurationProfileStore` | 提供可套用的 configuration profile |
+| `SubjectDirectory` | 提供主體輪廓、偏好與角色對照 |
+| `SecretReferenceResolver` | 解析整合契約所需的認證參照 |
+
+## 非 Repository 的 Output Ports
+
+Hexagonal 分層要求事件發佈與外部交付不要混入 repository 介面。platform blueprint 因此區分以下非持久化 ports：
+
+| Output Port | 用途 |
+|---|---|
+| `DomainEventPublisher` | 發佈 domain events 到 event bus 或 topic |
+| `WorkflowDispatcherPort` | 把 workflow trigger 交給執行引擎 |
+| `NotificationGateway` | 派送 email、SMS、push、chat 等通知 |
+| `AuditSignalStore` | 寫入不可變的 audit trail |
+| `ObservabilitySink` | 發送 metrics、trace、alert |
+| `AnalyticsSink` | 發送 analytics 事件與行為指標 |
+| `ExternalSystemGateway` | 呼叫外部 API、webhook 或 queue |
+| `JobQueuePort` | 提交與追蹤背景作業 |
+| `SearchIndexPort` | 寫入搜尋索引與查詢搜尋結果 |
+| `SecretReferenceResolver` | 解析整合契約所需的密鑰或憑證參照 |
+
+## Migration-Pending Repository Ports
+
+下列 repository ports 目前定義於對應的**獨立模組**，計畫在模組合并進 platform 時成為 platform output port 契約的一部分。合并前，platform blueprint 以此為目標定義；合并後，獨立模組的同名 port 應退役。
+
+### 來自 `modules/identity/`
+
+| Port | 目標子域 | 現有方法 | 說明 |
+|---|---|---|---|
+| `IdentityRepository` | `identity` | `signIn()`, `signOut()`, `getCurrentIdentity()` | Firebase Auth 操作入口；合并後成為 `identity` 子域的 output port |
+| `TokenRefreshRepository` | `identity` | `listenToTokenRefresh()` | token 刷新訊號監聽；合并後成為 `identity` 子域的 support port |
+
+### 來自 `modules/account/`
+
+| Port | 目標子域 | 現有方法 | 說明 |
+|---|---|---|---|
+| `AccountRepository` | `account` | `save()`, `findById()`, `delete()` | 帳號聚合根倉儲；platform `AccountRepository` 已在 ports/output 有對應定義 |
+| `AccountQueryRepository` | `account` | `findById()`, `findByEmail()` | CQRS 讀取側；合并後納入 `account` 的 query port |
+| `AccountPolicyRepository` | `account` | `save()`, `findByAccountId()` | AccountPolicy 倉儲；合并後納入 `account` 子域 |
+
+### 來自 `modules/organization/`
+
+| Port | 目標子域 | 現有方法 | 說明 |
+|---|---|---|---|
+| `OrganizationRepository` | `organization` | `save()`, `findById()`, `findByMemberId()` | Organization 聚合根倉儲；合并後成為 `organization` 子域的 repository port |
+| `OrgPolicyRepository` | `organization` | 組織政策 | 組織政策規則倉儲；合并後納入 `organization` 子域 |
+
+### 來自 `modules/notification/`
+
+| Port | 目標子域 | 現有方法 | 說明 |
+|---|---|---|---|
+| `NotificationRepository` | `notification` | `save()`, `findByRecipient()`, `markAsRead()` | 通知記錄倉儲；合并後成為 `notification` 子域的 repository port |
+
+## Adapter 實作原則
+
+- repository adapter 只處理資料映射與永續化，不重寫 platform policy
+- event publisher adapter 只處理 transport 與 delivery，不擁有事件語言
+- 外部系統 gateway 應以 integration contract 為依據，不直接從 UI 或 controller 讀設定
+- infrastructure adapter 可以組合 SDK，但 SDK 細節不能回滲到 port 契約命名
+
+## Persistence 與 Delivery 的切分
+
+推薦把 platform 層的 driven adapters 至少切成三類：
+
+- state adapters：資料庫、KV、文件儲存等 repository implementations
+- messaging adapters：event publisher、queue producer、topic publisher
+- external delivery adapters：HTTP client、webhook sender、notification provider、telemetry exporter
+
+## Repository 設計規則
+
+- repository 方法名稱應描述聚合語意，不描述資料庫語意
+- application layer 只能依賴 ports，不直接依賴 adapter class
+- repository 回傳 domain model 或 read model，不回傳 adapter 原生型別
+- 若某個依賴沒有聚合狀態可載入，優先考慮把它建模成一般 output port，而不是硬塞成 repository
+- 若 `application-services.md` 引用了某個 repository 或 support port，該名稱必須在本文件出現，否則表示文件之間仍然有缺口
 ````
 
-## File: modules/platform/index.ts
+## File: modules/platform/docs/subdomains.md
+````markdown
+# Subdomains — platform
+
+本文件是 platform 的正式子域 inventory。這份清單是 **closed by default** 的：後續開發必須先把能力映射到既有子域，而不是再新增新的子域名稱。
+
+## Subdomain Rule in Hexagonal DDD
+
+- 每個子域描述的是平台核心能力，不是資料夾便利分類
+- `Port 焦點` 欄位代表該子域主要透過哪些 input/output contracts 參與六邊形邊界
+- 子域之間共享語言時，應先落地到 `ubiquitous-language.md`、`context-map.md` 與相關 ports 文件
+
+## Canonical Inventory
+
+| 子域 | 核心問題 | 主要語言 | Port 焦點 |
+|---|---|---|---|
+| `identity` | 誰是已驗證主體 | `AuthenticatedSubject`, `IdentitySignal` | `PlatformEventIngressPort`, `SubjectDirectory` |
+| `account` | 帳號聚合根與生命週期狀態 | `Account`, `AccountLifecycle` | `PlatformCommandPort`, `AccountRepository` |
+| `account-profile` | 主體有哪些可治理屬性與偏好 | `AccountProfile`, `SubjectPreference` | `PlatformEventIngressPort`, `SubjectDirectory` |
+| `organization` | 主體處於哪些組織與角色邊界 | `MembershipBoundary`, `RoleAssignment` | `PlatformEventIngressPort`, `SubjectDirectory` |
+| `access-control` | 主體現在能做什麼 | `PermissionDecision`, `AccessPolicy` | `PlatformCommandPort`, `PolicyCatalogRepository` |
+| `security-policy` | 平台安全規則如何被定義與發佈 | `PolicyCatalog`, `PolicyRule` | `PlatformCommandPort`, `PolicyCatalogRepository` |
+| `platform-config` | 平台以何種設定輪廓運作 | `ConfigurationProfile`, `ConfigurationProfileRef` | `PlatformCommandPort`, `ConfigurationProfileStore` |
+| `feature-flag` | 哪些能力在哪種條件下被打開 | `PlatformCapability`, `CapabilityToggle` | `PlatformCommandPort`, `ConfigurationProfileStore` |
+| `onboarding` | 新主體如何被引導完成初始設定 | `OnboardingFlow`, `SetupProgress` | `PlatformCommandPort`, `OnboardingRepository` |
+| `compliance` | 資料保留、隱私與法規要求如何被執行 | `CompliancePolicy`, `DataRetentionRule` | `PlatformCommandPort`, `CompliancePolicyStore` |
+| `billing` | 計費狀態、收費結果與財務證據如何被管理 | `BillingState`, `DispatchOutcome` | `PlatformCommandPort`, `DeliveryHistoryRepository`, `AuditSignalStore` |
+| `subscription` | 方案、權益、配額與有效期間如何被管理 | `SubscriptionAgreement`, `Entitlement`, `UsageLimit` | `PlatformCommandPort`, `SubscriptionAgreementRepository`, `UsageMeterRepository` |
+| `referral` | 推薦關係與獎勵如何被追蹤 | `ReferralLink`, `ReferralReward` | `PlatformCommandPort`, `ReferralRepository` |
+| `integration` | 平台如何與外部系統安全協作 | `IntegrationContract`, `DeliveryPolicy` | `PlatformCommandPort`, `IntegrationContractRepository`, `ExternalSystemGateway` |
+| `workflow` | 哪些事實要被轉成可執行流程 | `WorkflowTrigger`, `WorkflowPolicy` | `PlatformCommandPort`, `WorkflowPolicyRepository`, `WorkflowDispatcherPort` |
+| `notification` | 哪些對象應收到什麼訊息 | `NotificationDispatch`, `NotificationRoute` | `PlatformCommandPort`, `NotificationGateway`, `DeliveryHistoryRepository` |
+| `background-job` | 長時程或排程任務如何被提交與監控 | `JobSchedule`, `JobExecution` | `PlatformCommandPort`, `JobQueuePort` |
+| `content` | 內容資產如何被管理與發布 | `ContentAsset`, `PublicationState` | `PlatformCommandPort`, `ContentRepository` |
+| `search` | 跨域搜尋請求如何被路由與執行 | `SearchQuery`, `SearchResult` | `PlatformCommandPort`, `SearchIndexPort` |
+| `audit-log` | 什麼事必須被永久追蹤 | `AuditSignal`, `AuditClassification` | `PlatformCommandPort`, `AuditSignalStore` |
+| `observability` | 如何量測健康、追蹤與告警 | `ObservabilitySignal`, `HealthIndicator` | `PlatformCommandPort`, `ObservabilitySink` |
+| `analytics` | 使用行為如何被量測與分析 | `AnalyticsEvent`, `BehaviorMetric` | `PlatformCommandPort`, `AnalyticsSink` |
+| `support` | 客服工單與支援知識如何被管理 | `SupportTicket`, `KnowledgeArticle` | `PlatformCommandPort`, `SupportRepository` |
+
+## Capability Groups
+
+### 主體與名錄
+
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+
+### 治理與安全
+
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+
+### 商業與權益
+
+- `billing`
+- `subscription`
+- `referral`
+
+### 流程與交付
+
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+
+### 內容與檢索
+
+- `content`
+- `search`
+
+### 證據與診斷
+
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
+
+## Migration-Pending Subdomains
+
+以下五個 platform 子域目前在 repository 中存在對應的**獨立模組**。這些獨立模組是子域的**前身實作**，計畫在未來重構中合并進 platform。
+
+| 子域 | 對應獨立模組 | 合并方向說明 |
+|---|---|---|
+| `identity` | `modules/identity/` | `Identity`, `TokenRefreshSignal`, `IdentityRepository`, `TokenRefreshRepository` → 吸收進 `identity` 子域 |
+| `account` | `modules/account/` | `Account`, `AccountPolicy`, `AccountRepository`, `AccountQueryRepository`, `AccountPolicyRepository` → 吸收進 `account` 子域 |
+| `account-profile` | `modules/account/` | `AccountProfile` 概念目前住在 `account` 模組；獨立的 profile 治理能力 → 吸收進 `account-profile` 子域 |
+| `organization` | `modules/organization/` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`, `OrganizationRepository`, `OrgPolicyRepository` → 吸收進 `organization` 子域 |
+| `notification` | `modules/notification/` | `NotificationEntity`, `NotificationRepository`，目前為 conformist 消費者 → 吸收進 `notification` 子域 |
+
+**重構規則：** 合并前，platform 的語言、port 契約與事件命名以本 blueprint 文件為準；合并後，獨立模組應廢棄並指向 `modules/platform/`。
+
+## Inventory Freeze Rule
+
+後續若有人想新增 platform 子域，必須先證明以下三件事都成立：
+
+1. 既有 23 個子域沒有任何一個能吸收該能力
+2. 新能力需要獨立的語言、port 焦點與責任邊界
+3. `README.md`、`bounded-context.md`、`context-map.md`、本文件都已先被更新
+
+若無法同時滿足這三件事，預設不允許新增子域。
+````
+
+## File: modules/platform/docs/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — platform
+
+本文件定義 platform blueprint 的穩定術語。這些詞用來讓 domain、application、ports、adapters 與子域文件保持一致，避免平台層隨著需求變動而出現多套互不相容的說法。
+
+## 核心術語
+
+| 術語 | 英文 | 定義 |
+|---|---|---|
+| 平台範圍 | PlatformContext | 一個受治理的 platform scope，擁有能力、政策、配置與訂閱邊界 |
+| 驗證主體 | AuthenticatedSubject | 已完成身份驗證、可被映射成 platform subject scope 的主體 |
+| 身份訊號 | IdentitySignal | 與主體登入、刷新、失效有關的事實訊號 |
+| 平台能力 | PlatformCapability | 可被啟用、停用、限流或受 entitlement 約束的能力 |
+| 能力開關 | CapabilityToggle | 某個 capability 在特定範圍中的生效狀態 |
+| 主體邊界 | SubjectScope | actor、account、organization 的治理範圍 |
+| 帳戶輪廓 | AccountProfile | 主體可被治理的屬性視圖 |
+| 主體偏好 | SubjectPreference | 主體在通知、體驗或交付上的偏好 |
+| 成員邊界 | MembershipBoundary | 主體在群組或組織中的歸屬邊界 |
+| 角色指派 | RoleAssignment | 主體在某個範圍內被授予的角色 |
+| 政策目錄 | PolicyCatalog | 權限、工作流、通知與稽核規則的版本化集合 |
+| 規則 | PolicyRule | 以 `subject`, `condition`, `effect` 表達的政策條目 |
+| 存取政策 | AccessPolicy | 用來推導 `PermissionDecision` 的政策集合或視圖 |
+| 配置輪廓 | ConfigurationProfile | 一組可被套用的設定與策略值 |
+| 配置輪廓參照 | ConfigurationProfileRef | 指向某份生效配置輪廓的參照 |
+| 整合契約 | IntegrationContract | 與外部系統互動所需的 endpoint、協議與 delivery policy |
+| 端點參照 | EndpointRef | 指向外部 endpoint 的穩定參照 |
+| 憑證參照 | SecretReference | 指向秘密、憑證或 token 的穩定參照 |
+| 派送政策 | DeliveryPolicy | timeout、retry、backoff、idempotency 的組合 |
+| 方案限制 | PlanConstraint | 訂閱方案對能力、流程或交付所施加的限制 |
+| 交付許可 | DeliveryAllowance | 在當前條件下某個交付是否被允許 |
+| 權限決策 | PermissionDecision | 對某主體是否可執行某動作的明確判斷 |
+| 訂閱協議 | SubscriptionAgreement | 方案、權益、限制與有效期間的商業邊界 |
+| 權益 | Entitlement | 某方案允許使用的 capability 或額度 |
+| 用量限制 | UsageLimit | 對使用量、頻率或配額的限制 |
+| 推薦連結 | ReferralLink | 推薦關係的識別與追蹤語言 |
+| 推薦獎勵 | ReferralReward | 推薦成功後可被核算與發放的獎勵語言 |
+| 生效區間 | EffectivePeriod | 某份協議、設定或規則的有效期間 |
+| 平台生命週期狀態 | PlatformLifecycleState | `draft | active | suspended | retired` |
+| 契約狀態 | ContractState | `draft | active | paused | revoked` |
+| 計費狀態 | BillingState | `pending | active | delinquent | expired | cancelled` |
+| 工作流觸發器 | WorkflowTrigger | 把某個平台事實轉成流程啟動點的語言 |
+| 工作流政策 | WorkflowPolicy | 用來規定 trigger 何時啟動、延後、抑制或升級的規則 |
+| 作業排程 | JobSchedule | 背景任務何時執行與重試策略的語言 |
+| 作業執行 | JobExecution | 背景任務一次執行結果與狀態的語言 |
+| 通知派送 | NotificationDispatch | 一次待交付的通知請求 |
+| 通知路由 | NotificationRoute | 通知應走的通道與對象語言 |
+| 派送結果 | DispatchOutcome | 一次交付成功、失敗、跳過或延後的結果 |
+| 內容資產 | ContentAsset | 可被治理、發布與檢索的內容單位語言 |
+| 發布狀態 | PublicationState | 內容在草稿、審核、發布等狀態中的語言 |
+| 搜尋結果 | SearchResult | 對 `SearchQuery` 的可消費回應語言 |
+| 稽核訊號 | AuditSignal | 必須被永久記錄的決策或行為事實 |
+| 稽核分類 | AuditClassification | 用來決定 audit signal 嚴重度與保留要求的分類 |
+| 可觀測性訊號 | ObservabilitySignal | metrics、trace、alert 等診斷輸入的統一語言 |
+| 健康指標 | HealthIndicator | 用來表達系統健康、退化或告警狀態的指標語言 |
+| 分析事件 | AnalyticsEvent | 可被聚合與分析的行為訊號語言 |
+| 支援工單 | SupportTicket | 客服互動與追蹤案件的語言 |
+| 知識文章 | KnowledgeArticle | 支援流程中引用的知識內容語言 |
+| 資源描述子 | ResourceDescriptor | 權限或 workflow 決策所面向的資源描述 |
+| 關聯上下文 | CorrelationContext | 用來串接 workflow、integration、notification、audit 的追蹤語言 |
+| 公開邊界 | PublicBoundary | 對其他模組暴露的穩定 boundary，於 platform 中即 `api/` |
+| 發佈語言 | PublishedLanguage | 跨邊界共享的事件與契約語言 |
+| 藍圖 | Blueprint | 對目標結構與語言的設計說明，而非既有實作聲明 |
+
+## Port Vocabulary
+
+| 術語 | 英文 | 定義 |
+|---|---|---|
+| 平台命令介面 | PlatformCommandPort | 接收命令型請求的 input port |
+| 平台查詢介面 | PlatformQueryPort | 接收查詢型請求的 input port |
+| 平台事件匯入介面 | PlatformEventIngressPort | 吸收外部或相鄰子域訊號的 input port |
+| 使用案例處理器 | UseCaseHandler | 實作 input port、協調 domain 與 output ports 的 application service |
+| 倉儲介面 | RepositoryPort | 載入與保存聚合狀態的 output port |
+| 查詢介面 | QueryPort | 提供 read model / projection 的 output port |
+| 支援介面 | SupportPort | 提供查表、設定或目錄資料的 output port |
+| 事件發佈器 | DomainEventPublisher | 發佈 domain events 的 output port |
+| 配置輪廓儲存介面 | ConfigurationProfileStore | 提供 configuration profile 的 support port |
+| 主體目錄 | SubjectDirectory | 提供帳戶輪廓、偏好與角色資料的 support port |
+| 帳戶倉儲 | AccountRepository | 提供 account 聚合狀態存取的 repository port |
+| 啟用引導倉儲 | OnboardingRepository | 提供 onboarding 流程狀態存取的 repository port |
+| 合規政策儲存介面 | CompliancePolicyStore | 提供 compliance 規則與保留策略的 support port |
+| 推薦倉儲 | ReferralRepository | 提供推薦關係與獎勵狀態存取的 repository port |
+| 工作流政策倉儲 | WorkflowPolicyRepository | 提供 workflow policy 的 query/support port |
+| 工作流派送介面 | WorkflowDispatcherPort | 將 trigger 交給執行引擎的 output port |
+| 通知閘道 | NotificationGateway | 對外派送通知的 output port |
+| 作業佇列介面 | JobQueuePort | 提交與追蹤背景作業的 output port |
+| 內容倉儲 | ContentRepository | 提供 content 資產狀態存取的 repository port |
+| 搜尋索引介面 | SearchIndexPort | 提供索引寫入與搜尋查詢的 output/query port |
+| 稽核訊號儲存介面 | AuditSignalStore | 寫入不可變稽核紀錄的 output port |
+| 可觀測性匯流介面 | ObservabilitySink | 發送 metrics、trace、alert 的 output port |
+| 分析匯流介面 | AnalyticsSink | 發送分析事件與行為指標的 output port |
+| 支援倉儲 | SupportRepository | 提供支援工單與知識關聯的 repository port |
+| 密鑰參照解析器 | SecretReferenceResolver | 解析憑證參照的 support port |
+| 驅動適配器 | DrivingAdapter | 把 HTTP、CLI、scheduler、webhook 等輸入翻譯成 input port 語言的 adapter |
+| 受驅動適配器 | DrivenAdapter | 實作 repository、gateway、sink 等 output ports 的 adapter |
+
+## 事件語言
+
+platform 事件推薦使用：
+
+```text
+<subdomain>.<fact>
+```
+
+例如：
+
+- `platform.context_registered`
+- `policy.catalog_published`
+- `workflow.trigger_fired`
+- `notification.dispatch_requested`
+- `audit.signal_recorded`
+
+## Migration-Pending 術語（計畫吸收模組）
+
+下列術語目前由對應的**獨立模組**定義，在合并進 platform 後應以本表的定義為準。若與獨立模組現有命名有差異，合并時以本表為遷移目標。
+
+### 來自 `modules/identity/`
+
+| 術語 | 英文 | platform 對應概念 | 定義 |
+|---|---|---|---|
+| 身份 | Identity | `AuthenticatedSubject` | Firebase Auth 驗證後的使用者記錄，以 `uid` 為唯一識別碼；合并後以 `AuthenticatedSubject` 作為 platform 語言 |
+| 唯一身份碼 | uid | SubjectId | Firebase Authentication 產生的使用者全域唯一 ID |
+| Token 刷新訊號 | TokenRefreshSignal | IdentitySignal | 代表 Firebase ID token 需要更新的訊號；合并後作為 `IdentitySignal` 的一種 |
+
+### 來自 `modules/account/`
+
+| 術語 | 英文 | platform 對應概念 | 定義 |
+|---|---|---|---|
+| 帳戶 | Account | Account（同名） | 使用者在平台的業務記錄，含 profile 資訊與狀態 |
+| 帳戶政策 | AccountPolicy | PolicyRule（account context） | 附加到帳戶的存取控制政策，決定 Firebase custom claims 內容 |
+| 帳戶 ID | accountId | SubjectScope 的組成部分 | Account 的業務主鍵（對應 Firebase uid，但在業務層使用 accountId 術語） |
+| 自訂宣告 | customClaims | — | Firebase ID token 中的自訂 claims；合并後以 platform `Entitlement` 語言統一表達 |
+
+### 來自 `modules/organization/`
+
+| 術語 | 英文 | platform 對應概念 | 定義 |
+|---|---|---|---|
+| 組織 | Organization | Organization（同名） | 頂層多租戶單元，代表一個企業或團隊 |
+| 成員參照 | MemberReference | MembershipBoundary 的組成 | 組織成員的輕量參照（含 accountId、role、presence） |
+| 隊伍 | Team | — | 組織內的子群組（internal / external 類型） |
+| 合作夥伴邀請 | PartnerInvite | — | 邀請外部合作夥伴加入隊伍的邀請記錄 |
+| 組織角色 | OrganizationRole | RoleAssignment 的值域 | `Owner \| Admin \| Member \| Guest` |
+| 在線狀態 | Presence | — | `active \| away \| offline` |
+| 邀請狀態 | InviteState | — | `pending \| accepted \| expired` |
+
+### 來自 `modules/notification/`
+
+| 術語 | 英文 | platform 對應概念 | 定義 |
+|---|---|---|---|
+| 通知實體 | NotificationEntity | NotificationDispatch（合并後） | 一則系統通知記錄（含標題、內容、類型、讀取狀態） |
+| 接收者 ID | recipientId | NotificationRoute 的對象語言 | 接收此通知的帳戶 ID |
+| 通知類型 | NotificationType | — | `info \| alert \| success \| warning` |
+
+## 禁止替換術語
+
+| 正確 | 不建議替換成 |
+|---|---|
+| `PlatformContext` | Tenant, Workspace, Environment |
+| `PlatformCapability` | Feature, Switch, Module |
+| `PolicyCatalog` | Settings Bag, Rule Dump |
+| `IntegrationContract` | Webhook Config, Endpoint Settings |
+| `SubscriptionAgreement` | Plan, Billing Row |
+| `PermissionDecision` | Auth Result, Check Flag |
+| `WorkflowTrigger` | background-job, Task Hook |
+| `NotificationDispatch` | Message Send, Push Action |
+| `AuditSignal` | Log Line, History Row |
+| `ObservabilitySignal` | Error Message, Console Output |
+| `InputPort` | Controller Method |
+| `OutputPort` | SDK Call |
+| `PublicBoundary` | Barrel File |
+
+## 語言使用規則
+
+- 若一個詞描述的是業務決策，應優先用 domain 語言，而不是 transport 語言
+- 若一個詞描述的是跨邊界共享契約，應優先保持簡短、穩定且可序列化
+- 若一個詞只在單一 adapter 有意義，不應升格成 platform 通用語言
+- 若新詞與既有詞重疊，先擴充定義，再考慮新增術語
+- 若一個詞其實是 boundary 角色，應明確區分 `PublicBoundary`、`InputPort`、`OutputPort` 與 `Adapter`
+````
+
+## File: modules/platform/domain/events/index.ts
 ````typescript
 /**
- * platform local module entry.
+ * platform domain event language.
  *
- * Prefer importing from ./api for cross-module access.
+ * Single source of truth for all platform event type constants.
+ * events/contracts re-exports from here; do not define event types elsewhere.
  */
 
-export * from "./api";
-````
+export interface PlatformDomainEvent<TPayload = Record<string, unknown>> {
+	type: string;
+	aggregateType: string;
+	aggregateId: string;
+	contextId: string;
+	occurredAt: string;
+	version: number;
+	correlationId?: string;
+	causationId?: string;
+	actorId?: string;
+	payload: TPayload;
+}
 
-## File: modules/platform/infrastructure/cache/index.ts
-````typescript
-/**
- * platform cache infrastructure placeholder module.
- */
+// ─── PlatformContext aggregate events ────────────────────────────────────────
+export const PLATFORM_CONTEXT_REGISTERED_EVENT_TYPE = "platform.context_registered" as const;
+export const PLATFORM_CAPABILITY_ENABLED_EVENT_TYPE = "platform.capability_enabled" as const;
+export const PLATFORM_CAPABILITY_DISABLED_EVENT_TYPE = "platform.capability_disabled" as const;
 
-export const PLATFORM_INFRA_CACHE_FACTORIES = [
-	"createCachedPlatformContextViewRepository",
-	"createCachedPolicyCatalogViewRepository",
-	"createCachedUsageMeterRepository",
+// ─── PolicyCatalog aggregate events ──────────────────────────────────────────
+export const POLICY_CATALOG_PUBLISHED_EVENT_TYPE = "policy.catalog_published" as const;
+
+// ─── Configuration events (PlatformContext orchestration) ────────────────────
+export const CONFIG_PROFILE_APPLIED_EVENT_TYPE = "config.profile_applied" as const;
+
+// ─── Permission domain service events ────────────────────────────────────────
+export const PERMISSION_DECISION_RECORDED_EVENT_TYPE = "permission.decision_recorded" as const;
+
+// ─── IntegrationContract aggregate events ────────────────────────────────────
+export const INTEGRATION_CONTRACT_REGISTERED_EVENT_TYPE = "integration.contract_registered" as const;
+export const INTEGRATION_DELIVERY_FAILED_EVENT_TYPE = "integration.delivery_failed" as const;
+
+// ─── SubscriptionAgreement aggregate events ───────────────────────────────────
+export const SUBSCRIPTION_AGREEMENT_ACTIVATED_EVENT_TYPE = "subscription.agreement_activated" as const;
+
+// ─── Application-layer owned events ──────────────────────────────────────────
+export const ONBOARDING_FLOW_COMPLETED_EVENT_TYPE = "onboarding.flow_completed" as const;
+export const COMPLIANCE_POLICY_VERIFIED_EVENT_TYPE = "compliance.policy_verified" as const;
+export const REFERRAL_REWARD_RECORDED_EVENT_TYPE = "referral.reward_recorded" as const;
+export const WORKFLOW_TRIGGER_FIRED_EVENT_TYPE = "workflow.trigger_fired" as const;
+export const BACKGROUND_JOB_ENQUEUED_EVENT_TYPE = "background-job.enqueued" as const;
+export const CONTENT_ASSET_PUBLISHED_EVENT_TYPE = "content.asset_published" as const;
+export const SEARCH_QUERY_EXECUTED_EVENT_TYPE = "search.query_executed" as const;
+export const NOTIFICATION_DISPATCH_REQUESTED_EVENT_TYPE = "notification.dispatch_requested" as const;
+export const AUDIT_SIGNAL_RECORDED_EVENT_TYPE = "audit.signal_recorded" as const;
+export const OBSERVABILITY_SIGNAL_EMITTED_EVENT_TYPE = "observability.signal_emitted" as const;
+export const ANALYTICS_EVENT_RECORDED_EVENT_TYPE = "analytics.event_recorded" as const;
+export const SUPPORT_TICKET_OPENED_EVENT_TYPE = "support.ticket_opened" as const;
+
+// ─── All-events catalogue ─────────────────────────────────────────────────────
+export const PLATFORM_DOMAIN_EVENT_TYPES = [
+	PLATFORM_CONTEXT_REGISTERED_EVENT_TYPE,
+	PLATFORM_CAPABILITY_ENABLED_EVENT_TYPE,
+	PLATFORM_CAPABILITY_DISABLED_EVENT_TYPE,
+	POLICY_CATALOG_PUBLISHED_EVENT_TYPE,
+	CONFIG_PROFILE_APPLIED_EVENT_TYPE,
+	PERMISSION_DECISION_RECORDED_EVENT_TYPE,
+	INTEGRATION_CONTRACT_REGISTERED_EVENT_TYPE,
+	INTEGRATION_DELIVERY_FAILED_EVENT_TYPE,
+	SUBSCRIPTION_AGREEMENT_ACTIVATED_EVENT_TYPE,
+	ONBOARDING_FLOW_COMPLETED_EVENT_TYPE,
+	COMPLIANCE_POLICY_VERIFIED_EVENT_TYPE,
+	REFERRAL_REWARD_RECORDED_EVENT_TYPE,
+	WORKFLOW_TRIGGER_FIRED_EVENT_TYPE,
+	BACKGROUND_JOB_ENQUEUED_EVENT_TYPE,
+	CONTENT_ASSET_PUBLISHED_EVENT_TYPE,
+	SEARCH_QUERY_EXECUTED_EVENT_TYPE,
+	NOTIFICATION_DISPATCH_REQUESTED_EVENT_TYPE,
+	AUDIT_SIGNAL_RECORDED_EVENT_TYPE,
+	OBSERVABILITY_SIGNAL_EMITTED_EVENT_TYPE,
+	ANALYTICS_EVENT_RECORDED_EVENT_TYPE,
+	SUPPORT_TICKET_OPENED_EVENT_TYPE,
 ] as const;
 
-export type PlatformInfraCacheFactory = (typeof PLATFORM_INFRA_CACHE_FACTORIES)[number];
+export type PlatformDomainEventType = (typeof PLATFORM_DOMAIN_EVENT_TYPES)[number];
 ````
 
-## File: modules/platform/infrastructure/db/index.ts
+## File: modules/platform/ports/input/index.ts
 ````typescript
 /**
- * platform database infrastructure placeholder module.
+ * platform input ports.
  */
 
-export const PLATFORM_INFRA_DB_FACTORIES = [
-	"createDbPlatformContextRepository",
-	"createDbPolicyCatalogRepository",
-	"createDbIntegrationContractRepository",
-	"createDbSubscriptionAgreementRepository",
-] as const;
+import type { PlatformDomainEvent } from "../../domain/events";
 
-export type PlatformInfraDbFactory = (typeof PLATFORM_INFRA_DB_FACTORIES)[number];
+export type PlatformCommandName =
+	| "registerPlatformContext"
+	| "publishPolicyCatalog"
+	| "applyConfigurationProfile"
+	| "registerIntegrationContract"
+	| "activateSubscriptionAgreement"
+	| "fireWorkflowTrigger"
+	| "requestNotificationDispatch"
+	| "recordAuditSignal"
+	| "emitObservabilitySignal";
+
+export type PlatformQueryName =
+	| "getPlatformContextView"
+	| "listEnabledCapabilities"
+	| "getPolicyCatalogView"
+	| "getSubscriptionEntitlements"
+	| "getWorkflowPolicyView";
+
+export interface PlatformCommand<TName extends PlatformCommandName = PlatformCommandName, TPayload = unknown> {
+	name: TName;
+	payload: TPayload;
+}
+
+export interface PlatformQuery<TName extends PlatformQueryName = PlatformQueryName, TPayload = unknown> {
+	name: TName;
+	payload: TPayload;
+}
+
+export interface PlatformCommandResult {
+	ok: boolean;
+	code?: string;
+	message?: string;
+	metadata?: Record<string, unknown>;
+}
+
+export interface PlatformCommandPort {
+	executeCommand<TCommand extends PlatformCommand>(command: TCommand): Promise<PlatformCommandResult>;
+}
+
+export interface PlatformQueryPort {
+	executeQuery<TResult, TQuery extends PlatformQuery>(query: TQuery): Promise<TResult>;
+}
+
+export interface PlatformEventIngressPort {
+	ingestEvent(event: PlatformDomainEvent): Promise<void>;
+}
 ````
 
-## File: modules/platform/infrastructure/email/index.ts
+## File: modules/platform/ports/output/index.ts
 ````typescript
 /**
- * platform email infrastructure placeholder module.
+ * platform output ports.
  */
 
-export const PLATFORM_INFRA_EMAIL_FACTORIES = [
-	"createEmailNotificationGateway",
-] as const;
+import type { PlatformCommandResult } from "../input";
+import type { PlatformDomainEvent } from "../../domain/events";
 
-export type PlatformInfraEmailFactory = (typeof PLATFORM_INFRA_EMAIL_FACTORIES)[number];
-````
+export interface PlatformContextRepository {
+	findById(contextId: string): Promise<unknown | null>;
+	save(context: unknown): Promise<void>;
+}
 
-## File: modules/platform/infrastructure/index.ts
-````typescript
-/**
- * platform infrastructure layer barrel.
- */
+export interface PolicyCatalogRepository {
+	findActiveByContextId(contextId: string): Promise<unknown | null>;
+	saveRevision(catalog: unknown): Promise<void>;
+}
 
-export * from "./cache";
-export * from "./db";
-export * from "./email";
-export * from "./messaging";
-export * from "./monitoring";
-export * from "./storage";
-````
+export interface IntegrationContractRepository {
+	findById(integrationContractId: string): Promise<unknown | null>;
+	save(contract: unknown): Promise<void>;
+}
 
-## File: modules/platform/infrastructure/messaging/index.ts
-````typescript
-/**
- * platform messaging infrastructure placeholder module.
- */
+export interface SubscriptionAgreementRepository {
+	findEffectiveByContextId(contextId: string): Promise<unknown | null>;
+	save(agreement: unknown): Promise<void>;
+}
 
-export const PLATFORM_INFRA_MESSAGING_FACTORIES = [
-	"createMessagingDomainEventPublisher",
-	"createMessagingWorkflowDispatcher",
-	"createMessagingJobQueuePort",
-] as const;
+export interface AccountRepository {
+	findById(accountId: string): Promise<unknown | null>;
+}
 
-export type PlatformInfraMessagingFactory = (typeof PLATFORM_INFRA_MESSAGING_FACTORIES)[number];
-````
+export interface OnboardingRepository {
+	findById(onboardingId: string): Promise<unknown | null>;
+}
 
-## File: modules/platform/infrastructure/monitoring/index.ts
-````typescript
-/**
- * platform monitoring infrastructure placeholder module.
- */
+export interface CompliancePolicyStore {
+	getPolicy(policyRef: string): Promise<unknown | null>;
+}
 
-export const PLATFORM_INFRA_MONITORING_FACTORIES = [
-	"createMetricsObservabilitySink",
-	"createTracingObservabilitySink",
-	"createAnalyticsSink",
-] as const;
+export interface ReferralRepository {
+	findById(referralId: string): Promise<unknown | null>;
+}
 
-export type PlatformInfraMonitoringFactory = (typeof PLATFORM_INFRA_MONITORING_FACTORIES)[number];
-````
+export interface ContentRepository {
+	findById(contentId: string): Promise<unknown | null>;
+}
 
-## File: modules/platform/infrastructure/storage/index.ts
-````typescript
-/**
- * platform storage infrastructure placeholder module.
- */
+export interface SupportRepository {
+	findById(ticketId: string): Promise<unknown | null>;
+}
 
-export const PLATFORM_INFRA_STORAGE_FACTORIES = [
-	"createStorageAuditSignalStore",
-	"createStorageDeliveryHistoryRepository",
-	"createStorageContentRepository",
-] as const;
+export interface PlatformContextView {
+	contextId: string;
+	lifecycleState: string;
+	capabilityKeys: string[];
+}
 
-export type PlatformInfraStorageFactory = (typeof PLATFORM_INFRA_STORAGE_FACTORIES)[number];
-````
+export interface PolicyCatalogView {
+	contextId: string;
+	revision: number;
+	permissionRuleCount: number;
+	workflowRuleCount: number;
+	notificationRuleCount: number;
+	auditRuleCount: number;
+}
 
-## File: modules/platform/ports/index.ts
-````typescript
-/**
- * platform ports barrel.
- */
+export interface SubscriptionEntitlementsView {
+	contextId: string;
+	planCode: string;
+	entitlements: string[];
+	usageLimits: string[];
+}
 
-export * from "./input";
-export * from "./output";
-````
+export interface WorkflowPolicyView {
+	contextId: string;
+	triggerKey: string;
+	enabled: boolean;
+}
 
-## File: modules/platform/shared/constants/index.ts
-````typescript
-/**
- * platform shared constants placeholder module.
- */
+export interface PlatformContextViewRepository {
+	getView(contextId: string): Promise<PlatformContextView | null>;
+}
 
-export const PLATFORM_SHARED_CONSTANT_GROUPS = [
-	"PlatformLifecycleConstants",
-	"PlatformEventTypeConstants",
-	"PlatformErrorCodeConstants",
-] as const;
+export interface PolicyCatalogViewRepository {
+	getView(contextId: string): Promise<PolicyCatalogView | null>;
+}
 
-export type PlatformSharedConstantGroup = (typeof PLATFORM_SHARED_CONSTANT_GROUPS)[number];
-````
+export interface UsageMeterRepository {
+	getEntitlementsView(contextId: string): Promise<SubscriptionEntitlementsView | null>;
+}
 
-## File: modules/platform/shared/errors/index.ts
-````typescript
-/**
- * platform shared errors placeholder module.
- */
+export interface DeliveryHistoryRepository {
+	listByContext(contextId: string): Promise<readonly unknown[]>;
+}
 
-export const PLATFORM_SHARED_ERROR_FACTORIES = [
-	"createEntitlementDeniedError",
-	"createPolicyConflictError",
-	"createDeliveryNotAllowedError",
-] as const;
+export interface WorkflowPolicyRepository {
+	getView(contextId: string, triggerKey: string): Promise<WorkflowPolicyView | null>;
+}
 
-export type PlatformSharedErrorFactory = (typeof PLATFORM_SHARED_ERROR_FACTORIES)[number];
-````
+export interface ConfigurationProfileStore {
+	getProfile(profileRef: string): Promise<unknown | null>;
+}
 
-## File: modules/platform/shared/index.ts
-````typescript
-/**
- * platform shared utilities barrel.
- */
+export interface SubjectDirectory {
+	getSubject(subjectId: string): Promise<unknown | null>;
+}
 
-export * from "./constants";
-export * from "./errors";
-export * from "./types";
-export * from "./utils";
-export * from "./value-objects";
-````
+export interface SecretReferenceResolver {
+	resolve(secretRef: string): Promise<string>;
+}
 
-## File: modules/platform/shared/types/index.ts
-````typescript
-/**
- * platform shared types placeholder module.
- */
+export interface DomainEventPublisher {
+	publish(events: readonly PlatformDomainEvent[]): Promise<void>;
+}
 
-export const PLATFORM_SHARED_TYPE_GROUPS = [
-	"CorrelationContextType",
-	"ResourceDescriptorType",
-	"DispatchOutcomeType",
-] as const;
+export interface WorkflowDispatcherPort {
+	dispatch(triggerKey: string, payload: Record<string, unknown>): Promise<PlatformCommandResult>;
+}
 
-export type PlatformSharedTypeGroup = (typeof PLATFORM_SHARED_TYPE_GROUPS)[number];
-````
+export interface NotificationGateway {
+	dispatch(request: Record<string, unknown>): Promise<PlatformCommandResult>;
+}
 
-## File: modules/platform/shared/utils/index.ts
-````typescript
-/**
- * platform shared utilities placeholder module.
- */
+export interface AuditSignalStore {
+	write(signal: Record<string, unknown>): Promise<void>;
+}
 
-export const PLATFORM_SHARED_UTILITY_FUNCTIONS = [
-	"buildCorrelationId",
-	"buildCausationId",
-	"toIsoTimestamp",
-	"assertNever",
-] as const;
+export interface ObservabilitySink {
+	emit(signal: Record<string, unknown>): Promise<void>;
+}
 
-export type PlatformSharedUtilityFunction = (typeof PLATFORM_SHARED_UTILITY_FUNCTIONS)[number];
-````
+export interface AnalyticsSink {
+	record(event: Record<string, unknown>): Promise<void>;
+}
 
-## File: modules/platform/shared/value-objects/index.ts
-````typescript
-/**
- * platform shared value-object derivation inventory.
- */
+export interface ExternalSystemGateway {
+	call(request: Record<string, unknown>): Promise<PlatformCommandResult>;
+}
 
-export const PLATFORM_SHARED_VALUE_OBJECT_TYPES = [
-	"PlatformContextId",
-	"PolicyCatalogId",
-	"IntegrationContractId",
-	"SubscriptionAgreementId",
-	"PlatformLifecycleState",
-	"ContractState",
-	"BillingState",
-	"EffectivePeriod",
-	"EndpointRef",
-	"SecretReference",
-] as const;
+export interface JobQueuePort {
+	enqueue(job: Record<string, unknown>): Promise<PlatformCommandResult>;
+}
 
-export type PlatformSharedValueObjectType = (typeof PLATFORM_SHARED_VALUE_OBJECT_TYPES)[number];
-
-export const PLATFORM_SHARED_VALUE_OBJECT_FACTORIES = [
-	"createPlatformContextId",
-	"createPolicyCatalogId",
-	"createIntegrationContractId",
-	"createSubscriptionAgreementId",
-	"createPlatformLifecycleState",
-	"createContractState",
-	"createBillingState",
-	"createEffectivePeriod",
-	"createEndpointRef",
-	"createSecretReference",
-] as const;
-
-export type PlatformSharedValueObjectFactory = (typeof PLATFORM_SHARED_VALUE_OBJECT_FACTORIES)[number];
-````
-
-## File: modules/platform/subdomains/account-profile/adapters/index.ts
-````typescript
-export { createLegacyAccountProfileApplicationAdapter } from "./create-legacy-account-profile-application.adapter";
-````
-
-## File: modules/platform/subdomains/account-profile/application/index.ts
-````typescript
-export type { LegacyAccountProfileApplicationPort } from "./legacy-account-profile-application.port";
+export interface SearchIndexPort {
+	index(document: Record<string, unknown>): Promise<void>;
+}
 ````
 
 ## File: modules/platform/subdomains/account-profile/index.ts
 ````typescript
 export * from "./application";
 export * from "./adapters";
-````
-
-## File: modules/platform/subdomains/account/adapters/index.ts
-````typescript
-export { createLegacyAccountApplicationAdapter } from "./create-legacy-account-application.adapter";
-````
-
-## File: modules/platform/subdomains/account/application/index.ts
-````typescript
-export type { LegacyAccountApplicationPort } from "./legacy-account-application.port";
+export { getUserProfile, subscribeToUserProfile } from "@/modules/account/api";
 ````
 
 ## File: modules/platform/subdomains/account/index.ts
 ````typescript
 export * from "./application";
 export * from "./adapters";
-````
-
-## File: modules/platform/subdomains/identity/adapters/index.ts
-````typescript
-export { createLegacyIdentityApplicationAdapter } from "./create-legacy-identity-application.adapter";
-````
-
-## File: modules/platform/subdomains/identity/application/index.ts
-````typescript
-export type { LegacyIdentityApplicationPort } from "./legacy-identity-application.port";
-````
-
-## File: modules/platform/subdomains/identity/index.ts
-````typescript
-export * from "./application";
-export * from "./adapters";
-````
-
-## File: modules/platform/subdomains/index.ts
-````typescript
-/**
- * platform subdomain inventory module.
- */
-
-export const PLATFORM_SUBDOMAIN_INVENTORY = [
-	"identity",
-	"account",
-	"account-profile",
-	"organization",
-	"access-control",
-	"security-policy",
-	"platform-config",
-	"feature-flag",
-	"onboarding",
-	"compliance",
-	"billing",
-	"subscription",
-	"referral",
-	"integration",
-	"workflow",
-	"notification",
-	"background-job",
-	"content",
-	"search",
-	"audit-log",
-	"observability",
-	"analytics",
-	"support",
-] as const;
-
-export type PlatformSubdomain = (typeof PLATFORM_SUBDOMAIN_INVENTORY)[number];
-````
-
-## File: modules/platform/subdomains/notification/adapters/index.ts
-````typescript
-export { createLegacyNotificationApplicationAdapter } from "./create-legacy-notification-application.adapter";
-````
-
-## File: modules/platform/subdomains/notification/application/index.ts
-````typescript
-export type { LegacyNotificationApplicationPort } from "./legacy-notification-application.port";
+export * from "@/modules/account/api";
 ````
 
 ## File: modules/platform/subdomains/notification/index.ts
 ````typescript
 export * from "./application";
 export * from "./adapters";
-````
-
-## File: modules/platform/subdomains/organization/adapters/index.ts
-````typescript
-export { createLegacyOrganizationApplicationAdapter } from "./create-legacy-organization-application.adapter";
-````
-
-## File: modules/platform/subdomains/organization/application/index.ts
-````typescript
-export type { LegacyOrganizationApplicationPort } from "./legacy-organization-application.port";
+export * from "@/modules/notification/api";
 ````
 
 ## File: modules/platform/subdomains/organization/index.ts
 ````typescript
 export * from "./application";
 export * from "./adapters";
+export * from "@/modules/organization/api";
 ````
 
 ## File: modules/source/interfaces/components/WorkspaceFilesTab.tsx
@@ -82424,6 +84537,225 @@ It is not:
 - read projection shape design details
 ````
 
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
+````typescript
+import type {
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../../domain/entities/WorkspaceMemberView";
+import type { WorkspaceQueryRepository } from "../../ports/output/WorkspaceQueryRepository";
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
+import {
+  organizationApi,
+  type OrganizationMemberDTO,
+  type OrganizationTeamDTO,
+} from "@/modules/platform/subdomains/organization";
+import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
+
+const personnelLabels = {
+  managerId: "Manager",
+  supervisorId: "Supervisor",
+  safetyOfficerId: "Safety officer",
+} as const;
+
+const personnelLabelEntries = Object.entries(personnelLabels) as Array<
+  [keyof typeof personnelLabels, string]
+>;
+
+function toPresence(value: OrganizationMemberDTO["presence"] | undefined): WorkspaceMemberPresence {
+  if (value === "active" || value === "away" || value === "offline") {
+    return value;
+  }
+
+  return "unknown";
+}
+
+function createFallbackMember(id: string): WorkspaceMemberView {
+  return {
+    id,
+    displayName: id,
+    presence: "unknown",
+    isExternal: false,
+    accessChannels: [],
+  };
+}
+
+export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
+
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ) {
+    const normalizedAccountId = accountId.trim();
+    if (!normalizedAccountId) {
+      onUpdate([]);
+      return () => {};
+    }
+
+    const q = query(
+      collection(this.db, "workspaces"),
+      where("accountId", "==", normalizedAccountId),
+    );
+
+    return onSnapshot(q, (snap) => {
+      const workspaces = snap.docs.map((docSnap) =>
+        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
+      );
+      onUpdate(workspaces);
+    });
+  }
+
+  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
+    const workspace = await this.workspaceRepo.findById(workspaceId);
+    if (!workspace) {
+      return [];
+    }
+
+    const members = new Map<string, WorkspaceMemberView>();
+    const memberChannelKeys = new Map<string, Set<string>>();
+
+    const mergeMember = (
+      memberId: string,
+      channel: WorkspaceMemberAccessChannel,
+      orgMember?: OrganizationMemberDTO,
+    ) => {
+      const current = members.get(memberId) ?? createFallbackMember(memberId);
+      const channelKey = [
+        channel.source,
+        channel.label,
+        channel.role ?? "",
+        channel.protocol ?? "",
+        channel.teamId ?? "",
+      ].join("::");
+      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
+      memberChannelKeys.set(memberId, knownChannelKeys);
+      const hasSameChannel = knownChannelKeys.has(channelKey);
+      if (!hasSameChannel) {
+        knownChannelKeys.add(channelKey);
+      }
+
+      members.set(memberId, {
+        id: memberId,
+        displayName: orgMember?.name || current.displayName,
+        email: orgMember?.email ?? current.email,
+        organizationRole: orgMember?.role ?? current.organizationRole,
+        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
+        isExternal: orgMember?.isExternal ?? current.isExternal,
+        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
+      });
+    };
+
+    if (workspace.accountType === "organization") {
+      const [organizationMembers, teams] = await Promise.all([
+        organizationApi.getMembers(workspace.accountId),
+        organizationApi.getTeams(workspace.accountId),
+      ]);
+
+      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
+      const teamMap = new Map(teams.map((team) => [team.id, team]));
+
+      const mergeTeam = (team: OrganizationTeamDTO, role?: string, protocol?: string) => {
+        const label = team.name || team.id;
+        team.memberIds.forEach((memberId) => {
+          mergeMember(
+            memberId,
+            {
+              source: "team",
+              label,
+              role,
+              protocol,
+              teamId: team.id,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        });
+      };
+
+      workspace.teamIds.forEach((teamId) => {
+        const team = teamMap.get(teamId);
+        if (team) {
+          mergeTeam(team);
+        }
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(
+            grant.userId,
+            {
+              source: "direct",
+              label: "Direct access",
+              role: grant.role,
+              protocol: grant.protocol,
+            },
+            organizationMemberMap.get(grant.userId),
+          );
+        }
+
+        if (grant.teamId) {
+          const team = teamMap.get(grant.teamId);
+          if (team) {
+            mergeTeam(team, grant.role, grant.protocol);
+          }
+        }
+      });
+
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
+        if (memberId) {
+          mergeMember(
+            memberId,
+            {
+              source: "personnel",
+              label,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        }
+      });
+    } else {
+      mergeMember(workspace.accountId, {
+        source: "owner",
+        label: "Workspace owner",
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(grant.userId, {
+            source: "direct",
+            label: "Direct access",
+            role: grant.role,
+            protocol: grant.protocol,
+          });
+        }
+      });
+
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
+        if (memberId) {
+          mergeMember(memberId, {
+            source: "personnel",
+            label,
+          });
+        }
+      });
+    }
+
+    return Array.from(members.values()).sort((left, right) =>
+      left.displayName.localeCompare(right.displayName),
+    );
+  }
+}
+````
+
 ## File: modules/workspace/interfaces/api/index.ts
 ````typescript
 /**
@@ -82685,527 +85017,1458 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/platform/api/contracts.ts
+## File: app/(public)/page.tsx
 ````typescript
+"use client";
+
 /**
- * platform API contracts boundary.
- *
- * Keep the source of truth in application/domain and re-export here for API consumers.
+ * app/(public)/page.tsx
+ * Public landing page with top-right auth entry and inline auth panel.
+ * Uses identity module use cases directly on the client so Firebase auth state
+ * actually updates AuthProvider via onAuthStateChanged.
  */
 
-export * from "../application/dtos";
-export type {
-	PlatformContextView,
-	PolicyCatalogView,
-	SubscriptionEntitlementsView,
-	WorkflowPolicyView,
-} from "../ports/output";
-export * from "../domain/events";
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
+
+import { useAuth } from "@/app/providers/auth-provider";
+import { createClientAuthUseCases } from "@/modules/platform/api";
+import { createClientAccountUseCases } from "@/modules/account/api";
+import {
+  createDevDemoUser,
+  isDevDemoCredential,
+  isLocalDevDemoAllowed,
+  writeDevDemoSession,
+} from "@/app/providers/dev-demo-auth";
+
+type Tab = "login" | "register";
+
+export default function PublicPage() {
+  const { state, dispatch } = useAuth();
+  const router = useRouter();
+
+  const [tab, setTab] = useState<Tab>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
+  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
+
+  const {
+    signInUseCase,
+    signInAnonymouslyUseCase,
+    registerUseCase,
+    sendPasswordResetEmailUseCase,
+    createUserAccountUseCase,
+  } =
+    useMemo(() => ({
+      ...createClientAuthUseCases(),
+      ...createClientAccountUseCases(),
+    }), []);
+
+  useEffect(() => {
+    if (state.status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [state.status, router]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
+        writeDevDemoSession(createDevDemoUser());
+        window.location.assign("/dashboard");
+        return;
+      }
+
+      const result =
+        tab === "login"
+          ? await signInUseCase.execute({ email, password })
+          : await registerUseCase.execute({ email, password, name });
+
+      if (!result.success) {
+        setError(result.error.message);
+        return;
+      }
+
+      if (tab === "register") {
+        const accountResult = await createUserAccountUseCase.execute(
+          result.aggregateId,
+          name,
+          email,
+        );
+        if (!accountResult.success) {
+          setError(accountResult.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleGuestAccess() {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await signInAnonymouslyUseCase.execute();
+      if (!result.success) {
+        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
+        // blocked in sandboxes), create a local guest session so the shell can be tested.
+        if (isLocalDevDemoAllowed()) {
+          const guestUser = createDevDemoUser();
+          writeDevDemoSession(guestUser);
+          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
+        } else {
+          setError(result.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handlePasswordReset() {
+    if (!email) {
+      setError("Enter your email address first.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await sendPasswordResetEmailUseCase.execute(email);
+      if (result.success) {
+        setResetSent(true);
+        setError(null);
+      } else {
+        setError(result.error.message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (state.status === "initializing") {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-background">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setResetSent(false);
+            setIsAuthPanelOpen((prev) => !prev);
+          }}
+          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+        >
+          {isAuthPanelOpen ? "Close" : "Sign In"}
+        </button>
+      </header>
+
+      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
+        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
+            Unified MDDD/Hexagonal workspace for identity, account, and organization modules.
+            Use the top-right sign in button to access your dashboard.
+          </p>
+        </div>
+
+        {isAuthPanelOpen && (
+          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
+            <div className="flex flex-col items-center pb-4 pt-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
+                <ShieldCheck className="h-7 w-7 text-primary/90" />
+              </div>
+            </div>
+
+            <div className="px-6">
+              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
+                {(["login", "register"] as Tab[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setTab(t);
+                      setError(null);
+                    }}
+                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
+                      tab === t
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t === "login" ? "Sign In" : "Register"}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                {tab === "register" && (
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
+                    <input
+                      id="register-name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your display name"
+                      required
+                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    autoComplete="email"
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
+                    {tab === "login" && (
+                      <button
+                        type="button"
+                        onClick={handlePasswordReset}
+                        className="text-xs text-primary/70 hover:text-primary"
+                      >
+                        {resetSent ? "Email sent!" : "Forgot password?"}
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    id="auth-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete={tab === "login" ? "current-password" : "new-password"}
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                {error && (
+                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : tab === "login" ? (
+                    "Enter Dimension"
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
+              </form>
+            </div>
+
+            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
+              <button
+                type="button"
+                onClick={handleGuestAccess}
+                disabled={isLoading}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
 ````
 
-## File: modules/platform/application/dtos/index.ts
+## File: app/(shell)/_components/app-rail.tsx
 ````typescript
+"use client";
+
 /**
- * platform application contracts and DTOs.
+ * Module: app-rail.tsx
+ * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
+ * Responsibilities: app logo, account context switcher, top-level section icon nav with
+ *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
+ * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
+ *   `h-full` ensures it fills the parent `h-screen` container.
  */
 
-export type PlatformCommandName =
-	| "registerPlatformContext"
-	| "publishPolicyCatalog"
-	| "applyConfigurationProfile"
-	| "registerIntegrationContract"
-	| "activateSubscriptionAgreement"
-	| "fireWorkflowTrigger"
-	| "requestNotificationDispatch"
-	| "recordAuditSignal"
-	| "emitObservabilitySignal";
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
-export type PlatformQueryName =
-	| "getPlatformContextView"
-	| "listEnabledCapabilities"
-	| "getPolicyCatalogView"
-	| "getSubscriptionEntitlements"
-	| "getWorkflowPolicyView";
+import type { AuthUser } from "@/app/providers/auth-context";
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/platform/subdomains/account";
+import { type WorkspaceEntity } from "@/modules/workspace/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+import { CreateOrganizationDialog } from "./create-organization-dialog";
+import { CreateWorkspaceDialogRail } from "./create-workspace-dialog-rail";
 
-export interface PlatformCommand<TName extends PlatformCommandName = PlatformCommandName, TPayload = unknown> {
-	name: TName;
-	payload: TPayload;
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
 }
 
-export interface PlatformQuery<TName extends PlatformQueryName = PlatformQueryName, TPayload = unknown> {
-	name: TName;
-	payload: TPayload;
+interface RailItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  /** When false the item is hidden; defaults to true */
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
 }
 
-export interface PlatformCommandResult {
-	ok: boolean;
-	code?: string;
-	message?: string;
-	metadata?: Record<string, unknown>;
+function isExactOrChildPath(targetPath: string, pathname: string) {
+  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
 }
 
-export interface RegisterPlatformContextInput {
-	contextId: string;
-	subjectScope: string;
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
 }
 
-export interface PublishPolicyCatalogInput {
-	contextId: string;
-	revision: number;
-}
+export function AppRail({
+  pathname,
+  user,
+  activeAccount,
+  organizationAccounts,
+  workspaces,
+  workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOrganizationCreated,
+  onSignOut: _onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
 
-export interface ApplyConfigurationProfileInput {
-	contextId: string;
-	profileRef: string;
-}
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
 
-export interface RegisterIntegrationContractInput {
-	contextId: string;
-	integrationContractId: string;
-	endpointRef: string;
-	protocol: "http" | "webhook" | "queue" | "topic" | "file";
-}
+  const railItems: RailItem[] = [
+    // ── Organization / hub layer ─────────────────────────────────────
+    {
+      href: "/workspace",
+      label: "工作區中心",
+      icon: <Building2 className="size-[18px]" />,
+    },
+    // ── People (org-only) ─────────────────────────────────────────
+    {
+      href: "/organization/members",
+      label: "成員",
+      icon: <UserRound className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
+    },
+    {
+      href: "/organization/teams",
+      label: "團隊",
+      icon: <Users className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
+    },
+    // ── Operations (org-only) ─────────────────────────────────────
+    {
+      href: "/organization/daily",
+      label: "每日",
+      icon: <NotebookText className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
+    },
+    {
+      href: "/organization/schedule",
+      label: "排程",
+      icon: <CalendarDays className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
+    },
+    // ── Admin (org-only) ──────────────────────────────────────────
+    {
+      href: "/organization/audit",
+      label: "稽核",
+      icon: <ClipboardList className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
+    },
+    {
+      href: "/organization/permissions",
+      label: "權限",
+      icon: <SlidersHorizontal className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
+    },
+    // ── Developer ────────────────────────────────────────────────
+    {
+      href: "/dev-tools",
+      label: "開發工具",
+      icon: <FlaskConical className="size-[18px]" />,
+    },
+  ];
 
-export interface ActivateSubscriptionAgreementInput {
-	contextId: string;
-	subscriptionAgreementId: string;
-	planCode: string;
-}
+  const visibleRailItems = railItems.filter((item) => item.show !== false);
 
-export interface FireWorkflowTriggerInput {
-	contextId: string;
-	triggerKey: string;
-	triggeredBy: string;
-}
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces],
+  );
 
-export interface RequestNotificationDispatchInput {
-	contextId: string;
-	channel: string;
-	recipientRef: string;
-	templateKey: string;
-}
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
 
-export interface RecordAuditSignalInput {
-	contextId: string;
-	signalType: string;
-	severity: string;
-}
+  return (
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        {/* ── Workspace / account logo tile ─────────────────────────── */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
 
-export interface EmitObservabilitySignalInput {
-	contextId: string;
-	signalName: string;
-	signalLevel: string;
-	sourceRef: string;
-}
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => {
+                  onSelectOrganization(account);
+                }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setIsCreateOrgOpen(true);
+              }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-export interface GetPlatformContextViewInput {
-	contextId: string;
-}
+        <div className="my-2 h-px w-7 bg-border/50" />
 
-export interface ListEnabledCapabilitiesInput {
-	contextId: string;
-}
+        {/* ── Section nav icons ─────────────────────────────────────── */}
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
 
-export interface GetPolicyCatalogViewInput {
-	contextId: string;
-}
+            if (item.href === "/workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
 
-export interface GetSubscriptionEntitlementsInput {
-	contextId: string;
-}
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        router.push("/workspace");
+                      }}
+                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
+                    >
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(`/workspace/${workspace.id}`);
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsCreateWorkspaceOpen(true);
+                      }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
 
-export interface GetWorkflowPolicyViewInput {
-	contextId: string;
-	triggerKey: string;
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        {/* ── Spacer ────────────────────────────────────────────────── */}
+        <div className="flex-1" />
+
+        <div className="h-1" />
+      </aside>
+
+      {/* ── Create organization dialog ─────────────────────────────── */}
+      <CreateOrganizationDialog
+        open={isCreateOrgOpen}
+        onOpenChange={setIsCreateOrgOpen}
+        user={user}
+        onOrganizationCreated={onOrganizationCreated}
+        onNavigate={(href) => { router.push(href); }}
+      />
+
+      {/* ── Create workspace dialog ────────────────────────────────── */}
+      <CreateWorkspaceDialogRail
+        open={isCreateWorkspaceOpen}
+        onOpenChange={setIsCreateWorkspaceOpen}
+        activeAccount={activeAccount}
+        isOrganizationAccount={isOrganizationAccount}
+        onNavigate={(href) => { router.push(href); }}
+      />
+    </TooltipProvider>
+  );
 }
 ````
 
-## File: modules/platform/docs/application-services.md
-````markdown
-# platform — Application Services
-
-platform 的 application layer 是輸入介面與 domain core 之間的協調層。application services 的工作，是接收由 driving adapters 翻譯過的請求、實作 input port 語言、協調聚合與 output ports，並回傳穩定結果。
-
-## Application Layer 職責
-
-- 接住來自 API、webhook、scheduler、queue consumer、CLI 的輸入請求
-- 將輸入模型轉成 domain 能理解的 command / query / event-ingress 語言
-- 載入聚合、呼叫聚合行為與 domain services
-- 透過 repositories 與其他 output ports 完成持久化、事件發佈與外部 side effects
-- 組裝 command result 或 query projection
-
-## Input Port Inventory
-
-| Input Port | 用途 | 主要對應的 Driving Adapters |
-|---|---|---|
-| `PlatformCommandPort` | 接收命令型請求並執行狀態變更 | API controllers, CLI commands, scheduler, webhook handlers |
-| `PlatformQueryPort` | 提供唯讀查詢與投影 | API queries, UI read adapters, reporting adapters |
-| `PlatformEventIngressPort` | 吸收外部或相鄰子域的事實訊號 | event consumers, queue consumers, callback handlers |
-
-## Use Case Execution Flow
-
-1. driving adapter 完成 transport 驗證與輸入轉譯
-2. application service 呼叫 input port 對應的 use case
-3. use case 載入聚合或必要 read models
-4. 聚合 / domain services 執行平台規則
-5. application service 透過 output ports 保存狀態與發布事件
-6. application service 回傳 command result 或 query projection
-
-## Command-oriented Services
-
-| Application Service | 主要用途 | 典型輸入 | 依賴的 Output Ports |
-|---|---|---|---|
-| `RegisterPlatformContextService` | 建立或啟用平台範圍 | `RegisterPlatformContext` | `PlatformContextRepository`, `SubscriptionAgreementRepository`, `DomainEventPublisher` |
-| `PublishPolicyCatalogService` | 發佈新的規則版本 | `PublishPolicyCatalog` | `PolicyCatalogRepository`, `DomainEventPublisher` |
-| `ApplyConfigurationProfileService` | 套用配置輪廓與 capability toggles | `ApplyConfigurationProfile` | `PlatformContextRepository`, `ConfigurationProfileStore`, `DomainEventPublisher` |
-| `RegisterIntegrationContractService` | 建立或更新外部整合契約 | `RegisterIntegrationContract` | `IntegrationContractRepository`, `SecretReferenceResolver`, `DomainEventPublisher` |
-| `ActivateSubscriptionAgreementService` | 啟用、續約或停用訂閱協議 | `ActivateSubscriptionAgreement` | `SubscriptionAgreementRepository`, `PlatformContextRepository`, `DomainEventPublisher` |
-| `FireWorkflowTriggerService` | 發出 workflow trigger 並交給下游 adapter 執行 | `FireWorkflowTrigger` | `WorkflowPolicyRepository`, `WorkflowDispatcherPort`, `DomainEventPublisher` |
-| `RequestNotificationDispatchService` | 建立通知派送請求 | `RequestNotificationDispatch` | `NotificationGateway`, `PolicyCatalogRepository`, `AuditSignalStore` |
-| `RecordAuditSignalService` | 將決策或行為寫成稽核訊號 | `RecordAuditSignal` | `AuditSignalStore`, `DomainEventPublisher` |
-| `EmitObservabilitySignalService` | 發出 metrics / trace / alert 訊號 | `EmitObservabilitySignal` | `ObservabilitySink`, `AuditSignalStore` |
-
-## Query-oriented Services
-
-| Application Service | 主要用途 | 典型輸入 | 依賴的 Query Ports |
-|---|---|---|---|
-| `GetPlatformContextViewService` | 查詢 platform 範圍總覽 | `GetPlatformContextView` | `PlatformContextViewRepository` |
-| `ListEnabledCapabilitiesService` | 列出當前可用能力 | `ListEnabledCapabilities` | `PlatformContextViewRepository`, `SubscriptionAgreementRepository` |
-| `GetPolicyCatalogViewService` | 查詢政策版本與規則摘要 | `GetPolicyCatalogView` | `PolicyCatalogViewRepository` |
-| `GetSubscriptionEntitlementsService` | 查詢方案權益與限制 | `GetSubscriptionEntitlements` | `SubscriptionAgreementRepository`, `UsageMeterRepository` |
-| `GetWorkflowPolicyViewService` | 查詢 trigger 對應的 workflow policy | `GetWorkflowPolicyView` | `WorkflowPolicyRepository`, `PolicyCatalogViewRepository` |
-
-## 計畫吸收模組的 Use Cases（Migration-Pending）
-
-下列 use cases 目前定義於對應的**獨立模組**，計畫在合并進 platform 後成為各子域 application layer 的正式 use case handlers。
-
-| 模組 | 現有 Use Case | 目標子域 | 說明 |
-|---|---|---|---|
-| `modules/identity/` | `identity.use-cases.ts` — signIn, signOut, getCurrentIdentity | `identity` | 驗證、登出與身份狀態；合并後對應 `PlatformEventIngressPort` 的身份訊號接收路徑 |
-| `modules/identity/` | `token-refresh.use-cases.ts` — refreshCustomClaims | `identity` | token 刷新觸發 custom claims 更新 |
-| `modules/account/` | `account.use-cases.ts` — createAccount, updateAccount, deleteAccount | `account` | 帳號 CRUD；合并後對應 `PlatformCommandPort` 的 `RegisterPlatformContext` 或新增 account 命令 |
-| `modules/account/` | `account-policy.use-cases.ts` — upsertPolicy | `account` | AccountPolicy 管理；合并後對齊 `PublishPolicyCatalogService` 的 account-scoped 規則 |
-| `modules/organization/` | `organization.use-cases.ts` — createOrg | `organization` | 組織建立 |
-| `modules/organization/` | `organization-lifecycle.use-cases.ts` | `organization` | 組織生命週期管理 |
-| `modules/organization/` | `organization-member.use-cases.ts` | `organization` | 成員邀請、加入、移除 |
-| `modules/organization/` | `organization-team.use-cases.ts` | `organization` | Team 管理 |
-| `modules/organization/` | `organization-partner.use-cases.ts` | `organization` | PartnerInvite 管理 |
-| `modules/organization/` | `organization-policy.use-cases.ts` | `organization` | 組織政策管理；合并後對齊 platform `PolicyCatalog` 規則 |
-| `modules/notification/` | `notification.use-cases.ts` — dispatchNotification, markAsRead | `notification` | 通知建立與已讀標記；合并後對應 `RequestNotificationDispatchService` |
-
-**合并優先序：** 建議按 `identity → account → organization → notification` 順序合并，以保持語意依賴方向。
-
-## Orchestration Rules
-
-- application services 可以協調多個 aggregates，但不應把跨聚合規則硬塞進 handler 本身
-- 所有 persistence 與 side effects 都必須透過 output ports，不直接寫在 service 裡
-- 所有 transport concern 都由 driving adapters 處理；application services 不理解 HTTP status、queue headers 或 webhook signature
-- input validation 可以在 driving adapters 與 application layer 邊界做，但 domain invariants 仍由 aggregates 與 domain services 守護
-- domain events 應在狀態持久化成功後發布，而不是先發後存
-
-## Input Ports 與 Use Case Handlers
-
-輸入請求應先表達成 input ports 定義的語言，再交由 application services 實作。這讓 API controller、message consumer、CLI 或 scheduler 都能共用同一個 use case handler，而不必把業務邏輯寫進 adapter。若新增新的 handler，但沒有對應 input port 語言，表示藍圖仍有缺口。
-
-## 輸出結果
-
-application services 應回傳兩種結果之一：
-
-- command result：描述是否成功、主體識別值與版本資訊
-- query projection：為查詢或 UI 組裝的唯讀模型
-
-無論哪一種，application services 都不應回傳 adapter-specific payload。
-````
-
-## File: modules/platform/domain/events/index.ts
+## File: app/(shell)/_components/sidebar-nav-data.tsx
 ````typescript
-/**
- * platform domain event language.
- *
- * Single source of truth for all platform event type constants.
- * events/contracts re-exports from here; do not define event types elsewhere.
- */
+import {
+  BookOpen,
+  Bot,
+  Brain,
+  Building2,
+  Database,
+  FileText,
+  UserRound,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
 
-export interface PlatformDomainEvent<TPayload = Record<string, unknown>> {
-	type: string;
-	aggregateType: string;
-	aggregateId: string;
-	contextId: string;
-	occurredAt: string;
-	version: number;
-	correlationId?: string;
-	causationId?: string;
-	actorId?: string;
-	payload: TPayload;
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/platform/subdomains/account";
+import {
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
 }
 
-// ─── PlatformContext aggregate events ────────────────────────────────────────
-export const PLATFORM_CONTEXT_REGISTERED_EVENT_TYPE = "platform.context_registered" as const;
-export const PLATFORM_CAPABILITY_ENABLED_EVENT_TYPE = "platform.capability_enabled" as const;
-export const PLATFORM_CAPABILITY_DISABLED_EVENT_TYPE = "platform.capability_disabled" as const;
+export type NavSection =
+  | "workspace"
+  | "knowledge"
+  | "knowledge-base"
+  | "knowledge-database"
+  | "source"
+  | "notebook"
+  | "ai-chat"
+  | "account"
+  | "organization"
+  | "other";
 
-// ─── PolicyCatalog aggregate events ──────────────────────────────────────────
-export const POLICY_CATALOG_PUBLISHED_EVENT_TYPE = "policy.catalog_published" as const;
+// ── Static nav constants ──────────────────────────────────────────────────────
 
-// ─── Configuration events (PlatformContext orchestration) ────────────────────
-export const CONFIG_PROFILE_APPLIED_EVENT_TYPE = "config.profile_applied" as const;
+export const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
 
-// ─── Permission domain service events ────────────────────────────────────────
-export const PERMISSION_DECISION_RECORDED_EVENT_TYPE = "permission.decision_recorded" as const;
-
-// ─── IntegrationContract aggregate events ────────────────────────────────────
-export const INTEGRATION_CONTRACT_REGISTERED_EVENT_TYPE = "integration.contract_registered" as const;
-export const INTEGRATION_DELIVERY_FAILED_EVENT_TYPE = "integration.delivery_failed" as const;
-
-// ─── SubscriptionAgreement aggregate events ───────────────────────────────────
-export const SUBSCRIPTION_AGREEMENT_ACTIVATED_EVENT_TYPE = "subscription.agreement_activated" as const;
-
-// ─── Application-layer owned events ──────────────────────────────────────────
-export const ONBOARDING_FLOW_COMPLETED_EVENT_TYPE = "onboarding.flow_completed" as const;
-export const COMPLIANCE_POLICY_VERIFIED_EVENT_TYPE = "compliance.policy_verified" as const;
-export const REFERRAL_REWARD_RECORDED_EVENT_TYPE = "referral.reward_recorded" as const;
-export const WORKFLOW_TRIGGER_FIRED_EVENT_TYPE = "workflow.trigger_fired" as const;
-export const BACKGROUND_JOB_ENQUEUED_EVENT_TYPE = "background-job.enqueued" as const;
-export const CONTENT_ASSET_PUBLISHED_EVENT_TYPE = "content.asset_published" as const;
-export const SEARCH_QUERY_EXECUTED_EVENT_TYPE = "search.query_executed" as const;
-export const NOTIFICATION_DISPATCH_REQUESTED_EVENT_TYPE = "notification.dispatch_requested" as const;
-export const AUDIT_SIGNAL_RECORDED_EVENT_TYPE = "audit.signal_recorded" as const;
-export const OBSERVABILITY_SIGNAL_EMITTED_EVENT_TYPE = "observability.signal_emitted" as const;
-export const ANALYTICS_EVENT_RECORDED_EVENT_TYPE = "analytics.event_recorded" as const;
-export const SUPPORT_TICKET_OPENED_EVENT_TYPE = "support.ticket_opened" as const;
-
-// ─── All-events catalogue ─────────────────────────────────────────────────────
-export const PLATFORM_DOMAIN_EVENT_TYPES = [
-	PLATFORM_CONTEXT_REGISTERED_EVENT_TYPE,
-	PLATFORM_CAPABILITY_ENABLED_EVENT_TYPE,
-	PLATFORM_CAPABILITY_DISABLED_EVENT_TYPE,
-	POLICY_CATALOG_PUBLISHED_EVENT_TYPE,
-	CONFIG_PROFILE_APPLIED_EVENT_TYPE,
-	PERMISSION_DECISION_RECORDED_EVENT_TYPE,
-	INTEGRATION_CONTRACT_REGISTERED_EVENT_TYPE,
-	INTEGRATION_DELIVERY_FAILED_EVENT_TYPE,
-	SUBSCRIPTION_AGREEMENT_ACTIVATED_EVENT_TYPE,
-	ONBOARDING_FLOW_COMPLETED_EVENT_TYPE,
-	COMPLIANCE_POLICY_VERIFIED_EVENT_TYPE,
-	REFERRAL_REWARD_RECORDED_EVENT_TYPE,
-	WORKFLOW_TRIGGER_FIRED_EVENT_TYPE,
-	BACKGROUND_JOB_ENQUEUED_EVENT_TYPE,
-	CONTENT_ASSET_PUBLISHED_EVENT_TYPE,
-	SEARCH_QUERY_EXECUTED_EVENT_TYPE,
-	NOTIFICATION_DISPATCH_REQUESTED_EVENT_TYPE,
-	AUDIT_SIGNAL_RECORDED_EVENT_TYPE,
-	OBSERVABILITY_SIGNAL_EMITTED_EVENT_TYPE,
-	ANALYTICS_EVENT_RECORDED_EVENT_TYPE,
-	SUPPORT_TICKET_OPENED_EVENT_TYPE,
+export const ACCOUNT_NAV_ITEMS = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
 ] as const;
 
-export type PlatformDomainEventType = (typeof PLATFORM_DOMAIN_EVENT_TYPES)[number];
+export const ACCOUNT_SECTION_MATCHERS = [
+  "/organization/daily",
+  "/organization/schedule",
+  "/organization/audit",
+] as const;
+
+export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
+  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
+  knowledge: { label: "Knowledge", icon: <BookOpen className="size-3" /> },
+  "knowledge-base": { label: "Knowledge Base", icon: <BookOpen className="size-3" /> },
+  "knowledge-database": { label: "Knowledge Database", icon: <Database className="size-3" /> },
+  source: { label: "Source", icon: <FileText className="size-3" /> },
+  notebook: { label: "Notebook", icon: <Brain className="size-3" /> },
+  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
+  account: { label: "Account", icon: <UserRound className="size-3" /> },
+  organization: { label: "組織", icon: <Users className="size-3" /> },
+  other: { label: "導覽", icon: null },
+};
+
+// ── CSS class helpers ─────────────────────────────────────────────────────────
+
+export function sidebarItemClass(active: boolean) {
+  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
+    active
+      ? "border-primary/30 bg-primary/10 text-primary"
+      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
+  }`;
+}
+
+export const sidebarSectionTitleClass =
+  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
+
+export const sidebarGroupButtonClass =
+  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
+
+// ── Pure section helpers ──────────────────────────────────────────────────────
+
+export function resolveNavSection(pathname: string): NavSection {
+  if (pathname.startsWith("/workspace")) return "workspace";
+  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
+  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
+  if (pathname.startsWith("/knowledge")) return "knowledge";
+  if (pathname.startsWith("/source")) return "source";
+  if (pathname.startsWith("/notebook")) return "notebook";
+  if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)))
+    return "account";
+  if (pathname.startsWith("/organization")) return "organization";
+  return "other";
+}
+
+export function isActiveOrganizationAccount(
+  activeAccount: ActiveAccount | null,
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
+// ── Simple section nav component ──────────────────────────────────────────────
+
+export function SimpleNavLinks({
+  items,
+  title,
+  isActiveRoute,
+}: {
+  items: readonly { href: string; label: string }[];
+  title: string;
+  isActiveRoute: (href: string) => boolean;
+}) {
+  return (
+    <nav className="space-y-0.5" aria-label={`${title} navigation`}>
+      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+        {title}
+      </p>
+      {items.map((item) => {
+        const active = isActiveRoute(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
 ````
 
-## File: modules/platform/ports/input/index.ts
+## File: app/providers/app-context.ts
 ````typescript
+"use client";
+
 /**
- * platform input ports.
+ * app-context.ts
+ * Defines the AppContext contract: the cross-cutting "active account" state.
+ *
+ * Holds the set of accounts visible to the current user plus the currently
+ * active account selection. Consumed by feature pages and sidebar nav.
  */
 
-import type { PlatformDomainEvent } from "../../domain/events";
+import { createContext, type Dispatch } from "react";
 
-export type PlatformCommandName =
-	| "registerPlatformContext"
-	| "publishPolicyCatalog"
-	| "applyConfigurationProfile"
-	| "registerIntegrationContract"
-	| "activateSubscriptionAgreement"
-	| "fireWorkflowTrigger"
-	| "requestNotificationDispatch"
-	| "recordAuditSignal"
-	| "emitObservabilitySignal";
+import type { AccountEntity } from "@/modules/platform/subdomains/account";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { AuthUser } from "./auth-context";
 
-export type PlatformQueryName =
-	| "getPlatformContextView"
-	| "listEnabledCapabilities"
-	| "getPolicyCatalogView"
-	| "getSubscriptionEntitlements"
-	| "getWorkflowPolicyView";
+export type ActiveAccount = AccountEntity | AuthUser;
 
-export interface PlatformCommand<TName extends PlatformCommandName = PlatformCommandName, TPayload = unknown> {
-	name: TName;
-	payload: TPayload;
+export interface AppState {
+  /** All organization accounts visible to the signed-in user. */
+  accounts: Record<string, AccountEntity>;
+  /** True once the first Firestore snapshot has been received. */
+  accountsHydrated: boolean;
+  /** Bootstrap phase for optimistic seeding. */
+  bootstrapPhase: "idle" | "seeded" | "hydrated";
+  /** Currently selected account (personal user account or an organization). */
+  activeAccount: ActiveAccount | null;
+  /** Currently selected workspace context under the active account. */
+  activeWorkspaceId: string | null;
+  /** Workspaces visible under the active account (single source for shell UI). */
+  workspaces: Record<string, WorkspaceEntity>;
+  /** True once the first active-account workspace snapshot has been received. */
+  workspacesHydrated: boolean;
 }
 
-export interface PlatformQuery<TName extends PlatformQueryName = PlatformQueryName, TPayload = unknown> {
-	name: TName;
-	payload: TPayload;
+export type AppAction =
+  | {
+      type: "SEED_ACTIVE_ACCOUNT";
+      payload: { user: AuthUser };
+    }
+  | {
+      type: "SET_ACCOUNTS";
+      payload: {
+        accounts: Record<string, AccountEntity>;
+        user: AuthUser;
+        preferredActiveAccountId?: string | null;
+      };
+    }
+  | {
+      type: "SET_WORKSPACES";
+      payload: {
+        workspaces: Record<string, WorkspaceEntity>;
+        hydrated: boolean;
+      };
+    }
+  | { type: "SET_ACTIVE_ACCOUNT"; payload: ActiveAccount | null }
+  | { type: "SET_ACTIVE_WORKSPACE"; payload: string | null }
+  | { type: "RESET_STATE" };
+
+export interface AppContextValue {
+  state: AppState;
+  dispatch: Dispatch<AppAction>;
 }
 
-export interface PlatformCommandResult {
-	ok: boolean;
-	code?: string;
-	message?: string;
-	metadata?: Record<string, unknown>;
+export const AppContext = createContext<AppContextValue | null>(null);
+````
+
+## File: app/providers/app-provider.tsx
+````typescript
+"use client";
+
+/**
+ * app-provider.tsx
+ * Hosts the app-level active-account lifecycle and exposes useApp().
+ *
+ * Responsibilities:
+ *  1. Watch AuthProvider state for sign-in / sign-out events
+ *  2. Subscribe to the user's visible accounts (orgs) via account module queries
+ *  3. Maintain activeAccount selection (default: personal user account from auth)
+ *  4. Expose state + dispatch via AppContext
+ */
+
+import {
+  useReducer,
+  useEffect,
+  useContext,
+  type ReactNode,
+} from "react";
+
+import { subscribeToAccountsForUser, type AccountEntity } from "@/modules/platform/subdomains/account";
+import { subscribeToWorkspacesForAccount } from "@/modules/workspace/api";
+import {
+  getWorkspaceStorageKey,
+  toWorkspaceMap,
+} from "@/modules/workspace/api";
+
+import { AppContext, type AppState, type AppAction } from "./app-context";
+import type { AuthUser } from "./auth-context";
+import { useAuth } from "./auth-provider";
+
+// ─── Initial State ────────────────────────────────────────────────────────────
+
+const LAST_ACTIVE_ACCOUNT_STORAGE_KEY = "xuanwu_last_active_account";
+
+const initialState: AppState = {
+  accounts: {},
+  accountsHydrated: false,
+  bootstrapPhase: "idle",
+  activeAccount: null,
+  activeWorkspaceId: null,
+  workspaces: {},
+  workspacesHydrated: false,
+};
+
+// ─── Reducer ──────────────────────────────────────────────────────────────────
+
+function resolveActiveAccount(
+  state: AppState,
+  accounts: Record<string, AccountEntity>,
+  user: AuthUser,
+  preferredActiveAccountId?: string | null,
+) {
+  const validIds = new Set([user.id, ...Object.keys(accounts)]);
+  const currentActiveId = state.activeAccount?.id;
+  let currentActive = null;
+
+  if (currentActiveId && validIds.has(currentActiveId)) {
+    currentActive = currentActiveId === user.id ? user : accounts[currentActiveId] ?? null;
+  }
+
+  let preferredActive = null;
+  if (preferredActiveAccountId && validIds.has(preferredActiveAccountId)) {
+    preferredActive =
+      preferredActiveAccountId === user.id
+        ? user
+        : accounts[preferredActiveAccountId] ?? null;
+  }
+
+  // During the initial seeded phase we only know about the personal account.
+  // Once the real organization snapshot arrives, prefer the last persisted
+  // account so re-login restores the user's previous working context instead of
+  // leaving them in the optimistic personal fallback.
+  if (
+    preferredActive &&
+    (!currentActive || state.bootstrapPhase === "seeded" || currentActive.id === user.id)
+  ) {
+    return preferredActive;
+  }
+
+  return currentActive ?? user;
 }
 
-export interface PlatformCommandPort {
-	executeCommand<TCommand extends PlatformCommand>(command: TCommand): Promise<PlatformCommandResult>;
+function appReducer(state: AppState, action: AppAction): AppState {
+  switch (action.type) {
+    case "SEED_ACTIVE_ACCOUNT":
+      return {
+        ...state,
+        accounts: {},
+        accountsHydrated: false,
+        bootstrapPhase: "seeded",
+        activeAccount: action.payload.user,
+        activeWorkspaceId: null,
+      };
+    case "SET_ACCOUNTS": {
+      const { accounts, user, preferredActiveAccountId } = action.payload;
+      return {
+        ...state,
+        accounts,
+        accountsHydrated: true,
+        bootstrapPhase: "hydrated",
+        activeAccount: resolveActiveAccount(state, accounts, user, preferredActiveAccountId),
+      };
+    }
+    case "SET_WORKSPACES":
+      return {
+        ...state,
+        workspaces: action.payload.workspaces,
+        workspacesHydrated: action.payload.hydrated,
+      };
+    case "SET_ACTIVE_ACCOUNT":
+      if (state.activeAccount?.id === action.payload?.id) return state;
+      return {
+        ...state,
+        activeAccount: action.payload,
+        activeWorkspaceId: null,
+        workspaces: {},
+        workspacesHydrated: false,
+      };
+    case "SET_ACTIVE_WORKSPACE":
+      if (state.activeWorkspaceId === action.payload) return state;
+      return { ...state, activeWorkspaceId: action.payload };
+    case "RESET_STATE":
+      return initialState;
+    default:
+      return state;
+  }
 }
 
-export interface PlatformQueryPort {
-	executeQuery<TResult, TQuery extends PlatformQuery>(query: TQuery): Promise<TResult>;
+// ─── Provider ─────────────────────────────────────────────────────────────────
+
+export function AppProvider({ children }: { children: ReactNode }) {
+  const { state: authState } = useAuth();
+  const { user, status } = authState;
+  const [state, dispatch] = useReducer(appReducer, initialState);
+
+  useEffect(() => {
+    if (status === "initializing") return;
+
+    if (!user) {
+      dispatch({ type: "RESET_STATE" });
+      return;
+    }
+
+    dispatch({ type: "SEED_ACTIVE_ACCOUNT", payload: { user } });
+    const preferredActiveAccountId =
+      typeof window === "undefined"
+        ? null
+        : window.localStorage.getItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
+
+    const unsubscribe = subscribeToAccountsForUser(user.id, (accounts) => {
+      dispatch({
+        type: "SET_ACCOUNTS",
+        payload: { accounts, user, preferredActiveAccountId },
+      });
+    });
+
+    return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, user?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const activeAccountId = state.activeAccount?.id;
+
+    if (!user || !activeAccountId) {
+      window.localStorage.removeItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY, activeAccountId);
+  }, [state.activeAccount?.id, user]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const activeAccountId = state.activeAccount?.id;
+    if (!activeAccountId) {
+      dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: null });
+      return;
+    }
+
+    const storedWorkspaceId = window.localStorage.getItem(getWorkspaceStorageKey(activeAccountId));
+    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: storedWorkspaceId || null });
+  }, [state.activeAccount?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const activeAccountId = state.activeAccount?.id;
+    if (!activeAccountId) return;
+
+    const storageKey = getWorkspaceStorageKey(activeAccountId);
+    if (!state.activeWorkspaceId) {
+      window.localStorage.removeItem(storageKey);
+      return;
+    }
+
+    window.localStorage.setItem(storageKey, state.activeWorkspaceId);
+  }, [state.activeAccount?.id, state.activeWorkspaceId]);
+
+  useEffect(() => {
+    const activeAccountId = state.activeAccount?.id;
+    if (!activeAccountId) {
+      dispatch({
+        type: "SET_WORKSPACES",
+        payload: { workspaces: {}, hydrated: true },
+      });
+      return;
+    }
+
+    dispatch({
+      type: "SET_WORKSPACES",
+      payload: { workspaces: {}, hydrated: false },
+    });
+
+    const unsubscribe = subscribeToWorkspacesForAccount(activeAccountId, (workspaces) => {
+      dispatch({
+        type: "SET_WORKSPACES",
+        payload: {
+          workspaces: toWorkspaceMap(workspaces),
+          hydrated: true,
+        },
+      });
+    });
+
+    return () => unsubscribe();
+  }, [state.activeAccount?.id]);
+
+  return (
+    <AppContext.Provider value={{ state, dispatch }}>
+      {children}
+    </AppContext.Provider>
+  );
 }
 
-export interface PlatformEventIngressPort {
-	ingestEvent(event: PlatformDomainEvent): Promise<void>;
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
+export function useApp() {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error("useApp must be used within AppProvider");
+  return ctx;
 }
 ````
 
-## File: modules/platform/ports/output/index.ts
+## File: modules/platform/AGENT.md
+````markdown
+# AGENT.md — platform blueprint
+
+> **強制開發規範**
+> 本 BC 領域開發必須優先確認平台邊界、通用語言與 Hexagonal + DDD 分層。
+> 若需外部官方文件驗證，先使用 Context7；若只更新 `domain/`、`application/`、`ports/` 或本地架構文件，則不讓 UI / Next.js 技能反向主導平台邊界。
+
+## 模組定位
+
+`platform` 在這裡是平台基礎能力的六邊形架構藍圖。它的任務，是保護 platform language、ports/adapters 邊界與子域協作方式，而不是把所有跨領域邏輯集中成單一巨型模組。
+
+## 計畫吸收模組（Migration-Pending Modules）
+
+以下四個獨立模組**計畫重構進 platform**。代理人在這些子域工作時，應把 platform blueprint 的語言定義視為目標規範，獨立模組的現有實作視為前身實作。
+
+| 獨立模組 | 目標子域 | 術語映射重點 |
+|---|---|---|
+| `modules/identity/` | `identity` | `Identity` → `AuthenticatedSubject`；`uid` → `SubjectId`；`TokenRefreshSignal` → `IdentitySignal` |
+| `modules/account/` | `account` + `account-profile` | `Account` 保持同名；`AccountPolicy.PolicyRule` 須對齊 `PolicyCatalog.PolicyRule`；`customClaims` → `Entitlement` |
+| `modules/organization/` | `organization` | `Organization` 保持同名；`MemberReference` → `MembershipBoundary` 的值；`OrganizationRole` 對齊 `RoleAssignment` |
+| `modules/notification/` | `notification` | `NotificationEntity` → `NotificationDispatch`；`recipientId` → `NotificationRoute` 的對象 |
+
+**合并優先序：** `identity` → `account` → `organization` → `notification`
+
+**代理人注意事項：**
+- 合并前不要把獨立模組的術語直接搬進 platform domain；先確認與 platform 語言的映射
+- 合并完成後，獨立模組的 `api/index.ts` 應重新 export 自 `modules/platform/api`，模組本身標記 deprecated
+- 若跨獨立模組與 platform 之間有協作需求，仍須透過 `modules/platform/api` 公開邊界，不得直接依賴對方 domain/application 層
+
+## Canonical Subdomain Inventory
+
+platform 的正式子域清單已固定為：
+
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+- `billing`
+- `subscription`
+- `referral`
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+- `content`
+- `search`
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
+
+這份 inventory 預設為 closed by default。代理人必須先把需求映射到這 23 個子域之一，不能為了方便再建立新的資料夾別名。
+
+## 代理人工作契約
+
+任何在 `modules/platform/` 的變更，都應遵守以下順序：
+
+1. 先確認變更屬於哪一個平台子域
+2. 再確認它是 domain rule、application orchestration、port contract、public boundary projection，還是 adapter concern
+3. 只有在語言與邊界已經穩定時，才擴張資料結構或事件名稱
+
+## 必須維持的 Hexagonal + DDD 規則
+
+- domain 只擁有模型、規則與事件語言，不直接呼叫外部系統
+- application 只協調 use cases，不定義 persistence 或 transport 細節
+- input ports 定義進入系統的請求語言
+- output ports 定義離開系統的依賴語言
+- adapters 只翻譯或實作 ports，不改寫業務語意
+- `api/` 是 platform 對外的 public boundary；它只做投影與 re-export
+- `index.ts` 不是邊界設計來源，不得被當成 public API 規格替代品
+- ports 只可依賴 `application/` 與 `domain/`，不得依賴 `api/`
+- 事件語言單一來源在 `domain/events`；`events/contracts` 僅可 re-export
+- domain events 需由 application 在持久化成功後發布
+
+## Layer Mapping
+
+| 概念 | platform 位置 |
+|---|---|
+| Public boundary | `api/` |
+| Driving adapters | `adapters/` |
+| Application | `application/` |
+| Domain core | `domain/` |
+| Input ports | `ports/input/` |
+| Output ports | `ports/output/` |
+| Driven adapters | `infrastructure/` |
+
+## 通用語言守則
+
+在 platform 文件與未來實作中，應優先使用這些詞：
+
+- `PlatformContext`
+- `PolicyCatalog`
+- `IntegrationContract`
+- `SubscriptionAgreement`
+- `PlatformCapability`
+- `PermissionDecision`
+- `WorkflowTrigger`
+- `NotificationDispatch`
+- `AuditSignal`
+- `ObservabilitySignal`
+- `PublicBoundary`
+- `UseCaseHandler`
+
+不要把這些術語隨意替換成籠統字眼，如 `settings`、`background-job`、`hook`、`status log`、`feature`、`auth result`。
+
+## 允許的修改
+
+- 新增或細化 platform 子域的語言與責任
+- 新增 input ports / output ports 以描述新的 I/O 邊界
+- 新增 application services 以表達新的 use case handlers
+- 新增 aggregates、值物件或 domain services 以承載純業務規則
+- 新增 adapters 或 infrastructure implementations 來實作既有 output ports
+
+## 禁止的修改
+
+- 在 domain 中混入 HTTP、SQL、message bus、email、metrics SDK 細節
+- 在 adapter 中定義平台政策或聚合不變數
+- 直接讓一個子域的 adapter 呼叫另一個子域的 adapter
+- 讓事件名稱承載命令語氣，例如 `please_send_notification`
+- 用臨時欄位或臨時語言繞過 `ubiquitous-language.md`
+- 用 `api/` 或 barrel 檔取代 `application/`、`domain/` 的契約來源
+
+## 文件更新規則
+
+若變更影響聚合、語言或邊界，至少同步更新以下文件：
+
+- 變更聚合或值物件：同步更新 `docs/aggregates.md` 與 `docs/ubiquitous-language.md`
+- 變更 use case handler：同步更新 `docs/application-services.md`
+- 變更 repository/output port：同步更新 `docs/repositories.md`
+- 變更 input port、support port 或 decision object：同步更新 `docs/application-services.md`、`docs/repositories.md` 與 `docs/ubiquitous-language.md`
+- 變更事件名稱或 payload：同步更新 `docs/domain-events.md`
+- 變更子域責任：同步更新 `docs/subdomains.md` 與 `docs/context-map.md`
+- 變更 platform 邊界：同步更新 `docs/bounded-context.md` 與 `README.md`
+
+## 文件分解對照
+
+`docs/README.md` 僅作為索引入口，內容必須拆分並維持以下對照：
+
+- 聚合與不變數：`docs/aggregates.md`
+- use case handlers：`docs/application-services.md`
+- 邊界責任：`docs/bounded-context.md`
+- 子域協作：`docs/context-map.md`
+- 事件語言：`docs/domain-events.md`
+- 純領域規則：`docs/domain-services.md`
+- repositories 與 ports：`docs/repositories.md`
+- 子域清單：`docs/subdomains.md`
+- 術語治理：`docs/ubiquitous-language.md`
+
+## 代理人交付標準
+
+- 優先維持語言一致性，而不是追求一次塞入所有能力
+- 優先讓 ports 穩定，再讓 adapters 成長
+- 優先用事件與契約描述跨邊界協作，而不是共享內部資料結構
+- 任何新術語都應能在 `docs/ubiquitous-language.md` 落地
+
+## 最終檢查
+
+在交付前，代理人至少自問六件事：
+
+1. 這個變更有沒有把 platform policy 泄漏到 adapter？
+2. 這個 I/O 邊界是否已經先表達成 port？
+3. 事件名稱是否描述事實而非命令？
+4. `api/` 是否仍只是 public boundary，而不是核心契約來源？
+5. 子域或 handler 提到的 ports，是否都已在 `docs/repositories.md` 明確定義？
+6. 新增術語、事件、決策物件是否都已在 `docs/ubiquitous-language.md` 與 `docs/domain-events.md` 完整落地？
+````
+
+## File: modules/platform/README.md
+````markdown
+# platform
+
+`platform` 是平台基礎能力的 Hexagonal Architecture with Domain-Driven Design 藍圖，負責主體治理、政策規則、能力啟用、跨邊界交付、稽核與可觀測性等平台底層能力。這個模組的目標，是穩定語言與邊界，而不是集中所有跨領域業務邏輯。
+
+## 邊界定位
+
+- 維持 `driving adapters -> application -> domain <- driven adapters` 的依賴方向
+- `domain/` 保持 framework-free，不引入 HTTP、DB SDK、訊息匯流排與監控 SDK
+- 所有外部輸入先表達成 `ports/input`
+- 所有外部依賴先表達成 `ports/output`，再由 `infrastructure/` 實作
+- `api/` 是對外 public boundary，只做投影與 re-export
+- `ports/` 只依賴 `application/` 與 `domain/` 契約，不依賴 `api/`
+- `index.ts` 只是模組匯出便利入口，不是邊界規格來源
+
+## Hexagonal Mapping
+
+| Hexagonal concept | platform 位置 | 說明 |
+|---|---|---|
+| Public boundary | `api/` | 跨模組公開契約投影 |
+| Driving adapters | `adapters/` | CLI、web、external ingress 等輸入端 |
+| Application | `application/` | use case orchestration、DTO、command/query 處理 |
+| Domain core | `domain/` | 聚合、值物件、domain services、domain events |
+| Input ports | `ports/input/` | 進入 application 的穩定契約 |
+| Output ports | `ports/output/` | repositories、stores、gateways、sinks |
+| Driven adapters | `infrastructure/` | 對 output ports 的具體實作 |
+| Published language | `domain/events/`, `application/dtos/` | 事件與穩定 application contracts |
+
+## 模組骨架
+
+```text
+modules/platform/
+    api/
+    adapters/
+    application/
+    domain/
+    infrastructure/
+    ports/
+    docs/
+    subdomains/
+    AGENT.md
+```
+
+## Canonical Subdomain Inventory (23)
+
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+- `billing`
+- `subscription`
+- `referral`
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+- `content`
+- `search`
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
+
+此 inventory 採 closed by default；新增子域前必須先完成文件治理與邊界論證。
+
+## 計畫吸收模組
+
+以下四個現有獨立模組將在未來重構中合并進 platform，成為對應子域的正式實作：
+
+| 獨立模組 | 目標子域 | 現有狀態 | 合并備注 |
+|---|---|---|---|
+| `modules/identity/` | `identity` | ✅ Done — 穩定 | `Identity`, `TokenRefreshSignal` → platform `AuthenticatedSubject` 語言 |
+| `modules/account/` | `account` + `account-profile` | ✅ Done — 穩定 | `Account`, `AccountPolicy`, `AccountProfile` → platform `account`/`account-profile` 子域 |
+| `modules/organization/` | `organization` | ✅ Done — 穩定 | `Organization`, `MemberReference`, `Team` → platform `organization` 子域 |
+| `modules/notification/` | `notification` | 🏗️ Midway | `NotificationEntity`, `NotificationRepository` → platform `notification` 子域 |
+
+**合并優先序：** `identity` → `account` → `organization` → `notification`
+
+合并前，platform blueprint 定義語言與 port 契約規範；獨立模組保持現有 API 介面不中斷。合并後，獨立模組的 `api/index.ts` 應指向 `modules/platform/api`，並標記為 deprecated。
+
+詳細語言映射見 [docs/ubiquitous-language.md](./docs/ubiquitous-language.md)，計畫吸收的事件見 [docs/domain-events.md](./docs/domain-events.md)，計畫吸收的倉儲見 [docs/repositories.md](./docs/repositories.md)。
+
+## 文件導覽
+
+- [docs/README.md](./docs/README.md): 文件索引與 Hexagonal DDD 閱讀路徑
+- [docs/bounded-context.md](./docs/bounded-context.md): 邊界責任、public boundary 與封板規則
+- [docs/subdomains.md](./docs/subdomains.md): 23 子域正式責任表
+- [docs/context-map.md](./docs/context-map.md): 子域協作與共享語言
+- [docs/ubiquitous-language.md](./docs/ubiquitous-language.md): 通用語言詞彙
+- [docs/aggregates.md](./docs/aggregates.md): 核心聚合與不變數
+- [docs/domain-services.md](./docs/domain-services.md): 跨聚合純規則
+- [docs/application-services.md](./docs/application-services.md): use case orchestration
+- [docs/repositories.md](./docs/repositories.md): repositories 與 output ports
+- [docs/domain-events.md](./docs/domain-events.md): 事件命名與收發清單
+
+## 變更準則
+
+1. 先映射到既有子域
+2. 再決定是 language、aggregate、use case、port、adapter 或 public boundary 變更
+3. 若牽涉命名、事件或邊界，先更新 `docs/` 與 `AGENT.md`，再實作
+
+## 文件閉環驗證
+
+提交前建議最少執行一次文件閉環檢查：
+
+1. `subdomains.md` 與 `bounded-context.md` 的 23 子域是否一致
+2. `subdomains.md` / `application-services.md` 中的 ports 是否都在 `docs/repositories.md`
+3. `docs/domain-events.md` 的事件術語是否都在 `docs/ubiquitous-language.md`
+4. `docs/context-map.md` 的協作語言是否與 `docs/domain-events.md` 命名一致
+5. `api/`、`ports/`、`adapters/`、`infrastructure/` 的角色是否仍然清楚
+````
+
+## File: modules/platform/subdomains/identity/adapters/index.ts
 ````typescript
-/**
- * platform output ports.
- */
+export { FirebaseIdentityRepository } from "./firebase/FirebaseIdentityRepository";
+export { FirebaseTokenRefreshRepository } from "./firebase/FirebaseTokenRefreshRepository";
+export {
+	register,
+	sendPasswordResetEmail,
+	signIn,
+	signInAnonymously,
+	signOut,
+} from "./server-actions/identity.actions";
+export { useTokenRefreshListener } from "./hooks/useTokenRefreshListener";
+export type { EmitTokenRefreshSignalInput } from "./identity-service";
+export { createClientAuthUseCases, identityApi } from "./identity-service";
+````
 
-import type { PlatformCommandResult } from "../input";
-import type { PlatformDomainEvent } from "../../domain/events";
+## File: modules/platform/subdomains/identity/application/index.ts
+````typescript
+export { toIdentityErrorMessage } from "./identity-error-message";
+export {
+	RegisterUseCase,
+	SendPasswordResetEmailUseCase,
+	SignInAnonymouslyUseCase,
+	SignInUseCase,
+	SignOutUseCase,
+} from "./use-cases/identity.use-cases";
+export { EmitTokenRefreshSignalUseCase } from "./use-cases/token-refresh.use-cases";
+````
 
-export interface PlatformContextRepository {
-	findById(contextId: string): Promise<unknown | null>;
-	save(context: unknown): Promise<void>;
-}
-
-export interface PolicyCatalogRepository {
-	findActiveByContextId(contextId: string): Promise<unknown | null>;
-	saveRevision(catalog: unknown): Promise<void>;
-}
-
-export interface IntegrationContractRepository {
-	findById(integrationContractId: string): Promise<unknown | null>;
-	save(contract: unknown): Promise<void>;
-}
-
-export interface SubscriptionAgreementRepository {
-	findEffectiveByContextId(contextId: string): Promise<unknown | null>;
-	save(agreement: unknown): Promise<void>;
-}
-
-export interface AccountRepository {
-	findById(accountId: string): Promise<unknown | null>;
-}
-
-export interface OnboardingRepository {
-	findById(onboardingId: string): Promise<unknown | null>;
-}
-
-export interface CompliancePolicyStore {
-	getPolicy(policyRef: string): Promise<unknown | null>;
-}
-
-export interface ReferralRepository {
-	findById(referralId: string): Promise<unknown | null>;
-}
-
-export interface ContentRepository {
-	findById(contentId: string): Promise<unknown | null>;
-}
-
-export interface SupportRepository {
-	findById(ticketId: string): Promise<unknown | null>;
-}
-
-export interface PlatformContextView {
-	contextId: string;
-	lifecycleState: string;
-	capabilityKeys: string[];
-}
-
-export interface PolicyCatalogView {
-	contextId: string;
-	revision: number;
-	permissionRuleCount: number;
-	workflowRuleCount: number;
-	notificationRuleCount: number;
-	auditRuleCount: number;
-}
-
-export interface SubscriptionEntitlementsView {
-	contextId: string;
-	planCode: string;
-	entitlements: string[];
-	usageLimits: string[];
-}
-
-export interface WorkflowPolicyView {
-	contextId: string;
-	triggerKey: string;
-	enabled: boolean;
-}
-
-export interface PlatformContextViewRepository {
-	getView(contextId: string): Promise<PlatformContextView | null>;
-}
-
-export interface PolicyCatalogViewRepository {
-	getView(contextId: string): Promise<PolicyCatalogView | null>;
-}
-
-export interface UsageMeterRepository {
-	getEntitlementsView(contextId: string): Promise<SubscriptionEntitlementsView | null>;
-}
-
-export interface DeliveryHistoryRepository {
-	listByContext(contextId: string): Promise<readonly unknown[]>;
-}
-
-export interface WorkflowPolicyRepository {
-	getView(contextId: string, triggerKey: string): Promise<WorkflowPolicyView | null>;
-}
-
-export interface ConfigurationProfileStore {
-	getProfile(profileRef: string): Promise<unknown | null>;
-}
-
-export interface SubjectDirectory {
-	getSubject(subjectId: string): Promise<unknown | null>;
-}
-
-export interface SecretReferenceResolver {
-	resolve(secretRef: string): Promise<string>;
-}
-
-export interface DomainEventPublisher {
-	publish(events: readonly PlatformDomainEvent[]): Promise<void>;
-}
-
-export interface WorkflowDispatcherPort {
-	dispatch(triggerKey: string, payload: Record<string, unknown>): Promise<PlatformCommandResult>;
-}
-
-export interface NotificationGateway {
-	dispatch(request: Record<string, unknown>): Promise<PlatformCommandResult>;
-}
-
-export interface AuditSignalStore {
-	write(signal: Record<string, unknown>): Promise<void>;
-}
-
-export interface ObservabilitySink {
-	emit(signal: Record<string, unknown>): Promise<void>;
-}
-
-export interface AnalyticsSink {
-	record(event: Record<string, unknown>): Promise<void>;
-}
-
-export interface ExternalSystemGateway {
-	call(request: Record<string, unknown>): Promise<PlatformCommandResult>;
-}
-
-export interface JobQueuePort {
-	enqueue(job: Record<string, unknown>): Promise<PlatformCommandResult>;
-}
-
-export interface SearchIndexPort {
-	index(document: Record<string, unknown>): Promise<void>;
-}
+## File: modules/platform/subdomains/identity/index.ts
+````typescript
+export * from "./application";
+export * from "./adapters";
+export * from "./domain";
 ````
 
 ## File: modules/workspace/AGENT.md
@@ -83694,691 +86957,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/platform/docs/bounded-context.md
-````markdown
-# Bounded Context — platform
-
-本文件定義 `platform` 這份本地藍圖的邊界。platform 的任務，是把平台級的主體治理、政策規則、能力啟用、外部交付、稽核與可觀測性收斂成一個 **Hexagonal + DDD** 邊界，而不是把這些能力散落成沒有語言與責任的共享雜物間。
-
-## Context Purpose
-
-platform 這個 bounded context 負責回答五類問題：
-
-- 誰是平台可治理的主體
-- 主體在什麼條件下可以做什麼
-- 哪些能力在當前方案、設定與安全政策下可用
-- 平台如何把事實轉成流程、外部交付與通知
-- 平台如何留下證據並暴露診斷訊號
-
-## Canonical Capability Groups
-
-### 主體與名錄
-
-- `identity`
-- `account`
-- `account-profile`
-- `organization`
-
-### 治理與安全
-
-- `access-control`
-- `security-policy`
-- `platform-config`
-- `feature-flag`
-- `onboarding`
-- `compliance`
-
-### 商業與權益
-
-- `billing`
-- `subscription`
-- `referral`
-
-### 流程與交付
-
-- `integration`
-- `workflow`
-- `notification`
-- `background-job`
-
-### 內容與檢索
-
-- `content`
-- `search`
-
-### 證據與診斷
-
-- `audit-log`
-- `observability`
-- `analytics`
-- `support`
-
-## 邊界包含什麼
-
-platform 包含：
-
-- 可被 platform 通用語言描述的聚合、值物件、規則與事件
-- 可被 application layer 協調的 use cases、commands、queries 與 read models
-- 可被 ports 表達的輸入契約與外部依賴契約
-- 可被稽核與可觀測性需求追蹤的 published language
-
-## 邊界刻意不包含什麼
-
-- 產品內容本身的建立、編排與發布策略
-- 檢索、推理、內容相關性或知識生成演算法
-- 任何 UI 呈現細節本身
-- 直接綁定 HTTP、queue、webhook、SDK、資料庫的 adapter 細節
-- 以「暫時先開個資料夾」為名的未定義能力
-
-## Hexagonal Layer Mapping
-
-| Layer / concept | platform 位置 | 說明 |
-|---|---|---|
-| Public boundary | `api/` | 對外公開的 cross-module boundary；只做投影與 re-export |
-| Driving adapters | `adapters/` | CLI、web、external ingress 等輸入端轉譯 |
-| Application | `application/` | use case orchestration、command/query handling |
-| Domain | `domain/` | 聚合、值物件、domain services、domain events |
-| Input ports | `ports/input/` | 進入 application 的穩定契約 |
-| Output ports | `ports/output/` | repository、store、gateway、sink 等依賴契約 |
-| Driven adapters | `infrastructure/` | 對 output ports 的具體技術實作 |
-
-## Layer Responsibilities
-
-### Domain
-
-- 擁有聚合、值物件、domain services、domain events
-- 維持不變數與 published language
-- 不直接理解 repository implementation、HTTP、DB、queue 或 SDK
-
-### Application
-
-- 實作 use case handlers 與 input port 語言
-- 協調 aggregates、domain services 與 output ports
-- 在持久化成功後拉取並發布 domain events
-
-### Ports
-
-- input ports：命令、查詢、事件匯入入口
-- output ports：repositories、support stores、gateways、sinks
-- 由 core/application 擁有，不以 `api/` 為型別真實來源
-
-### Adapters / Infrastructure
-
-- driving adapters：把 HTTP、CLI、scheduler、webhook、queue ingress 翻譯成 input port 語言
-- driven adapters：把 repository、event publishing、notification、telemetry、external delivery 實作成具體技術方案
-
-## Public Boundary Rule
-
-- `api/` 是 platform 對其他模組的正式 public boundary
-- `index.ts` 只作 aggregate export convenience，不應被當成邊界設計來源
-- `ports/` 的契約來源在 `application/` 與 `domain/`，不是 `api/`
-
-## Closed Inventory Boundary Rule
-
-這個 bounded context 以 23 個子域作為封閉 inventory。任何新需求預設都應被視為既有子域的責任延伸，而不是新增第 24 個子域。只有在既有 23 個子域無法吸收時，才允許重新打開 inventory。
-
-## 計畫吸收模組
-
-以下四個現有獨立模組的能力**計畫在未來重構中合并進 platform**，成為對應子域的正式實作。在合并完成前，這些模組作為各自子域的前身實作繼續運作，platform blueprint 定義語言與 port 契約的規範形式。
-
-| 獨立模組 | 目標子域 | 現有核心概念 | 合并備注 |
-|---|---|---|---|
-| `modules/identity/` | `identity` | `Identity`, `uid`, `TokenRefreshSignal`, `IdentityRepository`, `TokenRefreshRepository` | 提供 `AuthenticatedSubject` 與 `IdentitySignal` 的前身語意 |
-| `modules/account/` | `account` + `account-profile` | `Account`, `AccountPolicy`, `AccountProfile`, `AccountRepository`, `AccountQueryRepository`, `AccountPolicyRepository` | `account` 承接帳號聚合根；`account-profile` 承接可治理輪廓屬性 |
-| `modules/organization/` | `organization` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`, `OrganizationRepository`, `OrgPolicyRepository` | 提供 `MembershipBoundary` 與 `RoleAssignment` 的前身語意 |
-| `modules/notification/` | `notification` | `NotificationEntity`, `NotificationRepository`，conformist 消費者 | 提供 `NotificationDispatch` 與 `NotificationRoute` 的前身語意 |
-
-**合并優先序：** `identity` → `account` → `organization` → `notification`（按語意依賴順序）
-
-**合并後規則：**
-- 獨立模組應設為 deprecated，並把 `api/index.ts` 指向 `modules/platform/api`
-- Platform blueprint 的語言定義優先；若有術語歧異，以本文件與 `ubiquitous-language.md` 為準
-
-## 邊界測試問題
-
-1. 這個變更屬於哪個既有子域
-2. 它需要的是新語言、既有語言的細化，還是新的 port contract
-3. 它是 domain rule、application orchestration、adapter concern，還是 public boundary projection
-4. 它是否會破壞 closed inventory 或 dependency direction
-5. 若涉及 identity / account / organization / notification，是否與計畫吸收方向一致
-
-若第 1 題答不出來，表示 platform 邊界尚未被正確理解。
-````
-
-## File: modules/platform/docs/domain-events.md
-````markdown
-# Domain Events — platform
-
-platform blueprint 將 domain event 視為已發生事實的 published language。事件 schema 由 `domain/events` 擁有；application layer 負責在正確時機拉取事件；event publisher adapter 只負責 transport 與 delivery。
-
-## Event Envelope
-
-platform 事件應至少包含以下欄位：
-
-| 欄位 | 用途 |
-|---|---|
-| `type` | 事件名稱，格式採用 `<subdomain>.<fact>` |
-| `aggregateType` | 事件所屬聚合型別 |
-| `aggregateId` | 聚合識別值 |
-| `contextId` | 平台範圍識別值 |
-| `occurredAt` | 事件發生時間，使用 ISO 8601 |
-| `version` | 聚合版本或事件版本 |
-| `correlationId` | 關聯整串工作流程 |
-| `causationId` | 指出直接觸發來源 |
-| `actorId` | 觸發此事實的主體 |
-| `payload` | 事件特定資料 |
-
-## Publish Lifecycle
-
-1. 聚合狀態變更或 application orchestration 完成一個 business fact
-2. domain 產生 event 並暫存於 aggregate 或 orchestration 結果中
-3. application service 完成持久化與必要 output port 呼叫
-4. `DomainEventPublisher` 再把事件送往 bus、topic 或其他 delivery adapter
-
-事件不應由聚合直接推送到 message bus，也不應在持久化前先發送。
-
-## 發出事件
-
-| 事件 | 何時發出 | 核心 payload |
-|---|---|---|
-| `platform.context_registered` | 平台範圍建立完成 | `subjectScope`, `lifecycleState` |
-| `platform.capability_enabled` | 某項 capability 被啟用 | `capabilityKey`, `entitlementRef` |
-| `platform.capability_disabled` | 某項 capability 被停用 | `capabilityKey`, `reason` |
-| `policy.catalog_published` | 新的政策版本生效 | `policyCatalogId`, `revision` |
-| `config.profile_applied` | 配置輪廓完成套用 | `configurationProfileRef`, `changedKeys` |
-| `permission.decision_recorded` | 完成一次可追蹤授權決策 | `decision`, `subjectRef`, `resourceRef` |
-| `integration.contract_registered` | 整合契約生效或更新 | `integrationContractId`, `protocol`, `endpointRef` |
-| `integration.delivery_failed` | 外部交付失敗 | `integrationContractId`, `deliveryAttempt`, `failureCode` |
-| `subscription.agreement_activated` | 訂閱協議進入生效狀態 | `subscriptionAgreementId`, `planCode`, `validUntil` |
-| `onboarding.flow_completed` | 新主體完成 onboarding 主要流程 | `onboardingId`, `subjectRef`, `completedSteps` |
-| `compliance.policy_verified` | 合規政策檢核通過或更新 | `policyRef`, `verificationResult`, `effectivePeriod` |
-| `referral.reward_recorded` | 推薦獎勵被核算並記錄 | `referralId`, `rewardType`, `rewardAmount` |
-| `workflow.trigger_fired` | workflow trigger 被成功發出 | `triggerKey`, `triggeredBy`, `triggeredAt` |
-| `background-job.enqueued` | 背景作業被提交到佇列 | `jobId`, `jobType`, `scheduleAt` |
-| `content.asset_published` | 內容資產進入發布狀態 | `assetId`, `publicationState`, `publishedAt` |
-| `search.query_executed` | 搜尋查詢完成並產生結果 | `queryId`, `queryText`, `resultCount` |
-| `notification.dispatch_requested` | 建立通知派送請求 | `channel`, `recipientRef`, `templateKey` |
-| `audit.signal_recorded` | 寫入一條不可變 audit signal | `signalType`, `severity`, `subjectRef` |
-| `observability.signal_emitted` | 發出指標、追蹤或告警訊號 | `signalName`, `signalLevel`, `sourceRef` |
-| `analytics.event_recorded` | 分析事件被記錄與聚合 | `eventName`, `metricRef`, `subjectRef` |
-| `support.ticket_opened` | 支援工單被建立 | `ticketId`, `priority`, `requesterRef` |
-
-## 事件擁有者
-
-| 事件 | 主要擁有者 |
-|---|---|
-| `platform.context_registered` / `platform.capability_*` | `PlatformContext` |
-| `policy.catalog_published` | `PolicyCatalog` |
-| `integration.contract_registered` / `integration.delivery_failed` | `IntegrationContract` |
-| `subscription.agreement_activated` | `SubscriptionAgreement` |
-| `onboarding.flow_completed` | application layer 在 onboarding 決策完成後發出 |
-| `compliance.policy_verified` | application layer 在合規檢核完成後發出 |
-| `referral.reward_recorded` | application layer 在推薦獎勵核算後發出 |
-| `workflow.trigger_fired` | application layer 在 domain rule 通過後發出 |
-| `background-job.enqueued` | application layer 在工作流轉交背景作業後發出 |
-| `content.asset_published` | application layer 在內容發布決策完成後發出 |
-| `search.query_executed` | application layer 在搜尋執行完成後發出 |
-| `notification.dispatch_requested` | application layer 在 delivery request 建立後發出 |
-| `audit.signal_recorded` | application layer 在 evidence sink 接受記錄後發出 |
-| `observability.signal_emitted` | application layer 在 observability sink 接受訊號後發出 |
-| `analytics.event_recorded` | application layer 在分析匯流接收事件後發出 |
-| `support.ticket_opened` | application layer 在支援案件建立後發出 |
-
-## 訂閱事件
-
-platform 也會透過 input ports 接收外部或相鄰子域傳入的事件型訊號。這些訊號通常會被轉成 application commands，再由 use case handlers 處理。
-
-| 輸入訊號 | 用途 |
-|---|---|
-| `identity.subject_authenticated` | 建立或更新主體上下文 |
-| `account.profile_amended` | 更新帳戶輪廓相關治理判斷 |
-| `organization.membership_changed` | 更新組織邊界與角色映射 |
-| `subscription.entitlement_changed` | 調整 capability enablement 與限制 |
-| `integration.callback_received` | 接收外部系統回呼結果 |
-| `workflow.execution_completed` | 接收工作流執行結果以觸發後續通知、稽核與觀測 |
-
-## 計畫吸收模組的事件（Migration-Pending）
-
-下列事件目前由對應的**獨立模組**定義與發出，在合并進 platform 後將成為 platform published language 的一部分。合并前，platform blueprint 定義的事件命名以本文件為準；若與獨立模組現有命名有差異，合并時以本文件的命名為遷移目標。
-
-### 來自 `modules/account/`
-
-| 事件 | 何時發出 | 核心 payload |
-|---|---|---|
-| `account.created` | 新帳號建立完成 | `accountId`, `email`, `occurredAt` |
-| `account.policy_updated` | AccountPolicy 更新，觸發 custom claims 刷新 | `accountId`, `policyId`, `occurredAt` |
-
-### 來自 `modules/organization/`
-
-| 事件 | 何時發出 | 核心 payload |
-|---|---|---|
-| `organization.created` | 新組織建立時 | `organizationId`, `name`, `ownerId`, `occurredAt` |
-| `organization.member_invited` | 成員被邀請加入 | `organizationId`, `inviteId`, `email`, `role`, `occurredAt` |
-| `organization.member_joined` | 邀請被接受，成員加入 | `organizationId`, `accountId`, `role`, `occurredAt` |
-| `organization.member_removed` | 成員被移除 | `organizationId`, `accountId`, `occurredAt` |
-| `organization.team_created` | 新 Team 建立 | `organizationId`, `teamId`, `occurredAt` |
-
-### 來自 `modules/identity/`（計畫中）
-
-`identity` 模組目前不發出正式 domain event（Firebase Auth 事件由 SDK 直接處理）。合并後建議加入：
-
-| 計畫事件 | 觸發條件 | 用途 |
-|---|---|---|
-| `identity.signed_in` | 使用者成功登入 | 供 `audit-log`、`account` 消費 |
-| `identity.signed_out` | 使用者登出 | 供稽核記錄消費 |
-
-### `modules/notification/` 的訂閱現狀
-
-`notification` 模組目前為純消費者（不發出事件），合并後保持此角色。它目前訂閱：
-- `workspace.member_joined`
-- `workspace-flow.task_status_changed`
-
-這些訂閱關係在 platform 的 `notification` 子域保持不變，但在合并後路由邏輯移至 platform 的 `events/ingress/`。
-
-## 事件設計規則
-
-- 事件名稱必須描述事實，而不是請求
-- domain event 只描述業務語意，不攜帶 adapter-specific metadata
-- event publisher 是 output port，不能被聚合直接取代
-- 事件 payload 應足以讓下游 adapter 或 handler 理解事實，但不應把整個聚合序列化出去
-- 若事件來自 application orchestration 而不是單一 aggregate，必須在文件中標示其擁有位置，避免假裝它來自不存在的 aggregate
-
-## 事件命名規則
-
-推薦格式：
-
-```text
-<subdomain>.<fact>
-```
-
-例如：
-
-- `policy.catalog_published`
-- `workflow.trigger_fired`
-- `notification.dispatch_requested`
-- `audit.signal_recorded`
-
-這種命名能讓事件在 transport 層之外仍保持可讀性與一致性。
-````
-
-## File: modules/platform/docs/domain-services.md
-````markdown
-# platform — Domain Services
-
-platform 的 domain services 承載那些無法只靠單一 aggregate 完成、但仍屬於純平台規則的決策。它們位於 domain core，負責輸出 decision object 或 rule evaluation，不做 persistence、不直接發送事件，也不接觸 transport 或 SDK。
-
-## Domain Services 清單
-
-| Domain Service | 處理的問題 | 主要輸入 |
-|---|---|---|
-| `CapabilityEntitlementPolicy` | capability 是否可因 entitlement 生效 | `PlatformCapability`, `SubscriptionAgreement` |
-| `PermissionResolutionService` | 如何根據主體、資源與政策做授權決策 | `SubjectScope`, `PolicyCatalog`, `ResourceDescriptor` |
-| `ConfigurationCompositionService` | 多層配置如何組裝成單一有效視圖 | `ConfigurationProfile`, `PolicyCatalog`, `SubscriptionAgreement` |
-| `IntegrationCompatibilityService` | 外部契約是否與 policy、plan、protocol 相容 | `IntegrationContract`, `SubscriptionAgreement`, `PolicyCatalog` |
-| `WorkflowDispatchPolicy` | 某個 trigger 是否該被允許、延遲、抑制或升級 | `WorkflowTrigger`, `PolicyCatalog`, `PermissionDecision` |
-| `NotificationRoutingPolicy` | 某條通知該走哪個通道、是否應被抑制 | `NotificationDispatch`, `PolicyCatalog`, `SubjectPreference` |
-| `AuditClassificationService` | 什麼樣的行為需要記錄、記成何種等級 | `AuditSignal`, `PolicyCatalog` |
-| `ObservabilityCorrelationService` | 如何把 workflow、integration、notification、audit 連成可追蹤鏈 | `ObservabilitySignal`, `CorrelationContext` |
-
-## 何時該抽成 Domain Service
-
-以下情況適合使用 domain service：
-
-- 規則跨越兩個以上 aggregates
-- 規則本身不需要持有狀態
-- 規則對 adapters 完全不感興趣，但對平台語意很重要
-- 需要回傳清楚 decision object，而不是把規則散落在多個 use case 中
-
-以下情況不該抽成 domain service：
-
-- 只是某個 aggregate 自己的不變數
-- 只是資料庫查詢方便性的封裝
-- 只是 HTTP、queue、webhook 的轉譯邏輯
-- 只是 SDK 調用流程包裝
-
-## 與 Application Layer 的關係
-
-- application services 可以呼叫 domain services
-- domain services 不應反向知道 application service 的存在
-- 若規則需要外部狀態，應由 application 先透過 output ports 取回資料，再把乾淨的 domain inputs 傳給 domain service
-- 若規則需要 I/O，應拆成 domain rule + output port，而不是把 I/O 留在 domain service 裡
-
-## 設計原則
-
-- domain services 應優先回傳明確的 decision object，而不是鬆散布林值
-- 錯誤應描述治理語意，例如 `entitlement_denied`, `policy_conflict`, `delivery_not_allowed`
-- 每個 service 都應可在不啟動任何 adapter 的情況下被測試
-- service 介面應只依賴 domain 語言，不依賴 transport 或 persistence 細節
-
-## 主要 Decision Objects
-
-| Decision Object | 用途 |
-|---|---|
-| `PermissionDecision` | 表達允許、拒絕、條件允許或需要升級 |
-| `DispatchOutcome` | 表達通知或外部交付的結果 |
-| `AuditClassification` | 表達此事實需要何種稽核等級 |
-| `PlanConstraint` | 表達 subscription 對 capability 或 delivery 的限制 |
-| `DeliveryAllowance` | 表達整合或通知在當前條件下是否允許交付 |
-
-## 與平台子域的對應
-
-- `identity`（目前對應 `modules/identity/`）、`account`（目前對應 `modules/account/`）、`organization`（目前對應 `modules/organization/`）主要提供主體與邊界輸入
-- `access-control`, `platform-config`, `subscription` 提供治理輸入
-- `integration`, `workflow`, `notification`（目前對應 `modules/notification/`）提供執行輸入
-- `audit-log`, `observability` 將決策轉成可追蹤訊號
-
-**計畫吸收語意：** `PermissionResolutionService` 合并 `modules/account/` 的 AccountPolicy 規則語意後，須能同時處理帳號層與組織層的授權判斷。`NotificationRoutingPolicy` 在 `modules/notification/` 合并後，應把現有的 `DispatchNotificationInput` 語言對齊 platform 的 `NotificationDispatch`。
-````
-
-## File: modules/platform/docs/repositories.md
-````markdown
-# platform — Repositories
-
-在這份 blueprint 中，repository 與各種 gateway / sink 都屬於 **output ports**。repository 專門負責聚合狀態的載入與保存；其他 output ports 則處理查詢支援、事件發佈、外部交付與診斷輸出。契約由 core/application 擁有，具體技術實作放在 `infrastructure/`。
-
-## Output Port Ownership Rule
-
-- repository、query port、support port、delivery port 的語言來源在 `application/` 與 `domain/`
-- `api/` 只做 public boundary projection，不是 output port 的真實來源
-- infrastructure adapters 實作 ports，但不改寫其業務語意
-
-## Aggregate Repository Ports
-
-| Repository Port | 服務的聚合 | 核心職責 |
-|---|---|---|
-| `PlatformContextRepository` | `PlatformContext` | `findById`, `save`, `findBySubjectScope` |
-| `PolicyCatalogRepository` | `PolicyCatalog` | `findActiveByContextId`, `saveRevision`, `findByRevision` |
-| `IntegrationContractRepository` | `IntegrationContract` | `findById`, `save`, `findActiveByContextId` |
-| `SubscriptionAgreementRepository` | `SubscriptionAgreement` | `findEffectiveByContextId`, `save`, `findByPlanCode` |
-
-## Subdomain Repository / Store Ports
-
-下列 ports 在 `subdomains.md` 與 `application-services.md` 已被使用，需在 repository 契約層明確列出，避免文件引用缺口。
-
-| Port | 子域 | 用途 |
-|---|---|---|
-| `AccountRepository` | `account` | 載入與保存帳號聚合與生命週期狀態 |
-| `OnboardingRepository` | `onboarding` | 載入與保存 onboarding flow / setup progress |
-| `CompliancePolicyStore` | `compliance` | 查詢與保存合規規則、保留策略、審查結果 |
-| `ReferralRepository` | `referral` | 載入與保存推薦關係、獎勵狀態與結算參照 |
-| `ContentRepository` | `content` | 載入與保存內容資產與發布狀態 |
-| `SupportRepository` | `support` | 載入與保存支援工單與知識關聯狀態 |
-
-## Query / Read-model Ports
-
-某些查詢模型不需要完整 aggregate，可透過專門的 query ports 提供：
-
-| Query Port | 用途 |
-|---|---|
-| `PlatformContextViewRepository` | 提供平台範圍總覽 |
-| `PolicyCatalogViewRepository` | 提供規則摘要與 revision history |
-| `UsageMeterRepository` | 提供 entitlement / quota 的使用情況 |
-| `DeliveryHistoryRepository` | 提供 integration / notification 的交付紀錄查詢 |
-| `WorkflowPolicyRepository` | 提供 trigger 與 workflow policy 的讀取介面 |
-
-## Supporting State / Lookup Ports
-
-這些 ports 不直接保存聚合，但會為 application services 與 domain services 提供必要支援資料：
-
-| Support Port | 用途 |
-|---|---|
-| `ConfigurationProfileStore` | 提供可套用的 configuration profile |
-| `SubjectDirectory` | 提供主體輪廓、偏好與角色對照 |
-| `SecretReferenceResolver` | 解析整合契約所需的認證參照 |
-
-## 非 Repository 的 Output Ports
-
-Hexagonal 分層要求事件發佈與外部交付不要混入 repository 介面。platform blueprint 因此區分以下非持久化 ports：
-
-| Output Port | 用途 |
-|---|---|
-| `DomainEventPublisher` | 發佈 domain events 到 event bus 或 topic |
-| `WorkflowDispatcherPort` | 把 workflow trigger 交給執行引擎 |
-| `NotificationGateway` | 派送 email、SMS、push、chat 等通知 |
-| `AuditSignalStore` | 寫入不可變的 audit trail |
-| `ObservabilitySink` | 發送 metrics、trace、alert |
-| `AnalyticsSink` | 發送 analytics 事件與行為指標 |
-| `ExternalSystemGateway` | 呼叫外部 API、webhook 或 queue |
-| `JobQueuePort` | 提交與追蹤背景作業 |
-| `SearchIndexPort` | 寫入搜尋索引與查詢搜尋結果 |
-| `SecretReferenceResolver` | 解析整合契約所需的密鑰或憑證參照 |
-
-## Migration-Pending Repository Ports
-
-下列 repository ports 目前定義於對應的**獨立模組**，計畫在模組合并進 platform 時成為 platform output port 契約的一部分。合并前，platform blueprint 以此為目標定義；合并後，獨立模組的同名 port 應退役。
-
-### 來自 `modules/identity/`
-
-| Port | 目標子域 | 現有方法 | 說明 |
-|---|---|---|---|
-| `IdentityRepository` | `identity` | `signIn()`, `signOut()`, `getCurrentIdentity()` | Firebase Auth 操作入口；合并後成為 `identity` 子域的 output port |
-| `TokenRefreshRepository` | `identity` | `listenToTokenRefresh()` | token 刷新訊號監聽；合并後成為 `identity` 子域的 support port |
-
-### 來自 `modules/account/`
-
-| Port | 目標子域 | 現有方法 | 說明 |
-|---|---|---|---|
-| `AccountRepository` | `account` | `save()`, `findById()`, `delete()` | 帳號聚合根倉儲；platform `AccountRepository` 已在 ports/output 有對應定義 |
-| `AccountQueryRepository` | `account` | `findById()`, `findByEmail()` | CQRS 讀取側；合并後納入 `account` 的 query port |
-| `AccountPolicyRepository` | `account` | `save()`, `findByAccountId()` | AccountPolicy 倉儲；合并後納入 `account` 子域 |
-
-### 來自 `modules/organization/`
-
-| Port | 目標子域 | 現有方法 | 說明 |
-|---|---|---|---|
-| `OrganizationRepository` | `organization` | `save()`, `findById()`, `findByMemberId()` | Organization 聚合根倉儲；合并後成為 `organization` 子域的 repository port |
-| `OrgPolicyRepository` | `organization` | 組織政策 | 組織政策規則倉儲；合并後納入 `organization` 子域 |
-
-### 來自 `modules/notification/`
-
-| Port | 目標子域 | 現有方法 | 說明 |
-|---|---|---|---|
-| `NotificationRepository` | `notification` | `save()`, `findByRecipient()`, `markAsRead()` | 通知記錄倉儲；合并後成為 `notification` 子域的 repository port |
-
-## Adapter 實作原則
-
-- repository adapter 只處理資料映射與永續化，不重寫 platform policy
-- event publisher adapter 只處理 transport 與 delivery，不擁有事件語言
-- 外部系統 gateway 應以 integration contract 為依據，不直接從 UI 或 controller 讀設定
-- infrastructure adapter 可以組合 SDK，但 SDK 細節不能回滲到 port 契約命名
-
-## Persistence 與 Delivery 的切分
-
-推薦把 platform 層的 driven adapters 至少切成三類：
-
-- state adapters：資料庫、KV、文件儲存等 repository implementations
-- messaging adapters：event publisher、queue producer、topic publisher
-- external delivery adapters：HTTP client、webhook sender、notification provider、telemetry exporter
-
-## Repository 設計規則
-
-- repository 方法名稱應描述聚合語意，不描述資料庫語意
-- application layer 只能依賴 ports，不直接依賴 adapter class
-- repository 回傳 domain model 或 read model，不回傳 adapter 原生型別
-- 若某個依賴沒有聚合狀態可載入，優先考慮把它建模成一般 output port，而不是硬塞成 repository
-- 若 `application-services.md` 引用了某個 repository 或 support port，該名稱必須在本文件出現，否則表示文件之間仍然有缺口
-````
-
-## File: modules/platform/docs/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — platform
-
-本文件定義 platform blueprint 的穩定術語。這些詞用來讓 domain、application、ports、adapters 與子域文件保持一致，避免平台層隨著需求變動而出現多套互不相容的說法。
-
-## 核心術語
-
-| 術語 | 英文 | 定義 |
-|---|---|---|
-| 平台範圍 | PlatformContext | 一個受治理的 platform scope，擁有能力、政策、配置與訂閱邊界 |
-| 驗證主體 | AuthenticatedSubject | 已完成身份驗證、可被映射成 platform subject scope 的主體 |
-| 身份訊號 | IdentitySignal | 與主體登入、刷新、失效有關的事實訊號 |
-| 平台能力 | PlatformCapability | 可被啟用、停用、限流或受 entitlement 約束的能力 |
-| 能力開關 | CapabilityToggle | 某個 capability 在特定範圍中的生效狀態 |
-| 主體邊界 | SubjectScope | actor、account、organization 的治理範圍 |
-| 帳戶輪廓 | AccountProfile | 主體可被治理的屬性視圖 |
-| 主體偏好 | SubjectPreference | 主體在通知、體驗或交付上的偏好 |
-| 成員邊界 | MembershipBoundary | 主體在群組或組織中的歸屬邊界 |
-| 角色指派 | RoleAssignment | 主體在某個範圍內被授予的角色 |
-| 政策目錄 | PolicyCatalog | 權限、工作流、通知與稽核規則的版本化集合 |
-| 規則 | PolicyRule | 以 `subject`, `condition`, `effect` 表達的政策條目 |
-| 存取政策 | AccessPolicy | 用來推導 `PermissionDecision` 的政策集合或視圖 |
-| 配置輪廓 | ConfigurationProfile | 一組可被套用的設定與策略值 |
-| 配置輪廓參照 | ConfigurationProfileRef | 指向某份生效配置輪廓的參照 |
-| 整合契約 | IntegrationContract | 與外部系統互動所需的 endpoint、協議與 delivery policy |
-| 端點參照 | EndpointRef | 指向外部 endpoint 的穩定參照 |
-| 憑證參照 | SecretReference | 指向秘密、憑證或 token 的穩定參照 |
-| 派送政策 | DeliveryPolicy | timeout、retry、backoff、idempotency 的組合 |
-| 方案限制 | PlanConstraint | 訂閱方案對能力、流程或交付所施加的限制 |
-| 交付許可 | DeliveryAllowance | 在當前條件下某個交付是否被允許 |
-| 權限決策 | PermissionDecision | 對某主體是否可執行某動作的明確判斷 |
-| 訂閱協議 | SubscriptionAgreement | 方案、權益、限制與有效期間的商業邊界 |
-| 權益 | Entitlement | 某方案允許使用的 capability 或額度 |
-| 用量限制 | UsageLimit | 對使用量、頻率或配額的限制 |
-| 推薦連結 | ReferralLink | 推薦關係的識別與追蹤語言 |
-| 推薦獎勵 | ReferralReward | 推薦成功後可被核算與發放的獎勵語言 |
-| 生效區間 | EffectivePeriod | 某份協議、設定或規則的有效期間 |
-| 平台生命週期狀態 | PlatformLifecycleState | `draft | active | suspended | retired` |
-| 契約狀態 | ContractState | `draft | active | paused | revoked` |
-| 計費狀態 | BillingState | `pending | active | delinquent | expired | cancelled` |
-| 工作流觸發器 | WorkflowTrigger | 把某個平台事實轉成流程啟動點的語言 |
-| 工作流政策 | WorkflowPolicy | 用來規定 trigger 何時啟動、延後、抑制或升級的規則 |
-| 作業排程 | JobSchedule | 背景任務何時執行與重試策略的語言 |
-| 作業執行 | JobExecution | 背景任務一次執行結果與狀態的語言 |
-| 通知派送 | NotificationDispatch | 一次待交付的通知請求 |
-| 通知路由 | NotificationRoute | 通知應走的通道與對象語言 |
-| 派送結果 | DispatchOutcome | 一次交付成功、失敗、跳過或延後的結果 |
-| 內容資產 | ContentAsset | 可被治理、發布與檢索的內容單位語言 |
-| 發布狀態 | PublicationState | 內容在草稿、審核、發布等狀態中的語言 |
-| 搜尋結果 | SearchResult | 對 `SearchQuery` 的可消費回應語言 |
-| 稽核訊號 | AuditSignal | 必須被永久記錄的決策或行為事實 |
-| 稽核分類 | AuditClassification | 用來決定 audit signal 嚴重度與保留要求的分類 |
-| 可觀測性訊號 | ObservabilitySignal | metrics、trace、alert 等診斷輸入的統一語言 |
-| 健康指標 | HealthIndicator | 用來表達系統健康、退化或告警狀態的指標語言 |
-| 分析事件 | AnalyticsEvent | 可被聚合與分析的行為訊號語言 |
-| 支援工單 | SupportTicket | 客服互動與追蹤案件的語言 |
-| 知識文章 | KnowledgeArticle | 支援流程中引用的知識內容語言 |
-| 資源描述子 | ResourceDescriptor | 權限或 workflow 決策所面向的資源描述 |
-| 關聯上下文 | CorrelationContext | 用來串接 workflow、integration、notification、audit 的追蹤語言 |
-| 公開邊界 | PublicBoundary | 對其他模組暴露的穩定 boundary，於 platform 中即 `api/` |
-| 發佈語言 | PublishedLanguage | 跨邊界共享的事件與契約語言 |
-| 藍圖 | Blueprint | 對目標結構與語言的設計說明，而非既有實作聲明 |
-
-## Port Vocabulary
-
-| 術語 | 英文 | 定義 |
-|---|---|---|
-| 平台命令介面 | PlatformCommandPort | 接收命令型請求的 input port |
-| 平台查詢介面 | PlatformQueryPort | 接收查詢型請求的 input port |
-| 平台事件匯入介面 | PlatformEventIngressPort | 吸收外部或相鄰子域訊號的 input port |
-| 使用案例處理器 | UseCaseHandler | 實作 input port、協調 domain 與 output ports 的 application service |
-| 倉儲介面 | RepositoryPort | 載入與保存聚合狀態的 output port |
-| 查詢介面 | QueryPort | 提供 read model / projection 的 output port |
-| 支援介面 | SupportPort | 提供查表、設定或目錄資料的 output port |
-| 事件發佈器 | DomainEventPublisher | 發佈 domain events 的 output port |
-| 配置輪廓儲存介面 | ConfigurationProfileStore | 提供 configuration profile 的 support port |
-| 主體目錄 | SubjectDirectory | 提供帳戶輪廓、偏好與角色資料的 support port |
-| 帳戶倉儲 | AccountRepository | 提供 account 聚合狀態存取的 repository port |
-| 啟用引導倉儲 | OnboardingRepository | 提供 onboarding 流程狀態存取的 repository port |
-| 合規政策儲存介面 | CompliancePolicyStore | 提供 compliance 規則與保留策略的 support port |
-| 推薦倉儲 | ReferralRepository | 提供推薦關係與獎勵狀態存取的 repository port |
-| 工作流政策倉儲 | WorkflowPolicyRepository | 提供 workflow policy 的 query/support port |
-| 工作流派送介面 | WorkflowDispatcherPort | 將 trigger 交給執行引擎的 output port |
-| 通知閘道 | NotificationGateway | 對外派送通知的 output port |
-| 作業佇列介面 | JobQueuePort | 提交與追蹤背景作業的 output port |
-| 內容倉儲 | ContentRepository | 提供 content 資產狀態存取的 repository port |
-| 搜尋索引介面 | SearchIndexPort | 提供索引寫入與搜尋查詢的 output/query port |
-| 稽核訊號儲存介面 | AuditSignalStore | 寫入不可變稽核紀錄的 output port |
-| 可觀測性匯流介面 | ObservabilitySink | 發送 metrics、trace、alert 的 output port |
-| 分析匯流介面 | AnalyticsSink | 發送分析事件與行為指標的 output port |
-| 支援倉儲 | SupportRepository | 提供支援工單與知識關聯的 repository port |
-| 密鑰參照解析器 | SecretReferenceResolver | 解析憑證參照的 support port |
-| 驅動適配器 | DrivingAdapter | 把 HTTP、CLI、scheduler、webhook 等輸入翻譯成 input port 語言的 adapter |
-| 受驅動適配器 | DrivenAdapter | 實作 repository、gateway、sink 等 output ports 的 adapter |
-
-## 事件語言
-
-platform 事件推薦使用：
-
-```text
-<subdomain>.<fact>
-```
-
-例如：
-
-- `platform.context_registered`
-- `policy.catalog_published`
-- `workflow.trigger_fired`
-- `notification.dispatch_requested`
-- `audit.signal_recorded`
-
-## Migration-Pending 術語（計畫吸收模組）
-
-下列術語目前由對應的**獨立模組**定義，在合并進 platform 後應以本表的定義為準。若與獨立模組現有命名有差異，合并時以本表為遷移目標。
-
-### 來自 `modules/identity/`
-
-| 術語 | 英文 | platform 對應概念 | 定義 |
-|---|---|---|---|
-| 身份 | Identity | `AuthenticatedSubject` | Firebase Auth 驗證後的使用者記錄，以 `uid` 為唯一識別碼；合并後以 `AuthenticatedSubject` 作為 platform 語言 |
-| 唯一身份碼 | uid | SubjectId | Firebase Authentication 產生的使用者全域唯一 ID |
-| Token 刷新訊號 | TokenRefreshSignal | IdentitySignal | 代表 Firebase ID token 需要更新的訊號；合并後作為 `IdentitySignal` 的一種 |
-
-### 來自 `modules/account/`
-
-| 術語 | 英文 | platform 對應概念 | 定義 |
-|---|---|---|---|
-| 帳戶 | Account | Account（同名） | 使用者在平台的業務記錄，含 profile 資訊與狀態 |
-| 帳戶政策 | AccountPolicy | PolicyRule（account context） | 附加到帳戶的存取控制政策，決定 Firebase custom claims 內容 |
-| 帳戶 ID | accountId | SubjectScope 的組成部分 | Account 的業務主鍵（對應 Firebase uid，但在業務層使用 accountId 術語） |
-| 自訂宣告 | customClaims | — | Firebase ID token 中的自訂 claims；合并後以 platform `Entitlement` 語言統一表達 |
-
-### 來自 `modules/organization/`
-
-| 術語 | 英文 | platform 對應概念 | 定義 |
-|---|---|---|---|
-| 組織 | Organization | Organization（同名） | 頂層多租戶單元，代表一個企業或團隊 |
-| 成員參照 | MemberReference | MembershipBoundary 的組成 | 組織成員的輕量參照（含 accountId、role、presence） |
-| 隊伍 | Team | — | 組織內的子群組（internal / external 類型） |
-| 合作夥伴邀請 | PartnerInvite | — | 邀請外部合作夥伴加入隊伍的邀請記錄 |
-| 組織角色 | OrganizationRole | RoleAssignment 的值域 | `Owner \| Admin \| Member \| Guest` |
-| 在線狀態 | Presence | — | `active \| away \| offline` |
-| 邀請狀態 | InviteState | — | `pending \| accepted \| expired` |
-
-### 來自 `modules/notification/`
-
-| 術語 | 英文 | platform 對應概念 | 定義 |
-|---|---|---|---|
-| 通知實體 | NotificationEntity | NotificationDispatch（合并後） | 一則系統通知記錄（含標題、內容、類型、讀取狀態） |
-| 接收者 ID | recipientId | NotificationRoute 的對象語言 | 接收此通知的帳戶 ID |
-| 通知類型 | NotificationType | — | `info \| alert \| success \| warning` |
-
-## 禁止替換術語
-
-| 正確 | 不建議替換成 |
-|---|---|
-| `PlatformContext` | Tenant, Workspace, Environment |
-| `PlatformCapability` | Feature, Switch, Module |
-| `PolicyCatalog` | Settings Bag, Rule Dump |
-| `IntegrationContract` | Webhook Config, Endpoint Settings |
-| `SubscriptionAgreement` | Plan, Billing Row |
-| `PermissionDecision` | Auth Result, Check Flag |
-| `WorkflowTrigger` | background-job, Task Hook |
-| `NotificationDispatch` | Message Send, Push Action |
-| `AuditSignal` | Log Line, History Row |
-| `ObservabilitySignal` | Error Message, Console Output |
-| `InputPort` | Controller Method |
-| `OutputPort` | SDK Call |
-| `PublicBoundary` | Barrel File |
-
-## 語言使用規則
-
-- 若一個詞描述的是業務決策，應優先用 domain 語言，而不是 transport 語言
-- 若一個詞描述的是跨邊界共享契約，應優先保持簡短、穩定且可序列化
-- 若一個詞只在單一 adapter 有意義，不應升格成 platform 通用語言
-- 若新詞與既有詞重疊，先擴充定義，再考慮新增術語
-- 若一個詞其實是 boundary 角色，應明確區分 `PublicBoundary`、`InputPort`、`OutputPort` 與 `Adapter`
-````
-
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
 ````typescript
 "use client";
@@ -84626,626 +87204,6 @@ export function WorkspaceDetailScreen({
 }
 ````
 
-## File: modules/platform/docs/context-map.md
-````markdown
-# Context Map — platform
-
-本文件描述 platform 的 23 個子域如何在同一個 bounded context 內協作。這是一張 **local platform map**，目的是說明共享語言、事件事實與 use case 協作，不是全系統上下文圖。
-
-## Collaboration Rule
-
-- 子域之間透過 published language、input ports、output ports 與 read models 協作
-- 不應讓某個子域的 adapter 直接依賴另一個子域的 adapter
-- 若跨子域互動需要新的共享語言，先更新 `ubiquitous-language.md` 與本文件
-- 若跨子域互動需要新的依賴契約，先更新 `application-services.md` 或 `repositories.md`
-
-## Local Platform Map
-
-以下是核心協作關係圖。新增到 canonical inventory 的子域（例如 `onboarding`、`compliance`、`content`、`search`、`analytics`、`support`、`background-job`、`referral`）在不同實作階段可先以最小路徑接入，待對應 port 穩定後再擴展協作邊。
-
-```text
-identity -> account -> account-profile -> access-control
-identity -> audit-log
-
-organization -> access-control
-organization -> audit-log
-
-security-policy -> access-control
-security-policy -> compliance
-security-policy -> workflow
-security-policy -> audit-log
-
-platform-config -> feature-flag
-platform-config -> access-control
-platform-config -> integration
-platform-config -> workflow
-platform-config -> notification
-platform-config -> observability
-
-onboarding -> account-profile
-onboarding -> notification
-
-subscription -> billing
-subscription -> feature-flag
-subscription -> access-control
-subscription -> integration
-subscription -> workflow
-
-referral -> account
-referral -> billing
-referral -> analytics
-
-access-control -> integration
-access-control -> workflow
-access-control -> audit-log
-
-workflow -> notification
-workflow -> background-job
-workflow -> audit-log
-workflow -> observability
-
-integration -> audit-log
-integration -> observability
-
-notification -> audit-log
-notification -> observability
-
-billing -> audit-log
-billing -> observability
-
-content -> search
-content -> audit-log
-
-search -> analytics
-search -> observability
-
-background-job -> observability
-background-job -> audit-log
-
-compliance -> audit-log
-compliance -> observability
-
-support -> analytics
-support -> audit-log
-
-audit-log -> observability
-audit-log -> analytics
-
-analytics -> observability
-```
-
-## 協作關係
-
-| Source | Target | 共享語言 | 為何需要這個關係 |
-|---|---|---|---|
-| `identity` | `account` | `AuthenticatedSubject`, `AccountLifecycle` | 驗證後主體需映射到可治理帳戶 |
-| `identity` | `account-profile` | `AuthenticatedSubject`, `SubjectScope` | 驗證過的主體需要被映射成可治理輪廓 |
-| `account-profile` | `access-control` | `AccountProfile`, `SubjectPreference` | 授權決策需要主體屬性與偏好 |
-| `organization` | `access-control` | `MembershipBoundary`, `RoleAssignment` | 存取控制需要群組與角色資訊 |
-| `onboarding` | `account-profile` | `OnboardingFlow`, `SetupProgress` | 初始設定結果要轉成可治理輪廓 |
-| `security-policy` | `access-control` | `PolicyCatalog`, `AccessPolicy` | 授權判斷要遵守安全政策 |
-| `security-policy` | `compliance` | `PolicyCatalog`, `CompliancePolicy` | 合規檢查需套用統一政策版本 |
-| `platform-config` | `feature-flag` | `ConfigurationProfile`, `CapabilityToggle` | 能力開關需要設定輪廓與 rollout 參數 |
-| `platform-config` | `workflow` | `ConfigurationProfile` | 流程啟動依賴設定化規則與參數 |
-| `subscription` | `feature-flag` | `Entitlement`, `UsageLimit` | feature rollout 必須受方案權益約束 |
-| `subscription` | `integration` | `PlanConstraint`, `DeliveryAllowance` | 某些整合只在特定方案與配額下可用 |
-| `subscription` | `billing` | `SubscriptionAgreement`, `BillingState` | 訂閱生命週期與計費狀態互相影響 |
-| `referral` | `billing` | `ReferralReward`, `BillingState` | 推薦回饋會影響帳務處理 |
-| `access-control` | `workflow` | `PermissionDecision` | 流程觸發前要先通過授權 |
-| `workflow` | `notification` | `WorkflowTrigger`, `NotificationDispatch` | 流程結果常需轉成通知請求 |
-| `workflow` | `background-job` | `WorkflowTrigger`, `JobSchedule` | 長時程任務由背景排程承接 |
-| `workflow` | `audit-log` | `AuditSignal`, `CorrelationContext` | 重要流程節點需要留下證據 |
-| `integration` | `audit-log` | `AuditSignal`, `DispatchOutcome` | 外部交付結果屬治理軌跡 |
-| `notification` | `audit-log` | `DispatchOutcome`, `AuditSignal` | 派送成功或失敗都要記錄 |
-| `content` | `search` | `ContentAsset`, `SearchQuery` | 內容發布需可被檢索索引與查詢 |
-| `support` | `analytics` | `SupportTicket`, `BehaviorMetric` | 支援流程輸出服務品質指標 |
-| `audit-log` | `observability` | `AuditClassification`, `ObservabilitySignal` | 稽核分類可轉為運維診斷訊號 |
-| `analytics` | `observability` | `BehaviorMetric`, `ObservabilitySignal` | 分析結果需進入告警與健康視圖 |
-| `billing` | `observability` | `BillingState`, `ObservabilitySignal` | 計費異常需要被量測與告警 |
-
-## 計畫吸收模組的協作現狀
-
-下列子域目前有對應的獨立模組，在合并前以「上游獨立模組 → platform subdomain blueprint」的方向映射：
-
-| 子域 | 目前獨立模組 | 現有協作語言 |
-|---|---|---|
-| `identity` | `modules/identity/` | `Identity`, `uid`, `TokenRefreshSignal`；identity 不訂閱任何事件，是最上游的身份來源 |
-| `account` | `modules/account/` | `Account`, `AccountPolicy`；訂閱 `TokenRefreshSignal` 以更新 custom claims |
-| `account-profile` | `modules/account/`（AccountProfile 概念） | `AccountProfile`, `SubjectPreference`；目前與 account 同住 |
-| `organization` | `modules/organization/` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`；發出 `organization.member_joined` 等事件，被 `access-control`、`notification` 消費 |
-| `notification` | `modules/notification/` | `NotificationEntity`, `NotificationRepository`；為 conformist 消費者，訂閱 `workspace.member_joined`、`workspace-flow.task_status_changed` 等事件，不發出 domain events |
-
-**合并前的協作規則：** platform blueprint 只定義語言與 port 契約；獨立模組仍是語意的事實來源，直到完成合并並退役為止。
-
-## Context Map Rule
-
-若某個新需求無法被這張 map 中的既有節點、共享語言與既有 ports 吸收，先調整 map、`subdomains.md` 與相關 ports 文件，而不是直接再加新資料夾。
-````
-
-## File: modules/platform/docs/README.md
-````markdown
-# platform docs
-
-`platform/docs/` 是 platform blueprint 的文件索引入口。這組文件以 **Hexagonal Architecture with Domain-Driven Design** 為閱讀骨架：先確認邊界與通用語言，再確認聚合、use case、ports、events 與 adapters 的責任分工。
-
-## Hexagonal + DDD 閱讀框架
-
-| 關注點 | 文件 | 說明 |
-|---|---|---|
-| Bounded Context 邊界 | `bounded-context.md` | platform 的責任範圍、封板規則與 public boundary |
-| Canonical subdomains | `subdomains.md` | 23 個正式子域與 capability inventory |
-| Shared language | `ubiquitous-language.md` | 聚合、ports、事件與協作的命名權威 |
-| Domain core | `aggregates.md`, `domain-services.md`, `domain-events.md` | 聚合、不變數、純規則與 published language |
-| Application orchestration | `application-services.md` | use case handlers、input ports 與 command/query 協調 |
-| Driven ports | `repositories.md` | repositories、query ports、support ports、delivery ports |
-| Collaboration map | `context-map.md` | 子域間的共享語言與協作方向 |
-
-## 文件分工
-
-| 文件 | 主題 |
-|---|---|
-| `aggregates.md` | 核心聚合、值物件、不變數與 aggregate lifecycle |
-| `application-services.md` | use case handlers、input ports、command/query 協調 |
-| `bounded-context.md` | platform 邊界、責任範圍、public boundary 與 layer mapping |
-| `context-map.md` | 23 個子域間的協作關係與共享語言 |
-| `domain-events.md` | 事件命名、事件擁有者、發出/訂閱與 publish lifecycle |
-| `domain-services.md` | 跨聚合純規則、decision objects 與 service 抽取準則 |
-| `repositories.md` | repository ports、query ports、support ports、delivery ports |
-| `subdomains.md` | 正式 23 子域 inventory 與責任對照 |
-| `ubiquitous-language.md` | platform 通用語言與 Hexagonal vocabulary |
-
-## 讀取順序
-
-1. 先讀 `bounded-context.md` 確認 platform 這個 bounded context 的責任與 public boundary
-2. 讀 `subdomains.md` 與 `context-map.md`，理解 23 個子域如何協作
-3. 讀 `ubiquitous-language.md`，鎖定 aggregate、port、event、adapter 的命名
-4. 最後讀 `aggregates.md`、`domain-services.md`、`application-services.md`、`repositories.md`、`domain-events.md` 進入設計細節
-
-## Hexagonal 對照
-
-| Hexagonal concept | platform blueprint |
-|---|---|
-| Public boundary | `api/` |
-| Driving adapters | `adapters/`（CLI、web、external ingress 等） |
-| Application layer | `application/` |
-| Domain core | `domain/` |
-| Input ports | `ports/input/` |
-| Output ports | `ports/output/` |
-| Driven adapters | `infrastructure/` |
-| Published language | `domain/events/` + `application/dtos/` |
-
-## 計畫吸收模組
-
-以下四個獨立模組計畫重構進 platform 子域，詳見各文件的 **Migration-Pending** 節：
-
-| 獨立模組 | 目標子域 | 語言文件 |
-|---|---|---|
-| `modules/identity/` | `identity` | [subdomains.md](./subdomains.md), [ubiquitous-language.md](./ubiquitous-language.md) |
-| `modules/account/` | `account` + `account-profile` | [subdomains.md](./subdomains.md), [aggregates.md](./aggregates.md) |
-| `modules/organization/` | `organization` | [subdomains.md](./subdomains.md), [domain-events.md](./domain-events.md) |
-| `modules/notification/` | `notification` | [subdomains.md](./subdomains.md), [repositories.md](./repositories.md) |
-
-## 變更同步規則
-
-- 變更聚合或值物件：同步更新 `aggregates.md` 與 `ubiquitous-language.md`
-- 變更 use case handlers、input ports 或 command/query 語言：同步更新 `application-services.md`
-- 變更 repositories、support ports 或 delivery ports：同步更新 `repositories.md`
-- 變更事件名稱、payload 或事件擁有者：同步更新 `domain-events.md`
-- 變更子域責任：同步更新 `subdomains.md` 與 `context-map.md`
-- 變更 platform 邊界或 public boundary：同步更新 `bounded-context.md`、`../README.md` 與 `../AGENT.md`
-
-## 文件閉環檢查清單
-
-每次調整 platform 文件後，至少確認以下幾點：
-
-1. `api/`、`ports/`、`adapters/`、`infrastructure/` 的角色敘述沒有互相重疊
-2. `subdomains.md` 出現的術語都能在 `ubiquitous-language.md` 找到定義
-3. `application-services.md` 與 `subdomains.md` 提到的 ports 都能在 `repositories.md` 找到契約
-4. `domain-events.md` 的事件命名、事件擁有者與 `context-map.md` 協作語言沒有衝突
-5. 文件沒有把 adapter concern 寫回 domain/application 規則
-````
-
-## File: modules/platform/docs/subdomains.md
-````markdown
-# Subdomains — platform
-
-本文件是 platform 的正式子域 inventory。這份清單是 **closed by default** 的：後續開發必須先把能力映射到既有子域，而不是再新增新的子域名稱。
-
-## Subdomain Rule in Hexagonal DDD
-
-- 每個子域描述的是平台核心能力，不是資料夾便利分類
-- `Port 焦點` 欄位代表該子域主要透過哪些 input/output contracts 參與六邊形邊界
-- 子域之間共享語言時，應先落地到 `ubiquitous-language.md`、`context-map.md` 與相關 ports 文件
-
-## Canonical Inventory
-
-| 子域 | 核心問題 | 主要語言 | Port 焦點 |
-|---|---|---|---|
-| `identity` | 誰是已驗證主體 | `AuthenticatedSubject`, `IdentitySignal` | `PlatformEventIngressPort`, `SubjectDirectory` |
-| `account` | 帳號聚合根與生命週期狀態 | `Account`, `AccountLifecycle` | `PlatformCommandPort`, `AccountRepository` |
-| `account-profile` | 主體有哪些可治理屬性與偏好 | `AccountProfile`, `SubjectPreference` | `PlatformEventIngressPort`, `SubjectDirectory` |
-| `organization` | 主體處於哪些組織與角色邊界 | `MembershipBoundary`, `RoleAssignment` | `PlatformEventIngressPort`, `SubjectDirectory` |
-| `access-control` | 主體現在能做什麼 | `PermissionDecision`, `AccessPolicy` | `PlatformCommandPort`, `PolicyCatalogRepository` |
-| `security-policy` | 平台安全規則如何被定義與發佈 | `PolicyCatalog`, `PolicyRule` | `PlatformCommandPort`, `PolicyCatalogRepository` |
-| `platform-config` | 平台以何種設定輪廓運作 | `ConfigurationProfile`, `ConfigurationProfileRef` | `PlatformCommandPort`, `ConfigurationProfileStore` |
-| `feature-flag` | 哪些能力在哪種條件下被打開 | `PlatformCapability`, `CapabilityToggle` | `PlatformCommandPort`, `ConfigurationProfileStore` |
-| `onboarding` | 新主體如何被引導完成初始設定 | `OnboardingFlow`, `SetupProgress` | `PlatformCommandPort`, `OnboardingRepository` |
-| `compliance` | 資料保留、隱私與法規要求如何被執行 | `CompliancePolicy`, `DataRetentionRule` | `PlatformCommandPort`, `CompliancePolicyStore` |
-| `billing` | 計費狀態、收費結果與財務證據如何被管理 | `BillingState`, `DispatchOutcome` | `PlatformCommandPort`, `DeliveryHistoryRepository`, `AuditSignalStore` |
-| `subscription` | 方案、權益、配額與有效期間如何被管理 | `SubscriptionAgreement`, `Entitlement`, `UsageLimit` | `PlatformCommandPort`, `SubscriptionAgreementRepository`, `UsageMeterRepository` |
-| `referral` | 推薦關係與獎勵如何被追蹤 | `ReferralLink`, `ReferralReward` | `PlatformCommandPort`, `ReferralRepository` |
-| `integration` | 平台如何與外部系統安全協作 | `IntegrationContract`, `DeliveryPolicy` | `PlatformCommandPort`, `IntegrationContractRepository`, `ExternalSystemGateway` |
-| `workflow` | 哪些事實要被轉成可執行流程 | `WorkflowTrigger`, `WorkflowPolicy` | `PlatformCommandPort`, `WorkflowPolicyRepository`, `WorkflowDispatcherPort` |
-| `notification` | 哪些對象應收到什麼訊息 | `NotificationDispatch`, `NotificationRoute` | `PlatformCommandPort`, `NotificationGateway`, `DeliveryHistoryRepository` |
-| `background-job` | 長時程或排程任務如何被提交與監控 | `JobSchedule`, `JobExecution` | `PlatformCommandPort`, `JobQueuePort` |
-| `content` | 內容資產如何被管理與發布 | `ContentAsset`, `PublicationState` | `PlatformCommandPort`, `ContentRepository` |
-| `search` | 跨域搜尋請求如何被路由與執行 | `SearchQuery`, `SearchResult` | `PlatformCommandPort`, `SearchIndexPort` |
-| `audit-log` | 什麼事必須被永久追蹤 | `AuditSignal`, `AuditClassification` | `PlatformCommandPort`, `AuditSignalStore` |
-| `observability` | 如何量測健康、追蹤與告警 | `ObservabilitySignal`, `HealthIndicator` | `PlatformCommandPort`, `ObservabilitySink` |
-| `analytics` | 使用行為如何被量測與分析 | `AnalyticsEvent`, `BehaviorMetric` | `PlatformCommandPort`, `AnalyticsSink` |
-| `support` | 客服工單與支援知識如何被管理 | `SupportTicket`, `KnowledgeArticle` | `PlatformCommandPort`, `SupportRepository` |
-
-## Capability Groups
-
-### 主體與名錄
-
-- `identity`
-- `account`
-- `account-profile`
-- `organization`
-
-### 治理與安全
-
-- `access-control`
-- `security-policy`
-- `platform-config`
-- `feature-flag`
-- `onboarding`
-- `compliance`
-
-### 商業與權益
-
-- `billing`
-- `subscription`
-- `referral`
-
-### 流程與交付
-
-- `integration`
-- `workflow`
-- `notification`
-- `background-job`
-
-### 內容與檢索
-
-- `content`
-- `search`
-
-### 證據與診斷
-
-- `audit-log`
-- `observability`
-- `analytics`
-- `support`
-
-## Migration-Pending Subdomains
-
-以下五個 platform 子域目前在 repository 中存在對應的**獨立模組**。這些獨立模組是子域的**前身實作**，計畫在未來重構中合并進 platform。
-
-| 子域 | 對應獨立模組 | 合并方向說明 |
-|---|---|---|
-| `identity` | `modules/identity/` | `Identity`, `TokenRefreshSignal`, `IdentityRepository`, `TokenRefreshRepository` → 吸收進 `identity` 子域 |
-| `account` | `modules/account/` | `Account`, `AccountPolicy`, `AccountRepository`, `AccountQueryRepository`, `AccountPolicyRepository` → 吸收進 `account` 子域 |
-| `account-profile` | `modules/account/` | `AccountProfile` 概念目前住在 `account` 模組；獨立的 profile 治理能力 → 吸收進 `account-profile` 子域 |
-| `organization` | `modules/organization/` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`, `OrganizationRepository`, `OrgPolicyRepository` → 吸收進 `organization` 子域 |
-| `notification` | `modules/notification/` | `NotificationEntity`, `NotificationRepository`，目前為 conformist 消費者 → 吸收進 `notification` 子域 |
-
-**重構規則：** 合并前，platform 的語言、port 契約與事件命名以本 blueprint 文件為準；合并後，獨立模組應廢棄並指向 `modules/platform/`。
-
-## Inventory Freeze Rule
-
-後續若有人想新增 platform 子域，必須先證明以下三件事都成立：
-
-1. 既有 23 個子域沒有任何一個能吸收該能力
-2. 新能力需要獨立的語言、port 焦點與責任邊界
-3. `README.md`、`bounded-context.md`、`context-map.md`、本文件都已先被更新
-
-若無法同時滿足這三件事，預設不允許新增子域。
-````
-
-## File: modules/platform/AGENT.md
-````markdown
-# AGENT.md — platform blueprint
-
-> **強制開發規範**
-> 本 BC 領域開發必須優先確認平台邊界、通用語言與 Hexagonal + DDD 分層。
-> 若需外部官方文件驗證，先使用 Context7；若只更新 `domain/`、`application/`、`ports/` 或本地架構文件，則不讓 UI / Next.js 技能反向主導平台邊界。
-
-## 模組定位
-
-`platform` 在這裡是平台基礎能力的六邊形架構藍圖。它的任務，是保護 platform language、ports/adapters 邊界與子域協作方式，而不是把所有跨領域邏輯集中成單一巨型模組。
-
-## 計畫吸收模組（Migration-Pending Modules）
-
-以下四個獨立模組**計畫重構進 platform**。代理人在這些子域工作時，應把 platform blueprint 的語言定義視為目標規範，獨立模組的現有實作視為前身實作。
-
-| 獨立模組 | 目標子域 | 術語映射重點 |
-|---|---|---|
-| `modules/identity/` | `identity` | `Identity` → `AuthenticatedSubject`；`uid` → `SubjectId`；`TokenRefreshSignal` → `IdentitySignal` |
-| `modules/account/` | `account` + `account-profile` | `Account` 保持同名；`AccountPolicy.PolicyRule` 須對齊 `PolicyCatalog.PolicyRule`；`customClaims` → `Entitlement` |
-| `modules/organization/` | `organization` | `Organization` 保持同名；`MemberReference` → `MembershipBoundary` 的值；`OrganizationRole` 對齊 `RoleAssignment` |
-| `modules/notification/` | `notification` | `NotificationEntity` → `NotificationDispatch`；`recipientId` → `NotificationRoute` 的對象 |
-
-**合并優先序：** `identity` → `account` → `organization` → `notification`
-
-**代理人注意事項：**
-- 合并前不要把獨立模組的術語直接搬進 platform domain；先確認與 platform 語言的映射
-- 合并完成後，獨立模組的 `api/index.ts` 應重新 export 自 `modules/platform/api`，模組本身標記 deprecated
-- 若跨獨立模組與 platform 之間有協作需求，仍須透過 `modules/platform/api` 公開邊界，不得直接依賴對方 domain/application 層
-
-## Canonical Subdomain Inventory
-
-platform 的正式子域清單已固定為：
-
-- `identity`
-- `account`
-- `account-profile`
-- `organization`
-- `access-control`
-- `security-policy`
-- `platform-config`
-- `feature-flag`
-- `onboarding`
-- `compliance`
-- `billing`
-- `subscription`
-- `referral`
-- `integration`
-- `workflow`
-- `notification`
-- `background-job`
-- `content`
-- `search`
-- `audit-log`
-- `observability`
-- `analytics`
-- `support`
-
-這份 inventory 預設為 closed by default。代理人必須先把需求映射到這 23 個子域之一，不能為了方便再建立新的資料夾別名。
-
-## 代理人工作契約
-
-任何在 `modules/platform/` 的變更，都應遵守以下順序：
-
-1. 先確認變更屬於哪一個平台子域
-2. 再確認它是 domain rule、application orchestration、port contract、public boundary projection，還是 adapter concern
-3. 只有在語言與邊界已經穩定時，才擴張資料結構或事件名稱
-
-## 必須維持的 Hexagonal + DDD 規則
-
-- domain 只擁有模型、規則與事件語言，不直接呼叫外部系統
-- application 只協調 use cases，不定義 persistence 或 transport 細節
-- input ports 定義進入系統的請求語言
-- output ports 定義離開系統的依賴語言
-- adapters 只翻譯或實作 ports，不改寫業務語意
-- `api/` 是 platform 對外的 public boundary；它只做投影與 re-export
-- `index.ts` 不是邊界設計來源，不得被當成 public API 規格替代品
-- ports 只可依賴 `application/` 與 `domain/`，不得依賴 `api/`
-- 事件語言單一來源在 `domain/events`；`events/contracts` 僅可 re-export
-- domain events 需由 application 在持久化成功後發布
-
-## Layer Mapping
-
-| 概念 | platform 位置 |
-|---|---|
-| Public boundary | `api/` |
-| Driving adapters | `adapters/` |
-| Application | `application/` |
-| Domain core | `domain/` |
-| Input ports | `ports/input/` |
-| Output ports | `ports/output/` |
-| Driven adapters | `infrastructure/` |
-
-## 通用語言守則
-
-在 platform 文件與未來實作中，應優先使用這些詞：
-
-- `PlatformContext`
-- `PolicyCatalog`
-- `IntegrationContract`
-- `SubscriptionAgreement`
-- `PlatformCapability`
-- `PermissionDecision`
-- `WorkflowTrigger`
-- `NotificationDispatch`
-- `AuditSignal`
-- `ObservabilitySignal`
-- `PublicBoundary`
-- `UseCaseHandler`
-
-不要把這些術語隨意替換成籠統字眼，如 `settings`、`background-job`、`hook`、`status log`、`feature`、`auth result`。
-
-## 允許的修改
-
-- 新增或細化 platform 子域的語言與責任
-- 新增 input ports / output ports 以描述新的 I/O 邊界
-- 新增 application services 以表達新的 use case handlers
-- 新增 aggregates、值物件或 domain services 以承載純業務規則
-- 新增 adapters 或 infrastructure implementations 來實作既有 output ports
-
-## 禁止的修改
-
-- 在 domain 中混入 HTTP、SQL、message bus、email、metrics SDK 細節
-- 在 adapter 中定義平台政策或聚合不變數
-- 直接讓一個子域的 adapter 呼叫另一個子域的 adapter
-- 讓事件名稱承載命令語氣，例如 `please_send_notification`
-- 用臨時欄位或臨時語言繞過 `ubiquitous-language.md`
-- 用 `api/` 或 barrel 檔取代 `application/`、`domain/` 的契約來源
-
-## 文件更新規則
-
-若變更影響聚合、語言或邊界，至少同步更新以下文件：
-
-- 變更聚合或值物件：同步更新 `docs/aggregates.md` 與 `docs/ubiquitous-language.md`
-- 變更 use case handler：同步更新 `docs/application-services.md`
-- 變更 repository/output port：同步更新 `docs/repositories.md`
-- 變更 input port、support port 或 decision object：同步更新 `docs/application-services.md`、`docs/repositories.md` 與 `docs/ubiquitous-language.md`
-- 變更事件名稱或 payload：同步更新 `docs/domain-events.md`
-- 變更子域責任：同步更新 `docs/subdomains.md` 與 `docs/context-map.md`
-- 變更 platform 邊界：同步更新 `docs/bounded-context.md` 與 `README.md`
-
-## 文件分解對照
-
-`docs/README.md` 僅作為索引入口，內容必須拆分並維持以下對照：
-
-- 聚合與不變數：`docs/aggregates.md`
-- use case handlers：`docs/application-services.md`
-- 邊界責任：`docs/bounded-context.md`
-- 子域協作：`docs/context-map.md`
-- 事件語言：`docs/domain-events.md`
-- 純領域規則：`docs/domain-services.md`
-- repositories 與 ports：`docs/repositories.md`
-- 子域清單：`docs/subdomains.md`
-- 術語治理：`docs/ubiquitous-language.md`
-
-## 代理人交付標準
-
-- 優先維持語言一致性，而不是追求一次塞入所有能力
-- 優先讓 ports 穩定，再讓 adapters 成長
-- 優先用事件與契約描述跨邊界協作，而不是共享內部資料結構
-- 任何新術語都應能在 `docs/ubiquitous-language.md` 落地
-
-## 最終檢查
-
-在交付前，代理人至少自問六件事：
-
-1. 這個變更有沒有把 platform policy 泄漏到 adapter？
-2. 這個 I/O 邊界是否已經先表達成 port？
-3. 事件名稱是否描述事實而非命令？
-4. `api/` 是否仍只是 public boundary，而不是核心契約來源？
-5. 子域或 handler 提到的 ports，是否都已在 `docs/repositories.md` 明確定義？
-6. 新增術語、事件、決策物件是否都已在 `docs/ubiquitous-language.md` 與 `docs/domain-events.md` 完整落地？
-````
-
-## File: modules/platform/README.md
-````markdown
-# platform
-
-`platform` 是平台基礎能力的 Hexagonal Architecture with Domain-Driven Design 藍圖，負責主體治理、政策規則、能力啟用、跨邊界交付、稽核與可觀測性等平台底層能力。這個模組的目標，是穩定語言與邊界，而不是集中所有跨領域業務邏輯。
-
-## 邊界定位
-
-- 維持 `driving adapters -> application -> domain <- driven adapters` 的依賴方向
-- `domain/` 保持 framework-free，不引入 HTTP、DB SDK、訊息匯流排與監控 SDK
-- 所有外部輸入先表達成 `ports/input`
-- 所有外部依賴先表達成 `ports/output`，再由 `infrastructure/` 實作
-- `api/` 是對外 public boundary，只做投影與 re-export
-- `ports/` 只依賴 `application/` 與 `domain/` 契約，不依賴 `api/`
-- `index.ts` 只是模組匯出便利入口，不是邊界規格來源
-
-## Hexagonal Mapping
-
-| Hexagonal concept | platform 位置 | 說明 |
-|---|---|---|
-| Public boundary | `api/` | 跨模組公開契約投影 |
-| Driving adapters | `adapters/` | CLI、web、external ingress 等輸入端 |
-| Application | `application/` | use case orchestration、DTO、command/query 處理 |
-| Domain core | `domain/` | 聚合、值物件、domain services、domain events |
-| Input ports | `ports/input/` | 進入 application 的穩定契約 |
-| Output ports | `ports/output/` | repositories、stores、gateways、sinks |
-| Driven adapters | `infrastructure/` | 對 output ports 的具體實作 |
-| Published language | `domain/events/`, `application/dtos/` | 事件與穩定 application contracts |
-
-## 模組骨架
-
-```text
-modules/platform/
-    api/
-    adapters/
-    application/
-    domain/
-    infrastructure/
-    ports/
-    docs/
-    subdomains/
-    AGENT.md
-```
-
-## Canonical Subdomain Inventory (23)
-
-- `identity`
-- `account`
-- `account-profile`
-- `organization`
-- `access-control`
-- `security-policy`
-- `platform-config`
-- `feature-flag`
-- `onboarding`
-- `compliance`
-- `billing`
-- `subscription`
-- `referral`
-- `integration`
-- `workflow`
-- `notification`
-- `background-job`
-- `content`
-- `search`
-- `audit-log`
-- `observability`
-- `analytics`
-- `support`
-
-此 inventory 採 closed by default；新增子域前必須先完成文件治理與邊界論證。
-
-## 計畫吸收模組
-
-以下四個現有獨立模組將在未來重構中合并進 platform，成為對應子域的正式實作：
-
-| 獨立模組 | 目標子域 | 現有狀態 | 合并備注 |
-|---|---|---|---|
-| `modules/identity/` | `identity` | ✅ Done — 穩定 | `Identity`, `TokenRefreshSignal` → platform `AuthenticatedSubject` 語言 |
-| `modules/account/` | `account` + `account-profile` | ✅ Done — 穩定 | `Account`, `AccountPolicy`, `AccountProfile` → platform `account`/`account-profile` 子域 |
-| `modules/organization/` | `organization` | ✅ Done — 穩定 | `Organization`, `MemberReference`, `Team` → platform `organization` 子域 |
-| `modules/notification/` | `notification` | 🏗️ Midway | `NotificationEntity`, `NotificationRepository` → platform `notification` 子域 |
-
-**合并優先序：** `identity` → `account` → `organization` → `notification`
-
-合并前，platform blueprint 定義語言與 port 契約規範；獨立模組保持現有 API 介面不中斷。合并後，獨立模組的 `api/index.ts` 應指向 `modules/platform/api`，並標記為 deprecated。
-
-詳細語言映射見 [docs/ubiquitous-language.md](./docs/ubiquitous-language.md)，計畫吸收的事件見 [docs/domain-events.md](./docs/domain-events.md)，計畫吸收的倉儲見 [docs/repositories.md](./docs/repositories.md)。
-
-## 文件導覽
-
-- [docs/README.md](./docs/README.md): 文件索引與 Hexagonal DDD 閱讀路徑
-- [docs/bounded-context.md](./docs/bounded-context.md): 邊界責任、public boundary 與封板規則
-- [docs/subdomains.md](./docs/subdomains.md): 23 子域正式責任表
-- [docs/context-map.md](./docs/context-map.md): 子域協作與共享語言
-- [docs/ubiquitous-language.md](./docs/ubiquitous-language.md): 通用語言詞彙
-- [docs/aggregates.md](./docs/aggregates.md): 核心聚合與不變數
-- [docs/domain-services.md](./docs/domain-services.md): 跨聚合純規則
-- [docs/application-services.md](./docs/application-services.md): use case orchestration
-- [docs/repositories.md](./docs/repositories.md): repositories 與 output ports
-- [docs/domain-events.md](./docs/domain-events.md): 事件命名與收發清單
-
-## 變更準則
-
-1. 先映射到既有子域
-2. 再決定是 language、aggregate、use case、port、adapter 或 public boundary 變更
-3. 若牽涉命名、事件或邊界，先更新 `docs/` 與 `AGENT.md`，再實作
-
-## 文件閉環驗證
-
-提交前建議最少執行一次文件閉環檢查：
-
-1. `subdomains.md` 與 `bounded-context.md` 的 23 子域是否一致
-2. `subdomains.md` / `application-services.md` 中的 ports 是否都在 `docs/repositories.md`
-3. `docs/domain-events.md` 的事件術語是否都在 `docs/ubiquitous-language.md`
-4. `docs/context-map.md` 的協作語言是否與 `docs/domain-events.md` 命名一致
-5. `api/`、`ports/`、`adapters/`、`infrastructure/` 的角色是否仍然清楚
-````
-
 ## File: modules/workspace/api/ui.ts
 ````typescript
 /**
@@ -85353,16 +87311,6 @@ export {
 } from "../subdomains/scheduling/api";
 
 export { WorkspaceFlowTab } from "../subdomains/workflow/api";
-````
-
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/types/routes.d.ts";
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````
 
 ## File: modules/workspace/api/contracts.ts
@@ -85601,4 +87549,14 @@ export {
 export type {
   KnowledgePageApprovedHandler,
 } from "../subdomains/workflow/api";
+````
+
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````

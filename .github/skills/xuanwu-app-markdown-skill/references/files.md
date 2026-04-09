@@ -3202,321 +3202,6 @@ py_fn/ worker ──[Chunk + Embedding 寫回 Firestore]──► Next.js reads
 | `IngestionStatus` | `JobStatus`, `State` |
 ````
 
-## File: modules/identity/AGENT.md
-````markdown
-# AGENT.md — identity BC
-
-## 模組定位
-
-`identity` 是 Firebase Authentication 的 domain 薄層封裝。無業務邏輯，只有驗證基礎設施抽象。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Identity` | User、CurrentUser、AuthUser |
-| `TokenRefreshSignal` | TokenEvent、RefreshToken |
-| `signIn` | login、authenticate |
-| `signOut` | logout |
-| `uid` | userId、id（在此 BC 內） |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { identityApi } from "@/modules/identity/api";
-import type { IdentityDTO } from "@/modules/identity/api";
-```
-
-### ❌ 禁止
-```typescript
-import { useTokenRefreshListener } from "@/modules/identity/interfaces/hooks/useTokenRefreshListener";
-// ❌ api/ 不能含 "use client" 匯出 — account use-cases 在 server 端 import api/
-```
-
-## 關鍵守衛
-
-- `modules/identity/api/index.ts` 不得 re-export 任何含 `"use client"` 的檔案
-- hooks（`useTokenRefreshListener`）只能從 interfaces 層使用，不可進入 api barrel
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/identity/aggregates.md
-````markdown
-# Aggregates — identity
-
-## 聚合根：Identity
-
-### 職責
-代表一個已通過 Firebase Authentication 驗證的使用者。提供讀取身份資訊的能力。
-
-### 屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `uid` | `string` | Firebase UID（主鍵） |
-| `email` | `string \| null` | 使用者 Email |
-| `displayName` | `string \| null` | 顯示名稱 |
-| `photoURL` | `string \| null` | 頭像 URL |
-
-### 不變數
-
-- `uid` 永遠不為空（由 Firebase 保證）
-- `Identity` 物件是唯讀的（由 Firebase Auth SDK 產生）
-
----
-
-## 值物件：TokenRefreshSignal
-
-### 職責
-代表「token 需要刷新」的事件訊號，觸發 `account` 域更新 custom claims。
-
-### 屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `uid` | `string` | 需要刷新 token 的使用者 UID |
-| `occurredAt` | `string` | ISO 8601 時間戳 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 | 說明 |
-|------|---------|------|
-| `IdentityRepository` | `signIn()`, `signOut()`, `getCurrentIdentity()` | Firebase Auth 操作 |
-| `TokenRefreshRepository` | `listenToTokenRefresh()` | 監聽 token 刷新事件 |
-````
-
-## File: modules/identity/application-services.md
-````markdown
-# identity — Application Services
-
-> **Canonical bounded context:** `identity`
-> **模組路徑:** `modules/identity/`
-> **Domain Type:** Generic Subdomain
-
-本文件記錄 `identity` 的 application layer 服務與 use cases。內容與 `modules/identity/application/` 實作保持一致。
-
-## Application Layer 職責
-
-封裝 Firebase Authentication，提供登入、登出與 token refresh 能力。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/identity-error-message.ts`
-- `application/use-cases/identity.use-cases.ts`
-- `application/use-cases/token-refresh.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/identity/README.md`
-- 模組 AGENT：`../../../modules/identity/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/identity/application-services.md`
-````
-
-## File: modules/identity/context-map.md
-````markdown
-# Context Map — identity
-
-## 此 BC 的整合模式
-
-### 上游（依賴）
-
-`identity` 是最基礎的 Generic Subdomain，不依賴任何其他業務 BC。
-
-**外部依賴：** Firebase Authentication SDK（第三方服務，Anti-Corruption Layer 在 infrastructure 層）
-
----
-
-### 下游（被依賴）
-
-#### `account` ← identity（Customer/Supplier）
-
-- **模式：** Customer/Supplier
-- **方向：** `identity` 是 Supplier（上游），`account` 是 Customer（下游）
-- **整合方式：** `account` application use-cases 在 server 端 import `identity/api` 取得身份上下文
-- **關鍵規則：** `identity/api` 不得含任何 `"use client"` 匯出
-
-```
-identity/api ──import──► account/application/use-cases/*.ts（server-side）
-```
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| identity → account | identity | account | Customer/Supplier |
-| Firebase Auth → identity | Firebase | identity | Anti-Corruption Layer |
-````
-
-## File: modules/identity/domain-events.md
-````markdown
-# Domain Events — identity
-
-## 發出事件
-
-`identity` 域目前不發出 DomainEvent（Firebase Auth 事件由 SDK 直接處理，不經過領域事件匯流排）。
-
-未來如需追蹤登入稽核，可考慮加入：
-
-| 潛在事件 | 觸發條件 | 說明 |
-|---------|---------|------|
-| `identity.signed_in` | 使用者成功登入 | 供 `workspace-audit` 消費 |
-| `identity.signed_out` | 使用者登出 | 供稽核紀錄消費 |
-
-## 訂閱事件
-
-`identity` 不訂閱其他 BC 的事件。
-
-## TokenRefreshSignal（非正式事件）
-
-`TokenRefreshSignal` 是透過 `TokenRefreshRepository.listenToTokenRefresh()` 的 Observable 訊號，不是正式的 DomainEvent，但語意上扮演事件角色：
-
-```typescript
-// account use-case 消費此訊號
-identityApi.listenToTokenRefresh()
-  .subscribe(() => accountApi.refreshCustomClaims(uid));
-```
-````
-
-## File: modules/identity/domain-services.md
-````markdown
-# identity — Domain Services
-
-> **Canonical bounded context:** `identity`
-> **模組路徑:** `modules/identity/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `identity` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/identity/domain-services.md`
-- `../../../modules/identity/aggregates.md`
-````
-
-## File: modules/identity/README.md
-````markdown
-# identity — 身份驗證上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/identity/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`identity` 是整個平台的身份入口，封裝 Firebase Authentication 與 session 起點。它對產品價值並不差異化，但所有工作區、知識與 AI 互動都建立在正確的身份語意之上。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 登入 / 登出 | 處理 signIn、signOut 與身份狀態切換 |
-| Token 生命週期 | 管理 token refresh 與相關身份訊號 |
-| 身份上下文供應 | 向 `account`、`organization`、`workspace` 提供穩定的身份讀取入口 |
-
-## 與其他 Bounded Context 協作
-
-- `account` 直接消費 `identity/api` 提供的身份上下文。
-- `organization` 與 `workspace` 依賴身份語意建立成員與存取規則。
-
-## 核心聚合 / 核心概念
-
-- **`Identity`**
-- **`AuthenticatedUser`**
-- **`TokenRefreshSignal`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/identity/repositories.md
-````markdown
-# identity — Repositories
-
-> **Canonical bounded context:** `identity`
-> **模組路徑:** `modules/identity/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `identity` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/IdentityRepository.ts`
-- `domain/repositories/TokenRefreshRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseIdentityRepository.ts`
-- `infrastructure/firebase/FirebaseTokenRefreshRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/identity/repositories.md`
-- `../../../modules/identity/aggregates.md`
-````
-
-## File: modules/identity/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — identity
-
-> **範圍：** 僅限 `modules/identity/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 身份 | Identity | Firebase Auth 驗證後的使用者記錄，以 `uid` 為唯一識別碼 | `modules/identity/domain/entities/` |
-| 唯一身份碼 | uid | Firebase Authentication 產生的使用者全域唯一 ID | `Identity.uid` |
-| Token 刷新訊號 | TokenRefreshSignal | 代表 Firebase ID token 需要更新的訊號物件 | `domain/entities/` |
-| 登入 | signIn | 透過 Email 或 OAuth 建立 Firebase Auth session | `IdentityRepository.signIn()` |
-| 登出 | signOut | 終止 Firebase Auth session | `IdentityRepository.signOut()` |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `Identity` | `User`, `AuthUser`, `CurrentUser` |
-| `uid` | `userId`, `id`, `accountId`（在此 BC 內） |
-| `TokenRefreshSignal` | `RefreshToken`, `TokenEvent` |
-````
-
 ## File: modules/knowledge-base/AGENT.md
 ````markdown
 # knowledge-base — DDD Agent
@@ -5224,6 +4909,121 @@ interface OrganizationMemberJoinedEvent {
 | `Organization` | `Company`, `Tenant`, `Client` |
 | `MemberReference` | `Member`, `OrgUser` |
 | `OrganizationRole` | `Role`, `Permission` |
+````
+
+## File: modules/platform/subdomains/access-control/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'access-control'. -->
+````
+
+## File: modules/platform/subdomains/account-profile/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'account-profile'. -->
+````
+
+## File: modules/platform/subdomains/account/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'account'. -->
+````
+
+## File: modules/platform/subdomains/analytics/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'analytics'. -->
+````
+
+## File: modules/platform/subdomains/audit-log/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'audit-log'. -->
+````
+
+## File: modules/platform/subdomains/background-job/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'background-job'. -->
+````
+
+## File: modules/platform/subdomains/billing/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'billing'. -->
+````
+
+## File: modules/platform/subdomains/compliance/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'compliance'. -->
+````
+
+## File: modules/platform/subdomains/content/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'content'. -->
+````
+
+## File: modules/platform/subdomains/feature-flag/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'feature-flag'. -->
+````
+
+## File: modules/platform/subdomains/identity/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'identity'. -->
+````
+
+## File: modules/platform/subdomains/integration/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'integration'. -->
+````
+
+## File: modules/platform/subdomains/notification/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'notification'. -->
+````
+
+## File: modules/platform/subdomains/observability/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'observability'. -->
+````
+
+## File: modules/platform/subdomains/onboarding/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'onboarding'. -->
+````
+
+## File: modules/platform/subdomains/organization/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'organization'. -->
+````
+
+## File: modules/platform/subdomains/platform-config/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'platform-config'. -->
+````
+
+## File: modules/platform/subdomains/referral/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'referral'. -->
+````
+
+## File: modules/platform/subdomains/search/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'search'. -->
+````
+
+## File: modules/platform/subdomains/security-policy/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'security-policy'. -->
+````
+
+## File: modules/platform/subdomains/subscription/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'subscription'. -->
+````
+
+## File: modules/platform/subdomains/support/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'support'. -->
+````
+
+## File: modules/platform/subdomains/workflow/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'workflow'. -->
 ````
 
 ## File: modules/search/AGENT.md
@@ -10729,121 +10529,6 @@ modules/notion/
 | [原始模組](../../../../knowledge/README.md) | `modules/knowledge/README.md`（前身實作） |
 ````
 
-## File: modules/platform/subdomains/access-control/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'access-control'. -->
-````
-
-## File: modules/platform/subdomains/account-profile/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'account-profile'. -->
-````
-
-## File: modules/platform/subdomains/account/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'account'. -->
-````
-
-## File: modules/platform/subdomains/analytics/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'analytics'. -->
-````
-
-## File: modules/platform/subdomains/audit-log/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'audit-log'. -->
-````
-
-## File: modules/platform/subdomains/background-job/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'background-job'. -->
-````
-
-## File: modules/platform/subdomains/billing/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'billing'. -->
-````
-
-## File: modules/platform/subdomains/compliance/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'compliance'. -->
-````
-
-## File: modules/platform/subdomains/content/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'content'. -->
-````
-
-## File: modules/platform/subdomains/feature-flag/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'feature-flag'. -->
-````
-
-## File: modules/platform/subdomains/identity/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'identity'. -->
-````
-
-## File: modules/platform/subdomains/integration/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'integration'. -->
-````
-
-## File: modules/platform/subdomains/notification/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'notification'. -->
-````
-
-## File: modules/platform/subdomains/observability/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'observability'. -->
-````
-
-## File: modules/platform/subdomains/onboarding/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'onboarding'. -->
-````
-
-## File: modules/platform/subdomains/organization/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'organization'. -->
-````
-
-## File: modules/platform/subdomains/platform-config/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'platform-config'. -->
-````
-
-## File: modules/platform/subdomains/referral/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'referral'. -->
-````
-
-## File: modules/platform/subdomains/search/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'search'. -->
-````
-
-## File: modules/platform/subdomains/security-policy/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'security-policy'. -->
-````
-
-## File: modules/platform/subdomains/subscription/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'subscription'. -->
-````
-
-## File: modules/platform/subdomains/support/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'support'. -->
-````
-
-## File: modules/platform/subdomains/workflow/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'workflow'. -->
-````
-
 ## File: modules/workspace/aggregates.md
 ````markdown
 # Aggregates — workspace
@@ -11621,6 +11306,1115 @@ flowchart TD
 跨聚合規則若無法收斂到單一聚合，應交由 `domain-services.md` 中的 domain services 處理。
 ````
 
+## File: modules/platform/docs/application-services.md
+````markdown
+# platform — Application Services
+
+platform 的 application layer 是輸入介面與 domain core 之間的協調層。application services 的工作，是接收由 driving adapters 翻譯過的請求、實作 input port 語言、協調聚合與 output ports，並回傳穩定結果。
+
+## Application Layer 職責
+
+- 接住來自 API、webhook、scheduler、queue consumer、CLI 的輸入請求
+- 將輸入模型轉成 domain 能理解的 command / query / event-ingress 語言
+- 載入聚合、呼叫聚合行為與 domain services
+- 透過 repositories 與其他 output ports 完成持久化、事件發佈與外部 side effects
+- 組裝 command result 或 query projection
+
+## Input Port Inventory
+
+| Input Port | 用途 | 主要對應的 Driving Adapters |
+|---|---|---|
+| `PlatformCommandPort` | 接收命令型請求並執行狀態變更 | API controllers, CLI commands, scheduler, webhook handlers |
+| `PlatformQueryPort` | 提供唯讀查詢與投影 | API queries, UI read adapters, reporting adapters |
+| `PlatformEventIngressPort` | 吸收外部或相鄰子域的事實訊號 | event consumers, queue consumers, callback handlers |
+
+## Use Case Execution Flow
+
+1. driving adapter 完成 transport 驗證與輸入轉譯
+2. application service 呼叫 input port 對應的 use case
+3. use case 載入聚合或必要 read models
+4. 聚合 / domain services 執行平台規則
+5. application service 透過 output ports 保存狀態與發布事件
+6. application service 回傳 command result 或 query projection
+
+## Command-oriented Services
+
+| Application Service | 主要用途 | 典型輸入 | 依賴的 Output Ports |
+|---|---|---|---|
+| `RegisterPlatformContextService` | 建立或啟用平台範圍 | `RegisterPlatformContext` | `PlatformContextRepository`, `SubscriptionAgreementRepository`, `DomainEventPublisher` |
+| `PublishPolicyCatalogService` | 發佈新的規則版本 | `PublishPolicyCatalog` | `PolicyCatalogRepository`, `DomainEventPublisher` |
+| `ApplyConfigurationProfileService` | 套用配置輪廓與 capability toggles | `ApplyConfigurationProfile` | `PlatformContextRepository`, `ConfigurationProfileStore`, `DomainEventPublisher` |
+| `RegisterIntegrationContractService` | 建立或更新外部整合契約 | `RegisterIntegrationContract` | `IntegrationContractRepository`, `SecretReferenceResolver`, `DomainEventPublisher` |
+| `ActivateSubscriptionAgreementService` | 啟用、續約或停用訂閱協議 | `ActivateSubscriptionAgreement` | `SubscriptionAgreementRepository`, `PlatformContextRepository`, `DomainEventPublisher` |
+| `FireWorkflowTriggerService` | 發出 workflow trigger 並交給下游 adapter 執行 | `FireWorkflowTrigger` | `WorkflowPolicyRepository`, `WorkflowDispatcherPort`, `DomainEventPublisher` |
+| `RequestNotificationDispatchService` | 建立通知派送請求 | `RequestNotificationDispatch` | `NotificationGateway`, `PolicyCatalogRepository`, `AuditSignalStore` |
+| `RecordAuditSignalService` | 將決策或行為寫成稽核訊號 | `RecordAuditSignal` | `AuditSignalStore`, `DomainEventPublisher` |
+| `EmitObservabilitySignalService` | 發出 metrics / trace / alert 訊號 | `EmitObservabilitySignal` | `ObservabilitySink`, `AuditSignalStore` |
+
+## Query-oriented Services
+
+| Application Service | 主要用途 | 典型輸入 | 依賴的 Query Ports |
+|---|---|---|---|
+| `GetPlatformContextViewService` | 查詢 platform 範圍總覽 | `GetPlatformContextView` | `PlatformContextViewRepository` |
+| `ListEnabledCapabilitiesService` | 列出當前可用能力 | `ListEnabledCapabilities` | `PlatformContextViewRepository`, `SubscriptionAgreementRepository` |
+| `GetPolicyCatalogViewService` | 查詢政策版本與規則摘要 | `GetPolicyCatalogView` | `PolicyCatalogViewRepository` |
+| `GetSubscriptionEntitlementsService` | 查詢方案權益與限制 | `GetSubscriptionEntitlements` | `SubscriptionAgreementRepository`, `UsageMeterRepository` |
+| `GetWorkflowPolicyViewService` | 查詢 trigger 對應的 workflow policy | `GetWorkflowPolicyView` | `WorkflowPolicyRepository`, `PolicyCatalogViewRepository` |
+
+## 計畫吸收模組的 Use Cases（Migration-Pending）
+
+下列 use cases 目前定義於對應的**獨立模組**，計畫在合并進 platform 後成為各子域 application layer 的正式 use case handlers。
+
+| 模組 | 現有 Use Case | 目標子域 | 說明 |
+|---|---|---|---|
+| `modules/identity/` | `identity.use-cases.ts` — signIn, signOut, getCurrentIdentity | `identity` | 驗證、登出與身份狀態；合并後對應 `PlatformEventIngressPort` 的身份訊號接收路徑 |
+| `modules/identity/` | `token-refresh.use-cases.ts` — refreshCustomClaims | `identity` | token 刷新觸發 custom claims 更新 |
+| `modules/account/` | `account.use-cases.ts` — createAccount, updateAccount, deleteAccount | `account` | 帳號 CRUD；合并後對應 `PlatformCommandPort` 的 `RegisterPlatformContext` 或新增 account 命令 |
+| `modules/account/` | `account-policy.use-cases.ts` — upsertPolicy | `account` | AccountPolicy 管理；合并後對齊 `PublishPolicyCatalogService` 的 account-scoped 規則 |
+| `modules/organization/` | `organization.use-cases.ts` — createOrg | `organization` | 組織建立 |
+| `modules/organization/` | `organization-lifecycle.use-cases.ts` | `organization` | 組織生命週期管理 |
+| `modules/organization/` | `organization-member.use-cases.ts` | `organization` | 成員邀請、加入、移除 |
+| `modules/organization/` | `organization-team.use-cases.ts` | `organization` | Team 管理 |
+| `modules/organization/` | `organization-partner.use-cases.ts` | `organization` | PartnerInvite 管理 |
+| `modules/organization/` | `organization-policy.use-cases.ts` | `organization` | 組織政策管理；合并後對齊 platform `PolicyCatalog` 規則 |
+| `modules/notification/` | `notification.use-cases.ts` — dispatchNotification, markAsRead | `notification` | 通知建立與已讀標記；合并後對應 `RequestNotificationDispatchService` |
+
+**合并優先序：** 建議按 `identity → account → organization → notification` 順序合并，以保持語意依賴方向。
+
+## Orchestration Rules
+
+- application services 可以協調多個 aggregates，但不應把跨聚合規則硬塞進 handler 本身
+- 所有 persistence 與 side effects 都必須透過 output ports，不直接寫在 service 裡
+- 所有 transport concern 都由 driving adapters 處理；application services 不理解 HTTP status、queue headers 或 webhook signature
+- input validation 可以在 driving adapters 與 application layer 邊界做，但 domain invariants 仍由 aggregates 與 domain services 守護
+- domain events 應在狀態持久化成功後發布，而不是先發後存
+
+## Input Ports 與 Use Case Handlers
+
+輸入請求應先表達成 input ports 定義的語言，再交由 application services 實作。這讓 API controller、message consumer、CLI 或 scheduler 都能共用同一個 use case handler，而不必把業務邏輯寫進 adapter。若新增新的 handler，但沒有對應 input port 語言，表示藍圖仍有缺口。
+
+## 輸出結果
+
+application services 應回傳兩種結果之一：
+
+- command result：描述是否成功、主體識別值與版本資訊
+- query projection：為查詢或 UI 組裝的唯讀模型
+
+無論哪一種，application services 都不應回傳 adapter-specific payload。
+````
+
+## File: modules/platform/docs/bounded-context.md
+````markdown
+# Bounded Context — platform
+
+本文件定義 `platform` 這份本地藍圖的邊界。platform 的任務，是把平台級的主體治理、政策規則、能力啟用、外部交付、稽核與可觀測性收斂成一個 **Hexagonal + DDD** 邊界，而不是把這些能力散落成沒有語言與責任的共享雜物間。
+
+## Context Purpose
+
+platform 這個 bounded context 負責回答五類問題：
+
+- 誰是平台可治理的主體
+- 主體在什麼條件下可以做什麼
+- 哪些能力在當前方案、設定與安全政策下可用
+- 平台如何把事實轉成流程、外部交付與通知
+- 平台如何留下證據並暴露診斷訊號
+
+## Canonical Capability Groups
+
+### 主體與名錄
+
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+
+### 治理與安全
+
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+
+### 商業與權益
+
+- `billing`
+- `subscription`
+- `referral`
+
+### 流程與交付
+
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+
+### 內容與檢索
+
+- `content`
+- `search`
+
+### 證據與診斷
+
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
+
+## 邊界包含什麼
+
+platform 包含：
+
+- 可被 platform 通用語言描述的聚合、值物件、規則與事件
+- 可被 application layer 協調的 use cases、commands、queries 與 read models
+- 可被 ports 表達的輸入契約與外部依賴契約
+- 可被稽核與可觀測性需求追蹤的 published language
+
+## 邊界刻意不包含什麼
+
+- 產品內容本身的建立、編排與發布策略
+- 檢索、推理、內容相關性或知識生成演算法
+- 任何 UI 呈現細節本身
+- 直接綁定 HTTP、queue、webhook、SDK、資料庫的 adapter 細節
+- 以「暫時先開個資料夾」為名的未定義能力
+
+## Hexagonal Layer Mapping
+
+| Layer / concept | platform 位置 | 說明 |
+|---|---|---|
+| Public boundary | `api/` | 對外公開的 cross-module boundary；只做投影與 re-export |
+| Driving adapters | `adapters/` | CLI、web、external ingress 等輸入端轉譯 |
+| Application | `application/` | use case orchestration、command/query handling |
+| Domain | `domain/` | 聚合、值物件、domain services、domain events |
+| Input ports | `ports/input/` | 進入 application 的穩定契約 |
+| Output ports | `ports/output/` | repository、store、gateway、sink 等依賴契約 |
+| Driven adapters | `infrastructure/` | 對 output ports 的具體技術實作 |
+
+## Layer Responsibilities
+
+### Domain
+
+- 擁有聚合、值物件、domain services、domain events
+- 維持不變數與 published language
+- 不直接理解 repository implementation、HTTP、DB、queue 或 SDK
+
+### Application
+
+- 實作 use case handlers 與 input port 語言
+- 協調 aggregates、domain services 與 output ports
+- 在持久化成功後拉取並發布 domain events
+
+### Ports
+
+- input ports：命令、查詢、事件匯入入口
+- output ports：repositories、support stores、gateways、sinks
+- 由 core/application 擁有，不以 `api/` 為型別真實來源
+
+### Adapters / Infrastructure
+
+- driving adapters：把 HTTP、CLI、scheduler、webhook、queue ingress 翻譯成 input port 語言
+- driven adapters：把 repository、event publishing、notification、telemetry、external delivery 實作成具體技術方案
+
+## Public Boundary Rule
+
+- `api/` 是 platform 對其他模組的正式 public boundary
+- `index.ts` 只作 aggregate export convenience，不應被當成邊界設計來源
+- `ports/` 的契約來源在 `application/` 與 `domain/`，不是 `api/`
+
+## Closed Inventory Boundary Rule
+
+這個 bounded context 以 23 個子域作為封閉 inventory。任何新需求預設都應被視為既有子域的責任延伸，而不是新增第 24 個子域。只有在既有 23 個子域無法吸收時，才允許重新打開 inventory。
+
+## 計畫吸收模組
+
+以下四個現有獨立模組的能力**計畫在未來重構中合并進 platform**，成為對應子域的正式實作。在合并完成前，這些模組作為各自子域的前身實作繼續運作，platform blueprint 定義語言與 port 契約的規範形式。
+
+| 獨立模組 | 目標子域 | 現有核心概念 | 合并備注 |
+|---|---|---|---|
+| `modules/identity/` | `identity` | `Identity`, `uid`, `TokenRefreshSignal`, `IdentityRepository`, `TokenRefreshRepository` | 提供 `AuthenticatedSubject` 與 `IdentitySignal` 的前身語意 |
+| `modules/account/` | `account` + `account-profile` | `Account`, `AccountPolicy`, `AccountProfile`, `AccountRepository`, `AccountQueryRepository`, `AccountPolicyRepository` | `account` 承接帳號聚合根；`account-profile` 承接可治理輪廓屬性 |
+| `modules/organization/` | `organization` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`, `OrganizationRepository`, `OrgPolicyRepository` | 提供 `MembershipBoundary` 與 `RoleAssignment` 的前身語意 |
+| `modules/notification/` | `notification` | `NotificationEntity`, `NotificationRepository`，conformist 消費者 | 提供 `NotificationDispatch` 與 `NotificationRoute` 的前身語意 |
+
+**合并優先序：** `identity` → `account` → `organization` → `notification`（按語意依賴順序）
+
+**合并後規則：**
+- 獨立模組應設為 deprecated，並把 `api/index.ts` 指向 `modules/platform/api`
+- Platform blueprint 的語言定義優先；若有術語歧異，以本文件與 `ubiquitous-language.md` 為準
+
+## 邊界測試問題
+
+1. 這個變更屬於哪個既有子域
+2. 它需要的是新語言、既有語言的細化，還是新的 port contract
+3. 它是 domain rule、application orchestration、adapter concern，還是 public boundary projection
+4. 它是否會破壞 closed inventory 或 dependency direction
+5. 若涉及 identity / account / organization / notification，是否與計畫吸收方向一致
+
+若第 1 題答不出來，表示 platform 邊界尚未被正確理解。
+````
+
+## File: modules/platform/docs/context-map.md
+````markdown
+# Context Map — platform
+
+本文件描述 platform 的 23 個子域如何在同一個 bounded context 內協作。這是一張 **local platform map**，目的是說明共享語言、事件事實與 use case 協作，不是全系統上下文圖。
+
+## Collaboration Rule
+
+- 子域之間透過 published language、input ports、output ports 與 read models 協作
+- 不應讓某個子域的 adapter 直接依賴另一個子域的 adapter
+- 若跨子域互動需要新的共享語言，先更新 `ubiquitous-language.md` 與本文件
+- 若跨子域互動需要新的依賴契約，先更新 `application-services.md` 或 `repositories.md`
+
+## Local Platform Map
+
+以下是核心協作關係圖。新增到 canonical inventory 的子域（例如 `onboarding`、`compliance`、`content`、`search`、`analytics`、`support`、`background-job`、`referral`）在不同實作階段可先以最小路徑接入，待對應 port 穩定後再擴展協作邊。
+
+```text
+identity -> account -> account-profile -> access-control
+identity -> audit-log
+
+organization -> access-control
+organization -> audit-log
+
+security-policy -> access-control
+security-policy -> compliance
+security-policy -> workflow
+security-policy -> audit-log
+
+platform-config -> feature-flag
+platform-config -> access-control
+platform-config -> integration
+platform-config -> workflow
+platform-config -> notification
+platform-config -> observability
+
+onboarding -> account-profile
+onboarding -> notification
+
+subscription -> billing
+subscription -> feature-flag
+subscription -> access-control
+subscription -> integration
+subscription -> workflow
+
+referral -> account
+referral -> billing
+referral -> analytics
+
+access-control -> integration
+access-control -> workflow
+access-control -> audit-log
+
+workflow -> notification
+workflow -> background-job
+workflow -> audit-log
+workflow -> observability
+
+integration -> audit-log
+integration -> observability
+
+notification -> audit-log
+notification -> observability
+
+billing -> audit-log
+billing -> observability
+
+content -> search
+content -> audit-log
+
+search -> analytics
+search -> observability
+
+background-job -> observability
+background-job -> audit-log
+
+compliance -> audit-log
+compliance -> observability
+
+support -> analytics
+support -> audit-log
+
+audit-log -> observability
+audit-log -> analytics
+
+analytics -> observability
+```
+
+## 協作關係
+
+| Source | Target | 共享語言 | 為何需要這個關係 |
+|---|---|---|---|
+| `identity` | `account` | `AuthenticatedSubject`, `AccountLifecycle` | 驗證後主體需映射到可治理帳戶 |
+| `identity` | `account-profile` | `AuthenticatedSubject`, `SubjectScope` | 驗證過的主體需要被映射成可治理輪廓 |
+| `account-profile` | `access-control` | `AccountProfile`, `SubjectPreference` | 授權決策需要主體屬性與偏好 |
+| `organization` | `access-control` | `MembershipBoundary`, `RoleAssignment` | 存取控制需要群組與角色資訊 |
+| `onboarding` | `account-profile` | `OnboardingFlow`, `SetupProgress` | 初始設定結果要轉成可治理輪廓 |
+| `security-policy` | `access-control` | `PolicyCatalog`, `AccessPolicy` | 授權判斷要遵守安全政策 |
+| `security-policy` | `compliance` | `PolicyCatalog`, `CompliancePolicy` | 合規檢查需套用統一政策版本 |
+| `platform-config` | `feature-flag` | `ConfigurationProfile`, `CapabilityToggle` | 能力開關需要設定輪廓與 rollout 參數 |
+| `platform-config` | `workflow` | `ConfigurationProfile` | 流程啟動依賴設定化規則與參數 |
+| `subscription` | `feature-flag` | `Entitlement`, `UsageLimit` | feature rollout 必須受方案權益約束 |
+| `subscription` | `integration` | `PlanConstraint`, `DeliveryAllowance` | 某些整合只在特定方案與配額下可用 |
+| `subscription` | `billing` | `SubscriptionAgreement`, `BillingState` | 訂閱生命週期與計費狀態互相影響 |
+| `referral` | `billing` | `ReferralReward`, `BillingState` | 推薦回饋會影響帳務處理 |
+| `access-control` | `workflow` | `PermissionDecision` | 流程觸發前要先通過授權 |
+| `workflow` | `notification` | `WorkflowTrigger`, `NotificationDispatch` | 流程結果常需轉成通知請求 |
+| `workflow` | `background-job` | `WorkflowTrigger`, `JobSchedule` | 長時程任務由背景排程承接 |
+| `workflow` | `audit-log` | `AuditSignal`, `CorrelationContext` | 重要流程節點需要留下證據 |
+| `integration` | `audit-log` | `AuditSignal`, `DispatchOutcome` | 外部交付結果屬治理軌跡 |
+| `notification` | `audit-log` | `DispatchOutcome`, `AuditSignal` | 派送成功或失敗都要記錄 |
+| `content` | `search` | `ContentAsset`, `SearchQuery` | 內容發布需可被檢索索引與查詢 |
+| `support` | `analytics` | `SupportTicket`, `BehaviorMetric` | 支援流程輸出服務品質指標 |
+| `audit-log` | `observability` | `AuditClassification`, `ObservabilitySignal` | 稽核分類可轉為運維診斷訊號 |
+| `analytics` | `observability` | `BehaviorMetric`, `ObservabilitySignal` | 分析結果需進入告警與健康視圖 |
+| `billing` | `observability` | `BillingState`, `ObservabilitySignal` | 計費異常需要被量測與告警 |
+
+## 計畫吸收模組的協作現狀
+
+下列子域目前有對應的獨立模組，在合并前以「上游獨立模組 → platform subdomain blueprint」的方向映射：
+
+| 子域 | 目前獨立模組 | 現有協作語言 |
+|---|---|---|
+| `identity` | `modules/identity/` | `Identity`, `uid`, `TokenRefreshSignal`；identity 不訂閱任何事件，是最上游的身份來源 |
+| `account` | `modules/account/` | `Account`, `AccountPolicy`；訂閱 `TokenRefreshSignal` 以更新 custom claims |
+| `account-profile` | `modules/account/`（AccountProfile 概念） | `AccountProfile`, `SubjectPreference`；目前與 account 同住 |
+| `organization` | `modules/organization/` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`；發出 `organization.member_joined` 等事件，被 `access-control`、`notification` 消費 |
+| `notification` | `modules/notification/` | `NotificationEntity`, `NotificationRepository`；為 conformist 消費者，訂閱 `workspace.member_joined`、`workspace-flow.task_status_changed` 等事件，不發出 domain events |
+
+**合并前的協作規則：** platform blueprint 只定義語言與 port 契約；獨立模組仍是語意的事實來源，直到完成合并並退役為止。
+
+## Context Map Rule
+
+若某個新需求無法被這張 map 中的既有節點、共享語言與既有 ports 吸收，先調整 map、`subdomains.md` 與相關 ports 文件，而不是直接再加新資料夾。
+````
+
+## File: modules/platform/docs/domain-events.md
+````markdown
+# Domain Events — platform
+
+platform blueprint 將 domain event 視為已發生事實的 published language。事件 schema 由 `domain/events` 擁有；application layer 負責在正確時機拉取事件；event publisher adapter 只負責 transport 與 delivery。
+
+## Event Envelope
+
+platform 事件應至少包含以下欄位：
+
+| 欄位 | 用途 |
+|---|---|
+| `type` | 事件名稱，格式採用 `<subdomain>.<fact>` |
+| `aggregateType` | 事件所屬聚合型別 |
+| `aggregateId` | 聚合識別值 |
+| `contextId` | 平台範圍識別值 |
+| `occurredAt` | 事件發生時間，使用 ISO 8601 |
+| `version` | 聚合版本或事件版本 |
+| `correlationId` | 關聯整串工作流程 |
+| `causationId` | 指出直接觸發來源 |
+| `actorId` | 觸發此事實的主體 |
+| `payload` | 事件特定資料 |
+
+## Publish Lifecycle
+
+1. 聚合狀態變更或 application orchestration 完成一個 business fact
+2. domain 產生 event 並暫存於 aggregate 或 orchestration 結果中
+3. application service 完成持久化與必要 output port 呼叫
+4. `DomainEventPublisher` 再把事件送往 bus、topic 或其他 delivery adapter
+
+事件不應由聚合直接推送到 message bus，也不應在持久化前先發送。
+
+## 發出事件
+
+| 事件 | 何時發出 | 核心 payload |
+|---|---|---|
+| `platform.context_registered` | 平台範圍建立完成 | `subjectScope`, `lifecycleState` |
+| `platform.capability_enabled` | 某項 capability 被啟用 | `capabilityKey`, `entitlementRef` |
+| `platform.capability_disabled` | 某項 capability 被停用 | `capabilityKey`, `reason` |
+| `policy.catalog_published` | 新的政策版本生效 | `policyCatalogId`, `revision` |
+| `config.profile_applied` | 配置輪廓完成套用 | `configurationProfileRef`, `changedKeys` |
+| `permission.decision_recorded` | 完成一次可追蹤授權決策 | `decision`, `subjectRef`, `resourceRef` |
+| `integration.contract_registered` | 整合契約生效或更新 | `integrationContractId`, `protocol`, `endpointRef` |
+| `integration.delivery_failed` | 外部交付失敗 | `integrationContractId`, `deliveryAttempt`, `failureCode` |
+| `subscription.agreement_activated` | 訂閱協議進入生效狀態 | `subscriptionAgreementId`, `planCode`, `validUntil` |
+| `onboarding.flow_completed` | 新主體完成 onboarding 主要流程 | `onboardingId`, `subjectRef`, `completedSteps` |
+| `compliance.policy_verified` | 合規政策檢核通過或更新 | `policyRef`, `verificationResult`, `effectivePeriod` |
+| `referral.reward_recorded` | 推薦獎勵被核算並記錄 | `referralId`, `rewardType`, `rewardAmount` |
+| `workflow.trigger_fired` | workflow trigger 被成功發出 | `triggerKey`, `triggeredBy`, `triggeredAt` |
+| `background-job.enqueued` | 背景作業被提交到佇列 | `jobId`, `jobType`, `scheduleAt` |
+| `content.asset_published` | 內容資產進入發布狀態 | `assetId`, `publicationState`, `publishedAt` |
+| `search.query_executed` | 搜尋查詢完成並產生結果 | `queryId`, `queryText`, `resultCount` |
+| `notification.dispatch_requested` | 建立通知派送請求 | `channel`, `recipientRef`, `templateKey` |
+| `audit.signal_recorded` | 寫入一條不可變 audit signal | `signalType`, `severity`, `subjectRef` |
+| `observability.signal_emitted` | 發出指標、追蹤或告警訊號 | `signalName`, `signalLevel`, `sourceRef` |
+| `analytics.event_recorded` | 分析事件被記錄與聚合 | `eventName`, `metricRef`, `subjectRef` |
+| `support.ticket_opened` | 支援工單被建立 | `ticketId`, `priority`, `requesterRef` |
+
+## 事件擁有者
+
+| 事件 | 主要擁有者 |
+|---|---|
+| `platform.context_registered` / `platform.capability_*` | `PlatformContext` |
+| `policy.catalog_published` | `PolicyCatalog` |
+| `integration.contract_registered` / `integration.delivery_failed` | `IntegrationContract` |
+| `subscription.agreement_activated` | `SubscriptionAgreement` |
+| `onboarding.flow_completed` | application layer 在 onboarding 決策完成後發出 |
+| `compliance.policy_verified` | application layer 在合規檢核完成後發出 |
+| `referral.reward_recorded` | application layer 在推薦獎勵核算後發出 |
+| `workflow.trigger_fired` | application layer 在 domain rule 通過後發出 |
+| `background-job.enqueued` | application layer 在工作流轉交背景作業後發出 |
+| `content.asset_published` | application layer 在內容發布決策完成後發出 |
+| `search.query_executed` | application layer 在搜尋執行完成後發出 |
+| `notification.dispatch_requested` | application layer 在 delivery request 建立後發出 |
+| `audit.signal_recorded` | application layer 在 evidence sink 接受記錄後發出 |
+| `observability.signal_emitted` | application layer 在 observability sink 接受訊號後發出 |
+| `analytics.event_recorded` | application layer 在分析匯流接收事件後發出 |
+| `support.ticket_opened` | application layer 在支援案件建立後發出 |
+
+## 訂閱事件
+
+platform 也會透過 input ports 接收外部或相鄰子域傳入的事件型訊號。這些訊號通常會被轉成 application commands，再由 use case handlers 處理。
+
+| 輸入訊號 | 用途 |
+|---|---|
+| `identity.subject_authenticated` | 建立或更新主體上下文 |
+| `account.profile_amended` | 更新帳戶輪廓相關治理判斷 |
+| `organization.membership_changed` | 更新組織邊界與角色映射 |
+| `subscription.entitlement_changed` | 調整 capability enablement 與限制 |
+| `integration.callback_received` | 接收外部系統回呼結果 |
+| `workflow.execution_completed` | 接收工作流執行結果以觸發後續通知、稽核與觀測 |
+
+## 計畫吸收模組的事件（Migration-Pending）
+
+下列事件目前由對應的**獨立模組**定義與發出，在合并進 platform 後將成為 platform published language 的一部分。合并前，platform blueprint 定義的事件命名以本文件為準；若與獨立模組現有命名有差異，合并時以本文件的命名為遷移目標。
+
+### 來自 `modules/account/`
+
+| 事件 | 何時發出 | 核心 payload |
+|---|---|---|
+| `account.created` | 新帳號建立完成 | `accountId`, `email`, `occurredAt` |
+| `account.policy_updated` | AccountPolicy 更新，觸發 custom claims 刷新 | `accountId`, `policyId`, `occurredAt` |
+
+### 來自 `modules/organization/`
+
+| 事件 | 何時發出 | 核心 payload |
+|---|---|---|
+| `organization.created` | 新組織建立時 | `organizationId`, `name`, `ownerId`, `occurredAt` |
+| `organization.member_invited` | 成員被邀請加入 | `organizationId`, `inviteId`, `email`, `role`, `occurredAt` |
+| `organization.member_joined` | 邀請被接受，成員加入 | `organizationId`, `accountId`, `role`, `occurredAt` |
+| `organization.member_removed` | 成員被移除 | `organizationId`, `accountId`, `occurredAt` |
+| `organization.team_created` | 新 Team 建立 | `organizationId`, `teamId`, `occurredAt` |
+
+### 來自 `modules/identity/`（計畫中）
+
+`identity` 模組目前不發出正式 domain event（Firebase Auth 事件由 SDK 直接處理）。合并後建議加入：
+
+| 計畫事件 | 觸發條件 | 用途 |
+|---|---|---|
+| `identity.signed_in` | 使用者成功登入 | 供 `audit-log`、`account` 消費 |
+| `identity.signed_out` | 使用者登出 | 供稽核記錄消費 |
+
+### `modules/notification/` 的訂閱現狀
+
+`notification` 模組目前為純消費者（不發出事件），合并後保持此角色。它目前訂閱：
+- `workspace.member_joined`
+- `workspace-flow.task_status_changed`
+
+這些訂閱關係在 platform 的 `notification` 子域保持不變，但在合并後路由邏輯移至 platform 的 `events/ingress/`。
+
+## 事件設計規則
+
+- 事件名稱必須描述事實，而不是請求
+- domain event 只描述業務語意，不攜帶 adapter-specific metadata
+- event publisher 是 output port，不能被聚合直接取代
+- 事件 payload 應足以讓下游 adapter 或 handler 理解事實，但不應把整個聚合序列化出去
+- 若事件來自 application orchestration 而不是單一 aggregate，必須在文件中標示其擁有位置，避免假裝它來自不存在的 aggregate
+
+## 事件命名規則
+
+推薦格式：
+
+```text
+<subdomain>.<fact>
+```
+
+例如：
+
+- `policy.catalog_published`
+- `workflow.trigger_fired`
+- `notification.dispatch_requested`
+- `audit.signal_recorded`
+
+這種命名能讓事件在 transport 層之外仍保持可讀性與一致性。
+````
+
+## File: modules/platform/docs/domain-services.md
+````markdown
+# platform — Domain Services
+
+platform 的 domain services 承載那些無法只靠單一 aggregate 完成、但仍屬於純平台規則的決策。它們位於 domain core，負責輸出 decision object 或 rule evaluation，不做 persistence、不直接發送事件，也不接觸 transport 或 SDK。
+
+## Domain Services 清單
+
+| Domain Service | 處理的問題 | 主要輸入 |
+|---|---|---|
+| `CapabilityEntitlementPolicy` | capability 是否可因 entitlement 生效 | `PlatformCapability`, `SubscriptionAgreement` |
+| `PermissionResolutionService` | 如何根據主體、資源與政策做授權決策 | `SubjectScope`, `PolicyCatalog`, `ResourceDescriptor` |
+| `ConfigurationCompositionService` | 多層配置如何組裝成單一有效視圖 | `ConfigurationProfile`, `PolicyCatalog`, `SubscriptionAgreement` |
+| `IntegrationCompatibilityService` | 外部契約是否與 policy、plan、protocol 相容 | `IntegrationContract`, `SubscriptionAgreement`, `PolicyCatalog` |
+| `WorkflowDispatchPolicy` | 某個 trigger 是否該被允許、延遲、抑制或升級 | `WorkflowTrigger`, `PolicyCatalog`, `PermissionDecision` |
+| `NotificationRoutingPolicy` | 某條通知該走哪個通道、是否應被抑制 | `NotificationDispatch`, `PolicyCatalog`, `SubjectPreference` |
+| `AuditClassificationService` | 什麼樣的行為需要記錄、記成何種等級 | `AuditSignal`, `PolicyCatalog` |
+| `ObservabilityCorrelationService` | 如何把 workflow、integration、notification、audit 連成可追蹤鏈 | `ObservabilitySignal`, `CorrelationContext` |
+
+## 何時該抽成 Domain Service
+
+以下情況適合使用 domain service：
+
+- 規則跨越兩個以上 aggregates
+- 規則本身不需要持有狀態
+- 規則對 adapters 完全不感興趣，但對平台語意很重要
+- 需要回傳清楚 decision object，而不是把規則散落在多個 use case 中
+
+以下情況不該抽成 domain service：
+
+- 只是某個 aggregate 自己的不變數
+- 只是資料庫查詢方便性的封裝
+- 只是 HTTP、queue、webhook 的轉譯邏輯
+- 只是 SDK 調用流程包裝
+
+## 與 Application Layer 的關係
+
+- application services 可以呼叫 domain services
+- domain services 不應反向知道 application service 的存在
+- 若規則需要外部狀態，應由 application 先透過 output ports 取回資料，再把乾淨的 domain inputs 傳給 domain service
+- 若規則需要 I/O，應拆成 domain rule + output port，而不是把 I/O 留在 domain service 裡
+
+## 設計原則
+
+- domain services 應優先回傳明確的 decision object，而不是鬆散布林值
+- 錯誤應描述治理語意，例如 `entitlement_denied`, `policy_conflict`, `delivery_not_allowed`
+- 每個 service 都應可在不啟動任何 adapter 的情況下被測試
+- service 介面應只依賴 domain 語言，不依賴 transport 或 persistence 細節
+
+## 主要 Decision Objects
+
+| Decision Object | 用途 |
+|---|---|
+| `PermissionDecision` | 表達允許、拒絕、條件允許或需要升級 |
+| `DispatchOutcome` | 表達通知或外部交付的結果 |
+| `AuditClassification` | 表達此事實需要何種稽核等級 |
+| `PlanConstraint` | 表達 subscription 對 capability 或 delivery 的限制 |
+| `DeliveryAllowance` | 表達整合或通知在當前條件下是否允許交付 |
+
+## 與平台子域的對應
+
+- `identity`（目前對應 `modules/identity/`）、`account`（目前對應 `modules/account/`）、`organization`（目前對應 `modules/organization/`）主要提供主體與邊界輸入
+- `access-control`, `platform-config`, `subscription` 提供治理輸入
+- `integration`, `workflow`, `notification`（目前對應 `modules/notification/`）提供執行輸入
+- `audit-log`, `observability` 將決策轉成可追蹤訊號
+
+**計畫吸收語意：** `PermissionResolutionService` 合并 `modules/account/` 的 AccountPolicy 規則語意後，須能同時處理帳號層與組織層的授權判斷。`NotificationRoutingPolicy` 在 `modules/notification/` 合并後，應把現有的 `DispatchNotificationInput` 語言對齊 platform 的 `NotificationDispatch`。
+````
+
+## File: modules/platform/docs/README.md
+````markdown
+# platform docs
+
+`platform/docs/` 是 platform blueprint 的文件索引入口。這組文件以 **Hexagonal Architecture with Domain-Driven Design** 為閱讀骨架：先確認邊界與通用語言，再確認聚合、use case、ports、events 與 adapters 的責任分工。
+
+## Hexagonal + DDD 閱讀框架
+
+| 關注點 | 文件 | 說明 |
+|---|---|---|
+| Bounded Context 邊界 | `bounded-context.md` | platform 的責任範圍、封板規則與 public boundary |
+| Canonical subdomains | `subdomains.md` | 23 個正式子域與 capability inventory |
+| Shared language | `ubiquitous-language.md` | 聚合、ports、事件與協作的命名權威 |
+| Domain core | `aggregates.md`, `domain-services.md`, `domain-events.md` | 聚合、不變數、純規則與 published language |
+| Application orchestration | `application-services.md` | use case handlers、input ports 與 command/query 協調 |
+| Driven ports | `repositories.md` | repositories、query ports、support ports、delivery ports |
+| Collaboration map | `context-map.md` | 子域間的共享語言與協作方向 |
+
+## 文件分工
+
+| 文件 | 主題 |
+|---|---|
+| `aggregates.md` | 核心聚合、值物件、不變數與 aggregate lifecycle |
+| `application-services.md` | use case handlers、input ports、command/query 協調 |
+| `bounded-context.md` | platform 邊界、責任範圍、public boundary 與 layer mapping |
+| `context-map.md` | 23 個子域間的協作關係與共享語言 |
+| `domain-events.md` | 事件命名、事件擁有者、發出/訂閱與 publish lifecycle |
+| `domain-services.md` | 跨聚合純規則、decision objects 與 service 抽取準則 |
+| `repositories.md` | repository ports、query ports、support ports、delivery ports |
+| `subdomains.md` | 正式 23 子域 inventory 與責任對照 |
+| `ubiquitous-language.md` | platform 通用語言與 Hexagonal vocabulary |
+
+## 讀取順序
+
+1. 先讀 `bounded-context.md` 確認 platform 這個 bounded context 的責任與 public boundary
+2. 讀 `subdomains.md` 與 `context-map.md`，理解 23 個子域如何協作
+3. 讀 `ubiquitous-language.md`，鎖定 aggregate、port、event、adapter 的命名
+4. 最後讀 `aggregates.md`、`domain-services.md`、`application-services.md`、`repositories.md`、`domain-events.md` 進入設計細節
+
+## Hexagonal 對照
+
+| Hexagonal concept | platform blueprint |
+|---|---|
+| Public boundary | `api/` |
+| Driving adapters | `adapters/`（CLI、web、external ingress 等） |
+| Application layer | `application/` |
+| Domain core | `domain/` |
+| Input ports | `ports/input/` |
+| Output ports | `ports/output/` |
+| Driven adapters | `infrastructure/` |
+| Published language | `domain/events/` + `application/dtos/` |
+
+## 計畫吸收模組
+
+以下四個獨立模組計畫重構進 platform 子域，詳見各文件的 **Migration-Pending** 節：
+
+| 獨立模組 | 目標子域 | 語言文件 |
+|---|---|---|
+| `modules/identity/` | `identity` | [subdomains.md](./subdomains.md), [ubiquitous-language.md](./ubiquitous-language.md) |
+| `modules/account/` | `account` + `account-profile` | [subdomains.md](./subdomains.md), [aggregates.md](./aggregates.md) |
+| `modules/organization/` | `organization` | [subdomains.md](./subdomains.md), [domain-events.md](./domain-events.md) |
+| `modules/notification/` | `notification` | [subdomains.md](./subdomains.md), [repositories.md](./repositories.md) |
+
+## 變更同步規則
+
+- 變更聚合或值物件：同步更新 `aggregates.md` 與 `ubiquitous-language.md`
+- 變更 use case handlers、input ports 或 command/query 語言：同步更新 `application-services.md`
+- 變更 repositories、support ports 或 delivery ports：同步更新 `repositories.md`
+- 變更事件名稱、payload 或事件擁有者：同步更新 `domain-events.md`
+- 變更子域責任：同步更新 `subdomains.md` 與 `context-map.md`
+- 變更 platform 邊界或 public boundary：同步更新 `bounded-context.md`、`../README.md` 與 `../AGENT.md`
+
+## 文件閉環檢查清單
+
+每次調整 platform 文件後，至少確認以下幾點：
+
+1. `api/`、`ports/`、`adapters/`、`infrastructure/` 的角色敘述沒有互相重疊
+2. `subdomains.md` 出現的術語都能在 `ubiquitous-language.md` 找到定義
+3. `application-services.md` 與 `subdomains.md` 提到的 ports 都能在 `repositories.md` 找到契約
+4. `domain-events.md` 的事件命名、事件擁有者與 `context-map.md` 協作語言沒有衝突
+5. 文件沒有把 adapter concern 寫回 domain/application 規則
+````
+
+## File: modules/platform/docs/repositories.md
+````markdown
+# platform — Repositories
+
+在這份 blueprint 中，repository 與各種 gateway / sink 都屬於 **output ports**。repository 專門負責聚合狀態的載入與保存；其他 output ports 則處理查詢支援、事件發佈、外部交付與診斷輸出。契約由 core/application 擁有，具體技術實作放在 `infrastructure/`。
+
+## Output Port Ownership Rule
+
+- repository、query port、support port、delivery port 的語言來源在 `application/` 與 `domain/`
+- `api/` 只做 public boundary projection，不是 output port 的真實來源
+- infrastructure adapters 實作 ports，但不改寫其業務語意
+
+## Aggregate Repository Ports
+
+| Repository Port | 服務的聚合 | 核心職責 |
+|---|---|---|
+| `PlatformContextRepository` | `PlatformContext` | `findById`, `save`, `findBySubjectScope` |
+| `PolicyCatalogRepository` | `PolicyCatalog` | `findActiveByContextId`, `saveRevision`, `findByRevision` |
+| `IntegrationContractRepository` | `IntegrationContract` | `findById`, `save`, `findActiveByContextId` |
+| `SubscriptionAgreementRepository` | `SubscriptionAgreement` | `findEffectiveByContextId`, `save`, `findByPlanCode` |
+
+## Subdomain Repository / Store Ports
+
+下列 ports 在 `subdomains.md` 與 `application-services.md` 已被使用，需在 repository 契約層明確列出，避免文件引用缺口。
+
+| Port | 子域 | 用途 |
+|---|---|---|
+| `AccountRepository` | `account` | 載入與保存帳號聚合與生命週期狀態 |
+| `OnboardingRepository` | `onboarding` | 載入與保存 onboarding flow / setup progress |
+| `CompliancePolicyStore` | `compliance` | 查詢與保存合規規則、保留策略、審查結果 |
+| `ReferralRepository` | `referral` | 載入與保存推薦關係、獎勵狀態與結算參照 |
+| `ContentRepository` | `content` | 載入與保存內容資產與發布狀態 |
+| `SupportRepository` | `support` | 載入與保存支援工單與知識關聯狀態 |
+
+## Query / Read-model Ports
+
+某些查詢模型不需要完整 aggregate，可透過專門的 query ports 提供：
+
+| Query Port | 用途 |
+|---|---|
+| `PlatformContextViewRepository` | 提供平台範圍總覽 |
+| `PolicyCatalogViewRepository` | 提供規則摘要與 revision history |
+| `UsageMeterRepository` | 提供 entitlement / quota 的使用情況 |
+| `DeliveryHistoryRepository` | 提供 integration / notification 的交付紀錄查詢 |
+| `WorkflowPolicyRepository` | 提供 trigger 與 workflow policy 的讀取介面 |
+
+## Supporting State / Lookup Ports
+
+這些 ports 不直接保存聚合，但會為 application services 與 domain services 提供必要支援資料：
+
+| Support Port | 用途 |
+|---|---|
+| `ConfigurationProfileStore` | 提供可套用的 configuration profile |
+| `SubjectDirectory` | 提供主體輪廓、偏好與角色對照 |
+| `SecretReferenceResolver` | 解析整合契約所需的認證參照 |
+
+## 非 Repository 的 Output Ports
+
+Hexagonal 分層要求事件發佈與外部交付不要混入 repository 介面。platform blueprint 因此區分以下非持久化 ports：
+
+| Output Port | 用途 |
+|---|---|
+| `DomainEventPublisher` | 發佈 domain events 到 event bus 或 topic |
+| `WorkflowDispatcherPort` | 把 workflow trigger 交給執行引擎 |
+| `NotificationGateway` | 派送 email、SMS、push、chat 等通知 |
+| `AuditSignalStore` | 寫入不可變的 audit trail |
+| `ObservabilitySink` | 發送 metrics、trace、alert |
+| `AnalyticsSink` | 發送 analytics 事件與行為指標 |
+| `ExternalSystemGateway` | 呼叫外部 API、webhook 或 queue |
+| `JobQueuePort` | 提交與追蹤背景作業 |
+| `SearchIndexPort` | 寫入搜尋索引與查詢搜尋結果 |
+| `SecretReferenceResolver` | 解析整合契約所需的密鑰或憑證參照 |
+
+## Migration-Pending Repository Ports
+
+下列 repository ports 目前定義於對應的**獨立模組**，計畫在模組合并進 platform 時成為 platform output port 契約的一部分。合并前，platform blueprint 以此為目標定義；合并後，獨立模組的同名 port 應退役。
+
+### 來自 `modules/identity/`
+
+| Port | 目標子域 | 現有方法 | 說明 |
+|---|---|---|---|
+| `IdentityRepository` | `identity` | `signIn()`, `signOut()`, `getCurrentIdentity()` | Firebase Auth 操作入口；合并後成為 `identity` 子域的 output port |
+| `TokenRefreshRepository` | `identity` | `listenToTokenRefresh()` | token 刷新訊號監聽；合并後成為 `identity` 子域的 support port |
+
+### 來自 `modules/account/`
+
+| Port | 目標子域 | 現有方法 | 說明 |
+|---|---|---|---|
+| `AccountRepository` | `account` | `save()`, `findById()`, `delete()` | 帳號聚合根倉儲；platform `AccountRepository` 已在 ports/output 有對應定義 |
+| `AccountQueryRepository` | `account` | `findById()`, `findByEmail()` | CQRS 讀取側；合并後納入 `account` 的 query port |
+| `AccountPolicyRepository` | `account` | `save()`, `findByAccountId()` | AccountPolicy 倉儲；合并後納入 `account` 子域 |
+
+### 來自 `modules/organization/`
+
+| Port | 目標子域 | 現有方法 | 說明 |
+|---|---|---|---|
+| `OrganizationRepository` | `organization` | `save()`, `findById()`, `findByMemberId()` | Organization 聚合根倉儲；合并後成為 `organization` 子域的 repository port |
+| `OrgPolicyRepository` | `organization` | 組織政策 | 組織政策規則倉儲；合并後納入 `organization` 子域 |
+
+### 來自 `modules/notification/`
+
+| Port | 目標子域 | 現有方法 | 說明 |
+|---|---|---|---|
+| `NotificationRepository` | `notification` | `save()`, `findByRecipient()`, `markAsRead()` | 通知記錄倉儲；合并後成為 `notification` 子域的 repository port |
+
+## Adapter 實作原則
+
+- repository adapter 只處理資料映射與永續化，不重寫 platform policy
+- event publisher adapter 只處理 transport 與 delivery，不擁有事件語言
+- 外部系統 gateway 應以 integration contract 為依據，不直接從 UI 或 controller 讀設定
+- infrastructure adapter 可以組合 SDK，但 SDK 細節不能回滲到 port 契約命名
+
+## Persistence 與 Delivery 的切分
+
+推薦把 platform 層的 driven adapters 至少切成三類：
+
+- state adapters：資料庫、KV、文件儲存等 repository implementations
+- messaging adapters：event publisher、queue producer、topic publisher
+- external delivery adapters：HTTP client、webhook sender、notification provider、telemetry exporter
+
+## Repository 設計規則
+
+- repository 方法名稱應描述聚合語意，不描述資料庫語意
+- application layer 只能依賴 ports，不直接依賴 adapter class
+- repository 回傳 domain model 或 read model，不回傳 adapter 原生型別
+- 若某個依賴沒有聚合狀態可載入，優先考慮把它建模成一般 output port，而不是硬塞成 repository
+- 若 `application-services.md` 引用了某個 repository 或 support port，該名稱必須在本文件出現，否則表示文件之間仍然有缺口
+````
+
+## File: modules/platform/docs/subdomains.md
+````markdown
+# Subdomains — platform
+
+本文件是 platform 的正式子域 inventory。這份清單是 **closed by default** 的：後續開發必須先把能力映射到既有子域，而不是再新增新的子域名稱。
+
+## Subdomain Rule in Hexagonal DDD
+
+- 每個子域描述的是平台核心能力，不是資料夾便利分類
+- `Port 焦點` 欄位代表該子域主要透過哪些 input/output contracts 參與六邊形邊界
+- 子域之間共享語言時，應先落地到 `ubiquitous-language.md`、`context-map.md` 與相關 ports 文件
+
+## Canonical Inventory
+
+| 子域 | 核心問題 | 主要語言 | Port 焦點 |
+|---|---|---|---|
+| `identity` | 誰是已驗證主體 | `AuthenticatedSubject`, `IdentitySignal` | `PlatformEventIngressPort`, `SubjectDirectory` |
+| `account` | 帳號聚合根與生命週期狀態 | `Account`, `AccountLifecycle` | `PlatformCommandPort`, `AccountRepository` |
+| `account-profile` | 主體有哪些可治理屬性與偏好 | `AccountProfile`, `SubjectPreference` | `PlatformEventIngressPort`, `SubjectDirectory` |
+| `organization` | 主體處於哪些組織與角色邊界 | `MembershipBoundary`, `RoleAssignment` | `PlatformEventIngressPort`, `SubjectDirectory` |
+| `access-control` | 主體現在能做什麼 | `PermissionDecision`, `AccessPolicy` | `PlatformCommandPort`, `PolicyCatalogRepository` |
+| `security-policy` | 平台安全規則如何被定義與發佈 | `PolicyCatalog`, `PolicyRule` | `PlatformCommandPort`, `PolicyCatalogRepository` |
+| `platform-config` | 平台以何種設定輪廓運作 | `ConfigurationProfile`, `ConfigurationProfileRef` | `PlatformCommandPort`, `ConfigurationProfileStore` |
+| `feature-flag` | 哪些能力在哪種條件下被打開 | `PlatformCapability`, `CapabilityToggle` | `PlatformCommandPort`, `ConfigurationProfileStore` |
+| `onboarding` | 新主體如何被引導完成初始設定 | `OnboardingFlow`, `SetupProgress` | `PlatformCommandPort`, `OnboardingRepository` |
+| `compliance` | 資料保留、隱私與法規要求如何被執行 | `CompliancePolicy`, `DataRetentionRule` | `PlatformCommandPort`, `CompliancePolicyStore` |
+| `billing` | 計費狀態、收費結果與財務證據如何被管理 | `BillingState`, `DispatchOutcome` | `PlatformCommandPort`, `DeliveryHistoryRepository`, `AuditSignalStore` |
+| `subscription` | 方案、權益、配額與有效期間如何被管理 | `SubscriptionAgreement`, `Entitlement`, `UsageLimit` | `PlatformCommandPort`, `SubscriptionAgreementRepository`, `UsageMeterRepository` |
+| `referral` | 推薦關係與獎勵如何被追蹤 | `ReferralLink`, `ReferralReward` | `PlatformCommandPort`, `ReferralRepository` |
+| `integration` | 平台如何與外部系統安全協作 | `IntegrationContract`, `DeliveryPolicy` | `PlatformCommandPort`, `IntegrationContractRepository`, `ExternalSystemGateway` |
+| `workflow` | 哪些事實要被轉成可執行流程 | `WorkflowTrigger`, `WorkflowPolicy` | `PlatformCommandPort`, `WorkflowPolicyRepository`, `WorkflowDispatcherPort` |
+| `notification` | 哪些對象應收到什麼訊息 | `NotificationDispatch`, `NotificationRoute` | `PlatformCommandPort`, `NotificationGateway`, `DeliveryHistoryRepository` |
+| `background-job` | 長時程或排程任務如何被提交與監控 | `JobSchedule`, `JobExecution` | `PlatformCommandPort`, `JobQueuePort` |
+| `content` | 內容資產如何被管理與發布 | `ContentAsset`, `PublicationState` | `PlatformCommandPort`, `ContentRepository` |
+| `search` | 跨域搜尋請求如何被路由與執行 | `SearchQuery`, `SearchResult` | `PlatformCommandPort`, `SearchIndexPort` |
+| `audit-log` | 什麼事必須被永久追蹤 | `AuditSignal`, `AuditClassification` | `PlatformCommandPort`, `AuditSignalStore` |
+| `observability` | 如何量測健康、追蹤與告警 | `ObservabilitySignal`, `HealthIndicator` | `PlatformCommandPort`, `ObservabilitySink` |
+| `analytics` | 使用行為如何被量測與分析 | `AnalyticsEvent`, `BehaviorMetric` | `PlatformCommandPort`, `AnalyticsSink` |
+| `support` | 客服工單與支援知識如何被管理 | `SupportTicket`, `KnowledgeArticle` | `PlatformCommandPort`, `SupportRepository` |
+
+## Capability Groups
+
+### 主體與名錄
+
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+
+### 治理與安全
+
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+
+### 商業與權益
+
+- `billing`
+- `subscription`
+- `referral`
+
+### 流程與交付
+
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+
+### 內容與檢索
+
+- `content`
+- `search`
+
+### 證據與診斷
+
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
+
+## Migration-Pending Subdomains
+
+以下五個 platform 子域目前在 repository 中存在對應的**獨立模組**。這些獨立模組是子域的**前身實作**，計畫在未來重構中合并進 platform。
+
+| 子域 | 對應獨立模組 | 合并方向說明 |
+|---|---|---|
+| `identity` | `modules/identity/` | `Identity`, `TokenRefreshSignal`, `IdentityRepository`, `TokenRefreshRepository` → 吸收進 `identity` 子域 |
+| `account` | `modules/account/` | `Account`, `AccountPolicy`, `AccountRepository`, `AccountQueryRepository`, `AccountPolicyRepository` → 吸收進 `account` 子域 |
+| `account-profile` | `modules/account/` | `AccountProfile` 概念目前住在 `account` 模組；獨立的 profile 治理能力 → 吸收進 `account-profile` 子域 |
+| `organization` | `modules/organization/` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`, `OrganizationRepository`, `OrgPolicyRepository` → 吸收進 `organization` 子域 |
+| `notification` | `modules/notification/` | `NotificationEntity`, `NotificationRepository`，目前為 conformist 消費者 → 吸收進 `notification` 子域 |
+
+**重構規則：** 合并前，platform 的語言、port 契約與事件命名以本 blueprint 文件為準；合并後，獨立模組應廢棄並指向 `modules/platform/`。
+
+## Inventory Freeze Rule
+
+後續若有人想新增 platform 子域，必須先證明以下三件事都成立：
+
+1. 既有 23 個子域沒有任何一個能吸收該能力
+2. 新能力需要獨立的語言、port 焦點與責任邊界
+3. `README.md`、`bounded-context.md`、`context-map.md`、本文件都已先被更新
+
+若無法同時滿足這三件事，預設不允許新增子域。
+````
+
+## File: modules/platform/docs/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — platform
+
+本文件定義 platform blueprint 的穩定術語。這些詞用來讓 domain、application、ports、adapters 與子域文件保持一致，避免平台層隨著需求變動而出現多套互不相容的說法。
+
+## 核心術語
+
+| 術語 | 英文 | 定義 |
+|---|---|---|
+| 平台範圍 | PlatformContext | 一個受治理的 platform scope，擁有能力、政策、配置與訂閱邊界 |
+| 驗證主體 | AuthenticatedSubject | 已完成身份驗證、可被映射成 platform subject scope 的主體 |
+| 身份訊號 | IdentitySignal | 與主體登入、刷新、失效有關的事實訊號 |
+| 平台能力 | PlatformCapability | 可被啟用、停用、限流或受 entitlement 約束的能力 |
+| 能力開關 | CapabilityToggle | 某個 capability 在特定範圍中的生效狀態 |
+| 主體邊界 | SubjectScope | actor、account、organization 的治理範圍 |
+| 帳戶輪廓 | AccountProfile | 主體可被治理的屬性視圖 |
+| 主體偏好 | SubjectPreference | 主體在通知、體驗或交付上的偏好 |
+| 成員邊界 | MembershipBoundary | 主體在群組或組織中的歸屬邊界 |
+| 角色指派 | RoleAssignment | 主體在某個範圍內被授予的角色 |
+| 政策目錄 | PolicyCatalog | 權限、工作流、通知與稽核規則的版本化集合 |
+| 規則 | PolicyRule | 以 `subject`, `condition`, `effect` 表達的政策條目 |
+| 存取政策 | AccessPolicy | 用來推導 `PermissionDecision` 的政策集合或視圖 |
+| 配置輪廓 | ConfigurationProfile | 一組可被套用的設定與策略值 |
+| 配置輪廓參照 | ConfigurationProfileRef | 指向某份生效配置輪廓的參照 |
+| 整合契約 | IntegrationContract | 與外部系統互動所需的 endpoint、協議與 delivery policy |
+| 端點參照 | EndpointRef | 指向外部 endpoint 的穩定參照 |
+| 憑證參照 | SecretReference | 指向秘密、憑證或 token 的穩定參照 |
+| 派送政策 | DeliveryPolicy | timeout、retry、backoff、idempotency 的組合 |
+| 方案限制 | PlanConstraint | 訂閱方案對能力、流程或交付所施加的限制 |
+| 交付許可 | DeliveryAllowance | 在當前條件下某個交付是否被允許 |
+| 權限決策 | PermissionDecision | 對某主體是否可執行某動作的明確判斷 |
+| 訂閱協議 | SubscriptionAgreement | 方案、權益、限制與有效期間的商業邊界 |
+| 權益 | Entitlement | 某方案允許使用的 capability 或額度 |
+| 用量限制 | UsageLimit | 對使用量、頻率或配額的限制 |
+| 推薦連結 | ReferralLink | 推薦關係的識別與追蹤語言 |
+| 推薦獎勵 | ReferralReward | 推薦成功後可被核算與發放的獎勵語言 |
+| 生效區間 | EffectivePeriod | 某份協議、設定或規則的有效期間 |
+| 平台生命週期狀態 | PlatformLifecycleState | `draft | active | suspended | retired` |
+| 契約狀態 | ContractState | `draft | active | paused | revoked` |
+| 計費狀態 | BillingState | `pending | active | delinquent | expired | cancelled` |
+| 工作流觸發器 | WorkflowTrigger | 把某個平台事實轉成流程啟動點的語言 |
+| 工作流政策 | WorkflowPolicy | 用來規定 trigger 何時啟動、延後、抑制或升級的規則 |
+| 作業排程 | JobSchedule | 背景任務何時執行與重試策略的語言 |
+| 作業執行 | JobExecution | 背景任務一次執行結果與狀態的語言 |
+| 通知派送 | NotificationDispatch | 一次待交付的通知請求 |
+| 通知路由 | NotificationRoute | 通知應走的通道與對象語言 |
+| 派送結果 | DispatchOutcome | 一次交付成功、失敗、跳過或延後的結果 |
+| 內容資產 | ContentAsset | 可被治理、發布與檢索的內容單位語言 |
+| 發布狀態 | PublicationState | 內容在草稿、審核、發布等狀態中的語言 |
+| 搜尋結果 | SearchResult | 對 `SearchQuery` 的可消費回應語言 |
+| 稽核訊號 | AuditSignal | 必須被永久記錄的決策或行為事實 |
+| 稽核分類 | AuditClassification | 用來決定 audit signal 嚴重度與保留要求的分類 |
+| 可觀測性訊號 | ObservabilitySignal | metrics、trace、alert 等診斷輸入的統一語言 |
+| 健康指標 | HealthIndicator | 用來表達系統健康、退化或告警狀態的指標語言 |
+| 分析事件 | AnalyticsEvent | 可被聚合與分析的行為訊號語言 |
+| 支援工單 | SupportTicket | 客服互動與追蹤案件的語言 |
+| 知識文章 | KnowledgeArticle | 支援流程中引用的知識內容語言 |
+| 資源描述子 | ResourceDescriptor | 權限或 workflow 決策所面向的資源描述 |
+| 關聯上下文 | CorrelationContext | 用來串接 workflow、integration、notification、audit 的追蹤語言 |
+| 公開邊界 | PublicBoundary | 對其他模組暴露的穩定 boundary，於 platform 中即 `api/` |
+| 發佈語言 | PublishedLanguage | 跨邊界共享的事件與契約語言 |
+| 藍圖 | Blueprint | 對目標結構與語言的設計說明，而非既有實作聲明 |
+
+## Port Vocabulary
+
+| 術語 | 英文 | 定義 |
+|---|---|---|
+| 平台命令介面 | PlatformCommandPort | 接收命令型請求的 input port |
+| 平台查詢介面 | PlatformQueryPort | 接收查詢型請求的 input port |
+| 平台事件匯入介面 | PlatformEventIngressPort | 吸收外部或相鄰子域訊號的 input port |
+| 使用案例處理器 | UseCaseHandler | 實作 input port、協調 domain 與 output ports 的 application service |
+| 倉儲介面 | RepositoryPort | 載入與保存聚合狀態的 output port |
+| 查詢介面 | QueryPort | 提供 read model / projection 的 output port |
+| 支援介面 | SupportPort | 提供查表、設定或目錄資料的 output port |
+| 事件發佈器 | DomainEventPublisher | 發佈 domain events 的 output port |
+| 配置輪廓儲存介面 | ConfigurationProfileStore | 提供 configuration profile 的 support port |
+| 主體目錄 | SubjectDirectory | 提供帳戶輪廓、偏好與角色資料的 support port |
+| 帳戶倉儲 | AccountRepository | 提供 account 聚合狀態存取的 repository port |
+| 啟用引導倉儲 | OnboardingRepository | 提供 onboarding 流程狀態存取的 repository port |
+| 合規政策儲存介面 | CompliancePolicyStore | 提供 compliance 規則與保留策略的 support port |
+| 推薦倉儲 | ReferralRepository | 提供推薦關係與獎勵狀態存取的 repository port |
+| 工作流政策倉儲 | WorkflowPolicyRepository | 提供 workflow policy 的 query/support port |
+| 工作流派送介面 | WorkflowDispatcherPort | 將 trigger 交給執行引擎的 output port |
+| 通知閘道 | NotificationGateway | 對外派送通知的 output port |
+| 作業佇列介面 | JobQueuePort | 提交與追蹤背景作業的 output port |
+| 內容倉儲 | ContentRepository | 提供 content 資產狀態存取的 repository port |
+| 搜尋索引介面 | SearchIndexPort | 提供索引寫入與搜尋查詢的 output/query port |
+| 稽核訊號儲存介面 | AuditSignalStore | 寫入不可變稽核紀錄的 output port |
+| 可觀測性匯流介面 | ObservabilitySink | 發送 metrics、trace、alert 的 output port |
+| 分析匯流介面 | AnalyticsSink | 發送分析事件與行為指標的 output port |
+| 支援倉儲 | SupportRepository | 提供支援工單與知識關聯的 repository port |
+| 密鑰參照解析器 | SecretReferenceResolver | 解析憑證參照的 support port |
+| 驅動適配器 | DrivingAdapter | 把 HTTP、CLI、scheduler、webhook 等輸入翻譯成 input port 語言的 adapter |
+| 受驅動適配器 | DrivenAdapter | 實作 repository、gateway、sink 等 output ports 的 adapter |
+
+## 事件語言
+
+platform 事件推薦使用：
+
+```text
+<subdomain>.<fact>
+```
+
+例如：
+
+- `platform.context_registered`
+- `policy.catalog_published`
+- `workflow.trigger_fired`
+- `notification.dispatch_requested`
+- `audit.signal_recorded`
+
+## Migration-Pending 術語（計畫吸收模組）
+
+下列術語目前由對應的**獨立模組**定義，在合并進 platform 後應以本表的定義為準。若與獨立模組現有命名有差異，合并時以本表為遷移目標。
+
+### 來自 `modules/identity/`
+
+| 術語 | 英文 | platform 對應概念 | 定義 |
+|---|---|---|---|
+| 身份 | Identity | `AuthenticatedSubject` | Firebase Auth 驗證後的使用者記錄，以 `uid` 為唯一識別碼；合并後以 `AuthenticatedSubject` 作為 platform 語言 |
+| 唯一身份碼 | uid | SubjectId | Firebase Authentication 產生的使用者全域唯一 ID |
+| Token 刷新訊號 | TokenRefreshSignal | IdentitySignal | 代表 Firebase ID token 需要更新的訊號；合并後作為 `IdentitySignal` 的一種 |
+
+### 來自 `modules/account/`
+
+| 術語 | 英文 | platform 對應概念 | 定義 |
+|---|---|---|---|
+| 帳戶 | Account | Account（同名） | 使用者在平台的業務記錄，含 profile 資訊與狀態 |
+| 帳戶政策 | AccountPolicy | PolicyRule（account context） | 附加到帳戶的存取控制政策，決定 Firebase custom claims 內容 |
+| 帳戶 ID | accountId | SubjectScope 的組成部分 | Account 的業務主鍵（對應 Firebase uid，但在業務層使用 accountId 術語） |
+| 自訂宣告 | customClaims | — | Firebase ID token 中的自訂 claims；合并後以 platform `Entitlement` 語言統一表達 |
+
+### 來自 `modules/organization/`
+
+| 術語 | 英文 | platform 對應概念 | 定義 |
+|---|---|---|---|
+| 組織 | Organization | Organization（同名） | 頂層多租戶單元，代表一個企業或團隊 |
+| 成員參照 | MemberReference | MembershipBoundary 的組成 | 組織成員的輕量參照（含 accountId、role、presence） |
+| 隊伍 | Team | — | 組織內的子群組（internal / external 類型） |
+| 合作夥伴邀請 | PartnerInvite | — | 邀請外部合作夥伴加入隊伍的邀請記錄 |
+| 組織角色 | OrganizationRole | RoleAssignment 的值域 | `Owner \| Admin \| Member \| Guest` |
+| 在線狀態 | Presence | — | `active \| away \| offline` |
+| 邀請狀態 | InviteState | — | `pending \| accepted \| expired` |
+
+### 來自 `modules/notification/`
+
+| 術語 | 英文 | platform 對應概念 | 定義 |
+|---|---|---|---|
+| 通知實體 | NotificationEntity | NotificationDispatch（合并後） | 一則系統通知記錄（含標題、內容、類型、讀取狀態） |
+| 接收者 ID | recipientId | NotificationRoute 的對象語言 | 接收此通知的帳戶 ID |
+| 通知類型 | NotificationType | — | `info \| alert \| success \| warning` |
+
+## 禁止替換術語
+
+| 正確 | 不建議替換成 |
+|---|---|
+| `PlatformContext` | Tenant, Workspace, Environment |
+| `PlatformCapability` | Feature, Switch, Module |
+| `PolicyCatalog` | Settings Bag, Rule Dump |
+| `IntegrationContract` | Webhook Config, Endpoint Settings |
+| `SubscriptionAgreement` | Plan, Billing Row |
+| `PermissionDecision` | Auth Result, Check Flag |
+| `WorkflowTrigger` | background-job, Task Hook |
+| `NotificationDispatch` | Message Send, Push Action |
+| `AuditSignal` | Log Line, History Row |
+| `ObservabilitySignal` | Error Message, Console Output |
+| `InputPort` | Controller Method |
+| `OutputPort` | SDK Call |
+| `PublicBoundary` | Barrel File |
+
+## 語言使用規則
+
+- 若一個詞描述的是業務決策，應優先用 domain 語言，而不是 transport 語言
+- 若一個詞描述的是跨邊界共享契約，應優先保持簡短、穩定且可序列化
+- 若一個詞只在單一 adapter 有意義，不應升格成 platform 通用語言
+- 若新詞與既有詞重疊，先擴充定義，再考慮新增術語
+- 若一個詞其實是 boundary 角色，應明確區分 `PublicBoundary`、`InputPort`、`OutputPort` 與 `Adapter`
+````
+
 ## File: modules/workspace/application-services.md
 ````markdown
 # Application Services — workspace
@@ -11915,101 +12709,297 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/platform/docs/application-services.md
+## File: modules/platform/AGENT.md
 ````markdown
-# platform — Application Services
+# AGENT.md — platform blueprint
 
-platform 的 application layer 是輸入介面與 domain core 之間的協調層。application services 的工作，是接收由 driving adapters 翻譯過的請求、實作 input port 語言、協調聚合與 output ports，並回傳穩定結果。
+> **強制開發規範**
+> 本 BC 領域開發必須優先確認平台邊界、通用語言與 Hexagonal + DDD 分層。
+> 若需外部官方文件驗證，先使用 Context7；若只更新 `domain/`、`application/`、`ports/` 或本地架構文件，則不讓 UI / Next.js 技能反向主導平台邊界。
 
-## Application Layer 職責
+## 模組定位
 
-- 接住來自 API、webhook、scheduler、queue consumer、CLI 的輸入請求
-- 將輸入模型轉成 domain 能理解的 command / query / event-ingress 語言
-- 載入聚合、呼叫聚合行為與 domain services
-- 透過 repositories 與其他 output ports 完成持久化、事件發佈與外部 side effects
-- 組裝 command result 或 query projection
+`platform` 在這裡是平台基礎能力的六邊形架構藍圖。它的任務，是保護 platform language、ports/adapters 邊界與子域協作方式，而不是把所有跨領域邏輯集中成單一巨型模組。
 
-## Input Port Inventory
+## 計畫吸收模組（Migration-Pending Modules）
 
-| Input Port | 用途 | 主要對應的 Driving Adapters |
+以下四個獨立模組**計畫重構進 platform**。代理人在這些子域工作時，應把 platform blueprint 的語言定義視為目標規範，獨立模組的現有實作視為前身實作。
+
+| 獨立模組 | 目標子域 | 術語映射重點 |
 |---|---|---|
-| `PlatformCommandPort` | 接收命令型請求並執行狀態變更 | API controllers, CLI commands, scheduler, webhook handlers |
-| `PlatformQueryPort` | 提供唯讀查詢與投影 | API queries, UI read adapters, reporting adapters |
-| `PlatformEventIngressPort` | 吸收外部或相鄰子域的事實訊號 | event consumers, queue consumers, callback handlers |
+| `modules/identity/` | `identity` | `Identity` → `AuthenticatedSubject`；`uid` → `SubjectId`；`TokenRefreshSignal` → `IdentitySignal` |
+| `modules/account/` | `account` + `account-profile` | `Account` 保持同名；`AccountPolicy.PolicyRule` 須對齊 `PolicyCatalog.PolicyRule`；`customClaims` → `Entitlement` |
+| `modules/organization/` | `organization` | `Organization` 保持同名；`MemberReference` → `MembershipBoundary` 的值；`OrganizationRole` 對齊 `RoleAssignment` |
+| `modules/notification/` | `notification` | `NotificationEntity` → `NotificationDispatch`；`recipientId` → `NotificationRoute` 的對象 |
 
-## Use Case Execution Flow
+**合并優先序：** `identity` → `account` → `organization` → `notification`
 
-1. driving adapter 完成 transport 驗證與輸入轉譯
-2. application service 呼叫 input port 對應的 use case
-3. use case 載入聚合或必要 read models
-4. 聚合 / domain services 執行平台規則
-5. application service 透過 output ports 保存狀態與發布事件
-6. application service 回傳 command result 或 query projection
+**代理人注意事項：**
+- 合并前不要把獨立模組的術語直接搬進 platform domain；先確認與 platform 語言的映射
+- 合并完成後，獨立模組的 `api/index.ts` 應重新 export 自 `modules/platform/api`，模組本身標記 deprecated
+- 若跨獨立模組與 platform 之間有協作需求，仍須透過 `modules/platform/api` 公開邊界，不得直接依賴對方 domain/application 層
 
-## Command-oriented Services
+## Canonical Subdomain Inventory
 
-| Application Service | 主要用途 | 典型輸入 | 依賴的 Output Ports |
+platform 的正式子域清單已固定為：
+
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+- `billing`
+- `subscription`
+- `referral`
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+- `content`
+- `search`
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
+
+這份 inventory 預設為 closed by default。代理人必須先把需求映射到這 23 個子域之一，不能為了方便再建立新的資料夾別名。
+
+## 代理人工作契約
+
+任何在 `modules/platform/` 的變更，都應遵守以下順序：
+
+1. 先確認變更屬於哪一個平台子域
+2. 再確認它是 domain rule、application orchestration、port contract、public boundary projection，還是 adapter concern
+3. 只有在語言與邊界已經穩定時，才擴張資料結構或事件名稱
+
+## 必須維持的 Hexagonal + DDD 規則
+
+- domain 只擁有模型、規則與事件語言，不直接呼叫外部系統
+- application 只協調 use cases，不定義 persistence 或 transport 細節
+- input ports 定義進入系統的請求語言
+- output ports 定義離開系統的依賴語言
+- adapters 只翻譯或實作 ports，不改寫業務語意
+- `api/` 是 platform 對外的 public boundary；它只做投影與 re-export
+- `index.ts` 不是邊界設計來源，不得被當成 public API 規格替代品
+- ports 只可依賴 `application/` 與 `domain/`，不得依賴 `api/`
+- 事件語言單一來源在 `domain/events`；`events/contracts` 僅可 re-export
+- domain events 需由 application 在持久化成功後發布
+
+## Layer Mapping
+
+| 概念 | platform 位置 |
+|---|---|
+| Public boundary | `api/` |
+| Driving adapters | `adapters/` |
+| Application | `application/` |
+| Domain core | `domain/` |
+| Input ports | `ports/input/` |
+| Output ports | `ports/output/` |
+| Driven adapters | `infrastructure/` |
+
+## 通用語言守則
+
+在 platform 文件與未來實作中，應優先使用這些詞：
+
+- `PlatformContext`
+- `PolicyCatalog`
+- `IntegrationContract`
+- `SubscriptionAgreement`
+- `PlatformCapability`
+- `PermissionDecision`
+- `WorkflowTrigger`
+- `NotificationDispatch`
+- `AuditSignal`
+- `ObservabilitySignal`
+- `PublicBoundary`
+- `UseCaseHandler`
+
+不要把這些術語隨意替換成籠統字眼，如 `settings`、`background-job`、`hook`、`status log`、`feature`、`auth result`。
+
+## 允許的修改
+
+- 新增或細化 platform 子域的語言與責任
+- 新增 input ports / output ports 以描述新的 I/O 邊界
+- 新增 application services 以表達新的 use case handlers
+- 新增 aggregates、值物件或 domain services 以承載純業務規則
+- 新增 adapters 或 infrastructure implementations 來實作既有 output ports
+
+## 禁止的修改
+
+- 在 domain 中混入 HTTP、SQL、message bus、email、metrics SDK 細節
+- 在 adapter 中定義平台政策或聚合不變數
+- 直接讓一個子域的 adapter 呼叫另一個子域的 adapter
+- 讓事件名稱承載命令語氣，例如 `please_send_notification`
+- 用臨時欄位或臨時語言繞過 `ubiquitous-language.md`
+- 用 `api/` 或 barrel 檔取代 `application/`、`domain/` 的契約來源
+
+## 文件更新規則
+
+若變更影響聚合、語言或邊界，至少同步更新以下文件：
+
+- 變更聚合或值物件：同步更新 `docs/aggregates.md` 與 `docs/ubiquitous-language.md`
+- 變更 use case handler：同步更新 `docs/application-services.md`
+- 變更 repository/output port：同步更新 `docs/repositories.md`
+- 變更 input port、support port 或 decision object：同步更新 `docs/application-services.md`、`docs/repositories.md` 與 `docs/ubiquitous-language.md`
+- 變更事件名稱或 payload：同步更新 `docs/domain-events.md`
+- 變更子域責任：同步更新 `docs/subdomains.md` 與 `docs/context-map.md`
+- 變更 platform 邊界：同步更新 `docs/bounded-context.md` 與 `README.md`
+
+## 文件分解對照
+
+`docs/README.md` 僅作為索引入口，內容必須拆分並維持以下對照：
+
+- 聚合與不變數：`docs/aggregates.md`
+- use case handlers：`docs/application-services.md`
+- 邊界責任：`docs/bounded-context.md`
+- 子域協作：`docs/context-map.md`
+- 事件語言：`docs/domain-events.md`
+- 純領域規則：`docs/domain-services.md`
+- repositories 與 ports：`docs/repositories.md`
+- 子域清單：`docs/subdomains.md`
+- 術語治理：`docs/ubiquitous-language.md`
+
+## 代理人交付標準
+
+- 優先維持語言一致性，而不是追求一次塞入所有能力
+- 優先讓 ports 穩定，再讓 adapters 成長
+- 優先用事件與契約描述跨邊界協作，而不是共享內部資料結構
+- 任何新術語都應能在 `docs/ubiquitous-language.md` 落地
+
+## 最終檢查
+
+在交付前，代理人至少自問六件事：
+
+1. 這個變更有沒有把 platform policy 泄漏到 adapter？
+2. 這個 I/O 邊界是否已經先表達成 port？
+3. 事件名稱是否描述事實而非命令？
+4. `api/` 是否仍只是 public boundary，而不是核心契約來源？
+5. 子域或 handler 提到的 ports，是否都已在 `docs/repositories.md` 明確定義？
+6. 新增術語、事件、決策物件是否都已在 `docs/ubiquitous-language.md` 與 `docs/domain-events.md` 完整落地？
+````
+
+## File: modules/platform/README.md
+````markdown
+# platform
+
+`platform` 是平台基礎能力的 Hexagonal Architecture with Domain-Driven Design 藍圖，負責主體治理、政策規則、能力啟用、跨邊界交付、稽核與可觀測性等平台底層能力。這個模組的目標，是穩定語言與邊界，而不是集中所有跨領域業務邏輯。
+
+## 邊界定位
+
+- 維持 `driving adapters -> application -> domain <- driven adapters` 的依賴方向
+- `domain/` 保持 framework-free，不引入 HTTP、DB SDK、訊息匯流排與監控 SDK
+- 所有外部輸入先表達成 `ports/input`
+- 所有外部依賴先表達成 `ports/output`，再由 `infrastructure/` 實作
+- `api/` 是對外 public boundary，只做投影與 re-export
+- `ports/` 只依賴 `application/` 與 `domain/` 契約，不依賴 `api/`
+- `index.ts` 只是模組匯出便利入口，不是邊界規格來源
+
+## Hexagonal Mapping
+
+| Hexagonal concept | platform 位置 | 說明 |
+|---|---|---|
+| Public boundary | `api/` | 跨模組公開契約投影 |
+| Driving adapters | `adapters/` | CLI、web、external ingress 等輸入端 |
+| Application | `application/` | use case orchestration、DTO、command/query 處理 |
+| Domain core | `domain/` | 聚合、值物件、domain services、domain events |
+| Input ports | `ports/input/` | 進入 application 的穩定契約 |
+| Output ports | `ports/output/` | repositories、stores、gateways、sinks |
+| Driven adapters | `infrastructure/` | 對 output ports 的具體實作 |
+| Published language | `domain/events/`, `application/dtos/` | 事件與穩定 application contracts |
+
+## 模組骨架
+
+```text
+modules/platform/
+    api/
+    adapters/
+    application/
+    domain/
+    infrastructure/
+    ports/
+    docs/
+    subdomains/
+    AGENT.md
+```
+
+## Canonical Subdomain Inventory (23)
+
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+- `billing`
+- `subscription`
+- `referral`
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+- `content`
+- `search`
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
+
+此 inventory 採 closed by default；新增子域前必須先完成文件治理與邊界論證。
+
+## 計畫吸收模組
+
+以下四個現有獨立模組將在未來重構中合并進 platform，成為對應子域的正式實作：
+
+| 獨立模組 | 目標子域 | 現有狀態 | 合并備注 |
 |---|---|---|---|
-| `RegisterPlatformContextService` | 建立或啟用平台範圍 | `RegisterPlatformContext` | `PlatformContextRepository`, `SubscriptionAgreementRepository`, `DomainEventPublisher` |
-| `PublishPolicyCatalogService` | 發佈新的規則版本 | `PublishPolicyCatalog` | `PolicyCatalogRepository`, `DomainEventPublisher` |
-| `ApplyConfigurationProfileService` | 套用配置輪廓與 capability toggles | `ApplyConfigurationProfile` | `PlatformContextRepository`, `ConfigurationProfileStore`, `DomainEventPublisher` |
-| `RegisterIntegrationContractService` | 建立或更新外部整合契約 | `RegisterIntegrationContract` | `IntegrationContractRepository`, `SecretReferenceResolver`, `DomainEventPublisher` |
-| `ActivateSubscriptionAgreementService` | 啟用、續約或停用訂閱協議 | `ActivateSubscriptionAgreement` | `SubscriptionAgreementRepository`, `PlatformContextRepository`, `DomainEventPublisher` |
-| `FireWorkflowTriggerService` | 發出 workflow trigger 並交給下游 adapter 執行 | `FireWorkflowTrigger` | `WorkflowPolicyRepository`, `WorkflowDispatcherPort`, `DomainEventPublisher` |
-| `RequestNotificationDispatchService` | 建立通知派送請求 | `RequestNotificationDispatch` | `NotificationGateway`, `PolicyCatalogRepository`, `AuditSignalStore` |
-| `RecordAuditSignalService` | 將決策或行為寫成稽核訊號 | `RecordAuditSignal` | `AuditSignalStore`, `DomainEventPublisher` |
-| `EmitObservabilitySignalService` | 發出 metrics / trace / alert 訊號 | `EmitObservabilitySignal` | `ObservabilitySink`, `AuditSignalStore` |
+| `modules/identity/` | `identity` | ✅ Done — 穩定 | `Identity`, `TokenRefreshSignal` → platform `AuthenticatedSubject` 語言 |
+| `modules/account/` | `account` + `account-profile` | ✅ Done — 穩定 | `Account`, `AccountPolicy`, `AccountProfile` → platform `account`/`account-profile` 子域 |
+| `modules/organization/` | `organization` | ✅ Done — 穩定 | `Organization`, `MemberReference`, `Team` → platform `organization` 子域 |
+| `modules/notification/` | `notification` | 🏗️ Midway | `NotificationEntity`, `NotificationRepository` → platform `notification` 子域 |
 
-## Query-oriented Services
+**合并優先序：** `identity` → `account` → `organization` → `notification`
 
-| Application Service | 主要用途 | 典型輸入 | 依賴的 Query Ports |
-|---|---|---|---|
-| `GetPlatformContextViewService` | 查詢 platform 範圍總覽 | `GetPlatformContextView` | `PlatformContextViewRepository` |
-| `ListEnabledCapabilitiesService` | 列出當前可用能力 | `ListEnabledCapabilities` | `PlatformContextViewRepository`, `SubscriptionAgreementRepository` |
-| `GetPolicyCatalogViewService` | 查詢政策版本與規則摘要 | `GetPolicyCatalogView` | `PolicyCatalogViewRepository` |
-| `GetSubscriptionEntitlementsService` | 查詢方案權益與限制 | `GetSubscriptionEntitlements` | `SubscriptionAgreementRepository`, `UsageMeterRepository` |
-| `GetWorkflowPolicyViewService` | 查詢 trigger 對應的 workflow policy | `GetWorkflowPolicyView` | `WorkflowPolicyRepository`, `PolicyCatalogViewRepository` |
+合并前，platform blueprint 定義語言與 port 契約規範；獨立模組保持現有 API 介面不中斷。合并後，獨立模組的 `api/index.ts` 應指向 `modules/platform/api`，並標記為 deprecated。
 
-## 計畫吸收模組的 Use Cases（Migration-Pending）
+詳細語言映射見 [docs/ubiquitous-language.md](./docs/ubiquitous-language.md)，計畫吸收的事件見 [docs/domain-events.md](./docs/domain-events.md)，計畫吸收的倉儲見 [docs/repositories.md](./docs/repositories.md)。
 
-下列 use cases 目前定義於對應的**獨立模組**，計畫在合并進 platform 後成為各子域 application layer 的正式 use case handlers。
+## 文件導覽
 
-| 模組 | 現有 Use Case | 目標子域 | 說明 |
-|---|---|---|---|
-| `modules/identity/` | `identity.use-cases.ts` — signIn, signOut, getCurrentIdentity | `identity` | 驗證、登出與身份狀態；合并後對應 `PlatformEventIngressPort` 的身份訊號接收路徑 |
-| `modules/identity/` | `token-refresh.use-cases.ts` — refreshCustomClaims | `identity` | token 刷新觸發 custom claims 更新 |
-| `modules/account/` | `account.use-cases.ts` — createAccount, updateAccount, deleteAccount | `account` | 帳號 CRUD；合并後對應 `PlatformCommandPort` 的 `RegisterPlatformContext` 或新增 account 命令 |
-| `modules/account/` | `account-policy.use-cases.ts` — upsertPolicy | `account` | AccountPolicy 管理；合并後對齊 `PublishPolicyCatalogService` 的 account-scoped 規則 |
-| `modules/organization/` | `organization.use-cases.ts` — createOrg | `organization` | 組織建立 |
-| `modules/organization/` | `organization-lifecycle.use-cases.ts` | `organization` | 組織生命週期管理 |
-| `modules/organization/` | `organization-member.use-cases.ts` | `organization` | 成員邀請、加入、移除 |
-| `modules/organization/` | `organization-team.use-cases.ts` | `organization` | Team 管理 |
-| `modules/organization/` | `organization-partner.use-cases.ts` | `organization` | PartnerInvite 管理 |
-| `modules/organization/` | `organization-policy.use-cases.ts` | `organization` | 組織政策管理；合并後對齊 platform `PolicyCatalog` 規則 |
-| `modules/notification/` | `notification.use-cases.ts` — dispatchNotification, markAsRead | `notification` | 通知建立與已讀標記；合并後對應 `RequestNotificationDispatchService` |
+- [docs/README.md](./docs/README.md): 文件索引與 Hexagonal DDD 閱讀路徑
+- [docs/bounded-context.md](./docs/bounded-context.md): 邊界責任、public boundary 與封板規則
+- [docs/subdomains.md](./docs/subdomains.md): 23 子域正式責任表
+- [docs/context-map.md](./docs/context-map.md): 子域協作與共享語言
+- [docs/ubiquitous-language.md](./docs/ubiquitous-language.md): 通用語言詞彙
+- [docs/aggregates.md](./docs/aggregates.md): 核心聚合與不變數
+- [docs/domain-services.md](./docs/domain-services.md): 跨聚合純規則
+- [docs/application-services.md](./docs/application-services.md): use case orchestration
+- [docs/repositories.md](./docs/repositories.md): repositories 與 output ports
+- [docs/domain-events.md](./docs/domain-events.md): 事件命名與收發清單
 
-**合并優先序：** 建議按 `identity → account → organization → notification` 順序合并，以保持語意依賴方向。
+## 變更準則
 
-## Orchestration Rules
+1. 先映射到既有子域
+2. 再決定是 language、aggregate、use case、port、adapter 或 public boundary 變更
+3. 若牽涉命名、事件或邊界，先更新 `docs/` 與 `AGENT.md`，再實作
 
-- application services 可以協調多個 aggregates，但不應把跨聚合規則硬塞進 handler 本身
-- 所有 persistence 與 side effects 都必須透過 output ports，不直接寫在 service 裡
-- 所有 transport concern 都由 driving adapters 處理；application services 不理解 HTTP status、queue headers 或 webhook signature
-- input validation 可以在 driving adapters 與 application layer 邊界做，但 domain invariants 仍由 aggregates 與 domain services 守護
-- domain events 應在狀態持久化成功後發布，而不是先發後存
+## 文件閉環驗證
 
-## Input Ports 與 Use Case Handlers
+提交前建議最少執行一次文件閉環檢查：
 
-輸入請求應先表達成 input ports 定義的語言，再交由 application services 實作。這讓 API controller、message consumer、CLI 或 scheduler 都能共用同一個 use case handler，而不必把業務邏輯寫進 adapter。若新增新的 handler，但沒有對應 input port 語言，表示藍圖仍有缺口。
-
-## 輸出結果
-
-application services 應回傳兩種結果之一：
-
-- command result：描述是否成功、主體識別值與版本資訊
-- query projection：為查詢或 UI 組裝的唯讀模型
-
-無論哪一種，application services 都不應回傳 adapter-specific payload。
+1. `subdomains.md` 與 `bounded-context.md` 的 23 子域是否一致
+2. `subdomains.md` / `application-services.md` 中的 ports 是否都在 `docs/repositories.md`
+3. `docs/domain-events.md` 的事件術語是否都在 `docs/ubiquitous-language.md`
+4. `docs/context-map.md` 的協作語言是否與 `docs/domain-events.md` 命名一致
+5. `api/`、`ports/`、`adapters/`、`infrastructure/` 的角色是否仍然清楚
 ````
 
 ## File: modules/workspace/AGENT.md
@@ -12472,1309 +13462,4 @@ interfaces/ → application/ → domain/ ← infrastructure/
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill modules-mddd-api-surface
 #use skill hexagonal-ddd
-````
-
-## File: modules/platform/docs/bounded-context.md
-````markdown
-# Bounded Context — platform
-
-本文件定義 `platform` 這份本地藍圖的邊界。platform 的任務，是把平台級的主體治理、政策規則、能力啟用、外部交付、稽核與可觀測性收斂成一個 **Hexagonal + DDD** 邊界，而不是把這些能力散落成沒有語言與責任的共享雜物間。
-
-## Context Purpose
-
-platform 這個 bounded context 負責回答五類問題：
-
-- 誰是平台可治理的主體
-- 主體在什麼條件下可以做什麼
-- 哪些能力在當前方案、設定與安全政策下可用
-- 平台如何把事實轉成流程、外部交付與通知
-- 平台如何留下證據並暴露診斷訊號
-
-## Canonical Capability Groups
-
-### 主體與名錄
-
-- `identity`
-- `account`
-- `account-profile`
-- `organization`
-
-### 治理與安全
-
-- `access-control`
-- `security-policy`
-- `platform-config`
-- `feature-flag`
-- `onboarding`
-- `compliance`
-
-### 商業與權益
-
-- `billing`
-- `subscription`
-- `referral`
-
-### 流程與交付
-
-- `integration`
-- `workflow`
-- `notification`
-- `background-job`
-
-### 內容與檢索
-
-- `content`
-- `search`
-
-### 證據與診斷
-
-- `audit-log`
-- `observability`
-- `analytics`
-- `support`
-
-## 邊界包含什麼
-
-platform 包含：
-
-- 可被 platform 通用語言描述的聚合、值物件、規則與事件
-- 可被 application layer 協調的 use cases、commands、queries 與 read models
-- 可被 ports 表達的輸入契約與外部依賴契約
-- 可被稽核與可觀測性需求追蹤的 published language
-
-## 邊界刻意不包含什麼
-
-- 產品內容本身的建立、編排與發布策略
-- 檢索、推理、內容相關性或知識生成演算法
-- 任何 UI 呈現細節本身
-- 直接綁定 HTTP、queue、webhook、SDK、資料庫的 adapter 細節
-- 以「暫時先開個資料夾」為名的未定義能力
-
-## Hexagonal Layer Mapping
-
-| Layer / concept | platform 位置 | 說明 |
-|---|---|---|
-| Public boundary | `api/` | 對外公開的 cross-module boundary；只做投影與 re-export |
-| Driving adapters | `adapters/` | CLI、web、external ingress 等輸入端轉譯 |
-| Application | `application/` | use case orchestration、command/query handling |
-| Domain | `domain/` | 聚合、值物件、domain services、domain events |
-| Input ports | `ports/input/` | 進入 application 的穩定契約 |
-| Output ports | `ports/output/` | repository、store、gateway、sink 等依賴契約 |
-| Driven adapters | `infrastructure/` | 對 output ports 的具體技術實作 |
-
-## Layer Responsibilities
-
-### Domain
-
-- 擁有聚合、值物件、domain services、domain events
-- 維持不變數與 published language
-- 不直接理解 repository implementation、HTTP、DB、queue 或 SDK
-
-### Application
-
-- 實作 use case handlers 與 input port 語言
-- 協調 aggregates、domain services 與 output ports
-- 在持久化成功後拉取並發布 domain events
-
-### Ports
-
-- input ports：命令、查詢、事件匯入入口
-- output ports：repositories、support stores、gateways、sinks
-- 由 core/application 擁有，不以 `api/` 為型別真實來源
-
-### Adapters / Infrastructure
-
-- driving adapters：把 HTTP、CLI、scheduler、webhook、queue ingress 翻譯成 input port 語言
-- driven adapters：把 repository、event publishing、notification、telemetry、external delivery 實作成具體技術方案
-
-## Public Boundary Rule
-
-- `api/` 是 platform 對其他模組的正式 public boundary
-- `index.ts` 只作 aggregate export convenience，不應被當成邊界設計來源
-- `ports/` 的契約來源在 `application/` 與 `domain/`，不是 `api/`
-
-## Closed Inventory Boundary Rule
-
-這個 bounded context 以 23 個子域作為封閉 inventory。任何新需求預設都應被視為既有子域的責任延伸，而不是新增第 24 個子域。只有在既有 23 個子域無法吸收時，才允許重新打開 inventory。
-
-## 計畫吸收模組
-
-以下四個現有獨立模組的能力**計畫在未來重構中合并進 platform**，成為對應子域的正式實作。在合并完成前，這些模組作為各自子域的前身實作繼續運作，platform blueprint 定義語言與 port 契約的規範形式。
-
-| 獨立模組 | 目標子域 | 現有核心概念 | 合并備注 |
-|---|---|---|---|
-| `modules/identity/` | `identity` | `Identity`, `uid`, `TokenRefreshSignal`, `IdentityRepository`, `TokenRefreshRepository` | 提供 `AuthenticatedSubject` 與 `IdentitySignal` 的前身語意 |
-| `modules/account/` | `account` + `account-profile` | `Account`, `AccountPolicy`, `AccountProfile`, `AccountRepository`, `AccountQueryRepository`, `AccountPolicyRepository` | `account` 承接帳號聚合根；`account-profile` 承接可治理輪廓屬性 |
-| `modules/organization/` | `organization` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`, `OrganizationRepository`, `OrgPolicyRepository` | 提供 `MembershipBoundary` 與 `RoleAssignment` 的前身語意 |
-| `modules/notification/` | `notification` | `NotificationEntity`, `NotificationRepository`，conformist 消費者 | 提供 `NotificationDispatch` 與 `NotificationRoute` 的前身語意 |
-
-**合并優先序：** `identity` → `account` → `organization` → `notification`（按語意依賴順序）
-
-**合并後規則：**
-- 獨立模組應設為 deprecated，並把 `api/index.ts` 指向 `modules/platform/api`
-- Platform blueprint 的語言定義優先；若有術語歧異，以本文件與 `ubiquitous-language.md` 為準
-
-## 邊界測試問題
-
-1. 這個變更屬於哪個既有子域
-2. 它需要的是新語言、既有語言的細化，還是新的 port contract
-3. 它是 domain rule、application orchestration、adapter concern，還是 public boundary projection
-4. 它是否會破壞 closed inventory 或 dependency direction
-5. 若涉及 identity / account / organization / notification，是否與計畫吸收方向一致
-
-若第 1 題答不出來，表示 platform 邊界尚未被正確理解。
-````
-
-## File: modules/platform/docs/domain-events.md
-````markdown
-# Domain Events — platform
-
-platform blueprint 將 domain event 視為已發生事實的 published language。事件 schema 由 `domain/events` 擁有；application layer 負責在正確時機拉取事件；event publisher adapter 只負責 transport 與 delivery。
-
-## Event Envelope
-
-platform 事件應至少包含以下欄位：
-
-| 欄位 | 用途 |
-|---|---|
-| `type` | 事件名稱，格式採用 `<subdomain>.<fact>` |
-| `aggregateType` | 事件所屬聚合型別 |
-| `aggregateId` | 聚合識別值 |
-| `contextId` | 平台範圍識別值 |
-| `occurredAt` | 事件發生時間，使用 ISO 8601 |
-| `version` | 聚合版本或事件版本 |
-| `correlationId` | 關聯整串工作流程 |
-| `causationId` | 指出直接觸發來源 |
-| `actorId` | 觸發此事實的主體 |
-| `payload` | 事件特定資料 |
-
-## Publish Lifecycle
-
-1. 聚合狀態變更或 application orchestration 完成一個 business fact
-2. domain 產生 event 並暫存於 aggregate 或 orchestration 結果中
-3. application service 完成持久化與必要 output port 呼叫
-4. `DomainEventPublisher` 再把事件送往 bus、topic 或其他 delivery adapter
-
-事件不應由聚合直接推送到 message bus，也不應在持久化前先發送。
-
-## 發出事件
-
-| 事件 | 何時發出 | 核心 payload |
-|---|---|---|
-| `platform.context_registered` | 平台範圍建立完成 | `subjectScope`, `lifecycleState` |
-| `platform.capability_enabled` | 某項 capability 被啟用 | `capabilityKey`, `entitlementRef` |
-| `platform.capability_disabled` | 某項 capability 被停用 | `capabilityKey`, `reason` |
-| `policy.catalog_published` | 新的政策版本生效 | `policyCatalogId`, `revision` |
-| `config.profile_applied` | 配置輪廓完成套用 | `configurationProfileRef`, `changedKeys` |
-| `permission.decision_recorded` | 完成一次可追蹤授權決策 | `decision`, `subjectRef`, `resourceRef` |
-| `integration.contract_registered` | 整合契約生效或更新 | `integrationContractId`, `protocol`, `endpointRef` |
-| `integration.delivery_failed` | 外部交付失敗 | `integrationContractId`, `deliveryAttempt`, `failureCode` |
-| `subscription.agreement_activated` | 訂閱協議進入生效狀態 | `subscriptionAgreementId`, `planCode`, `validUntil` |
-| `onboarding.flow_completed` | 新主體完成 onboarding 主要流程 | `onboardingId`, `subjectRef`, `completedSteps` |
-| `compliance.policy_verified` | 合規政策檢核通過或更新 | `policyRef`, `verificationResult`, `effectivePeriod` |
-| `referral.reward_recorded` | 推薦獎勵被核算並記錄 | `referralId`, `rewardType`, `rewardAmount` |
-| `workflow.trigger_fired` | workflow trigger 被成功發出 | `triggerKey`, `triggeredBy`, `triggeredAt` |
-| `background-job.enqueued` | 背景作業被提交到佇列 | `jobId`, `jobType`, `scheduleAt` |
-| `content.asset_published` | 內容資產進入發布狀態 | `assetId`, `publicationState`, `publishedAt` |
-| `search.query_executed` | 搜尋查詢完成並產生結果 | `queryId`, `queryText`, `resultCount` |
-| `notification.dispatch_requested` | 建立通知派送請求 | `channel`, `recipientRef`, `templateKey` |
-| `audit.signal_recorded` | 寫入一條不可變 audit signal | `signalType`, `severity`, `subjectRef` |
-| `observability.signal_emitted` | 發出指標、追蹤或告警訊號 | `signalName`, `signalLevel`, `sourceRef` |
-| `analytics.event_recorded` | 分析事件被記錄與聚合 | `eventName`, `metricRef`, `subjectRef` |
-| `support.ticket_opened` | 支援工單被建立 | `ticketId`, `priority`, `requesterRef` |
-
-## 事件擁有者
-
-| 事件 | 主要擁有者 |
-|---|---|
-| `platform.context_registered` / `platform.capability_*` | `PlatformContext` |
-| `policy.catalog_published` | `PolicyCatalog` |
-| `integration.contract_registered` / `integration.delivery_failed` | `IntegrationContract` |
-| `subscription.agreement_activated` | `SubscriptionAgreement` |
-| `onboarding.flow_completed` | application layer 在 onboarding 決策完成後發出 |
-| `compliance.policy_verified` | application layer 在合規檢核完成後發出 |
-| `referral.reward_recorded` | application layer 在推薦獎勵核算後發出 |
-| `workflow.trigger_fired` | application layer 在 domain rule 通過後發出 |
-| `background-job.enqueued` | application layer 在工作流轉交背景作業後發出 |
-| `content.asset_published` | application layer 在內容發布決策完成後發出 |
-| `search.query_executed` | application layer 在搜尋執行完成後發出 |
-| `notification.dispatch_requested` | application layer 在 delivery request 建立後發出 |
-| `audit.signal_recorded` | application layer 在 evidence sink 接受記錄後發出 |
-| `observability.signal_emitted` | application layer 在 observability sink 接受訊號後發出 |
-| `analytics.event_recorded` | application layer 在分析匯流接收事件後發出 |
-| `support.ticket_opened` | application layer 在支援案件建立後發出 |
-
-## 訂閱事件
-
-platform 也會透過 input ports 接收外部或相鄰子域傳入的事件型訊號。這些訊號通常會被轉成 application commands，再由 use case handlers 處理。
-
-| 輸入訊號 | 用途 |
-|---|---|
-| `identity.subject_authenticated` | 建立或更新主體上下文 |
-| `account.profile_amended` | 更新帳戶輪廓相關治理判斷 |
-| `organization.membership_changed` | 更新組織邊界與角色映射 |
-| `subscription.entitlement_changed` | 調整 capability enablement 與限制 |
-| `integration.callback_received` | 接收外部系統回呼結果 |
-| `workflow.execution_completed` | 接收工作流執行結果以觸發後續通知、稽核與觀測 |
-
-## 計畫吸收模組的事件（Migration-Pending）
-
-下列事件目前由對應的**獨立模組**定義與發出，在合并進 platform 後將成為 platform published language 的一部分。合并前，platform blueprint 定義的事件命名以本文件為準；若與獨立模組現有命名有差異，合并時以本文件的命名為遷移目標。
-
-### 來自 `modules/account/`
-
-| 事件 | 何時發出 | 核心 payload |
-|---|---|---|
-| `account.created` | 新帳號建立完成 | `accountId`, `email`, `occurredAt` |
-| `account.policy_updated` | AccountPolicy 更新，觸發 custom claims 刷新 | `accountId`, `policyId`, `occurredAt` |
-
-### 來自 `modules/organization/`
-
-| 事件 | 何時發出 | 核心 payload |
-|---|---|---|
-| `organization.created` | 新組織建立時 | `organizationId`, `name`, `ownerId`, `occurredAt` |
-| `organization.member_invited` | 成員被邀請加入 | `organizationId`, `inviteId`, `email`, `role`, `occurredAt` |
-| `organization.member_joined` | 邀請被接受，成員加入 | `organizationId`, `accountId`, `role`, `occurredAt` |
-| `organization.member_removed` | 成員被移除 | `organizationId`, `accountId`, `occurredAt` |
-| `organization.team_created` | 新 Team 建立 | `organizationId`, `teamId`, `occurredAt` |
-
-### 來自 `modules/identity/`（計畫中）
-
-`identity` 模組目前不發出正式 domain event（Firebase Auth 事件由 SDK 直接處理）。合并後建議加入：
-
-| 計畫事件 | 觸發條件 | 用途 |
-|---|---|---|
-| `identity.signed_in` | 使用者成功登入 | 供 `audit-log`、`account` 消費 |
-| `identity.signed_out` | 使用者登出 | 供稽核記錄消費 |
-
-### `modules/notification/` 的訂閱現狀
-
-`notification` 模組目前為純消費者（不發出事件），合并後保持此角色。它目前訂閱：
-- `workspace.member_joined`
-- `workspace-flow.task_status_changed`
-
-這些訂閱關係在 platform 的 `notification` 子域保持不變，但在合并後路由邏輯移至 platform 的 `events/ingress/`。
-
-## 事件設計規則
-
-- 事件名稱必須描述事實，而不是請求
-- domain event 只描述業務語意，不攜帶 adapter-specific metadata
-- event publisher 是 output port，不能被聚合直接取代
-- 事件 payload 應足以讓下游 adapter 或 handler 理解事實，但不應把整個聚合序列化出去
-- 若事件來自 application orchestration 而不是單一 aggregate，必須在文件中標示其擁有位置，避免假裝它來自不存在的 aggregate
-
-## 事件命名規則
-
-推薦格式：
-
-```text
-<subdomain>.<fact>
-```
-
-例如：
-
-- `policy.catalog_published`
-- `workflow.trigger_fired`
-- `notification.dispatch_requested`
-- `audit.signal_recorded`
-
-這種命名能讓事件在 transport 層之外仍保持可讀性與一致性。
-````
-
-## File: modules/platform/docs/domain-services.md
-````markdown
-# platform — Domain Services
-
-platform 的 domain services 承載那些無法只靠單一 aggregate 完成、但仍屬於純平台規則的決策。它們位於 domain core，負責輸出 decision object 或 rule evaluation，不做 persistence、不直接發送事件，也不接觸 transport 或 SDK。
-
-## Domain Services 清單
-
-| Domain Service | 處理的問題 | 主要輸入 |
-|---|---|---|
-| `CapabilityEntitlementPolicy` | capability 是否可因 entitlement 生效 | `PlatformCapability`, `SubscriptionAgreement` |
-| `PermissionResolutionService` | 如何根據主體、資源與政策做授權決策 | `SubjectScope`, `PolicyCatalog`, `ResourceDescriptor` |
-| `ConfigurationCompositionService` | 多層配置如何組裝成單一有效視圖 | `ConfigurationProfile`, `PolicyCatalog`, `SubscriptionAgreement` |
-| `IntegrationCompatibilityService` | 外部契約是否與 policy、plan、protocol 相容 | `IntegrationContract`, `SubscriptionAgreement`, `PolicyCatalog` |
-| `WorkflowDispatchPolicy` | 某個 trigger 是否該被允許、延遲、抑制或升級 | `WorkflowTrigger`, `PolicyCatalog`, `PermissionDecision` |
-| `NotificationRoutingPolicy` | 某條通知該走哪個通道、是否應被抑制 | `NotificationDispatch`, `PolicyCatalog`, `SubjectPreference` |
-| `AuditClassificationService` | 什麼樣的行為需要記錄、記成何種等級 | `AuditSignal`, `PolicyCatalog` |
-| `ObservabilityCorrelationService` | 如何把 workflow、integration、notification、audit 連成可追蹤鏈 | `ObservabilitySignal`, `CorrelationContext` |
-
-## 何時該抽成 Domain Service
-
-以下情況適合使用 domain service：
-
-- 規則跨越兩個以上 aggregates
-- 規則本身不需要持有狀態
-- 規則對 adapters 完全不感興趣，但對平台語意很重要
-- 需要回傳清楚 decision object，而不是把規則散落在多個 use case 中
-
-以下情況不該抽成 domain service：
-
-- 只是某個 aggregate 自己的不變數
-- 只是資料庫查詢方便性的封裝
-- 只是 HTTP、queue、webhook 的轉譯邏輯
-- 只是 SDK 調用流程包裝
-
-## 與 Application Layer 的關係
-
-- application services 可以呼叫 domain services
-- domain services 不應反向知道 application service 的存在
-- 若規則需要外部狀態，應由 application 先透過 output ports 取回資料，再把乾淨的 domain inputs 傳給 domain service
-- 若規則需要 I/O，應拆成 domain rule + output port，而不是把 I/O 留在 domain service 裡
-
-## 設計原則
-
-- domain services 應優先回傳明確的 decision object，而不是鬆散布林值
-- 錯誤應描述治理語意，例如 `entitlement_denied`, `policy_conflict`, `delivery_not_allowed`
-- 每個 service 都應可在不啟動任何 adapter 的情況下被測試
-- service 介面應只依賴 domain 語言，不依賴 transport 或 persistence 細節
-
-## 主要 Decision Objects
-
-| Decision Object | 用途 |
-|---|---|
-| `PermissionDecision` | 表達允許、拒絕、條件允許或需要升級 |
-| `DispatchOutcome` | 表達通知或外部交付的結果 |
-| `AuditClassification` | 表達此事實需要何種稽核等級 |
-| `PlanConstraint` | 表達 subscription 對 capability 或 delivery 的限制 |
-| `DeliveryAllowance` | 表達整合或通知在當前條件下是否允許交付 |
-
-## 與平台子域的對應
-
-- `identity`（目前對應 `modules/identity/`）、`account`（目前對應 `modules/account/`）、`organization`（目前對應 `modules/organization/`）主要提供主體與邊界輸入
-- `access-control`, `platform-config`, `subscription` 提供治理輸入
-- `integration`, `workflow`, `notification`（目前對應 `modules/notification/`）提供執行輸入
-- `audit-log`, `observability` 將決策轉成可追蹤訊號
-
-**計畫吸收語意：** `PermissionResolutionService` 合并 `modules/account/` 的 AccountPolicy 規則語意後，須能同時處理帳號層與組織層的授權判斷。`NotificationRoutingPolicy` 在 `modules/notification/` 合并後，應把現有的 `DispatchNotificationInput` 語言對齊 platform 的 `NotificationDispatch`。
-````
-
-## File: modules/platform/docs/repositories.md
-````markdown
-# platform — Repositories
-
-在這份 blueprint 中，repository 與各種 gateway / sink 都屬於 **output ports**。repository 專門負責聚合狀態的載入與保存；其他 output ports 則處理查詢支援、事件發佈、外部交付與診斷輸出。契約由 core/application 擁有，具體技術實作放在 `infrastructure/`。
-
-## Output Port Ownership Rule
-
-- repository、query port、support port、delivery port 的語言來源在 `application/` 與 `domain/`
-- `api/` 只做 public boundary projection，不是 output port 的真實來源
-- infrastructure adapters 實作 ports，但不改寫其業務語意
-
-## Aggregate Repository Ports
-
-| Repository Port | 服務的聚合 | 核心職責 |
-|---|---|---|
-| `PlatformContextRepository` | `PlatformContext` | `findById`, `save`, `findBySubjectScope` |
-| `PolicyCatalogRepository` | `PolicyCatalog` | `findActiveByContextId`, `saveRevision`, `findByRevision` |
-| `IntegrationContractRepository` | `IntegrationContract` | `findById`, `save`, `findActiveByContextId` |
-| `SubscriptionAgreementRepository` | `SubscriptionAgreement` | `findEffectiveByContextId`, `save`, `findByPlanCode` |
-
-## Subdomain Repository / Store Ports
-
-下列 ports 在 `subdomains.md` 與 `application-services.md` 已被使用，需在 repository 契約層明確列出，避免文件引用缺口。
-
-| Port | 子域 | 用途 |
-|---|---|---|
-| `AccountRepository` | `account` | 載入與保存帳號聚合與生命週期狀態 |
-| `OnboardingRepository` | `onboarding` | 載入與保存 onboarding flow / setup progress |
-| `CompliancePolicyStore` | `compliance` | 查詢與保存合規規則、保留策略、審查結果 |
-| `ReferralRepository` | `referral` | 載入與保存推薦關係、獎勵狀態與結算參照 |
-| `ContentRepository` | `content` | 載入與保存內容資產與發布狀態 |
-| `SupportRepository` | `support` | 載入與保存支援工單與知識關聯狀態 |
-
-## Query / Read-model Ports
-
-某些查詢模型不需要完整 aggregate，可透過專門的 query ports 提供：
-
-| Query Port | 用途 |
-|---|---|
-| `PlatformContextViewRepository` | 提供平台範圍總覽 |
-| `PolicyCatalogViewRepository` | 提供規則摘要與 revision history |
-| `UsageMeterRepository` | 提供 entitlement / quota 的使用情況 |
-| `DeliveryHistoryRepository` | 提供 integration / notification 的交付紀錄查詢 |
-| `WorkflowPolicyRepository` | 提供 trigger 與 workflow policy 的讀取介面 |
-
-## Supporting State / Lookup Ports
-
-這些 ports 不直接保存聚合，但會為 application services 與 domain services 提供必要支援資料：
-
-| Support Port | 用途 |
-|---|---|
-| `ConfigurationProfileStore` | 提供可套用的 configuration profile |
-| `SubjectDirectory` | 提供主體輪廓、偏好與角色對照 |
-| `SecretReferenceResolver` | 解析整合契約所需的認證參照 |
-
-## 非 Repository 的 Output Ports
-
-Hexagonal 分層要求事件發佈與外部交付不要混入 repository 介面。platform blueprint 因此區分以下非持久化 ports：
-
-| Output Port | 用途 |
-|---|---|
-| `DomainEventPublisher` | 發佈 domain events 到 event bus 或 topic |
-| `WorkflowDispatcherPort` | 把 workflow trigger 交給執行引擎 |
-| `NotificationGateway` | 派送 email、SMS、push、chat 等通知 |
-| `AuditSignalStore` | 寫入不可變的 audit trail |
-| `ObservabilitySink` | 發送 metrics、trace、alert |
-| `AnalyticsSink` | 發送 analytics 事件與行為指標 |
-| `ExternalSystemGateway` | 呼叫外部 API、webhook 或 queue |
-| `JobQueuePort` | 提交與追蹤背景作業 |
-| `SearchIndexPort` | 寫入搜尋索引與查詢搜尋結果 |
-| `SecretReferenceResolver` | 解析整合契約所需的密鑰或憑證參照 |
-
-## Migration-Pending Repository Ports
-
-下列 repository ports 目前定義於對應的**獨立模組**，計畫在模組合并進 platform 時成為 platform output port 契約的一部分。合并前，platform blueprint 以此為目標定義；合并後，獨立模組的同名 port 應退役。
-
-### 來自 `modules/identity/`
-
-| Port | 目標子域 | 現有方法 | 說明 |
-|---|---|---|---|
-| `IdentityRepository` | `identity` | `signIn()`, `signOut()`, `getCurrentIdentity()` | Firebase Auth 操作入口；合并後成為 `identity` 子域的 output port |
-| `TokenRefreshRepository` | `identity` | `listenToTokenRefresh()` | token 刷新訊號監聽；合并後成為 `identity` 子域的 support port |
-
-### 來自 `modules/account/`
-
-| Port | 目標子域 | 現有方法 | 說明 |
-|---|---|---|---|
-| `AccountRepository` | `account` | `save()`, `findById()`, `delete()` | 帳號聚合根倉儲；platform `AccountRepository` 已在 ports/output 有對應定義 |
-| `AccountQueryRepository` | `account` | `findById()`, `findByEmail()` | CQRS 讀取側；合并後納入 `account` 的 query port |
-| `AccountPolicyRepository` | `account` | `save()`, `findByAccountId()` | AccountPolicy 倉儲；合并後納入 `account` 子域 |
-
-### 來自 `modules/organization/`
-
-| Port | 目標子域 | 現有方法 | 說明 |
-|---|---|---|---|
-| `OrganizationRepository` | `organization` | `save()`, `findById()`, `findByMemberId()` | Organization 聚合根倉儲；合并後成為 `organization` 子域的 repository port |
-| `OrgPolicyRepository` | `organization` | 組織政策 | 組織政策規則倉儲；合并後納入 `organization` 子域 |
-
-### 來自 `modules/notification/`
-
-| Port | 目標子域 | 現有方法 | 說明 |
-|---|---|---|---|
-| `NotificationRepository` | `notification` | `save()`, `findByRecipient()`, `markAsRead()` | 通知記錄倉儲；合并後成為 `notification` 子域的 repository port |
-
-## Adapter 實作原則
-
-- repository adapter 只處理資料映射與永續化，不重寫 platform policy
-- event publisher adapter 只處理 transport 與 delivery，不擁有事件語言
-- 外部系統 gateway 應以 integration contract 為依據，不直接從 UI 或 controller 讀設定
-- infrastructure adapter 可以組合 SDK，但 SDK 細節不能回滲到 port 契約命名
-
-## Persistence 與 Delivery 的切分
-
-推薦把 platform 層的 driven adapters 至少切成三類：
-
-- state adapters：資料庫、KV、文件儲存等 repository implementations
-- messaging adapters：event publisher、queue producer、topic publisher
-- external delivery adapters：HTTP client、webhook sender、notification provider、telemetry exporter
-
-## Repository 設計規則
-
-- repository 方法名稱應描述聚合語意，不描述資料庫語意
-- application layer 只能依賴 ports，不直接依賴 adapter class
-- repository 回傳 domain model 或 read model，不回傳 adapter 原生型別
-- 若某個依賴沒有聚合狀態可載入，優先考慮把它建模成一般 output port，而不是硬塞成 repository
-- 若 `application-services.md` 引用了某個 repository 或 support port，該名稱必須在本文件出現，否則表示文件之間仍然有缺口
-````
-
-## File: modules/platform/docs/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — platform
-
-本文件定義 platform blueprint 的穩定術語。這些詞用來讓 domain、application、ports、adapters 與子域文件保持一致，避免平台層隨著需求變動而出現多套互不相容的說法。
-
-## 核心術語
-
-| 術語 | 英文 | 定義 |
-|---|---|---|
-| 平台範圍 | PlatformContext | 一個受治理的 platform scope，擁有能力、政策、配置與訂閱邊界 |
-| 驗證主體 | AuthenticatedSubject | 已完成身份驗證、可被映射成 platform subject scope 的主體 |
-| 身份訊號 | IdentitySignal | 與主體登入、刷新、失效有關的事實訊號 |
-| 平台能力 | PlatformCapability | 可被啟用、停用、限流或受 entitlement 約束的能力 |
-| 能力開關 | CapabilityToggle | 某個 capability 在特定範圍中的生效狀態 |
-| 主體邊界 | SubjectScope | actor、account、organization 的治理範圍 |
-| 帳戶輪廓 | AccountProfile | 主體可被治理的屬性視圖 |
-| 主體偏好 | SubjectPreference | 主體在通知、體驗或交付上的偏好 |
-| 成員邊界 | MembershipBoundary | 主體在群組或組織中的歸屬邊界 |
-| 角色指派 | RoleAssignment | 主體在某個範圍內被授予的角色 |
-| 政策目錄 | PolicyCatalog | 權限、工作流、通知與稽核規則的版本化集合 |
-| 規則 | PolicyRule | 以 `subject`, `condition`, `effect` 表達的政策條目 |
-| 存取政策 | AccessPolicy | 用來推導 `PermissionDecision` 的政策集合或視圖 |
-| 配置輪廓 | ConfigurationProfile | 一組可被套用的設定與策略值 |
-| 配置輪廓參照 | ConfigurationProfileRef | 指向某份生效配置輪廓的參照 |
-| 整合契約 | IntegrationContract | 與外部系統互動所需的 endpoint、協議與 delivery policy |
-| 端點參照 | EndpointRef | 指向外部 endpoint 的穩定參照 |
-| 憑證參照 | SecretReference | 指向秘密、憑證或 token 的穩定參照 |
-| 派送政策 | DeliveryPolicy | timeout、retry、backoff、idempotency 的組合 |
-| 方案限制 | PlanConstraint | 訂閱方案對能力、流程或交付所施加的限制 |
-| 交付許可 | DeliveryAllowance | 在當前條件下某個交付是否被允許 |
-| 權限決策 | PermissionDecision | 對某主體是否可執行某動作的明確判斷 |
-| 訂閱協議 | SubscriptionAgreement | 方案、權益、限制與有效期間的商業邊界 |
-| 權益 | Entitlement | 某方案允許使用的 capability 或額度 |
-| 用量限制 | UsageLimit | 對使用量、頻率或配額的限制 |
-| 推薦連結 | ReferralLink | 推薦關係的識別與追蹤語言 |
-| 推薦獎勵 | ReferralReward | 推薦成功後可被核算與發放的獎勵語言 |
-| 生效區間 | EffectivePeriod | 某份協議、設定或規則的有效期間 |
-| 平台生命週期狀態 | PlatformLifecycleState | `draft | active | suspended | retired` |
-| 契約狀態 | ContractState | `draft | active | paused | revoked` |
-| 計費狀態 | BillingState | `pending | active | delinquent | expired | cancelled` |
-| 工作流觸發器 | WorkflowTrigger | 把某個平台事實轉成流程啟動點的語言 |
-| 工作流政策 | WorkflowPolicy | 用來規定 trigger 何時啟動、延後、抑制或升級的規則 |
-| 作業排程 | JobSchedule | 背景任務何時執行與重試策略的語言 |
-| 作業執行 | JobExecution | 背景任務一次執行結果與狀態的語言 |
-| 通知派送 | NotificationDispatch | 一次待交付的通知請求 |
-| 通知路由 | NotificationRoute | 通知應走的通道與對象語言 |
-| 派送結果 | DispatchOutcome | 一次交付成功、失敗、跳過或延後的結果 |
-| 內容資產 | ContentAsset | 可被治理、發布與檢索的內容單位語言 |
-| 發布狀態 | PublicationState | 內容在草稿、審核、發布等狀態中的語言 |
-| 搜尋結果 | SearchResult | 對 `SearchQuery` 的可消費回應語言 |
-| 稽核訊號 | AuditSignal | 必須被永久記錄的決策或行為事實 |
-| 稽核分類 | AuditClassification | 用來決定 audit signal 嚴重度與保留要求的分類 |
-| 可觀測性訊號 | ObservabilitySignal | metrics、trace、alert 等診斷輸入的統一語言 |
-| 健康指標 | HealthIndicator | 用來表達系統健康、退化或告警狀態的指標語言 |
-| 分析事件 | AnalyticsEvent | 可被聚合與分析的行為訊號語言 |
-| 支援工單 | SupportTicket | 客服互動與追蹤案件的語言 |
-| 知識文章 | KnowledgeArticle | 支援流程中引用的知識內容語言 |
-| 資源描述子 | ResourceDescriptor | 權限或 workflow 決策所面向的資源描述 |
-| 關聯上下文 | CorrelationContext | 用來串接 workflow、integration、notification、audit 的追蹤語言 |
-| 公開邊界 | PublicBoundary | 對其他模組暴露的穩定 boundary，於 platform 中即 `api/` |
-| 發佈語言 | PublishedLanguage | 跨邊界共享的事件與契約語言 |
-| 藍圖 | Blueprint | 對目標結構與語言的設計說明，而非既有實作聲明 |
-
-## Port Vocabulary
-
-| 術語 | 英文 | 定義 |
-|---|---|---|
-| 平台命令介面 | PlatformCommandPort | 接收命令型請求的 input port |
-| 平台查詢介面 | PlatformQueryPort | 接收查詢型請求的 input port |
-| 平台事件匯入介面 | PlatformEventIngressPort | 吸收外部或相鄰子域訊號的 input port |
-| 使用案例處理器 | UseCaseHandler | 實作 input port、協調 domain 與 output ports 的 application service |
-| 倉儲介面 | RepositoryPort | 載入與保存聚合狀態的 output port |
-| 查詢介面 | QueryPort | 提供 read model / projection 的 output port |
-| 支援介面 | SupportPort | 提供查表、設定或目錄資料的 output port |
-| 事件發佈器 | DomainEventPublisher | 發佈 domain events 的 output port |
-| 配置輪廓儲存介面 | ConfigurationProfileStore | 提供 configuration profile 的 support port |
-| 主體目錄 | SubjectDirectory | 提供帳戶輪廓、偏好與角色資料的 support port |
-| 帳戶倉儲 | AccountRepository | 提供 account 聚合狀態存取的 repository port |
-| 啟用引導倉儲 | OnboardingRepository | 提供 onboarding 流程狀態存取的 repository port |
-| 合規政策儲存介面 | CompliancePolicyStore | 提供 compliance 規則與保留策略的 support port |
-| 推薦倉儲 | ReferralRepository | 提供推薦關係與獎勵狀態存取的 repository port |
-| 工作流政策倉儲 | WorkflowPolicyRepository | 提供 workflow policy 的 query/support port |
-| 工作流派送介面 | WorkflowDispatcherPort | 將 trigger 交給執行引擎的 output port |
-| 通知閘道 | NotificationGateway | 對外派送通知的 output port |
-| 作業佇列介面 | JobQueuePort | 提交與追蹤背景作業的 output port |
-| 內容倉儲 | ContentRepository | 提供 content 資產狀態存取的 repository port |
-| 搜尋索引介面 | SearchIndexPort | 提供索引寫入與搜尋查詢的 output/query port |
-| 稽核訊號儲存介面 | AuditSignalStore | 寫入不可變稽核紀錄的 output port |
-| 可觀測性匯流介面 | ObservabilitySink | 發送 metrics、trace、alert 的 output port |
-| 分析匯流介面 | AnalyticsSink | 發送分析事件與行為指標的 output port |
-| 支援倉儲 | SupportRepository | 提供支援工單與知識關聯的 repository port |
-| 密鑰參照解析器 | SecretReferenceResolver | 解析憑證參照的 support port |
-| 驅動適配器 | DrivingAdapter | 把 HTTP、CLI、scheduler、webhook 等輸入翻譯成 input port 語言的 adapter |
-| 受驅動適配器 | DrivenAdapter | 實作 repository、gateway、sink 等 output ports 的 adapter |
-
-## 事件語言
-
-platform 事件推薦使用：
-
-```text
-<subdomain>.<fact>
-```
-
-例如：
-
-- `platform.context_registered`
-- `policy.catalog_published`
-- `workflow.trigger_fired`
-- `notification.dispatch_requested`
-- `audit.signal_recorded`
-
-## Migration-Pending 術語（計畫吸收模組）
-
-下列術語目前由對應的**獨立模組**定義，在合并進 platform 後應以本表的定義為準。若與獨立模組現有命名有差異，合并時以本表為遷移目標。
-
-### 來自 `modules/identity/`
-
-| 術語 | 英文 | platform 對應概念 | 定義 |
-|---|---|---|---|
-| 身份 | Identity | `AuthenticatedSubject` | Firebase Auth 驗證後的使用者記錄，以 `uid` 為唯一識別碼；合并後以 `AuthenticatedSubject` 作為 platform 語言 |
-| 唯一身份碼 | uid | SubjectId | Firebase Authentication 產生的使用者全域唯一 ID |
-| Token 刷新訊號 | TokenRefreshSignal | IdentitySignal | 代表 Firebase ID token 需要更新的訊號；合并後作為 `IdentitySignal` 的一種 |
-
-### 來自 `modules/account/`
-
-| 術語 | 英文 | platform 對應概念 | 定義 |
-|---|---|---|---|
-| 帳戶 | Account | Account（同名） | 使用者在平台的業務記錄，含 profile 資訊與狀態 |
-| 帳戶政策 | AccountPolicy | PolicyRule（account context） | 附加到帳戶的存取控制政策，決定 Firebase custom claims 內容 |
-| 帳戶 ID | accountId | SubjectScope 的組成部分 | Account 的業務主鍵（對應 Firebase uid，但在業務層使用 accountId 術語） |
-| 自訂宣告 | customClaims | — | Firebase ID token 中的自訂 claims；合并後以 platform `Entitlement` 語言統一表達 |
-
-### 來自 `modules/organization/`
-
-| 術語 | 英文 | platform 對應概念 | 定義 |
-|---|---|---|---|
-| 組織 | Organization | Organization（同名） | 頂層多租戶單元，代表一個企業或團隊 |
-| 成員參照 | MemberReference | MembershipBoundary 的組成 | 組織成員的輕量參照（含 accountId、role、presence） |
-| 隊伍 | Team | — | 組織內的子群組（internal / external 類型） |
-| 合作夥伴邀請 | PartnerInvite | — | 邀請外部合作夥伴加入隊伍的邀請記錄 |
-| 組織角色 | OrganizationRole | RoleAssignment 的值域 | `Owner \| Admin \| Member \| Guest` |
-| 在線狀態 | Presence | — | `active \| away \| offline` |
-| 邀請狀態 | InviteState | — | `pending \| accepted \| expired` |
-
-### 來自 `modules/notification/`
-
-| 術語 | 英文 | platform 對應概念 | 定義 |
-|---|---|---|---|
-| 通知實體 | NotificationEntity | NotificationDispatch（合并後） | 一則系統通知記錄（含標題、內容、類型、讀取狀態） |
-| 接收者 ID | recipientId | NotificationRoute 的對象語言 | 接收此通知的帳戶 ID |
-| 通知類型 | NotificationType | — | `info \| alert \| success \| warning` |
-
-## 禁止替換術語
-
-| 正確 | 不建議替換成 |
-|---|---|
-| `PlatformContext` | Tenant, Workspace, Environment |
-| `PlatformCapability` | Feature, Switch, Module |
-| `PolicyCatalog` | Settings Bag, Rule Dump |
-| `IntegrationContract` | Webhook Config, Endpoint Settings |
-| `SubscriptionAgreement` | Plan, Billing Row |
-| `PermissionDecision` | Auth Result, Check Flag |
-| `WorkflowTrigger` | background-job, Task Hook |
-| `NotificationDispatch` | Message Send, Push Action |
-| `AuditSignal` | Log Line, History Row |
-| `ObservabilitySignal` | Error Message, Console Output |
-| `InputPort` | Controller Method |
-| `OutputPort` | SDK Call |
-| `PublicBoundary` | Barrel File |
-
-## 語言使用規則
-
-- 若一個詞描述的是業務決策，應優先用 domain 語言，而不是 transport 語言
-- 若一個詞描述的是跨邊界共享契約，應優先保持簡短、穩定且可序列化
-- 若一個詞只在單一 adapter 有意義，不應升格成 platform 通用語言
-- 若新詞與既有詞重疊，先擴充定義，再考慮新增術語
-- 若一個詞其實是 boundary 角色，應明確區分 `PublicBoundary`、`InputPort`、`OutputPort` 與 `Adapter`
-````
-
-## File: modules/platform/docs/context-map.md
-````markdown
-# Context Map — platform
-
-本文件描述 platform 的 23 個子域如何在同一個 bounded context 內協作。這是一張 **local platform map**，目的是說明共享語言、事件事實與 use case 協作，不是全系統上下文圖。
-
-## Collaboration Rule
-
-- 子域之間透過 published language、input ports、output ports 與 read models 協作
-- 不應讓某個子域的 adapter 直接依賴另一個子域的 adapter
-- 若跨子域互動需要新的共享語言，先更新 `ubiquitous-language.md` 與本文件
-- 若跨子域互動需要新的依賴契約，先更新 `application-services.md` 或 `repositories.md`
-
-## Local Platform Map
-
-以下是核心協作關係圖。新增到 canonical inventory 的子域（例如 `onboarding`、`compliance`、`content`、`search`、`analytics`、`support`、`background-job`、`referral`）在不同實作階段可先以最小路徑接入，待對應 port 穩定後再擴展協作邊。
-
-```text
-identity -> account -> account-profile -> access-control
-identity -> audit-log
-
-organization -> access-control
-organization -> audit-log
-
-security-policy -> access-control
-security-policy -> compliance
-security-policy -> workflow
-security-policy -> audit-log
-
-platform-config -> feature-flag
-platform-config -> access-control
-platform-config -> integration
-platform-config -> workflow
-platform-config -> notification
-platform-config -> observability
-
-onboarding -> account-profile
-onboarding -> notification
-
-subscription -> billing
-subscription -> feature-flag
-subscription -> access-control
-subscription -> integration
-subscription -> workflow
-
-referral -> account
-referral -> billing
-referral -> analytics
-
-access-control -> integration
-access-control -> workflow
-access-control -> audit-log
-
-workflow -> notification
-workflow -> background-job
-workflow -> audit-log
-workflow -> observability
-
-integration -> audit-log
-integration -> observability
-
-notification -> audit-log
-notification -> observability
-
-billing -> audit-log
-billing -> observability
-
-content -> search
-content -> audit-log
-
-search -> analytics
-search -> observability
-
-background-job -> observability
-background-job -> audit-log
-
-compliance -> audit-log
-compliance -> observability
-
-support -> analytics
-support -> audit-log
-
-audit-log -> observability
-audit-log -> analytics
-
-analytics -> observability
-```
-
-## 協作關係
-
-| Source | Target | 共享語言 | 為何需要這個關係 |
-|---|---|---|---|
-| `identity` | `account` | `AuthenticatedSubject`, `AccountLifecycle` | 驗證後主體需映射到可治理帳戶 |
-| `identity` | `account-profile` | `AuthenticatedSubject`, `SubjectScope` | 驗證過的主體需要被映射成可治理輪廓 |
-| `account-profile` | `access-control` | `AccountProfile`, `SubjectPreference` | 授權決策需要主體屬性與偏好 |
-| `organization` | `access-control` | `MembershipBoundary`, `RoleAssignment` | 存取控制需要群組與角色資訊 |
-| `onboarding` | `account-profile` | `OnboardingFlow`, `SetupProgress` | 初始設定結果要轉成可治理輪廓 |
-| `security-policy` | `access-control` | `PolicyCatalog`, `AccessPolicy` | 授權判斷要遵守安全政策 |
-| `security-policy` | `compliance` | `PolicyCatalog`, `CompliancePolicy` | 合規檢查需套用統一政策版本 |
-| `platform-config` | `feature-flag` | `ConfigurationProfile`, `CapabilityToggle` | 能力開關需要設定輪廓與 rollout 參數 |
-| `platform-config` | `workflow` | `ConfigurationProfile` | 流程啟動依賴設定化規則與參數 |
-| `subscription` | `feature-flag` | `Entitlement`, `UsageLimit` | feature rollout 必須受方案權益約束 |
-| `subscription` | `integration` | `PlanConstraint`, `DeliveryAllowance` | 某些整合只在特定方案與配額下可用 |
-| `subscription` | `billing` | `SubscriptionAgreement`, `BillingState` | 訂閱生命週期與計費狀態互相影響 |
-| `referral` | `billing` | `ReferralReward`, `BillingState` | 推薦回饋會影響帳務處理 |
-| `access-control` | `workflow` | `PermissionDecision` | 流程觸發前要先通過授權 |
-| `workflow` | `notification` | `WorkflowTrigger`, `NotificationDispatch` | 流程結果常需轉成通知請求 |
-| `workflow` | `background-job` | `WorkflowTrigger`, `JobSchedule` | 長時程任務由背景排程承接 |
-| `workflow` | `audit-log` | `AuditSignal`, `CorrelationContext` | 重要流程節點需要留下證據 |
-| `integration` | `audit-log` | `AuditSignal`, `DispatchOutcome` | 外部交付結果屬治理軌跡 |
-| `notification` | `audit-log` | `DispatchOutcome`, `AuditSignal` | 派送成功或失敗都要記錄 |
-| `content` | `search` | `ContentAsset`, `SearchQuery` | 內容發布需可被檢索索引與查詢 |
-| `support` | `analytics` | `SupportTicket`, `BehaviorMetric` | 支援流程輸出服務品質指標 |
-| `audit-log` | `observability` | `AuditClassification`, `ObservabilitySignal` | 稽核分類可轉為運維診斷訊號 |
-| `analytics` | `observability` | `BehaviorMetric`, `ObservabilitySignal` | 分析結果需進入告警與健康視圖 |
-| `billing` | `observability` | `BillingState`, `ObservabilitySignal` | 計費異常需要被量測與告警 |
-
-## 計畫吸收模組的協作現狀
-
-下列子域目前有對應的獨立模組，在合并前以「上游獨立模組 → platform subdomain blueprint」的方向映射：
-
-| 子域 | 目前獨立模組 | 現有協作語言 |
-|---|---|---|
-| `identity` | `modules/identity/` | `Identity`, `uid`, `TokenRefreshSignal`；identity 不訂閱任何事件，是最上游的身份來源 |
-| `account` | `modules/account/` | `Account`, `AccountPolicy`；訂閱 `TokenRefreshSignal` 以更新 custom claims |
-| `account-profile` | `modules/account/`（AccountProfile 概念） | `AccountProfile`, `SubjectPreference`；目前與 account 同住 |
-| `organization` | `modules/organization/` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`；發出 `organization.member_joined` 等事件，被 `access-control`、`notification` 消費 |
-| `notification` | `modules/notification/` | `NotificationEntity`, `NotificationRepository`；為 conformist 消費者，訂閱 `workspace.member_joined`、`workspace-flow.task_status_changed` 等事件，不發出 domain events |
-
-**合并前的協作規則：** platform blueprint 只定義語言與 port 契約；獨立模組仍是語意的事實來源，直到完成合并並退役為止。
-
-## Context Map Rule
-
-若某個新需求無法被這張 map 中的既有節點、共享語言與既有 ports 吸收，先調整 map、`subdomains.md` 與相關 ports 文件，而不是直接再加新資料夾。
-````
-
-## File: modules/platform/docs/README.md
-````markdown
-# platform docs
-
-`platform/docs/` 是 platform blueprint 的文件索引入口。這組文件以 **Hexagonal Architecture with Domain-Driven Design** 為閱讀骨架：先確認邊界與通用語言，再確認聚合、use case、ports、events 與 adapters 的責任分工。
-
-## Hexagonal + DDD 閱讀框架
-
-| 關注點 | 文件 | 說明 |
-|---|---|---|
-| Bounded Context 邊界 | `bounded-context.md` | platform 的責任範圍、封板規則與 public boundary |
-| Canonical subdomains | `subdomains.md` | 23 個正式子域與 capability inventory |
-| Shared language | `ubiquitous-language.md` | 聚合、ports、事件與協作的命名權威 |
-| Domain core | `aggregates.md`, `domain-services.md`, `domain-events.md` | 聚合、不變數、純規則與 published language |
-| Application orchestration | `application-services.md` | use case handlers、input ports 與 command/query 協調 |
-| Driven ports | `repositories.md` | repositories、query ports、support ports、delivery ports |
-| Collaboration map | `context-map.md` | 子域間的共享語言與協作方向 |
-
-## 文件分工
-
-| 文件 | 主題 |
-|---|---|
-| `aggregates.md` | 核心聚合、值物件、不變數與 aggregate lifecycle |
-| `application-services.md` | use case handlers、input ports、command/query 協調 |
-| `bounded-context.md` | platform 邊界、責任範圍、public boundary 與 layer mapping |
-| `context-map.md` | 23 個子域間的協作關係與共享語言 |
-| `domain-events.md` | 事件命名、事件擁有者、發出/訂閱與 publish lifecycle |
-| `domain-services.md` | 跨聚合純規則、decision objects 與 service 抽取準則 |
-| `repositories.md` | repository ports、query ports、support ports、delivery ports |
-| `subdomains.md` | 正式 23 子域 inventory 與責任對照 |
-| `ubiquitous-language.md` | platform 通用語言與 Hexagonal vocabulary |
-
-## 讀取順序
-
-1. 先讀 `bounded-context.md` 確認 platform 這個 bounded context 的責任與 public boundary
-2. 讀 `subdomains.md` 與 `context-map.md`，理解 23 個子域如何協作
-3. 讀 `ubiquitous-language.md`，鎖定 aggregate、port、event、adapter 的命名
-4. 最後讀 `aggregates.md`、`domain-services.md`、`application-services.md`、`repositories.md`、`domain-events.md` 進入設計細節
-
-## Hexagonal 對照
-
-| Hexagonal concept | platform blueprint |
-|---|---|
-| Public boundary | `api/` |
-| Driving adapters | `adapters/`（CLI、web、external ingress 等） |
-| Application layer | `application/` |
-| Domain core | `domain/` |
-| Input ports | `ports/input/` |
-| Output ports | `ports/output/` |
-| Driven adapters | `infrastructure/` |
-| Published language | `domain/events/` + `application/dtos/` |
-
-## 計畫吸收模組
-
-以下四個獨立模組計畫重構進 platform 子域，詳見各文件的 **Migration-Pending** 節：
-
-| 獨立模組 | 目標子域 | 語言文件 |
-|---|---|---|
-| `modules/identity/` | `identity` | [subdomains.md](./subdomains.md), [ubiquitous-language.md](./ubiquitous-language.md) |
-| `modules/account/` | `account` + `account-profile` | [subdomains.md](./subdomains.md), [aggregates.md](./aggregates.md) |
-| `modules/organization/` | `organization` | [subdomains.md](./subdomains.md), [domain-events.md](./domain-events.md) |
-| `modules/notification/` | `notification` | [subdomains.md](./subdomains.md), [repositories.md](./repositories.md) |
-
-## 變更同步規則
-
-- 變更聚合或值物件：同步更新 `aggregates.md` 與 `ubiquitous-language.md`
-- 變更 use case handlers、input ports 或 command/query 語言：同步更新 `application-services.md`
-- 變更 repositories、support ports 或 delivery ports：同步更新 `repositories.md`
-- 變更事件名稱、payload 或事件擁有者：同步更新 `domain-events.md`
-- 變更子域責任：同步更新 `subdomains.md` 與 `context-map.md`
-- 變更 platform 邊界或 public boundary：同步更新 `bounded-context.md`、`../README.md` 與 `../AGENT.md`
-
-## 文件閉環檢查清單
-
-每次調整 platform 文件後，至少確認以下幾點：
-
-1. `api/`、`ports/`、`adapters/`、`infrastructure/` 的角色敘述沒有互相重疊
-2. `subdomains.md` 出現的術語都能在 `ubiquitous-language.md` 找到定義
-3. `application-services.md` 與 `subdomains.md` 提到的 ports 都能在 `repositories.md` 找到契約
-4. `domain-events.md` 的事件命名、事件擁有者與 `context-map.md` 協作語言沒有衝突
-5. 文件沒有把 adapter concern 寫回 domain/application 規則
-````
-
-## File: modules/platform/docs/subdomains.md
-````markdown
-# Subdomains — platform
-
-本文件是 platform 的正式子域 inventory。這份清單是 **closed by default** 的：後續開發必須先把能力映射到既有子域，而不是再新增新的子域名稱。
-
-## Subdomain Rule in Hexagonal DDD
-
-- 每個子域描述的是平台核心能力，不是資料夾便利分類
-- `Port 焦點` 欄位代表該子域主要透過哪些 input/output contracts 參與六邊形邊界
-- 子域之間共享語言時，應先落地到 `ubiquitous-language.md`、`context-map.md` 與相關 ports 文件
-
-## Canonical Inventory
-
-| 子域 | 核心問題 | 主要語言 | Port 焦點 |
-|---|---|---|---|
-| `identity` | 誰是已驗證主體 | `AuthenticatedSubject`, `IdentitySignal` | `PlatformEventIngressPort`, `SubjectDirectory` |
-| `account` | 帳號聚合根與生命週期狀態 | `Account`, `AccountLifecycle` | `PlatformCommandPort`, `AccountRepository` |
-| `account-profile` | 主體有哪些可治理屬性與偏好 | `AccountProfile`, `SubjectPreference` | `PlatformEventIngressPort`, `SubjectDirectory` |
-| `organization` | 主體處於哪些組織與角色邊界 | `MembershipBoundary`, `RoleAssignment` | `PlatformEventIngressPort`, `SubjectDirectory` |
-| `access-control` | 主體現在能做什麼 | `PermissionDecision`, `AccessPolicy` | `PlatformCommandPort`, `PolicyCatalogRepository` |
-| `security-policy` | 平台安全規則如何被定義與發佈 | `PolicyCatalog`, `PolicyRule` | `PlatformCommandPort`, `PolicyCatalogRepository` |
-| `platform-config` | 平台以何種設定輪廓運作 | `ConfigurationProfile`, `ConfigurationProfileRef` | `PlatformCommandPort`, `ConfigurationProfileStore` |
-| `feature-flag` | 哪些能力在哪種條件下被打開 | `PlatformCapability`, `CapabilityToggle` | `PlatformCommandPort`, `ConfigurationProfileStore` |
-| `onboarding` | 新主體如何被引導完成初始設定 | `OnboardingFlow`, `SetupProgress` | `PlatformCommandPort`, `OnboardingRepository` |
-| `compliance` | 資料保留、隱私與法規要求如何被執行 | `CompliancePolicy`, `DataRetentionRule` | `PlatformCommandPort`, `CompliancePolicyStore` |
-| `billing` | 計費狀態、收費結果與財務證據如何被管理 | `BillingState`, `DispatchOutcome` | `PlatformCommandPort`, `DeliveryHistoryRepository`, `AuditSignalStore` |
-| `subscription` | 方案、權益、配額與有效期間如何被管理 | `SubscriptionAgreement`, `Entitlement`, `UsageLimit` | `PlatformCommandPort`, `SubscriptionAgreementRepository`, `UsageMeterRepository` |
-| `referral` | 推薦關係與獎勵如何被追蹤 | `ReferralLink`, `ReferralReward` | `PlatformCommandPort`, `ReferralRepository` |
-| `integration` | 平台如何與外部系統安全協作 | `IntegrationContract`, `DeliveryPolicy` | `PlatformCommandPort`, `IntegrationContractRepository`, `ExternalSystemGateway` |
-| `workflow` | 哪些事實要被轉成可執行流程 | `WorkflowTrigger`, `WorkflowPolicy` | `PlatformCommandPort`, `WorkflowPolicyRepository`, `WorkflowDispatcherPort` |
-| `notification` | 哪些對象應收到什麼訊息 | `NotificationDispatch`, `NotificationRoute` | `PlatformCommandPort`, `NotificationGateway`, `DeliveryHistoryRepository` |
-| `background-job` | 長時程或排程任務如何被提交與監控 | `JobSchedule`, `JobExecution` | `PlatformCommandPort`, `JobQueuePort` |
-| `content` | 內容資產如何被管理與發布 | `ContentAsset`, `PublicationState` | `PlatformCommandPort`, `ContentRepository` |
-| `search` | 跨域搜尋請求如何被路由與執行 | `SearchQuery`, `SearchResult` | `PlatformCommandPort`, `SearchIndexPort` |
-| `audit-log` | 什麼事必須被永久追蹤 | `AuditSignal`, `AuditClassification` | `PlatformCommandPort`, `AuditSignalStore` |
-| `observability` | 如何量測健康、追蹤與告警 | `ObservabilitySignal`, `HealthIndicator` | `PlatformCommandPort`, `ObservabilitySink` |
-| `analytics` | 使用行為如何被量測與分析 | `AnalyticsEvent`, `BehaviorMetric` | `PlatformCommandPort`, `AnalyticsSink` |
-| `support` | 客服工單與支援知識如何被管理 | `SupportTicket`, `KnowledgeArticle` | `PlatformCommandPort`, `SupportRepository` |
-
-## Capability Groups
-
-### 主體與名錄
-
-- `identity`
-- `account`
-- `account-profile`
-- `organization`
-
-### 治理與安全
-
-- `access-control`
-- `security-policy`
-- `platform-config`
-- `feature-flag`
-- `onboarding`
-- `compliance`
-
-### 商業與權益
-
-- `billing`
-- `subscription`
-- `referral`
-
-### 流程與交付
-
-- `integration`
-- `workflow`
-- `notification`
-- `background-job`
-
-### 內容與檢索
-
-- `content`
-- `search`
-
-### 證據與診斷
-
-- `audit-log`
-- `observability`
-- `analytics`
-- `support`
-
-## Migration-Pending Subdomains
-
-以下五個 platform 子域目前在 repository 中存在對應的**獨立模組**。這些獨立模組是子域的**前身實作**，計畫在未來重構中合并進 platform。
-
-| 子域 | 對應獨立模組 | 合并方向說明 |
-|---|---|---|
-| `identity` | `modules/identity/` | `Identity`, `TokenRefreshSignal`, `IdentityRepository`, `TokenRefreshRepository` → 吸收進 `identity` 子域 |
-| `account` | `modules/account/` | `Account`, `AccountPolicy`, `AccountRepository`, `AccountQueryRepository`, `AccountPolicyRepository` → 吸收進 `account` 子域 |
-| `account-profile` | `modules/account/` | `AccountProfile` 概念目前住在 `account` 模組；獨立的 profile 治理能力 → 吸收進 `account-profile` 子域 |
-| `organization` | `modules/organization/` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`, `OrganizationRepository`, `OrgPolicyRepository` → 吸收進 `organization` 子域 |
-| `notification` | `modules/notification/` | `NotificationEntity`, `NotificationRepository`，目前為 conformist 消費者 → 吸收進 `notification` 子域 |
-
-**重構規則：** 合并前，platform 的語言、port 契約與事件命名以本 blueprint 文件為準；合并後，獨立模組應廢棄並指向 `modules/platform/`。
-
-## Inventory Freeze Rule
-
-後續若有人想新增 platform 子域，必須先證明以下三件事都成立：
-
-1. 既有 23 個子域沒有任何一個能吸收該能力
-2. 新能力需要獨立的語言、port 焦點與責任邊界
-3. `README.md`、`bounded-context.md`、`context-map.md`、本文件都已先被更新
-
-若無法同時滿足這三件事，預設不允許新增子域。
-````
-
-## File: modules/platform/AGENT.md
-````markdown
-# AGENT.md — platform blueprint
-
-> **強制開發規範**
-> 本 BC 領域開發必須優先確認平台邊界、通用語言與 Hexagonal + DDD 分層。
-> 若需外部官方文件驗證，先使用 Context7；若只更新 `domain/`、`application/`、`ports/` 或本地架構文件，則不讓 UI / Next.js 技能反向主導平台邊界。
-
-## 模組定位
-
-`platform` 在這裡是平台基礎能力的六邊形架構藍圖。它的任務，是保護 platform language、ports/adapters 邊界與子域協作方式，而不是把所有跨領域邏輯集中成單一巨型模組。
-
-## 計畫吸收模組（Migration-Pending Modules）
-
-以下四個獨立模組**計畫重構進 platform**。代理人在這些子域工作時，應把 platform blueprint 的語言定義視為目標規範，獨立模組的現有實作視為前身實作。
-
-| 獨立模組 | 目標子域 | 術語映射重點 |
-|---|---|---|
-| `modules/identity/` | `identity` | `Identity` → `AuthenticatedSubject`；`uid` → `SubjectId`；`TokenRefreshSignal` → `IdentitySignal` |
-| `modules/account/` | `account` + `account-profile` | `Account` 保持同名；`AccountPolicy.PolicyRule` 須對齊 `PolicyCatalog.PolicyRule`；`customClaims` → `Entitlement` |
-| `modules/organization/` | `organization` | `Organization` 保持同名；`MemberReference` → `MembershipBoundary` 的值；`OrganizationRole` 對齊 `RoleAssignment` |
-| `modules/notification/` | `notification` | `NotificationEntity` → `NotificationDispatch`；`recipientId` → `NotificationRoute` 的對象 |
-
-**合并優先序：** `identity` → `account` → `organization` → `notification`
-
-**代理人注意事項：**
-- 合并前不要把獨立模組的術語直接搬進 platform domain；先確認與 platform 語言的映射
-- 合并完成後，獨立模組的 `api/index.ts` 應重新 export 自 `modules/platform/api`，模組本身標記 deprecated
-- 若跨獨立模組與 platform 之間有協作需求，仍須透過 `modules/platform/api` 公開邊界，不得直接依賴對方 domain/application 層
-
-## Canonical Subdomain Inventory
-
-platform 的正式子域清單已固定為：
-
-- `identity`
-- `account`
-- `account-profile`
-- `organization`
-- `access-control`
-- `security-policy`
-- `platform-config`
-- `feature-flag`
-- `onboarding`
-- `compliance`
-- `billing`
-- `subscription`
-- `referral`
-- `integration`
-- `workflow`
-- `notification`
-- `background-job`
-- `content`
-- `search`
-- `audit-log`
-- `observability`
-- `analytics`
-- `support`
-
-這份 inventory 預設為 closed by default。代理人必須先把需求映射到這 23 個子域之一，不能為了方便再建立新的資料夾別名。
-
-## 代理人工作契約
-
-任何在 `modules/platform/` 的變更，都應遵守以下順序：
-
-1. 先確認變更屬於哪一個平台子域
-2. 再確認它是 domain rule、application orchestration、port contract、public boundary projection，還是 adapter concern
-3. 只有在語言與邊界已經穩定時，才擴張資料結構或事件名稱
-
-## 必須維持的 Hexagonal + DDD 規則
-
-- domain 只擁有模型、規則與事件語言，不直接呼叫外部系統
-- application 只協調 use cases，不定義 persistence 或 transport 細節
-- input ports 定義進入系統的請求語言
-- output ports 定義離開系統的依賴語言
-- adapters 只翻譯或實作 ports，不改寫業務語意
-- `api/` 是 platform 對外的 public boundary；它只做投影與 re-export
-- `index.ts` 不是邊界設計來源，不得被當成 public API 規格替代品
-- ports 只可依賴 `application/` 與 `domain/`，不得依賴 `api/`
-- 事件語言單一來源在 `domain/events`；`events/contracts` 僅可 re-export
-- domain events 需由 application 在持久化成功後發布
-
-## Layer Mapping
-
-| 概念 | platform 位置 |
-|---|---|
-| Public boundary | `api/` |
-| Driving adapters | `adapters/` |
-| Application | `application/` |
-| Domain core | `domain/` |
-| Input ports | `ports/input/` |
-| Output ports | `ports/output/` |
-| Driven adapters | `infrastructure/` |
-
-## 通用語言守則
-
-在 platform 文件與未來實作中，應優先使用這些詞：
-
-- `PlatformContext`
-- `PolicyCatalog`
-- `IntegrationContract`
-- `SubscriptionAgreement`
-- `PlatformCapability`
-- `PermissionDecision`
-- `WorkflowTrigger`
-- `NotificationDispatch`
-- `AuditSignal`
-- `ObservabilitySignal`
-- `PublicBoundary`
-- `UseCaseHandler`
-
-不要把這些術語隨意替換成籠統字眼，如 `settings`、`background-job`、`hook`、`status log`、`feature`、`auth result`。
-
-## 允許的修改
-
-- 新增或細化 platform 子域的語言與責任
-- 新增 input ports / output ports 以描述新的 I/O 邊界
-- 新增 application services 以表達新的 use case handlers
-- 新增 aggregates、值物件或 domain services 以承載純業務規則
-- 新增 adapters 或 infrastructure implementations 來實作既有 output ports
-
-## 禁止的修改
-
-- 在 domain 中混入 HTTP、SQL、message bus、email、metrics SDK 細節
-- 在 adapter 中定義平台政策或聚合不變數
-- 直接讓一個子域的 adapter 呼叫另一個子域的 adapter
-- 讓事件名稱承載命令語氣，例如 `please_send_notification`
-- 用臨時欄位或臨時語言繞過 `ubiquitous-language.md`
-- 用 `api/` 或 barrel 檔取代 `application/`、`domain/` 的契約來源
-
-## 文件更新規則
-
-若變更影響聚合、語言或邊界，至少同步更新以下文件：
-
-- 變更聚合或值物件：同步更新 `docs/aggregates.md` 與 `docs/ubiquitous-language.md`
-- 變更 use case handler：同步更新 `docs/application-services.md`
-- 變更 repository/output port：同步更新 `docs/repositories.md`
-- 變更 input port、support port 或 decision object：同步更新 `docs/application-services.md`、`docs/repositories.md` 與 `docs/ubiquitous-language.md`
-- 變更事件名稱或 payload：同步更新 `docs/domain-events.md`
-- 變更子域責任：同步更新 `docs/subdomains.md` 與 `docs/context-map.md`
-- 變更 platform 邊界：同步更新 `docs/bounded-context.md` 與 `README.md`
-
-## 文件分解對照
-
-`docs/README.md` 僅作為索引入口，內容必須拆分並維持以下對照：
-
-- 聚合與不變數：`docs/aggregates.md`
-- use case handlers：`docs/application-services.md`
-- 邊界責任：`docs/bounded-context.md`
-- 子域協作：`docs/context-map.md`
-- 事件語言：`docs/domain-events.md`
-- 純領域規則：`docs/domain-services.md`
-- repositories 與 ports：`docs/repositories.md`
-- 子域清單：`docs/subdomains.md`
-- 術語治理：`docs/ubiquitous-language.md`
-
-## 代理人交付標準
-
-- 優先維持語言一致性，而不是追求一次塞入所有能力
-- 優先讓 ports 穩定，再讓 adapters 成長
-- 優先用事件與契約描述跨邊界協作，而不是共享內部資料結構
-- 任何新術語都應能在 `docs/ubiquitous-language.md` 落地
-
-## 最終檢查
-
-在交付前，代理人至少自問六件事：
-
-1. 這個變更有沒有把 platform policy 泄漏到 adapter？
-2. 這個 I/O 邊界是否已經先表達成 port？
-3. 事件名稱是否描述事實而非命令？
-4. `api/` 是否仍只是 public boundary，而不是核心契約來源？
-5. 子域或 handler 提到的 ports，是否都已在 `docs/repositories.md` 明確定義？
-6. 新增術語、事件、決策物件是否都已在 `docs/ubiquitous-language.md` 與 `docs/domain-events.md` 完整落地？
-````
-
-## File: modules/platform/README.md
-````markdown
-# platform
-
-`platform` 是平台基礎能力的 Hexagonal Architecture with Domain-Driven Design 藍圖，負責主體治理、政策規則、能力啟用、跨邊界交付、稽核與可觀測性等平台底層能力。這個模組的目標，是穩定語言與邊界，而不是集中所有跨領域業務邏輯。
-
-## 邊界定位
-
-- 維持 `driving adapters -> application -> domain <- driven adapters` 的依賴方向
-- `domain/` 保持 framework-free，不引入 HTTP、DB SDK、訊息匯流排與監控 SDK
-- 所有外部輸入先表達成 `ports/input`
-- 所有外部依賴先表達成 `ports/output`，再由 `infrastructure/` 實作
-- `api/` 是對外 public boundary，只做投影與 re-export
-- `ports/` 只依賴 `application/` 與 `domain/` 契約，不依賴 `api/`
-- `index.ts` 只是模組匯出便利入口，不是邊界規格來源
-
-## Hexagonal Mapping
-
-| Hexagonal concept | platform 位置 | 說明 |
-|---|---|---|
-| Public boundary | `api/` | 跨模組公開契約投影 |
-| Driving adapters | `adapters/` | CLI、web、external ingress 等輸入端 |
-| Application | `application/` | use case orchestration、DTO、command/query 處理 |
-| Domain core | `domain/` | 聚合、值物件、domain services、domain events |
-| Input ports | `ports/input/` | 進入 application 的穩定契約 |
-| Output ports | `ports/output/` | repositories、stores、gateways、sinks |
-| Driven adapters | `infrastructure/` | 對 output ports 的具體實作 |
-| Published language | `domain/events/`, `application/dtos/` | 事件與穩定 application contracts |
-
-## 模組骨架
-
-```text
-modules/platform/
-    api/
-    adapters/
-    application/
-    domain/
-    infrastructure/
-    ports/
-    docs/
-    subdomains/
-    AGENT.md
-```
-
-## Canonical Subdomain Inventory (23)
-
-- `identity`
-- `account`
-- `account-profile`
-- `organization`
-- `access-control`
-- `security-policy`
-- `platform-config`
-- `feature-flag`
-- `onboarding`
-- `compliance`
-- `billing`
-- `subscription`
-- `referral`
-- `integration`
-- `workflow`
-- `notification`
-- `background-job`
-- `content`
-- `search`
-- `audit-log`
-- `observability`
-- `analytics`
-- `support`
-
-此 inventory 採 closed by default；新增子域前必須先完成文件治理與邊界論證。
-
-## 計畫吸收模組
-
-以下四個現有獨立模組將在未來重構中合并進 platform，成為對應子域的正式實作：
-
-| 獨立模組 | 目標子域 | 現有狀態 | 合并備注 |
-|---|---|---|---|
-| `modules/identity/` | `identity` | ✅ Done — 穩定 | `Identity`, `TokenRefreshSignal` → platform `AuthenticatedSubject` 語言 |
-| `modules/account/` | `account` + `account-profile` | ✅ Done — 穩定 | `Account`, `AccountPolicy`, `AccountProfile` → platform `account`/`account-profile` 子域 |
-| `modules/organization/` | `organization` | ✅ Done — 穩定 | `Organization`, `MemberReference`, `Team` → platform `organization` 子域 |
-| `modules/notification/` | `notification` | 🏗️ Midway | `NotificationEntity`, `NotificationRepository` → platform `notification` 子域 |
-
-**合并優先序：** `identity` → `account` → `organization` → `notification`
-
-合并前，platform blueprint 定義語言與 port 契約規範；獨立模組保持現有 API 介面不中斷。合并後，獨立模組的 `api/index.ts` 應指向 `modules/platform/api`，並標記為 deprecated。
-
-詳細語言映射見 [docs/ubiquitous-language.md](./docs/ubiquitous-language.md)，計畫吸收的事件見 [docs/domain-events.md](./docs/domain-events.md)，計畫吸收的倉儲見 [docs/repositories.md](./docs/repositories.md)。
-
-## 文件導覽
-
-- [docs/README.md](./docs/README.md): 文件索引與 Hexagonal DDD 閱讀路徑
-- [docs/bounded-context.md](./docs/bounded-context.md): 邊界責任、public boundary 與封板規則
-- [docs/subdomains.md](./docs/subdomains.md): 23 子域正式責任表
-- [docs/context-map.md](./docs/context-map.md): 子域協作與共享語言
-- [docs/ubiquitous-language.md](./docs/ubiquitous-language.md): 通用語言詞彙
-- [docs/aggregates.md](./docs/aggregates.md): 核心聚合與不變數
-- [docs/domain-services.md](./docs/domain-services.md): 跨聚合純規則
-- [docs/application-services.md](./docs/application-services.md): use case orchestration
-- [docs/repositories.md](./docs/repositories.md): repositories 與 output ports
-- [docs/domain-events.md](./docs/domain-events.md): 事件命名與收發清單
-
-## 變更準則
-
-1. 先映射到既有子域
-2. 再決定是 language、aggregate、use case、port、adapter 或 public boundary 變更
-3. 若牽涉命名、事件或邊界，先更新 `docs/` 與 `AGENT.md`，再實作
-
-## 文件閉環驗證
-
-提交前建議最少執行一次文件閉環檢查：
-
-1. `subdomains.md` 與 `bounded-context.md` 的 23 子域是否一致
-2. `subdomains.md` / `application-services.md` 中的 ports 是否都在 `docs/repositories.md`
-3. `docs/domain-events.md` 的事件術語是否都在 `docs/ubiquitous-language.md`
-4. `docs/context-map.md` 的協作語言是否與 `docs/domain-events.md` 命名一致
-5. `api/`、`ports/`、`adapters/`、`infrastructure/` 的角色是否仍然清楚
 ````
