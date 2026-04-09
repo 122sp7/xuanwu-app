@@ -22,7 +22,7 @@ import {
 } from "@ui-shadcn/ui/card";
 import { Plus } from "lucide-react";
 
-import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
 
 import type { WorkDemand } from "../domain/types";
 import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../domain/types";

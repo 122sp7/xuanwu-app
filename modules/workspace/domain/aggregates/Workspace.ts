@@ -3,17 +3,17 @@
  */
 
 import type { Timestamp } from "@shared-types";
-import type { WorkspaceAccessPolicy, WorkspaceGrant } from "./WorkspaceAccess";
+import type { WorkspaceAccessPolicy, WorkspaceGrant } from "../entities/WorkspaceAccess";
 import type {
   Capability,
   WorkspaceCapabilityAssignments,
-} from "./WorkspaceCapability";
-import type { WorkspaceLocation } from "./WorkspaceLocation";
+} from "../entities/WorkspaceCapability";
+import type { WorkspaceLocation } from "../entities/WorkspaceLocation";
 import type {
   Address,
   WorkspaceOperationalProfile,
   WorkspacePersonnel,
-} from "./WorkspaceProfile";
+} from "../entities/WorkspaceProfile";
 import { createAddress, type AddressInput } from "../value-objects/Address";
 import type {
   WorkspaceLifecycleState,
@@ -276,15 +276,15 @@ export class Workspace implements WorkspaceEntity {
   }
 }
 
-export type { WorkspaceGrant } from "./WorkspaceAccess";
-export type { Capability, CapabilitySpec } from "./WorkspaceCapability";
-export type { WorkspaceLocation } from "./WorkspaceLocation";
+export type { WorkspaceGrant } from "../entities/WorkspaceAccess";
+export type { Capability, CapabilitySpec } from "../entities/WorkspaceCapability";
+export type { WorkspaceLocation } from "../entities/WorkspaceLocation";
 export type {
   Address,
   AddressInput,
   WorkspacePersonnel,
   WorkspacePersonnelCustomRole,
-} from "./WorkspaceProfile";
+} from "../entities/WorkspaceProfile";
 export type {
   WorkspaceLifecycleState,
   WorkspaceLifecycleStateInput,

@@ -4,14 +4,14 @@
  * Public interface-layer composition exports.
  */
 
-export { WorkspaceDetailScreen } from "../components/WorkspaceDetailScreen";
-export { WorkspaceDetailRouteScreen } from "../components/WorkspaceDetailRouteScreen";
-export { WorkspaceHubScreen } from "../components/WorkspaceHubScreen";
-export { WorkspaceMembersTab } from "../components/WorkspaceMembersTab";
-export { WorkspaceSidebarSection } from "../components/WorkspaceSidebarSection";
-export { CreateWorkspaceDialogRail } from "../components/CreateWorkspaceDialogRail";
-export { OrganizationWorkspacesScreen } from "../components/OrganizationWorkspacesScreen";
-export { WorkspaceContextCard } from "../components/WorkspaceContextCard";
+export { WorkspaceDetailScreen } from "../web/components/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "../web/components/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "../web/components/WorkspaceHubScreen";
+export { WorkspaceMembersTab } from "../web/components/WorkspaceMembersTab";
+export { WorkspaceSidebarSection } from "../web/components/WorkspaceSidebarSection";
+export { CreateWorkspaceDialogRail } from "../web/components/CreateWorkspaceDialogRail";
+export { OrganizationWorkspacesScreen } from "../web/components/OrganizationWorkspacesScreen";
+export { WorkspaceContextCard } from "../web/components/WorkspaceContextCard";
 
 export {
   WORKSPACE_TAB_GROUPS,
@@ -23,32 +23,32 @@ export {
   getWorkspaceTabStatus,
   getWorkspaceTabsByGroup,
   isWorkspaceTabValue,
-} from "../workspace-tabs";
+} from "../web/workspace-tabs";
 
-export { getWorkspaceStorageKey, toWorkspaceMap, resolveWorkspaceFromMap } from "../workspace-session";
+export { getWorkspaceStorageKey, toWorkspaceMap, resolveWorkspaceFromMap } from "../web/workspace-session";
 
-export type { WorkspaceNavItem } from "../workspace-nav-items";
+export type { WorkspaceNavItem } from "../web/workspace-nav-items";
 export {
   WORKSPACE_NAV_ITEMS,
   normalizeWorkspaceOrder,
-} from "../workspace-nav-items";
+} from "../web/workspace-nav-items";
 
 export type {
   WorkspaceQuickAccessItem,
   WorkspaceQuickAccessMatcherOptions,
-} from "../workspace-quick-access";
+} from "../web/workspace-quick-access";
 
-export { buildWorkspaceQuickAccessItems } from "../workspace-quick-access";
+export { buildWorkspaceQuickAccessItems } from "../web/workspace-quick-access";
 
 export type {
   WorkspaceTabDevStatus,
   WorkspaceTabGroup,
   WorkspaceTabValue,
-} from "../workspace-tabs";
+} from "../web/workspace-tabs";
 
-export { useWorkspaceHub } from "../hooks/useWorkspaceHub";
+export { useWorkspaceHub } from "../web/hooks/useWorkspaceHub";
 export {
   MAX_VISIBLE_RECENT_WORKSPACES,
   getWorkspaceIdFromPath,
   useRecentWorkspaces,
-} from "../hooks/useRecentWorkspaces";
+} from "../web/hooks/useRecentWorkspaces";

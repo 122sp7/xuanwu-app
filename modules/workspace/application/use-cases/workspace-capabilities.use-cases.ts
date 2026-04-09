@@ -6,7 +6,7 @@
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { WorkspaceCapabilityRepository } from "../../ports/output/WorkspaceCapabilityRepository";
-import type { Capability } from "../../domain/entities/Workspace";
+import type { Capability } from "../../domain/aggregates/Workspace";
 
 // ─── Mount Capabilities ───────────────────────────────────────────────────────
 

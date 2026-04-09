@@ -22,7 +22,7 @@ export type {
   WorkspacePersonnelCustomRole,
   WorkspaceVisibility,
   WorkspaceVisibilityInput,
-} from "../../domain/entities/Workspace";
+} from "../../domain/aggregates/Workspace";
 
 export {
   WORKSPACE_LIFECYCLE_STATES,

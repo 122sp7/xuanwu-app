@@ -1,6 +1,6 @@
 /**
  * Module: workspace
- * Layer: domain/repositories
+ * Layer: ports/output
  * Purpose: Repository port for fetching workspace refs used by the
  *          Wiki content-tree use-case.
  */

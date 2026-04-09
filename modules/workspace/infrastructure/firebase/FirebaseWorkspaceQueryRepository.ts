@@ -4,7 +4,7 @@ import type {
   WorkspaceMemberView,
 } from "../../domain/entities/WorkspaceMember";
 import type { WorkspaceQueryRepository } from "../../ports/output/WorkspaceQueryRepository";
-import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
 import {
   organizationApi,
   type OrganizationMemberDTO,

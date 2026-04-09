@@ -31,7 +31,7 @@ import type {
   WorkspaceGrant,
   UpdateWorkspaceSettingsCommand,
   WorkspaceLocation,
-} from "../../domain/entities/Workspace";
+} from "../../domain/aggregates/Workspace";
 import { createAddress } from "../../domain/value-objects/Address";
 import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
 import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";

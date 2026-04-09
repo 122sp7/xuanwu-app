@@ -1,6 +1,6 @@
 "use client";
 
-import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
+import type { WorkspaceEntity } from "../../api/contracts";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {

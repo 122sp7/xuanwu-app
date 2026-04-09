@@ -3,7 +3,7 @@
  */
 
 import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMember";
-import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
 
 export type Unsubscribe = () => void;
 

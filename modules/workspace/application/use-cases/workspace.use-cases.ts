@@ -22,3 +22,10 @@ export {
   GrantIndividualAccessUseCase,
   CreateWorkspaceLocationUseCase,
 } from "./workspace-access.use-cases";
+
+export {
+  GetWorkspaceByIdForAccountUseCase,
+  GetWorkspaceByIdUseCase,
+  ListWorkspacesForAccountUseCase,
+  SubscribeToWorkspacesForAccountUseCase,
+} from "./workspace-query.use-cases";

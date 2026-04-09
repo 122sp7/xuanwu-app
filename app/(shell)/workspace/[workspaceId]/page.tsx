@@ -3,7 +3,7 @@
 import { useParams, useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
-import { WorkspaceDetailRouteScreen } from "@/modules/workspace/interfaces/api";
+import { WorkspaceDetailRouteScreen } from "@/modules/workspace/api";
 
 export default function WorkspaceDetailPage() {
   const params = useParams<{ workspaceId: string }>();

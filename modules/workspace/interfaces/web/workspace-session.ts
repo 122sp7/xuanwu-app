@@ -1,4 +1,4 @@
-import type { WorkspaceEntity } from "../domain/entities/Workspace";
+import type { WorkspaceEntity } from "../api/contracts";
 
 const LAST_ACTIVE_WORKSPACE_STORAGE_PREFIX = "xuanwu_last_active_workspace:";
 

@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
-import { resolveWorkspaceFromMap } from "@/modules/workspace/interfaces/api";
+import { resolveWorkspaceFromMap } from "@/modules/workspace/api";
 import { RagQueryView } from "@/modules/search/api";
 
 export default function NotebookRagQueryPage() {

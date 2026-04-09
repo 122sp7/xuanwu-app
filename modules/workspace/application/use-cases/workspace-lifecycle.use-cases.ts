@@ -11,13 +11,13 @@ import type {
   CreateWorkspaceCommand,
   UpdateWorkspaceSettingsCommand,
   Capability,
-} from "../../domain/entities/Workspace";
+} from "../../domain/aggregates/Workspace";
 import {
   createWorkspaceAggregate,
   reconstituteWorkspaceAggregate,
   toWorkspaceSnapshot,
 } from "../../domain/factories/WorkspaceFactory";
-import type { Workspace } from "../../domain/entities/Workspace";
+import type { Workspace } from "../../domain/aggregates/Workspace";
 
 function sanitizeWorkspaceSettingsCommand(
   workspace: Workspace,
