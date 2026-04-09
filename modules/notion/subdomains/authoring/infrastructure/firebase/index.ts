@@ -1,3 +1,4 @@
 // TODO: export FirebaseArticleRepository, FirebaseCategoryRepository
 
-export {};
+export { FirebaseArticleRepository } from "./FirebaseArticleRepository";
+export { FirebaseCategoryRepository } from "./FirebaseCategoryRepository";
