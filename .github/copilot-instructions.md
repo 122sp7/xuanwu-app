@@ -32,7 +32,7 @@ Read these in order before making non-trivial decisions:
 
 ## DDD Reference Authority
 
-DDD root maps are owned by `docs/ddd/`. Bounded-context reference sets currently live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
+Strategic DDD root maps are currently owned by `modules/subdomains.md` and `modules/bounded-contexts.md`. Bounded-context reference sets live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
 
 | Query | Canonical Document |
 |-------|-------------------|
@@ -46,7 +46,7 @@ DDD root maps are owned by `docs/ddd/`. Bounded-context reference sets currently
 | Context application services | `modules/<context>/application-services.md` |
 | Context domain services | `modules/<context>/domain-services.md` |
 
-**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/ddd/` contains strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
+**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `modules/subdomains.md` + `modules/bounded-contexts.md` contain strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
 
 ## Workspace-Wide Operating Rules
 
