@@ -1,6 +1,4 @@
-﻿export type { EmitTokenRefreshSignalInput } from "./identity.api";
-export { createClientAuthUseCases, identityApi } from "./identity.api";
-export { toIdentityErrorMessage } from "./identity-error-message";
+﻿export { toIdentityErrorMessage } from "./identity-error-message";
 export {
 	RegisterUseCase,
 	SendPasswordResetEmailUseCase,
