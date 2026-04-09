@@ -26,12 +26,9 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 
 Read these in order before making non-trivial decisions:
 
-1. [terminology-glossary.md](./terminology-glossary.md) for canonical terminology routing.
-2. [AGENTS.md](../AGENTS.md) for repository-wide rules and validation commands.
-3. [CLAUDE.md](../CLAUDE.md) for cross-agent compatibility.
-4. [agents/knowledge-base.md](./agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
-5. [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment commands.
-6. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
+1. [instructions/ubiquitous-language.instructions.md](./instructions/ubiquitous-language.instructions.md) for canonical terminology routing.
+2. [agents/knowledge-base.md](./agents/knowledge-base.md) for repository-wide architecture rules and module boundaries.
+3. [agents/commands.md](./agents/commands.md) for validation commands, build, lint, test, and deployment workflows.
 
 ## DDD Reference Authority
 
@@ -39,8 +36,8 @@ DDD root maps are owned by `docs/ddd/`. Bounded-context reference sets currently
 
 | Query | Canonical Document |
 |-------|-------------------|
-| Strategic subdomain classification | [`docs/ddd/subdomains.md`](../docs/ddd/subdomains.md) |
-| Bounded Context boundaries / module map | [`docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md) |
+| Strategic subdomain classification | [`modules/subdomains.md`](../modules/subdomains.md) |
+| Bounded Context boundaries / module map | [`modules/bounded-contexts.md`](../modules/bounded-contexts.md) |
 | Context terminology | `modules/<context>/ubiquitous-language.md` |
 | Context aggregates / entities / value objects | `modules/<context>/aggregates.md` |
 | Context domain events | `modules/<context>/domain-events.md` |
@@ -157,7 +154,7 @@ Any of the following require a context7 lookup before proceeding:
 
 ## Terminology
 
-- Terminology routing is governed by [terminology-glossary.md](./terminology-glossary.md).
+- Terminology routing is governed by [instructions/ubiquitous-language.instructions.md](./instructions/ubiquitous-language.instructions.md).
 - Treat glossary terminology as canonical naming and vocabulary authority.
 - Do not introduce new terms if an equivalent glossary term already exists.
 - When multiple names exist, normalize to the glossary term before implementation.
