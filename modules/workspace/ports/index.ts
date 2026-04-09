@@ -20,4 +20,4 @@ export type { WikiWorkspaceRepository } from "../domain/repositories/WikiWorkspa
 export type {
   WorkspaceDomainEventPublisher,
   WorkspaceEventPublishMetadata,
-} from "../domain/ports/WorkspaceDomainEventPublisher";
+} from "./output/WorkspaceDomainEventPublisher";

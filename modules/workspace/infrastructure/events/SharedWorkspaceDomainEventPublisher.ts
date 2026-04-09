@@ -7,7 +7,7 @@ import {
 import type {
   WorkspaceDomainEventPublisher,
   WorkspaceEventPublishMetadata,
-} from "../../domain/ports/WorkspaceDomainEventPublisher";
+} from "../../ports/output/WorkspaceDomainEventPublisher";
 import type { WorkspaceDomainEvent } from "../../domain/events/workspace.events";
 
 function toEventPayload(event: WorkspaceDomainEvent) {

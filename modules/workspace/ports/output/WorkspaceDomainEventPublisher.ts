@@ -1,4 +1,4 @@
-import type { WorkspaceDomainEvent } from "../events/workspace.events";
+import type { WorkspaceDomainEvent } from "../../domain/events/workspace.events";
 
 export interface WorkspaceEventPublishMetadata {
   readonly workspaceId?: string;
