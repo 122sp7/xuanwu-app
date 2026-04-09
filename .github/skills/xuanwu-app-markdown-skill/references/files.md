@@ -130,6 +130,64 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
+## File: .github/agents/commands.md
+````markdown
+# Build, Lint & Development Commands
+
+## Development
+
+- `npm run dev` — Start Next.js development server (App Router, port 3000)
+- `npm run build` — Production build (Next.js + TypeScript type-check)
+- `npm run start` — Start production server from build output
+
+## Lint & Type Check
+
+- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
+- `npm run test` — Run Vitest unit tests
+- TypeScript type-checking is included in `npm run build`
+
+## Firebase Deployment
+
+- `npm run deploy:firebase` — Deploy all Firebase resources
+- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
+- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
+- `npm run deploy:storage:rules` — Deploy Storage security rules only
+- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
+- `npm run deploy:apphosting` — Deploy App Hosting configuration
+- `npm run deploy:functions` — Deploy Cloud Functions (Python)
+- `npm run deploy:functions:py-fn` — Deploy Python Cloud Functions only
+- `npm run deploy:functions:all` — Deploy all Cloud Functions
+
+## Repomix (AI Skill Generation)
+
+- `npm run repomix:skill` — Generate a repomix skill from the full codebase
+- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
+- `npm run repomix:local` — Generate a skill from a local directory
+
+## Key Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `next.config.ts` | Next.js 16 App Router configuration |
+| `tsconfig.json` | TypeScript config with `@alias` path mappings |
+| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
+| `tailwind.config.ts` | Tailwind CSS 4 configuration |
+| `firebase.json` | Firebase project configuration |
+| `firestore.rules` | Firestore security rules |
+| `firestore.indexes.json` | Firestore composite indexes |
+| `storage.rules` | Cloud Storage security rules |
+| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
+| `apphosting.yaml` | Firebase App Hosting configuration |
+
+## Environment Setup
+
+- **Node.js**: Version 24 required (see `engines` in `package.json`)
+- **Package manager**: npm
+- Install dependencies: `npm install`
+- Python test dependencies: `python -m pip install -r py_fn/requirements-dev.txt`
+- Firebase CLI: `npx firebase` (no global install required)
+````
+
 ## File: .github/agents/doc-ingest.agent.md
 ````markdown
 ---
@@ -3803,6 +3861,174 @@ Use this file as the stable glossary entry point referenced by `.github/*` custo
 When a term is shared across contexts, prefer the local bounded-context glossary first and then reconcile with [`subdomains.md`](../docs/ddd/subdomains.md) and [`bounded-contexts.md`](../docs/ddd/bounded-contexts.md).
 ````
 
+## File: AGENTS.md
+````markdown
+# Agent Guide — Xuanwu App
+
+This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
+
+## Development Status Workflow
+
+Use the following status flow for issues, tasks, and features:
+
+| Order | Status | Emoji | Description |
+|------|--------|-------|-------------|
+| 0 | Idea | 💡 | Initial idea or feature request |
+| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
+| 2 | Planned | 📅 | Planned and scheduled |
+| 3 | Designing | 🎨 | Architecture / UI / schema design |
+| 4 | Ready | 🟢 | Ready for development |
+| 5 | Developing | 🚧 | Active development |
+| 6 | Midway | 🏗️ | Development partially completed |
+| 7 | Testing | 🧪 | Testing / QA |
+| 8 | Fixing | 🔧 | Bug fixing |
+| 9 | Review | 🔍 | Code review / acceptance review |
+|10 | Staging | 🚀 | Staging / pre-production |
+|11 | Done | ✅ | Development completed |
+|12 | Delivered | 📦 | Delivered / deployed to production |
+|13 | Archived | 🗄️ | Archived / closed / inactive |
+
+## Quick Start
+
+1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
+2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
+3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
+4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
+
+## Non-Negotiable Session Contract
+
+- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it before continuing.
+- Serena is the orchestration lead. Serena understands the request first and decides whether subagents are needed.
+- If confidence in any library, framework, or config detail is below 99.99%, query Context7 before generating or recommending code.
+- Repository orchestration memory and index updates must go through Serena tools; direct `.serena/` edits or non-Serena replacements are not authoritative.
+
+## Orchestration Protocol
+
+- Serena MCP is mandatory at the start of every conversation and acts as the orchestration lead.
+- Serena understands the request first, reads relevant memory, gathers targeted context, and decides whether focused subagents are needed.
+- Subagents assist with exploration or execution, but Serena remains responsible for delegation and final synthesis.
+- If confidence in any library, framework, or config detail is below 99.99%, query Context7 before generating or recommending code.
+- `.claude/` is a supported Claude Code compatibility surface. Consult `.claude/settings.json`, `.claude/rules/tech-strategy.md`, and `.claude/hooks/*` when maintaining Claude-specific workflow or compatibility, while treating `.github/*` as the primary Copilot rule tree.
+
+## Key Rules
+
+### Architecture
+
+- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
+- Treat every `modules/<module-name>/` as an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
+- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
+- Import shared code through `@alias` package aliases, never with relative paths across modules.
+
+### Import Aliases
+
+```ts
+import type { CommandResult } from "@shared-types";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { getFirebaseFirestore } from "@integration-firebase";
+```
+
+Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
+
+### Runtime Boundary
+
+- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
+- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
+- Do not add chat streaming or auth logic to `py_fn/`.
+
+## Validation Commands
+
+```bash
+npm install          # Install dependencies
+npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
+npm run test         # Vitest unit test baseline
+npm run build        # Next.js production build + TypeScript type-check
+
+# Python worker
+cd py_fn && python -m pip install -r requirements-dev.txt
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+## Common Patterns
+
+### Server Action (write-side)
+
+```ts
+"use server";
+export async function myAction(input: MyInput): Promise<CommandResult> {
+  // validate → use case → return CommandResult
+}
+```
+
+### Use Case
+
+```ts
+// modules/<context>/application/use-cases/MyUseCase.ts
+export class MyUseCase {
+  constructor(private readonly repo: MyRepository) {}
+  async execute(input: MyInput): Promise<CommandResult> { ... }
+}
+```
+
+### Repository
+
+- Interface in `domain/repositories/`.
+- Firebase implementation in `infrastructure/firebase/`.
+
+## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
+
+本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
+
+### DDD 審查 Agent
+
+- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
+
+### DDD 指令文件 (Instructions)
+
+| 文件 | 用途 |
+|------|------|
+| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
+| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
+| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
+| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
+
+### DDD Prompt 模板
+
+- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
+- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
+
+### DDD 術語表
+
+DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
+
+## Spec-Driven Development
+
+When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## Copilot Delivery Workflow
+
+This repository also maintains a formal Copilot delivery chain for non-trivial work:
+
+1. Planner
+2. Implementer
+3. Reviewer
+4. QA
+
+Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
+
+## Permissions
+
+For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
+
+## Full Rules
+
+See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
+````
+
 ## File: CLAUDE.md
 ````markdown
 # CLAUDE.md — Xuanwu App Context
@@ -3865,6 +4091,127 @@ export async function action(input) { return useCase.execute(input); }
 - **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
 - **[.github/agents/knowledge-base.md](.github/agents/knowledge-base.md)** — Module inventory, tech stack
 - **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
+````
+
+## File: CONTRIBUTING.md
+````markdown
+# Contributing to Xuanwu App
+
+Contributions are welcome. Please follow these guidelines to keep the codebase consistent and easy to review.
+
+## House Rules
+
+### 👥 Prevent Work Duplication
+
+Before opening a new issue or PR, check whether it already exists in [Issues](https://github.com/122sp7/xuanwu-app/issues) or [Pull Requests](https://github.com/122sp7/xuanwu-app/pulls).
+
+### ✅ Work on Approved Issues
+
+For new feature requests, wait for a maintainer to approve the issue before starting implementation. Bug fixes, security, performance, and documentation improvements can begin immediately.
+
+### 🚫 One Concern per PR
+
+Keep PRs small and focused. A PR should address one feature, bug, or refactor. Split large changes into a sequence of smaller PRs that can be reviewed and merged independently.
+
+### 📚 Write for Future Readers
+
+Every PR contributes to the long-term understanding of the codebase. Write clearly enough that someone — possibly you — can revisit it months later and still understand what happened and why.
+
+### ✅ Summarize Your PR
+
+Provide a short summary at the top of every PR describing the intent. Use `Closes #123` or `Fixes #456` in the description to auto-link related issues.
+
+### 🧪 Describe What Was Tested
+
+Explain how you validated your changes. For example: _"Tested locally with npm run dev, verified the new route renders without errors."_
+
+---
+
+## Development
+
+### Prerequisites
+
+- Node.js 24
+- npm
+
+### Setup
+
+```bash
+npm install
+npm run dev      # Start Next.js dev server (port 3000)
+```
+
+### Validation
+
+Before pushing, ensure these all pass:
+
+```bash
+npm run lint     # ESLint — must have 0 errors
+npm run test     # Vitest unit tests
+npm run build    # Next.js production build + TypeScript type-check
+```
+
+For the Python worker:
+
+```bash
+cd py_fn && python -m pip install -r requirements-dev.txt
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+---
+
+## Architecture Conventions
+
+This project follows **Module-Driven Domain Design (MDDD)**. Before making changes, read:
+
+- [`.github/agents/README.md`](.github/agents/README.md) — rules index
+- [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
+- [`CLAUDE.md`](CLAUDE.md) — key architecture rules and patterns
+
+### Key Rules
+
+- Business logic lives in `modules/<context>/` with four layers: `domain/`, `application/`, `infrastructure/`, `interfaces/`.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must be framework-free.
+- Use `@alias` package imports (e.g., `@shared-types`, `@ui-shadcn`). Never use legacy `@/shared/*`, `@/libs/*`, `@/ui/*` paths.
+- Keep Next.js Server Actions thin — delegate to use cases, return `CommandResult`.
+
+### File Naming
+
+| Type | Pattern | Example |
+|------|---------|---------|
+| Domain entity | `PascalCase.ts` | `Organization.ts` |
+| Repository interface | `MyRepository.ts` | `WorkspaceRepository.ts` |
+| Firebase repository | `FirebaseMyRepository.ts` | `FirebaseWorkspaceRepository.ts` |
+| Use case | `my-use-case.ts` | `create-workspace.ts` |
+| Server Action | `*.actions.ts` | `workspace.actions.ts` |
+| React component | `PascalCase.tsx` | `WorkspaceCard.tsx` |
+
+---
+
+## Making a Pull Request
+
+1. Fork the repository and create a branch from `main`.
+2. Make focused, incremental changes.
+3. Ensure `npm run lint` and `npm run build` pass with no new errors.
+4. Fill out the PR description with intent, changes, and testing notes.
+5. Link related issues with `Closes #N` or `Refs #N`.
+6. Request a review.
+
+---
+
+## Spec-Driven Development
+
+For larger features, consider using spec-driven development. See [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## AI Delivery Workflow
+
+For larger or cross-module changes, prefer the formal Copilot delivery workflow:
+
+- Plan first with [`docs/swarm.md`](docs/swarm.md)
+- Use the implementation plan as the execution contract for implementation, review, and QA
+- Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
 ````
 
 ## File: docs/beads.md
@@ -13741,6 +14088,381 @@ knowledge ─── knowledge.page_promoted ───► knowledge-base
 > `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
 ````
 
+## File: modules/workspace/application/use-cases/AGENT.md
+````markdown
+# application/use-cases — Use Cases（單一使用案例）
+
+此目錄放 **一個 user goal / command / query 對應的一段應用層流程**。
+
+> 一個 use case 只負責一個明確操作，不承擔長流程 saga，也不承擔純領域規則。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Command-side use case | `CreateWorkspaceUseCase`、`UpdateWorkspaceSettingsUseCase` |
+| Query-side use case | `FetchWorkspaceMembersUseCase` |
+| 單一使用案例的 orchestration | 載入 aggregate、呼叫 domain service、呼叫 output port、回傳 DTO |
+| 薄型 use-case barrel | `workspace.use-cases.ts` |
+
+**判斷準則**：如果它是在完成一個明確操作，例如「建立工作區」「更新設定」「取得成員列表」，就放這裡。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| 多步驟長流程 / Saga / Process Manager | 放 `application/services/` |
+| 純業務規則（policy、guard、invariant） | 放 `domain/services/` 或 aggregate 本身 |
+| React component、Route Handler、CLI handler | 放 `interfaces/` |
+| Firebase / event bus concrete class 依賴 | 應透過 `ports/output/` |
+| Firestore document mapping / converter | 放 `infrastructure/firebase/` |
+
+---
+
+## 命名慣例
+
+```
+create-<entity>.use-case.ts
+update-<entity>.use-case.ts
+fetch-<entity>.use-case.ts
+<feature>.use-cases.ts        → barrel / group export only
+```
+
+## 依賴箭頭
+
+```txt
+interfaces/api|cli|web
+    -> ports/input
+    -> application/use-cases
+application/use-cases
+    -> application/dtos
+application/use-cases
+    -> domain/aggregates|entities|services
+application/use-cases
+    -> ports/output
+```
+
+`application/use-cases` **不可**依賴 `infrastructure/`、`interfaces/`。
+
+---
+
+## 與 Application Service 的分工
+
+- 一個 use case = 一個明確操作
+- 一個 application service = 協調多個 use case 或長流程
+- 若覺得 use case 開始需要追蹤流程狀態、重試、去重、事件編排，就該搬去 `application/services/`
+````
+
+## File: modules/workspace/domain/entities/AGENT.md
+````markdown
+# domain/entities — Entities（實體 / Supporting Domain Objects）
+
+此目錄放 **具 identity 的 supporting domain objects**，它們屬於 domain model，但不是 aggregate root。
+
+> Entity 可以有生命週期與 identity，但不承擔整個一致性邊界。那是 aggregate root 的責任。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Supporting Entity | `WorkspaceLocation`、`Capability` |
+| Aggregate 內部帶 identity 的子物件 | 自訂角色、子節點、附屬記錄 |
+| 過渡期既有 domain object | 尚未移入 `domain/aggregates/` 的 legacy entity |
+
+**判斷準則**：如果它有 identity，但不作為整個寫入一致性的根，就放在這裡。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Aggregate Root | 放 `domain/aggregates/` |
+| Value Object | 放 `domain/value-objects/` |
+| Query-side projection / read model | 不應新增到這裡；應留在 query-side / DTO surface |
+| DTO | 放 `application/dtos/` |
+| Firebase、HTTP、React import | Domain entity 必須 framework-free |
+
+---
+
+## 依賴箭頭
+
+```txt
+domain/aggregates
+    -> domain/entities
+domain/services
+    -> domain/entities
+domain/entities
+    -> domain/value-objects (optional)
+```
+
+`domain/entities` **不可**依賴 `application/`、`infrastructure/`、`interfaces/`、`ports/output/`。
+
+---
+
+## 注意事項
+
+- 現有歷史 read model 若暫時還在此目錄，視為過渡態，不代表新檔案也應放這裡。
+- 新增檔案時，先問自己：它是不是 aggregate root？是不是 value object？如果都不是，再考慮 entity。
+````
+
+## File: modules/workspace/domain/events/AGENT.md
+````markdown
+# domain/events — Domain Events（領域事件）
+
+此目錄放 **workspace bounded context 對外發布的事件語言**。
+
+> Domain Event 是 published language，不是 event bus adapter，也不是 process manager。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Event type / discriminated union | `workspace.created`、`workspace.lifecycle_transitioned` |
+| Event payload type | `WorkspaceCreatedEvent` |
+| Event 建構 helper | 只服務事件建立的薄型 helper |
+
+**判斷準則**：如果它描述的是「workspace 發生了什麼」，而不是「系統要怎麼處理」，就放這裡。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Event bus / dispatcher implementation | 放 `infrastructure/events/` |
+| Event subscriber / process manager | 放 `application/services/` |
+| Retry / dead-letter / transport 細節 | 屬於 infrastructure |
+| UI notification、toast、路由邏輯 | 不屬於 domain event 語言 |
+
+---
+
+## 依賴箭頭
+
+```txt
+domain/aggregates
+    -> domain/events
+domain/services
+    -> domain/events (type only, optional)
+application/use-cases
+    -> domain/events
+ports/output/WorkspaceDomainEventPublisher
+    -> domain/events (type only)
+```
+
+`domain/events` **不可**依賴 `infrastructure/`、`interfaces/`、`application/services/`。
+
+---
+
+## 命名慣例
+
+```
+workspace.events.ts
+create-workspace-created-event.ts
+```
+
+事件名稱優先使用 `workspace.<verb_past_tense>` 風格，保持 published language 穩定。
+````
+
+## File: modules/workspace/domain/factories/AGENT.md
+````markdown
+# domain/factories — Domain Factories（領域工廠）
+
+此目錄放 **建立 aggregate、entity、value object、domain event 的工廠與 reconstitution helper**。
+
+> Factory 的責任是「安全地建立有效模型」，不是持久化，也不是流程協調。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Aggregate factory | 建立 `Workspace` 的 factory function |
+| Reconstitution helper | 從 persistence snapshot 重建 aggregate / entity |
+| Value object parser / normalizer | 將 raw input 正規化成 VO |
+| Domain event factory | 建立標準化 event payload |
+
+**判斷準則**：若它的任務是把 raw data 轉成有效 domain model，而不是執行業務流程，就放這裡。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Repository / persistence code | 放 `infrastructure/` |
+| Use case orchestration | 放 `application/use-cases/` 或 `application/services/` |
+| React / Route Handler / CLI code | 放 `interfaces/` |
+| 與模型建立無關的通用 utility | 不應混進 domain factory |
+
+---
+
+## 依賴箭頭
+
+```txt
+application/use-cases
+    -> domain/factories
+domain/factories
+    -> domain/aggregates
+domain/factories
+    -> domain/entities|value-objects|events
+```
+
+`domain/factories` **不可**依賴 `infrastructure/`、`interfaces/`、`application/services/`。
+````
+
+## File: modules/workspace/domain/value-objects/AGENT.md
+````markdown
+# domain/value-objects — Value Objects（值對象）
+
+此目錄放 **以值相等判斷語意的 immutable domain objects**。
+
+> Value Object 沒有自己的 identity；它的責任是封裝值語意、正規化與內建約束。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Primitive wrapper | `WorkspaceName` |
+| 狀態 / 枚舉語意包裝 | `WorkspaceLifecycleState`、`WorkspaceVisibility` |
+| 小型值結構 | `Address` |
+| 值正規化與 equality 邏輯 | trim、canonicalize、value equality |
+
+**判斷準則**：如果它沒有獨立 identity，且語意由值本身決定，就放這裡。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Aggregate Root / Entity | 應放 `domain/aggregates/` 或 `domain/entities/` |
+| 跨多物件的業務規則 | 放 `domain/services/` |
+| Repository / persistence code | 放 `ports/output/` 或 `infrastructure/` |
+| DTO / read projection | 放 `application/dtos/` 或 query-side |
+| Firebase、HTTP、React import | Value Object 必須 framework-free |
+
+---
+
+## 依賴箭頭
+
+```txt
+domain/aggregates
+    -> domain/value-objects
+domain/entities
+    -> domain/value-objects
+domain/services
+    -> domain/value-objects
+application/dtos
+    -> domain/value-objects (type only, optional)
+```
+
+`domain/value-objects` 應盡量維持 leaf-like，**不可**依賴 `application/`、`infrastructure/`、`interfaces/`。
+````
+
+## File: modules/workspace/infrastructure/events/AGENT.md
+````markdown
+# infrastructure/events — Event Adapters（事件基礎設施適配器）
+
+此目錄放 **workspace 對外事件發布的 concrete implementation**。
+
+> 這裡只實作「怎麼發佈事件」，不定義「什麼是事件」或「何時該發」。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Event publisher implementation | `SharedWorkspaceDomainEventPublisher` |
+| Bus / dispatcher adapter | 連接 shared event bus、event store、pubsub |
+| Event envelope mapper | 將 domain event 轉成外部 transport payload |
+| 發布基礎設施細節 | retry、dispatch、transport glue code |
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Domain event 定義 | 放 `domain/events/` |
+| Use case 分支決策 / 業務規則 | 放 `application/` 或 `domain/services/` |
+| Process Manager / Saga | 放 `application/services/` |
+| React / Route Handler / CLI code | 放 `interfaces/` |
+
+---
+
+## 依賴箭頭
+
+```txt
+application/use-cases
+    -> ports/output/WorkspaceDomainEventPublisher
+infrastructure/events
+    -> ports/output
+infrastructure/events
+    -> domain/events
+```
+
+`infrastructure/events` **不可**依賴 `interfaces/`，也不應承擔 domain 決策。
+````
+
+## File: modules/workspace/infrastructure/firebase/AGENT.md
+````markdown
+# infrastructure/firebase — Firebase Adapters（Firebase 基礎設施適配器）
+
+此目錄放 **workspace output ports 的 Firebase / Firestore / Storage / Genkit 實作**。
+
+> 這裡的責任是 persistence 與外部整合，不是業務規則。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Repository implementation | `FirebaseWorkspaceRepository`、`FirebaseWorkspaceQueryRepository` |
+| Firestore converter / mapper | document ↔ domain snapshot / projection 轉換 |
+| Transaction / batch persistence code | Firestore transaction、batch write |
+| Firebase-specific adapter glue | Storage / Genkit / shared integration 的實作細節 |
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Domain rule / policy / invariant | 放 `domain/` |
+| Use case orchestration | 放 `application/` |
+| Route Handler / CLI / React hooks | 放 `interfaces/` |
+| DTO 定義 | 放 `application/dtos/` |
+
+---
+
+## 依賴箭頭
+
+```txt
+application/use-cases|application/services
+    -> ports/output
+infrastructure/firebase
+    -> ports/output
+infrastructure/firebase
+    -> domain/aggregates|entities|value-objects (mapping only)
+```
+
+`infrastructure/firebase` **不可**反向讓 Firebase 細節滲透進 `domain/`。
+````
+
 ## File: modules/workspace/ports/README.md
 ````markdown
 # workspace ports
@@ -13778,353 +14500,6 @@ knowledge ─── knowledge.page_promoted ───► knowledge-base
 - `WorkspaceQueryRepository`
 - `WikiWorkspaceRepository`
 - `WorkspaceDomainEventPublisher`
-````
-
-## File: .github/agents/commands.md
-````markdown
-# Build, Lint & Development Commands
-
-## Development
-
-- `npm run dev` — Start Next.js development server (App Router, port 3000)
-- `npm run build` — Production build (Next.js + TypeScript type-check)
-- `npm run start` — Start production server from build output
-
-## Lint & Type Check
-
-- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
-- `npm run test` — Run Vitest unit tests
-- TypeScript type-checking is included in `npm run build`
-
-## Firebase Deployment
-
-- `npm run deploy:firebase` — Deploy all Firebase resources
-- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
-- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
-- `npm run deploy:storage:rules` — Deploy Storage security rules only
-- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
-- `npm run deploy:apphosting` — Deploy App Hosting configuration
-- `npm run deploy:functions` — Deploy Cloud Functions (Python)
-- `npm run deploy:functions:py-fn` — Deploy Python Cloud Functions only
-- `npm run deploy:functions:all` — Deploy all Cloud Functions
-
-## Repomix (AI Skill Generation)
-
-- `npm run repomix:skill` — Generate a repomix skill from the full codebase
-- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
-- `npm run repomix:local` — Generate a skill from a local directory
-
-## Key Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `next.config.ts` | Next.js 16 App Router configuration |
-| `tsconfig.json` | TypeScript config with `@alias` path mappings |
-| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
-| `tailwind.config.ts` | Tailwind CSS 4 configuration |
-| `firebase.json` | Firebase project configuration |
-| `firestore.rules` | Firestore security rules |
-| `firestore.indexes.json` | Firestore composite indexes |
-| `storage.rules` | Cloud Storage security rules |
-| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
-| `apphosting.yaml` | Firebase App Hosting configuration |
-
-## Environment Setup
-
-- **Node.js**: Version 24 required (see `engines` in `package.json`)
-- **Package manager**: npm
-- Install dependencies: `npm install`
-- Python test dependencies: `python -m pip install -r py_fn/requirements-dev.txt`
-- Firebase CLI: `npx firebase` (no global install required)
-````
-
-## File: AGENTS.md
-````markdown
-# Agent Guide — Xuanwu App
-
-This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
-
-## Development Status Workflow
-
-Use the following status flow for issues, tasks, and features:
-
-| Order | Status | Emoji | Description |
-|------|--------|-------|-------------|
-| 0 | Idea | 💡 | Initial idea or feature request |
-| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
-| 2 | Planned | 📅 | Planned and scheduled |
-| 3 | Designing | 🎨 | Architecture / UI / schema design |
-| 4 | Ready | 🟢 | Ready for development |
-| 5 | Developing | 🚧 | Active development |
-| 6 | Midway | 🏗️ | Development partially completed |
-| 7 | Testing | 🧪 | Testing / QA |
-| 8 | Fixing | 🔧 | Bug fixing |
-| 9 | Review | 🔍 | Code review / acceptance review |
-|10 | Staging | 🚀 | Staging / pre-production |
-|11 | Done | ✅ | Development completed |
-|12 | Delivered | 📦 | Delivered / deployed to production |
-|13 | Archived | 🗄️ | Archived / closed / inactive |
-
-## Quick Start
-
-1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
-2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
-3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
-4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
-
-## Non-Negotiable Session Contract
-
-- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it before continuing.
-- Serena is the orchestration lead. Serena understands the request first and decides whether subagents are needed.
-- If confidence in any library, framework, or config detail is below 99.99%, query Context7 before generating or recommending code.
-- Repository orchestration memory and index updates must go through Serena tools; direct `.serena/` edits or non-Serena replacements are not authoritative.
-
-## Orchestration Protocol
-
-- Serena MCP is mandatory at the start of every conversation and acts as the orchestration lead.
-- Serena understands the request first, reads relevant memory, gathers targeted context, and decides whether focused subagents are needed.
-- Subagents assist with exploration or execution, but Serena remains responsible for delegation and final synthesis.
-- If confidence in any library, framework, or config detail is below 99.99%, query Context7 before generating or recommending code.
-- `.claude/` is a supported Claude Code compatibility surface. Consult `.claude/settings.json`, `.claude/rules/tech-strategy.md`, and `.claude/hooks/*` when maintaining Claude-specific workflow or compatibility, while treating `.github/*` as the primary Copilot rule tree.
-
-## Key Rules
-
-### Architecture
-
-- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
-- Treat every `modules/<module-name>/` as an isolated bounded context.
-- Cross-module interaction must go through `modules/<module-name>/api/` only.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
-- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
-- Import shared code through `@alias` package aliases, never with relative paths across modules.
-
-### Import Aliases
-
-```ts
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-```
-
-Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
-
-### Runtime Boundary
-
-- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
-- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
-- Do not add chat streaming or auth logic to `py_fn/`.
-
-## Validation Commands
-
-```bash
-npm install          # Install dependencies
-npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
-npm run test         # Vitest unit test baseline
-npm run build        # Next.js production build + TypeScript type-check
-
-# Python worker
-cd py_fn && python -m pip install -r requirements-dev.txt
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-## Common Patterns
-
-### Server Action (write-side)
-
-```ts
-"use server";
-export async function myAction(input: MyInput): Promise<CommandResult> {
-  // validate → use case → return CommandResult
-}
-```
-
-### Use Case
-
-```ts
-// modules/<context>/application/use-cases/MyUseCase.ts
-export class MyUseCase {
-  constructor(private readonly repo: MyRepository) {}
-  async execute(input: MyInput): Promise<CommandResult> { ... }
-}
-```
-
-### Repository
-
-- Interface in `domain/repositories/`.
-- Firebase implementation in `infrastructure/firebase/`.
-
-## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
-
-本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
-
-### DDD 審查 Agent
-
-- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
-
-### DDD 指令文件 (Instructions)
-
-| 文件 | 用途 |
-|------|------|
-| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
-| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
-| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
-| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
-
-### DDD Prompt 模板
-
-- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
-- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
-
-### DDD 術語表
-
-DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
-
-## Spec-Driven Development
-
-When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## Copilot Delivery Workflow
-
-This repository also maintains a formal Copilot delivery chain for non-trivial work:
-
-1. Planner
-2. Implementer
-3. Reviewer
-4. QA
-
-Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
-
-## Permissions
-
-For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
-
-## Full Rules
-
-See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
-````
-
-## File: CONTRIBUTING.md
-````markdown
-# Contributing to Xuanwu App
-
-Contributions are welcome. Please follow these guidelines to keep the codebase consistent and easy to review.
-
-## House Rules
-
-### 👥 Prevent Work Duplication
-
-Before opening a new issue or PR, check whether it already exists in [Issues](https://github.com/122sp7/xuanwu-app/issues) or [Pull Requests](https://github.com/122sp7/xuanwu-app/pulls).
-
-### ✅ Work on Approved Issues
-
-For new feature requests, wait for a maintainer to approve the issue before starting implementation. Bug fixes, security, performance, and documentation improvements can begin immediately.
-
-### 🚫 One Concern per PR
-
-Keep PRs small and focused. A PR should address one feature, bug, or refactor. Split large changes into a sequence of smaller PRs that can be reviewed and merged independently.
-
-### 📚 Write for Future Readers
-
-Every PR contributes to the long-term understanding of the codebase. Write clearly enough that someone — possibly you — can revisit it months later and still understand what happened and why.
-
-### ✅ Summarize Your PR
-
-Provide a short summary at the top of every PR describing the intent. Use `Closes #123` or `Fixes #456` in the description to auto-link related issues.
-
-### 🧪 Describe What Was Tested
-
-Explain how you validated your changes. For example: _"Tested locally with npm run dev, verified the new route renders without errors."_
-
----
-
-## Development
-
-### Prerequisites
-
-- Node.js 24
-- npm
-
-### Setup
-
-```bash
-npm install
-npm run dev      # Start Next.js dev server (port 3000)
-```
-
-### Validation
-
-Before pushing, ensure these all pass:
-
-```bash
-npm run lint     # ESLint — must have 0 errors
-npm run test     # Vitest unit tests
-npm run build    # Next.js production build + TypeScript type-check
-```
-
-For the Python worker:
-
-```bash
-cd py_fn && python -m pip install -r requirements-dev.txt
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
----
-
-## Architecture Conventions
-
-This project follows **Module-Driven Domain Design (MDDD)**. Before making changes, read:
-
-- [`.github/agents/README.md`](.github/agents/README.md) — rules index
-- [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
-- [`CLAUDE.md`](CLAUDE.md) — key architecture rules and patterns
-
-### Key Rules
-
-- Business logic lives in `modules/<context>/` with four layers: `domain/`, `application/`, `infrastructure/`, `interfaces/`.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must be framework-free.
-- Use `@alias` package imports (e.g., `@shared-types`, `@ui-shadcn`). Never use legacy `@/shared/*`, `@/libs/*`, `@/ui/*` paths.
-- Keep Next.js Server Actions thin — delegate to use cases, return `CommandResult`.
-
-### File Naming
-
-| Type | Pattern | Example |
-|------|---------|---------|
-| Domain entity | `PascalCase.ts` | `Organization.ts` |
-| Repository interface | `MyRepository.ts` | `WorkspaceRepository.ts` |
-| Firebase repository | `FirebaseMyRepository.ts` | `FirebaseWorkspaceRepository.ts` |
-| Use case | `my-use-case.ts` | `create-workspace.ts` |
-| Server Action | `*.actions.ts` | `workspace.actions.ts` |
-| React component | `PascalCase.tsx` | `WorkspaceCard.tsx` |
-
----
-
-## Making a Pull Request
-
-1. Fork the repository and create a branch from `main`.
-2. Make focused, incremental changes.
-3. Ensure `npm run lint` and `npm run build` pass with no new errors.
-4. Fill out the PR description with intent, changes, and testing notes.
-5. Link related issues with `Closes #N` or `Refs #N`.
-6. Request a review.
-
----
-
-## Spec-Driven Development
-
-For larger features, consider using spec-driven development. See [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## AI Delivery Workflow
-
-For larger or cross-module changes, prefer the formal Copilot delivery workflow:
-
-- Plan first with [`docs/swarm.md`](docs/swarm.md)
-- Use the implementation plan as the execution contract for implementation, review, and QA
-- Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
 ````
 
 ## File: modules/knowledge/aggregates.md
@@ -14310,13 +14685,536 @@ Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
+## File: modules/workspace/application/dtos/AGENT.md
+````markdown
+# application/dtos — Application DTOs（應用層資料傳輸物件）
+
+此目錄放 **use case 邊界的 input / output 型別**，與 domain model 解耦。
+
+> DTO 是使用案例的「語言」，不是 domain model 的語言。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Use case input DTO | `CreateWorkspaceDto`、`UpdateWorkspaceSettingsDto` |
+| Use case output DTO | `WorkspaceSummaryDto`、`WorkspaceDetailDto` |
+| Query filter DTO | `WorkspaceQueryDto`、`PaginationDto` |
+| 邊界驗證 schema | `CreateWorkspaceDtoSchema` |
+| 跨 use case 共用資料形狀 | 查詢條件、排序、分頁等純資料結構 |
+
+**判斷準則**：資料從 interface layer 進入，或從 use case 回到 interface layer，若只是資料形狀而非業務規則，就放這裡。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Aggregate Root / Entity / Value Object 主體 | 應放在 `domain/` |
+| Repository / Event Publisher 介面 | 應放在 `ports/output/` |
+| Firebase、HTTP、React 等框架 import | DTO 是純資料結構 |
+| 純業務規則邏輯 | 規則放 `domain/services/` |
+| 直接對應 Firestore document 的 persistence shape | 那是 `infrastructure/firebase/` 的責任 |
+
+---
+
+## 命名慣例
+
+```
+create-<entity>.dto.ts    → 建立用 input DTO
+update-<entity>.dto.ts    → 更新用 input DTO
+<entity>-query.dto.ts     → 查詢條件 DTO
+<entity>-summary.dto.ts   → 唯讀輸出 DTO
+pagination.dto.ts         → 共用分頁 DTO
+```
+
+## 依賴箭頭
+
+```txt
+interfaces/api|cli|web
+	-> application/dtos
+application/use-cases
+	-> application/dtos
+application/dtos
+	-> domain/value-objects (type only, optional)
+```
+
+`application/dtos` **不可**依賴 `infrastructure/`、`interfaces/`、`ports/output/`。
+
+---
+
+## Phase 3 預計移入
+
+workspace-flow 合併後，以下 DTO 可收斂進此目錄：
+`create-task.dto.ts`、`update-task.dto.ts`、`open-issue.dto.ts`、
+`resolve-issue.dto.ts`、`add-invoice-item.dto.ts`、`update-invoice-item.dto.ts`、
+`remove-invoice-item.dto.ts`、`task-query.dto.ts`、`issue-query.dto.ts`、
+`invoice-query.dto.ts`、`pagination.dto.ts`
+````
+
+## File: modules/workspace/application/services/AGENT.md
+````markdown
+# application/services — Application Services（應用服務 = 流程）
+
+> **Application Service = 流程**
+> 協調多個 use case 或跨 aggregate 的執行順序與事務邊界。
+> 它不包含業務規則，那是 `domain/services/` 的責任。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Process Manager / Saga | `KnowledgeToWorkflowMaterializer`（Phase 3 移入） |
+| 跨 aggregate 複合流程 | 需要協調兩個以上 output port 的流程 |
+| 事件驅動流程 | 訂閱 domain event → 觸發多個 use case 的 orchestrator |
+| 冪等性管理器 | 對外部事件去重、保證 at-most-once 處理 |
+
+**判斷準則**：
+- 單一 aggregate 的一個動作 → `application/use-cases/`
+- 多個 use case 按順序執行，或需要跨越 aggregate 邊界協調 → **此處**
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| 業務規則計算（invariant、guard、policy） | 業務規則放 `domain/services/` |
+| 單一 aggregate 的 CRUD 操作 | 放 `application/use-cases/` |
+| UI 組裝、React component、Route Handler、CLI handler | 放 `interfaces/` |
+| 直接依賴 Firebase / event bus implementation | 應透過 `ports/output/` |
+| 持有長期狀態的 in-memory singleton | 冪等性狀態需持久化，不能只存在記憶體 |
+
+---
+
+## 與 Domain Service 的區別
+
+| | Domain Service | Application Service |
+|--|---------------|---------------------|
+| **職責** | **邏輯**（業務規則） | **流程**（協調順序） |
+| **狀態** | 無狀態 | 可能跨步驟維護流程狀態 |
+| **依賴** | 只依賴 domain | 可依賴 use-cases、domain、ports |
+| **範例** | `task-transition-policy.ts` | `KnowledgeToWorkflowMaterializer` |
+
+---
+
+## 命名慣例
+
+```
+<process>-manager.ts            → Process Manager（Saga）
+<domain>-workflow.service.ts    → 跨 aggregate 流程協調
+<event-topic>-handler.ts        → 事件驅動 orchestrator
+```
+
+## 依賴箭頭
+
+```txt
+application/use-cases
+	-> application/services
+application/services
+	-> domain/services
+application/services
+	-> domain/aggregates|entities|events
+application/services
+	-> ports/output
+```
+
+`application/services` **不可**依賴 `infrastructure/`、`interfaces/`。
+
+---
+
+## Phase 3 預計移入
+
+workspace-flow 合併後，Process Manager 將搬入此目錄：
+- `KnowledgeToWorkflowMaterializer`（目前在 `workspace-flow/application/process-managers/`）
+
+同時，其 in-memory 冪等性 Set 需替換為 Firestore persistent store（`infrastructure/firebase/MaterializedEventRepository`）。
+````
+
+## File: modules/workspace/domain/aggregates/AGENT.md
+````markdown
+# domain/aggregates — Aggregate Roots（聚合根）
+
+此目錄放 `workspace` BC 的所有 **Aggregate Root 類別**。
+Aggregate Root 是 write-side 的一致性邊界。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Aggregate Root class | `Workspace`（含 invariant、domain event 發出） |
+| Aggregate 內嵌的 command type | `CreateWorkspaceCommand`、`UpdateWorkspaceSettingsCommand` |
+| Aggregate 上的 factory method 或 static constructor | `Workspace.create()`、`Task.create()` |
+
+**判斷準則**：有自己的唯一識別、維護業務不變量（invariant）、
+作為外部引用的根（其他 aggregate 只能持有其 ID）→ 放入此處。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| 純實體（Entity，無 invariant 責任） | 放 `domain/entities/` |
+| Value Object（無 identity，equality by value） | 放 `domain/value-objects/` |
+| Read model / projection（查詢用途） | 放 `interfaces/` 或 `application/dtos/` |
+| Repository / Event Publisher 介面 | 放 `ports/output/` |
+| Framework import（Firebase、React 等） | Aggregate 必須 framework-free |
+
+---
+
+## 現況
+
+> `Workspace` 目前仍在 `domain/entities/Workspace.ts`。
+> 在 Phase 3（workspace-flow 合併）完成後，將整批遷移：
+
+| Aggregate Root | 來源 | 狀態 |
+|---------------|------|------|
+| `Workspace` | `domain/entities/Workspace.ts` | 待遷移 |
+| `Task` | `workspace-flow` 合併 | Phase 3 |
+| `Issue` | `workspace-flow` 合併 | Phase 3 |
+| `Invoice` | `workspace-flow` 合併 | Phase 3 |
+
+---
+
+## 命名慣例
+
+```
+PascalCase.ts     → Aggregate Root 類別檔案
+PascalCase.test.ts → 對應的單元測試
+```
+
+## 依賴方向
+
+```
+domain/aggregates → domain/value-objects
+domain/aggregates → domain/entities
+domain/aggregates → domain/events（發出事件型別）
+domain/aggregates → domain/services（呼叫 domain service，如有需要）
+```
+
+`domain/aggregates` **不可**依賴 `application/`、`infrastructure/`、`interfaces/`。
+````
+
+## File: modules/workspace/domain/services/AGENT.md
+````markdown
+# domain/services — Domain Services（領域服務 = 邏輯）
+
+> **Domain Service = 邏輯**
+> 不自然屬於單一 Aggregate 或 Value Object 的**純業務規則**放在這裡。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| 跨 Aggregate invariant 驗證 | 工作區名稱全域唯一性規則 |
+| Transition policy（狀態轉換規則） | `WorkspaceLifecycleTransitionPolicy`、`TaskTransitionPolicy` |
+| Guard 函式（前置條件檢查） | `WorkspaceAccessGuard`、`task-guards.ts` |
+| 複雜業務規則計算 | 無需持久化的純計算邏輯 |
+
+**判斷準則**：規則自然屬於某個 Aggregate → 放入 Aggregate。
+跨越 Aggregate 邊界，或 Aggregate 裡放了會讓它太胖 → 才放入此處。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Firebase、HTTP、React 等框架 import | Domain 層必須 framework-free |
+| Repository 呼叫（持久化）| 持久化是 infrastructure 的責任 |
+| 流程協調（順序控制、多步驟 orchestration） | 那是 Application Service（`application/services/`）的責任 |
+| Use case 邏輯 | Use case 放 `application/use-cases/` |
+| `class` 持有狀態 | Domain Service 必須無狀態（stateless） |
+
+---
+
+## 命名慣例
+
+```
+<entity>-guards.ts              → 前置條件檢查
+<entity>-transition-policy.ts   → 狀態轉換規則
+<concept>-rules.ts              → 業務規則集合
+```
+
+## 依賴方向
+
+```
+application/use-cases → domain/services
+application/services → domain/services
+domain/services → domain/aggregates（型別或規則參照，如有需要）
+domain/services → domain/entities
+domain/services → domain/value-objects
+domain/services → domain/events（只取型別）
+```
+
+`domain/services` **不可**依賴 `application/`、`infrastructure/`、`interfaces/`。
+
+---
+
+## Phase 3 預計移入
+
+workspace-flow 合併後，以下檔案將搬入此目錄：
+- `task-guards.ts`
+- `task-transition-policy.ts`
+- `issue-transition-policy.ts`
+- `invoice-guards.ts`
+- `invoice-transition-policy.ts`
+````
+
+## File: modules/workspace/interfaces/api/AGENT.md
+````markdown
+# interfaces/api — API Driving Adapters
+
+`api/` 是 **HTTP / Next.js App Router 驅動層**，負責把外部請求轉成 workspace 的 input port 呼叫。
+
+> 新增內容一律以 driving adapter 責任為準；不要把 use case 或 infrastructure 邏輯塞進這裡。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Route Handlers / API Endpoints | Next.js Route Handler |
+| Request parsing / validation | body、query、headers 轉 DTO |
+| Auth / session adaptation | 從外部請求取 actor context |
+| Response mapping | domain / use-case result → HTTP response |
+| 薄型同步公開入口 | 只做轉接、不做業務判斷的 facade / contracts glue |
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Domain rule / invariant / policy | 放 `domain/` |
+| Use case 內部流程本體 | 放 `application/use-cases/` |
+| Repository / Database / Genkit concrete call | 應透過 `ports/input/` / `ports/output/` 間接協作 |
+| React component / hooks | 放 `interfaces/web/` |
+
+---
+
+## 依賴箭頭
+
+```txt
+interfaces/api
+	-> application/dtos
+interfaces/api
+	-> ports/input
+ports/input
+	-> application/use-cases
+```
+
+`interfaces/api` **不可**直接依賴 `infrastructure/firebase/`、`infrastructure/events/`。
+````
+
+## File: modules/workspace/interfaces/cli/AGENT.md
+````markdown
+# interfaces/cli — CLI Driving Adapters
+
+`cli/` 是 **命令列 / Cron Job 驅動層**，將命令參數轉換為 workspace 的 input port 呼叫。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| CLI 命令解析 | yargs / commander / oclif glue code |
+| Cron / scheduled trigger entry | 定時工作入口 |
+| 參數 → DTO 轉換 | argv / env / schedule payload 轉 DTO |
+| 結果輸出 | stdout / stderr / exit code mapping |
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Domain / Application 流程本體 | 放 `application/` |
+| Repository / Database / Genkit concrete call | 應透過 port 協作 |
+| React component / hook | 放 `interfaces/web/` |
+| 複雜業務計算 | 放 `domain/services/` |
+
+---
+
+## 依賴箭頭
+
+```txt
+interfaces/cli
+	-> application/dtos
+interfaces/cli
+	-> ports/input
+ports/input
+	-> application/use-cases
+```
+
+`interfaces/cli` **不可**直接依賴 `infrastructure/*`。
+````
+
+## File: modules/workspace/interfaces/web/AGENT.md
+````markdown
+# interfaces/web — Web Driving Adapters
+
+`web/` 是 **UI 封裝層**，將前端 UI 元件與 workspace input ports 連接，支援 React / shadcn 組件。
+
+> 新增的 UI component / hook 以收斂到這裡為原則；不要再把新的 driving adapter 散落在其他目錄。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| shadcn UI Components | 表單、對話框、screen components |
+| React Hooks | 呼叫 input ports、管理 loading / error state |
+| UI state | 展開、切換、表單草稿等非業務狀態 |
+| DTO mapping | form state / query param → DTO |
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| 核心業務邏輯（Domain / Application） | 放 `domain/`、`application/` |
+| Repository / Database / Genkit concrete call | 應透過 `ports/input/` / use case 間接協作 |
+| HTTP Route Handler | 放 `interfaces/api/` |
+| CLI 命令解析 | 放 `interfaces/cli/` |
+
+---
+
+## 依賴箭頭
+
+```txt
+interfaces/web
+	-> application/dtos
+interfaces/web
+	-> ports/input
+ports/input
+	-> application/use-cases
+```
+
+`interfaces/web` **不可**直接依賴 `infrastructure/*`。
+````
+
+## File: modules/workspace/ports/input/AGENT.md
+````markdown
+# ports/input — Driving Ports（輸入端口）
+
+此目錄保留給 `workspace` BC 的顯式 **inbound port interfaces**。
+
+---
+
+## 現況：可薄、可空，但位置必須保留
+
+workspace 目前可能仍有部分 entrypoint 直接薄封裝到 use case，
+但 **input contract 的正式位置仍定義在這裡**。
+
+> 此目錄作為結構佔位，代表「我們知道 input port 的概念位置在哪裡」。
+
+---
+
+## ✅ 屬於此處（未來填入條件）
+
+| 類型 | 填入時機 |
+|------|---------|
+| Inbound event handler interface | 當外部 BC 需要透過明確 interface 訂閱 workspace 事件時 |
+| Command bus interface | 當引入 CQRS command bus，需要顯式 command handler contract 時 |
+| Driving Adapter contract | 當 UI / external trigger 需要對 use case 有針對性的版本化 interface 時 |
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Concrete class 或 adapter | 實作放 `interfaces/` 或 `infrastructure/` |
+| 業務規則或流程邏輯 | 邏輯放 `domain/services/` 或 `application/services/` |
+| 目前作用中的業務邏輯 | 此目錄未有 input contract 需求前保持空白 |
+
+---
+
+## 依賴方向
+
+```
+interfaces/api|cli|web → ports/input
+ports/input → application/use-cases
+ports/input → application/dtos（型別引用，如有需要）
+```
+
+`ports/input` **不可**依賴 `infrastructure/`，也不應承擔業務規則或流程協調。
+````
+
+## File: modules/workspace/ports/output/AGENT.md
+````markdown
+# ports/output — Driven Ports（輸出端口）
+
+此目錄是 `workspace` BC 核心對外部基礎設施「要求能力」的**唯一抽象入口**。
+Core（domain + application）依賴這些 interface；infrastructure 實作它們。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Repository port interface | `WorkspaceRepository`、`WorkspaceQueryRepository` |
+| Domain event publisher port | `WorkspaceDomainEventPublisher` |
+| 任何 BC 核心向外索取能力的抽象介面 | `StoragePort`、`NotificationPort`（未來） |
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| `class`、concrete implementation | 實作放 `infrastructure/` |
+| Firebase、HTTP、React 等框架 import | 抽象層不能感知外部技術 |
+| 業務邏輯、計算 | 邏輯放 `domain/services/` |
+| DTO / data shape | 資料形狀放 `application/dtos/` |
+
+---
+
+## 依賴方向
+
+```
+application/use-cases → ports/output
+application/services → ports/output
+infrastructure/firebase|events → ports/output（實作 interface）
+ports/output → domain/（只取型別，e.g., WorkspaceDomainEvent）
+```
+
+`ports/output` 本身**不可**被 `domain/` 反向依賴。
+
+---
+
+## 目前 Port 清單
+
+目前此目錄應承載 workspace 對外能力的正式抽象面：
+
+- `WorkspaceDomainEventPublisher`
+- `WorkspaceRepository`
+- `WorkspaceCapabilityRepository`
+- `WorkspaceAccessRepository`
+- `WorkspaceLocationRepository`
+- `WorkspaceQueryRepository`
+- `WikiWorkspaceRepository`
+````
+
 ## File: modules/workspace/bounded-context.md
 ````markdown
 # Bounded Context — workspace
 
-`modules/workspace/` 是 Xuanwu 中承載 workspace 語言、模型、應用流程與 adapter 的 bounded context。
+`modules/workspace/` 是 Xuanwu 中承載 workspace 語言、模型、應用流程與 adapters 的 bounded context。
 
-全域 bounded-context 地圖由 [docs/ddd/bounded-contexts.md](../../docs/ddd/bounded-contexts.md) 擁有；本文件只描述 `workspace` 這個本地 bounded context 的細節，不重複整份全域地圖。
+全域 bounded-context 地圖由 [docs/ddd/bounded-contexts.md](../../docs/ddd/bounded-contexts.md) 擁有；本文件只描述 `workspace` 這個本地 bounded context 的內外邊界，不重複整份全域地圖。
 
 ## Boundaries
 
@@ -14339,7 +15237,7 @@ Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
 
 workspace 以兩種主要方式與其他 bounded contexts 協作：
 
-1. 同步公開邊界：`api/`
+1. 同步公開邊界：`interfaces/api/`
 2. Published Language：`workspaceId`、生命週期／可見性語言與 domain events
 
 在本地執行路徑上，read models / projections 也是 bounded context 對 drivers 提供的重要讀取 surface，但它們不是對外 published language 的全部。
@@ -14352,30 +15250,69 @@ workspace 以兩種主要方式與其他 bounded contexts 協作：
 
 | 區域 | 角色 |
 |---|---|
-| `domain/` | aggregate、entity、value object、domain event language |
-| `application/` | use cases 與 orchestration |
-| `interfaces/` | driving adapters：Server Actions、queries、UI composition |
-| `infrastructure/` | driven adapters：Firebase 與其他外部技術整合 |
+| `domain/` | aggregates、entities、value-objects、events、factories、純 domain services |
+| `application/` | use-cases、application services、DTO orchestration |
+| `ports/input/` | driving port interfaces，承接外部驅動對 use case 的要求 |
+| `ports/output/` | driven port interfaces，抽象 repository / event publishing / external capabilities |
+| `interfaces/api/` | Next.js Route Handler 與模組公開同步入口 |
+| `interfaces/cli/` | CLI / Cron Job 等 driving adapter |
+| `interfaces/web/` | shadcn UI components + hooks 的 driving adapter |
+| `infrastructure/` | Firebase 與 events 等 output port adapters |
 
 這個分層是 bounded context 的內部結構，不應和 strategic context map 混為一談。
+
+## 依賴箭頭（內部結構）
+
+```txt
+interfaces/api ─┐
+interfaces/cli ─┤
+interfaces/web ─┘
+	 │ call
+	 ▼
+   ports/input
+	 │ call
+	 ▼
+ application/use-cases
+	 │ call
+	 ▼
+ application/services
+	 │ call
+	 ▼
+  domain/services
+	 │ use
+	 ▼
+  domain/aggregates/entities
+	 │
+	 └─► ports/output ──► infrastructure/* (Firebase / Genkit / Events)
+```
+
+### 說明
+
+1. `interfaces/` 是 driving adapters，不處理 domain 決策。
+2. `ports/input/` 是 input contract 的位置。
+3. `application/use-cases/` 是單一 use case 流程；`application/services/` 是跨 use case 流程協調。
+4. `domain/` 是純業務邏輯。
+5. `ports/output/` 是外部能力抽象；`infrastructure/` 負責實作。
 
 ## Drivers, Ports, Adapters, and Read Models
 
 ### Drivers / 外部驅動器
 
 - Browser UI
-- Next.js Server Actions 與 query entrypoints
-- 其他 bounded context 經由 `api/` 的呼叫者
+- Next.js Route Handlers
+- CLI / Cron Jobs
+- 其他 bounded context 經由 `interfaces/api/` 的呼叫者
 - 未來可能的 incoming event handlers / scheduled jobs
 
 ### Ports / 端口
 
-- 內核朝外的 driven ports 主要是 `domain/repositories/` 介面
-- `api/` 是對外穩定 collaboration surface，但不等於把所有內部 ports 直接公開
+- `ports/input/` 是 driving port interfaces
+- `ports/output/` 是內核朝外的 driven ports
+- `interfaces/api/` 是對外穩定 collaboration surface，但不等於把所有內部 ports 直接公開
 
 ### Adapters / 適配器
 
-- Driving Adapters：`interfaces/` 下的 actions、queries、UI-oriented composition
+- Driving Adapters：`interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
 - Driven Adapters：`infrastructure/` 下的 Firebase 與事件整合實作
 
 ### Projections / Read Models
@@ -14389,9 +15326,10 @@ workspace 以兩種主要方式與其他 bounded contexts 協作：
 
 ## Ownership Guardrails
 
-- 跨模組 consumer 應透過 `@/modules/workspace/api` 協作
+- 跨模組或 app composition consumer 應透過 `@/modules/workspace/interfaces/api` 協作
 - `domain/` 不感知 React、Firebase SDK、HTTP client
-- `infrastructure/` 不透過 `api/` 反向回繞
+- `application/` 不直接依賴 infrastructure implementation
+- `infrastructure/` 不透過 `interfaces/` 反向回繞
 - `WorkspaceMemberView` 與 `Wiki*Node` 是 query-side projection，不是此 bounded context 的 write-side aggregate
 
 ## Related Local Docs
@@ -14399,7 +15337,7 @@ workspace 以兩種主要方式與其他 bounded contexts 協作：
 - [README.md](./README.md) — 總覽與 tactical summary
 - [context-map.md](./context-map.md) — 對外關係與 integration patterns
 - [aggregates.md](./aggregates.md) — bounded context 內部核心模型
-- [repositories.md](./repositories.md) — ports 與 adapters
+- [repositories.md](./repositories.md) — output ports 與 adapters
 ````
 
 ## File: modules/workspace/subdomain.md
@@ -14433,6 +15371,14 @@ workspace 子域聚焦這些問題：
 
 Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 bounded context 內部或邊界上的實作 / 協作概念。
 
+同理，以下結構也不是 subdomain 本體，而是 `modules/workspace/` 這個 bounded context 的落地方式：
+
+- `domain/`
+- `application/`
+- `ports/input/`、`ports/output/`
+- `interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- `infrastructure/`
+
 換句話說，workspace 子域提供的是必要的結構性能力，而不是核心競爭優勢。
 
 ## Selected Strategic View
@@ -14452,6 +15398,7 @@ Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 
 - Firestore、event bus 等 external systems
 - Browser UI、Server Actions、job triggers 等 drivers
 - repository ports、adapters 等 hexagonal 結構元件
+- `ports/input/`、`ports/output/`、`application/services/`、`domain/services/` 等 folder / layer 名稱
 - `WorkspaceMemberView`、`Wiki*Node` 這類 read models / projections
 
 ## Investment Posture
@@ -14494,6 +15441,7 @@ Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 
 - Browser UI / Next.js 頁面與 Server Actions：它們是 drivers
 - Firestore、event bus 等技術系統：它們是 external systems，由 adapters 整合
 - Query projections / read models：它們是讀取結果，不是獨立 bounded context
+- `ports/input/`、`ports/output/`、`application/`、`domain/`、`interfaces/`、`infrastructure/` 等 folder 是 bounded context 的內部實作切面，不是 context map 上的節點
 
 ## Upstream Contexts
 
@@ -14550,11 +15498,23 @@ Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 
 
 | 類型 | Surface |
 |---|---|
-| 同步 API | `modules/workspace/api` |
+| 同步 API | `modules/workspace/interfaces/api` |
 | Published Language | `workspaceId`、`WorkspaceLifecycleState`、`WorkspaceVisibility` 等 aggregate / value object 語言 |
 | 非同步事件（目標） | `workspace.created`、`workspace.lifecycle_transitioned`、`workspace.visibility_changed` 等 domain event 訊息物件 |
 
 每一個對外 surface 都可視為一個 hexagon-to-hexagon integration point：不是 page 組裝，不是 repository 內部細節，而是 bounded context 對其他 bounded context 的協作面。
+
+## 內部結構不是 Context Map
+
+以下是 `workspace` bounded context 內部用來實作邊界的切面，但它們不是 context map 本身：
+
+- `interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- `ports/input/`、`ports/output/`
+- `application/use-cases/`、`application/services/`、`application/dtos/`
+- `domain/aggregates/`、`domain/entities/`、`domain/value-objects/`、`domain/services/`、`domain/events/`、`domain/factories/`
+- `infrastructure/events/`、`infrastructure/firebase/`
+
+這些 folder 與箭頭描述的是六邊形依賴方向；context map 描述的是 bounded context 與 bounded context 之間的關係。
 
 ## Read Models in Collaboration
 
@@ -14565,7 +15525,7 @@ Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 
 
 - `WorkspaceDetailScreen` 組合 `WorkspaceFlowTab`、`WorkspaceSchedulingTab`、`WorkspaceAuditTab` 是 UI composition，不是 strategic context map
 - `WikiContentTree` 導覽節點是 query model，不是 context-to-context contract 的替代物
-- `domain/`、`application/`、`interfaces/`、`infrastructure/` 的分工屬於六邊形架構內部切面，不是 context map 本身
+- `domain/`、`application/`、`ports/`、`interfaces/`、`infrastructure/` 的分工屬於六邊形架構內部切面，不是 context map 本身
 
 ## IDDD 整合模式總結
 
@@ -14593,7 +15553,7 @@ Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 
 
 從 strategic design 角度看，這些事件是 `workspace` bounded context 對整體 Xuanwu domain 其他 bounded context 公開的 published language。
 
-從六邊形架構角度看，事件型別與工廠屬於內核語言；event bus / event store 與實際發布機制屬於外層 adapter 協作。
+從六邊形架構角度看，事件型別與工廠屬於內核語言；`ports/output/WorkspaceDomainEventPublisher` 是發布抽象，event bus / event store 與實際發布機制屬於 `infrastructure/events/` adapter 協作。
 
 ## Event-Driven Architecture Position
 
@@ -14603,10 +15563,28 @@ Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 
 
 ## Ports, Adapters, Drivers, and Projections
 
-- Drivers 先透過 command-side paths 觸發狀態改變，再由 application / adapter 協調發布事件
-- 若未來抽出 event publisher abstraction，該 abstraction 是 port；實際 bus / store connector 是 adapter
+- Drivers 先透過 `interfaces/* -> ports/input -> application/use-cases` 觸發狀態改變，再由 application / adapter 協調發布事件
+- `WorkspaceDomainEventPublisher` 是 output port；實際 bus / store connector 是 adapter
 - 下游 bounded context 或本地 query-side flow 可以用事件更新 projection / read model
 - 但 domain event 本身不是 projection；它是發布語言，不是讀取結果
+
+## Event Publishing Path
+
+```txt
+interfaces/*
+	-> ports/input
+	-> application/use-cases
+	-> domain/aggregates + domain/services
+	-> ports/output/WorkspaceDomainEventPublisher
+	-> infrastructure/events/*
+```
+
+### 說明
+
+1. Event 由 domain language 定義。
+2. 發布動作由 application layer 在持久化成功後觸發。
+3. 發布介面放在 `ports/output/`。
+4. 實際 dispatcher / bus / store connector 放在 `infrastructure/events/`。
 
 ## Event Base Contract
 
@@ -14642,7 +15620,8 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 - 先成功持久化 aggregate，再發布事件
 - 事件 payload 只包含下游所需的最小資訊
 - 不把 React state、router path、UI label 放進事件語言
-- application layer / interface adapter 可以組裝 event publisher，但事件物件本身屬於 domain language
+- application layer 可以組裝 event publisher，但事件物件本身屬於 domain language
+- `infrastructure/events/` 只做 adapter 實作，不寫 domain 規則
 
 ## 明確排除的事件
 
@@ -14655,7 +15634,7 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 ## 目前落地策略
 
 - 第一批事件以 `WorkspaceCreatedEvent`、`WorkspaceLifecycleTransitionedEvent`、`WorkspaceVisibilityChangedEvent` 為主
-- event publishing 依賴 `modules/shared/api` 的 `PublishDomainEventUseCase` 與 event store / event bus adapters
+- event publishing 透過 `ports/output/WorkspaceDomainEventPublisher` 接到 event store / event bus adapters
 - 在事件完全接線前，文件仍以此處為 canonical published language
 
 ## 明確不是目前策略的內容
@@ -14673,7 +15652,7 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 > **模組路徑:** `modules/workspace/`
 > **Domain Type:** Generic Subdomain
 
-目前 workspace 沒有獨立的 `domain/services/*` 檔案。這是刻意的 tactical 選擇，不是遺漏。
+目前 workspace 已建立 `domain/services/` 目錄，並以該目錄作為純業務規則的正式位置。即使目前具體 service 檔案仍少，文件上已將此處定義為未來代碼必須遵守的邊界。
 
 在 workspace 中，Domain Service（領域服務）是類別 / 函式，用來承載不自然屬於 aggregate、entity、value object 的純領域規則。
 
@@ -14683,6 +15662,26 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 
 它也不等同於 event subscriber、pipeline filter、long-running process executive；那些概念若存在，通常屬於應用層協調或邊界整合，而不是先天就是 Domain Service。
 
+## Domain Service = 邏輯
+
+`domain/services/` 的核心原則只有一個：**Domain Service = 邏輯**。
+
+也就是說，這裡只放：
+
+- 業務規則
+- invariant 補助規則
+- guard / policy / rule objects
+- 不自然屬於單一 aggregate 的純 domain 計算
+
+這裡不放：
+
+- 流程協調
+- 多 use case orchestration
+- React / Route Handler / CLI adapter
+- Firestore / event dispatcher / Genkit 呼叫
+
+流程協調屬於 `application/services/`，不是 `domain/services/`。
+
 ## 與 Ports / Adapters / Drivers / Read Models 的區別
 
 - Port 宣告協作接縫；它不是業務規則本身
@@ -14690,11 +15689,20 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 - Driver 觸發工作開始；它不是 domain model 元件
 - Projection / Read Model 服務讀取；它不是領域規則容器
 
+## 與 Application Service 的區別
+
+| | Domain Service | Application Service |
+|---|---|---|
+| 核心責任 | 邏輯 | 流程 |
+| 是否可直接碰 infrastructure | 不可 | 不可直接碰 implementation，應透過 ports |
+| 典型內容 | policy、guards、rules | process manager、orchestrator、cross-use-case flow |
+| 依賴方向 | 只依賴 domain | 可依賴 domain、use-cases、ports |
+
 ## 目前狀態
 
 - 單一 aggregate 內的規則，優先留在 `Workspace` aggregate 與 supporting domain objects
 - 讀模型組裝與外部資料翻譯，優先留在 query-side repository / application orchestration
-- 還沒有出現足以穩定抽成 domain service 的跨 aggregate、純領域規則
+- `domain/services/` 已是正式預留位置；只有當規則穩定成為純領域語言時才放入
 
 ## 何時應新增 Domain Service
 
@@ -14721,7 +15729,7 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 ## 明確不是 Domain Service 的內容
 
 - React hooks
-- Server Actions
+- Route Handlers / CLI handlers
 - query wrappers
 - UI draft factories
 - 只服務單一 page 的 tab composition helper
@@ -14734,6 +15742,8 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 > **Domain Type:** Generic Subdomain  
 > **模組路徑:** `modules/workspace/`  
 > **定位:** 協作範圍、生命週期與工作區公開邊界
+
+> **文件優先原則：** 先用本文件與 companion docs 定義目標結構，再用文件去壓代碼收斂。
 
 ## Strategic Role
 
@@ -14759,8 +15769,39 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 |---|---|
 | Workspace 容器生命週期 | 建立工作區、更新設定、管理 `preparatory | active | stopped` 狀態 |
 | 協作範圍語言 | 提供 `workspaceId`、`WorkspaceVisibility` 與工作區範圍識別語言 |
-| 工作區公開邊界 | 透過 `api/` 暴露穩定查詢、命令入口與 UI composition surface |
+| 工作區公開邊界 | 透過 `interfaces/api/` 暴露穩定查詢、命令入口與 UI composition surface |
 | Read-side Projections | 組合工作區成員檢視與工作區導覽節點等查詢模型 |
+
+## 標準資料夾結構
+
+```txt
+modules/workspace/
+├── domain/                     ← 核心業務邏輯
+│   ├── aggregates/             ← 聚合根
+│   ├── entities/               ← Entity / Value Object
+│   ├── value-objects/
+│   ├── events/                 ← Domain Events
+│   ├── factories/              ← Domain Factories
+│   └── services/               ← Domain Services（純業務邏輯）
+│
+├── application/                ← Use Case 層
+│   ├── dtos/                   ← Input / Output DTO
+│   ├── services/               ← Application Services（協調 Use Case 流程）
+│   └── use-cases/              ← 單一 Use Case（呼叫 Domain Services + Output Ports）
+│
+├── ports/                      ← Hexagonal Ports
+│   ├── input/                  ← Driving Ports（供 UI / API / CLI 呼叫）
+│   └── output/                 ← Driven Ports（Repository / External Service 抽象）
+│
+├── infrastructure/             ← Adapters / Output Port 實作
+│   ├── events/                 ← Event Dispatcher / PubSub 實作
+│   └── firebase/               ← Firestore / Storage / Genkit Adapter
+│
+└── interfaces/                 ← Driving Adapters（外部入口）
+	├── api/                    ← Next.js Route Handler → Input Port
+	├── cli/                    ← CLI / Cron Job → Input Port
+	└── web/                    ← shadcn UI Components + Hooks → Input Port
+```
 
 ## 不屬於此 Context 的責任
 
@@ -14776,24 +15817,84 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 | Aggregate Root | `Workspace` |
 | Supporting Domain Objects | `WorkspaceLocation`、`Capability`、`WorkspaceGrant`、`WorkspacePersonnel` |
 | Read Projections | `WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode` |
-| Drivers | Browser UI、Server Actions、其他 bounded context 經由 `api/` 的呼叫者 |
-| Driven Ports | `WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository` |
-| Driving Adapters | `interfaces/_actions/`、`interfaces/queries/`、UI composition |
-| Driven Adapters | Firebase repositories 與事件整合 adapters |
+| Drivers | Browser UI、Route Handler、CLI / Cron、其他 bounded context 經由 `interfaces/api/` 的呼叫者 |
+| Driving Adapters | `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` |
+| Driving Ports | `ports/input/` |
+| Application Layer | `application/use-cases/`、`application/services/`、`application/dtos/` |
+| Driven Ports | `ports/output/` |
+| Driven Adapters | `infrastructure/firebase/`、`infrastructure/events/` |
 | Write-side Port | `WorkspaceRepository` |
 | Read-side Ports | `WorkspaceQueryRepository`、`WikiWorkspaceRepository` |
-| Domain Services | 目前沒有獨立 service；規則仍以 aggregate / application orchestration 為主 |
+| Domain Services | `domain/services/`，承載不自然屬於 aggregate 的純規則 |
 | Domain Events | `WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged` 為目標契約 |
 
 ## Hexagonal View
 
 | 六邊形位置 | workspace 對位 |
 |---|---|
-| Domain Model Core | `domain/` 下的 aggregate、entity、value object、domain event language |
-| Application Ring | `application/` use cases 與 orchestration |
-| Driving Adapters | `interfaces/`、Server Actions、queries、UI composition |
-| Driven Ports | `domain/repositories/` 等內核對外介面 |
-| Driven Adapters | `infrastructure/` 的 Firebase 等外部整合 |
+| Domain Model Core | `domain/` 下的 aggregates、entities、value-objects、events、factories、services |
+| Application Ring | `application/use-cases/`、`application/services/`、`application/dtos/` |
+| Driving Adapters | `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` |
+| Driving Ports | `ports/input/` |
+| Driven Ports | `ports/output/` |
+| Driven Adapters | `infrastructure/events/`、`infrastructure/firebase/` |
+
+## Dependency Diagram
+
+```mermaid
+flowchart TD
+	%% ------------------- Interfaces / Driving Adapters -------------------
+	subgraph Interfaces["interfaces/ - Driving Adapters"]
+		API["api/ (Next.js Route Handler)"]
+		CLI["cli/ (CLI / Cron Job)"]
+		Web["web/ (shadcn UI Components + Hooks)"]
+	end
+
+	%% ------------------- Ports -------------------
+	InputPorts["ports/input - Driving Port Interfaces"]
+	OutputPorts["ports/output - Driven Port Interfaces"]
+
+	%% ------------------- Application -------------------
+	subgraph Application["application/ - Use Case Layer"]
+		UseCases["use-cases/"]
+		AppServices["services/"]
+		DTOs["dtos/"]
+	end
+
+	%% ------------------- Domain -------------------
+	subgraph Domain["domain/ - Core Business Logic"]
+		Aggregates["aggregates/"]
+		Entities["entities/"]
+		ValueObjects["value-objects/"]
+		DomainServices["services/"]
+		Events["events/"]
+		Factories["factories/"]
+	end
+
+	%% ------------------- Infrastructure -------------------
+	subgraph Infrastructure["infrastructure/ - Output Port Adapters"]
+		InfraEvents["events/"]
+		FirebaseAdapter["firebase/ (Firestore / Storage / Genkit)"]
+	end
+
+	API -->|calls| InputPorts
+	CLI -->|calls| InputPorts
+	Web -->|calls| InputPorts
+
+	InputPorts -->|invokes| UseCases
+	UseCases -->|calls| AppServices
+	AppServices -->|uses| DomainServices
+	DomainServices -->|manipulates| Aggregates & Entities & ValueObjects
+	UseCases -->|calls| OutputPorts
+	OutputPorts -->|implemented by| Infrastructure
+```
+
+### 說明
+
+1. Interfaces -> Input Ports -> Use Cases -> Application Services -> Domain Services -> Domain Models：驅動流程完全向內。
+2. Use Cases -> Output Ports -> Infrastructure：外部資源由 Output Port 抽象，Infrastructure 實作。
+3. Domain Services / Domain Models 不依賴 Application 或 Infrastructure。
+4. `web/`、`api/`、`cli/` 只做外部驅動與 DTO 轉換，不直接做 domain 決策。
 
 `context-map.md` 描述的是 bounded context 在整體 domain 裡的外部關係；六邊形描述的是這個 bounded context 內部的結構。兩者不可混用。
 
@@ -14819,7 +15920,8 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 
 - 目前程式中仍有一些 supporting records 與 read projections 混置於 `domain/entities/`；本文件定義的是收斂方向
 - `WorkspaceMemberView` 與 `WikiContentTree` 型別不得再被描述成 aggregate 或 value object
-- `index.ts` 的目標是薄入口；跨模組 consumer 應優先依賴 `@/modules/workspace/api`
+- 這份 README 以 `interfaces/api/`、`ports/input/`、`ports/output/` 為文件基線，後續代碼應向此結構收斂
+- `WorkspaceMemberView` 與 `WikiContentTree` 型別不得再被描述成 aggregate 或 value object
 
 ## 詳細文件
 
@@ -14848,11 +15950,25 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 
 Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain model 外圍。這份文件只在需要區分 read model / projection 時提及外層結構。
 
+## Domain Model Folder Contract
+
+| 目錄 | 角色 | 放什麼 |
+|---|---|---|
+| `domain/aggregates/` | Aggregate Root 主體 | write-side consistency boundary、aggregate commands、aggregate methods |
+| `domain/entities/` | supporting entities / 既有 domain objects | 具 identity 的 supporting objects、過渡期既有模型 |
+| `domain/value-objects/` | value equality 語意 | `WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address` |
+| `domain/services/` | 純業務規則 | 不自然屬於單一 aggregate 的規則 |
+| `domain/events/` | published domain language | 對外發布的事件語言 |
+
+文件與後續代碼應以這個結構為收斂方向。
+
 ## Write-side Aggregate Root
 
 ### `Workspace`
 
 `Workspace` 是此 bounded context 的 aggregate root。它代表一個協作範圍，並保護工作區生命週期、可見性與工作區範圍識別語言的一致性。
+
+在目標結構下，`Workspace` 應位於 `domain/aggregates/`。若某些既有程式仍暫放在 `domain/entities/`，應視為收斂中的過渡狀態，而不是新的建模準則。
 
 ### 核心屬性
 
@@ -14883,6 +15999,8 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 | `Capability` | 目前以 `id` 識別的工作區能力記錄；若治理規則成長，可再評估外拆 |
 | `WorkspacePersonnelCustomRole` | 以 `roleId` 識別的人員自訂角色記錄 |
 
+這些 supporting entities 應放在 `domain/entities/`，而不是回頭冒充 aggregate root。
+
 ### Value Objects
 
 | 類型 | 說明 |
@@ -14895,6 +16013,8 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 | `WorkspacePersonnel` | 管理/監督/安全等角色參照集合 |
 | `CapabilitySpec` | 能力定義的值型描述 |
 
+這些型別應留在 `domain/value-objects/`，不應放進 `application/dtos/` 或 `interfaces/` 充當資料傳輸形狀。
+
 ## Read-side Projections / Read Models（不是 Aggregate）
 
 | 類型 | 說明 |
@@ -14906,6 +16026,11 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 | `WikiContentItemNode` | 導覽項 read projection |
 
 `WorkspaceMemberView` 與 `Wiki*Node` 型別目前放在 `domain/entities/` 下，但語意上是 query-side projection，不是 write-side aggregate、entity 或 value object。
+
+文件上必須清楚區分：
+
+- write-side truth：`domain/aggregates/`、`domain/entities/`、`domain/value-objects/`
+- read-side projection：供查詢與呈現使用的 `WorkspaceMemberView`、`Wiki*Node`
 
 這些 projection / read model 是為特定讀取需求與驅動器提供的查詢形狀：
 
@@ -14925,6 +16050,13 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 - Factory（工廠）在本 context 中是類別 / 函式，用來建立 aggregate、value object 或對 reconstitution 做集中驗證
 - `Workspace` 與 P1 value objects 應優先透過 factory / parser 建立，而不是由 interface adapter 任意拼接 raw object
 - Factory 不是 Repository，也不是 Domain Service；它的責任是安全建立模型，不是持久化或協調流程
+
+## 與 Application / Ports 的分工
+
+- Aggregate 保護 invariant，不協調長流程
+- Domain Service 補足不自然屬於單一 aggregate 的純規則
+- Application Service 協調多個 use case 或跨 aggregate 流程
+- Output Ports 負責外部能力抽象，不屬於 domain model 本體
 
 ## What This File Does Not Own
 
@@ -14948,32 +16080,63 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 > **模組路徑:** `modules/workspace/`
 > **Domain Type:** Generic Subdomain
 
-本文件定義 workspace application layer 的目標契約。Application layer 負責協調 aggregate、repository ports、query projections 與 domain event publishing，不承載 React UI state，也不作為跨模組偷渡 internal implementation 的入口。
+本文件定義 workspace application layer 的目標契約。Application layer 負責承接 driving ports、協調 use cases、DTO、domain services、output ports 與 domain event publishing，不承載 React UI state，也不作為跨模組偷渡 internal implementation 的入口。
 
 從六邊形架構看，application layer 位在 domain model 外層、adapter 內層：它負責接住 inbound requests、呼叫 domain model 與 ports，並協調 outbound integration，但不應吞掉 aggregate 本身的規則。
 
-從依賴反轉看，application layer 應向下依賴 `domain/` 抽象與 ports，由 `infrastructure/` 提供實作；UI 與 server entrypoints 則依賴 application layer，而不是直接跨進 repository implementation。
+從依賴反轉看，application layer 應向下依賴 `domain/` 抽象與 `ports/output/`，由 `infrastructure/` 提供實作；UI、Route Handlers、CLI 等 entrypoints 則經由 `ports/input/` 依賴 application layer，而不是直接跨進 repository implementation。
+
+## Application Folder Contract
+
+| 目錄 | 角色 | 放什麼 |
+|---|---|---|
+| `application/use-cases/` | 單一 use case 入口 | 一個 user goal 對應的一段協調流程 |
+| `application/services/` | 跨 use case / 跨 aggregate 流程協調 | process manager、saga-style orchestration、較長流程 |
+| `application/dtos/` | 邊界資料形狀 | input DTO、output DTO、query filter DTO |
+
+## 依賴箭頭（Application 視角）
+
+```txt
+interfaces/*
+	-> ports/input
+	-> application/use-cases
+	-> application/services
+	-> domain/services
+	-> domain/aggregates + domain/entities + domain/value-objects
+	-> ports/output
+	-> infrastructure/*
+```
+
+## Use Case / Service / DTO 分工
+
+| 類型 | 主要責任 | 不該放的內容 |
+|---|---|---|
+| Use Case | 單一使用案例的 command / query 協調 | 長流程狀態、純業務規則、UI state |
+| Application Service | 跨多步驟或跨多 use case 的流程編排 | invariant、value object 規則、Firebase 直接呼叫 |
+| DTO | 進出 application layer 的資料形狀 | domain decision、repository implementation |
 
 ## Application Layer 職責
 
 - 協調 command-side use cases
 - 協調 query-side use cases / projection builders
-- 呼叫 repository ports 與必要的 domain service
+- 呼叫 output ports 與必要的 domain service
 - 在持久化成功後觸發 domain event publishing
-- 保持 input/output 契約穩定，讓 `interfaces/` 可以薄適配
+- 保持 input / output 契約穩定，讓 `interfaces/` 可以薄適配
 
 ## Ports / Adapters / Drivers / Read Models
 
-- Driver / 外部驅動器：Browser UI、Server Actions、其他 bounded context 對 `api/` 的呼叫者，以及未來可能的事件 subscriber / job trigger
-- Driving Adapters：`interfaces/_actions/`、`interfaces/queries/`、UI composition；把 driver 的要求轉成 application 可處理的命令 / 查詢
-- Driven Ports：repository 介面與其他內核對外抽象
+- Driver / 外部驅動器：Browser UI、Route Handlers、CLI / Cron、其他 bounded context 對 `interfaces/api/` 的呼叫者，以及未來可能的事件 subscriber / job trigger
+- Driving Adapters：`interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- Driving Ports：`ports/input/`
+- Driven Ports：`ports/output/`
 - Driven Adapters：Firebase repositories、event bus / event store integration 等外部技術實作
 - Read Models：application layer 在 query-side 協調產出的 `WorkspaceMemberView`、`Wiki*Node` 等讀取模型
 
 ## 本文件涉及的 DDD 概念
 
-- Repository（倉儲）→ 介面或類別；application layer 依賴的是 repository port，而不是 infrastructure adapter 類別
+- Output Port（輸出端口）→ 介面；application layer 依賴的是 output port，而不是 infrastructure adapter 類別
 - Domain Service（領域服務）→ 類別 / 函式；只有當規則不屬於 aggregate / value object 時才由 application layer 協作呼叫
+- Application Service（應用服務）→ 類別 / 函式；專門協調多 use case 或跨 aggregate 流程
 - Factory（工廠）→ 類別 / 函式；用來建立 aggregate、value object、domain event 等有效模型
 - Domain Event（領域事件）→ 事件類別、訊息物件；application layer 可在持久化成功後發布，但事件語言本身屬於 domain
 
@@ -14981,11 +16144,11 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 
 - 這些 application services 只服務 `workspace` 這個 bounded context
 - 它們不代表整個 generic subdomain 的所有流程，更不應直接編排其他 bounded context 的內部實作
-- 若流程跨越多個 bounded context，應明確透過 `api/`、published language 或更高層的 composition orchestration 協作
+- 若流程跨越多個 bounded context，應明確透過 `interfaces/api/`、published language 或更高層的 composition orchestration 協作
 
 ## Event-Driven 與長流程定位
 
-- 若 workspace 未來出現多步驟、跨事件的長流程協調，預設先視為 application-level process orchestration，而不是直接塞進 aggregate
+- 若 workspace 未來出現多步驟、跨事件的長流程協調，預設先放入 `application/services/`，而不是直接塞進 aggregate 或 domain service
 - 只有當流程追蹤本身成為領域概念時，才考慮引入 tracker aggregate 或對應 domain model
 - 目前 workspace application layer 會協調事件發布，但尚未引入專屬的 long-running process executive / saga state object
 
@@ -15013,16 +16176,17 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 
 ## Factories 與 Composition Points
 
-- Domain event factories 應放在 domain events 檔案，不放在 UI 或 page component
+- Domain event factories 應放在 `domain/events/` 或 `domain/factories/`，不放在 UI 或 page component
 - Aggregate / Value Object factories 是類別 / 函式，用來建立有效 domain object，不應散落在 React component 中
-- UI draft factories 應留在 `interfaces/` 或其他 UI-oriented layer，不應假裝成 application service
-- Server Actions 與 query wrappers 是 interface adapter，不是 application service 本體
+- UI draft factories 應留在 `interfaces/web/` 或其他 UI-oriented layer，不應假裝成 application service
+- Route Handlers、CLI handlers 與 query wrappers 是 driving adapter，不是 application service 本體
 
 ## 非目標
 
 - 不保存 React component state
-- 不直接 new 外部 module 的 UI component
+- 不直接 new infrastructure adapter 作為主要協作方式
 - 不把 `WorkspaceDetailScreen` 的 tab composition 寫進 application layer
+- 不把純業務規則塞進 `application/services/`
 
 ## 實作對位
 
@@ -15037,8 +16201,9 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 
 ### 收斂方向
 
-- `interfaces/_actions/` 保持 thin orchestration
-- `interfaces/queries/` 保持 thin query wrappers
+- `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` 保持 thin driving adapters
+- `ports/input/` 收斂 inbound contracts
+- `application/services/` 作為跨 use case / 跨 aggregate 流程容器
 - 應用層用語與 `aggregates.md`、`repositories.md`、`domain-events.md` 同步
 ````
 
@@ -15052,7 +16217,7 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 
 本文件定義 workspace 的 repository ports 與對應 infrastructure adapters。workspace 目前同時存在 write-side 與 read-side repository，目的是把 aggregate 持久化與 projection 查詢分開。
 
-在 workspace 中，Repository（倉儲）可以是介面或類別：`domain/repositories/` 裡的 port 是介面；`infrastructure/` 裡負責資料存取的 adapter 是類別。
+在 workspace 中，Repository（倉儲）可以是介面或類別：`ports/output/` 裡的 port 是介面；`infrastructure/` 裡負責資料存取的 adapter 是類別。
 
 從六邊形架構看，repository ports 是 domain/application 內核朝外宣告的 driven ports；Firebase 類別是被動端 adapter，不應反向把外部技術語言帶回 domain model。
 
@@ -15060,9 +16225,21 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 
 ## Ports and Adapters Distinction
 
-- Port：`domain/repositories/` 中的介面，定義內核需要什麼能力
+- Output Port：`ports/output/` 中的介面，定義內核需要什麼能力
 - Adapter：`infrastructure/` 中的類別，實作這些能力並接上 Firestore / 其他外部系統
-- Driver 不直接呼叫 adapter；通常由 `interfaces/` / `application/` 協作後再使用對應 port
+- Driver 不直接呼叫 adapter；通常由 `interfaces/` / `application/` 經由 port 協作後再使用對應能力
+
+## Output Port Surface
+
+目前 `ports/output/` 包含以下抽象：
+
+- `WorkspaceRepository`
+- `WorkspaceCapabilityRepository`
+- `WorkspaceAccessRepository`
+- `WorkspaceLocationRepository`
+- `WorkspaceQueryRepository`
+- `WikiWorkspaceRepository`
+- `WorkspaceDomainEventPublisher`
 
 ## Write-side Repository Ports
 
@@ -15126,13 +16303,27 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 | `FirebaseWorkspaceRepository` | `WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository` 的 Firestore 實作 |
 | `FirebaseWorkspaceQueryRepository` | `WorkspaceQueryRepository` 的 Firebase / organization read-side 組裝實作 |
 | `FirebaseWikiWorkspaceRepository` | `WikiWorkspaceRepository` 的 Firestore 參照查詢實作 |
+| `SharedWorkspaceDomainEventPublisher` | `WorkspaceDomainEventPublisher` 的事件整合實作 |
 
 ## 設計規則
 
-- repository 介面定義在 `domain/repositories/`
+- repository / publisher 介面定義在 `ports/output/`
 - infrastructure adapters 實作在 `infrastructure/`
-- `application/` 只依賴 repository ports，不依賴 adapter 類別
-- 跨模組 consumer 不直接 import repository implementation；一律透過 `api/` 或對應 interface adapter 使用
+- `application/` 只依賴 output ports，不依賴 adapter 類別
+- 跨模組或 app composition consumer 不直接 import repository implementation；一律透過 `interfaces/api/` 或對應 interface adapter 使用
+
+## Output Port 與 Infrastructure 的依賴圖
+
+```txt
+application/use-cases
+	│ calls
+	▼
+ports/output
+	│ implemented by
+	▼
+infrastructure/firebase
+infrastructure/events
+```
 
 ## Tactical Debt Notes
 
@@ -15201,6 +16392,20 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 | 工作區生命週期已轉移事件 | `WorkspaceLifecycleTransitionedEvent` | 工作區生命週期改變後發布的 domain event |
 | 工作區可見性已變更事件 | `WorkspaceVisibilityChangedEvent` | 工作區可見性變更後發布的 domain event |
 
+## Hexagonal / MDDD Terms Used In These Docs
+
+| 術語 | 英文 | 在本組文件中的意思 |
+|------|------|--------------------|
+| 輸入端口 | `Input Port` | `ports/input/` 中的 driving contract，供 `interfaces/` 呼叫 |
+| 輸出端口 | `Output Port` | `ports/output/` 中的 driven contract，供 application layer 呼叫外部能力 |
+| 網頁介面適配器 | `Web Driving Adapter` | `interfaces/web/`，shadcn UI Components + Hooks |
+| API 適配器 | `API Driving Adapter` | `interfaces/api/`，Next.js Route Handler / 同步公開入口 |
+| CLI 適配器 | `CLI Driving Adapter` | `interfaces/cli/`，CLI / Cron Job 入口 |
+| 應用服務 | `Application Service` | `application/services/`，負責流程協調，不負責純規則 |
+| 領域服務 | `Domain Service` | `domain/services/`，負責純業務邏輯，不負責流程編排 |
+| 聚合目錄 | `domain/aggregates/` | Aggregate Root 的正式位置 |
+| DTO 目錄 | `application/dtos/` | application layer 的 input / output data shape |
+
 ## 行為語言（Behavioral Language）
 
 | 行為 | 英文 | 在 workspace 中的語意 |
@@ -15255,6 +16460,9 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 - `WorkspaceLifecycleState` 是 canonical 名稱，不使用 `WorkspaceStatus`
 - `WorkspaceMemberView` 是 projection 名稱，不縮寫成 `WorkspaceMember`
 - 若描述 query tree，使用 `WikiAccountContentNode` / `WikiWorkspaceContentNode` / `WikiContentItemNode`
+- 若描述純規則，使用 `Domain Service`，不要把流程編排也叫成 domain service
+- 若描述流程編排，使用 `Application Service`，不要誤稱為 aggregate 或 domain service
+- 若描述 `ports/output/`，強調它是抽象介面，不等於 Firebase implementation
 
 ## 禁止替換術語
 
@@ -15265,6 +16473,9 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 | `WorkspaceVisibility` | `VisibilityMode`, `DiscoveryState` |
 | `WorkspaceMemberView` | `WorkspaceMember`, `Member`, `Participant` |
 | `WikiAccountContentNode` / `WikiWorkspaceContentNode` | `WikiContentTree`, `PageTree`, `Hierarchy`（當你描述 aggregate 或 entity 時） |
+| `Application Service` | `Domain Service`（當你描述流程協調時） |
+| `Output Port` | `Firebase Layer`（當你描述抽象介面時） |
+| `Input Port` | `Controller Layer`（當你描述 port contract 時） |
 
 ## 語意說明
 
@@ -15286,6 +16497,7 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 | 外部系統 / Driver（驅動器） | 從 bounded context 外部發起互動的角色 / 系統，例如 UI、Server Actions、其他 context 呼叫者 |
 | Projection / Read Model | 查詢導向的讀取模型，例如 `WorkspaceMemberView`、`Wiki*Node` |
 | Domain Service（領域服務） | 類別 / 函式，承載不自然屬於 aggregate / value object 的純領域規則 |
+| Application Service（應用服務） | 類別 / 函式，協調多 use case 或跨 aggregate 的流程 |
 | Factory（工廠） | 類別 / 函式，負責建立 aggregate、value object、domain event 等有效模型 |
 | Domain Event（領域事件） | 事件類別、訊息物件，作為對外發布的 domain language |
 ````
@@ -15294,8 +16506,12 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 ````markdown
 # AGENT.md — workspace BC
 
-> **強制開發規範**  
+> **文件優先原則**
+> `workspace` 後續重構先以本文件與 companion docs 為準，再用文件去壓代碼收斂。
+>
+> **強制開發規範**
 > 本 BC 領域開發必須使用 Serena 指令：
+>
 > ```
 > serena
 > #use skill serena-mcp
@@ -15303,7 +16519,6 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 > #use skill iddd-implementing-ddd
 > #use skill xuanwu-app-skill
 > #use skill context7
-
 > ```
 
 ## 模組定位
@@ -15313,6 +16528,37 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 它負責定義「工作區作為協作範圍」的核心語言與公開邊界，讓其他 bounded context 以 `workspaceId` 對齊範圍、生命週期與可見性。
 
 `workspace` 不負責知識內容本身、組織成員真相來源、事件儲存基礎設施，也不把 UI tab 組裝視為 context map。
+
+## 文件位置基線
+
+```txt
+modules/workspace/
+├── domain/                     ← 核心業務邏輯
+│   ├── aggregates/             ← 聚合根
+│   ├── entities/               ← Entity / Value Object
+│   ├── value-objects/
+│   ├── events/                 ← Domain Events
+│   ├── factories/              ← Domain Factories
+│   └── services/               ← Domain Services（純業務邏輯）
+│
+├── application/                ← Use Case 層
+│   ├── dtos/                   ← Input / Output DTO
+│   ├── services/               ← Application Services（協調 Use Case 流程）
+│   └── use-cases/              ← 單一 Use Case（呼叫 Domain Services + Output Ports）
+│
+├── ports/                      ← Hexagonal Ports
+│   ├── input/                  ← Driving Ports（供 UI / API / CLI 呼叫）
+│   └── output/                 ← Driven Ports（Repository / External Service 抽象）
+│
+├── infrastructure/             ← Adapters / Output Port 實作
+│   ├── events/                 ← Event Dispatcher / PubSub 實作
+│   └── firebase/               ← Firestore / Storage / Genkit Adapter
+│
+└── interfaces/                 ← Driving Adapters（外部入口）
+	├── api/                    ← Next.js Route Handler → Input Port
+	├── cli/                    ← CLI / Cron Job → Input Port
+	└── web/                    ← shadcn UI Components + Hooks → Input Port
+```
 
 ## 戰略層級（Domain / Subdomain / Bounded Context）
 
@@ -15326,35 +16572,63 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 ## Tactical 對位
 
 - Aggregate Root：`Workspace`
-- Driven Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`、`WorkspaceDomainEventPublisher`
-- Driving Adapters：`interfaces/_actions/`、`interfaces/queries/`、UI composition 與其他進入點
-- Driven Adapters：`FirebaseWorkspaceRepository`、`FirebaseWorkspaceQueryRepository`、`FirebaseWikiWorkspaceRepository`、`SharedWorkspaceDomainEventPublisher`
+- Driving Adapters：`interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- Driving Ports：`ports/input/`
+- Application Layer：`application/use-cases/`、`application/services/`、`application/dtos/`
+- Domain Services：`domain/services/`
+- Domain Models：`domain/aggregates/`、`domain/entities/`、`domain/value-objects/`
+- Driven Ports：`ports/output/`（`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`、`WorkspaceDomainEventPublisher`）
+- Driven Adapters：`infrastructure/firebase/`、`infrastructure/events/`
 - Projection / Read Model：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`、`WikiContentItemNode`
 - Read Projections：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`
-- Repository Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
-- Domain Event Port：`WorkspaceDomainEventPublisher`
 - Domain Events：`WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged`
 
 ## 六邊形交互順序（Runtime）
 
-1. Driver 進入：UI / Server Actions / 其他 bounded context 呼叫 `api/`
-2. Driving Adapter 轉換：`interfaces/*` 轉 command/query
-3. Application Use Case 協調流程
-4. Domain Model 套用 invariant（`Workspace` aggregate + value objects）
-5. 透過 Driven Ports 呼叫外部能力（repositories / event publisher）
-6. Infrastructure Adapters 實作 ports（Firebase / shared event publishing）
+```txt
+interfaces/api ─┐
+interfaces/cli ─┤
+interfaces/web ─┘
+	 │ call
+	 ▼
+   ports/input
+	 │ call
+	 ▼
+ application/use-cases
+	 │ call
+	 ▼
+ application/services
+	 │ call
+	 ▼
+  domain/services
+	 │ use
+	 ▼
+  domain/aggregates/entities
+	 │
+	 └─► ports/output ──► infrastructure/* (Firebase / Genkit / Events)
+```
+
+### 說明
+
+1. `interfaces/` 驅動系統，呼叫 Input Port。
+2. `ports/input/` 是 Input Port 介面定義。
+3. `application/use-cases/` 處理單一 use case，呼叫 Domain Services + Output Ports。
+4. `application/services/` 協調多個 use case 或較長流程。
+5. `ports/output/` 是 Output Port 介面，供 Application 呼叫外部資源。
+6. `infrastructure/` 實作 Output Ports。
+7. `domain/` 保持純業務邏輯，不依賴 Application 或 Infrastructure。
 
 目前實際入口對位：
 
-- `api/contracts.ts`：公開契約（types / events / value object helpers）
-- `api/facade.ts`：公開行為入口（commands / queries）
-- `api/ui.ts`：公開 UI composition surface（components / hooks / tab metadata）
-- `ports/index.ts`：公開 port 抽象（repositories + event publisher port）
+- `interfaces/api/`：公開同步入口（Next.js Route Handler / 模組對外 surface）
+- `interfaces/web/`：Web UI 與 hooks 進入點
+- `ports/index.ts`：公開 port 抽象（input/output 聚合匯出）
 
 ## 六邊形依賴方向（Compile-time）
 
-- `interfaces -> application -> domain`
-- `infrastructure -> domain`（實作 ports）
+- `interfaces -> ports/input -> application -> domain`
+- `application -> ports/output`
+- `infrastructure -> ports/output`（實作 ports）
 - `domain` 不可依賴 `interfaces`、`application`、`infrastructure`
 - `modules/workspace/ports` 只放 port 抽象匯出，不放 adapter 實作
 
@@ -15363,12 +16637,13 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 - Entity（實體）→ 類別 / 物件；在 workspace 中例如 `WorkspaceLocation`、`Capability`
 - Value Object（值對象）→ 類別 / 物件；在 workspace 中例如 `WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
 - Aggregate / Aggregate Root（聚合 / 聚合根）→ 類別 / 物件；此 BC 的 write-side aggregate root 是 `Workspace`
-- Repository（倉儲）→ 介面或類別；`domain/repositories/` 定義 port，`infrastructure/` 類別負責資料存取
+- Repository（倉儲）→ 介面或類別；`ports/output/` 暴露 port，`infrastructure/` 類別負責資料存取
 - Ports（端口）→ 介面；宣告 bounded context 核心與外部協作的接縫
 - Adapters（適配器）→ 類別 / 函式 / 模組；把 driver 或外部系統轉成 port 可接受的契約
 - 外部系統 / 驅動器（Driver）→ 從 bounded context 外部發起工作的角色 / 系統，例如 UI、Server Action、其他 context 呼叫者
 - 投影 / Read Model → 查詢用途的物件；服務讀取與呈現，不承擔 write-side invariant
 - Domain Service（領域服務）→ 類別 / 函式；僅在規則不自然屬於 aggregate 或 value object 時才新增
+- Application Service（應用服務）→ 類別 / 函式；協調多個 use case 或跨 aggregate 流程
 - Factory（工廠）→ 類別 / 函式；負責建立 aggregate、value object 或 domain event 訊息
 - Domain Event（領域事件）→ 事件類別、訊息物件；例如 `WorkspaceCreatedEvent`
 
@@ -15383,6 +16658,10 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 | `accountId` | ownerId（在 workspace BC 內） |
 | `WorkspaceMemberView` | `WorkspaceMember`（當你描述 read model 時） |
 | `WikiAccountContentNode` / `WikiWorkspaceContentNode` | `WikiContentTree`（當你描述 aggregate 時） |
+| `Domain Service` | Flow Service、Handler（當你描述純邏輯時） |
+| `Application Service` | Domain Service（當你描述流程協調時） |
+| `ports/input` | Controller Layer（當你描述 port contract 時） |
+| `ports/output` | Firebase Layer（當你描述抽象介面時） |
 
 ## 邊界規則
 
@@ -15390,7 +16669,7 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 
 ```typescript
 import { getWorkspaceById, WorkspaceDetailScreen } from "@/modules/workspace/interfaces/api";
-import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
+import type { WorkspaceRepository } from "@/modules/workspace/ports";
 ```
 
 ### ❌ 禁止
@@ -15402,10 +16681,11 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 
 ## 分層守衛
 
-- `index.ts` 只能是薄入口；跨模組 consumer 應優先使用 `@/modules/workspace/api`
-- `api/` 只能公開穩定 surface，不得直接變成 infrastructure 捷徑
-- `interfaces/` 可使用本模組的 application/query adapters，但跨模組一律只能走對方 `api/`
-- `infrastructure/` 禁止 import `api/`
+- `index.ts` 只能是薄入口；跨模組與 app composition consumer 應優先使用 `@/modules/workspace/interfaces/api`
+- `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` 只做 driving adapter，不處理 domain 決策
+- `application/use-cases/` 處理單一 use case，不吞進純業務規則
+- `application/services/` 只負責流程，不替代 domain service
+- `infrastructure/` 禁止 import `interfaces/`
 - `FirebaseWikiWorkspaceRepository` 與 `FirebaseWorkspaceRepository` 之間維持本地相對路徑依賴，不透過模組公開入口繞回
 - `modules/workspace` 內禁止 `import { X as Y } from ...` 的 alias import；若出現命名衝突，應調整符號命名或改為 namespace import 以維持通用語言一致性
 
@@ -15413,13 +16693,13 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 
 - Domain Model 在 bounded context 的核心：`domain/`
 - Application layer 包在 domain model 外層：`application/`
-- Driving Adapters 是進入此 bounded context 的入口：`interfaces/`、Server Actions、query wrappers、UI composition
-- Driven Adapters 是對外技術整合：`infrastructure/`
-- Repository ports 是內核朝外的 driven ports；adapter 可以替換，但 domain model 不應感知 Firebase / HTTP / React
-- `api/` 是此 bounded context 對外暴露的穩定入口；它是公開邊界，不是把內部 layers 攤平
+- Driving Adapters 是進入此 bounded context 的入口：`interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- `ports/input/` 是 driving contract 的位置
+- `ports/output/` 是內核朝外的 driven ports；adapter 可以替換，但 domain model 不應感知 Firebase / HTTP / React
+- `interfaces/api/` 是此 bounded context 對外暴露的同步入口；它是公開邊界，不是把內部 layers 攤平
 - 依賴方向維持 inward：`interfaces/` 與 `infrastructure/` 可以依賴 `application/`、`domain/`，但 `domain/` 不反向依賴外部技術
 - 若採事件驅動整合，incoming / outgoing events 也是 bounded context 邊界的一部分，不改變 domain model 必須位於中心的原則
-- Browser UI、Server Actions、其他 bounded context 對 `api/` 的呼叫者，都是此 hexagon 的 drivers；它們透過 adapters 進入，不直接碰 domain model
+- Browser UI、Route Handlers、CLI、其他 bounded context 對 `interfaces/api/` 的呼叫者，都是此 hexagon 的 drivers；它們透過 adapters 進入，不直接碰 domain model
 - `WorkspaceMemberView` 與 `Wiki*Node` 屬於 read model / projection，位於 query-side，不應回頭冒充 aggregate
 
 ## Tactical 建模守則
@@ -15428,6 +16708,7 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 - `WikiContentTree.ts` 目前承載的是導覽/查詢模型，不是 write-side aggregate
 - `WorkspaceLifecycleState` 的 canonical 值是 `preparatory | active | stopped`，不是 `active | archived`
 - 若要新增跨 aggregate 規則，先判斷是否真的需要 domain service；不要用 application service 假裝 aggregate
+- 若要新增跨 use case 長流程，先放進 `application/services/`，不要把流程協調塞進 `domain/services/`
 
 ## 驗證命令
 
@@ -15451,4 +16732,11 @@ npm run build
 | [domain-services.md](./domain-services.md) | domain service 與 ports/adapters/drivers/read models 的區別 |
 | [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
 | [ports/README.md](./ports/README.md) | workspace ports 清單、交互順序與依賴方向 |
+
+| [domain/aggregates/AGENT.md](./domain/aggregates/AGENT.md) | aggregate root 應放什麼、不該放什麼 |
+| [domain/services/AGENT.md](./domain/services/AGENT.md) | 純業務邏輯的 domain service 規則 |
+| [application/dtos/AGENT.md](./application/dtos/AGENT.md) | application DTO 邊界規則 |
+| [application/services/AGENT.md](./application/services/AGENT.md) | application service 流程職責 |
+| [ports/input/AGENT.md](./ports/input/AGENT.md) | input port contract 位置說明 |
+| [ports/output/AGENT.md](./ports/output/AGENT.md) | output port contract 位置說明 |
 ````

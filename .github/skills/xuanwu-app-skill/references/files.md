@@ -150,6 +150,64 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
+## File: .github/agents/commands.md
+````markdown
+# Build, Lint & Development Commands
+
+## Development
+
+- `npm run dev` — Start Next.js development server (App Router, port 3000)
+- `npm run build` — Production build (Next.js + TypeScript type-check)
+- `npm run start` — Start production server from build output
+
+## Lint & Type Check
+
+- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
+- `npm run test` — Run Vitest unit tests
+- TypeScript type-checking is included in `npm run build`
+
+## Firebase Deployment
+
+- `npm run deploy:firebase` — Deploy all Firebase resources
+- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
+- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
+- `npm run deploy:storage:rules` — Deploy Storage security rules only
+- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
+- `npm run deploy:apphosting` — Deploy App Hosting configuration
+- `npm run deploy:functions` — Deploy Cloud Functions (Python)
+- `npm run deploy:functions:py-fn` — Deploy Python Cloud Functions only
+- `npm run deploy:functions:all` — Deploy all Cloud Functions
+
+## Repomix (AI Skill Generation)
+
+- `npm run repomix:skill` — Generate a repomix skill from the full codebase
+- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
+- `npm run repomix:local` — Generate a skill from a local directory
+
+## Key Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `next.config.ts` | Next.js 16 App Router configuration |
+| `tsconfig.json` | TypeScript config with `@alias` path mappings |
+| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
+| `tailwind.config.ts` | Tailwind CSS 4 configuration |
+| `firebase.json` | Firebase project configuration |
+| `firestore.rules` | Firestore security rules |
+| `firestore.indexes.json` | Firestore composite indexes |
+| `storage.rules` | Cloud Storage security rules |
+| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
+| `apphosting.yaml` | Firebase App Hosting configuration |
+
+## Environment Setup
+
+- **Node.js**: Version 24 required (see `engines` in `package.json`)
+- **Package manager**: npm
+- Install dependencies: `npm install`
+- Python test dependencies: `python -m pip install -r py_fn/requirements-dev.txt`
+- Firebase CLI: `npx firebase` (no global install required)
+````
+
 ## File: .github/agents/doc-ingest.agent.md
 ````markdown
 ---
@@ -3984,6 +4042,174 @@ venv/
 }
 ````
 
+## File: AGENTS.md
+````markdown
+# Agent Guide — Xuanwu App
+
+This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
+
+## Development Status Workflow
+
+Use the following status flow for issues, tasks, and features:
+
+| Order | Status | Emoji | Description |
+|------|--------|-------|-------------|
+| 0 | Idea | 💡 | Initial idea or feature request |
+| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
+| 2 | Planned | 📅 | Planned and scheduled |
+| 3 | Designing | 🎨 | Architecture / UI / schema design |
+| 4 | Ready | 🟢 | Ready for development |
+| 5 | Developing | 🚧 | Active development |
+| 6 | Midway | 🏗️ | Development partially completed |
+| 7 | Testing | 🧪 | Testing / QA |
+| 8 | Fixing | 🔧 | Bug fixing |
+| 9 | Review | 🔍 | Code review / acceptance review |
+|10 | Staging | 🚀 | Staging / pre-production |
+|11 | Done | ✅ | Development completed |
+|12 | Delivered | 📦 | Delivered / deployed to production |
+|13 | Archived | 🗄️ | Archived / closed / inactive |
+
+## Quick Start
+
+1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
+2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
+3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
+4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
+
+## Non-Negotiable Session Contract
+
+- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it before continuing.
+- Serena is the orchestration lead. Serena understands the request first and decides whether subagents are needed.
+- If confidence in any library, framework, or config detail is below 99.99%, query Context7 before generating or recommending code.
+- Repository orchestration memory and index updates must go through Serena tools; direct `.serena/` edits or non-Serena replacements are not authoritative.
+
+## Orchestration Protocol
+
+- Serena MCP is mandatory at the start of every conversation and acts as the orchestration lead.
+- Serena understands the request first, reads relevant memory, gathers targeted context, and decides whether focused subagents are needed.
+- Subagents assist with exploration or execution, but Serena remains responsible for delegation and final synthesis.
+- If confidence in any library, framework, or config detail is below 99.99%, query Context7 before generating or recommending code.
+- `.claude/` is a supported Claude Code compatibility surface. Consult `.claude/settings.json`, `.claude/rules/tech-strategy.md`, and `.claude/hooks/*` when maintaining Claude-specific workflow or compatibility, while treating `.github/*` as the primary Copilot rule tree.
+
+## Key Rules
+
+### Architecture
+
+- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
+- Treat every `modules/<module-name>/` as an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
+- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
+- Import shared code through `@alias` package aliases, never with relative paths across modules.
+
+### Import Aliases
+
+```ts
+import type { CommandResult } from "@shared-types";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { getFirebaseFirestore } from "@integration-firebase";
+```
+
+Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
+
+### Runtime Boundary
+
+- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
+- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
+- Do not add chat streaming or auth logic to `py_fn/`.
+
+## Validation Commands
+
+```bash
+npm install          # Install dependencies
+npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
+npm run test         # Vitest unit test baseline
+npm run build        # Next.js production build + TypeScript type-check
+
+# Python worker
+cd py_fn && python -m pip install -r requirements-dev.txt
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+## Common Patterns
+
+### Server Action (write-side)
+
+```ts
+"use server";
+export async function myAction(input: MyInput): Promise<CommandResult> {
+  // validate → use case → return CommandResult
+}
+```
+
+### Use Case
+
+```ts
+// modules/<context>/application/use-cases/MyUseCase.ts
+export class MyUseCase {
+  constructor(private readonly repo: MyRepository) {}
+  async execute(input: MyInput): Promise<CommandResult> { ... }
+}
+```
+
+### Repository
+
+- Interface in `domain/repositories/`.
+- Firebase implementation in `infrastructure/firebase/`.
+
+## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
+
+本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
+
+### DDD 審查 Agent
+
+- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
+
+### DDD 指令文件 (Instructions)
+
+| 文件 | 用途 |
+|------|------|
+| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
+| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
+| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
+| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
+
+### DDD Prompt 模板
+
+- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
+- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
+
+### DDD 術語表
+
+DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
+
+## Spec-Driven Development
+
+When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## Copilot Delivery Workflow
+
+This repository also maintains a formal Copilot delivery chain for non-trivial work:
+
+1. Planner
+2. Implementer
+3. Reviewer
+4. QA
+
+Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
+
+## Permissions
+
+For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
+
+## Full Rules
+
+See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
+````
+
 ## File: agents/agents
 ````
 ../.github/agents
@@ -7669,6 +7895,127 @@ export async function action(input) { return useCase.execute(input); }
   "menuAccent": "subtle",
   "registries": {}
 }
+````
+
+## File: CONTRIBUTING.md
+````markdown
+# Contributing to Xuanwu App
+
+Contributions are welcome. Please follow these guidelines to keep the codebase consistent and easy to review.
+
+## House Rules
+
+### 👥 Prevent Work Duplication
+
+Before opening a new issue or PR, check whether it already exists in [Issues](https://github.com/122sp7/xuanwu-app/issues) or [Pull Requests](https://github.com/122sp7/xuanwu-app/pulls).
+
+### ✅ Work on Approved Issues
+
+For new feature requests, wait for a maintainer to approve the issue before starting implementation. Bug fixes, security, performance, and documentation improvements can begin immediately.
+
+### 🚫 One Concern per PR
+
+Keep PRs small and focused. A PR should address one feature, bug, or refactor. Split large changes into a sequence of smaller PRs that can be reviewed and merged independently.
+
+### 📚 Write for Future Readers
+
+Every PR contributes to the long-term understanding of the codebase. Write clearly enough that someone — possibly you — can revisit it months later and still understand what happened and why.
+
+### ✅ Summarize Your PR
+
+Provide a short summary at the top of every PR describing the intent. Use `Closes #123` or `Fixes #456` in the description to auto-link related issues.
+
+### 🧪 Describe What Was Tested
+
+Explain how you validated your changes. For example: _"Tested locally with npm run dev, verified the new route renders without errors."_
+
+---
+
+## Development
+
+### Prerequisites
+
+- Node.js 24
+- npm
+
+### Setup
+
+```bash
+npm install
+npm run dev      # Start Next.js dev server (port 3000)
+```
+
+### Validation
+
+Before pushing, ensure these all pass:
+
+```bash
+npm run lint     # ESLint — must have 0 errors
+npm run test     # Vitest unit tests
+npm run build    # Next.js production build + TypeScript type-check
+```
+
+For the Python worker:
+
+```bash
+cd py_fn && python -m pip install -r requirements-dev.txt
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+---
+
+## Architecture Conventions
+
+This project follows **Module-Driven Domain Design (MDDD)**. Before making changes, read:
+
+- [`.github/agents/README.md`](.github/agents/README.md) — rules index
+- [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
+- [`CLAUDE.md`](CLAUDE.md) — key architecture rules and patterns
+
+### Key Rules
+
+- Business logic lives in `modules/<context>/` with four layers: `domain/`, `application/`, `infrastructure/`, `interfaces/`.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must be framework-free.
+- Use `@alias` package imports (e.g., `@shared-types`, `@ui-shadcn`). Never use legacy `@/shared/*`, `@/libs/*`, `@/ui/*` paths.
+- Keep Next.js Server Actions thin — delegate to use cases, return `CommandResult`.
+
+### File Naming
+
+| Type | Pattern | Example |
+|------|---------|---------|
+| Domain entity | `PascalCase.ts` | `Organization.ts` |
+| Repository interface | `MyRepository.ts` | `WorkspaceRepository.ts` |
+| Firebase repository | `FirebaseMyRepository.ts` | `FirebaseWorkspaceRepository.ts` |
+| Use case | `my-use-case.ts` | `create-workspace.ts` |
+| Server Action | `*.actions.ts` | `workspace.actions.ts` |
+| React component | `PascalCase.tsx` | `WorkspaceCard.tsx` |
+
+---
+
+## Making a Pull Request
+
+1. Fork the repository and create a branch from `main`.
+2. Make focused, incremental changes.
+3. Ensure `npm run lint` and `npm run build` pass with no new errors.
+4. Fill out the PR description with intent, changes, and testing notes.
+5. Link related issues with `Closes #N` or `Refs #N`.
+6. Request a review.
+
+---
+
+## Spec-Driven Development
+
+For larger features, consider using spec-driven development. See [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## AI Delivery Workflow
+
+For larger or cross-module changes, prefer the formal Copilot delivery workflow:
+
+- Plan first with [`docs/swarm.md`](docs/swarm.md)
+- Use the implementation plan as the execution contract for implementation, review, and QA
+- Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
 ````
 
 ## File: docs/beads.md
@@ -21463,6 +21810,200 @@ export class ListKnowledgeCollectionsByWorkspaceUseCase {
 }
 ````
 
+## File: modules/knowledge/application/use-cases/knowledge-page-appearance.use-cases.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/use-cases
+ * Purpose: Page appearance use cases — update icon, update cover.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
+import {
+  UpdatePageIconSchema,
+  type UpdatePageIconDto,
+  UpdatePageCoverSchema,
+  type UpdatePageCoverDto,
+} from "../dto/knowledge.dto";
+
+export class UpdatePageIconUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: UpdatePageIconDto): Promise<CommandResult> {
+    const parsed = UpdatePageIconSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+    const { accountId, pageId, iconUrl } = parsed.data;
+    const result = await this.repo.updateIcon({ accountId, pageId, iconUrl });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class UpdatePageCoverUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: UpdatePageCoverDto): Promise<CommandResult> {
+    const parsed = UpdatePageCoverSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+    const { accountId, pageId, coverUrl } = parsed.data;
+    const result = await this.repo.updateCover({ accountId, pageId, coverUrl });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+````
+
+## File: modules/knowledge/application/use-cases/knowledge-page-review.use-cases.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/use-cases
+ * Purpose: Page review-workflow use cases — approve, verify, request review, assign owner.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
+import {
+  PublishDomainEventUseCase,
+  type IEventStoreRepository,
+  type IEventBusRepository,
+} from "@/modules/shared/api";
+import { v7 as generateId } from "@lib-uuid";
+import {
+  ApproveKnowledgePageSchema,
+  type ApproveKnowledgePageDto,
+  VerifyKnowledgePageSchema,
+  type VerifyKnowledgePageDto,
+  RequestPageReviewSchema,
+  type RequestPageReviewDto,
+  AssignPageOwnerSchema,
+  type AssignPageOwnerDto,
+} from "../dto/knowledge.dto";
+
+export class ApproveKnowledgePageUseCase {
+  constructor(
+    private readonly repo: KnowledgePageRepository,
+    private readonly eventStore: IEventStoreRepository,
+    private readonly eventBus: IEventBusRepository,
+  ) {}
+
+  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ApproveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const {
+      accountId,
+      pageId,
+      actorId,
+      causationId: inputCausationId,
+      extractedTasks,
+      extractedInvoices,
+      correlationId: inputCorrelationId,
+      workspaceId,
+    } = parsed.data;
+
+    // causationId is set by the Server Action layer; generateId() is a safe fallback.
+    const causationId = inputCausationId ?? generateId();
+
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) {
+      return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    }
+    if (page.status === "archived") {
+      return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
+    }
+    if (page.approvalState === "approved") {
+      return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
+    }
+
+    const nowISO = new Date().toISOString();
+    const approved = await this.repo.approve({ accountId, pageId, approvedByUserId: actorId, approvedAtISO: nowISO });
+    if (!approved) {
+      return commandFailureFrom("CONTENT_PAGE_APPROVE_FAILED", "Failed to approve page.");
+    }
+
+    const correlationId = inputCorrelationId ?? generateId();
+
+    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
+      id: generateId(),
+      eventName: "knowledge.page_approved",
+      aggregateType: "KnowledgePage",
+      aggregateId: pageId,
+      payload: {
+        pageId,
+        accountId,
+        workspaceId: workspaceId ?? page.workspaceId,
+        extractedTasks,
+        extractedInvoices,
+        actorId,
+        causationId: inputCausationId,
+        correlationId,
+      },
+      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
+    });
+
+    return commandSuccess(pageId, Date.now());
+  }
+}
+
+export class VerifyKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+    const parsed = VerifyKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
+    const result = await this.repo.verify({ accountId, pageId, verifiedByUserId, verificationExpiresAtISO });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class RequestPageReviewUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
+    const parsed = RequestPageReviewSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, requestedByUserId } = parsed.data;
+    const result = await this.repo.requestReview({ accountId, pageId, requestedByUserId });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class AssignPageOwnerUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
+    const parsed = AssignPageOwnerSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, ownerId } = parsed.data;
+    const result = await this.repo.assignOwner({ accountId, pageId, ownerId });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+````
+
 ## File: modules/knowledge/application/use-cases/knowledge-version.use-cases.ts
 ````typescript
 /**
@@ -24894,6 +25435,17 @@ export interface NotebookRepository {
 }
 ````
 
+## File: modules/notebook/index.ts
+````typescript
+/**
+ * modules/notebook — aggregate public exports.
+ *
+ * Cross-module consumers should use the stable api/ surface only.
+ */
+
+export * from "./api";
+````
+
 ## File: modules/notebook/infrastructure/firebase/FirebaseThreadRepository.ts
 ````typescript
 /**
@@ -26161,6 +26713,73 @@ Application layer 只負責：
 - 與 application layer 有關的模組內就地文件：`../../../modules/organization/application-services.md`
 ````
 
+## File: modules/organization/application/use-cases/organization-policy.use-cases.ts
+````typescript
+/**
+ * Organization Policy Use Cases — pure business workflows.
+ * Org policy changes flow through event bus to update workspace org-policy cache downstream.
+ * No React, no Firebase, no UI framework.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { OrgPolicyRepository } from "../../domain/repositories/OrgPolicyRepository";
+import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
+
+// ─── Create Org Policy ────────────────────────────────────────────────────────
+
+export class CreateOrgPolicyUseCase {
+  constructor(private readonly policyRepo: OrgPolicyRepository) {}
+
+  async execute(input: CreateOrgPolicyInput): Promise<CommandResult> {
+    try {
+      const policy = await this.policyRepo.createPolicy(input);
+      return commandSuccess(policy.id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CREATE_ORG_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to create org policy",
+      );
+    }
+  }
+}
+
+// ─── Update Org Policy ────────────────────────────────────────────────────────
+
+export class UpdateOrgPolicyUseCase {
+  constructor(private readonly policyRepo: OrgPolicyRepository) {}
+
+  async execute(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
+    try {
+      await this.policyRepo.updatePolicy(policyId, data);
+      return commandSuccess(policyId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_ORG_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to update org policy",
+      );
+    }
+  }
+}
+
+// ─── Delete Org Policy ────────────────────────────────────────────────────────
+
+export class DeleteOrgPolicyUseCase {
+  constructor(private readonly policyRepo: OrgPolicyRepository) {}
+
+  async execute(policyId: string): Promise<CommandResult> {
+    try {
+      await this.policyRepo.deletePolicy(policyId);
+      return commandSuccess(policyId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "DELETE_ORG_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to delete org policy",
+      );
+    }
+  }
+}
+````
+
 ## File: modules/organization/context-map.md
 ````markdown
 # Context Map — organization
@@ -26397,6 +27016,565 @@ export interface UpdateOrgPolicyInput {
 }
 ````
 
+## File: modules/organization/domain/repositories/OrganizationRepository.ts
+````typescript
+/**
+ * OrganizationRepository — Port for organization persistence.
+ * Domain defines the interface; Infrastructure implements it.
+ */
+
+import type {
+  OrganizationEntity,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  MemberReference,
+  Team,
+  PartnerInvite,
+} from "../entities/Organization";
+
+export type Unsubscribe = () => void;
+
+export interface OrganizationRepository {
+  // ─── Org Lifecycle ─────────────────────────────────────────────────────────
+  create(command: CreateOrganizationCommand): Promise<string>;
+  findById(id: string): Promise<OrganizationEntity | null>;
+  save(org: OrganizationEntity): Promise<void>;
+  updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void>;
+  delete(organizationId: string): Promise<void>;
+
+  // ─── Members ───────────────────────────────────────────────────────────────
+  inviteMember(input: InviteMemberInput): Promise<string>;
+  recruitMember(organizationId: string, memberId: string, name: string, email: string): Promise<void>;
+  removeMember(organizationId: string, memberId: string): Promise<void>;
+  updateMemberRole(input: UpdateMemberRoleInput): Promise<void>;
+  getMembers(organizationId: string): Promise<MemberReference[]>;
+  subscribeToMembers(organizationId: string, onUpdate: (members: MemberReference[]) => void): Unsubscribe;
+
+  // ─── Teams ─────────────────────────────────────────────────────────────────
+  createTeam(input: CreateTeamInput): Promise<string>;
+  deleteTeam(organizationId: string, teamId: string): Promise<void>;
+  addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  getTeams(organizationId: string): Promise<Team[]>;
+  subscribeToTeams(organizationId: string, onUpdate: (teams: Team[]) => void): Unsubscribe;
+
+  // ─── Partners ──────────────────────────────────────────────────────────────
+  sendPartnerInvite(organizationId: string, teamId: string, email: string): Promise<string>;
+  dismissPartnerMember(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  getPartnerInvites(organizationId: string): Promise<PartnerInvite[]>;
+}
+````
+
+## File: modules/organization/domain/repositories/OrgPolicyRepository.ts
+````typescript
+/**
+ * OrgPolicyRepository — Port for org-policy persistence.
+ *
+ * OrgPolicy lives in a top-level Firestore collection (`orgPolicies`) that is
+ * independent of the `organizations` collection.  Per IDDD, each aggregate root
+ * owns its own repository port.  Policy is therefore separated here from
+ * {@link OrganizationRepository}.
+ */
+
+import type {
+  OrgPolicy,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../entities/Organization";
+
+export interface OrgPolicyRepository {
+  createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy>;
+  updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void>;
+  deletePolicy(policyId: string): Promise<void>;
+  getPolicies(orgId: string): Promise<OrgPolicy[]>;
+}
+````
+
+## File: modules/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts
+````typescript
+/**
+ * FirebaseOrganizationRepository — Infrastructure adapter for organization persistence.
+ * Implements the OrganizationRepository port.
+ * Firebase SDK only exists in this file.
+ */
+
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  addDoc,
+  arrayUnion,
+  arrayRemove,
+  onSnapshot,
+  serverTimestamp,
+  writeBatch,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { OrganizationRepository, Unsubscribe } from "../../domain/repositories/OrganizationRepository";
+import type {
+  OrganizationEntity,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  OrganizationRole,
+} from "../../domain/entities/Organization";
+import { toOrganizationEntity, toTeam, toPartnerInvite } from "./organization-mappers";
+
+// ─── Repository ───────────────────────────────────────────────────────────────
+
+export class FirebaseOrganizationRepository implements OrganizationRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private organizationAccountRef(organizationId: string) {
+    return doc(this.db, "accounts", organizationId);
+  }
+
+  private buildOrganizationAccountData(
+    data: {
+      name?: string;
+      ownerId?: string;
+      email?: string;
+      photoURL?: string;
+      description?: string;
+      theme?: OrganizationEntity["theme"];
+      members?: MemberReference[];
+      memberIds?: string[];
+      teams?: Team[];
+      createdAt?: OrganizationEntity["createdAt"] | ReturnType<typeof serverTimestamp>;
+    },
+  ) {
+    return {
+      accountType: "organization" as const,
+      name: data.name ?? "",
+      ownerId: data.ownerId ?? "",
+      email: data.email ?? null,
+      photoURL: data.photoURL ?? null,
+      description: data.description ?? null,
+      theme: data.theme ?? null,
+      members: data.members ?? [],
+      memberIds: data.memberIds ?? [],
+      teams: data.teams ?? [],
+      createdAt: data.createdAt ?? serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+  }
+
+  // ─── Org Lifecycle ──────────────────────────────────────────────────────────
+
+  async create(command: CreateOrganizationCommand): Promise<string> {
+    const orgRef = doc(collection(this.db, "organizations"));
+    const owner: MemberReference = {
+      id: command.ownerId,
+      name: command.ownerName,
+      email: command.ownerEmail,
+      role: "Owner",
+      presence: "active",
+    };
+    const createdAt = serverTimestamp();
+    const organizationData = {
+      name: command.organizationName,
+      ownerId: command.ownerId,
+      members: [owner],
+      memberIds: [command.ownerId],
+      teams: [],
+      createdAt,
+    };
+    const batch = writeBatch(this.db);
+    batch.set(orgRef, organizationData);
+    batch.set(
+      this.organizationAccountRef(orgRef.id),
+      this.buildOrganizationAccountData({
+        name: command.organizationName,
+        ownerId: command.ownerId,
+        members: [owner],
+        memberIds: [command.ownerId],
+        teams: [],
+        createdAt,
+      }),
+      { merge: true },
+    );
+    await batch.commit();
+    return orgRef.id;
+  }
+
+  async findById(id: string): Promise<OrganizationEntity | null> {
+    const snap = await getDoc(doc(this.db, "organizations", id));
+    if (!snap.exists()) return null;
+    return toOrganizationEntity(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async save(org: OrganizationEntity): Promise<void> {
+    const orgRef = doc(this.db, "organizations", org.id);
+    const batch = writeBatch(this.db);
+    batch.set(orgRef, {
+      name: org.name,
+      ownerId: org.ownerId,
+      members: org.members,
+      memberIds: org.memberIds,
+      teams: org.teams,
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      this.organizationAccountRef(org.id),
+      this.buildOrganizationAccountData({
+        name: org.name,
+        ownerId: org.ownerId,
+        email: org.email,
+        photoURL: org.photoURL,
+        description: org.description,
+        theme: org.theme,
+        members: org.members,
+        memberIds: org.memberIds,
+        teams: org.teams,
+        createdAt: org.createdAt,
+      }),
+      { merge: true },
+    );
+    await batch.commit();
+  }
+
+  async updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void> {
+    const orgRef = doc(this.db, "organizations", command.organizationId);
+    const updates: Record<string, unknown> = {
+      accountType: "organization",
+      updatedAt: serverTimestamp(),
+    };
+    if (command.name !== undefined) updates.name = command.name;
+    if (command.description !== undefined) updates.description = command.description;
+    if (command.theme !== undefined) updates.theme = command.theme;
+    if (command.photoURL !== undefined) updates.photoURL = command.photoURL;
+    const batch = writeBatch(this.db);
+    batch.update(orgRef, updates);
+    batch.set(this.organizationAccountRef(command.organizationId), updates, { merge: true });
+    await batch.commit();
+  }
+
+  async delete(organizationId: string): Promise<void> {
+    const batch = writeBatch(this.db);
+    batch.delete(doc(this.db, "organizations", organizationId));
+    batch.delete(this.organizationAccountRef(organizationId));
+    await batch.commit();
+  }
+
+  // ─── Members ────────────────────────────────────────────────────────────────
+
+  async inviteMember(input: InviteMemberInput): Promise<string> {
+    const invite = {
+      email: input.email,
+      teamId: input.teamId,
+      role: input.role,
+      inviteState: "pending",
+      protocol: input.protocol,
+      invitedAt: serverTimestamp(),
+    };
+    const ref = await addDoc(
+      collection(this.db, "organizations", input.organizationId, "invites"),
+      invite,
+    );
+    return ref.id;
+  }
+
+  async recruitMember(
+    organizationId: string,
+    memberId: string,
+    name: string,
+    email: string,
+  ): Promise<void> {
+    const orgRef = doc(this.db, "organizations", organizationId);
+    const member: MemberReference = {
+      id: memberId,
+      name,
+      email,
+      role: "Member",
+      presence: "active",
+    };
+    const batch = writeBatch(this.db);
+    batch.update(orgRef, {
+      members: arrayUnion(member),
+      memberIds: arrayUnion(memberId),
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      this.organizationAccountRef(organizationId),
+      {
+        members: arrayUnion(member),
+        memberIds: arrayUnion(memberId),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    await batch.commit();
+  }
+
+  async removeMember(organizationId: string, memberId: string): Promise<void> {
+    const orgSnap = await getDoc(doc(this.db, "organizations", organizationId));
+    if (!orgSnap.exists()) return;
+    const data = orgSnap.data() as Record<string, unknown>;
+    const members = Array.isArray(data.members)
+      ? (data.members as MemberReference[]).filter((m) => m.id !== memberId)
+      : [];
+    const batch = writeBatch(this.db);
+    batch.update(doc(this.db, "organizations", organizationId), {
+      members,
+      memberIds: arrayRemove(memberId),
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      this.organizationAccountRef(organizationId),
+      {
+        members,
+        memberIds: arrayRemove(memberId),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    await batch.commit();
+  }
+
+  async updateMemberRole(input: UpdateMemberRoleInput): Promise<void> {
+    const orgSnap = await getDoc(doc(this.db, "organizations", input.organizationId));
+    if (!orgSnap.exists()) return;
+    const data = orgSnap.data() as Record<string, unknown>;
+    const members = Array.isArray(data.members)
+      ? (data.members as MemberReference[]).map((m) =>
+          m.id === input.memberId ? { ...m, role: input.role as OrganizationRole } : m,
+        )
+      : [];
+    const batch = writeBatch(this.db);
+    batch.update(doc(this.db, "organizations", input.organizationId), {
+      members,
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      this.organizationAccountRef(input.organizationId),
+      {
+        members,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    await batch.commit();
+  }
+
+  async getMembers(organizationId: string): Promise<MemberReference[]> {
+    const snap = await getDoc(doc(this.db, "organizations", organizationId));
+    if (!snap.exists()) return [];
+    const data = snap.data() as Record<string, unknown>;
+    return Array.isArray(data.members) ? (data.members as MemberReference[]) : [];
+  }
+
+  subscribeToMembers(
+    organizationId: string,
+    onUpdate: (members: MemberReference[]) => void,
+  ): Unsubscribe {
+    return onSnapshot(doc(this.db, "organizations", organizationId), (snap) => {
+      if (!snap.exists()) {
+        onUpdate([]);
+        return;
+      }
+      const data = snap.data() as Record<string, unknown>;
+      onUpdate(Array.isArray(data.members) ? (data.members as MemberReference[]) : []);
+    });
+  }
+
+  // ─── Teams ──────────────────────────────────────────────────────────────────
+
+  async createTeam(input: CreateTeamInput): Promise<string> {
+    const teamRef = doc(collection(this.db, "organizations", input.organizationId, "teams"));
+    await setDoc(teamRef, {
+      name: input.name,
+      description: input.description,
+      type: input.type,
+      memberIds: [],
+      createdAt: serverTimestamp(),
+    });
+    return teamRef.id;
+  }
+
+  async deleteTeam(organizationId: string, teamId: string): Promise<void> {
+    await deleteDoc(doc(this.db, "organizations", organizationId, "teams", teamId));
+  }
+
+  async addMemberToTeam(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+  ): Promise<void> {
+    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
+      memberIds: arrayUnion(memberId),
+    });
+  }
+
+  async removeMemberFromTeam(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+  ): Promise<void> {
+    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
+      memberIds: arrayRemove(memberId),
+    });
+  }
+
+  async getTeams(organizationId: string): Promise<Team[]> {
+    const snaps = await getDocs(
+      collection(this.db, "organizations", organizationId, "teams"),
+    );
+    return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
+  }
+
+  subscribeToTeams(
+    organizationId: string,
+    onUpdate: (teams: Team[]) => void,
+  ): Unsubscribe {
+    return onSnapshot(
+      collection(this.db, "organizations", organizationId, "teams"),
+      (snap) => {
+        onUpdate(snap.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>)));
+      },
+    );
+  }
+
+  // ─── Partners ────────────────────────────────────────────────────────────────
+
+  async sendPartnerInvite(
+    organizationId: string,
+    teamId: string,
+    email: string,
+  ): Promise<string> {
+    const ref = await addDoc(
+      collection(this.db, "organizations", organizationId, "partnerInvites"),
+      {
+        email,
+        teamId,
+        role: "Guest",
+        inviteState: "pending",
+        invitedAt: serverTimestamp(),
+      },
+    );
+    return ref.id;
+  }
+
+  async dismissPartnerMember(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+  ): Promise<void> {
+    await this.removeMemberFromTeam(organizationId, teamId, memberId);
+  }
+
+  async getPartnerInvites(organizationId: string): Promise<PartnerInvite[]> {
+    const snaps = await getDocs(
+      collection(this.db, "organizations", organizationId, "partnerInvites"),
+    );
+    return snaps.docs.map((d) => toPartnerInvite(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
+## File: modules/organization/infrastructure/firebase/FirebaseOrgPolicyRepository.ts
+````typescript
+/**
+ * FirebaseOrgPolicyRepository — Infrastructure adapter for org-policy persistence.
+ * Implements the OrgPolicyRepository port.
+ *
+ * OrgPolicy is a separate aggregate that lives in the top-level `orgPolicies`
+ * Firestore collection, independent of the `organizations` collection.
+ * Per IDDD, this warrants its own repository.
+ */
+
+import {
+  getFirestore,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+
+import type { OrgPolicyRepository } from "../../domain/repositories/OrgPolicyRepository";
+import type {
+  OrgPolicy,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../../domain/entities/Organization";
+import { toOrgPolicy } from "./organization-mappers";
+
+export class FirebaseOrgPolicyRepository implements OrgPolicyRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy> {
+    const now = new Date().toISOString();
+    const ref = await addDoc(collection(this.db, "orgPolicies"), {
+      orgId: input.orgId,
+      name: input.name,
+      description: input.description,
+      rules: input.rules,
+      scope: input.scope,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+      _createdAt: serverTimestamp(),
+    });
+    return {
+      id: ref.id,
+      orgId: input.orgId,
+      name: input.name,
+      description: input.description,
+      rules: input.rules,
+      scope: input.scope,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  async updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void> {
+    const updates: Record<string, unknown> = {
+      updatedAt: new Date().toISOString(),
+      _updatedAt: serverTimestamp(),
+    };
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.description !== undefined) updates.description = data.description;
+    if (data.rules !== undefined) updates.rules = data.rules;
+    if (data.scope !== undefined) updates.scope = data.scope;
+    if (data.isActive !== undefined) updates.isActive = data.isActive;
+    await updateDoc(doc(this.db, "orgPolicies", policyId), updates);
+  }
+
+  async deletePolicy(policyId: string): Promise<void> {
+    await deleteDoc(doc(this.db, "orgPolicies", policyId));
+  }
+
+  async getPolicies(orgId: string): Promise<OrgPolicy[]> {
+    const q = query(collection(this.db, "orgPolicies"), where("orgId", "==", orgId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toOrgPolicy(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
 ## File: modules/organization/infrastructure/firebase/organization-mappers.ts
 ````typescript
 import type {
@@ -26465,6 +27643,60 @@ export function toPartnerInvite(id: string, data: Record<string, unknown>): Part
     invitedAt: data.invitedAt as PartnerInvite["invitedAt"],
     protocol: typeof data.protocol === "string" ? data.protocol : "",
   };
+}
+````
+
+## File: modules/organization/interfaces/queries/organization.queries.ts
+````typescript
+/**
+ * Organization Read Queries — thin wrappers for real-time subscription and one-shot reads.
+ * Callable from React components/hooks, NOT server actions.
+ */
+
+import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "../../infrastructure/firebase/FirebaseOrgPolicyRepository";
+import type { MemberReference, Team, PartnerInvite, OrgPolicy } from "../../domain/entities/Organization";
+import type { Unsubscribe } from "../../domain/repositories/OrganizationRepository";
+
+const orgRepo = new FirebaseOrganizationRepository();
+const policyRepo = new FirebaseOrgPolicyRepository();
+
+// ─── Members ─────────────────────────────────────────────────────────────────
+
+export async function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
+  return orgRepo.getMembers(organizationId);
+}
+
+export function subscribeToOrganizationMembers(
+  organizationId: string,
+  onUpdate: (members: MemberReference[]) => void,
+): Unsubscribe {
+  return orgRepo.subscribeToMembers(organizationId, onUpdate);
+}
+
+// ─── Teams ───────────────────────────────────────────────────────────────────
+
+export async function getOrganizationTeams(organizationId: string): Promise<Team[]> {
+  return orgRepo.getTeams(organizationId);
+}
+
+export function subscribeToOrganizationTeams(
+  organizationId: string,
+  onUpdate: (teams: Team[]) => void,
+): Unsubscribe {
+  return orgRepo.subscribeToTeams(organizationId, onUpdate);
+}
+
+// ─── Partners ─────────────────────────────────────────────────────────────────
+
+export async function getPartnerInvites(organizationId: string): Promise<PartnerInvite[]> {
+  return orgRepo.getPartnerInvites(organizationId);
+}
+
+// ─── Policy ───────────────────────────────────────────────────────────────────
+
+export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
+  return policyRepo.getPolicies(orgId);
 }
 ````
 
@@ -29753,6 +30985,29 @@ export function createKnowledgeUpdatedEvent(
     content,
   };
 }
+````
+
+## File: modules/shared/domain/slug-utils.test.ts
+````typescript
+import { describe, expect, it } from "vitest";
+
+import { deriveSlugCandidate, isValidSlug } from "./slug-utils";
+
+describe("slug-utils", () => {
+  it("normalizes display names into slug candidates", () => {
+    expect(deriveSlugCandidate("Hello__World / 測試")).toBe("hello-world");
+  });
+
+  it("caps slug candidates at 63 characters", () => {
+    expect(deriveSlugCandidate("a".repeat(80))).toHaveLength(63);
+  });
+
+  it("accepts valid slugs and rejects malformed ones", () => {
+    expect(isValidSlug("team-space-01")).toBe(true);
+    expect(isValidSlug("ab")).toBe(false);
+    expect(isValidSlug("-team-space")).toBe(false);
+  });
+});
 ````
 
 ## File: modules/shared/domain/slug-utils.ts
@@ -39452,6 +40707,23 @@ export function userId(raw: string): UserId {
 }
 ````
 
+## File: modules/workspace-flow/index.ts
+````typescript
+/**
+ * @module workspace-flow
+ * @file index.ts
+ * @description Aggregate public exports for workspace-flow.
+ *
+ * Cross-module consumers SHOULD use @/modules/workspace-flow/api directly.
+ * This root entry mirrors only the stable public surface.
+ *
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+export * from "./api";
+````
+
 ## File: modules/workspace-flow/infrastructure/firebase/invoice-item.converter.ts
 ````typescript
 /**
@@ -42860,20 +44132,6 @@ export async function getAccountDemands(accountId: string): Promise<WorkDemand[]
 | `DemandStatus` | `Status`, `WorkStatus` |
 ````
 
-## File: modules/workspace/application/use-cases/workspace-member.use-cases.ts
-````typescript
-import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMember";
-import type { WorkspaceQueryRepository } from "../../domain/repositories/WorkspaceQueryRepository";
-
-export class FetchWorkspaceMembersUseCase {
-  constructor(private readonly workspaceQueryRepo: WorkspaceQueryRepository) {}
-
-  execute(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    return this.workspaceQueryRepo.getWorkspaceMembers(workspaceId);
-  }
-}
-````
-
 ## File: modules/workspace/domain/entities/WikiContentTree.ts
 ````typescript
 /**
@@ -42952,59 +44210,94 @@ export interface WorkspaceMemberView {
 }
 ````
 
-## File: modules/workspace/domain/repositories/WikiWorkspaceRepository.ts
+## File: modules/workspace/interfaces/components/CreateWorkspaceDialog.tsx
 ````typescript
-/**
- * Module: workspace
- * Layer: domain/repositories
- * Purpose: Repository port for fetching workspace refs used by the
- *          Wiki content-tree use-case.
- */
+"use client";
 
-import type { WikiWorkspaceRef } from "../entities/WikiContentTree";
+import { type FormEvent } from "react";
 
-export interface WikiWorkspaceRepository {
-  listByAccountId(accountId: string): Promise<WikiWorkspaceRef[]>;
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+interface CreateWorkspaceDialogProps {
+  readonly open: boolean;
+  readonly workspaceName: string;
+  readonly createError: string | null;
+  readonly isCreatingWorkspace: boolean;
+  readonly accountId: string | null | undefined;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly onWorkspaceNameChange: (name: string) => void;
+  readonly onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }
-````
 
-## File: modules/workspace/domain/repositories/WorkspaceQueryRepository.ts
-````typescript
-/**
- * WorkspaceQueryRepository — Port for workspace read projections.
- */
+export function CreateWorkspaceDialog({
+  open,
+  workspaceName,
+  createError,
+  isCreatingWorkspace,
+  accountId,
+  onOpenChange,
+  onWorkspaceNameChange,
+  onSubmit,
+}: CreateWorkspaceDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent aria-describedby="create-workspace-description">
+        <DialogHeader>
+          <DialogTitle>建立工作區</DialogTitle>
+          <DialogDescription id="create-workspace-description">
+            建立後會直接出現在目前帳號的工作區清單中。
+          </DialogDescription>
+        </DialogHeader>
 
-import type { WorkspaceMemberView } from "../entities/WorkspaceMember";
-import type { WorkspaceEntity } from "../entities/Workspace";
+        <form className="space-y-4" onSubmit={onSubmit}>
+          <div className="space-y-2">
+            <label
+              className="text-sm font-medium text-foreground"
+              htmlFor="workspace-name"
+            >
+              工作區名稱
+            </label>
+            <Input
+              id="workspace-name"
+              value={workspaceName}
+              onChange={(event) => onWorkspaceNameChange(event.target.value)}
+              placeholder="例如：北區營運中心"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+              disabled={isCreatingWorkspace}
+              maxLength={80}
+            />
+            {createError && (
+              <p className="text-sm text-destructive">{createError}</p>
+            )}
+          </div>
 
-export type Unsubscribe = () => void;
-
-export interface WorkspaceQueryRepository {
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ): Unsubscribe;
-  getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]>;
-}
-````
-
-## File: modules/workspace/infrastructure/firebase/FirebaseWikiWorkspaceRepository.ts
-````typescript
-import { FirebaseWorkspaceRepository } from "./FirebaseWorkspaceRepository";
-
-import type { WikiWorkspaceRepository } from "../../domain/repositories/WikiWorkspaceRepository";
-import type { WikiWorkspaceRef } from "../../domain/entities/WikiContentTree";
-
-const workspaceRepo = new FirebaseWorkspaceRepository();
-
-export class FirebaseWikiWorkspaceRepository implements WikiWorkspaceRepository {
-  async listByAccountId(accountId: string): Promise<WikiWorkspaceRef[]> {
-    const workspaces = await workspaceRepo.findAllByAccountId(accountId);
-    return workspaces.map((workspace) => ({
-      id: workspace.id,
-      name: workspace.name,
-    }));
-  }
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isCreatingWorkspace}
+            >
+              取消
+            </Button>
+            <Button type="submit" disabled={isCreatingWorkspace || !accountId}>
+              {isCreatingWorkspace ? "建立中…" : "直接建立"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
 }
 ````
 
@@ -43020,6 +44313,119 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+````
+
+## File: package.json
+````json
+{
+  "name": "xuanwu-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
+    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
+    "deploy:storage:rules": "npx firebase deploy --only storage",
+    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
+    "deploy:apphosting": "npx firebase deploy --only apphosting",
+    "deploy:functions": "npx firebase deploy --only functions:py_fn",
+    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
+    "deploy:functions:all": "npx firebase deploy --only functions",
+    "deploy:firebase": "npx firebase deploy",
+    "repomix:skill": "npx repomix --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
+    "repomix:markdown": "npx repomix --skill-generate xuanwu-app-markdown-skill --skill-output .github/skills/xuanwu-app-markdown-skill --include \"**/*.md\" --force",
+    "repomix:remote": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill --remote xx/xx --include \"apps/web/**\" --force",
+    "repomix:local": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill D:\\122sp7\\apps --force",
+    "repomix:remote:vscode-docs": "npx repomix --remote microsoft/vscode-docs --include \"docs/**\" --skill-generate vscode-docs-skill --skill-output .github/skills/vscode-docs-skill --force"
+  },
+  "engines": {
+    "node": "24"
+  },
+  "dependencies": {
+    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
+    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
+    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
+    "@genkit-ai/google-genai": "^1.30.1",
+    "@tanstack/react-form": "^1.28.5",
+    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.13.23",
+    "@tiptap/extension-color": "^3.22.2",
+    "@tiptap/extension-link": "^3.22.2",
+    "@tiptap/extension-placeholder": "^3.22.2",
+    "@tiptap/extension-text-style": "^3.22.2",
+    "@tiptap/extension-typography": "^3.22.2",
+    "@tiptap/extension-underline": "^3.22.2",
+    "@tiptap/react": "^3.22.2",
+    "@tiptap/starter-kit": "^3.22.2",
+    "@trpc/client": "^11.13.4",
+    "@trpc/next": "^11.13.4",
+    "@trpc/react-query": "^11.13.4",
+    "@trpc/server": "^11.13.4",
+    "@xstate/react": "^6.1.0",
+    "axios": "^1.13.6",
+    "cmdk": "^1.1.1",
+    "date-fns": "^4.1.0",
+    "embla-carousel-react": "^8.6.0",
+    "firebase": "^12.9.0",
+    "genkit": "^1.30.1",
+    "input-otp": "^1.4.2",
+    "lucide-react": "^0.577.0",
+    "next": "16.1.7",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.4.3",
+    "react": "19.2.3",
+    "react-day-picker": "^9.14.0",
+    "react-dom": "19.2.3",
+    "react-graph-vis": "^1.0.7",
+    "react-markdown": "^10.1.0",
+    "recharts": "^2.15.4",
+    "remark-gfm": "^4.0.1",
+    "sonner": "^2.0.7",
+    "superjson": "^2.2.6",
+    "uuid": "^13.0.0",
+    "vaul": "^1.1.2",
+    "vis-data": "^8.0.3",
+    "vis-graph3d": "^7.0.2",
+    "vis-network": "^10.0.2",
+    "vis-timeline": "^8.5.0",
+    "xstate": "^5.28.0",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^16.2.2",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20.19.37",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.57.1",
+    "@typescript-eslint/parser": "^8.57.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.1.7",
+    "eslint-plugin-boundaries": "^6.0.1",
+    "eslint-plugin-jsdoc": "^62.8.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "repomix": "^1.12.0",
+    "shadcn": "^4.1.0",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4",
+    "tailwindcss-animate": "^1.0.7",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^5",
+    "typescript-eslint": "^8.58.0",
+    "vitest": "^4.1.2"
+  }
+}
 ````
 
 ## File: packages/api-contracts/index.ts
@@ -44526,6 +45932,27 @@ export interface Timestamp {
   readonly nanoseconds: number;
   toDate(): Date;
 }
+````
+
+## File: packages/shared-utils/index.test.ts
+````typescript
+import { describe, expect, it } from "vitest";
+
+import { cn, formatDate, generateId } from "./index";
+
+describe("shared-utils", () => {
+  it("formats dates as YYYY-MM-DD", () => {
+    expect(formatDate(new Date("2026-04-06T15:20:30.000Z"))).toBe("2026-04-06");
+  });
+
+  it("merges tailwind class conflicts deterministically", () => {
+    expect(cn("px-2", ["text-sm", undefined], "px-4")).toBe("text-sm px-4");
+  });
+
+  it("generates UUID-shaped ids", () => {
+    expect(generateId()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+  });
+});
 ````
 
 ## File: packages/shared-utils/index.ts
@@ -51287,6 +52714,12 @@ HTTP Request
 ## 13. 一句話總結
 
 看完整路徑判斷層級，不看資料夾名稱猜責任。
+````
+
+## File: py_fn/requirements-dev.txt
+````
+-r requirements.txt
+pytest>=8.3.0,<9.0.0
 ````
 
 ## File: py_fn/requirements.txt
@@ -59329,196 +60762,194 @@ export type {
 } from "./knowledge-wiki.dto";
 ````
 
-## File: modules/knowledge/application/use-cases/knowledge-page-appearance.use-cases.ts
+## File: modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
 ````typescript
 /**
  * Module: knowledge
  * Layer: application/use-cases
- * Purpose: Page appearance use cases — update icon, update cover.
+ * Purpose: Page lifecycle use cases — create, rename, move, reorder blocks, archive, list.
+ * Review workflow: see knowledge-page-review.use-cases.ts
+ * Appearance: see knowledge-page-appearance.use-cases.ts
  */
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 
+import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
 import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
 import {
-  UpdatePageIconSchema,
-  type UpdatePageIconDto,
-  UpdatePageCoverSchema,
-  type UpdatePageCoverDto,
+  CreateKnowledgePageSchema,
+  type CreateKnowledgePageDto,
+  RenameKnowledgePageSchema,
+  type RenameKnowledgePageDto,
+  MoveKnowledgePageSchema,
+  type MoveKnowledgePageDto,
+  ArchiveKnowledgePageSchema,
+  type ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksSchema,
+  type ReorderKnowledgePageBlocksDto,
 } from "../dto/knowledge.dto";
 
-export class UpdatePageIconUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: UpdatePageIconDto): Promise<CommandResult> {
-    const parsed = UpdatePageIconSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-    const { accountId, pageId, iconUrl } = parsed.data;
-    const result = await this.repo.updateIcon({ accountId, pageId, iconUrl });
-    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(result.id, Date.now());
+export function buildKnowledgePageTree(pages: KnowledgePage[]): KnowledgePageTreeNode[] {
+  const map = new Map<string, KnowledgePageTreeNode>();
+  for (const page of pages) {
+    map.set(page.id, { ...page, children: [] });
   }
+
+  const roots: KnowledgePageTreeNode[] = [];
+  for (const node of map.values()) {
+    if (node.parentPageId === null || !map.has(node.parentPageId)) {
+      roots.push(node);
+    } else {
+      const parent = map.get(node.parentPageId)!;
+      (parent.children as KnowledgePageTreeNode[]).push(node);
+    }
+  }
+
+  const sortByOrder = (nodes: KnowledgePageTreeNode[]): void => {
+    nodes.sort((a, b) => a.order - b.order);
+    for (const n of nodes) sortByOrder(n.children as KnowledgePageTreeNode[]);
+  };
+  sortByOrder(roots);
+
+  return roots;
 }
 
-export class UpdatePageCoverUseCase {
+export class CreateKnowledgePageUseCase {
   constructor(private readonly repo: KnowledgePageRepository) {}
 
-  async execute(input: UpdatePageCoverDto): Promise<CommandResult> {
-    const parsed = UpdatePageCoverSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-    const { accountId, pageId, coverUrl } = parsed.data;
-    const result = await this.repo.updateCover({ accountId, pageId, coverUrl });
-    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-````
-
-## File: modules/knowledge/application/use-cases/knowledge-page-review.use-cases.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: application/use-cases
- * Purpose: Page review-workflow use cases — approve, verify, request review, assign owner.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
-import {
-  PublishDomainEventUseCase,
-  type IEventStoreRepository,
-  type IEventBusRepository,
-} from "@/modules/shared/api";
-import { v7 as generateId } from "@lib-uuid";
-import {
-  ApproveKnowledgePageSchema,
-  type ApproveKnowledgePageDto,
-  VerifyKnowledgePageSchema,
-  type VerifyKnowledgePageDto,
-  RequestPageReviewSchema,
-  type RequestPageReviewDto,
-  AssignPageOwnerSchema,
-  type AssignPageOwnerDto,
-} from "../dto/knowledge.dto";
-
-export class ApproveKnowledgePageUseCase {
-  constructor(
-    private readonly repo: KnowledgePageRepository,
-    private readonly eventStore: IEventStoreRepository,
-    private readonly eventBus: IEventBusRepository,
-  ) {}
-
-  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = ApproveKnowledgePageSchema.safeParse(input);
+  async execute(input: CreateKnowledgePageDto): Promise<CommandResult> {
+    const parsed = CreateKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
       return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
     }
 
-    const {
+    const { accountId, workspaceId, title, parentPageId, createdByUserId } = parsed.data;
+
+    const page = await this.repo.create({
       accountId,
-      pageId,
-      actorId,
-      causationId: inputCausationId,
-      extractedTasks,
-      extractedInvoices,
-      correlationId: inputCorrelationId,
       workspaceId,
-    } = parsed.data;
-
-    // causationId is set by the Server Action layer; generateId() is a safe fallback.
-    const causationId = inputCausationId ?? generateId();
-
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) {
-      return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    }
-    if (page.status === "archived") {
-      return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
-    }
-    if (page.approvalState === "approved") {
-      return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
-    }
-
-    const nowISO = new Date().toISOString();
-    const approved = await this.repo.approve({ accountId, pageId, approvedByUserId: actorId, approvedAtISO: nowISO });
-    if (!approved) {
-      return commandFailureFrom("CONTENT_PAGE_APPROVE_FAILED", "Failed to approve page.");
-    }
-
-    const correlationId = inputCorrelationId ?? generateId();
-
-    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
-      id: generateId(),
-      eventName: "knowledge.page_approved",
-      aggregateType: "KnowledgePage",
-      aggregateId: pageId,
-      payload: {
-        pageId,
-        accountId,
-        workspaceId: workspaceId ?? page.workspaceId,
-        extractedTasks,
-        extractedInvoices,
-        actorId,
-        causationId: inputCausationId,
-        correlationId,
-      },
-      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
+      title: title.trim(),
+      parentPageId: parentPageId ?? null,
+      createdByUserId,
     });
 
-    return commandSuccess(pageId, Date.now());
+    return commandSuccess(page.id, Date.now());
   }
 }
 
-export class VerifyKnowledgePageUseCase {
+export class RenameKnowledgePageUseCase {
   constructor(private readonly repo: KnowledgePageRepository) {}
 
-  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
-    const parsed = VerifyKnowledgePageSchema.safeParse(input);
+  async execute(input: RenameKnowledgePageDto): Promise<CommandResult> {
+    const parsed = RenameKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
       return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
     }
 
-    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
-    const result = await this.repo.verify({ accountId, pageId, verifiedByUserId, verificationExpiresAtISO });
-    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(result.id, Date.now());
+    const { accountId, pageId, title } = parsed.data;
+    const updated = await this.repo.rename({ accountId, pageId, title: title.trim() });
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
   }
 }
 
-export class RequestPageReviewUseCase {
+export class MoveKnowledgePageUseCase {
   constructor(private readonly repo: KnowledgePageRepository) {}
 
-  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
-    const parsed = RequestPageReviewSchema.safeParse(input);
+  async execute(input: MoveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = MoveKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
       return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
     }
 
-    const { accountId, pageId, requestedByUserId } = parsed.data;
-    const result = await this.repo.requestReview({ accountId, pageId, requestedByUserId });
-    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(result.id, Date.now());
+    const { accountId, pageId, targetParentPageId } = parsed.data;
+
+    if (pageId === targetParentPageId) {
+      return commandFailureFrom("CONTENT_PAGE_CIRCULAR_MOVE", "A page cannot be its own parent.");
+    }
+
+    const updated = await this.repo.move({ accountId, pageId, targetParentPageId });
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
   }
 }
 
-export class AssignPageOwnerUseCase {
+export class ArchiveKnowledgePageUseCase {
   constructor(private readonly repo: KnowledgePageRepository) {}
 
-  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
-    const parsed = AssignPageOwnerSchema.safeParse(input);
+  async execute(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ArchiveKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
       return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
     }
 
-    const { accountId, pageId, ownerId } = parsed.data;
-    const result = await this.repo.assignOwner({ accountId, pageId, ownerId });
-    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(result.id, Date.now());
+    const { accountId, pageId } = parsed.data;
+    const updated = await this.repo.archive(accountId, pageId);
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class ReorderKnowledgePageBlocksUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
+    const parsed = ReorderKnowledgePageBlocksSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, blockIds } = parsed.data;
+    const updated = await this.repo.reorderBlocks({ accountId, pageId, blockIds });
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class GetKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    if (!accountId.trim() || !pageId.trim()) return null;
+    return this.repo.findById(accountId, pageId);
+  }
+}
+
+export class ListKnowledgePagesUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string): Promise<KnowledgePage[]> {
+    if (!accountId.trim()) return [];
+    return this.repo.listByAccountId(accountId);
+  }
+}
+
+export class ListKnowledgePagesByWorkspaceUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
+    if (!accountId.trim() || !workspaceId.trim()) return [];
+    return this.repo.listByWorkspaceId(accountId, workspaceId);
+  }
+}
+
+export class GetKnowledgePageTreeUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string): Promise<KnowledgePageTreeNode[]> {
+    if (!accountId.trim()) return [];
+    const pages = await this.repo.listByAccountId(accountId);
+    return buildKnowledgePageTree(pages);
+  }
+}
+
+export class GetKnowledgePageTreeByWorkspaceUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string, workspaceId: string): Promise<KnowledgePageTreeNode[]> {
+    if (!accountId.trim() || !workspaceId.trim()) return [];
+    const pages = await this.repo.listByWorkspaceId(accountId, workspaceId);
+    return buildKnowledgePageTree(pages);
   }
 }
 ````
@@ -60461,17 +61892,6 @@ export type {
 export type { NotebookRepository } from "./repositories/NotebookRepository";
 ````
 
-## File: modules/notebook/index.ts
-````typescript
-/**
- * modules/notebook — aggregate public exports.
- *
- * Cross-module consumers should use the stable api/ surface only.
- */
-
-export * from "./api";
-````
-
 ## File: modules/notebook/infrastructure/firebase/index.ts
 ````typescript
 export { FirebaseThreadRepository } from "./FirebaseThreadRepository";
@@ -60776,73 +62196,6 @@ export class DismissPartnerMemberUseCase {
 }
 ````
 
-## File: modules/organization/application/use-cases/organization-policy.use-cases.ts
-````typescript
-/**
- * Organization Policy Use Cases — pure business workflows.
- * Org policy changes flow through event bus to update workspace org-policy cache downstream.
- * No React, no Firebase, no UI framework.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { OrgPolicyRepository } from "../../domain/repositories/OrgPolicyRepository";
-import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
-
-// ─── Create Org Policy ────────────────────────────────────────────────────────
-
-export class CreateOrgPolicyUseCase {
-  constructor(private readonly policyRepo: OrgPolicyRepository) {}
-
-  async execute(input: CreateOrgPolicyInput): Promise<CommandResult> {
-    try {
-      const policy = await this.policyRepo.createPolicy(input);
-      return commandSuccess(policy.id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_ORG_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to create org policy",
-      );
-    }
-  }
-}
-
-// ─── Update Org Policy ────────────────────────────────────────────────────────
-
-export class UpdateOrgPolicyUseCase {
-  constructor(private readonly policyRepo: OrgPolicyRepository) {}
-
-  async execute(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
-    try {
-      await this.policyRepo.updatePolicy(policyId, data);
-      return commandSuccess(policyId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_ORG_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to update org policy",
-      );
-    }
-  }
-}
-
-// ─── Delete Org Policy ────────────────────────────────────────────────────────
-
-export class DeleteOrgPolicyUseCase {
-  constructor(private readonly policyRepo: OrgPolicyRepository) {}
-
-  async execute(policyId: string): Promise<CommandResult> {
-    try {
-      await this.policyRepo.deletePolicy(policyId);
-      return commandSuccess(policyId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DELETE_ORG_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to delete org policy",
-      );
-    }
-  }
-}
-````
-
 ## File: modules/organization/application/use-cases/organization-team.use-cases.ts
 ````typescript
 /**
@@ -60950,619 +62303,6 @@ export {
 } from "./organization-partner.use-cases";
 ````
 
-## File: modules/organization/domain/repositories/OrganizationRepository.ts
-````typescript
-/**
- * OrganizationRepository — Port for organization persistence.
- * Domain defines the interface; Infrastructure implements it.
- */
-
-import type {
-  OrganizationEntity,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  MemberReference,
-  Team,
-  PartnerInvite,
-} from "../entities/Organization";
-
-export type Unsubscribe = () => void;
-
-export interface OrganizationRepository {
-  // ─── Org Lifecycle ─────────────────────────────────────────────────────────
-  create(command: CreateOrganizationCommand): Promise<string>;
-  findById(id: string): Promise<OrganizationEntity | null>;
-  save(org: OrganizationEntity): Promise<void>;
-  updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void>;
-  delete(organizationId: string): Promise<void>;
-
-  // ─── Members ───────────────────────────────────────────────────────────────
-  inviteMember(input: InviteMemberInput): Promise<string>;
-  recruitMember(organizationId: string, memberId: string, name: string, email: string): Promise<void>;
-  removeMember(organizationId: string, memberId: string): Promise<void>;
-  updateMemberRole(input: UpdateMemberRoleInput): Promise<void>;
-  getMembers(organizationId: string): Promise<MemberReference[]>;
-  subscribeToMembers(organizationId: string, onUpdate: (members: MemberReference[]) => void): Unsubscribe;
-
-  // ─── Teams ─────────────────────────────────────────────────────────────────
-  createTeam(input: CreateTeamInput): Promise<string>;
-  deleteTeam(organizationId: string, teamId: string): Promise<void>;
-  addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  getTeams(organizationId: string): Promise<Team[]>;
-  subscribeToTeams(organizationId: string, onUpdate: (teams: Team[]) => void): Unsubscribe;
-
-  // ─── Partners ──────────────────────────────────────────────────────────────
-  sendPartnerInvite(organizationId: string, teamId: string, email: string): Promise<string>;
-  dismissPartnerMember(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  getPartnerInvites(organizationId: string): Promise<PartnerInvite[]>;
-}
-````
-
-## File: modules/organization/domain/repositories/OrgPolicyRepository.ts
-````typescript
-/**
- * OrgPolicyRepository — Port for org-policy persistence.
- *
- * OrgPolicy lives in a top-level Firestore collection (`orgPolicies`) that is
- * independent of the `organizations` collection.  Per IDDD, each aggregate root
- * owns its own repository port.  Policy is therefore separated here from
- * {@link OrganizationRepository}.
- */
-
-import type {
-  OrgPolicy,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../entities/Organization";
-
-export interface OrgPolicyRepository {
-  createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy>;
-  updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void>;
-  deletePolicy(policyId: string): Promise<void>;
-  getPolicies(orgId: string): Promise<OrgPolicy[]>;
-}
-````
-
-## File: modules/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts
-````typescript
-/**
- * FirebaseOrganizationRepository — Infrastructure adapter for organization persistence.
- * Implements the OrganizationRepository port.
- * Firebase SDK only exists in this file.
- */
-
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  getDocs,
-  addDoc,
-  arrayUnion,
-  arrayRemove,
-  onSnapshot,
-  serverTimestamp,
-  writeBatch,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { OrganizationRepository, Unsubscribe } from "../../domain/repositories/OrganizationRepository";
-import type {
-  OrganizationEntity,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  OrganizationRole,
-} from "../../domain/entities/Organization";
-import { toOrganizationEntity, toTeam, toPartnerInvite } from "./organization-mappers";
-
-// ─── Repository ───────────────────────────────────────────────────────────────
-
-export class FirebaseOrganizationRepository implements OrganizationRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private organizationAccountRef(organizationId: string) {
-    return doc(this.db, "accounts", organizationId);
-  }
-
-  private buildOrganizationAccountData(
-    data: {
-      name?: string;
-      ownerId?: string;
-      email?: string;
-      photoURL?: string;
-      description?: string;
-      theme?: OrganizationEntity["theme"];
-      members?: MemberReference[];
-      memberIds?: string[];
-      teams?: Team[];
-      createdAt?: OrganizationEntity["createdAt"] | ReturnType<typeof serverTimestamp>;
-    },
-  ) {
-    return {
-      accountType: "organization" as const,
-      name: data.name ?? "",
-      ownerId: data.ownerId ?? "",
-      email: data.email ?? null,
-      photoURL: data.photoURL ?? null,
-      description: data.description ?? null,
-      theme: data.theme ?? null,
-      members: data.members ?? [],
-      memberIds: data.memberIds ?? [],
-      teams: data.teams ?? [],
-      createdAt: data.createdAt ?? serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-  }
-
-  // ─── Org Lifecycle ──────────────────────────────────────────────────────────
-
-  async create(command: CreateOrganizationCommand): Promise<string> {
-    const orgRef = doc(collection(this.db, "organizations"));
-    const owner: MemberReference = {
-      id: command.ownerId,
-      name: command.ownerName,
-      email: command.ownerEmail,
-      role: "Owner",
-      presence: "active",
-    };
-    const createdAt = serverTimestamp();
-    const organizationData = {
-      name: command.organizationName,
-      ownerId: command.ownerId,
-      members: [owner],
-      memberIds: [command.ownerId],
-      teams: [],
-      createdAt,
-    };
-    const batch = writeBatch(this.db);
-    batch.set(orgRef, organizationData);
-    batch.set(
-      this.organizationAccountRef(orgRef.id),
-      this.buildOrganizationAccountData({
-        name: command.organizationName,
-        ownerId: command.ownerId,
-        members: [owner],
-        memberIds: [command.ownerId],
-        teams: [],
-        createdAt,
-      }),
-      { merge: true },
-    );
-    await batch.commit();
-    return orgRef.id;
-  }
-
-  async findById(id: string): Promise<OrganizationEntity | null> {
-    const snap = await getDoc(doc(this.db, "organizations", id));
-    if (!snap.exists()) return null;
-    return toOrganizationEntity(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async save(org: OrganizationEntity): Promise<void> {
-    const orgRef = doc(this.db, "organizations", org.id);
-    const batch = writeBatch(this.db);
-    batch.set(orgRef, {
-      name: org.name,
-      ownerId: org.ownerId,
-      members: org.members,
-      memberIds: org.memberIds,
-      teams: org.teams,
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.organizationAccountRef(org.id),
-      this.buildOrganizationAccountData({
-        name: org.name,
-        ownerId: org.ownerId,
-        email: org.email,
-        photoURL: org.photoURL,
-        description: org.description,
-        theme: org.theme,
-        members: org.members,
-        memberIds: org.memberIds,
-        teams: org.teams,
-        createdAt: org.createdAt,
-      }),
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void> {
-    const orgRef = doc(this.db, "organizations", command.organizationId);
-    const updates: Record<string, unknown> = {
-      accountType: "organization",
-      updatedAt: serverTimestamp(),
-    };
-    if (command.name !== undefined) updates.name = command.name;
-    if (command.description !== undefined) updates.description = command.description;
-    if (command.theme !== undefined) updates.theme = command.theme;
-    if (command.photoURL !== undefined) updates.photoURL = command.photoURL;
-    const batch = writeBatch(this.db);
-    batch.update(orgRef, updates);
-    batch.set(this.organizationAccountRef(command.organizationId), updates, { merge: true });
-    await batch.commit();
-  }
-
-  async delete(organizationId: string): Promise<void> {
-    const batch = writeBatch(this.db);
-    batch.delete(doc(this.db, "organizations", organizationId));
-    batch.delete(this.organizationAccountRef(organizationId));
-    await batch.commit();
-  }
-
-  // ─── Members ────────────────────────────────────────────────────────────────
-
-  async inviteMember(input: InviteMemberInput): Promise<string> {
-    const invite = {
-      email: input.email,
-      teamId: input.teamId,
-      role: input.role,
-      inviteState: "pending",
-      protocol: input.protocol,
-      invitedAt: serverTimestamp(),
-    };
-    const ref = await addDoc(
-      collection(this.db, "organizations", input.organizationId, "invites"),
-      invite,
-    );
-    return ref.id;
-  }
-
-  async recruitMember(
-    organizationId: string,
-    memberId: string,
-    name: string,
-    email: string,
-  ): Promise<void> {
-    const orgRef = doc(this.db, "organizations", organizationId);
-    const member: MemberReference = {
-      id: memberId,
-      name,
-      email,
-      role: "Member",
-      presence: "active",
-    };
-    const batch = writeBatch(this.db);
-    batch.update(orgRef, {
-      members: arrayUnion(member),
-      memberIds: arrayUnion(memberId),
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.organizationAccountRef(organizationId),
-      {
-        members: arrayUnion(member),
-        memberIds: arrayUnion(memberId),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async removeMember(organizationId: string, memberId: string): Promise<void> {
-    const orgSnap = await getDoc(doc(this.db, "organizations", organizationId));
-    if (!orgSnap.exists()) return;
-    const data = orgSnap.data() as Record<string, unknown>;
-    const members = Array.isArray(data.members)
-      ? (data.members as MemberReference[]).filter((m) => m.id !== memberId)
-      : [];
-    const batch = writeBatch(this.db);
-    batch.update(doc(this.db, "organizations", organizationId), {
-      members,
-      memberIds: arrayRemove(memberId),
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.organizationAccountRef(organizationId),
-      {
-        members,
-        memberIds: arrayRemove(memberId),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async updateMemberRole(input: UpdateMemberRoleInput): Promise<void> {
-    const orgSnap = await getDoc(doc(this.db, "organizations", input.organizationId));
-    if (!orgSnap.exists()) return;
-    const data = orgSnap.data() as Record<string, unknown>;
-    const members = Array.isArray(data.members)
-      ? (data.members as MemberReference[]).map((m) =>
-          m.id === input.memberId ? { ...m, role: input.role as OrganizationRole } : m,
-        )
-      : [];
-    const batch = writeBatch(this.db);
-    batch.update(doc(this.db, "organizations", input.organizationId), {
-      members,
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.organizationAccountRef(input.organizationId),
-      {
-        members,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async getMembers(organizationId: string): Promise<MemberReference[]> {
-    const snap = await getDoc(doc(this.db, "organizations", organizationId));
-    if (!snap.exists()) return [];
-    const data = snap.data() as Record<string, unknown>;
-    return Array.isArray(data.members) ? (data.members as MemberReference[]) : [];
-  }
-
-  subscribeToMembers(
-    organizationId: string,
-    onUpdate: (members: MemberReference[]) => void,
-  ): Unsubscribe {
-    return onSnapshot(doc(this.db, "organizations", organizationId), (snap) => {
-      if (!snap.exists()) {
-        onUpdate([]);
-        return;
-      }
-      const data = snap.data() as Record<string, unknown>;
-      onUpdate(Array.isArray(data.members) ? (data.members as MemberReference[]) : []);
-    });
-  }
-
-  // ─── Teams ──────────────────────────────────────────────────────────────────
-
-  async createTeam(input: CreateTeamInput): Promise<string> {
-    const teamRef = doc(collection(this.db, "organizations", input.organizationId, "teams"));
-    await setDoc(teamRef, {
-      name: input.name,
-      description: input.description,
-      type: input.type,
-      memberIds: [],
-      createdAt: serverTimestamp(),
-    });
-    return teamRef.id;
-  }
-
-  async deleteTeam(organizationId: string, teamId: string): Promise<void> {
-    await deleteDoc(doc(this.db, "organizations", organizationId, "teams", teamId));
-  }
-
-  async addMemberToTeam(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-  ): Promise<void> {
-    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
-      memberIds: arrayUnion(memberId),
-    });
-  }
-
-  async removeMemberFromTeam(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-  ): Promise<void> {
-    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
-      memberIds: arrayRemove(memberId),
-    });
-  }
-
-  async getTeams(organizationId: string): Promise<Team[]> {
-    const snaps = await getDocs(
-      collection(this.db, "organizations", organizationId, "teams"),
-    );
-    return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
-  }
-
-  subscribeToTeams(
-    organizationId: string,
-    onUpdate: (teams: Team[]) => void,
-  ): Unsubscribe {
-    return onSnapshot(
-      collection(this.db, "organizations", organizationId, "teams"),
-      (snap) => {
-        onUpdate(snap.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>)));
-      },
-    );
-  }
-
-  // ─── Partners ────────────────────────────────────────────────────────────────
-
-  async sendPartnerInvite(
-    organizationId: string,
-    teamId: string,
-    email: string,
-  ): Promise<string> {
-    const ref = await addDoc(
-      collection(this.db, "organizations", organizationId, "partnerInvites"),
-      {
-        email,
-        teamId,
-        role: "Guest",
-        inviteState: "pending",
-        invitedAt: serverTimestamp(),
-      },
-    );
-    return ref.id;
-  }
-
-  async dismissPartnerMember(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-  ): Promise<void> {
-    await this.removeMemberFromTeam(organizationId, teamId, memberId);
-  }
-
-  async getPartnerInvites(organizationId: string): Promise<PartnerInvite[]> {
-    const snaps = await getDocs(
-      collection(this.db, "organizations", organizationId, "partnerInvites"),
-    );
-    return snaps.docs.map((d) => toPartnerInvite(d.id, d.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/organization/infrastructure/firebase/FirebaseOrgPolicyRepository.ts
-````typescript
-/**
- * FirebaseOrgPolicyRepository — Infrastructure adapter for org-policy persistence.
- * Implements the OrgPolicyRepository port.
- *
- * OrgPolicy is a separate aggregate that lives in the top-level `orgPolicies`
- * Firestore collection, independent of the `organizations` collection.
- * Per IDDD, this warrants its own repository.
- */
-
-import {
-  getFirestore,
-  doc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  getDocs,
-  query,
-  where,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type { OrgPolicyRepository } from "../../domain/repositories/OrgPolicyRepository";
-import type {
-  OrgPolicy,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../../domain/entities/Organization";
-import { toOrgPolicy } from "./organization-mappers";
-
-export class FirebaseOrgPolicyRepository implements OrgPolicyRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy> {
-    const now = new Date().toISOString();
-    const ref = await addDoc(collection(this.db, "orgPolicies"), {
-      orgId: input.orgId,
-      name: input.name,
-      description: input.description,
-      rules: input.rules,
-      scope: input.scope,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      _createdAt: serverTimestamp(),
-    });
-    return {
-      id: ref.id,
-      orgId: input.orgId,
-      name: input.name,
-      description: input.description,
-      rules: input.rules,
-      scope: input.scope,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-    };
-  }
-
-  async updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void> {
-    const updates: Record<string, unknown> = {
-      updatedAt: new Date().toISOString(),
-      _updatedAt: serverTimestamp(),
-    };
-    if (data.name !== undefined) updates.name = data.name;
-    if (data.description !== undefined) updates.description = data.description;
-    if (data.rules !== undefined) updates.rules = data.rules;
-    if (data.scope !== undefined) updates.scope = data.scope;
-    if (data.isActive !== undefined) updates.isActive = data.isActive;
-    await updateDoc(doc(this.db, "orgPolicies", policyId), updates);
-  }
-
-  async deletePolicy(policyId: string): Promise<void> {
-    await deleteDoc(doc(this.db, "orgPolicies", policyId));
-  }
-
-  async getPolicies(orgId: string): Promise<OrgPolicy[]> {
-    const q = query(collection(this.db, "orgPolicies"), where("orgId", "==", orgId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toOrgPolicy(d.id, d.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/organization/interfaces/queries/organization.queries.ts
-````typescript
-/**
- * Organization Read Queries — thin wrappers for real-time subscription and one-shot reads.
- * Callable from React components/hooks, NOT server actions.
- */
-
-import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
-import { FirebaseOrgPolicyRepository } from "../../infrastructure/firebase/FirebaseOrgPolicyRepository";
-import type { MemberReference, Team, PartnerInvite, OrgPolicy } from "../../domain/entities/Organization";
-import type { Unsubscribe } from "../../domain/repositories/OrganizationRepository";
-
-const orgRepo = new FirebaseOrganizationRepository();
-const policyRepo = new FirebaseOrgPolicyRepository();
-
-// ─── Members ─────────────────────────────────────────────────────────────────
-
-export async function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
-  return orgRepo.getMembers(organizationId);
-}
-
-export function subscribeToOrganizationMembers(
-  organizationId: string,
-  onUpdate: (members: MemberReference[]) => void,
-): Unsubscribe {
-  return orgRepo.subscribeToMembers(organizationId, onUpdate);
-}
-
-// ─── Teams ───────────────────────────────────────────────────────────────────
-
-export async function getOrganizationTeams(organizationId: string): Promise<Team[]> {
-  return orgRepo.getTeams(organizationId);
-}
-
-export function subscribeToOrganizationTeams(
-  organizationId: string,
-  onUpdate: (teams: Team[]) => void,
-): Unsubscribe {
-  return orgRepo.subscribeToTeams(organizationId, onUpdate);
-}
-
-// ─── Partners ─────────────────────────────────────────────────────────────────
-
-export async function getPartnerInvites(organizationId: string): Promise<PartnerInvite[]> {
-  return orgRepo.getPartnerInvites(organizationId);
-}
-
-// ─── Policy ───────────────────────────────────────────────────────────────────
-
-export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
-  return policyRepo.getPolicies(orgId);
-}
-````
-
 ## File: modules/search/api/server.ts
 ````typescript
 /**
@@ -61597,29 +62337,6 @@ export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase {
     new GenkitRagGenerationRepository(),
   );
 }
-````
-
-## File: modules/shared/domain/slug-utils.test.ts
-````typescript
-import { describe, expect, it } from "vitest";
-
-import { deriveSlugCandidate, isValidSlug } from "./slug-utils";
-
-describe("slug-utils", () => {
-  it("normalizes display names into slug candidates", () => {
-    expect(deriveSlugCandidate("Hello__World / 測試")).toBe("hello-world");
-  });
-
-  it("caps slug candidates at 63 characters", () => {
-    expect(deriveSlugCandidate("a".repeat(80))).toHaveLength(63);
-  });
-
-  it("accepts valid slugs and rejects malformed ones", () => {
-    expect(isValidSlug("team-space-01")).toBe(true);
-    expect(isValidSlug("ab")).toBe(false);
-    expect(isValidSlug("-team-space")).toBe(false);
-  });
-});
 ````
 
 ## File: modules/source/interfaces/_actions/file-processing-draft.purchase-order.ts
@@ -62952,23 +63669,6 @@ export class WorkspaceFlowFacade {
 }
 ````
 
-## File: modules/workspace-flow/index.ts
-````typescript
-/**
- * @module workspace-flow
- * @file index.ts
- * @description Aggregate public exports for workspace-flow.
- *
- * Cross-module consumers SHOULD use @/modules/workspace-flow/api directly.
- * This root entry mirrors only the stable public surface.
- *
- * @author workspace-flow
- * @since 2026-03-24
- */
-
-export * from "./api";
-````
-
 ## File: modules/workspace-scheduling/interfaces/WorkspaceSchedulingTab.tsx
 ````typescript
 "use client";
@@ -63191,13 +63891,13 @@ export function WorkspaceSchedulingTab({
 }
 ````
 
-## File: modules/workspace/application/dtos/AGENT.md
+## File: modules/workspace/application/use-cases/AGENT.md
 ````markdown
-# application/dtos — Application DTOs（應用層資料傳輸物件）
+# application/use-cases — Use Cases（單一使用案例）
 
-此目錄放 **use case 邊界的 input/output 型別**，與 domain model 解耦。
+此目錄放 **一個 user goal / command / query 對應的一段應用層流程**。
 
-> DTO 是使用案例的「語言」，不是 domain model 的語言。
+> 一個 use case 只負責一個明確操作，不承擔長流程 saga，也不承擔純領域規則。
 
 ---
 
@@ -63205,14 +63905,12 @@ export function WorkspaceSchedulingTab({
 
 | 類型 | 範例 |
 |------|------|
-| Use case input DTO | `CreateWorkspaceDto`、`UpdateWorkspaceSettingsDto` |
-| Use case output projection | `WorkspaceSummaryDto`（唯讀快照） |
-| Query filter DTO | `WorkspaceQueryDto`（分頁、篩選條件） |
-| Zod schema（邊界驗證） | `CreateWorkspaceDtoSchema`（Server Action 或 API 邊界使用） |
-| 跨 use case 共用的資料形狀 | `PaginationDto`、`TaskQueryDto`（Phase 3 移入） |
+| Command-side use case | `CreateWorkspaceUseCase`、`UpdateWorkspaceSettingsUseCase` |
+| Query-side use case | `FetchWorkspaceMembersUseCase` |
+| 單一使用案例的 orchestration | 載入 aggregate、呼叫 domain service、呼叫 output port、回傳 DTO |
+| 薄型 use-case barrel | `workspace.use-cases.ts` |
 
-**判斷準則**：資料從 interface layer 進入 → use case 需要的 input shape，
-或 use case 回傳給 interface layer 的 output shape → 放入此處。
+**判斷準則**：如果它是在完成一個明確操作，例如「建立工作區」「更新設定」「取得成員列表」，就放這裡。
 
 ---
 
@@ -63220,193 +63918,69 @@ export function WorkspaceSchedulingTab({
 
 | 禁止項目 | 原因 |
 |----------|------|
-| Domain entity class 或 Aggregate Root | 放 `domain/aggregates/`、`domain/entities/` |
-| Firebase、HTTP、React 等框架 import | DTO 是純資料結構 |
-| 業務規則邏輯（Zod 以外的驗證） | 業務規則放 `domain/services/` |
-| Repository interface | 放 `domain/repositories/` 或 `ports/output/` |
-| 直接可序列化為 Firestore document 的 shape | 那是 infrastructure converter 的責任 |
+| 多步驟長流程 / Saga / Process Manager | 放 `application/services/` |
+| 純業務規則（policy、guard、invariant） | 放 `domain/services/` 或 aggregate 本身 |
+| React component、Route Handler、CLI handler | 放 `interfaces/` |
+| Firebase / event bus concrete class 依賴 | 應透過 `ports/output/` |
+| Firestore document mapping / converter | 放 `infrastructure/firebase/` |
 
 ---
 
 ## 命名慣例
 
 ```
-create-<entity>.dto.ts    → 新建用 input DTO
-update-<entity>.dto.ts    → 更新用 input DTO
-<entity>-query.dto.ts     → 查詢篩選 DTO
-<entity>-summary.dto.ts   → 唯讀輸出 projection DTO
-pagination.dto.ts         → 共用分頁 DTO
+create-<entity>.use-case.ts
+update-<entity>.use-case.ts
+fetch-<entity>.use-case.ts
+<feature>.use-cases.ts        → barrel / group export only
 ```
 
-## 依賴方向
+## 依賴箭頭
 
-```
-application/dtos → domain/（只取 enum 或 value object 型別作為欄位型別）
-application/use-cases → application/dtos（use case 使用 DTO 作為參數或回傳）
-interfaces/ → application/dtos（表單、Server Action 使用 DTO 作為輸入）
+```txt
+interfaces/api|cli|web
+    -> ports/input
+    -> application/use-cases
+application/use-cases
+    -> application/dtos
+application/use-cases
+    -> domain/aggregates|entities|services
+application/use-cases
+    -> ports/output
 ```
 
-`application/dtos` **不可**依賴 `infrastructure/`、`interfaces/`。
+`application/use-cases` **不可**依賴 `infrastructure/`、`interfaces/`。
 
 ---
 
-## Phase 3 預計移入
+## 與 Application Service 的分工
 
-workspace-flow 合併後，以下 DTO 將搬入此目錄：
-`create-task.dto.ts`、`update-task.dto.ts`、`open-issue.dto.ts`、
-`resolve-issue.dto.ts`、`add-invoice-item.dto.ts`、`update-invoice-item.dto.ts`、
-`remove-invoice-item.dto.ts`、`task-query.dto.ts`、`issue-query.dto.ts`、
-`invoice-query.dto.ts`、`pagination.dto.ts`
+- 一個 use case = 一個明確操作
+- 一個 application service = 協調多個 use case 或長流程
+- 若覺得 use case 開始需要追蹤流程狀態、重試、去重、事件編排，就該搬去 `application/services/`
 ````
 
-## File: modules/workspace/application/services/AGENT.md
-````markdown
-# application/services — Application Services（應用服務 = 流程）
-
-> **Application Service = 流程**
-> 協調多個 use case 或跨 aggregate 的執行**順序與事務邊界**。
-> 它不包含業務規則——那是 Domain Service 的責任。
-
----
-
-## ✅ 屬於此處
-
-| 類型 | 範例 |
-|------|------|
-| Process Manager / Saga | `KnowledgeToWorkflowMaterializer`（Phase 3 移入） |
-| 跨 aggregate 複合流程 | 需要協調 2 個以上 repository 的操作 |
-| 事件驅動流程 | 訂閱 domain event → 觸發多個 use case 的 orchestrator |
-| 冪等性管理器 | 對外部事件去重、保證 at-most-once 處理 |
-
-**判斷準則**：
-- 單一 aggregate 的一個動作 → `application/use-cases/`
-- 多個 use case 按順序執行，或需要跨越 aggregate 邊界協調 → **此處**
-
----
-
-## ❌ 禁止放入
-
-| 禁止項目 | 原因 |
-|----------|------|
-| 業務規則計算（invariant、guard） | 業務規則放 `domain/services/` |
-| 單一 aggregate 的 CRUD 操作 | 放 `application/use-cases/` |
-| UI 組裝、React component | 放 `interfaces/` |
-| Firebase 直接操作（非透過 port） | 走 `domain/repositories/` port，由 infrastructure 實作 |
-| 持有長期狀態（in-memory singleton） | 冪等性狀態需持久化，不可只存 in-memory |
-
----
-
-## 與 Domain Service 的區別
-
-| | Domain Service | Application Service |
-|--|---------------|---------------------|
-| **職責** | **邏輯**（業務規則） | **流程**（協調順序） |
-| **狀態** | 無狀態 | 可能跨步驟維護流程狀態 |
-| **依賴** | 只依賴 domain | 可依賴 use-cases、ports |
-| **範例** | `task-transition-policy.ts` | `KnowledgeToWorkflowMaterializer` |
-
----
-
-## 命名慣例
-
-```
-<process>-manager.ts            → Process Manager（Saga）
-<domain>-workflow.service.ts    → 跨 aggregate 流程協調
-<event-topic>-handler.ts        → 事件驅動 orchestrator
-```
-
-## 依賴方向
-
-```
-application/services → domain/（entities, repositories, events）
-application/services → application/use-cases（組裝流程時）
-application/services → ports/output（取得 repository / event publisher port）
-```
-
-`application/services` **不可**依賴 `infrastructure/`、`interfaces/`。
-
----
-
-## Phase 3 預計移入
-
-workspace-flow 合併後，Process Manager 將搬入此目錄：
-- `KnowledgeToWorkflowMaterializer`（目前在 `workspace-flow/application/process-managers/`）
-
-同時，其 in-memory 冪等性 Set 需替換為 Firestore persistent store（`infrastructure/firebase/MaterializedEventRepository`）。
-````
-
-## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
+## File: modules/workspace/application/use-cases/workspace-member.use-cases.ts
 ````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Build the workspace content-tree from account/workspace seeds.
- *          Lives in workspace because it aggregates workspace-scoped content nodes.
- */
+import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMember";
+import type { WorkspaceQueryRepository } from "../../ports/output/WorkspaceQueryRepository";
 
-import type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-} from "../../domain/entities/WikiContentTree";
-import type { WikiWorkspaceRepository } from "../../domain/repositories/WikiWorkspaceRepository";
+export class FetchWorkspaceMembersUseCase {
+  constructor(private readonly workspaceQueryRepo: WorkspaceQueryRepository) {}
 
-function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {
-  return [
-    { key: "spaces", label: "Workspace", href: `/workspace/${workspaceId}`, enabled: true },
-    { key: "pages", label: "Knowledge Pages", href: `/knowledge/pages?workspaceId=${workspaceId}`, enabled: true },
-    { key: "libraries", label: "Libraries", href: `/source/libraries?workspaceId=${workspaceId}`, enabled: true },
-    { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
-    { key: "vector-index", label: "Vector Index", href: "/knowledge", enabled: false },
-    { key: "rag", label: "RAG", href: `/notebook/rag-query?workspaceId=${workspaceId}`, enabled: true },
-    { key: "ai-tools", label: "AI Tools", href: `/ai-chat?workspaceId=${workspaceId}`, enabled: true },
-  ];
-}
-
-function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiWorkspaceContentNode {
-  return {
-    workspaceId,
-    workspaceName,
-    href: `/workspace/${workspaceId}`,
-    contentBaseItems: buildContentBaseItems(workspaceId),
-  };
-}
-
-export async function buildWikiContentTree(
-  seeds: WikiAccountSeed[],
-  workspaceRepository: WikiWorkspaceRepository,
-): Promise<WikiAccountContentNode[]> {
-  const accountNodes = await Promise.all(
-    seeds.map(async (seed) => {
-      const workspaces = await workspaceRepository.listByAccountId(seed.accountId);
-      return {
-        accountId: seed.accountId,
-        accountName: seed.accountName,
-        accountType: seed.accountType,
-        isActive: seed.isActive,
-        membersHref: seed.accountType === "organization" ? "/organization/members" : undefined,
-        teamsHref: seed.accountType === "organization" ? "/organization/teams" : undefined,
-        workspaces: workspaces.map((workspace) => buildWorkspaceNode(workspace.id, workspace.name)),
-      } satisfies WikiAccountContentNode;
-    }),
-  );
-
-  return accountNodes.sort((a, b) => {
-    if (a.accountType !== b.accountType) {
-      return a.accountType === "personal" ? -1 : 1;
-    }
-    return a.accountName.localeCompare(b.accountName, "zh-Hant");
-  });
+  execute(workspaceId: string): Promise<WorkspaceMemberView[]> {
+    return this.workspaceQueryRepo.getWorkspaceMembers(workspaceId);
+  }
 }
 ````
 
-## File: modules/workspace/domain/aggregates/AGENT.md
+## File: modules/workspace/domain/entities/AGENT.md
 ````markdown
-# domain/aggregates — Aggregate Roots（聚合根）
+# domain/entities — Entities（實體 / Supporting Domain Objects）
 
-此目錄放 `workspace` BC 的所有 **Aggregate Root 類別**。
-Aggregate Root 是 write-side 的一致性邊界。
+此目錄放 **具 identity 的 supporting domain objects**，它們屬於 domain model，但不是 aggregate root。
+
+> Entity 可以有生命週期與 identity，但不承擔整個一致性邊界。那是 aggregate root 的責任。
 
 ---
 
@@ -63414,12 +63988,11 @@ Aggregate Root 是 write-side 的一致性邊界。
 
 | 類型 | 範例 |
 |------|------|
-| Aggregate Root class | `Workspace`（含 invariant、domain event 發出） |
-| Aggregate 內嵌的 command type | `CreateWorkspaceCommand`、`UpdateWorkspaceSettingsCommand` |
-| Aggregate 上的 factory method 或 static constructor | `Workspace.create()`、`Task.create()` |
+| Supporting Entity | `WorkspaceLocation`、`Capability` |
+| Aggregate 內部帶 identity 的子物件 | 自訂角色、子節點、附屬記錄 |
+| 過渡期既有 domain object | 尚未移入 `domain/aggregates/` 的 legacy entity |
 
-**判斷準則**：有自己的唯一識別、維護業務不變量（invariant）、
-作為外部引用的根（其他 aggregate 只能持有其 ID）→ 放入此處。
+**判斷準則**：如果它有 identity，但不作為整個寫入一致性的根，就放在這裡。
 
 ---
 
@@ -63427,44 +64000,33 @@ Aggregate Root 是 write-side 的一致性邊界。
 
 | 禁止項目 | 原因 |
 |----------|------|
-| 純實體（Entity，無 invariant 責任） | 放 `domain/entities/` |
-| Value Object（無 identity，equality by value） | 放 `domain/value-objects/` |
-| Read model / projection（查詢用途） | 放 `interfaces/` 或 `application/dtos/` |
-| Repository interface | 放 `domain/repositories/` |
-| Framework import（Firebase、React 等） | Aggregate 必須 framework-free |
+| Aggregate Root | 放 `domain/aggregates/` |
+| Value Object | 放 `domain/value-objects/` |
+| Query-side projection / read model | 不應新增到這裡；應留在 query-side / DTO surface |
+| DTO | 放 `application/dtos/` |
+| Firebase、HTTP、React import | Domain entity 必須 framework-free |
 
 ---
 
-## 現況
+## 依賴箭頭
 
-> `Workspace` 目前仍在 `domain/entities/Workspace.ts`。
-> 在 Phase 3（workspace-flow 合併）完成後，將整批遷移：
+```txt
+domain/aggregates
+    -> domain/entities
+domain/services
+    -> domain/entities
+domain/entities
+    -> domain/value-objects (optional)
+```
 
-| Aggregate Root | 來源 | 狀態 |
-|---------------|------|------|
-| `Workspace` | `domain/entities/Workspace.ts` | 待遷移 |
-| `Task` | `workspace-flow` 合併 | Phase 3 |
-| `Issue` | `workspace-flow` 合併 | Phase 3 |
-| `Invoice` | `workspace-flow` 合併 | Phase 3 |
+`domain/entities` **不可**依賴 `application/`、`infrastructure/`、`interfaces/`、`ports/output/`。
 
 ---
 
-## 命名慣例
+## 注意事項
 
-```
-PascalCase.ts     → Aggregate Root 類別檔案
-PascalCase.test.ts → 對應的單元測試
-```
-
-## 依賴方向
-
-```
-domain/aggregates → domain/value-objects
-domain/aggregates → domain/events（發出事件型別）
-domain/aggregates → domain/services（呼叫 domain service，如有需要）
-```
-
-`domain/aggregates` **不可**依賴 `application/`、`infrastructure/`、`interfaces/`。
+- 現有歷史 read model 若暫時還在此目錄，視為過渡態，不代表新檔案也應放這裡。
+- 新增檔案時，先問自己：它是不是 aggregate root？是不是 value object？如果都不是，再考慮 entity。
 ````
 
 ## File: modules/workspace/domain/entities/Workspace.test.ts
@@ -63608,6 +64170,114 @@ export interface WorkspaceLocationCatalog {
 }
 ````
 
+## File: modules/workspace/domain/events/AGENT.md
+````markdown
+# domain/events — Domain Events（領域事件）
+
+此目錄放 **workspace bounded context 對外發布的事件語言**。
+
+> Domain Event 是 published language，不是 event bus adapter，也不是 process manager。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Event type / discriminated union | `workspace.created`、`workspace.lifecycle_transitioned` |
+| Event payload type | `WorkspaceCreatedEvent` |
+| Event 建構 helper | 只服務事件建立的薄型 helper |
+
+**判斷準則**：如果它描述的是「workspace 發生了什麼」，而不是「系統要怎麼處理」，就放這裡。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Event bus / dispatcher implementation | 放 `infrastructure/events/` |
+| Event subscriber / process manager | 放 `application/services/` |
+| Retry / dead-letter / transport 細節 | 屬於 infrastructure |
+| UI notification、toast、路由邏輯 | 不屬於 domain event 語言 |
+
+---
+
+## 依賴箭頭
+
+```txt
+domain/aggregates
+    -> domain/events
+domain/services
+    -> domain/events (type only, optional)
+application/use-cases
+    -> domain/events
+ports/output/WorkspaceDomainEventPublisher
+    -> domain/events (type only)
+```
+
+`domain/events` **不可**依賴 `infrastructure/`、`interfaces/`、`application/services/`。
+
+---
+
+## 命名慣例
+
+```
+workspace.events.ts
+create-workspace-created-event.ts
+```
+
+事件名稱優先使用 `workspace.<verb_past_tense>` 風格，保持 published language 穩定。
+````
+
+## File: modules/workspace/domain/factories/AGENT.md
+````markdown
+# domain/factories — Domain Factories（領域工廠）
+
+此目錄放 **建立 aggregate、entity、value object、domain event 的工廠與 reconstitution helper**。
+
+> Factory 的責任是「安全地建立有效模型」，不是持久化，也不是流程協調。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Aggregate factory | 建立 `Workspace` 的 factory function |
+| Reconstitution helper | 從 persistence snapshot 重建 aggregate / entity |
+| Value object parser / normalizer | 將 raw input 正規化成 VO |
+| Domain event factory | 建立標準化 event payload |
+
+**判斷準則**：若它的任務是把 raw data 轉成有效 domain model，而不是執行業務流程，就放這裡。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Repository / persistence code | 放 `infrastructure/` |
+| Use case orchestration | 放 `application/use-cases/` 或 `application/services/` |
+| React / Route Handler / CLI code | 放 `interfaces/` |
+| 與模型建立無關的通用 utility | 不應混進 domain factory |
+
+---
+
+## 依賴箭頭
+
+```txt
+application/use-cases
+    -> domain/factories
+domain/factories
+    -> domain/aggregates
+domain/factories
+    -> domain/entities|value-objects|events
+```
+
+`domain/factories` **不可**依賴 `infrastructure/`、`interfaces/`、`application/services/`。
+````
+
 ## File: modules/workspace/domain/factories/WorkspaceFactory.ts
 ````typescript
 import {
@@ -63627,142 +64297,6 @@ export function reconstituteWorkspaceAggregate(snapshot: WorkspaceEntity): Works
 export function toWorkspaceSnapshot(workspace: Workspace): WorkspaceEntity {
   return workspace.toSnapshot();
 }
-````
-
-## File: modules/workspace/domain/ports/WorkspaceDomainEventPublisher.ts
-````typescript
-import type { WorkspaceDomainEvent } from "../events/workspace.events";
-
-export interface WorkspaceEventPublishMetadata {
-  readonly workspaceId?: string;
-  readonly organizationId?: string;
-}
-
-export interface WorkspaceDomainEventPublisher {
-  publish(
-    event: WorkspaceDomainEvent,
-    metadata?: WorkspaceEventPublishMetadata,
-  ): Promise<void>;
-}
-````
-
-## File: modules/workspace/domain/repositories/WorkspaceAccessRepository.ts
-````typescript
-import type { WorkspaceGrant } from "../entities/Workspace";
-
-export interface WorkspaceAccessRepository {
-  grantTeamAccess(workspaceId: string, teamId: string): Promise<void>;
-  revokeTeamAccess(workspaceId: string, teamId: string): Promise<void>;
-  grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void>;
-  revokeIndividualAccess(workspaceId: string, userId: string): Promise<void>;
-}
-````
-
-## File: modules/workspace/domain/repositories/WorkspaceCapabilityRepository.ts
-````typescript
-import type { Capability } from "../entities/Workspace";
-
-export interface WorkspaceCapabilityRepository {
-  mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void>;
-  unmountCapability(workspaceId: string, capabilityId: string): Promise<void>;
-}
-````
-
-## File: modules/workspace/domain/repositories/WorkspaceLocationRepository.ts
-````typescript
-import type { WorkspaceLocation } from "../entities/Workspace";
-
-export interface WorkspaceLocationRepository {
-  createLocation(workspaceId: string, location: Omit<WorkspaceLocation, "locationId">): Promise<string>;
-  updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void>;
-  deleteLocation(workspaceId: string, locationId: string): Promise<void>;
-}
-````
-
-## File: modules/workspace/domain/repositories/WorkspaceRepository.ts
-````typescript
-/**
- * WorkspaceRepository — Port for workspace persistence.
- */
-
-import type {
-  WorkspaceEntity,
-  UpdateWorkspaceSettingsCommand,
-} from "../entities/Workspace";
-
-export interface WorkspaceRepository {
-  findById(id: string): Promise<WorkspaceEntity | null>;
-  findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null>;
-  findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]>;
-  save(workspace: WorkspaceEntity): Promise<string>;
-  updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void>;
-  delete(id: string): Promise<void>;
-}
-````
-
-## File: modules/workspace/domain/services/AGENT.md
-````markdown
-# domain/services — Domain Services（領域服務 = 邏輯）
-
-> **Domain Service = 邏輯**
-> 不自然屬於單一 Aggregate 或 Value Object 的**純業務規則**放在這裡。
-
----
-
-## ✅ 屬於此處
-
-| 類型 | 範例 |
-|------|------|
-| 跨 Aggregate invariant 驗證 | 工作區名稱全域唯一性規則 |
-| Transition policy（狀態轉換規則） | `WorkspaceLifecycleTransitionPolicy`、`TaskTransitionPolicy` |
-| Guard 函式（前置條件檢查） | `WorkspaceAccessGuard`、`task-guards.ts` |
-| 複雜業務規則計算 | 無需持久化的純計算邏輯 |
-
-**判斷準則**：規則自然屬於某個 Aggregate → 放入 Aggregate。
-跨越 Aggregate 邊界，或 Aggregate 裡放了會讓它太胖 → 才放入此處。
-
----
-
-## ❌ 禁止放入
-
-| 禁止項目 | 原因 |
-|----------|------|
-| Firebase、HTTP、React 等框架 import | Domain 層必須 framework-free |
-| Repository 呼叫（持久化）| 持久化是 infrastructure 的責任 |
-| 流程協調（順序控制、多步驟 orchestration） | 那是 Application Service（`application/services/`）的責任 |
-| Use case 邏輯 | Use case 放 `application/use-cases/` |
-| `class` 持有狀態 | Domain Service 必須無狀態（stateless） |
-
----
-
-## 命名慣例
-
-```
-<entity>-guards.ts              → 前置條件檢查
-<entity>-transition-policy.ts   → 狀態轉換規則
-<concept>-rules.ts              → 業務規則集合
-```
-
-## 依賴方向
-
-```
-domain/services → domain/entities
-domain/services → domain/value-objects
-domain/services → domain/events（只取型別）
-```
-
-`domain/services` **不可**依賴 `application/`、`infrastructure/`、`interfaces/`。
-
----
-
-## Phase 3 預計移入
-
-workspace-flow 合併後，以下檔案將搬入此目錄：
-- `task-guards.ts`
-- `task-transition-policy.ts`
-- `issue-transition-policy.ts`
-- `invoice-guards.ts`
-- `invoice-transition-policy.ts`
 ````
 
 ## File: modules/workspace/domain/value-objects/Address.ts
@@ -63796,6 +64330,57 @@ export function formatAddress(address: Address): string[] {
     address.details,
   ].filter((line): line is string => Boolean(line));
 }
+````
+
+## File: modules/workspace/domain/value-objects/AGENT.md
+````markdown
+# domain/value-objects — Value Objects（值對象）
+
+此目錄放 **以值相等判斷語意的 immutable domain objects**。
+
+> Value Object 沒有自己的 identity；它的責任是封裝值語意、正規化與內建約束。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Primitive wrapper | `WorkspaceName` |
+| 狀態 / 枚舉語意包裝 | `WorkspaceLifecycleState`、`WorkspaceVisibility` |
+| 小型值結構 | `Address` |
+| 值正規化與 equality 邏輯 | trim、canonicalize、value equality |
+
+**判斷準則**：如果它沒有獨立 identity，且語意由值本身決定，就放這裡。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Aggregate Root / Entity | 應放 `domain/aggregates/` 或 `domain/entities/` |
+| 跨多物件的業務規則 | 放 `domain/services/` |
+| Repository / persistence code | 放 `ports/output/` 或 `infrastructure/` |
+| DTO / read projection | 放 `application/dtos/` 或 query-side |
+| Firebase、HTTP、React import | Value Object 必須 framework-free |
+
+---
+
+## 依賴箭頭
+
+```txt
+domain/aggregates
+    -> domain/value-objects
+domain/entities
+    -> domain/value-objects
+domain/services
+    -> domain/value-objects
+application/dtos
+    -> domain/value-objects (type only, optional)
+```
+
+`domain/value-objects` 應盡量維持 leaf-like，**不可**依賴 `application/`、`infrastructure/`、`interfaces/`。
 ````
 
 ## File: modules/workspace/domain/value-objects/index.ts
@@ -63982,312 +64567,116 @@ export function isWorkspaceVisible(visibility: WorkspaceVisibility): boolean {
 }
 ````
 
-## File: modules/workspace/infrastructure/events/SharedWorkspaceDomainEventPublisher.ts
-````typescript
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-  QStashEventBusRepository,
-} from "@/modules/shared/api";
-import type {
-  WorkspaceDomainEventPublisher,
-  WorkspaceEventPublishMetadata,
-} from "../../domain/ports/WorkspaceDomainEventPublisher";
-import type { WorkspaceDomainEvent } from "../../domain/events/workspace.events";
-
-function toEventPayload(event: WorkspaceDomainEvent) {
-  const {
-    eventId: _eventId,
-    type: _type,
-    aggregateId: _aggregateId,
-    occurredAt: _occurredAt,
-    ...payload
-  } = event;
-
-  return payload as Record<string, unknown>;
-}
-
-export class SharedWorkspaceDomainEventPublisher
-  implements WorkspaceDomainEventPublisher
-{
-  private readonly publishDomainEventUseCase: PublishDomainEventUseCase;
-
-  constructor() {
-    const eventBus = process.env.QSTASH_TOKEN
-      ? new QStashEventBusRepository()
-      : new NoopEventBusRepository();
-
-    this.publishDomainEventUseCase = new PublishDomainEventUseCase(
-      new InMemoryEventStoreRepository(),
-      eventBus,
-    );
-  }
-
-  async publish(
-    event: WorkspaceDomainEvent,
-    metadata?: WorkspaceEventPublishMetadata,
-  ): Promise<void> {
-    try {
-      await this.publishDomainEventUseCase.execute({
-        id: event.eventId,
-        eventName: event.type,
-        aggregateType: "Workspace",
-        aggregateId: event.aggregateId,
-        occurredAt: new Date(event.occurredAt),
-        payload: toEventPayload(event),
-        metadata,
-      });
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[workspace.events] Failed to publish workspace domain event:", error);
-      }
-    }
-  }
-}
-````
-
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
-````typescript
-import type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../../domain/entities/WorkspaceMember";
-import type { WorkspaceQueryRepository } from "../../domain/repositories/WorkspaceQueryRepository";
-import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import {
-  organizationApi,
-  type OrganizationMemberDTO,
-  type OrganizationTeamDTO,
-} from "@/modules/organization/api";
-import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
-
-const personnelLabels = {
-  managerId: "Manager",
-  supervisorId: "Supervisor",
-  safetyOfficerId: "Safety officer",
-} as const;
-
-const personnelLabelEntries = Object.entries(personnelLabels) as Array<
-  [keyof typeof personnelLabels, string]
->;
-
-function toPresence(value: OrganizationMemberDTO["presence"] | undefined): WorkspaceMemberPresence {
-  if (value === "active" || value === "away" || value === "offline") {
-    return value;
-  }
-
-  return "unknown";
-}
-
-function createFallbackMember(id: string): WorkspaceMemberView {
-  return {
-    id,
-    displayName: id,
-    presence: "unknown",
-    isExternal: false,
-    accessChannels: [],
-  };
-}
-
-export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
-
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ) {
-    const normalizedAccountId = accountId.trim();
-    if (!normalizedAccountId) {
-      onUpdate([]);
-      return () => {};
-    }
-
-    const q = query(
-      collection(this.db, "workspaces"),
-      where("accountId", "==", normalizedAccountId),
-    );
-
-    return onSnapshot(q, (snap) => {
-      const workspaces = snap.docs.map((docSnap) =>
-        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
-      );
-      onUpdate(workspaces);
-    });
-  }
-
-  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    const workspace = await this.workspaceRepo.findById(workspaceId);
-    if (!workspace) {
-      return [];
-    }
-
-    const members = new Map<string, WorkspaceMemberView>();
-    const memberChannelKeys = new Map<string, Set<string>>();
-
-    const mergeMember = (
-      memberId: string,
-      channel: WorkspaceMemberAccessChannel,
-      orgMember?: OrganizationMemberDTO,
-    ) => {
-      const current = members.get(memberId) ?? createFallbackMember(memberId);
-      const channelKey = [
-        channel.source,
-        channel.label,
-        channel.role ?? "",
-        channel.protocol ?? "",
-        channel.teamId ?? "",
-      ].join("::");
-      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
-      memberChannelKeys.set(memberId, knownChannelKeys);
-      const hasSameChannel = knownChannelKeys.has(channelKey);
-      if (!hasSameChannel) {
-        knownChannelKeys.add(channelKey);
-      }
-
-      members.set(memberId, {
-        id: memberId,
-        displayName: orgMember?.name || current.displayName,
-        email: orgMember?.email ?? current.email,
-        organizationRole: orgMember?.role ?? current.organizationRole,
-        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
-        isExternal: orgMember?.isExternal ?? current.isExternal,
-        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
-      });
-    };
-
-    if (workspace.accountType === "organization") {
-      const [organizationMembers, teams] = await Promise.all([
-        organizationApi.getMembers(workspace.accountId),
-        organizationApi.getTeams(workspace.accountId),
-      ]);
-
-      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
-      const teamMap = new Map(teams.map((team) => [team.id, team]));
-
-      const mergeTeam = (team: OrganizationTeamDTO, role?: string, protocol?: string) => {
-        const label = team.name || team.id;
-        team.memberIds.forEach((memberId) => {
-          mergeMember(
-            memberId,
-            {
-              source: "team",
-              label,
-              role,
-              protocol,
-              teamId: team.id,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        });
-      };
-
-      workspace.teamIds.forEach((teamId) => {
-        const team = teamMap.get(teamId);
-        if (team) {
-          mergeTeam(team);
-        }
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(
-            grant.userId,
-            {
-              source: "direct",
-              label: "Direct access",
-              role: grant.role,
-              protocol: grant.protocol,
-            },
-            organizationMemberMap.get(grant.userId),
-          );
-        }
-
-        if (grant.teamId) {
-          const team = teamMap.get(grant.teamId);
-          if (team) {
-            mergeTeam(team, grant.role, grant.protocol);
-          }
-        }
-      });
-
-      personnelLabelEntries.forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field];
-        if (memberId) {
-          mergeMember(
-            memberId,
-            {
-              source: "personnel",
-              label,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        }
-      });
-    } else {
-      mergeMember(workspace.accountId, {
-        source: "owner",
-        label: "Workspace owner",
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(grant.userId, {
-            source: "direct",
-            label: "Direct access",
-            role: grant.role,
-            protocol: grant.protocol,
-          });
-        }
-      });
-
-      personnelLabelEntries.forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field];
-        if (memberId) {
-          mergeMember(memberId, {
-            source: "personnel",
-            label,
-          });
-        }
-      });
-    }
-
-    return Array.from(members.values()).sort((left, right) =>
-      left.displayName.localeCompare(right.displayName),
-    );
-  }
-}
-````
-
-## File: modules/workspace/interfaces/api/AGENT.md
+## File: modules/workspace/infrastructure/events/AGENT.md
 ````markdown
-# API Interface Agent Guide
+# infrastructure/events — Event Adapters（事件基礎設施適配器）
 
-## 目標
-`api/` 是 **HTTP / Next.js App Router 驅動層**，負責將外部請求（REST / HTTP）轉換為 **Input Port 呼叫**。
+此目錄放 **workspace 對外事件發布的 concrete implementation**。
 
-## 能放的內容
-- Route Handlers / API Endpoint（Next.js App Router / API Route）
-- HTTP Request → DTO 轉換
-- 驗證請求（Request validation）
-- 呼叫 Application Input Ports（Use Case）
-- 將結果轉換為 HTTP Response / JSON
-- HTTP Error Handling（非業務邏輯錯誤）
+> 這裡只實作「怎麼發佈事件」，不定義「什麼是事件」或「何時該發」。
 
-## 不能放的內容
-- 核心業務邏輯（Domain / Application 流程）
-- 直接呼叫 Repository / Database / Genkit
-- UI 元件、React hooks
-- State 管理或 UI 格式化（純 API 層不處理）
+---
 
-## 依賴原則
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Event publisher implementation | `SharedWorkspaceDomainEventPublisher` |
+| Bus / dispatcher adapter | 連接 shared event bus、event store、pubsub |
+| Event envelope mapper | 將 domain event 轉成外部 transport payload |
+| 發布基礎設施細節 | retry、dispatch、transport glue code |
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Domain event 定義 | 放 `domain/events/` |
+| Use case 分支決策 / 業務規則 | 放 `application/` 或 `domain/services/` |
+| Process Manager / Saga | 放 `application/services/` |
+| React / Route Handler / CLI code | 放 `interfaces/` |
+
+---
+
+## 依賴箭頭
+
+```txt
+application/use-cases
+    -> ports/output/WorkspaceDomainEventPublisher
+infrastructure/events
+    -> ports/output
+infrastructure/events
+    -> domain/events
+```
+
+`infrastructure/events` **不可**依賴 `interfaces/`，也不應承擔 domain 決策。
+````
+
+## File: modules/workspace/infrastructure/firebase/AGENT.md
+````markdown
+# infrastructure/firebase — Firebase Adapters（Firebase 基礎設施適配器）
+
+此目錄放 **workspace output ports 的 Firebase / Firestore / Storage / Genkit 實作**。
+
+> 這裡的責任是 persistence 與外部整合，不是業務規則。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Repository implementation | `FirebaseWorkspaceRepository`、`FirebaseWorkspaceQueryRepository` |
+| Firestore converter / mapper | document ↔ domain snapshot / projection 轉換 |
+| Transaction / batch persistence code | Firestore transaction、batch write |
+| Firebase-specific adapter glue | Storage / Genkit / shared integration 的實作細節 |
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Domain rule / policy / invariant | 放 `domain/` |
+| Use case orchestration | 放 `application/` |
+| Route Handler / CLI / React hooks | 放 `interfaces/` |
+| DTO 定義 | 放 `application/dtos/` |
+
+---
+
+## 依賴箭頭
+
+```txt
+application/use-cases|application/services
+    -> ports/output
+infrastructure/firebase
+    -> ports/output
+infrastructure/firebase
+    -> domain/aggregates|entities|value-objects (mapping only)
+```
+
+`infrastructure/firebase` **不可**反向讓 Firebase 細節滲透進 `domain/`。
+````
+
+## File: modules/workspace/infrastructure/firebase/FirebaseWikiWorkspaceRepository.ts
+````typescript
+import { FirebaseWorkspaceRepository } from "./FirebaseWorkspaceRepository";
+
+import type { WikiWorkspaceRepository } from "../../ports/output/WikiWorkspaceRepository";
+import type { WikiWorkspaceRef } from "../../domain/entities/WikiContentTree";
+
+const workspaceRepo = new FirebaseWorkspaceRepository();
+
+export class FirebaseWikiWorkspaceRepository implements WikiWorkspaceRepository {
+  async listByAccountId(accountId: string): Promise<WikiWorkspaceRef[]> {
+    const workspaces = await workspaceRepo.findAllByAccountId(accountId);
+    return workspaces.map((workspace) => ({
+      id: workspace.id,
+      name: workspace.name,
+    }));
+  }
+}
 ````
 
 ## File: modules/workspace/interfaces/api/contracts.ts
@@ -64462,120 +64851,6 @@ export {
   getWorkspaceIdFromPath,
   useRecentWorkspaces,
 } from "../hooks/useRecentWorkspaces";
-````
-
-## File: modules/workspace/interfaces/cli/AGENT.md
-````markdown
-# CLI Interface Agent Guide
-
-## 目標
-`cli/` 是 **命令行驅動層**，將命令參數轉換為 **Input Port 呼叫**，供系統內部或 Cron Job 使用。
-
-## 能放的內容
-- CLI 命令解析（yargs / commander / Oclif）
-- 參數轉成 DTO
-- 呼叫 Application Input Ports（Use Case）
-- 顯示命令結果（console.log / stdout）
-- 簡單錯誤訊息處理（非業務邏輯）
-
-## 不能放的內容
-- Domain / Application 流程邏輯
-- Repository / Database / Genkit 直接操作
-- UI 元件或 React Hook
-- 複雜的資料格式化或業務計算
-
-## 依賴原則
-````
-
-## File: modules/workspace/interfaces/components/CreateWorkspaceDialog.tsx
-````typescript
-"use client";
-
-import { type FormEvent } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-interface CreateWorkspaceDialogProps {
-  readonly open: boolean;
-  readonly workspaceName: string;
-  readonly createError: string | null;
-  readonly isCreatingWorkspace: boolean;
-  readonly accountId: string | null | undefined;
-  readonly onOpenChange: (open: boolean) => void;
-  readonly onWorkspaceNameChange: (name: string) => void;
-  readonly onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}
-
-export function CreateWorkspaceDialog({
-  open,
-  workspaceName,
-  createError,
-  isCreatingWorkspace,
-  accountId,
-  onOpenChange,
-  onWorkspaceNameChange,
-  onSubmit,
-}: CreateWorkspaceDialogProps) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-describedby="create-workspace-description">
-        <DialogHeader>
-          <DialogTitle>建立工作區</DialogTitle>
-          <DialogDescription id="create-workspace-description">
-            建立後會直接出現在目前帳號的工作區清單中。
-          </DialogDescription>
-        </DialogHeader>
-
-        <form className="space-y-4" onSubmit={onSubmit}>
-          <div className="space-y-2">
-            <label
-              className="text-sm font-medium text-foreground"
-              htmlFor="workspace-name"
-            >
-              工作區名稱
-            </label>
-            <Input
-              id="workspace-name"
-              value={workspaceName}
-              onChange={(event) => onWorkspaceNameChange(event.target.value)}
-              placeholder="例如：北區營運中心"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-              disabled={isCreatingWorkspace}
-              maxLength={80}
-            />
-            {createError && (
-              <p className="text-sm text-destructive">{createError}</p>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isCreatingWorkspace}
-            >
-              取消
-            </Button>
-            <Button type="submit" disabled={isCreatingWorkspace || !accountId}>
-              {isCreatingWorkspace ? "建立中…" : "直接建立"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
 ````
 
 ## File: modules/workspace/interfaces/components/workspace-detail-helpers.ts
@@ -64898,28 +65173,6 @@ export function WorkspaceQuickstartCard({ workspaceId }: WorkspaceQuickstartCard
 }
 ````
 
-## File: modules/workspace/interfaces/web/AGENT.md
-````markdown
-# Web Interface Agent Guide
-
-## 目標
-`web/` 是 **UI 封裝層**，將前端 UI 元件與 Application Input Port 連接，支援 React / shadcn 組件。
-
-## 能放的內容
-- shadcn UI Components 封裝
-- React Hooks 封裝（呼叫 Input Ports，管理 loading / error state）
-- UI 狀態管理（非業務邏輯）
-- Input Port 呼叫的簡單資料格式化（例如日期 / string → DTO）
-
-## 不能放的內容
-- 核心業務邏輯（Domain / Application）
-- Repository / Database / Genkit 呼叫
-- HTTP Route Handler（應該在 api/）
-- CLI 命令解析（應該在 cli/）
-
-## 依賴原則
-````
-
 ## File: modules/workspace/interfaces/workspace-nav-items.ts
 ````typescript
 /**
@@ -65063,129 +65316,111 @@ export function buildWorkspaceQuickAccessItems(workspaceId: string): WorkspaceQu
 }
 ````
 
-## File: modules/workspace/ports/index.ts
+## File: modules/workspace/ports/output/WikiWorkspaceRepository.ts
 ````typescript
 /**
- * Workspace Ports Surface
- *
- * This folder is the explicit hexagonal port entry for the workspace BC.
- * Keep ports as interfaces only; implementations must stay in infrastructure/.
+ * Module: workspace
+ * Layer: domain/repositories
+ * Purpose: Repository port for fetching workspace refs used by the
+ *          Wiki content-tree use-case.
  */
 
-// Driven ports (domain/application core -> outside)
-export type { WorkspaceRepository } from "../domain/repositories/WorkspaceRepository";
-export type { WorkspaceCapabilityRepository } from "../domain/repositories/WorkspaceCapabilityRepository";
-export type { WorkspaceAccessRepository } from "../domain/repositories/WorkspaceAccessRepository";
-export type { WorkspaceLocationRepository } from "../domain/repositories/WorkspaceLocationRepository";
-export type {
-  WorkspaceQueryRepository,
-  Unsubscribe as WorkspaceQueryUnsubscribe,
-} from "../domain/repositories/WorkspaceQueryRepository";
-export type { WikiWorkspaceRepository } from "../domain/repositories/WikiWorkspaceRepository";
+import type { WikiWorkspaceRef } from "../../domain/entities/WikiContentTree";
 
-// Domain event publishing port
-export type {
-  WorkspaceDomainEventPublisher,
-  WorkspaceEventPublishMetadata,
-} from "../domain/ports/WorkspaceDomainEventPublisher";
+export interface WikiWorkspaceRepository {
+  listByAccountId(accountId: string): Promise<WikiWorkspaceRef[]>;
+}
 ````
 
-## File: modules/workspace/ports/input/AGENT.md
-````markdown
-# ports/input — Driving Ports（輸入端口）
+## File: modules/workspace/ports/output/WorkspaceAccessRepository.ts
+````typescript
+import type { WorkspaceGrant } from "../../domain/entities/Workspace";
 
-此目錄保留給 `workspace` BC 的顯式 **inbound port interfaces**。
-
----
-
-## 現況：目前為空
-
-workspace 的 driving port 即為 application layer 的 **use case 類別本身**。
-外部呼叫者（UI、Server Action、其他 BC）直接透過 `api/facade.ts` 進入，
-不需要額外定義 input interface。
-
-> 此目錄作為結構佔位，代表「我們知道 input port 的概念位置在哪裡」。
-
----
-
-## ✅ 屬於此處（未來填入條件）
-
-| 類型 | 填入時機 |
-|------|---------|
-| Inbound event handler interface | 當外部 BC 需要透過明確 interface 訂閱 workspace 事件時 |
-| Command bus interface | 當引入 CQRS command bus，需要顯式 command handler contract 時 |
-| Driving Adapter contract | 當 UI / external trigger 需要對 usecase 有針對性的版本化 interface 時 |
-
-## ❌ 禁止放入
-
-| 禁止項目 | 原因 |
-|----------|------|
-| Concrete class 或 adapter | 實作放 `interfaces/` 或 `infrastructure/` |
-| 業務規則或流程邏輯 | 邏輯放 `domain/services/` 或 `application/services/` |
-| 目前作用中的業務邏輯 | 此目錄未有 input contract 需求前保持空白 |
-
----
-
-## 依賴方向
-
-```
-ports/input  →  domain/（只取型別，如有需要）
-interfaces/  →  implements ports/input（如有顯式 driving adapter contract）
-```
+export interface WorkspaceAccessRepository {
+  grantTeamAccess(workspaceId: string, teamId: string): Promise<void>;
+  revokeTeamAccess(workspaceId: string, teamId: string): Promise<void>;
+  grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void>;
+  revokeIndividualAccess(workspaceId: string, userId: string): Promise<void>;
+}
 ````
 
-## File: modules/workspace/ports/output/AGENT.md
-````markdown
-# ports/output — Driven Ports（輸出端口）
+## File: modules/workspace/ports/output/WorkspaceCapabilityRepository.ts
+````typescript
+import type { Capability } from "../../domain/entities/Workspace";
 
-此目錄是 `workspace` BC 核心對外部基礎設施「要求能力」的**唯一抽象入口**。
-Core（domain + application）依賴這些 interface；infrastructure 實作它們。
+export interface WorkspaceCapabilityRepository {
+  mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void>;
+  unmountCapability(workspaceId: string, capabilityId: string): Promise<void>;
+}
+````
 
----
+## File: modules/workspace/ports/output/WorkspaceDomainEventPublisher.ts
+````typescript
+import type { WorkspaceDomainEvent } from "../../domain/events/workspace.events";
 
-## ✅ 屬於此處
+export interface WorkspaceEventPublishMetadata {
+  readonly workspaceId?: string;
+  readonly organizationId?: string;
+}
 
-| 類型 | 範例 |
-|------|------|
-| Repository port interface | `WorkspaceRepository`、`WorkspaceQueryRepository` |
-| Domain event publisher port | `WorkspaceDomainEventPublisher` |
-| 任何 BC 核心向外索取能力的抽象介面 | `StoragePort`、`NotificationPort`（未來） |
+export interface WorkspaceDomainEventPublisher {
+  publish(
+    event: WorkspaceDomainEvent,
+    metadata?: WorkspaceEventPublishMetadata,
+  ): Promise<void>;
+}
+````
 
-## ❌ 禁止放入
+## File: modules/workspace/ports/output/WorkspaceLocationRepository.ts
+````typescript
+import type { WorkspaceLocation } from "../../domain/entities/Workspace";
 
-| 禁止項目 | 原因 |
-|----------|------|
-| `class`、concrete implementation | 實作放 `infrastructure/` |
-| Firebase、HTTP、React 等框架 import | 抽象層不能感知外部技術 |
-| 業務邏輯、計算 | 邏輯放 `domain/services/` |
-| DTO / data shape | 資料形狀放 `application/dtos/` |
+export interface WorkspaceLocationRepository {
+  createLocation(workspaceId: string, location: Omit<WorkspaceLocation, "locationId">): Promise<string>;
+  updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void>;
+  deleteLocation(workspaceId: string, locationId: string): Promise<void>;
+}
+````
 
----
+## File: modules/workspace/ports/output/WorkspaceQueryRepository.ts
+````typescript
+/**
+ * WorkspaceQueryRepository — Port for workspace read projections.
+ */
 
-## 依賴方向
+import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMember";
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
 
-```
-ports/output  →  domain/（只取型別，e.g., WorkspaceDomainEvent）
-infrastructure  →  ports/output（實作 interface）
-application  →  ports/output（消費 interface，透過 constructor injection）
-```
+export type Unsubscribe = () => void;
 
-`ports/output` 本身**不可**被 `domain/` 反向依賴。
+export interface WorkspaceQueryRepository {
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ): Unsubscribe;
+  getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]>;
+}
+````
 
----
+## File: modules/workspace/ports/output/WorkspaceRepository.ts
+````typescript
+/**
+ * WorkspaceRepository — Port for workspace persistence.
+ */
 
-## 目前 Port 清單
+import type {
+  WorkspaceEntity,
+  UpdateWorkspaceSettingsCommand,
+} from "../../domain/entities/Workspace";
 
-> 現有定義暫存於 `domain/ports/WorkspaceDomainEventPublisher.ts`，
-> 遷移至此目錄後請更新 `ports/index.ts` 的 re-export 路徑。
-
-- `WorkspaceDomainEventPublisher`（待遷移）
-- `WorkspaceRepository`（re-export 自 `domain/repositories/`）
-- `WorkspaceCapabilityRepository`
-- `WorkspaceAccessRepository`
-- `WorkspaceLocationRepository`
-- `WorkspaceQueryRepository`
-- `WikiWorkspaceRepository`
+export interface WorkspaceRepository {
+  findById(id: string): Promise<WorkspaceEntity | null>;
+  findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null>;
+  findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]>;
+  save(workspace: WorkspaceEntity): Promise<string>;
+  updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void>;
+  delete(id: string): Promise<void>;
+}
 ````
 
 ## File: modules/workspace/ports/README.md
@@ -65225,146 +65460,6 @@ application  →  ports/output（消費 interface，透過 constructor injection
 - `WorkspaceQueryRepository`
 - `WikiWorkspaceRepository`
 - `WorkspaceDomainEventPublisher`
-````
-
-## File: package.json
-````json
-{
-  "name": "xuanwu-app",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
-    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
-    "deploy:storage:rules": "npx firebase deploy --only storage",
-    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
-    "deploy:apphosting": "npx firebase deploy --only apphosting",
-    "deploy:functions": "npx firebase deploy --only functions:py_fn",
-    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
-    "deploy:functions:all": "npx firebase deploy --only functions",
-    "deploy:firebase": "npx firebase deploy",
-    "repomix:skill": "npx repomix --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
-    "repomix:markdown": "npx repomix --skill-generate xuanwu-app-markdown-skill --skill-output .github/skills/xuanwu-app-markdown-skill --include \"**/*.md\" --force",
-    "repomix:remote": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill --remote xx/xx --include \"apps/web/**\" --force",
-    "repomix:local": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill D:\\122sp7\\apps --force",
-    "repomix:remote:vscode-docs": "npx repomix --remote microsoft/vscode-docs --include \"docs/**\" --skill-generate vscode-docs-skill --skill-output .github/skills/vscode-docs-skill --force"
-  },
-  "engines": {
-    "node": "24"
-  },
-  "dependencies": {
-    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
-    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
-    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
-    "@genkit-ai/google-genai": "^1.30.1",
-    "@tanstack/react-form": "^1.28.5",
-    "@tanstack/react-query": "^5.90.21",
-    "@tanstack/react-table": "^8.21.3",
-    "@tanstack/react-virtual": "^3.13.23",
-    "@tiptap/extension-color": "^3.22.2",
-    "@tiptap/extension-link": "^3.22.2",
-    "@tiptap/extension-placeholder": "^3.22.2",
-    "@tiptap/extension-text-style": "^3.22.2",
-    "@tiptap/extension-typography": "^3.22.2",
-    "@tiptap/extension-underline": "^3.22.2",
-    "@tiptap/react": "^3.22.2",
-    "@tiptap/starter-kit": "^3.22.2",
-    "@trpc/client": "^11.13.4",
-    "@trpc/next": "^11.13.4",
-    "@trpc/react-query": "^11.13.4",
-    "@trpc/server": "^11.13.4",
-    "@xstate/react": "^6.1.0",
-    "axios": "^1.13.6",
-    "cmdk": "^1.1.1",
-    "date-fns": "^4.1.0",
-    "embla-carousel-react": "^8.6.0",
-    "firebase": "^12.9.0",
-    "genkit": "^1.30.1",
-    "input-otp": "^1.4.2",
-    "lucide-react": "^0.577.0",
-    "next": "16.1.7",
-    "next-themes": "^0.4.6",
-    "radix-ui": "^1.4.3",
-    "react": "19.2.3",
-    "react-day-picker": "^9.14.0",
-    "react-dom": "19.2.3",
-    "react-graph-vis": "^1.0.7",
-    "react-markdown": "^10.1.0",
-    "recharts": "^2.15.4",
-    "remark-gfm": "^4.0.1",
-    "sonner": "^2.0.7",
-    "superjson": "^2.2.6",
-    "uuid": "^13.0.0",
-    "vaul": "^1.1.2",
-    "vis-data": "^8.0.3",
-    "vis-graph3d": "^7.0.2",
-    "vis-network": "^10.0.2",
-    "vis-timeline": "^8.5.0",
-    "xstate": "^5.28.0",
-    "zod": "^4.3.6",
-    "zustand": "^5.0.12"
-  },
-  "devDependencies": {
-    "@next/eslint-plugin-next": "^16.2.2",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20.19.37",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@typescript-eslint/eslint-plugin": "^8.57.1",
-    "@typescript-eslint/parser": "^8.57.1",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "^16.1.7",
-    "eslint-plugin-boundaries": "^6.0.1",
-    "eslint-plugin-jsdoc": "^62.8.0",
-    "eslint-plugin-jsx-a11y": "^6.10.2",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "repomix": "^1.12.0",
-    "shadcn": "^4.1.0",
-    "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4",
-    "tailwindcss-animate": "^1.0.7",
-    "tw-animate-css": "^1.4.0",
-    "typescript": "^5",
-    "typescript-eslint": "^8.58.0",
-    "vitest": "^4.1.2"
-  }
-}
-````
-
-## File: packages/shared-utils/index.test.ts
-````typescript
-import { describe, expect, it } from "vitest";
-
-import { cn, formatDate, generateId } from "./index";
-
-describe("shared-utils", () => {
-  it("formats dates as YYYY-MM-DD", () => {
-    expect(formatDate(new Date("2026-04-06T15:20:30.000Z"))).toBe("2026-04-06");
-  });
-
-  it("merges tailwind class conflicts deterministically", () => {
-    expect(cn("px-2", ["text-sm", undefined], "px-4")).toBe("text-sm px-4");
-  });
-
-  it("generates UUID-shaped ids", () => {
-    expect(generateId()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-  });
-});
-````
-
-## File: py_fn/requirements-dev.txt
-````
--r requirements.txt
-pytest>=8.3.0,<9.0.0
 ````
 
 ## File: py_fn/tests/test_parse_document_handler.py
@@ -65539,230 +65634,31 @@ main().catch((err) => {
 });
 ````
 
-## File: .github/agents/commands.md
-````markdown
-# Build, Lint & Development Commands
+## File: vitest.config.ts
+````typescript
+import { resolve } from "node:path";
 
-## Development
+import { defineConfig } from "vitest/config";
 
-- `npm run dev` — Start Next.js development server (App Router, port 3000)
-- `npm run build` — Production build (Next.js + TypeScript type-check)
-- `npm run start` — Start production server from build output
-
-## Lint & Type Check
-
-- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
-- `npm run test` — Run Vitest unit tests
-- TypeScript type-checking is included in `npm run build`
-
-## Firebase Deployment
-
-- `npm run deploy:firebase` — Deploy all Firebase resources
-- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
-- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
-- `npm run deploy:storage:rules` — Deploy Storage security rules only
-- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
-- `npm run deploy:apphosting` — Deploy App Hosting configuration
-- `npm run deploy:functions` — Deploy Cloud Functions (Python)
-- `npm run deploy:functions:py-fn` — Deploy Python Cloud Functions only
-- `npm run deploy:functions:all` — Deploy all Cloud Functions
-
-## Repomix (AI Skill Generation)
-
-- `npm run repomix:skill` — Generate a repomix skill from the full codebase
-- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
-- `npm run repomix:local` — Generate a skill from a local directory
-
-## Key Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `next.config.ts` | Next.js 16 App Router configuration |
-| `tsconfig.json` | TypeScript config with `@alias` path mappings |
-| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
-| `tailwind.config.ts` | Tailwind CSS 4 configuration |
-| `firebase.json` | Firebase project configuration |
-| `firestore.rules` | Firestore security rules |
-| `firestore.indexes.json` | Firestore composite indexes |
-| `storage.rules` | Cloud Storage security rules |
-| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
-| `apphosting.yaml` | Firebase App Hosting configuration |
-
-## Environment Setup
-
-- **Node.js**: Version 24 required (see `engines` in `package.json`)
-- **Package manager**: npm
-- Install dependencies: `npm install`
-- Python test dependencies: `python -m pip install -r py_fn/requirements-dev.txt`
-- Firebase CLI: `npx firebase` (no global install required)
-````
-
-## File: AGENTS.md
-````markdown
-# Agent Guide — Xuanwu App
-
-This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
-
-## Development Status Workflow
-
-Use the following status flow for issues, tasks, and features:
-
-| Order | Status | Emoji | Description |
-|------|--------|-------|-------------|
-| 0 | Idea | 💡 | Initial idea or feature request |
-| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
-| 2 | Planned | 📅 | Planned and scheduled |
-| 3 | Designing | 🎨 | Architecture / UI / schema design |
-| 4 | Ready | 🟢 | Ready for development |
-| 5 | Developing | 🚧 | Active development |
-| 6 | Midway | 🏗️ | Development partially completed |
-| 7 | Testing | 🧪 | Testing / QA |
-| 8 | Fixing | 🔧 | Bug fixing |
-| 9 | Review | 🔍 | Code review / acceptance review |
-|10 | Staging | 🚀 | Staging / pre-production |
-|11 | Done | ✅ | Development completed |
-|12 | Delivered | 📦 | Delivered / deployed to production |
-|13 | Archived | 🗄️ | Archived / closed / inactive |
-
-## Quick Start
-
-1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
-2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
-3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
-4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
-
-## Non-Negotiable Session Contract
-
-- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it before continuing.
-- Serena is the orchestration lead. Serena understands the request first and decides whether subagents are needed.
-- If confidence in any library, framework, or config detail is below 99.99%, query Context7 before generating or recommending code.
-- Repository orchestration memory and index updates must go through Serena tools; direct `.serena/` edits or non-Serena replacements are not authoritative.
-
-## Orchestration Protocol
-
-- Serena MCP is mandatory at the start of every conversation and acts as the orchestration lead.
-- Serena understands the request first, reads relevant memory, gathers targeted context, and decides whether focused subagents are needed.
-- Subagents assist with exploration or execution, but Serena remains responsible for delegation and final synthesis.
-- If confidence in any library, framework, or config detail is below 99.99%, query Context7 before generating or recommending code.
-- `.claude/` is a supported Claude Code compatibility surface. Consult `.claude/settings.json`, `.claude/rules/tech-strategy.md`, and `.claude/hooks/*` when maintaining Claude-specific workflow or compatibility, while treating `.github/*` as the primary Copilot rule tree.
-
-## Key Rules
-
-### Architecture
-
-- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
-- Treat every `modules/<module-name>/` as an isolated bounded context.
-- Cross-module interaction must go through `modules/<module-name>/api/` only.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
-- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
-- Import shared code through `@alias` package aliases, never with relative paths across modules.
-
-### Import Aliases
-
-```ts
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-```
-
-Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
-
-### Runtime Boundary
-
-- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
-- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
-- Do not add chat streaming or auth logic to `py_fn/`.
-
-## Validation Commands
-
-```bash
-npm install          # Install dependencies
-npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
-npm run test         # Vitest unit test baseline
-npm run build        # Next.js production build + TypeScript type-check
-
-# Python worker
-cd py_fn && python -m pip install -r requirements-dev.txt
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-## Common Patterns
-
-### Server Action (write-side)
-
-```ts
-"use server";
-export async function myAction(input: MyInput): Promise<CommandResult> {
-  // validate → use case → return CommandResult
-}
-```
-
-### Use Case
-
-```ts
-// modules/<context>/application/use-cases/MyUseCase.ts
-export class MyUseCase {
-  constructor(private readonly repo: MyRepository) {}
-  async execute(input: MyInput): Promise<CommandResult> { ... }
-}
-```
-
-### Repository
-
-- Interface in `domain/repositories/`.
-- Firebase implementation in `infrastructure/firebase/`.
-
-## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
-
-本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
-
-### DDD 審查 Agent
-
-- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
-
-### DDD 指令文件 (Instructions)
-
-| 文件 | 用途 |
-|------|------|
-| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
-| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
-| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
-| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
-
-### DDD Prompt 模板
-
-- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
-- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
-
-### DDD 術語表
-
-DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
-
-## Spec-Driven Development
-
-When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## Copilot Delivery Workflow
-
-This repository also maintains a formal Copilot delivery chain for non-trivial work:
-
-1. Planner
-2. Implementer
-3. Reviewer
-4. QA
-
-Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
-
-## Permissions
-
-For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
-
-## Full Rules
-
-See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
+export default defineConfig({
+  resolve: {
+    alias: {
+      "@shared-types": resolve(__dirname, "packages/shared-types/index.ts"),
+      "@lib-zod": resolve(__dirname, "packages/lib-zod/index.ts"),
+    },
+  },
+  test: {
+    environment: "node",
+    include: ["**/*.{test,spec}.{ts,tsx,js,jsx}"],
+    exclude: [
+      "**/node_modules/**",
+      "**/.next/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/__pycache__/**",
+    ],
+  },
+});
 ````
 
 ## File: app/(shell)/dev-tools/dev-tools-helpers.ts
@@ -66306,127 +66202,6 @@ export function useApp() {
   if (!ctx) throw new Error("useApp must be used within AppProvider");
   return ctx;
 }
-````
-
-## File: CONTRIBUTING.md
-````markdown
-# Contributing to Xuanwu App
-
-Contributions are welcome. Please follow these guidelines to keep the codebase consistent and easy to review.
-
-## House Rules
-
-### 👥 Prevent Work Duplication
-
-Before opening a new issue or PR, check whether it already exists in [Issues](https://github.com/122sp7/xuanwu-app/issues) or [Pull Requests](https://github.com/122sp7/xuanwu-app/pulls).
-
-### ✅ Work on Approved Issues
-
-For new feature requests, wait for a maintainer to approve the issue before starting implementation. Bug fixes, security, performance, and documentation improvements can begin immediately.
-
-### 🚫 One Concern per PR
-
-Keep PRs small and focused. A PR should address one feature, bug, or refactor. Split large changes into a sequence of smaller PRs that can be reviewed and merged independently.
-
-### 📚 Write for Future Readers
-
-Every PR contributes to the long-term understanding of the codebase. Write clearly enough that someone — possibly you — can revisit it months later and still understand what happened and why.
-
-### ✅ Summarize Your PR
-
-Provide a short summary at the top of every PR describing the intent. Use `Closes #123` or `Fixes #456` in the description to auto-link related issues.
-
-### 🧪 Describe What Was Tested
-
-Explain how you validated your changes. For example: _"Tested locally with npm run dev, verified the new route renders without errors."_
-
----
-
-## Development
-
-### Prerequisites
-
-- Node.js 24
-- npm
-
-### Setup
-
-```bash
-npm install
-npm run dev      # Start Next.js dev server (port 3000)
-```
-
-### Validation
-
-Before pushing, ensure these all pass:
-
-```bash
-npm run lint     # ESLint — must have 0 errors
-npm run test     # Vitest unit tests
-npm run build    # Next.js production build + TypeScript type-check
-```
-
-For the Python worker:
-
-```bash
-cd py_fn && python -m pip install -r requirements-dev.txt
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
----
-
-## Architecture Conventions
-
-This project follows **Module-Driven Domain Design (MDDD)**. Before making changes, read:
-
-- [`.github/agents/README.md`](.github/agents/README.md) — rules index
-- [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
-- [`CLAUDE.md`](CLAUDE.md) — key architecture rules and patterns
-
-### Key Rules
-
-- Business logic lives in `modules/<context>/` with four layers: `domain/`, `application/`, `infrastructure/`, `interfaces/`.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must be framework-free.
-- Use `@alias` package imports (e.g., `@shared-types`, `@ui-shadcn`). Never use legacy `@/shared/*`, `@/libs/*`, `@/ui/*` paths.
-- Keep Next.js Server Actions thin — delegate to use cases, return `CommandResult`.
-
-### File Naming
-
-| Type | Pattern | Example |
-|------|---------|---------|
-| Domain entity | `PascalCase.ts` | `Organization.ts` |
-| Repository interface | `MyRepository.ts` | `WorkspaceRepository.ts` |
-| Firebase repository | `FirebaseMyRepository.ts` | `FirebaseWorkspaceRepository.ts` |
-| Use case | `my-use-case.ts` | `create-workspace.ts` |
-| Server Action | `*.actions.ts` | `workspace.actions.ts` |
-| React component | `PascalCase.tsx` | `WorkspaceCard.tsx` |
-
----
-
-## Making a Pull Request
-
-1. Fork the repository and create a branch from `main`.
-2. Make focused, incremental changes.
-3. Ensure `npm run lint` and `npm run build` pass with no new errors.
-4. Fill out the PR description with intent, changes, and testing notes.
-5. Link related issues with `Closes #N` or `Refs #N`.
-6. Request a review.
-
----
-
-## Spec-Driven Development
-
-For larger features, consider using spec-driven development. See [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## AI Delivery Workflow
-
-For larger or cross-module changes, prefer the formal Copilot delivery workflow:
-
-- Plan first with [`docs/swarm.md`](docs/swarm.md)
-- Use the implementation plan as the execution contract for implementation, review, and QA
-- Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
 ````
 
 ## File: firestore.indexes.json
@@ -67087,198 +66862,6 @@ export const ReorderKnowledgePageBlocksSchema = AccountScopeSchema.extend({
 });
 
 export type ReorderKnowledgePageBlocksDto = z.infer<typeof ReorderKnowledgePageBlocksSchema>;
-````
-
-## File: modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: application/use-cases
- * Purpose: Page lifecycle use cases — create, rename, move, reorder blocks, archive, list.
- * Review workflow: see knowledge-page-review.use-cases.ts
- * Appearance: see knowledge-page-appearance.use-cases.ts
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
-import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
-import {
-  CreateKnowledgePageSchema,
-  type CreateKnowledgePageDto,
-  RenameKnowledgePageSchema,
-  type RenameKnowledgePageDto,
-  MoveKnowledgePageSchema,
-  type MoveKnowledgePageDto,
-  ArchiveKnowledgePageSchema,
-  type ArchiveKnowledgePageDto,
-  ReorderKnowledgePageBlocksSchema,
-  type ReorderKnowledgePageBlocksDto,
-} from "../dto/knowledge.dto";
-
-export function buildKnowledgePageTree(pages: KnowledgePage[]): KnowledgePageTreeNode[] {
-  const map = new Map<string, KnowledgePageTreeNode>();
-  for (const page of pages) {
-    map.set(page.id, { ...page, children: [] });
-  }
-
-  const roots: KnowledgePageTreeNode[] = [];
-  for (const node of map.values()) {
-    if (node.parentPageId === null || !map.has(node.parentPageId)) {
-      roots.push(node);
-    } else {
-      const parent = map.get(node.parentPageId)!;
-      (parent.children as KnowledgePageTreeNode[]).push(node);
-    }
-  }
-
-  const sortByOrder = (nodes: KnowledgePageTreeNode[]): void => {
-    nodes.sort((a, b) => a.order - b.order);
-    for (const n of nodes) sortByOrder(n.children as KnowledgePageTreeNode[]);
-  };
-  sortByOrder(roots);
-
-  return roots;
-}
-
-export class CreateKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: CreateKnowledgePageDto): Promise<CommandResult> {
-    const parsed = CreateKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, workspaceId, title, parentPageId, createdByUserId } = parsed.data;
-
-    const page = await this.repo.create({
-      accountId,
-      workspaceId,
-      title: title.trim(),
-      parentPageId: parentPageId ?? null,
-      createdByUserId,
-    });
-
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class RenameKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: RenameKnowledgePageDto): Promise<CommandResult> {
-    const parsed = RenameKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, title } = parsed.data;
-    const updated = await this.repo.rename({ accountId, pageId, title: title.trim() });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class MoveKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: MoveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = MoveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, targetParentPageId } = parsed.data;
-
-    if (pageId === targetParentPageId) {
-      return commandFailureFrom("CONTENT_PAGE_CIRCULAR_MOVE", "A page cannot be its own parent.");
-    }
-
-    const updated = await this.repo.move({ accountId, pageId, targetParentPageId });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class ArchiveKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = ArchiveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId } = parsed.data;
-    const updated = await this.repo.archive(accountId, pageId);
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class ReorderKnowledgePageBlocksUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
-    const parsed = ReorderKnowledgePageBlocksSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, blockIds } = parsed.data;
-    const updated = await this.repo.reorderBlocks({ accountId, pageId, blockIds });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class GetKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    if (!accountId.trim() || !pageId.trim()) return null;
-    return this.repo.findById(accountId, pageId);
-  }
-}
-
-export class ListKnowledgePagesUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string): Promise<KnowledgePage[]> {
-    if (!accountId.trim()) return [];
-    return this.repo.listByAccountId(accountId);
-  }
-}
-
-export class ListKnowledgePagesByWorkspaceUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
-    if (!accountId.trim() || !workspaceId.trim()) return [];
-    return this.repo.listByWorkspaceId(accountId, workspaceId);
-  }
-}
-
-export class GetKnowledgePageTreeUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string): Promise<KnowledgePageTreeNode[]> {
-    if (!accountId.trim()) return [];
-    const pages = await this.repo.listByAccountId(accountId);
-    return buildKnowledgePageTree(pages);
-  }
-}
-
-export class GetKnowledgePageTreeByWorkspaceUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string, workspaceId: string): Promise<KnowledgePageTreeNode[]> {
-    if (!accountId.trim() || !workspaceId.trim()) return [];
-    const pages = await this.repo.listByWorkspaceId(accountId, workspaceId);
-    return buildKnowledgePageTree(pages);
-  }
-}
 ````
 
 ## File: modules/knowledge/README.md
@@ -69295,6 +68878,223 @@ export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: W
 }
 ````
 
+## File: modules/workspace/application/dtos/AGENT.md
+````markdown
+# application/dtos — Application DTOs（應用層資料傳輸物件）
+
+此目錄放 **use case 邊界的 input / output 型別**，與 domain model 解耦。
+
+> DTO 是使用案例的「語言」，不是 domain model 的語言。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Use case input DTO | `CreateWorkspaceDto`、`UpdateWorkspaceSettingsDto` |
+| Use case output DTO | `WorkspaceSummaryDto`、`WorkspaceDetailDto` |
+| Query filter DTO | `WorkspaceQueryDto`、`PaginationDto` |
+| 邊界驗證 schema | `CreateWorkspaceDtoSchema` |
+| 跨 use case 共用資料形狀 | 查詢條件、排序、分頁等純資料結構 |
+
+**判斷準則**：資料從 interface layer 進入，或從 use case 回到 interface layer，若只是資料形狀而非業務規則，就放這裡。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Aggregate Root / Entity / Value Object 主體 | 應放在 `domain/` |
+| Repository / Event Publisher 介面 | 應放在 `ports/output/` |
+| Firebase、HTTP、React 等框架 import | DTO 是純資料結構 |
+| 純業務規則邏輯 | 規則放 `domain/services/` |
+| 直接對應 Firestore document 的 persistence shape | 那是 `infrastructure/firebase/` 的責任 |
+
+---
+
+## 命名慣例
+
+```
+create-<entity>.dto.ts    → 建立用 input DTO
+update-<entity>.dto.ts    → 更新用 input DTO
+<entity>-query.dto.ts     → 查詢條件 DTO
+<entity>-summary.dto.ts   → 唯讀輸出 DTO
+pagination.dto.ts         → 共用分頁 DTO
+```
+
+## 依賴箭頭
+
+```txt
+interfaces/api|cli|web
+	-> application/dtos
+application/use-cases
+	-> application/dtos
+application/dtos
+	-> domain/value-objects (type only, optional)
+```
+
+`application/dtos` **不可**依賴 `infrastructure/`、`interfaces/`、`ports/output/`。
+
+---
+
+## Phase 3 預計移入
+
+workspace-flow 合併後，以下 DTO 可收斂進此目錄：
+`create-task.dto.ts`、`update-task.dto.ts`、`open-issue.dto.ts`、
+`resolve-issue.dto.ts`、`add-invoice-item.dto.ts`、`update-invoice-item.dto.ts`、
+`remove-invoice-item.dto.ts`、`task-query.dto.ts`、`issue-query.dto.ts`、
+`invoice-query.dto.ts`、`pagination.dto.ts`
+````
+
+## File: modules/workspace/application/services/AGENT.md
+````markdown
+# application/services — Application Services（應用服務 = 流程）
+
+> **Application Service = 流程**
+> 協調多個 use case 或跨 aggregate 的執行順序與事務邊界。
+> 它不包含業務規則，那是 `domain/services/` 的責任。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Process Manager / Saga | `KnowledgeToWorkflowMaterializer`（Phase 3 移入） |
+| 跨 aggregate 複合流程 | 需要協調兩個以上 output port 的流程 |
+| 事件驅動流程 | 訂閱 domain event → 觸發多個 use case 的 orchestrator |
+| 冪等性管理器 | 對外部事件去重、保證 at-most-once 處理 |
+
+**判斷準則**：
+- 單一 aggregate 的一個動作 → `application/use-cases/`
+- 多個 use case 按順序執行，或需要跨越 aggregate 邊界協調 → **此處**
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| 業務規則計算（invariant、guard、policy） | 業務規則放 `domain/services/` |
+| 單一 aggregate 的 CRUD 操作 | 放 `application/use-cases/` |
+| UI 組裝、React component、Route Handler、CLI handler | 放 `interfaces/` |
+| 直接依賴 Firebase / event bus implementation | 應透過 `ports/output/` |
+| 持有長期狀態的 in-memory singleton | 冪等性狀態需持久化，不能只存在記憶體 |
+
+---
+
+## 與 Domain Service 的區別
+
+| | Domain Service | Application Service |
+|--|---------------|---------------------|
+| **職責** | **邏輯**（業務規則） | **流程**（協調順序） |
+| **狀態** | 無狀態 | 可能跨步驟維護流程狀態 |
+| **依賴** | 只依賴 domain | 可依賴 use-cases、domain、ports |
+| **範例** | `task-transition-policy.ts` | `KnowledgeToWorkflowMaterializer` |
+
+---
+
+## 命名慣例
+
+```
+<process>-manager.ts            → Process Manager（Saga）
+<domain>-workflow.service.ts    → 跨 aggregate 流程協調
+<event-topic>-handler.ts        → 事件驅動 orchestrator
+```
+
+## 依賴箭頭
+
+```txt
+application/use-cases
+	-> application/services
+application/services
+	-> domain/services
+application/services
+	-> domain/aggregates|entities|events
+application/services
+	-> ports/output
+```
+
+`application/services` **不可**依賴 `infrastructure/`、`interfaces/`。
+
+---
+
+## Phase 3 預計移入
+
+workspace-flow 合併後，Process Manager 將搬入此目錄：
+- `KnowledgeToWorkflowMaterializer`（目前在 `workspace-flow/application/process-managers/`）
+
+同時，其 in-memory 冪等性 Set 需替換為 Firestore persistent store（`infrastructure/firebase/MaterializedEventRepository`）。
+````
+
+## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Build the workspace content-tree from account/workspace seeds.
+ *          Lives in workspace because it aggregates workspace-scoped content nodes.
+ */
+
+import type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+} from "../../domain/entities/WikiContentTree";
+import type { WikiWorkspaceRepository } from "../../ports/output/WikiWorkspaceRepository";
+
+function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {
+  return [
+    { key: "spaces", label: "Workspace", href: `/workspace/${workspaceId}`, enabled: true },
+    { key: "pages", label: "Knowledge Pages", href: `/knowledge/pages?workspaceId=${workspaceId}`, enabled: true },
+    { key: "libraries", label: "Libraries", href: `/source/libraries?workspaceId=${workspaceId}`, enabled: true },
+    { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
+    { key: "vector-index", label: "Vector Index", href: "/knowledge", enabled: false },
+    { key: "rag", label: "RAG", href: `/notebook/rag-query?workspaceId=${workspaceId}`, enabled: true },
+    { key: "ai-tools", label: "AI Tools", href: `/ai-chat?workspaceId=${workspaceId}`, enabled: true },
+  ];
+}
+
+function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiWorkspaceContentNode {
+  return {
+    workspaceId,
+    workspaceName,
+    href: `/workspace/${workspaceId}`,
+    contentBaseItems: buildContentBaseItems(workspaceId),
+  };
+}
+
+export async function buildWikiContentTree(
+  seeds: WikiAccountSeed[],
+  workspaceRepository: WikiWorkspaceRepository,
+): Promise<WikiAccountContentNode[]> {
+  const accountNodes = await Promise.all(
+    seeds.map(async (seed) => {
+      const workspaces = await workspaceRepository.listByAccountId(seed.accountId);
+      return {
+        accountId: seed.accountId,
+        accountName: seed.accountName,
+        accountType: seed.accountType,
+        isActive: seed.isActive,
+        membersHref: seed.accountType === "organization" ? "/organization/members" : undefined,
+        teamsHref: seed.accountType === "organization" ? "/organization/teams" : undefined,
+        workspaces: workspaces.map((workspace) => buildWorkspaceNode(workspace.id, workspace.name)),
+      } satisfies WikiAccountContentNode;
+    }),
+  );
+
+  return accountNodes.sort((a, b) => {
+    if (a.accountType !== b.accountType) {
+      return a.accountType === "personal" ? -1 : 1;
+    }
+    return a.accountName.localeCompare(b.accountName, "zh-Hant");
+  });
+}
+````
+
 ## File: modules/workspace/application/use-cases/workspace.use-cases.ts
 ````typescript
 /**
@@ -69321,6 +69121,73 @@ export {
   GrantIndividualAccessUseCase,
   CreateWorkspaceLocationUseCase,
 } from "./workspace-access.use-cases";
+````
+
+## File: modules/workspace/domain/aggregates/AGENT.md
+````markdown
+# domain/aggregates — Aggregate Roots（聚合根）
+
+此目錄放 `workspace` BC 的所有 **Aggregate Root 類別**。
+Aggregate Root 是 write-side 的一致性邊界。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Aggregate Root class | `Workspace`（含 invariant、domain event 發出） |
+| Aggregate 內嵌的 command type | `CreateWorkspaceCommand`、`UpdateWorkspaceSettingsCommand` |
+| Aggregate 上的 factory method 或 static constructor | `Workspace.create()`、`Task.create()` |
+
+**判斷準則**：有自己的唯一識別、維護業務不變量（invariant）、
+作為外部引用的根（其他 aggregate 只能持有其 ID）→ 放入此處。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| 純實體（Entity，無 invariant 責任） | 放 `domain/entities/` |
+| Value Object（無 identity，equality by value） | 放 `domain/value-objects/` |
+| Read model / projection（查詢用途） | 放 `interfaces/` 或 `application/dtos/` |
+| Repository / Event Publisher 介面 | 放 `ports/output/` |
+| Framework import（Firebase、React 等） | Aggregate 必須 framework-free |
+
+---
+
+## 現況
+
+> `Workspace` 目前仍在 `domain/entities/Workspace.ts`。
+> 在 Phase 3（workspace-flow 合併）完成後，將整批遷移：
+
+| Aggregate Root | 來源 | 狀態 |
+|---------------|------|------|
+| `Workspace` | `domain/entities/Workspace.ts` | 待遷移 |
+| `Task` | `workspace-flow` 合併 | Phase 3 |
+| `Issue` | `workspace-flow` 合併 | Phase 3 |
+| `Invoice` | `workspace-flow` 合併 | Phase 3 |
+
+---
+
+## 命名慣例
+
+```
+PascalCase.ts     → Aggregate Root 類別檔案
+PascalCase.test.ts → 對應的單元測試
+```
+
+## 依賴方向
+
+```
+domain/aggregates → domain/value-objects
+domain/aggregates → domain/entities
+domain/aggregates → domain/events（發出事件型別）
+domain/aggregates → domain/services（呼叫 domain service，如有需要）
+```
+
+`domain/aggregates` **不可**依賴 `application/`、`infrastructure/`、`interfaces/`。
 ````
 
 ## File: modules/workspace/domain/entities/WorkspaceProfile.ts
@@ -69446,245 +69313,447 @@ export function createWorkspaceVisibilityChangedEvent(input: {
 }
 ````
 
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
+## File: modules/workspace/domain/services/AGENT.md
+````markdown
+# domain/services — Domain Services（領域服務 = 邏輯）
+
+> **Domain Service = 邏輯**
+> 不自然屬於單一 Aggregate 或 Value Object 的**純業務規則**放在這裡。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| 跨 Aggregate invariant 驗證 | 工作區名稱全域唯一性規則 |
+| Transition policy（狀態轉換規則） | `WorkspaceLifecycleTransitionPolicy`、`TaskTransitionPolicy` |
+| Guard 函式（前置條件檢查） | `WorkspaceAccessGuard`、`task-guards.ts` |
+| 複雜業務規則計算 | 無需持久化的純計算邏輯 |
+
+**判斷準則**：規則自然屬於某個 Aggregate → 放入 Aggregate。
+跨越 Aggregate 邊界，或 Aggregate 裡放了會讓它太胖 → 才放入此處。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Firebase、HTTP、React 等框架 import | Domain 層必須 framework-free |
+| Repository 呼叫（持久化）| 持久化是 infrastructure 的責任 |
+| 流程協調（順序控制、多步驟 orchestration） | 那是 Application Service（`application/services/`）的責任 |
+| Use case 邏輯 | Use case 放 `application/use-cases/` |
+| `class` 持有狀態 | Domain Service 必須無狀態（stateless） |
+
+---
+
+## 命名慣例
+
+```
+<entity>-guards.ts              → 前置條件檢查
+<entity>-transition-policy.ts   → 狀態轉換規則
+<concept>-rules.ts              → 業務規則集合
+```
+
+## 依賴方向
+
+```
+application/use-cases → domain/services
+application/services → domain/services
+domain/services → domain/aggregates（型別或規則參照，如有需要）
+domain/services → domain/entities
+domain/services → domain/value-objects
+domain/services → domain/events（只取型別）
+```
+
+`domain/services` **不可**依賴 `application/`、`infrastructure/`、`interfaces/`。
+
+---
+
+## Phase 3 預計移入
+
+workspace-flow 合併後，以下檔案將搬入此目錄：
+- `task-guards.ts`
+- `task-transition-policy.ts`
+- `issue-transition-policy.ts`
+- `invoice-guards.ts`
+- `invoice-transition-policy.ts`
+````
+
+## File: modules/workspace/infrastructure/events/SharedWorkspaceDomainEventPublisher.ts
 ````typescript
-/**
- * FirebaseWorkspaceRepository — Infrastructure adapter for workspace persistence.
- * Translates Firestore documents ↔ Domain WorkspaceEntity.
- * Firebase SDK only exists in this file.
- */
-
 import {
-  getFirestore,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  query,
-  where,
-  documentId,
-  arrayUnion,
-  arrayRemove,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
-import type { WorkspaceCapabilityRepository } from "../../domain/repositories/WorkspaceCapabilityRepository";
-import type { WorkspaceAccessRepository } from "../../domain/repositories/WorkspaceAccessRepository";
-import type { WorkspaceLocationRepository } from "../../domain/repositories/WorkspaceLocationRepository";
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+  QStashEventBusRepository,
+} from "@/modules/shared/api";
 import type {
-  WorkspaceEntity,
-  Capability,
-  WorkspaceGrant,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceLocation,
-} from "../../domain/entities/Workspace";
-import { createAddress } from "../../domain/value-objects/Address";
-import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
-import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
-import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
+  WorkspaceDomainEventPublisher,
+  WorkspaceEventPublishMetadata,
+} from "../../ports/output/WorkspaceDomainEventPublisher";
+import type { WorkspaceDomainEvent } from "../../domain/events/workspace.events";
 
-// ─── Mapper ───────────────────────────────────────────────────────────────────
+function toEventPayload(event: WorkspaceDomainEvent) {
+  const {
+    eventId: _eventId,
+    type: _type,
+    aggregateId: _aggregateId,
+    occurredAt: _occurredAt,
+    ...payload
+  } = event;
 
-const VALID_ACCOUNT_TYPES = new Set<WorkspaceEntity["accountType"]>(["user", "organization"]);
+  return payload as Record<string, unknown>;
+}
 
-export function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity {
-  const accountType = VALID_ACCOUNT_TYPES.has(data.accountType as WorkspaceEntity["accountType"])
-    ? (data.accountType as WorkspaceEntity["accountType"])
-    : "user";
+export class SharedWorkspaceDomainEventPublisher
+  implements WorkspaceDomainEventPublisher
+{
+  private readonly publishDomainEventUseCase: PublishDomainEventUseCase;
 
+  constructor() {
+    const eventBus = process.env.QSTASH_TOKEN
+      ? new QStashEventBusRepository()
+      : new NoopEventBusRepository();
+
+    this.publishDomainEventUseCase = new PublishDomainEventUseCase(
+      new InMemoryEventStoreRepository(),
+      eventBus,
+    );
+  }
+
+  async publish(
+    event: WorkspaceDomainEvent,
+    metadata?: WorkspaceEventPublishMetadata,
+  ): Promise<void> {
+    try {
+      await this.publishDomainEventUseCase.execute({
+        id: event.eventId,
+        eventName: event.type,
+        aggregateType: "Workspace",
+        aggregateId: event.aggregateId,
+        occurredAt: new Date(event.occurredAt),
+        payload: toEventPayload(event),
+        metadata,
+      });
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[workspace.events] Failed to publish workspace domain event:", error);
+      }
+    }
+  }
+}
+````
+
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
+````typescript
+import type {
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../../domain/entities/WorkspaceMember";
+import type { WorkspaceQueryRepository } from "../../ports/output/WorkspaceQueryRepository";
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+import {
+  organizationApi,
+  type OrganizationMemberDTO,
+  type OrganizationTeamDTO,
+} from "@/modules/organization/api";
+import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
+
+const personnelLabels = {
+  managerId: "Manager",
+  supervisorId: "Supervisor",
+  safetyOfficerId: "Safety officer",
+} as const;
+
+const personnelLabelEntries = Object.entries(personnelLabels) as Array<
+  [keyof typeof personnelLabels, string]
+>;
+
+function toPresence(value: OrganizationMemberDTO["presence"] | undefined): WorkspaceMemberPresence {
+  if (value === "active" || value === "away" || value === "offline") {
+    return value;
+  }
+
+  return "unknown";
+}
+
+function createFallbackMember(id: string): WorkspaceMemberView {
   return {
     id,
-    name: createWorkspaceName(typeof data.name === "string" ? data.name : "Untitled workspace"),
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    accountType,
-    lifecycleState: createWorkspaceLifecycleState(
-      data.lifecycleState === "active" ||
-        data.lifecycleState === "stopped" ||
-        data.lifecycleState === "preparatory"
-        ? data.lifecycleState
-        : "preparatory",
-    ),
-    visibility: createWorkspaceVisibility(
-      data.visibility === "hidden" || data.visibility === "visible"
-        ? data.visibility
-        : "visible",
-    ),
-    capabilities: Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [],
-    grants: Array.isArray(data.grants) ? (data.grants as WorkspaceGrant[]) : [],
-    teamIds: Array.isArray(data.teamIds) ? (data.teamIds as string[]) : [],
-    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
-    address: data.address != null ? createAddress(data.address as NonNullable<UpdateWorkspaceSettingsCommand["address"]>) : undefined,
-    locations: Array.isArray(data.locations) ? (data.locations as WorkspaceLocation[]) : undefined,
-    personnel: data.personnel != null ? (data.personnel as WorkspaceEntity["personnel"]) : undefined,
-    createdAt: data.createdAt as WorkspaceEntity["createdAt"],
+    displayName: id,
+    presence: "unknown",
+    isExternal: false,
+    accessChannels: [],
   };
 }
 
-// ─── Repository ───────────────────────────────────────────────────────────────
-
-export class FirebaseWorkspaceRepository
-  implements
-    WorkspaceRepository,
-    WorkspaceCapabilityRepository,
-    WorkspaceAccessRepository,
-    WorkspaceLocationRepository {
+export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
   private get db() {
     return getFirestore(firebaseClientApp);
   }
 
-  async findById(id: string): Promise<WorkspaceEntity | null> {
-    const snap = await getDoc(doc(this.db, "workspaces", id));
-    if (!snap.exists()) return null;
-    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
-  }
+  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
 
-  async findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ) {
+    const normalizedAccountId = accountId.trim();
+    if (!normalizedAccountId) {
+      onUpdate([]);
+      return () => {};
+    }
+
     const q = query(
       collection(this.db, "workspaces"),
-      where("accountId", "==", accountId),
-      where(documentId(), "==", workspaceId),
+      where("accountId", "==", normalizedAccountId),
     );
-    const snaps = await getDocs(q);
-    const snap = snaps.docs[0];
-    if (!snap) return null;
-    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
+
+    return onSnapshot(q, (snap) => {
+      const workspaces = snap.docs.map((docSnap) =>
+        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
+      );
+      onUpdate(workspaces);
+    });
   }
 
-  async findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]> {
-    const q = query(collection(this.db, "workspaces"), where("accountId", "==", accountId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toWorkspaceEntity(d.id, d.data() as Record<string, unknown>));
-  }
+  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
+    const workspace = await this.workspaceRepo.findById(workspaceId);
+    if (!workspace) {
+      return [];
+    }
 
-  async save(workspace: WorkspaceEntity): Promise<string> {
-    const ref = doc(this.db, "workspaces", workspace.id);
-    const payload: Record<string, unknown> = {
-      name: workspace.name,
-      accountId: workspace.accountId,
-      accountType: workspace.accountType,
-      lifecycleState: workspace.lifecycleState,
-      visibility: workspace.visibility,
-      capabilities: workspace.capabilities,
-      grants: workspace.grants,
-      teamIds: workspace.teamIds,
-      createdAt: serverTimestamp(),
+    const members = new Map<string, WorkspaceMemberView>();
+    const memberChannelKeys = new Map<string, Set<string>>();
+
+    const mergeMember = (
+      memberId: string,
+      channel: WorkspaceMemberAccessChannel,
+      orgMember?: OrganizationMemberDTO,
+    ) => {
+      const current = members.get(memberId) ?? createFallbackMember(memberId);
+      const channelKey = [
+        channel.source,
+        channel.label,
+        channel.role ?? "",
+        channel.protocol ?? "",
+        channel.teamId ?? "",
+      ].join("::");
+      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
+      memberChannelKeys.set(memberId, knownChannelKeys);
+      const hasSameChannel = knownChannelKeys.has(channelKey);
+      if (!hasSameChannel) {
+        knownChannelKeys.add(channelKey);
+      }
+
+      members.set(memberId, {
+        id: memberId,
+        displayName: orgMember?.name || current.displayName,
+        email: orgMember?.email ?? current.email,
+        organizationRole: orgMember?.role ?? current.organizationRole,
+        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
+        isExternal: orgMember?.isExternal ?? current.isExternal,
+        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
+      });
     };
 
-    if (workspace.photoURL !== undefined) payload.photoURL = workspace.photoURL;
-    if (workspace.address !== undefined) payload.address = workspace.address;
-    if (workspace.locations !== undefined) payload.locations = workspace.locations;
-    if (workspace.personnel !== undefined) payload.personnel = workspace.personnel;
+    if (workspace.accountType === "organization") {
+      const [organizationMembers, teams] = await Promise.all([
+        organizationApi.getMembers(workspace.accountId),
+        organizationApi.getTeams(workspace.accountId),
+      ]);
 
-    await setDoc(ref, payload);
-    return workspace.id;
-  }
+      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
+      const teamMap = new Map(teams.map((team) => [team.id, team]));
 
-  async updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void> {
-    const updates: Record<string, unknown> = { updatedAt: serverTimestamp() };
-    if (command.name !== undefined) updates.name = command.name;
-    if (command.visibility !== undefined) updates.visibility = command.visibility;
-    if (command.lifecycleState !== undefined) updates.lifecycleState = command.lifecycleState;
-    if (command.address !== undefined) updates.address = command.address;
-    if (command.personnel !== undefined) updates.personnel = command.personnel;
-    await updateDoc(doc(this.db, "workspaces", command.workspaceId), updates);
-  }
+      const mergeTeam = (team: OrganizationTeamDTO, role?: string, protocol?: string) => {
+        const label = team.name || team.id;
+        team.memberIds.forEach((memberId) => {
+          mergeMember(
+            memberId,
+            {
+              source: "team",
+              label,
+              role,
+              protocol,
+              teamId: team.id,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        });
+      };
 
-  async delete(id: string): Promise<void> {
-    await deleteDoc(doc(this.db, "workspaces", id));
-  }
+      workspace.teamIds.forEach((teamId) => {
+        const team = teamMap.get(teamId);
+        if (team) {
+          mergeTeam(team);
+        }
+      });
 
-  async mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      capabilities: arrayUnion(...capabilities),
-      updatedAt: serverTimestamp(),
-    });
-  }
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(
+            grant.userId,
+            {
+              source: "direct",
+              label: "Direct access",
+              role: grant.role,
+              protocol: grant.protocol,
+            },
+            organizationMemberMap.get(grant.userId),
+          );
+        }
 
-  async unmountCapability(workspaceId: string, capabilityId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const caps = ((data.capabilities as Capability[]) ?? []).filter((c) => c.id !== capabilityId);
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      capabilities: caps,
-      updatedAt: serverTimestamp(),
-    });
-  }
+        if (grant.teamId) {
+          const team = teamMap.get(grant.teamId);
+          if (team) {
+            mergeTeam(team, grant.role, grant.protocol);
+          }
+        }
+      });
 
-  async grantTeamAccess(workspaceId: string, teamId: string): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      teamIds: arrayUnion(teamId),
-      updatedAt: serverTimestamp(),
-    });
-  }
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
+        if (memberId) {
+          mergeMember(
+            memberId,
+            {
+              source: "personnel",
+              label,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        }
+      });
+    } else {
+      mergeMember(workspace.accountId, {
+        source: "owner",
+        label: "Workspace owner",
+      });
 
-  async revokeTeamAccess(workspaceId: string, teamId: string): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      teamIds: arrayRemove(teamId),
-      updatedAt: serverTimestamp(),
-    });
-  }
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(grant.userId, {
+            source: "direct",
+            label: "Direct access",
+            role: grant.role,
+            protocol: grant.protocol,
+          });
+        }
+      });
 
-  async grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      grants: arrayUnion(grant),
-      updatedAt: serverTimestamp(),
-    });
-  }
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
+        if (memberId) {
+          mergeMember(memberId, {
+            source: "personnel",
+            label,
+          });
+        }
+      });
+    }
 
-  async revokeIndividualAccess(workspaceId: string, userId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const grants = ((data.grants as WorkspaceGrant[]) ?? []).filter((g) => g.userId !== userId);
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      grants,
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async createLocation(
-    workspaceId: string,
-    location: Omit<WorkspaceLocation, "locationId">,
-  ): Promise<string> {
-    const locationId = crypto.randomUUID();
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      locations: arrayUnion({ ...location, locationId }),
-      updatedAt: serverTimestamp(),
-    });
-    return locationId;
-  }
-
-  async updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const locations = ((data.locations as WorkspaceLocation[]) ?? []).map((l) =>
-      l.locationId === location.locationId ? location : l,
+    return Array.from(members.values()).sort((left, right) =>
+      left.displayName.localeCompare(right.displayName),
     );
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      locations,
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async deleteLocation(workspaceId: string, locationId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const locations = ((data.locations as WorkspaceLocation[]) ?? []).filter(
-      (l) => l.locationId !== locationId,
-    );
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      locations,
-      updatedAt: serverTimestamp(),
-    });
   }
 }
+````
+
+## File: modules/workspace/interfaces/api/AGENT.md
+````markdown
+# interfaces/api — API Driving Adapters
+
+`api/` 是 **HTTP / Next.js App Router 驅動層**，負責把外部請求轉成 workspace 的 input port 呼叫。
+
+> 新增內容一律以 driving adapter 責任為準；不要把 use case 或 infrastructure 邏輯塞進這裡。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Route Handlers / API Endpoints | Next.js Route Handler |
+| Request parsing / validation | body、query、headers 轉 DTO |
+| Auth / session adaptation | 從外部請求取 actor context |
+| Response mapping | domain / use-case result → HTTP response |
+| 薄型同步公開入口 | 只做轉接、不做業務判斷的 facade / contracts glue |
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Domain rule / invariant / policy | 放 `domain/` |
+| Use case 內部流程本體 | 放 `application/use-cases/` |
+| Repository / Database / Genkit concrete call | 應透過 `ports/input/` / `ports/output/` 間接協作 |
+| React component / hooks | 放 `interfaces/web/` |
+
+---
+
+## 依賴箭頭
+
+```txt
+interfaces/api
+	-> application/dtos
+interfaces/api
+	-> ports/input
+ports/input
+	-> application/use-cases
+```
+
+`interfaces/api` **不可**直接依賴 `infrastructure/firebase/`、`infrastructure/events/`。
+````
+
+## File: modules/workspace/interfaces/cli/AGENT.md
+````markdown
+# interfaces/cli — CLI Driving Adapters
+
+`cli/` 是 **命令列 / Cron Job 驅動層**，將命令參數轉換為 workspace 的 input port 呼叫。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| CLI 命令解析 | yargs / commander / oclif glue code |
+| Cron / scheduled trigger entry | 定時工作入口 |
+| 參數 → DTO 轉換 | argv / env / schedule payload 轉 DTO |
+| 結果輸出 | stdout / stderr / exit code mapping |
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Domain / Application 流程本體 | 放 `application/` |
+| Repository / Database / Genkit concrete call | 應透過 port 協作 |
+| React component / hook | 放 `interfaces/web/` |
+| 複雜業務計算 | 放 `domain/services/` |
+
+---
+
+## 依賴箭頭
+
+```txt
+interfaces/cli
+	-> application/dtos
+interfaces/cli
+	-> ports/input
+ports/input
+	-> application/use-cases
+```
+
+`interfaces/cli` **不可**直接依賴 `infrastructure/*`。
 ````
 
 ## File: modules/workspace/interfaces/components/CreateWorkspaceDialogRail.tsx
@@ -71108,6 +71177,52 @@ export async function getWorkspaceByIdForAccount(
 }
 ````
 
+## File: modules/workspace/interfaces/web/AGENT.md
+````markdown
+# interfaces/web — Web Driving Adapters
+
+`web/` 是 **UI 封裝層**，將前端 UI 元件與 workspace input ports 連接，支援 React / shadcn 組件。
+
+> 新增的 UI component / hook 以收斂到這裡為原則；不要再把新的 driving adapter 散落在其他目錄。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| shadcn UI Components | 表單、對話框、screen components |
+| React Hooks | 呼叫 input ports、管理 loading / error state |
+| UI state | 展開、切換、表單草稿等非業務狀態 |
+| DTO mapping | form state / query param → DTO |
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| 核心業務邏輯（Domain / Application） | 放 `domain/`、`application/` |
+| Repository / Database / Genkit concrete call | 應透過 `ports/input/` / use case 間接協作 |
+| HTTP Route Handler | 放 `interfaces/api/` |
+| CLI 命令解析 | 放 `interfaces/cli/` |
+
+---
+
+## 依賴箭頭
+
+```txt
+interfaces/web
+	-> application/dtos
+interfaces/web
+	-> ports/input
+ports/input
+	-> application/use-cases
+```
+
+`interfaces/web` **不可**直接依賴 `infrastructure/*`。
+````
+
 ## File: modules/workspace/interfaces/workspace-session.ts
 ````typescript
 import type { WorkspaceEntity } from "../domain/entities/Workspace";
@@ -71350,6 +71465,106 @@ export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
 export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
   return WORKSPACE_TAB_GROUPS[group];
 }
+````
+
+## File: modules/workspace/ports/input/AGENT.md
+````markdown
+# ports/input — Driving Ports（輸入端口）
+
+此目錄保留給 `workspace` BC 的顯式 **inbound port interfaces**。
+
+---
+
+## 現況：可薄、可空，但位置必須保留
+
+workspace 目前可能仍有部分 entrypoint 直接薄封裝到 use case，
+但 **input contract 的正式位置仍定義在這裡**。
+
+> 此目錄作為結構佔位，代表「我們知道 input port 的概念位置在哪裡」。
+
+---
+
+## ✅ 屬於此處（未來填入條件）
+
+| 類型 | 填入時機 |
+|------|---------|
+| Inbound event handler interface | 當外部 BC 需要透過明確 interface 訂閱 workspace 事件時 |
+| Command bus interface | 當引入 CQRS command bus，需要顯式 command handler contract 時 |
+| Driving Adapter contract | 當 UI / external trigger 需要對 use case 有針對性的版本化 interface 時 |
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Concrete class 或 adapter | 實作放 `interfaces/` 或 `infrastructure/` |
+| 業務規則或流程邏輯 | 邏輯放 `domain/services/` 或 `application/services/` |
+| 目前作用中的業務邏輯 | 此目錄未有 input contract 需求前保持空白 |
+
+---
+
+## 依賴方向
+
+```
+interfaces/api|cli|web → ports/input
+ports/input → application/use-cases
+ports/input → application/dtos（型別引用，如有需要）
+```
+
+`ports/input` **不可**依賴 `infrastructure/`，也不應承擔業務規則或流程協調。
+````
+
+## File: modules/workspace/ports/output/AGENT.md
+````markdown
+# ports/output — Driven Ports（輸出端口）
+
+此目錄是 `workspace` BC 核心對外部基礎設施「要求能力」的**唯一抽象入口**。
+Core（domain + application）依賴這些 interface；infrastructure 實作它們。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Repository port interface | `WorkspaceRepository`、`WorkspaceQueryRepository` |
+| Domain event publisher port | `WorkspaceDomainEventPublisher` |
+| 任何 BC 核心向外索取能力的抽象介面 | `StoragePort`、`NotificationPort`（未來） |
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| `class`、concrete implementation | 實作放 `infrastructure/` |
+| Firebase、HTTP、React 等框架 import | 抽象層不能感知外部技術 |
+| 業務邏輯、計算 | 邏輯放 `domain/services/` |
+| DTO / data shape | 資料形狀放 `application/dtos/` |
+
+---
+
+## 依賴方向
+
+```
+application/use-cases → ports/output
+application/services → ports/output
+infrastructure/firebase|events → ports/output（實作 interface）
+ports/output → domain/（只取型別，e.g., WorkspaceDomainEvent）
+```
+
+`ports/output` 本身**不可**被 `domain/` 反向依賴。
+
+---
+
+## 目前 Port 清單
+
+目前此目錄應承載 workspace 對外能力的正式抽象面：
+
+- `WorkspaceDomainEventPublisher`
+- `WorkspaceRepository`
+- `WorkspaceCapabilityRepository`
+- `WorkspaceAccessRepository`
+- `WorkspaceLocationRepository`
+- `WorkspaceQueryRepository`
+- `WikiWorkspaceRepository`
 ````
 
 ## File: py_fn/src/application/use_cases/__init__.py
@@ -72924,33 +73139,6 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
             https_fn.FunctionsErrorCode.INTERNAL,
             f"rag_reindex_document 失敗：{str(exc)[:200]}",
         ) from exc
-````
-
-## File: vitest.config.ts
-````typescript
-import { resolve } from "node:path";
-
-import { defineConfig } from "vitest/config";
-
-export default defineConfig({
-  resolve: {
-    alias: {
-      "@shared-types": resolve(__dirname, "packages/shared-types/index.ts"),
-      "@lib-zod": resolve(__dirname, "packages/lib-zod/index.ts"),
-    },
-  },
-  test: {
-    environment: "node",
-    include: ["**/*.{test,spec}.{ts,tsx,js,jsx}"],
-    exclude: [
-      "**/node_modules/**",
-      "**/.next/**",
-      "**/dist/**",
-      "**/build/**",
-      "**/__pycache__/**",
-    ],
-  },
-});
 ````
 
 ## File: app/(shell)/_components/app-rail.tsx
@@ -75078,6 +75266,56 @@ export async function updateTeamMembers(
 }
 ````
 
+## File: modules/organization/interfaces/_actions/organization.actions.ts
+````typescript
+/**
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Re-export barrel for all organization Server Actions.
+ *          Implementations are split by subdomain for IDDD layer-purity.
+ *          Each sub-file carries its own "use server" directive; this barrel
+ *          must NOT repeat it — Turbopack cannot resolve re-exports from a
+ *          "use server" barrel that itself re-exports other "use server" files.
+ *  - organization-lifecycle.actions.ts (create, update settings, delete)
+ *  - organization-member.actions.ts    (invite, recruit, dismiss, update role)
+ *  - organization-team.actions.ts      (create, delete, update members)
+ *  - organization-partner.actions.ts   (create group, invite, dismiss)
+ *  - organization-policy.actions.ts    (create, update, delete policy)
+ */
+
+export {
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+} from "./organization-lifecycle.actions";
+
+export {
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+} from "./organization-member.actions";
+
+export {
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+} from "./organization-team.actions";
+
+export {
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+} from "./organization-partner.actions";
+
+export {
+  createOrgPolicy,
+  updateOrgPolicy,
+  deleteOrgPolicy,
+} from "./organization-policy.actions";
+````
+
 ## File: modules/source/application/use-cases/wiki-libraries.use-case.ts
 ````typescript
 /**
@@ -75540,198 +75778,245 @@ export {
 } from "./workspace-flow-invoice.actions";
 ````
 
-## File: modules/workspace/application/use-cases/workspace-access.use-cases.ts
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
 ````typescript
 /**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Workspace access use cases — team grants, individual grants, locations.
+ * FirebaseWorkspaceRepository — Infrastructure adapter for workspace persistence.
+ * Translates Firestore documents ↔ Domain WorkspaceEntity.
+ * Firebase SDK only exists in this file.
  */
 
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceAccessRepository } from "../../domain/repositories/WorkspaceAccessRepository";
-import type { WorkspaceLocationRepository } from "../../domain/repositories/WorkspaceLocationRepository";
-import type { WorkspaceGrant, WorkspaceLocation } from "../../domain/entities/Workspace";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  query,
+  where,
+  documentId,
+  arrayUnion,
+  arrayRemove,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { WorkspaceRepository } from "../../ports/output/WorkspaceRepository";
+import type { WorkspaceCapabilityRepository } from "../../ports/output/WorkspaceCapabilityRepository";
+import type { WorkspaceAccessRepository } from "../../ports/output/WorkspaceAccessRepository";
+import type { WorkspaceLocationRepository } from "../../ports/output/WorkspaceLocationRepository";
+import type {
+  WorkspaceEntity,
+  Capability,
+  WorkspaceGrant,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceLocation,
+} from "../../domain/entities/Workspace";
+import { createAddress } from "../../domain/value-objects/Address";
+import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
+import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
+import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
 
-// ─── Grant Team Access ────────────────────────────────────────────────────────
+// ─── Mapper ───────────────────────────────────────────────────────────────────
 
-export class GrantTeamAccessUseCase {
-  constructor(private readonly workspaceAccessRepo: WorkspaceAccessRepository) {}
+const VALID_ACCOUNT_TYPES = new Set<WorkspaceEntity["accountType"]>(["user", "organization"]);
 
-  async execute(workspaceId: string, teamId: string): Promise<CommandResult> {
-    try {
-      await this.workspaceAccessRepo.grantTeamAccess(workspaceId, teamId);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_TEAM_GRANT_FAILED",
-        err instanceof Error ? err.message : "Failed to grant team access",
-      );
-    }
-  }
+export function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity {
+  const accountType = VALID_ACCOUNT_TYPES.has(data.accountType as WorkspaceEntity["accountType"])
+    ? (data.accountType as WorkspaceEntity["accountType"])
+    : "user";
+
+  return {
+    id,
+    name: createWorkspaceName(typeof data.name === "string" ? data.name : "Untitled workspace"),
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    accountType,
+    lifecycleState: createWorkspaceLifecycleState(
+      data.lifecycleState === "active" ||
+        data.lifecycleState === "stopped" ||
+        data.lifecycleState === "preparatory"
+        ? data.lifecycleState
+        : "preparatory",
+    ),
+    visibility: createWorkspaceVisibility(
+      data.visibility === "hidden" || data.visibility === "visible"
+        ? data.visibility
+        : "visible",
+    ),
+    capabilities: Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [],
+    grants: Array.isArray(data.grants) ? (data.grants as WorkspaceGrant[]) : [],
+    teamIds: Array.isArray(data.teamIds) ? (data.teamIds as string[]) : [],
+    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
+    address: data.address != null ? createAddress(data.address as NonNullable<UpdateWorkspaceSettingsCommand["address"]>) : undefined,
+    locations: Array.isArray(data.locations) ? (data.locations as WorkspaceLocation[]) : undefined,
+    personnel: data.personnel != null ? (data.personnel as WorkspaceEntity["personnel"]) : undefined,
+    createdAt: data.createdAt as WorkspaceEntity["createdAt"],
+  };
 }
 
-// ─── Grant Individual Access ──────────────────────────────────────────────────
+// ─── Repository ───────────────────────────────────────────────────────────────
 
-export class GrantIndividualAccessUseCase {
-  constructor(private readonly workspaceAccessRepo: WorkspaceAccessRepository) {}
-
-  async execute(workspaceId: string, grant: WorkspaceGrant): Promise<CommandResult> {
-    try {
-      await this.workspaceAccessRepo.grantIndividualAccess(workspaceId, grant);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_GRANT_FAILED",
-        err instanceof Error ? err.message : "Failed to grant individual access",
-      );
-    }
+export class FirebaseWorkspaceRepository
+  implements
+    WorkspaceRepository,
+    WorkspaceCapabilityRepository,
+    WorkspaceAccessRepository,
+    WorkspaceLocationRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
   }
-}
 
-// ─── Create Location ──────────────────────────────────────────────────────────
+  async findById(id: string): Promise<WorkspaceEntity | null> {
+    const snap = await getDoc(doc(this.db, "workspaces", id));
+    if (!snap.exists()) return null;
+    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
+  }
 
-export class CreateWorkspaceLocationUseCase {
-  constructor(private readonly workspaceLocationRepo: WorkspaceLocationRepository) {}
+  async findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
+    const q = query(
+      collection(this.db, "workspaces"),
+      where("accountId", "==", accountId),
+      where(documentId(), "==", workspaceId),
+    );
+    const snaps = await getDocs(q);
+    const snap = snaps.docs[0];
+    if (!snap) return null;
+    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
+  }
 
-  async execute(
+  async findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]> {
+    const q = query(collection(this.db, "workspaces"), where("accountId", "==", accountId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toWorkspaceEntity(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async save(workspace: WorkspaceEntity): Promise<string> {
+    const ref = doc(this.db, "workspaces", workspace.id);
+    const payload: Record<string, unknown> = {
+      name: workspace.name,
+      accountId: workspace.accountId,
+      accountType: workspace.accountType,
+      lifecycleState: workspace.lifecycleState,
+      visibility: workspace.visibility,
+      capabilities: workspace.capabilities,
+      grants: workspace.grants,
+      teamIds: workspace.teamIds,
+      createdAt: serverTimestamp(),
+    };
+
+    if (workspace.photoURL !== undefined) payload.photoURL = workspace.photoURL;
+    if (workspace.address !== undefined) payload.address = workspace.address;
+    if (workspace.locations !== undefined) payload.locations = workspace.locations;
+    if (workspace.personnel !== undefined) payload.personnel = workspace.personnel;
+
+    await setDoc(ref, payload);
+    return workspace.id;
+  }
+
+  async updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void> {
+    const updates: Record<string, unknown> = { updatedAt: serverTimestamp() };
+    if (command.name !== undefined) updates.name = command.name;
+    if (command.visibility !== undefined) updates.visibility = command.visibility;
+    if (command.lifecycleState !== undefined) updates.lifecycleState = command.lifecycleState;
+    if (command.address !== undefined) updates.address = command.address;
+    if (command.personnel !== undefined) updates.personnel = command.personnel;
+    await updateDoc(doc(this.db, "workspaces", command.workspaceId), updates);
+  }
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(this.db, "workspaces", id));
+  }
+
+  async mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void> {
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      capabilities: arrayUnion(...capabilities),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async unmountCapability(workspaceId: string, capabilityId: string): Promise<void> {
+    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const caps = ((data.capabilities as Capability[]) ?? []).filter((c) => c.id !== capabilityId);
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      capabilities: caps,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async grantTeamAccess(workspaceId: string, teamId: string): Promise<void> {
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      teamIds: arrayUnion(teamId),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async revokeTeamAccess(workspaceId: string, teamId: string): Promise<void> {
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      teamIds: arrayRemove(teamId),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void> {
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      grants: arrayUnion(grant),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async revokeIndividualAccess(workspaceId: string, userId: string): Promise<void> {
+    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const grants = ((data.grants as WorkspaceGrant[]) ?? []).filter((g) => g.userId !== userId);
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      grants,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async createLocation(
     workspaceId: string,
     location: Omit<WorkspaceLocation, "locationId">,
-  ): Promise<CommandResult> {
-    try {
-      const locationId = await this.workspaceLocationRepo.createLocation(workspaceId, location);
-      return commandSuccess(locationId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_LOCATION_CREATE_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace location",
-      );
-    }
+  ): Promise<string> {
+    const locationId = crypto.randomUUID();
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      locations: arrayUnion({ ...location, locationId }),
+      updatedAt: serverTimestamp(),
+    });
+    return locationId;
+  }
+
+  async updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void> {
+    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const locations = ((data.locations as WorkspaceLocation[]) ?? []).map((l) =>
+      l.locationId === location.locationId ? location : l,
+    );
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      locations,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async deleteLocation(workspaceId: string, locationId: string): Promise<void> {
+    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const locations = ((data.locations as WorkspaceLocation[]) ?? []).filter(
+      (l) => l.locationId !== locationId,
+    );
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      locations,
+      updatedAt: serverTimestamp(),
+    });
   }
 }
-````
-
-## File: modules/workspace/application/use-cases/workspace-capabilities.use-cases.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Workspace capabilities use case — mount feature flags.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceCapabilityRepository } from "../../domain/repositories/WorkspaceCapabilityRepository";
-import type { Capability } from "../../domain/entities/Workspace";
-
-// ─── Mount Capabilities ───────────────────────────────────────────────────────
-
-export class MountCapabilitiesUseCase {
-  constructor(private readonly capabilityRepo: WorkspaceCapabilityRepository) {}
-
-  async execute(workspaceId: string, capabilities: Capability[]): Promise<CommandResult> {
-    try {
-      await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CAPABILITIES_MOUNT_FAILED",
-        err instanceof Error ? err.message : "Failed to mount capabilities",
-      );
-    }
-  }
-}
-````
-
-## File: modules/workspace/bounded-context.md
-````markdown
-# Bounded Context — workspace
-
-`modules/workspace/` 是 Xuanwu 中承載 workspace 語言、模型、應用流程與 adapter 的 bounded context。
-
-全域 bounded-context 地圖由 [docs/ddd/bounded-contexts.md](../../docs/ddd/bounded-contexts.md) 擁有；本文件只描述 `workspace` 這個本地 bounded context 的細節，不重複整份全域地圖。
-
-## Boundaries
-
-### 這個 bounded context 擁有的語言
-
-- `Workspace`
-- `workspaceId`
-- `WorkspaceLifecycleState`
-- `WorkspaceVisibility`
-- 與工作區範圍直接相關的 aggregate、value object、domain event language
-
-### 這個 bounded context 不擁有的語言
-
-- 組織成員、團隊與治理真相來源：由 `organization` 擁有
-- 知識內容與知識工作流：由 `knowledge`、`knowledge-base`、`notebook` 等擁有
-- 事件儲存與 event bus 基礎設施：由 `shared` 與對應 integration layers 擁有
-- 頁面 tab 組裝與 route composition：屬於 UI / interface composition，不是 bounded-context boundary 本體
-
-## Collaboration Surface
-
-workspace 以兩種主要方式與其他 bounded contexts 協作：
-
-1. 同步公開邊界：`api/`
-2. Published Language：`workspaceId`、生命週期／可見性語言與 domain events
-
-在本地執行路徑上，read models / projections 也是 bounded context 對 drivers 提供的重要讀取 surface，但它們不是對外 published language 的全部。
-
-更完整的外部關係請看 [context-map.md](./context-map.md)。
-
-## Internal Structure
-
-從六邊形架構看，這個 bounded context 的內部切面如下：
-
-| 區域 | 角色 |
-|---|---|
-| `domain/` | aggregate、entity、value object、domain event language |
-| `application/` | use cases 與 orchestration |
-| `interfaces/` | driving adapters：Server Actions、queries、UI composition |
-| `infrastructure/` | driven adapters：Firebase 與其他外部技術整合 |
-
-這個分層是 bounded context 的內部結構，不應和 strategic context map 混為一談。
-
-## Drivers, Ports, Adapters, and Read Models
-
-### Drivers / 外部驅動器
-
-- Browser UI
-- Next.js Server Actions 與 query entrypoints
-- 其他 bounded context 經由 `api/` 的呼叫者
-- 未來可能的 incoming event handlers / scheduled jobs
-
-### Ports / 端口
-
-- 內核朝外的 driven ports 主要是 `domain/repositories/` 介面
-- `api/` 是對外穩定 collaboration surface，但不等於把所有內部 ports 直接公開
-
-### Adapters / 適配器
-
-- Driving Adapters：`interfaces/` 下的 actions、queries、UI-oriented composition
-- Driven Adapters：`infrastructure/` 下的 Firebase 與事件整合實作
-
-### Projections / Read Models
-
-- `WorkspaceMemberView`
-- `WikiAccountContentNode`
-- `WikiWorkspaceContentNode`
-- `WikiContentItemNode`
-
-它們服務查詢與呈現，不是 write-side aggregate，也不是 infrastructure adapter。
-
-## Ownership Guardrails
-
-- 跨模組 consumer 應透過 `@/modules/workspace/api` 協作
-- `domain/` 不感知 React、Firebase SDK、HTTP client
-- `infrastructure/` 不透過 `api/` 反向回繞
-- `WorkspaceMemberView` 與 `Wiki*Node` 是 query-side projection，不是此 bounded context 的 write-side aggregate
-
-## Related Local Docs
-
-- [README.md](./README.md) — 總覽與 tactical summary
-- [context-map.md](./context-map.md) — 對外關係與 integration patterns
-- [aggregates.md](./aggregates.md) — bounded context 內部核心模型
-- [repositories.md](./repositories.md) — ports 與 adapters
 ````
 
 ## File: modules/workspace/interfaces/components/WorkspaceOverviewSummaryCard.tsx
@@ -76105,72 +76390,31 @@ export function useWorkspaceSettingsSave({
 }
 ````
 
-## File: modules/workspace/subdomain.md
-````markdown
-# Subdomain — workspace
+## File: modules/workspace/ports/index.ts
+````typescript
+/**
+ * Workspace Ports Surface
+ *
+ * This folder is the explicit hexagonal port entry for the workspace BC.
+ * Keep ports as interfaces only; implementations must stay in infrastructure/.
+ */
 
-`workspace` 所對應的問題空間在 Xuanwu 的戰略分類中屬於 generic subdomain。
+// Driven ports (domain/application core -> outside)
+export type { WorkspaceRepository } from "./output/WorkspaceRepository";
+export type { WorkspaceCapabilityRepository } from "./output/WorkspaceCapabilityRepository";
+export type { WorkspaceAccessRepository } from "./output/WorkspaceAccessRepository";
+export type { WorkspaceLocationRepository } from "./output/WorkspaceLocationRepository";
+export type {
+  WorkspaceQueryRepository,
+  Unsubscribe as WorkspaceQueryUnsubscribe,
+} from "./output/WorkspaceQueryRepository";
+export type { WikiWorkspaceRepository } from "./output/WikiWorkspaceRepository";
 
-全域 subdomain 分類由 [docs/ddd/subdomains.md](../../docs/ddd/subdomains.md) 擁有；本文件只說明 workspace 為什麼落在這個分類，以及它在 selected problem-space view 中的意義。
-
-## Why Generic
-
-workspace 解決的是「協作範圍、生命週期與公開邊界」問題，而不是 Xuanwu 的主要差異化來源。
-
-它的重要性很高，但它不是產品獨特價值本身。真正形成產品差異化的，仍是知識內容、檢索、協作語意與工作流等上下文。
-
-## What Problem Space It Covers
-
-workspace 子域聚焦這些問題：
-
-- 工作區作為協作容器的存在性
-- 工作區範圍鍵 `workspaceId`
-- 工作區生命週期與可見性
-- 讓其他 bounded contexts 能以共同範圍語言協作
-
-## What It Deliberately Does Not Differentiate
-
-- 它不定義知識內容本身
-- 它不定義組織成員真相來源
-- 它不定義檢索、RAG、文章治理等差異化業務能力
-
-Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 bounded context 內部或邊界上的實作 / 協作概念。
-
-換句話說，workspace 子域提供的是必要的結構性能力，而不是核心競爭優勢。
-
-## Selected Strategic View
-
-這份文件只用 workspace 為中心看它周邊牽涉到的問題空間：
-
-- `organization` 提供 ownership 與 member/team truth
-- `knowledge`、`knowledge-base`、`source`、`notebook` 等透過 `workspaceId` 對齊範圍
-- `workspace-flow`、`workspace-feed`、`workspace-scheduling` 等在工作區範圍內延伸自己的語言
-
-這是一個 selected view，不是整個 Xuanwu domain 的完整 subdomain 分析。
-
-## What Is Not a Subdomain
-
-以下概念雖然與 workspace 有關，但不應拿來當 subdomain：
-
-- Firestore、event bus 等 external systems
-- Browser UI、Server Actions、job triggers 等 drivers
-- repository ports、adapters 等 hexagonal 結構元件
-- `WorkspaceMemberView`、`Wiki*Node` 這類 read models / projections
-
-## Investment Posture
-
-作為 generic subdomain，workspace 的策略不是追求花俏建模，而是：
-
-- 穩定邊界
-- 穩定 published language
-- 清楚 ownership
-- 對其他 bounded contexts 提供低摩擦協作面
-
-## Related Local Docs
-
-- [README.md](./README.md) — 模組總覽
-- [bounded-context.md](./bounded-context.md) — 本地 bounded context 邊界
-- [context-map.md](./context-map.md) — 與其他 bounded contexts 的關係
+// Domain event publishing port
+export type {
+  WorkspaceDomainEventPublisher,
+  WorkspaceEventPublishMetadata,
+} from "./output/WorkspaceDomainEventPublisher";
 ````
 
 ## File: py_fn/src/application/use_cases/rag_ingestion.py
@@ -76707,56 +76951,6 @@ describe("knowledge-page.use-cases", () => {
 });
 ````
 
-## File: modules/organization/interfaces/_actions/organization.actions.ts
-````typescript
-/**
- * Module: organization
- * Layer: interfaces/_actions
- * Purpose: Re-export barrel for all organization Server Actions.
- *          Implementations are split by subdomain for IDDD layer-purity.
- *          Each sub-file carries its own "use server" directive; this barrel
- *          must NOT repeat it — Turbopack cannot resolve re-exports from a
- *          "use server" barrel that itself re-exports other "use server" files.
- *  - organization-lifecycle.actions.ts (create, update settings, delete)
- *  - organization-member.actions.ts    (invite, recruit, dismiss, update role)
- *  - organization-team.actions.ts      (create, delete, update members)
- *  - organization-partner.actions.ts   (create group, invite, dismiss)
- *  - organization-policy.actions.ts    (create, update, delete policy)
- */
-
-export {
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-} from "./organization-lifecycle.actions";
-
-export {
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-} from "./organization-member.actions";
-
-export {
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-} from "./organization-team.actions";
-
-export {
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-} from "./organization-partner.actions";
-
-export {
-  createOrgPolicy,
-  updateOrgPolicy,
-  deleteOrgPolicy,
-} from "./organization-policy.actions";
-````
-
 ## File: modules/source/interfaces/_actions/file-processing.actions.ts
 ````typescript
 "use server";
@@ -77155,261 +77349,518 @@ export async function wfArchiveTask(taskId: string, invoiceStatus?: string): Pro
 }
 ````
 
-## File: modules/workspace/context-map.md
-````markdown
-# Context Map — workspace
+## File: modules/workspace/application/use-cases/workspace-access.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Workspace access use cases — team grants, individual grants, locations.
+ */
 
-`workspace` 的 context map 只描述 bounded context 之間的關係與 integration patterns，不描述頁面 tab 組裝。
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceAccessRepository } from "../../ports/output/WorkspaceAccessRepository";
+import type { WorkspaceLocationRepository } from "../../ports/output/WorkspaceLocationRepository";
+import type { WorkspaceGrant, WorkspaceLocation } from "../../domain/entities/Workspace";
 
-在這份文件裡，Aggregate Root 指的是對外提供 published language 的 domain 類別 / 物件；Domain Event 指的是跨 context 可發布的事件類別、訊息物件。Repository、Factory、Domain Service 不屬於 context map 的主體，但會支撐這些整合 surface 的實作。
+// ─── Grant Team Access ────────────────────────────────────────────────────────
 
-## Domain / Subdomain / Bounded Context 層級
+export class GrantTeamAccessUseCase {
+  constructor(private readonly workspaceAccessRepo: WorkspaceAccessRepository) {}
 
-- `Xuanwu` 是整體 domain
-- `workspace` 對應的是 generic subdomain 中的協作容器問題空間
-- `modules/workspace/` 是承載這組語言的 bounded context
-- context map 描述的是這個 bounded context 在整體 domain 裡與其他 bounded context 的關係，而不是描述 bounded context 內部的六邊形分層
-- 這是一個 problem-space selected view：只聚焦與 workspace 有關的 subdomains / bounded contexts，不試圖覆蓋整個 Xuanwu domain inventory
-- 某些相關 bounded contexts 可能位於同一 subdomain，也可能來自 supporting / external / generic 區域；關係圖關注的是邊界互動，不是所有權想像
+  async execute(workspaceId: string, teamId: string): Promise<CommandResult> {
+    try {
+      await this.workspaceAccessRepo.grantTeamAccess(workspaceId, teamId);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_TEAM_GRANT_FAILED",
+        err instanceof Error ? err.message : "Failed to grant team access",
+      );
+    }
+  }
+}
 
-## Drivers and External Systems（不是 Bounded Context）
+// ─── Grant Individual Access ──────────────────────────────────────────────────
 
-下列對象會影響 workspace，但不應畫成 context map 中的 bounded context：
+export class GrantIndividualAccessUseCase {
+  constructor(private readonly workspaceAccessRepo: WorkspaceAccessRepository) {}
 
-- Browser UI / Next.js 頁面與 Server Actions：它們是 drivers
-- Firestore、event bus 等技術系統：它們是 external systems，由 adapters 整合
-- Query projections / read models：它們是讀取結果，不是獨立 bounded context
+  async execute(workspaceId: string, grant: WorkspaceGrant): Promise<CommandResult> {
+    try {
+      await this.workspaceAccessRepo.grantIndividualAccess(workspaceId, grant);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_GRANT_FAILED",
+        err instanceof Error ? err.message : "Failed to grant individual access",
+      );
+    }
+  }
+}
 
-## Upstream Contexts
+// ─── Create Location ──────────────────────────────────────────────────────────
 
-### `account` → `workspace`（Customer/Supplier）
+export class CreateWorkspaceLocationUseCase {
+  constructor(private readonly workspaceLocationRepo: WorkspaceLocationRepository) {}
 
-- `account` 提供 personal ownership 與 actor identity 的基礎語言
-- `workspace.accountId` 在 personal scope 下對齊 `account`
-- `workspace` 依賴 `account` 的存在，但不複製 account 的完整模型
-
-### `organization` → `workspace`（Customer/Supplier + Read-side ACL）
-
-- `organization` 提供 team、member 與 organization ownership 的真相來源
-- `workspace.accountId + accountType="organization"` 讓工作區對齊組織範圍
-- 在 query side，workspace 會把 organization 的成員/團隊語言翻譯成 `WorkspaceMemberView`
-- 這種翻譯屬於 read-side anti-corruption / translation 行為，不代表 `workspace` 擁有組織模型
-
-## Downstream / Dependent Contexts
-
-### `workspace` → `knowledge`（Conformist）
-
-- `knowledge` 使用 `workspaceId` 對齊知識頁面的工作區範圍
-- `knowledge` 對工作區存在性、範圍與可見性語言採 conformist
-
-### `workspace` → `knowledge-base`（Conformist）
-
-- `knowledge-base` 以 `workspaceId` 作為文章與知識資產的工作區範圍鍵
-
-### `workspace` → `source`（Conformist）
-
-- `source` 以 `workspaceId` 管理文件與 library 的工作區範圍
-
-### `workspace` → `notebook`（Conformist）
-
-- `notebook` 以 `workspaceId` 作為查詢與 RAG 工作流範圍
-
-### `workspace` → `workspace-flow`（Conformist）
-
-- `workspace-flow` 以 `workspaceId` 對齊任務、issue、invoice 的工作區範圍
-
-### `workspace` → `workspace-scheduling`（Conformist）
-
-- `workspace-scheduling` 以 `workspaceId` 對齊排程與容量規劃範圍
-
-### `workspace` → `workspace-feed`（Conformist）
-
-- `workspace-feed` 以 `workspaceId` 對齊活動流範圍
-
-### `workspace` → `workspace-audit`（Published Language / Conformist）
-
-- `workspace-audit` 會消費工作區範圍資訊與後續 workspace domain events
-- 在事件真正落地前，雙方仍主要透過同步 API 與共同範圍語言協作
-
-## Public Integration Surfaces
-
-| 類型 | Surface |
-|---|---|
-| 同步 API | `modules/workspace/api` |
-| Published Language | `workspaceId`、`WorkspaceLifecycleState`、`WorkspaceVisibility` 等 aggregate / value object 語言 |
-| 非同步事件（目標） | `workspace.created`、`workspace.lifecycle_transitioned`、`workspace.visibility_changed` 等 domain event 訊息物件 |
-
-每一個對外 surface 都可視為一個 hexagon-to-hexagon integration point：不是 page 組裝，不是 repository 內部細節，而是 bounded context 對其他 bounded context 的協作面。
-
-## Read Models in Collaboration
-
-- `WorkspaceMemberView` 這類 read model 主要服務本地查詢與 ACL translation
-- 除非明確定義為 published language，projection 不應被當成跨 bounded context 的 canonical contract
-
-## Non-Examples
-
-- `WorkspaceDetailScreen` 組合 `WorkspaceFlowTab`、`WorkspaceSchedulingTab`、`WorkspaceAuditTab` 是 UI composition，不是 strategic context map
-- `WikiContentTree` 導覽節點是 query model，不是 context-to-context contract 的替代物
-- `domain/`、`application/`、`interfaces/`、`infrastructure/` 的分工屬於六邊形架構內部切面，不是 context map 本身
-
-## IDDD 整合模式總結
-
-| 關係 | 模式 | 備註 |
-|------|------|------|
-| `account` → `workspace` | Customer/Supplier | 個人 ownership 與 actor identity |
-| `organization` → `workspace` | Customer/Supplier + Read-side ACL | workspace 讀模型翻譯 organization 資料 |
-| `workspace` → `knowledge` | Conformist | 以 `workspaceId` 對齊內容範圍 |
-| `workspace` → `knowledge-base` | Conformist | 以 `workspaceId` 對齊知識資產範圍 |
-| `workspace` → `source` | Conformist | 以 `workspaceId` 對齊來源範圍 |
-| `workspace` → `notebook` | Conformist | 以 `workspaceId` 對齊研究與 RAG 範圍 |
-| `workspace` → `workspace-flow` | Conformist | 以 `workspaceId` 對齊工作流範圍 |
-| `workspace` → `workspace-scheduling` | Conformist | 以 `workspaceId` 對齊排程範圍 |
-| `workspace` → `workspace-feed` | Conformist | 以 `workspaceId` 對齊活動流範圍 |
-| `workspace` → `workspace-audit` | Published Language / Conformist | 範圍資訊與後續事件消費 |
+  async execute(
+    workspaceId: string,
+    location: Omit<WorkspaceLocation, "locationId">,
+  ): Promise<CommandResult> {
+    try {
+      const locationId = await this.workspaceLocationRepo.createLocation(workspaceId, location);
+      return commandSuccess(locationId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_LOCATION_CREATE_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace location",
+      );
+    }
+  }
+}
 ````
 
-## File: modules/workspace/domain-events.md
-````markdown
-# Domain Events — workspace
+## File: modules/workspace/application/use-cases/workspace-capabilities.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Workspace capabilities use case — mount feature flags.
+ */
 
-本文件定義 workspace 的目標 domain event 契約。它描述的是 bounded context 應該公開的事件語言，不宣稱所有事件都已經完全接線完成。
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceCapabilityRepository } from "../../ports/output/WorkspaceCapabilityRepository";
+import type { Capability } from "../../domain/entities/Workspace";
 
-在 workspace 中，Domain Event（領域事件）是事件類別或訊息物件。它不是 UI callback，也不是 repository method；它是 bounded context 對外發布的語言單位。
+// ─── Mount Capabilities ───────────────────────────────────────────────────────
 
-從 strategic design 角度看，這些事件是 `workspace` bounded context 對整體 Xuanwu domain 其他 bounded context 公開的 published language。
+export class MountCapabilitiesUseCase {
+  constructor(private readonly capabilityRepo: WorkspaceCapabilityRepository) {}
 
-從六邊形架構角度看，事件型別與工廠屬於內核語言；event bus / event store 與實際發布機制屬於外層 adapter 協作。
-
-## Event-Driven Architecture Position
-
-- `workspace` 可以作為一個 hexagonal system 發出 outgoing events，也可能在未來接收 incoming events
-- 事件驅動是 bounded context 之間的解耦機制，不代表 aggregate 必須採 event sourcing
-- 事件 subscriber / pipeline filter / bus adapter 屬於邊界協作，不應污染 domain event 語言本身
-
-## Ports, Adapters, Drivers, and Projections
-
-- Drivers 先透過 command-side paths 觸發狀態改變，再由 application / adapter 協調發布事件
-- 若未來抽出 event publisher abstraction，該 abstraction 是 port；實際 bus / store connector 是 adapter
-- 下游 bounded context 或本地 query-side flow 可以用事件更新 projection / read model
-- 但 domain event 本身不是 projection；它是發布語言，不是讀取結果
-
-## Event Base Contract
-
-workspace domain events 應對齊 `modules/shared/domain/events.ts` 的共享基底：
-
-- `eventId`
-- `type`
-- `aggregateId`
-- `occurredAt`
-
-`aggregateId` 在 workspace 事件中一律對應 `workspaceId`。
-
-## Canonical Events
-
-| 事件物件 | Discriminant | 觸發條件 | 關鍵欄位 |
-|---|---|---|---|
-| `WorkspaceCreatedEvent` | `workspace.created` | 工作區建立完成後 | `workspaceId`, `accountId`, `accountType`, `name` |
-| `WorkspaceLifecycleTransitionedEvent` | `workspace.lifecycle_transitioned` | `lifecycleState` 發生改變後 | `workspaceId`, `accountId`, `fromState`, `toState` |
-| `WorkspaceVisibilityChangedEvent` | `workspace.visibility_changed` | `visibility` 發生改變後 | `workspaceId`, `accountId`, `fromVisibility`, `toVisibility` |
-
-## Event Factories
-
-workspace module 應提供明確工廠函式來建立事件訊息物件，例如：
-
-- `createWorkspaceCreatedEvent(...)`
-- `createWorkspaceLifecycleTransitionedEvent(...)`
-- `createWorkspaceVisibilityChangedEvent(...)`
-
-這些工廠屬於 domain event language，不是 React helper，也不應放在 page / component 內。
-
-## Publishing Rules
-
-- 先成功持久化 aggregate，再發布事件
-- 事件 payload 只包含下游所需的最小資訊
-- 不把 React state、router path、UI label 放進事件語言
-- application layer / interface adapter 可以組裝 event publisher，但事件物件本身屬於 domain language
-
-## 明確排除的事件
-
-| 不再作為 workspace 事件的名稱 | 原因 |
-|---|---|
-| `workspace.archived` | 此 bounded context 的生命週期語言是 `stopped`，不是 `archived` |
-| `workspace.member_joined` | 工作區成員清單目前是 read projection；成員真相來源屬於 organization / access language |
-| `workspace.member_removed` | 同上 |
-
-## 目前落地策略
-
-- 第一批事件以 `WorkspaceCreatedEvent`、`WorkspaceLifecycleTransitionedEvent`、`WorkspaceVisibilityChangedEvent` 為主
-- event publishing 依賴 `modules/shared/api` 的 `PublishDomainEventUseCase` 與 event store / event bus adapters
-- 在事件完全接線前，文件仍以此處為 canonical published language
-
-## 明確不是目前策略的內容
-
-- 目前 workspace repository 不是 event-sourced repository；aggregate 不是從 event store replay reconstitute
-- 目前沒有專屬的 event pipeline / filter chain 作為主要處理模型
-- 目前沒有 `workspace` 專屬的 long-running process executive 或 tracker aggregate
+  async execute(workspaceId: string, capabilities: Capability[]): Promise<CommandResult> {
+    try {
+      await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CAPABILITIES_MOUNT_FAILED",
+        err instanceof Error ? err.message : "Failed to mount capabilities",
+      );
+    }
+  }
+}
 ````
 
-## File: modules/workspace/domain-services.md
+## File: modules/workspace/bounded-context.md
 ````markdown
-# workspace — Domain Services
+# Bounded Context — workspace
 
-> **Canonical bounded context:** `workspace`
-> **模組路徑:** `modules/workspace/`
-> **Domain Type:** Generic Subdomain
+`modules/workspace/` 是 Xuanwu 中承載 workspace 語言、模型、應用流程與 adapters 的 bounded context。
 
-目前 workspace 沒有獨立的 `domain/services/*` 檔案。這是刻意的 tactical 選擇，不是遺漏。
+全域 bounded-context 地圖由 [docs/ddd/bounded-contexts.md](../../docs/ddd/bounded-contexts.md) 擁有；本文件只描述 `workspace` 這個本地 bounded context 的內外邊界，不重複整份全域地圖。
 
-在 workspace 中，Domain Service（領域服務）是類別 / 函式，用來承載不自然屬於 aggregate、entity、value object 的純領域規則。
+## Boundaries
 
-從六邊形架構看，Domain Service 位於 domain model 內核，而不是 `interfaces/` 或 `infrastructure/` adapter。它可以被 application layer 協作呼叫，但不應反向依賴外部技術。
+### 這個 bounded context 擁有的語言
 
-從 strategic design 看，Domain Service 服務的是 `workspace` 這個 bounded context 的語言，不是跨整個 Xuanwu domain 的共用雜項工具。
+- `Workspace`
+- `workspaceId`
+- `WorkspaceLifecycleState`
+- `WorkspaceVisibility`
+- 與工作區範圍直接相關的 aggregate、value object、domain event language
 
-它也不等同於 event subscriber、pipeline filter、long-running process executive；那些概念若存在，通常屬於應用層協調或邊界整合，而不是先天就是 Domain Service。
+### 這個 bounded context 不擁有的語言
 
-## 與 Ports / Adapters / Drivers / Read Models 的區別
+- 組織成員、團隊與治理真相來源：由 `organization` 擁有
+- 知識內容與知識工作流：由 `knowledge`、`knowledge-base`、`notebook` 等擁有
+- 事件儲存與 event bus 基礎設施：由 `shared` 與對應 integration layers 擁有
+- 頁面 tab 組裝與 route composition：屬於 UI / interface composition，不是 bounded-context boundary 本體
 
-- Port 宣告協作接縫；它不是業務規則本身
-- Adapter 轉譯外部系統或 driver；它不是 domain service
-- Driver 觸發工作開始；它不是 domain model 元件
-- Projection / Read Model 服務讀取；它不是領域規則容器
+## Collaboration Surface
 
-## 目前狀態
+workspace 以兩種主要方式與其他 bounded contexts 協作：
 
-- 單一 aggregate 內的規則，優先留在 `Workspace` aggregate 與 supporting domain objects
-- 讀模型組裝與外部資料翻譯，優先留在 query-side repository / application orchestration
-- 還沒有出現足以穩定抽成 domain service 的跨 aggregate、純領域規則
+1. 同步公開邊界：`interfaces/api/`
+2. Published Language：`workspaceId`、生命週期／可見性語言與 domain events
 
-## 何時應新增 Domain Service
+在本地執行路徑上，read models / projections 也是 bounded context 對 drivers 提供的重要讀取 surface，但它們不是對外 published language 的全部。
 
-只有在出現以下情況時，才應把規則抽成 domain service：
+更完整的外部關係請看 [context-map.md](./context-map.md)。
 
-- 規則跨越多個 aggregate 或多個 supporting domain objects
-- 規則不是單純的 repository 查詢，也不是 UI composition
-- 規則不依賴 React、Firebase SDK、HTTP client 或 router
-- 規則本身是穩定的領域語言，而不是暫時性的流程拼裝
+## Internal Structure
 
-## 可能的候選服務（尚未落地）
+從六邊形架構看，這個 bounded context 的內部切面如下：
 
-| 候選服務 | 何時需要 |
+| 區域 | 角色 |
 |---|---|
-| `WorkspaceLifecyclePolicy` | 若生命週期轉移規則持續增加，超出 aggregate 本身可讀性時 |
-| `WorkspaceAccessResolutionService` | 若 direct grant、team grant、personnel 解析邏輯需要在多個 use case 重複使用時 |
-| `WorkspaceCapabilityMountPolicy` | 若 capability mounting 有穩定、可重用的領域規則時 |
+| `domain/` | aggregates、entities、value-objects、events、factories、純 domain services |
+| `application/` | use-cases、application services、DTO orchestration |
+| `ports/input/` | driving port interfaces，承接外部驅動對 use case 的要求 |
+| `ports/output/` | driven port interfaces，抽象 repository / event publishing / external capabilities |
+| `interfaces/api/` | Next.js Route Handler 與模組公開同步入口 |
+| `interfaces/cli/` | CLI / Cron Job 等 driving adapter |
+| `interfaces/web/` | shadcn UI components + hooks 的 driving adapter |
+| `infrastructure/` | Firebase 與 events 等 output port adapters |
 
-## 若未來引入長流程
+這個分層是 bounded context 的內部結構，不應和 strategic context map 混為一談。
 
-- 若只是協調多個事件處理步驟，優先建模為 application-level process orchestration
-- 若流程狀態本身成為業務真相，才考慮引入 tracker aggregate，而不是先把它塞成 Domain Service
+## 依賴箭頭（內部結構）
 
-## 明確不是 Domain Service 的內容
+```txt
+interfaces/api ─┐
+interfaces/cli ─┤
+interfaces/web ─┘
+	 │ call
+	 ▼
+   ports/input
+	 │ call
+	 ▼
+ application/use-cases
+	 │ call
+	 ▼
+ application/services
+	 │ call
+	 ▼
+  domain/services
+	 │ use
+	 ▼
+  domain/aggregates/entities
+	 │
+	 └─► ports/output ──► infrastructure/* (Firebase / Genkit / Events)
+```
 
-- React hooks
-- Server Actions
-- query wrappers
-- UI draft factories
-- 只服務單一 page 的 tab composition helper
+### 說明
+
+1. `interfaces/` 是 driving adapters，不處理 domain 決策。
+2. `ports/input/` 是 input contract 的位置。
+3. `application/use-cases/` 是單一 use case 流程；`application/services/` 是跨 use case 流程協調。
+4. `domain/` 是純業務邏輯。
+5. `ports/output/` 是外部能力抽象；`infrastructure/` 負責實作。
+
+## Drivers, Ports, Adapters, and Read Models
+
+### Drivers / 外部驅動器
+
+- Browser UI
+- Next.js Route Handlers
+- CLI / Cron Jobs
+- 其他 bounded context 經由 `interfaces/api/` 的呼叫者
+- 未來可能的 incoming event handlers / scheduled jobs
+
+### Ports / 端口
+
+- `ports/input/` 是 driving port interfaces
+- `ports/output/` 是內核朝外的 driven ports
+- `interfaces/api/` 是對外穩定 collaboration surface，但不等於把所有內部 ports 直接公開
+
+### Adapters / 適配器
+
+- Driving Adapters：`interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- Driven Adapters：`infrastructure/` 下的 Firebase 與事件整合實作
+
+### Projections / Read Models
+
+- `WorkspaceMemberView`
+- `WikiAccountContentNode`
+- `WikiWorkspaceContentNode`
+- `WikiContentItemNode`
+
+它們服務查詢與呈現，不是 write-side aggregate，也不是 infrastructure adapter。
+
+## Ownership Guardrails
+
+- 跨模組或 app composition consumer 應透過 `@/modules/workspace/interfaces/api` 協作
+- `domain/` 不感知 React、Firebase SDK、HTTP client
+- `application/` 不直接依賴 infrastructure implementation
+- `infrastructure/` 不透過 `interfaces/` 反向回繞
+- `WorkspaceMemberView` 與 `Wiki*Node` 是 query-side projection，不是此 bounded context 的 write-side aggregate
+
+## Related Local Docs
+
+- [README.md](./README.md) — 總覽與 tactical summary
+- [context-map.md](./context-map.md) — 對外關係與 integration patterns
+- [aggregates.md](./aggregates.md) — bounded context 內部核心模型
+- [repositories.md](./repositories.md) — output ports 與 adapters
+````
+
+## File: modules/workspace/interfaces/components/WorkspaceHubScreen.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useState } from "react";
+
+import type { WorkspaceEntity } from "../api/contracts";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+
+import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
+import { getWorkspaceGovernanceSummary } from "../workspace-supporting-records";
+import { CreateWorkspaceDialog } from "./CreateWorkspaceDialog";
+
+const lifecycleBadgeVariant: Record<
+  WorkspaceEntity["lifecycleState"],
+  "default" | "secondary" | "outline"
+> = {
+  active: "default",
+  preparatory: "secondary",
+  stopped: "outline",
+};
+
+interface WorkspaceHubScreenProps {
+  readonly accountId: string | null | undefined;
+  readonly accountName: string | null | undefined;
+  readonly accountType: "user" | "organization";
+  readonly accountsHydrated: boolean;
+  readonly isBootstrapSeeded: boolean;
+}
+
+export function WorkspaceHubScreen({
+  accountId,
+  accountName,
+  accountType,
+  accountsHydrated,
+  isBootstrapSeeded,
+}: WorkspaceHubScreenProps) {
+  const router = useRouter();
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+
+  const {
+    createError,
+    clearCreateError,
+    createWorkspaceForAccount,
+    errorMessage,
+    isCreatingWorkspace,
+    loadState,
+    workspaceStats,
+    workspaces,
+  } = useWorkspaceHub({
+    accountId,
+    accountType,
+  });
+
+  function resetCreateWorkspaceDialog() {
+    setWorkspaceName("");
+    clearCreateError();
+  }
+
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const result = await createWorkspaceForAccount(workspaceName);
+
+    if (!result.success) {
+      return;
+    }
+
+    resetCreateWorkspaceDialog();
+    setIsCreateWorkspaceOpen(false);
+    if (result.aggregateId) {
+      router.push(`/workspace/${result.aggregateId}`);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Workspace Hub</h1>
+          <p className="text-sm text-muted-foreground">
+            Review the workspaces connected to{" "}
+            <span className="font-medium text-foreground">
+              {accountName ?? "the active account"}
+            </span>
+            .
+          </p>
+        </div>
+
+        <Button
+          onClick={() => setIsCreateWorkspaceOpen(true)}
+          disabled={!accountsHydrated || !accountId}
+        >
+          {!accountsHydrated ? "同步帳號中…" : "建立工作區"}
+        </Button>
+      </div>
+
+      {!accountsHydrated && (
+        <div
+          className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground"
+          aria-live="polite"
+          role="status"
+        >
+          {isBootstrapSeeded
+            ? "正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。"
+            : "正在載入帳號與工作區內容…"}
+        </div>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Total Workspaces</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.total}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Active</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.active}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Preparatory</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.preparatory}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      <Card className="border border-border/50">
+        <CardHeader>
+          <CardTitle>Workspace-first Product Spine</CardTitle>
+          <CardDescription>
+            目前先把主流程收斂成 Identity → Organization → Workspace，再由工作區承接 Knowledge、知識頁面、Notebook / AI。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-xl border border-border/40 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Entry flow</p>
+            <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li>
+                <span className="font-medium text-foreground">1. Identity</span>：登入後先建立個人／組織帳號情境。
+              </li>
+              <li>
+                <span className="font-medium text-foreground">2. Organization</span>：切換至目標 account / organization。
+              </li>
+              <li>
+                <span className="font-medium text-foreground">3. Workspace</span>：進入工作區後再分流到知識、知識頁面、Notebook / AI。
+              </li>
+            </ol>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Knowledge</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                文件、來源、Libraries 與 upload / ingest 流程都由工作區承接。
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">知識頁面</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                頁面樹、內容導覽與知識結構直接從工作區知識頁面進入。
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                問答、推理與 RAG 查詢作為工作區內的消費層，而非獨立入口。
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border/50">
+        <CardHeader>
+          <CardTitle>Workspace Records</CardTitle>
+          <CardDescription>
+            Lifecycle 與 supporting governance records 目前仍由 workspace 模組擁有，但已收斂在專用 supporting ports；點入後會以工作區為樞紐進入 Knowledge / 知識頁面 / Notebook-AI。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+              Loading workspace records…
+            </div>
+          )}
+
+          {loadState === "error" && errorMessage && (
+            <div className="rounded-xl border border-destructive/30 px-4 py-3 text-sm text-destructive">
+              {errorMessage}
+            </div>
+          )}
+
+          {loadState === "loaded" && workspaces.length === 0 && (
+            <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
+              目前這個帳號尚未建立任何工作區。你可以先完成{" "}
+              <Link
+                href="/organization"
+                className="font-medium text-primary hover:underline"
+              >
+                組織情境
+              </Link>{" "}
+              設定，再使用上方的建立工作區入口，回到 workspace-first 主流程。
+            </div>
+          )}
+
+          {workspaces.map((workspace) => {
+            const governanceSummary = getWorkspaceGovernanceSummary(workspace);
+
+            return (
+              <Link
+                key={workspace.id}
+                href={`/workspace/${workspace.id}`}
+                className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">
+                        {workspace.name}
+                      </p>
+                      <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
+                        {workspace.lifecycleState}
+                      </Badge>
+                      <Badge variant="outline">{workspace.visibility}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Account scope: {workspace.accountType}
+                    </p>
+                    <p className="text-xs font-medium text-primary">點擊進入工作區</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
+                    <span>Capabilities: {governanceSummary.capabilityCount}</span>
+                    <span>Teams: {governanceSummary.teamCount}</span>
+                    <span>Locations: {governanceSummary.locationCount}</span>
+                    <span>Grants: {governanceSummary.grantCount}</span>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      <CreateWorkspaceDialog
+        open={isCreateWorkspaceOpen}
+        workspaceName={workspaceName}
+        createError={createError}
+        isCreatingWorkspace={isCreatingWorkspace}
+        accountId={accountId}
+        onOpenChange={(open) => {
+          setIsCreateWorkspaceOpen(open);
+          if (!open) resetCreateWorkspaceDialog();
+        }}
+        onWorkspaceNameChange={(name) => {
+          setWorkspaceName(name);
+          if (createError) clearCreateError();
+        }}
+        onSubmit={handleCreateWorkspace}
+      />
+    </div>
+  );
+}
 ````
 
 ## File: modules/workspace/interfaces/components/WorkspaceProductSpineCard.tsx
@@ -77574,113 +78025,81 @@ export function buildWikiContentTree(
 }
 ````
 
-## File: modules/workspace/README.md
+## File: modules/workspace/subdomain.md
 ````markdown
-# workspace — 協作容器上下文
+# Subdomain — workspace
 
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/workspace/`  
-> **定位:** 協作範圍、生命週期與工作區公開邊界
+`workspace` 所對應的問題空間在 Xuanwu 的戰略分類中屬於 generic subdomain。
 
-## Strategic Role
+全域 subdomain 分類由 [docs/ddd/subdomains.md](../../docs/ddd/subdomains.md) 擁有；本文件只說明 workspace 為什麼落在這個分類，以及它在 selected problem-space view 中的意義。
 
-`workspace` 是 Xuanwu 的協作容器 bounded context。它提供工作區作為協作範圍的 identity、生命週期與可見性語言，讓知識、來源、工作流、稽核、動態與排程等上下文可以用同一個 `workspaceId` 對齊範圍。
+## Why Generic
 
-從戰略分類看，workspace 所對應的問題空間屬於 generic subdomain，不是產品差異化核心；真正差異化的知識內容、檢索與協作語意由其他 bounded context 擁有。
+workspace 解決的是「協作範圍、生命週期與公開邊界」問題，而不是 Xuanwu 的主要差異化來源。
 
-從邊界落地看，`modules/workspace/` 是承載這組 generic-subdomain 語言的 bounded context，而不是整個 Xuanwu domain 的總模型。
+它的重要性很高，但它不是產品獨特價值本身。真正形成產品差異化的，仍是知識內容、檢索、協作語意與工作流等上下文。
 
-## Domain / Subdomain / Bounded Context
+## What Problem Space It Covers
 
-| 層級 | workspace 在此層級的角色 |
-|---|---|
-| Domain | Xuanwu 這個整體知識平台業務域 |
-| Subdomain | 協作容器與範圍治理問題空間，戰略上屬於 generic subdomain |
-| Bounded Context | `modules/workspace/`，承載 `workspaceId`、生命週期、可見性與工作區公開邊界 |
+workspace 子域聚焦這些問題：
 
-這裡描述的是以 workspace 為中心的 selected view。它用來分析此問題空間牽涉到哪些 subdomains 與 bounded contexts，不等於整個 Xuanwu domain 的完整戰略地圖。
+- 工作區作為協作容器的存在性
+- 工作區範圍鍵 `workspaceId`
+- 工作區生命週期與可見性
+- 讓其他 bounded contexts 能以共同範圍語言協作
 
-## 主要職責
+## What It Deliberately Does Not Differentiate
 
-| 能力 | 說明 |
-|---|---|
-| Workspace 容器生命週期 | 建立工作區、更新設定、管理 `preparatory | active | stopped` 狀態 |
-| 協作範圍語言 | 提供 `workspaceId`、`WorkspaceVisibility` 與工作區範圍識別語言 |
-| 工作區公開邊界 | 透過 `api/` 暴露穩定查詢、命令入口與 UI composition surface |
-| Read-side Projections | 組合工作區成員檢視與工作區導覽節點等查詢模型 |
+- 它不定義知識內容本身
+- 它不定義組織成員真相來源
+- 它不定義檢索、RAG、文章治理等差異化業務能力
 
-## 不屬於此 Context 的責任
+Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 bounded context 內部或邊界上的實作 / 協作概念。
 
-- `organization` 擁有組織成員、團隊與組織治理真相來源
-- `knowledge` / `knowledge-base` / `source` / `notebook` 擁有內容與知識工作流語意
-- `shared` 擁有跨 bounded context 的事件基底與 event publishing 基礎設施
-- UI tab 組裝屬於 interface composition，不等於 context map
+同理，以下結構也不是 subdomain 本體，而是 `modules/workspace/` 這個 bounded context 的落地方式：
 
-## Tactical Model Summary
+- `domain/`
+- `application/`
+- `ports/input/`、`ports/output/`
+- `interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- `infrastructure/`
 
-| 類型 | 目前契約 |
-|---|---|
-| Aggregate Root | `Workspace` |
-| Supporting Domain Objects | `WorkspaceLocation`、`Capability`、`WorkspaceGrant`、`WorkspacePersonnel` |
-| Read Projections | `WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode` |
-| Drivers | Browser UI、Server Actions、其他 bounded context 經由 `api/` 的呼叫者 |
-| Driven Ports | `WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository` |
-| Driving Adapters | `interfaces/_actions/`、`interfaces/queries/`、UI composition |
-| Driven Adapters | Firebase repositories 與事件整合 adapters |
-| Write-side Port | `WorkspaceRepository` |
-| Read-side Ports | `WorkspaceQueryRepository`、`WikiWorkspaceRepository` |
-| Domain Services | 目前沒有獨立 service；規則仍以 aggregate / application orchestration 為主 |
-| Domain Events | `WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged` 為目標契約 |
+換句話說，workspace 子域提供的是必要的結構性能力，而不是核心競爭優勢。
 
-## Hexagonal View
+## Selected Strategic View
 
-| 六邊形位置 | workspace 對位 |
-|---|---|
-| Domain Model Core | `domain/` 下的 aggregate、entity、value object、domain event language |
-| Application Ring | `application/` use cases 與 orchestration |
-| Driving Adapters | `interfaces/`、Server Actions、queries、UI composition |
-| Driven Ports | `domain/repositories/` 等內核對外介面 |
-| Driven Adapters | `infrastructure/` 的 Firebase 等外部整合 |
+這份文件只用 workspace 為中心看它周邊牽涉到的問題空間：
 
-`context-map.md` 描述的是 bounded context 在整體 domain 裡的外部關係；六邊形描述的是這個 bounded context 內部的結構。兩者不可混用。
+- `organization` 提供 ownership 與 member/team truth
+- `knowledge`、`knowledge-base`、`source`、`notebook` 等透過 `workspaceId` 對齊範圍
+- `workspace-flow`、`workspace-feed`、`workspace-scheduling` 等在工作區範圍內延伸自己的語言
 
-若 workspace 透過事件與其他 bounded contexts 協作，它仍然是一個位於整體 event-driven topology 中的 hexagon：commands / queries 由 driving side 進入，domain events 由內核語言產生，再由外層 adapter 發布。
+這是一個 selected view，不是整個 Xuanwu domain 的完整 subdomain 分析。
 
-## DDD 概念導讀
+## What Is Not a Subdomain
 
-| 概念 | 在 workspace 中的程式型態 | 主要查看文件 |
-|---|---|---|
-| Entity（實體） | 類別 / 物件 | `aggregates.md` |
-| Value Object（值對象） | 類別 / 物件 | `aggregates.md`、`ubiquitous-language.md` |
-| Aggregate / Aggregate Root（聚合 / 聚合根） | 類別 / 物件 | `aggregates.md` |
-| Repository（倉儲） | 介面或類別（負責資料存取） | `repositories.md` |
-| Ports（端口） | 介面，宣告 collaboration seam | `repositories.md`、`application-services.md` |
-| Adapters（適配器） | 類別 / 函式 / 模組，連接 drivers 或外部系統 | `bounded-context.md`、`repositories.md`、`application-services.md` |
-| 外部系統 / Driver（驅動器） | 從外部啟動此 bounded context 的角色或系統 | `bounded-context.md`、`context-map.md` |
-| Projection / Read Model | 查詢導向的讀取模型 | `aggregates.md`、`application-services.md`、`ubiquitous-language.md` |
-| Domain Service（領域服務） | 類別 / 函式 | `domain-services.md` |
-| Factory（工廠） | 類別 / 函式 | `application-services.md`、`domain-events.md` |
-| Domain Event（領域事件） | 事件類別、訊息物件 | `domain-events.md`、`context-map.md` |
+以下概念雖然與 workspace 有關，但不應拿來當 subdomain：
 
-## 實作備註
+- Firestore、event bus 等 external systems
+- Browser UI、Server Actions、job triggers 等 drivers
+- repository ports、adapters 等 hexagonal 結構元件
+- `ports/input/`、`ports/output/`、`application/services/`、`domain/services/` 等 folder / layer 名稱
+- `WorkspaceMemberView`、`Wiki*Node` 這類 read models / projections
 
-- 目前程式中仍有一些 supporting records 與 read projections 混置於 `domain/entities/`；本文件定義的是收斂方向
-- `WorkspaceMemberView` 與 `WikiContentTree` 型別不得再被描述成 aggregate 或 value object
-- `index.ts` 的目標是薄入口；跨模組 consumer 應優先依賴 `@/modules/workspace/api`
+## Investment Posture
 
-## 詳細文件
+作為 generic subdomain，workspace 的策略不是追求花俏建模，而是：
 
-| 文件 | 說明 |
-|---|---|
-| [subdomain.md](./subdomain.md) | workspace 為何屬於 generic subdomain，以及哪些內容不是 subdomain 本體 |
-| [bounded-context.md](./bounded-context.md) | workspace 作為 bounded context 的邊界、drivers、ports、adapters 與 read model |
-| [ubiquitous-language.md](./ubiquitous-language.md) | workspace BC 的通用語言、read model 與 hexagonal 元術語 |
-| [aggregates.md](./aggregates.md) | aggregate、entity、value object 與 read model / projection 對位 |
-| [application-services.md](./application-services.md) | application layer use cases、drivers、ports、adapters 與 read model orchestration |
-| [repositories.md](./repositories.md) | driven ports、repository adapters 與 query/read model 持久化邊界 |
-| [domain-services.md](./domain-services.md) | domain service 與 ports/adapters/drivers/read models 的區別 |
-| [domain-events.md](./domain-events.md) | workspace 領域事件契約、事件驅動整合與 projection 關係 |
-| [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
+- 穩定邊界
+- 穩定 published language
+- 清楚 ownership
+- 對其他 bounded contexts 提供低摩擦協作面
+
+## Related Local Docs
+
+- [README.md](./README.md) — 模組總覽
+- [bounded-context.md](./bounded-context.md) — 本地 bounded context 邊界
+- [context-map.md](./context-map.md) — 與其他 bounded contexts 的關係
 ````
 
 ## File: app/(shell)/ai-chat/page.tsx
@@ -78297,210 +78716,322 @@ export function FileProcessingDialog({
 }
 ````
 
-## File: modules/workspace/aggregates.md
+## File: modules/workspace/context-map.md
 ````markdown
-# Aggregates — workspace
+# Context Map — workspace
 
-本文件中的 Aggregate / Aggregate Root、Entity、Value Object 都以類別 / 物件來討論；它們是 workspace bounded context 的 write-side domain model，而不是 UI projection。
+`workspace` 的 context map 只描述 bounded context 之間的關係與 integration patterns，不描述頁面 tab 組裝。
 
-從六邊形架構的角度看，這份文件描述的是 bounded context 核心的 domain model，不是外層 adapter，也不是整個 Xuanwu domain 的 context map。
+在這份文件裡，Aggregate Root 指的是對外提供 published language 的 domain 類別 / 物件；Domain Event 指的是跨 context 可發布的事件類別、訊息物件。Repository、Factory、Domain Service 不屬於 context map 的主體，但會支撐這些整合 surface 的實作。
 
-這裡列出的 aggregate、entity、value object 也是此 bounded context 通用語言的一部分；它們與 domain events 一起構成 `workspace` collaboration language，而不只是型別分類。
+## Domain / Subdomain / Bounded Context 層級
 
-Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain model 外圍。這份文件只在需要區分 read model / projection 時提及外層結構。
+- `Xuanwu` 是整體 domain
+- `workspace` 對應的是 generic subdomain 中的協作容器問題空間
+- `modules/workspace/` 是承載這組語言的 bounded context
+- context map 描述的是這個 bounded context 在整體 domain 裡與其他 bounded context 的關係，而不是描述 bounded context 內部的六邊形分層
+- 這是一個 problem-space selected view：只聚焦與 workspace 有關的 subdomains / bounded contexts，不試圖覆蓋整個 Xuanwu domain inventory
+- 某些相關 bounded contexts 可能位於同一 subdomain，也可能來自 supporting / external / generic 區域；關係圖關注的是邊界互動，不是所有權想像
 
-## Write-side Aggregate Root
+## Drivers and External Systems（不是 Bounded Context）
 
-### `Workspace`
+下列對象會影響 workspace，但不應畫成 context map 中的 bounded context：
 
-`Workspace` 是此 bounded context 的 aggregate root。它代表一個協作範圍，並保護工作區生命週期、可見性與工作區範圍識別語言的一致性。
+- Browser UI / Next.js 頁面與 Server Actions：它們是 drivers
+- Firestore、event bus 等技術系統：它們是 external systems，由 adapters 整合
+- Query projections / read models：它們是讀取結果，不是獨立 bounded context
+- `ports/input/`、`ports/output/`、`application/`、`domain/`、`interfaces/`、`infrastructure/` 等 folder 是 bounded context 的內部實作切面，不是 context map 上的節點
 
-### 核心屬性
+## Upstream Contexts
 
-| 屬性 | 型別 | 說明 |
+### `account` → `workspace`（Customer/Supplier）
+
+- `account` 提供 personal ownership 與 actor identity 的基礎語言
+- `workspace.accountId` 在 personal scope 下對齊 `account`
+- `workspace` 依賴 `account` 的存在，但不複製 account 的完整模型
+
+### `organization` → `workspace`（Customer/Supplier + Read-side ACL）
+
+- `organization` 提供 team、member 與 organization ownership 的真相來源
+- `workspace.accountId + accountType="organization"` 讓工作區對齊組織範圍
+- 在 query side，workspace 會把 organization 的成員/團隊語言翻譯成 `WorkspaceMemberView`
+- 這種翻譯屬於 read-side anti-corruption / translation 行為，不代表 `workspace` 擁有組織模型
+
+## Downstream / Dependent Contexts
+
+### `workspace` → `knowledge`（Conformist）
+
+- `knowledge` 使用 `workspaceId` 對齊知識頁面的工作區範圍
+- `knowledge` 對工作區存在性、範圍與可見性語言採 conformist
+
+### `workspace` → `knowledge-base`（Conformist）
+
+- `knowledge-base` 以 `workspaceId` 作為文章與知識資產的工作區範圍鍵
+
+### `workspace` → `source`（Conformist）
+
+- `source` 以 `workspaceId` 管理文件與 library 的工作區範圍
+
+### `workspace` → `notebook`（Conformist）
+
+- `notebook` 以 `workspaceId` 作為查詢與 RAG 工作流範圍
+
+### `workspace` → `workspace-flow`（Conformist）
+
+- `workspace-flow` 以 `workspaceId` 對齊任務、issue、invoice 的工作區範圍
+
+### `workspace` → `workspace-scheduling`（Conformist）
+
+- `workspace-scheduling` 以 `workspaceId` 對齊排程與容量規劃範圍
+
+### `workspace` → `workspace-feed`（Conformist）
+
+- `workspace-feed` 以 `workspaceId` 對齊活動流範圍
+
+### `workspace` → `workspace-audit`（Published Language / Conformist）
+
+- `workspace-audit` 會消費工作區範圍資訊與後續 workspace domain events
+- 在事件真正落地前，雙方仍主要透過同步 API 與共同範圍語言協作
+
+## Public Integration Surfaces
+
+| 類型 | Surface |
+|---|---|
+| 同步 API | `modules/workspace/interfaces/api` |
+| Published Language | `workspaceId`、`WorkspaceLifecycleState`、`WorkspaceVisibility` 等 aggregate / value object 語言 |
+| 非同步事件（目標） | `workspace.created`、`workspace.lifecycle_transitioned`、`workspace.visibility_changed` 等 domain event 訊息物件 |
+
+每一個對外 surface 都可視為一個 hexagon-to-hexagon integration point：不是 page 組裝，不是 repository 內部細節，而是 bounded context 對其他 bounded context 的協作面。
+
+## 內部結構不是 Context Map
+
+以下是 `workspace` bounded context 內部用來實作邊界的切面，但它們不是 context map 本身：
+
+- `interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- `ports/input/`、`ports/output/`
+- `application/use-cases/`、`application/services/`、`application/dtos/`
+- `domain/aggregates/`、`domain/entities/`、`domain/value-objects/`、`domain/services/`、`domain/events/`、`domain/factories/`
+- `infrastructure/events/`、`infrastructure/firebase/`
+
+這些 folder 與箭頭描述的是六邊形依賴方向；context map 描述的是 bounded context 與 bounded context 之間的關係。
+
+## Read Models in Collaboration
+
+- `WorkspaceMemberView` 這類 read model 主要服務本地查詢與 ACL translation
+- 除非明確定義為 published language，projection 不應被當成跨 bounded context 的 canonical contract
+
+## Non-Examples
+
+- `WorkspaceDetailScreen` 組合 `WorkspaceFlowTab`、`WorkspaceSchedulingTab`、`WorkspaceAuditTab` 是 UI composition，不是 strategic context map
+- `WikiContentTree` 導覽節點是 query model，不是 context-to-context contract 的替代物
+- `domain/`、`application/`、`ports/`、`interfaces/`、`infrastructure/` 的分工屬於六邊形架構內部切面，不是 context map 本身
+
+## IDDD 整合模式總結
+
+| 關係 | 模式 | 備註 |
 |------|------|------|
-| `id` | `string` | 工作區主鍵；建立後不可變更 |
-| `name` | `WorkspaceName` | 工作區名稱值對象 |
-| `accountId` | `string` | 擁有工作區的 account / organization |
-| `accountType` | `"user" \| "organization"` | 擁有者類型 |
-| `lifecycleState` | `WorkspaceLifecycleState` | `preparatory | active | stopped` |
-| `visibility` | `WorkspaceVisibility` | `visible | hidden` |
-| `createdAt` | `Timestamp` | 建立時間 |
-
-### 不變條件
-
-- `id`、`accountId`、`accountType` 在建立後不可變更
-- `lifecycleState` 的 canonical 語言是 `preparatory | active | stopped`
-- `visibility` 的 canonical 語言是 `visible | hidden`
-- 下游 context 只能在有效的 `workspaceId` 範圍內掛載資料與行為
-
-## Supporting Domain Objects Inside `Workspace`
-
-### Entities
-
-| 類型 | 說明 |
-|------|------|
-| `WorkspaceLocation` | 以 `locationId` 識別的工作區位置節點 |
-| `Capability` | 目前以 `id` 識別的工作區能力記錄；若治理規則成長，可再評估外拆 |
-| `WorkspacePersonnelCustomRole` | 以 `roleId` 識別的人員自訂角色記錄 |
-
-### Value Objects
-
-| 類型 | 說明 |
-|------|------|
-| `WorkspaceLifecycleState` | 工作區生命週期值 |
-| `WorkspaceVisibility` | 工作區可見性值 |
-| `WorkspaceName` | 工作區名稱值，負責 trim 與基本字串約束 |
-| `Address` | 地址值型資料 |
-| `WorkspaceGrant` | 工作區授權記錄；以內容而非獨立 aggregate identity 判斷語意 |
-| `WorkspacePersonnel` | 管理/監督/安全等角色參照集合 |
-| `CapabilitySpec` | 能力定義的值型描述 |
-
-## Read-side Projections / Read Models（不是 Aggregate）
-
-| 類型 | 說明 |
-|------|------|
-| `WorkspaceMemberView` | 工作區成員查詢投影，組合 workspace 與 organization 的資料 |
-| `WorkspaceMemberAccessChannel` | 讀模型中的接入通道描述 |
-| `WikiAccountContentNode` | 帳戶導覽節點 |
-| `WikiWorkspaceContentNode` | 工作區導覽節點 |
-| `WikiContentItemNode` | 導覽項 read projection |
-
-`WorkspaceMemberView` 與 `Wiki*Node` 型別目前放在 `domain/entities/` 下，但語意上是 query-side projection，不是 write-side aggregate、entity 或 value object。
-
-這些 projection / read model 是為特定讀取需求與驅動器提供的查詢形狀：
-
-- 它們可由 query-side use case、repository adapter 或 ACL translation 組裝
-- 它們優先服務查詢與呈現，不優先服務 invariant 保護
-- 它們不是 ports，也不是 adapters；而是 adapters / query flows 產出的讀取模型
-
-## Strategic Reminder
-
-- `Workspace` aggregate root 屬於 `workspace` 這個 bounded context 的內部 tactical model
-- 它不等於整個 Xuanwu domain，也不等於 generic subdomain 的全部關係圖
-- Subdomain / Bounded Context 的外部關係應在 `README.md` 與 `context-map.md` 理解，不應把整體戰略關係塞回 aggregate 定義
-- 一個 subdomain 內可以有多個 bounded contexts；本文件只處理 `modules/workspace/` 這個 bounded context 的核心模型
-
-## Factory Boundary
-
-- Factory（工廠）在本 context 中是類別 / 函式，用來建立 aggregate、value object 或對 reconstitution 做集中驗證
-- `Workspace` 與 P1 value objects 應優先透過 factory / parser 建立，而不是由 interface adapter 任意拼接 raw object
-- Factory 不是 Repository，也不是 Domain Service；它的責任是安全建立模型，不是持久化或協調流程
-
-## What This File Does Not Own
-
-- Driver / 外部驅動器：例如 Browser UI、Server Actions、其他 bounded context 呼叫者
-- Adapter：例如 Firebase repository classes、Server Action wrappers、query wrappers
-- Port 定義本身：見 [repositories.md](./repositories.md)
-
-## Tactical Debt Notes
-
-- `Workspace` aggregate 目前仍承載 capabilities、grants、locations、personnel 等 supporting records；若之後規則持續成長，應再評估切分 ownership
-- P1 已正式落地於 `domain/value-objects/`：`WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
-- `WikiContentTree` 不是 write-side aggregate；它是為導覽組裝的 query model
-- `WorkspaceMember` 不是目前的 canonical write-side 名稱；查詢模型請使用 `WorkspaceMemberView`
+| `account` → `workspace` | Customer/Supplier | 個人 ownership 與 actor identity |
+| `organization` → `workspace` | Customer/Supplier + Read-side ACL | workspace 讀模型翻譯 organization 資料 |
+| `workspace` → `knowledge` | Conformist | 以 `workspaceId` 對齊內容範圍 |
+| `workspace` → `knowledge-base` | Conformist | 以 `workspaceId` 對齊知識資產範圍 |
+| `workspace` → `source` | Conformist | 以 `workspaceId` 對齊來源範圍 |
+| `workspace` → `notebook` | Conformist | 以 `workspaceId` 對齊研究與 RAG 範圍 |
+| `workspace` → `workspace-flow` | Conformist | 以 `workspaceId` 對齊工作流範圍 |
+| `workspace` → `workspace-scheduling` | Conformist | 以 `workspaceId` 對齊排程範圍 |
+| `workspace` → `workspace-feed` | Conformist | 以 `workspaceId` 對齊活動流範圍 |
+| `workspace` → `workspace-audit` | Published Language / Conformist | 範圍資訊與後續事件消費 |
 ````
 
-## File: modules/workspace/application-services.md
+## File: modules/workspace/domain-events.md
 ````markdown
-# workspace — Application Services
+# Domain Events — workspace
+
+本文件定義 workspace 的目標 domain event 契約。它描述的是 bounded context 應該公開的事件語言，不宣稱所有事件都已經完全接線完成。
+
+在 workspace 中，Domain Event（領域事件）是事件類別或訊息物件。它不是 UI callback，也不是 repository method；它是 bounded context 對外發布的語言單位。
+
+從 strategic design 角度看，這些事件是 `workspace` bounded context 對整體 Xuanwu domain 其他 bounded context 公開的 published language。
+
+從六邊形架構角度看，事件型別與工廠屬於內核語言；`ports/output/WorkspaceDomainEventPublisher` 是發布抽象，event bus / event store 與實際發布機制屬於 `infrastructure/events/` adapter 協作。
+
+## Event-Driven Architecture Position
+
+- `workspace` 可以作為一個 hexagonal system 發出 outgoing events，也可能在未來接收 incoming events
+- 事件驅動是 bounded context 之間的解耦機制，不代表 aggregate 必須採 event sourcing
+- 事件 subscriber / pipeline filter / bus adapter 屬於邊界協作，不應污染 domain event 語言本身
+
+## Ports, Adapters, Drivers, and Projections
+
+- Drivers 先透過 `interfaces/* -> ports/input -> application/use-cases` 觸發狀態改變，再由 application / adapter 協調發布事件
+- `WorkspaceDomainEventPublisher` 是 output port；實際 bus / store connector 是 adapter
+- 下游 bounded context 或本地 query-side flow 可以用事件更新 projection / read model
+- 但 domain event 本身不是 projection；它是發布語言，不是讀取結果
+
+## Event Publishing Path
+
+```txt
+interfaces/*
+	-> ports/input
+	-> application/use-cases
+	-> domain/aggregates + domain/services
+	-> ports/output/WorkspaceDomainEventPublisher
+	-> infrastructure/events/*
+```
+
+### 說明
+
+1. Event 由 domain language 定義。
+2. 發布動作由 application layer 在持久化成功後觸發。
+3. 發布介面放在 `ports/output/`。
+4. 實際 dispatcher / bus / store connector 放在 `infrastructure/events/`。
+
+## Event Base Contract
+
+workspace domain events 應對齊 `modules/shared/domain/events.ts` 的共享基底：
+
+- `eventId`
+- `type`
+- `aggregateId`
+- `occurredAt`
+
+`aggregateId` 在 workspace 事件中一律對應 `workspaceId`。
+
+## Canonical Events
+
+| 事件物件 | Discriminant | 觸發條件 | 關鍵欄位 |
+|---|---|---|---|
+| `WorkspaceCreatedEvent` | `workspace.created` | 工作區建立完成後 | `workspaceId`, `accountId`, `accountType`, `name` |
+| `WorkspaceLifecycleTransitionedEvent` | `workspace.lifecycle_transitioned` | `lifecycleState` 發生改變後 | `workspaceId`, `accountId`, `fromState`, `toState` |
+| `WorkspaceVisibilityChangedEvent` | `workspace.visibility_changed` | `visibility` 發生改變後 | `workspaceId`, `accountId`, `fromVisibility`, `toVisibility` |
+
+## Event Factories
+
+workspace module 應提供明確工廠函式來建立事件訊息物件，例如：
+
+- `createWorkspaceCreatedEvent(...)`
+- `createWorkspaceLifecycleTransitionedEvent(...)`
+- `createWorkspaceVisibilityChangedEvent(...)`
+
+這些工廠屬於 domain event language，不是 React helper，也不應放在 page / component 內。
+
+## Publishing Rules
+
+- 先成功持久化 aggregate，再發布事件
+- 事件 payload 只包含下游所需的最小資訊
+- 不把 React state、router path、UI label 放進事件語言
+- application layer 可以組裝 event publisher，但事件物件本身屬於 domain language
+- `infrastructure/events/` 只做 adapter 實作，不寫 domain 規則
+
+## 明確排除的事件
+
+| 不再作為 workspace 事件的名稱 | 原因 |
+|---|---|
+| `workspace.archived` | 此 bounded context 的生命週期語言是 `stopped`，不是 `archived` |
+| `workspace.member_joined` | 工作區成員清單目前是 read projection；成員真相來源屬於 organization / access language |
+| `workspace.member_removed` | 同上 |
+
+## 目前落地策略
+
+- 第一批事件以 `WorkspaceCreatedEvent`、`WorkspaceLifecycleTransitionedEvent`、`WorkspaceVisibilityChangedEvent` 為主
+- event publishing 透過 `ports/output/WorkspaceDomainEventPublisher` 接到 event store / event bus adapters
+- 在事件完全接線前，文件仍以此處為 canonical published language
+
+## 明確不是目前策略的內容
+
+- 目前 workspace repository 不是 event-sourced repository；aggregate 不是從 event store replay reconstitute
+- 目前沒有專屬的 event pipeline / filter chain 作為主要處理模型
+- 目前沒有 `workspace` 專屬的 long-running process executive 或 tracker aggregate
+````
+
+## File: modules/workspace/domain-services.md
+````markdown
+# workspace — Domain Services
 
 > **Canonical bounded context:** `workspace`
 > **模組路徑:** `modules/workspace/`
 > **Domain Type:** Generic Subdomain
 
-本文件定義 workspace application layer 的目標契約。Application layer 負責協調 aggregate、repository ports、query projections 與 domain event publishing，不承載 React UI state，也不作為跨模組偷渡 internal implementation 的入口。
+目前 workspace 已建立 `domain/services/` 目錄，並以該目錄作為純業務規則的正式位置。即使目前具體 service 檔案仍少，文件上已將此處定義為未來代碼必須遵守的邊界。
 
-從六邊形架構看，application layer 位在 domain model 外層、adapter 內層：它負責接住 inbound requests、呼叫 domain model 與 ports，並協調 outbound integration，但不應吞掉 aggregate 本身的規則。
+在 workspace 中，Domain Service（領域服務）是類別 / 函式，用來承載不自然屬於 aggregate、entity、value object 的純領域規則。
 
-從依賴反轉看，application layer 應向下依賴 `domain/` 抽象與 ports，由 `infrastructure/` 提供實作；UI 與 server entrypoints 則依賴 application layer，而不是直接跨進 repository implementation。
+從六邊形架構看，Domain Service 位於 domain model 內核，而不是 `interfaces/` 或 `infrastructure/` adapter。它可以被 application layer 協作呼叫，但不應反向依賴外部技術。
 
-## Application Layer 職責
+從 strategic design 看，Domain Service 服務的是 `workspace` 這個 bounded context 的語言，不是跨整個 Xuanwu domain 的共用雜項工具。
 
-- 協調 command-side use cases
-- 協調 query-side use cases / projection builders
-- 呼叫 repository ports 與必要的 domain service
-- 在持久化成功後觸發 domain event publishing
-- 保持 input/output 契約穩定，讓 `interfaces/` 可以薄適配
+它也不等同於 event subscriber、pipeline filter、long-running process executive；那些概念若存在，通常屬於應用層協調或邊界整合，而不是先天就是 Domain Service。
 
-## Ports / Adapters / Drivers / Read Models
+## Domain Service = 邏輯
 
-- Driver / 外部驅動器：Browser UI、Server Actions、其他 bounded context 對 `api/` 的呼叫者，以及未來可能的事件 subscriber / job trigger
-- Driving Adapters：`interfaces/_actions/`、`interfaces/queries/`、UI composition；把 driver 的要求轉成 application 可處理的命令 / 查詢
-- Driven Ports：repository 介面與其他內核對外抽象
-- Driven Adapters：Firebase repositories、event bus / event store integration 等外部技術實作
-- Read Models：application layer 在 query-side 協調產出的 `WorkspaceMemberView`、`Wiki*Node` 等讀取模型
+`domain/services/` 的核心原則只有一個：**Domain Service = 邏輯**。
 
-## 本文件涉及的 DDD 概念
+也就是說，這裡只放：
 
-- Repository（倉儲）→ 介面或類別；application layer 依賴的是 repository port，而不是 infrastructure adapter 類別
-- Domain Service（領域服務）→ 類別 / 函式；只有當規則不屬於 aggregate / value object 時才由 application layer 協作呼叫
-- Factory（工廠）→ 類別 / 函式；用來建立 aggregate、value object、domain event 等有效模型
-- Domain Event（領域事件）→ 事件類別、訊息物件；application layer 可在持久化成功後發布，但事件語言本身屬於 domain
+- 業務規則
+- invariant 補助規則
+- guard / policy / rule objects
+- 不自然屬於單一 aggregate 的純 domain 計算
 
-## 在整體 Domain 裡的位置
+這裡不放：
 
-- 這些 application services 只服務 `workspace` 這個 bounded context
-- 它們不代表整個 generic subdomain 的所有流程，更不應直接編排其他 bounded context 的內部實作
-- 若流程跨越多個 bounded context，應明確透過 `api/`、published language 或更高層的 composition orchestration 協作
+- 流程協調
+- 多 use case orchestration
+- React / Route Handler / CLI adapter
+- Firestore / event dispatcher / Genkit 呼叫
 
-## Event-Driven 與長流程定位
+流程協調屬於 `application/services/`，不是 `domain/services/`。
 
-- 若 workspace 未來出現多步驟、跨事件的長流程協調，預設先視為 application-level process orchestration，而不是直接塞進 aggregate
-- 只有當流程追蹤本身成為領域概念時，才考慮引入 tracker aggregate 或對應 domain model
-- 目前 workspace application layer 會協調事件發布，但尚未引入專屬的 long-running process executive / saga state object
+## 與 Ports / Adapters / Drivers / Read Models 的區別
 
-## Command-side Use Cases
+- Port 宣告協作接縫；它不是業務規則本身
+- Adapter 轉譯外部系統或 driver；它不是 domain service
+- Driver 觸發工作開始；它不是 domain model 元件
+- Projection / Read Model 服務讀取；它不是領域規則容器
 
-| Use Case | 目的 | 備註 |
+## 與 Application Service 的區別
+
+| | Domain Service | Application Service |
 |---|---|---|
-| `CreateWorkspaceUseCase` | 建立工作區 | 最小建立流程 |
-| `CreateWorkspaceWithCapabilitiesUseCase` | 建立工作區並掛載能力 | 透過 `WorkspaceRepository` + `WorkspaceCapabilityRepository` 協作 |
-| `UpdateWorkspaceSettingsUseCase` | 更新名稱、可見性、生命週期與 supporting records | 目前是主要設定更新入口 |
-| `DeleteWorkspaceUseCase` | 刪除工作區 | 應搭配生命週期與下游資料政策檢視 |
-| `MountCapabilitiesUseCase` | 掛載工作區能力 | 僅依賴 `WorkspaceCapabilityRepository` |
-| `GrantTeamAccessUseCase` | 為 workspace 授權 team access | 僅依賴 `WorkspaceAccessRepository` |
-| `GrantIndividualAccessUseCase` | 為 workspace 新增 direct grant | 僅依賴 `WorkspaceAccessRepository` |
-| `CreateWorkspaceLocationUseCase` | 建立工作區位置節點 | 僅依賴 `WorkspaceLocationRepository` |
+| 核心責任 | 邏輯 | 流程 |
+| 是否可直接碰 infrastructure | 不可 | 不可直接碰 implementation，應透過 ports |
+| 典型內容 | policy、guards、rules | process manager、orchestrator、cross-use-case flow |
+| 依賴方向 | 只依賴 domain | 可依賴 domain、use-cases、ports |
 
-## Query-side Use Cases / Projection Builders / Read Model Builders
+## 目前狀態
 
-| Use Case / Function | 目的 |
+- 單一 aggregate 內的規則，優先留在 `Workspace` aggregate 與 supporting domain objects
+- 讀模型組裝與外部資料翻譯，優先留在 query-side repository / application orchestration
+- `domain/services/` 已是正式預留位置；只有當規則穩定成為純領域語言時才放入
+
+## 何時應新增 Domain Service
+
+只有在出現以下情況時，才應把規則抽成 domain service：
+
+- 規則跨越多個 aggregate 或多個 supporting domain objects
+- 規則不是單純的 repository 查詢，也不是 UI composition
+- 規則不依賴 React、Firebase SDK、HTTP client 或 router
+- 規則本身是穩定的領域語言，而不是暫時性的流程拼裝
+
+## 可能的候選服務（尚未落地）
+
+| 候選服務 | 何時需要 |
 |---|---|
-| `FetchWorkspaceMembersUseCase` | 組合 `WorkspaceMemberView[]` |
-| `buildWikiContentTree` | 組合工作區導覽樹 projection |
+| `WorkspaceLifecyclePolicy` | 若生命週期轉移規則持續增加，超出 aggregate 本身可讀性時 |
+| `WorkspaceAccessResolutionService` | 若 direct grant、team grant、personnel 解析邏輯需要在多個 use case 重複使用時 |
+| `WorkspaceCapabilityMountPolicy` | 若 capability mounting 有穩定、可重用的領域規則時 |
 
-這些輸出是 read model / projection，不是 aggregate。
+## 若未來引入長流程
 
-## Factories 與 Composition Points
+- 若只是協調多個事件處理步驟，優先建模為 application-level process orchestration
+- 若流程狀態本身成為業務真相，才考慮引入 tracker aggregate，而不是先把它塞成 Domain Service
 
-- Domain event factories 應放在 domain events 檔案，不放在 UI 或 page component
-- Aggregate / Value Object factories 是類別 / 函式，用來建立有效 domain object，不應散落在 React component 中
-- UI draft factories 應留在 `interfaces/` 或其他 UI-oriented layer，不應假裝成 application service
-- Server Actions 與 query wrappers 是 interface adapter，不是 application service 本體
+## 明確不是 Domain Service 的內容
 
-## 非目標
-
-- 不保存 React component state
-- 不直接 new 外部 module 的 UI component
-- 不把 `WorkspaceDetailScreen` 的 tab composition 寫進 application layer
-
-## 實作對位
-
-### 目前 use-case 檔案
-
-- `application/use-cases/workspace-lifecycle.use-cases.ts`
-- `application/use-cases/workspace-capabilities.use-cases.ts`
-- `application/use-cases/workspace-access.use-cases.ts`
-- `application/use-cases/workspace-member.use-cases.ts`
-- `application/use-cases/wiki-content-tree.use-case.ts`
-- `application/use-cases/workspace.use-cases.ts`（barrel only）
-
-### 收斂方向
-
-- `interfaces/_actions/` 保持 thin orchestration
-- `interfaces/queries/` 保持 thin query wrappers
-- 應用層用語與 `aggregates.md`、`repositories.md`、`domain-events.md` 同步
+- React hooks
+- Route Handlers / CLI handlers
+- query wrappers
+- UI draft factories
+- 只服務單一 page 的 tab composition helper
 ````
 
 ## File: modules/workspace/domain/entities/Workspace.ts
@@ -79026,532 +79557,207 @@ export async function createWorkspaceLocation(
 }
 ````
 
-## File: modules/workspace/interfaces/components/WorkspaceHubScreen.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
-
-import type { WorkspaceEntity } from "../api/contracts";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-
-import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
-import { getWorkspaceGovernanceSummary } from "../workspace-supporting-records";
-import { CreateWorkspaceDialog } from "./CreateWorkspaceDialog";
-
-const lifecycleBadgeVariant: Record<
-  WorkspaceEntity["lifecycleState"],
-  "default" | "secondary" | "outline"
-> = {
-  active: "default",
-  preparatory: "secondary",
-  stopped: "outline",
-};
-
-interface WorkspaceHubScreenProps {
-  readonly accountId: string | null | undefined;
-  readonly accountName: string | null | undefined;
-  readonly accountType: "user" | "organization";
-  readonly accountsHydrated: boolean;
-  readonly isBootstrapSeeded: boolean;
-}
-
-export function WorkspaceHubScreen({
-  accountId,
-  accountName,
-  accountType,
-  accountsHydrated,
-  isBootstrapSeeded,
-}: WorkspaceHubScreenProps) {
-  const router = useRouter();
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-
-  const {
-    createError,
-    clearCreateError,
-    createWorkspaceForAccount,
-    errorMessage,
-    isCreatingWorkspace,
-    loadState,
-    workspaceStats,
-    workspaces,
-  } = useWorkspaceHub({
-    accountId,
-    accountType,
-  });
-
-  function resetCreateWorkspaceDialog() {
-    setWorkspaceName("");
-    clearCreateError();
-  }
-
-  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const result = await createWorkspaceForAccount(workspaceName);
-
-    if (!result.success) {
-      return;
-    }
-
-    resetCreateWorkspaceDialog();
-    setIsCreateWorkspaceOpen(false);
-    if (result.aggregateId) {
-      router.push(`/workspace/${result.aggregateId}`);
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">Workspace Hub</h1>
-          <p className="text-sm text-muted-foreground">
-            Review the workspaces connected to{" "}
-            <span className="font-medium text-foreground">
-              {accountName ?? "the active account"}
-            </span>
-            .
-          </p>
-        </div>
-
-        <Button
-          onClick={() => setIsCreateWorkspaceOpen(true)}
-          disabled={!accountsHydrated || !accountId}
-        >
-          {!accountsHydrated ? "同步帳號中…" : "建立工作區"}
-        </Button>
-      </div>
-
-      {!accountsHydrated && (
-        <div
-          className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground"
-          aria-live="polite"
-          role="status"
-        >
-          {isBootstrapSeeded
-            ? "正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。"
-            : "正在載入帳號與工作區內容…"}
-        </div>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Total Workspaces</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.total}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Active</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.active}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Preparatory</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.preparatory}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      <Card className="border border-border/50">
-        <CardHeader>
-          <CardTitle>Workspace-first Product Spine</CardTitle>
-          <CardDescription>
-            目前先把主流程收斂成 Identity → Organization → Workspace，再由工作區承接 Knowledge、知識頁面、Notebook / AI。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-xl border border-border/40 px-4 py-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Entry flow</p>
-            <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
-              <li>
-                <span className="font-medium text-foreground">1. Identity</span>：登入後先建立個人／組織帳號情境。
-              </li>
-              <li>
-                <span className="font-medium text-foreground">2. Organization</span>：切換至目標 account / organization。
-              </li>
-              <li>
-                <span className="font-medium text-foreground">3. Workspace</span>：進入工作區後再分流到知識、知識頁面、Notebook / AI。
-              </li>
-            </ol>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Knowledge</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                文件、來源、Libraries 與 upload / ingest 流程都由工作區承接。
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">知識頁面</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                頁面樹、內容導覽與知識結構直接從工作區知識頁面進入。
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                問答、推理與 RAG 查詢作為工作區內的消費層，而非獨立入口。
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border border-border/50">
-        <CardHeader>
-          <CardTitle>Workspace Records</CardTitle>
-          <CardDescription>
-            Lifecycle 與 supporting governance records 目前仍由 workspace 模組擁有，但已收斂在專用 supporting ports；點入後會以工作區為樞紐進入 Knowledge / 知識頁面 / Notebook-AI。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-              Loading workspace records…
-            </div>
-          )}
-
-          {loadState === "error" && errorMessage && (
-            <div className="rounded-xl border border-destructive/30 px-4 py-3 text-sm text-destructive">
-              {errorMessage}
-            </div>
-          )}
-
-          {loadState === "loaded" && workspaces.length === 0 && (
-            <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
-              目前這個帳號尚未建立任何工作區。你可以先完成{" "}
-              <Link
-                href="/organization"
-                className="font-medium text-primary hover:underline"
-              >
-                組織情境
-              </Link>{" "}
-              設定，再使用上方的建立工作區入口，回到 workspace-first 主流程。
-            </div>
-          )}
-
-          {workspaces.map((workspace) => {
-            const governanceSummary = getWorkspaceGovernanceSummary(workspace);
-
-            return (
-              <Link
-                key={workspace.id}
-                href={`/workspace/${workspace.id}`}
-                className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground">
-                        {workspace.name}
-                      </p>
-                      <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
-                        {workspace.lifecycleState}
-                      </Badge>
-                      <Badge variant="outline">{workspace.visibility}</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Account scope: {workspace.accountType}
-                    </p>
-                    <p className="text-xs font-medium text-primary">點擊進入工作區</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
-                    <span>Capabilities: {governanceSummary.capabilityCount}</span>
-                    <span>Teams: {governanceSummary.teamCount}</span>
-                    <span>Locations: {governanceSummary.locationCount}</span>
-                    <span>Grants: {governanceSummary.grantCount}</span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </CardContent>
-      </Card>
-
-      <CreateWorkspaceDialog
-        open={isCreateWorkspaceOpen}
-        workspaceName={workspaceName}
-        createError={createError}
-        isCreatingWorkspace={isCreatingWorkspace}
-        accountId={accountId}
-        onOpenChange={(open) => {
-          setIsCreateWorkspaceOpen(open);
-          if (!open) resetCreateWorkspaceDialog();
-        }}
-        onWorkspaceNameChange={(name) => {
-          setWorkspaceName(name);
-          if (createError) clearCreateError();
-        }}
-        onSubmit={handleCreateWorkspace}
-      />
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/repositories.md
+## File: modules/workspace/README.md
 ````markdown
-# workspace — Repositories
+# workspace — 協作容器上下文
 
-> **Canonical bounded context:** `workspace`
-> **模組路徑:** `modules/workspace/`
-> **Domain Type:** Generic Subdomain
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/workspace/`  
+> **定位:** 協作範圍、生命週期與工作區公開邊界
 
-本文件定義 workspace 的 repository ports 與對應 infrastructure adapters。workspace 目前同時存在 write-side 與 read-side repository，目的是把 aggregate 持久化與 projection 查詢分開。
+> **文件優先原則：** 先用本文件與 companion docs 定義目標結構，再用文件去壓代碼收斂。
 
-在 workspace 中，Repository（倉儲）可以是介面或類別：`domain/repositories/` 裡的 port 是介面；`infrastructure/` 裡負責資料存取的 adapter 是類別。
+## Strategic Role
 
-從六邊形架構看，repository ports 是 domain/application 內核朝外宣告的 driven ports；Firebase 類別是被動端 adapter，不應反向把外部技術語言帶回 domain model。
+`workspace` 是 Xuanwu 的協作容器 bounded context。它提供工作區作為協作範圍的 identity、生命週期與可見性語言，讓知識、來源、工作流、稽核、動態與排程等上下文可以用同一個 `workspaceId` 對齊範圍。
 
-從 event sourcing 視角補充：若未來採 event sourcing，Repository 會改為從 event store 讀取並重建 aggregate；但目前 workspace repository 是 current-state persistence，不是 event-sourced reconstitution。
+從戰略分類看，workspace 所對應的問題空間屬於 generic subdomain，不是產品差異化核心；真正差異化的知識內容、檢索與協作語意由其他 bounded context 擁有。
 
-## Ports and Adapters Distinction
+從邊界落地看，`modules/workspace/` 是承載這組 generic-subdomain 語言的 bounded context，而不是整個 Xuanwu domain 的總模型。
 
-- Port：`domain/repositories/` 中的介面，定義內核需要什麼能力
-- Adapter：`infrastructure/` 中的類別，實作這些能力並接上 Firestore / 其他外部系統
-- Driver 不直接呼叫 adapter；通常由 `interfaces/` / `application/` 協作後再使用對應 port
+## Domain / Subdomain / Bounded Context
 
-## Write-side Repository Ports
-
-### `WorkspaceRepository`
-
-`WorkspaceRepository` 現在只服務 `Workspace` aggregate 的核心持久化與設定更新。
-
-#### 核心方法
-
-- `findById(id)`
-- `findByIdForAccount(accountId, workspaceId)`
-- `findAllByAccountId(accountId)`
-- `save(workspace)`
-- `updateSettings(command)`
-- `delete(id)`
-
-### Supporting Record Ports
-
-#### `WorkspaceCapabilityRepository`
-
-- `mountCapabilities()` / `unmountCapability()`
-
-#### `WorkspaceAccessRepository`
-
-- `grantTeamAccess()` / `revokeTeamAccess()`
-- `grantIndividualAccess()` / `revokeIndividualAccess()`
-
-#### `WorkspaceLocationRepository`
-
-- `createLocation()` / `updateLocation()` / `deleteLocation()`
-
-這些 supporting operations 目前仍由 workspace 擁有，但不再混在核心 aggregate repository port 中；若之後 ownership 外拆，可直接替換對應 supporting port。
-
-## Read-side Repository Ports
-
-### `WorkspaceQueryRepository`
-
-負責工作區查詢投影，而非 aggregate 持久化。
-
-#### 方法
-
-- `subscribeToWorkspacesForAccount(accountId, onUpdate)`
-- `getWorkspaceMembers(workspaceId)`
-
-這個 port 主要輸出 projection / read model，而不是 aggregate。
-
-### `WikiWorkspaceRepository`
-
-負責組合工作區導覽 tree 所需的最小工作區參照。
-
-#### 方法
-
-- `listByAccountId(accountId)`
-
-這個 port 服務的是 read-side composition，因此它的輸出也應視為 read model input，而不是 aggregate source of truth。
-
-## Infrastructure Adapters
-
-| Adapter | 作用 |
+| 層級 | workspace 在此層級的角色 |
 |---|---|
-| `FirebaseWorkspaceRepository` | `WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository` 的 Firestore 實作 |
-| `FirebaseWorkspaceQueryRepository` | `WorkspaceQueryRepository` 的 Firebase / organization read-side 組裝實作 |
-| `FirebaseWikiWorkspaceRepository` | `WikiWorkspaceRepository` 的 Firestore 參照查詢實作 |
+| Domain | Xuanwu 這個整體知識平台業務域 |
+| Subdomain | 協作容器與範圍治理問題空間，戰略上屬於 generic subdomain |
+| Bounded Context | `modules/workspace/`，承載 `workspaceId`、生命週期、可見性與工作區公開邊界 |
 
-## 設計規則
+這裡描述的是以 workspace 為中心的 selected view。它用來分析此問題空間牽涉到哪些 subdomains 與 bounded contexts，不等於整個 Xuanwu domain 的完整戰略地圖。
 
-- repository 介面定義在 `domain/repositories/`
-- infrastructure adapters 實作在 `infrastructure/`
-- `application/` 只依賴 repository ports，不依賴 adapter 類別
-- 跨模組 consumer 不直接 import repository implementation；一律透過 `api/` 或對應 interface adapter 使用
+## 主要職責
 
-## Tactical Debt Notes
+| 能力 | 說明 |
+|---|---|
+| Workspace 容器生命週期 | 建立工作區、更新設定、管理 `preparatory | active | stopped` 狀態 |
+| 協作範圍語言 | 提供 `workspaceId`、`WorkspaceVisibility` 與工作區範圍識別語言 |
+| 工作區公開邊界 | 透過 `interfaces/api/` 暴露穩定查詢、命令入口與 UI composition surface |
+| Read-side Projections | 組合工作區成員檢視與工作區導覽節點等查詢模型 |
 
-- supporting records 仍然物理上儲存在同一份 workspace document，但 application layer 已改為依賴專用 supporting ports
-- `WorkspaceQueryRepository` 同時承擔 read-side translation，尤其是把 `organization` 資料翻譯成 `WorkspaceMemberView`
-- 事件目前用於發布與整合，不用來作為 repository 的唯一狀態來源
-````
+## 標準資料夾結構
 
-## File: modules/workspace/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — workspace
+```txt
+modules/workspace/
+├── domain/                     ← 核心業務邏輯
+│   ├── aggregates/             ← 聚合根
+│   ├── entities/               ← Entity / Value Object
+│   ├── value-objects/
+│   ├── events/                 ← Domain Events
+│   ├── factories/              ← Domain Factories
+│   └── services/               ← Domain Services（純業務邏輯）
+│
+├── application/                ← Use Case 層
+│   ├── dtos/                   ← Input / Output DTO
+│   ├── services/               ← Application Services（協調 Use Case 流程）
+│   └── use-cases/              ← 單一 Use Case（呼叫 Domain Services + Output Ports）
+│
+├── ports/                      ← Hexagonal Ports
+│   ├── input/                  ← Driving Ports（供 UI / API / CLI 呼叫）
+│   └── output/                 ← Driven Ports（Repository / External Service 抽象）
+│
+├── infrastructure/             ← Adapters / Output Port 實作
+│   ├── events/                 ← Event Dispatcher / PubSub 實作
+│   └── firebase/               ← Firestore / Storage / Genkit Adapter
+│
+└── interfaces/                 ← Driving Adapters（外部入口）
+	├── api/                    ← Next.js Route Handler → Input Port
+	├── cli/                    ← CLI / Cron Job → Input Port
+	└── web/                    ← shadcn UI Components + Hooks → Input Port
+```
 
-> **範圍：** 僅限 `modules/workspace/` bounded context 內
+## 不屬於此 Context 的責任
 
-本文件除了領域名詞，也會用少量 DDD 元術語幫助閱讀 companion docs；這些術語是文件讀法，不是要取代 workspace 自己的通用語言。
+- `organization` 擁有組織成員、團隊與組織治理真相來源
+- `knowledge` / `knowledge-base` / `source` / `notebook` 擁有內容與知識工作流語意
+- `shared` 擁有跨 bounded context 的事件基底與 event publishing 基礎設施
+- UI tab 組裝屬於 interface composition，不等於 context map
 
-## 戰略層級術語
+## Tactical Model Summary
 
-| 術語 | 在 workspace 文件中的意思 |
-|------|------------------------|
-| Domain | 指 Xuanwu 這個整體知識平台業務域 |
-| Subdomain | 指 workspace 所對應的協作容器問題空間；戰略分類屬於 generic subdomain |
-| Bounded Context | 指 `modules/workspace/` 這個語言、模型與 adapter 的邊界 |
+| 類型 | 目前契約 |
+|---|---|
+| Aggregate Root | `Workspace` |
+| Supporting Domain Objects | `WorkspaceLocation`、`Capability`、`WorkspaceGrant`、`WorkspacePersonnel` |
+| Read Projections | `WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode` |
+| Drivers | Browser UI、Route Handler、CLI / Cron、其他 bounded context 經由 `interfaces/api/` 的呼叫者 |
+| Driving Adapters | `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` |
+| Driving Ports | `ports/input/` |
+| Application Layer | `application/use-cases/`、`application/services/`、`application/dtos/` |
+| Driven Ports | `ports/output/` |
+| Driven Adapters | `infrastructure/firebase/`、`infrastructure/events/` |
+| Write-side Port | `WorkspaceRepository` |
+| Read-side Ports | `WorkspaceQueryRepository`、`WikiWorkspaceRepository` |
+| Domain Services | `domain/services/`，承載不自然屬於 aggregate 的純規則 |
+| Domain Events | `WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged` 為目標契約 |
 
-子域與限界上下文不是同一件事：subdomain 是業務問題空間；bounded context 是該語言與模型的實作/協作邊界。
+## Hexagonal View
 
-同一個 subdomain 可以由一個或多個 bounded contexts 落地；workspace 文件只描述 `modules/workspace/` 這個 bounded context 的語言，不替整個 subdomain 代言所有詞彙。
+| 六邊形位置 | workspace 對位 |
+|---|---|
+| Domain Model Core | `domain/` 下的 aggregates、entities、value-objects、events、factories、services |
+| Application Ring | `application/use-cases/`、`application/services/`、`application/dtos/` |
+| Driving Adapters | `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` |
+| Driving Ports | `ports/input/` |
+| Driven Ports | `ports/output/` |
+| Driven Adapters | `infrastructure/events/`、`infrastructure/firebase/` |
 
-## 核心術語
+## Dependency Diagram
 
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 工作區 | `Workspace` | 協作容器的 aggregate root，代表一個工作區範圍 |
-| 工作區 ID | `workspaceId` | `Workspace` 的業務識別子，也是跨 context 的範圍鍵 |
-| 帳戶 ID | `accountId` | 擁有工作區的 account 或 organization 識別子 |
-| 工作區生命週期 | `WorkspaceLifecycleState` | `preparatory | active | stopped` |
-| 工作區可見性 | `WorkspaceVisibility` | `visible | hidden`，控制工作區是否可被發現 |
+```mermaid
+flowchart TD
+	%% ------------------- Interfaces / Driving Adapters -------------------
+	subgraph Interfaces["interfaces/ - Driving Adapters"]
+		API["api/ (Next.js Route Handler)"]
+		CLI["cli/ (CLI / Cron Job)"]
+		Web["web/ (shadcn UI Components + Hooks)"]
+	end
 
-## Supporting Domain Objects
+	%% ------------------- Ports -------------------
+	InputPorts["ports/input - Driving Port Interfaces"]
+	OutputPorts["ports/output - Driven Port Interfaces"]
 
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 工作區授權 | `WorkspaceGrant` | 工作區上的直接授權記錄，描述 user/team 與 role 關係 |
-| 工作區能力 | `Capability` | 目前掛載在工作區上的功能能力記錄 |
-| 工作區位置 | `WorkspaceLocation` | 工作區底下帶 identity 的位置節點 |
-| 工作區人員資訊 | `WorkspacePersonnel` | 工作區上的管理/監督/安全等角色參照集合 |
-| 工作區地址 | `Address` | 工作區地址值型資料 |
+	%% ------------------- Application -------------------
+	subgraph Application["application/ - Use Case Layer"]
+		UseCases["use-cases/"]
+		AppServices["services/"]
+		DTOs["dtos/"]
+	end
 
-## Read-side Projection Terms
+	%% ------------------- Domain -------------------
+	subgraph Domain["domain/ - Core Business Logic"]
+		Aggregates["aggregates/"]
+		Entities["entities/"]
+		ValueObjects["value-objects/"]
+		DomainServices["services/"]
+		Events["events/"]
+		Factories["factories/"]
+	end
 
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 工作區成員檢視 | `WorkspaceMemberView` | 由 workspace + organization 資料組裝出的成員查詢投影 |
-| 工作區成員接入通道 | `WorkspaceMemberAccessChannel` | 成員透過 owner/direct/team/personnel 進入工作區的路徑描述 |
-| 工作區帳戶節點 | `WikiAccountContentNode` | 用於導覽查詢的帳戶層節點 |
-| 工作區導覽節點 | `WikiWorkspaceContentNode` | 用於導覽查詢的工作區節點 |
-| 工作區導覽項 | `WikiContentItemNode` | 導覽/捷徑用的 read projection，不是 domain aggregate |
+	%% ------------------- Infrastructure -------------------
+	subgraph Infrastructure["infrastructure/ - Output Port Adapters"]
+		InfraEvents["events/"]
+		FirebaseAdapter["firebase/ (Firestore / Storage / Genkit)"]
+	end
 
-Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driver 或查詢場景最佳化，但不應回頭成為 write-side truth。
+	API -->|calls| InputPorts
+	CLI -->|calls| InputPorts
+	Web -->|calls| InputPorts
 
-## Domain Event Terms
+	InputPorts -->|invokes| UseCases
+	UseCases -->|calls| AppServices
+	AppServices -->|uses| DomainServices
+	DomainServices -->|manipulates| Aggregates & Entities & ValueObjects
+	UseCases -->|calls| OutputPorts
+	OutputPorts -->|implemented by| Infrastructure
+```
 
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 工作區已建立事件 | `WorkspaceCreatedEvent` | 工作區建立後對外發布的 domain event 訊息 |
-| 工作區生命週期已轉移事件 | `WorkspaceLifecycleTransitionedEvent` | 工作區生命週期改變後發布的 domain event |
-| 工作區可見性已變更事件 | `WorkspaceVisibilityChangedEvent` | 工作區可見性變更後發布的 domain event |
+### 說明
 
-## 行為語言（Behavioral Language）
+1. Interfaces -> Input Ports -> Use Cases -> Application Services -> Domain Services -> Domain Models：驅動流程完全向內。
+2. Use Cases -> Output Ports -> Infrastructure：外部資源由 Output Port 抽象，Infrastructure 實作。
+3. Domain Services / Domain Models 不依賴 Application 或 Infrastructure。
+4. `web/`、`api/`、`cli/` 只做外部驅動與 DTO 轉換，不直接做 domain 決策。
 
-| 行為 | 英文 | 在 workspace 中的語意 |
-|------|------|------------------------|
-| 建立工作區 | `create workspace` | 建立一個新的工作區協作容器，初始化 `workspaceId`、生命週期與可見性 |
-| 啟用工作區 | `activate workspace` | 將工作區從 `preparatory` 推進到 `active`，表示它已進入可運作狀態 |
-| 停止工作區 | `stop workspace` | 將工作區從 `active` 推進到 `stopped`，表示該範圍不再繼續運作 |
-| 變更工作區可見性 | `change workspace visibility` | 在 `visible` 與 `hidden` 之間替換可見性，不改變工作區 identity |
-| 掛載工作區能力 | `mount capabilities` | 將能力記錄掛到工作區範圍之下 |
-| 授權工作區存取 | `grant workspace access` | 將 user / team / personnel 路徑的存取權授予工作區 |
-| 建立工作區位置 | `create workspace location` | 在工作區範圍下建立帶 identity 的位置節點 |
-| 發布工作區事件 | `publish workspace event` | 在 aggregate 狀態改變成功後，對外發布對應的 domain event |
+`context-map.md` 描述的是 bounded context 在整體 domain 裡的外部關係；六邊形描述的是這個 bounded context 內部的結構。兩者不可混用。
 
-這些行為語言描述的是「workspace 做什麼」，不是 UI 按鈕文案，也不是 framework callback 名稱。
+若 workspace 透過事件與其他 bounded contexts 協作，它仍然是一個位於整體 event-driven topology 中的 hexagon：commands / queries 由 driving side 進入，domain events 由內核語言產生，再由外層 adapter 發布。
 
-## 不變條件（Invariants）
+## DDD 概念導讀
 
-- `workspaceId` 一旦建立，就持續代表同一個工作區範圍
-- `accountId` 與 `accountType` 在 workspace 建立後不應被重新指定
-- `WorkspaceLifecycleState` 的 canonical 值只有 `preparatory | active | stopped`
-- `WorkspaceVisibility` 的 canonical 值只有 `visible | hidden`
-- `WorkspaceVisibility` 是曝光語意，不是生命週期語意；它不能取代 `WorkspaceLifecycleState`
-- `WorkspaceName` 應維持為有效名稱值，而不是未經正規化的任意字串
-- `WorkspaceMemberView` 與 `Wiki*Node` 是 projection / read model，不是 write-side truth
-- 下游 bounded context 只能在有效的 `workspaceId` 範圍內對齊自己的資料與行為
+| 概念 | 在 workspace 中的程式型態 | 主要查看文件 |
+|---|---|---|
+| Entity（實體） | 類別 / 物件 | `aggregates.md` |
+| Value Object（值對象） | 類別 / 物件 | `aggregates.md`、`ubiquitous-language.md` |
+| Aggregate / Aggregate Root（聚合 / 聚合根） | 類別 / 物件 | `aggregates.md` |
+| Repository（倉儲） | 介面或類別（負責資料存取） | `repositories.md` |
+| Ports（端口） | 介面，宣告 collaboration seam | `repositories.md`、`application-services.md` |
+| Adapters（適配器） | 類別 / 函式 / 模組，連接 drivers 或外部系統 | `bounded-context.md`、`repositories.md`、`application-services.md` |
+| 外部系統 / Driver（驅動器） | 從外部啟動此 bounded context 的角色或系統 | `bounded-context.md`、`context-map.md` |
+| Projection / Read Model | 查詢導向的讀取模型 | `aggregates.md`、`application-services.md`、`ubiquitous-language.md` |
+| Domain Service（領域服務） | 類別 / 函式 | `domain-services.md` |
+| Factory（工廠） | 類別 / 函式 | `application-services.md`、`domain-events.md` |
+| Domain Event（領域事件） | 事件類別、訊息物件 | `domain-events.md`、`context-map.md` |
 
-更完整的 aggregate-level invariants 請看 [aggregates.md](./aggregates.md)。本節只記錄通用語言層級必須一致理解的規則。
+## 實作備註
 
-## 狀態轉移語意（Transition Semantics）
+- 目前程式中仍有一些 supporting records 與 read projections 混置於 `domain/entities/`；本文件定義的是收斂方向
+- `WorkspaceMemberView` 與 `WikiContentTree` 型別不得再被描述成 aggregate 或 value object
+- 這份 README 以 `interfaces/api/`、`ports/input/`、`ports/output/` 為文件基線，後續代碼應向此結構收斂
+- `WorkspaceMemberView` 與 `WikiContentTree` 型別不得再被描述成 aggregate 或 value object
 
-### 生命週期語意
+## 詳細文件
 
-- `preparatory -> active`：工作區從準備中進入可運作狀態
-- `active -> stopped`：工作區從運作中進入停止狀態
-- `stopped`：目前語意上視為終止狀態，不等同 `archived`
-
-### 可見性語意
-
-- `visible -> hidden`：工作區仍存在，但不再以可發現狀態暴露
-- `hidden -> visible`：工作區重新回到可發現狀態
-- 可見性變化不等於生命週期變化；它不建立、刪除或重命名工作區
-
-### 事件語意
-
-- 建立工作區後可發布 `WorkspaceCreatedEvent`
-- 生命週期發生有效轉移後可發布 `WorkspaceLifecycleTransitionedEvent`
-- 可見性發生變更後可發布 `WorkspaceVisibilityChangedEvent`
-
-## 命名守則
-
-- aggregate 與 supporting objects 使用 `Workspace*` 前綴，保持 bounded context 可讀性
-- `WorkspaceLifecycleState` 是 canonical 名稱，不使用 `WorkspaceStatus`
-- `WorkspaceMemberView` 是 projection 名稱，不縮寫成 `WorkspaceMember`
-- 若描述 query tree，使用 `WikiAccountContentNode` / `WikiWorkspaceContentNode` / `WikiContentItemNode`
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `Workspace` | `Project`, `Space`, `Room` |
-| `WorkspaceLifecycleState` | `WorkspaceStatus`, `ArchivedState` |
-| `WorkspaceVisibility` | `VisibilityMode`, `DiscoveryState` |
-| `WorkspaceMemberView` | `WorkspaceMember`, `Member`, `Participant` |
-| `WikiAccountContentNode` / `WikiWorkspaceContentNode` | `WikiContentTree`, `PageTree`, `Hierarchy`（當你描述 aggregate 或 entity 時） |
-
-## 語意說明
-
-- `archived` 不是此 bounded context 的生命週期語言；停止中的工作區使用 `stopped`
-- `WorkspaceMemberView` 與 `Wiki*Node` 是查詢模型，不等同 write-side domain objects
-- `workspaceId` 是下游 context 對齊 workspace scope 的主要 published language
-- 同一組 workspace 語言應在此 bounded context 的 domain、application、interfaces、infrastructure 中保持一致；只有在邊界上才翻譯外部語言
-
-## 文件元術語對照
-
-| 概念 | 在這組文件中的意思 |
-|------|------------------|
-| Entity（實體） | 類別 / 物件，具備 identity，語意上可跨時間被辨識 |
-| Value Object（值對象） | 類別 / 物件，以值相等判斷語意，例如 `WorkspaceVisibility`、`Address` |
-| Aggregate / Aggregate Root（聚合 / 聚合根） | 類別 / 物件，負責保護 write-side 一致性；workspace 的 aggregate root 是 `Workspace` |
-| Repository（倉儲） | 介面或類別，負責 aggregate / projection 的資料存取 |
-| Ports（端口） | 介面，定義內核與外部協作的接縫 |
-| Adapters（適配器） | 類別 / 函式 / 模組，將 driver 或 external system 轉譯成內核可處理的契約 |
-| 外部系統 / Driver（驅動器） | 從 bounded context 外部發起互動的角色 / 系統，例如 UI、Server Actions、其他 context 呼叫者 |
-| Projection / Read Model | 查詢導向的讀取模型，例如 `WorkspaceMemberView`、`Wiki*Node` |
-| Domain Service（領域服務） | 類別 / 函式，承載不自然屬於 aggregate / value object 的純領域規則 |
-| Factory（工廠） | 類別 / 函式，負責建立 aggregate、value object、domain event 等有效模型 |
-| Domain Event（領域事件） | 事件類別、訊息物件，作為對外發布的 domain language |
+| 文件 | 說明 |
+|---|---|
+| [subdomain.md](./subdomain.md) | workspace 為何屬於 generic subdomain，以及哪些內容不是 subdomain 本體 |
+| [bounded-context.md](./bounded-context.md) | workspace 作為 bounded context 的邊界、drivers、ports、adapters 與 read model |
+| [ubiquitous-language.md](./ubiquitous-language.md) | workspace BC 的通用語言、read model 與 hexagonal 元術語 |
+| [aggregates.md](./aggregates.md) | aggregate、entity、value object 與 read model / projection 對位 |
+| [application-services.md](./application-services.md) | application layer use cases、drivers、ports、adapters 與 read model orchestration |
+| [repositories.md](./repositories.md) | driven ports、repository adapters 與 query/read model 持久化邊界 |
+| [domain-services.md](./domain-services.md) | domain service 與 ports/adapters/drivers/read models 的區別 |
+| [domain-events.md](./domain-events.md) | workspace 領域事件契約、事件驅動整合與 projection 關係 |
+| [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
 ````
 
 ## File: app/(shell)/_components/nav-preferences-data.ts
@@ -79900,148 +80106,273 @@ export function WorkspaceSidebarSection({
 }
 ````
 
-## File: modules/workspace/application/use-cases/workspace-lifecycle.use-cases.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Workspace lifecycle use cases — create and delete.
- */
+## File: modules/workspace/aggregates.md
+````markdown
+# Aggregates — workspace
 
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
-import type { WorkspaceCapabilityRepository } from "../../domain/repositories/WorkspaceCapabilityRepository";
-import type {
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  Capability,
-} from "../../domain/entities/Workspace";
-import {
-  createWorkspaceAggregate,
-  reconstituteWorkspaceAggregate,
-  toWorkspaceSnapshot,
-} from "../../domain/factories/WorkspaceFactory";
-import type { Workspace } from "../../domain/entities/Workspace";
+本文件中的 Aggregate / Aggregate Root、Entity、Value Object 都以類別 / 物件來討論；它們是 workspace bounded context 的 write-side domain model，而不是 UI projection。
 
-function sanitizeWorkspaceSettingsCommand(
-  workspace: Workspace,
-  command: UpdateWorkspaceSettingsCommand,
-): UpdateWorkspaceSettingsCommand {
-  workspace.applySettings(command);
+從六邊形架構的角度看，這份文件描述的是 bounded context 核心的 domain model，不是外層 adapter，也不是整個 Xuanwu domain 的 context map。
 
-  return {
-    workspaceId: command.workspaceId,
-    accountId: command.accountId,
-    name: command.name !== undefined ? workspace.name : undefined,
-    visibility: command.visibility !== undefined ? workspace.visibility : undefined,
-    lifecycleState:
-      command.lifecycleState !== undefined ? workspace.lifecycleState : undefined,
-    address: command.address !== undefined ? workspace.address : undefined,
-    personnel: command.personnel !== undefined ? workspace.personnel : undefined,
-  };
-}
+這裡列出的 aggregate、entity、value object 也是此 bounded context 通用語言的一部分；它們與 domain events 一起構成 `workspace` collaboration language，而不只是型別分類。
 
-// ─── Create Workspace ─────────────────────────────────────────────────────────
+Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain model 外圍。這份文件只在需要區分 read model / projection 時提及外層結構。
 
-export class CreateWorkspaceUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+## Domain Model Folder Contract
 
-  async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
-    try {
-      const workspace = createWorkspaceAggregate(command);
-      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace",
-      );
-    }
-  }
-}
+| 目錄 | 角色 | 放什麼 |
+|---|---|---|
+| `domain/aggregates/` | Aggregate Root 主體 | write-side consistency boundary、aggregate commands、aggregate methods |
+| `domain/entities/` | supporting entities / 既有 domain objects | 具 identity 的 supporting objects、過渡期既有模型 |
+| `domain/value-objects/` | value equality 語意 | `WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address` |
+| `domain/services/` | 純業務規則 | 不自然屬於單一 aggregate 的規則 |
+| `domain/events/` | published domain language | 對外發布的事件語言 |
 
-// ─── Create Workspace with Capabilities ──────────────────────────────────────
+文件與後續代碼應以這個結構為收斂方向。
 
-export class CreateWorkspaceWithCapabilitiesUseCase {
-  constructor(
-    private readonly workspaceRepo: WorkspaceRepository,
-    private readonly capabilityRepo: WorkspaceCapabilityRepository,
-  ) {}
+## Write-side Aggregate Root
 
-  async execute(
-    command: CreateWorkspaceCommand,
-    capabilities: Capability[] = [],
-  ): Promise<CommandResult> {
-    try {
-      const workspace = createWorkspaceAggregate(command);
-      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
-      if (capabilities.length > 0) {
-        await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
-      }
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_WITH_CAPABILITIES_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace with capabilities",
-      );
-    }
-  }
-}
+### `Workspace`
 
-// ─── Update Settings ──────────────────────────────────────────────────────────
+`Workspace` 是此 bounded context 的 aggregate root。它代表一個協作範圍，並保護工作區生命週期、可見性與工作區範圍識別語言的一致性。
 
-export class UpdateWorkspaceSettingsUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+在目標結構下，`Workspace` 應位於 `domain/aggregates/`。若某些既有程式仍暫放在 `domain/entities/`，應視為收斂中的過渡狀態，而不是新的建模準則。
 
-  async execute(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
-    try {
-      const workspace = await this.workspaceRepo.findByIdForAccount(
-        command.accountId,
-        command.workspaceId,
-      );
-      if (!workspace) {
-        return commandFailureFrom(
-          "WORKSPACE_NOT_FOUND",
-          `Workspace ${command.workspaceId} not found`,
-        );
-      }
-      await this.workspaceRepo.updateSettings(
-        sanitizeWorkspaceSettingsCommand(
-          reconstituteWorkspaceAggregate(workspace),
-          command,
-        ),
-      );
-      return commandSuccess(command.workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_UPDATE_FAILED",
-        err instanceof Error ? err.message : "Failed to update workspace settings",
-      );
-    }
-  }
-}
+### 核心屬性
 
-// ─── Delete Workspace ─────────────────────────────────────────────────────────
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 工作區主鍵；建立後不可變更 |
+| `name` | `WorkspaceName` | 工作區名稱值對象 |
+| `accountId` | `string` | 擁有工作區的 account / organization |
+| `accountType` | `"user" \| "organization"` | 擁有者類型 |
+| `lifecycleState` | `WorkspaceLifecycleState` | `preparatory | active | stopped` |
+| `visibility` | `WorkspaceVisibility` | `visible | hidden` |
+| `createdAt` | `Timestamp` | 建立時間 |
 
-export class DeleteWorkspaceUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+### 不變條件
 
-  async execute(workspaceId: string): Promise<CommandResult> {
-    try {
-      const workspace = await this.workspaceRepo.findById(workspaceId);
-      if (!workspace) {
-        return commandFailureFrom("WORKSPACE_NOT_FOUND", `Workspace ${workspaceId} not found`);
-      }
-      await this.workspaceRepo.delete(workspaceId);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_DELETE_FAILED",
-        err instanceof Error ? err.message : "Failed to delete workspace",
-      );
-    }
-  }
-}
+- `id`、`accountId`、`accountType` 在建立後不可變更
+- `lifecycleState` 的 canonical 語言是 `preparatory | active | stopped`
+- `visibility` 的 canonical 語言是 `visible | hidden`
+- 下游 context 只能在有效的 `workspaceId` 範圍內掛載資料與行為
+
+## Supporting Domain Objects Inside `Workspace`
+
+### Entities
+
+| 類型 | 說明 |
+|------|------|
+| `WorkspaceLocation` | 以 `locationId` 識別的工作區位置節點 |
+| `Capability` | 目前以 `id` 識別的工作區能力記錄；若治理規則成長，可再評估外拆 |
+| `WorkspacePersonnelCustomRole` | 以 `roleId` 識別的人員自訂角色記錄 |
+
+這些 supporting entities 應放在 `domain/entities/`，而不是回頭冒充 aggregate root。
+
+### Value Objects
+
+| 類型 | 說明 |
+|------|------|
+| `WorkspaceLifecycleState` | 工作區生命週期值 |
+| `WorkspaceVisibility` | 工作區可見性值 |
+| `WorkspaceName` | 工作區名稱值，負責 trim 與基本字串約束 |
+| `Address` | 地址值型資料 |
+| `WorkspaceGrant` | 工作區授權記錄；以內容而非獨立 aggregate identity 判斷語意 |
+| `WorkspacePersonnel` | 管理/監督/安全等角色參照集合 |
+| `CapabilitySpec` | 能力定義的值型描述 |
+
+這些型別應留在 `domain/value-objects/`，不應放進 `application/dtos/` 或 `interfaces/` 充當資料傳輸形狀。
+
+## Read-side Projections / Read Models（不是 Aggregate）
+
+| 類型 | 說明 |
+|------|------|
+| `WorkspaceMemberView` | 工作區成員查詢投影，組合 workspace 與 organization 的資料 |
+| `WorkspaceMemberAccessChannel` | 讀模型中的接入通道描述 |
+| `WikiAccountContentNode` | 帳戶導覽節點 |
+| `WikiWorkspaceContentNode` | 工作區導覽節點 |
+| `WikiContentItemNode` | 導覽項 read projection |
+
+`WorkspaceMemberView` 與 `Wiki*Node` 型別目前放在 `domain/entities/` 下，但語意上是 query-side projection，不是 write-side aggregate、entity 或 value object。
+
+文件上必須清楚區分：
+
+- write-side truth：`domain/aggregates/`、`domain/entities/`、`domain/value-objects/`
+- read-side projection：供查詢與呈現使用的 `WorkspaceMemberView`、`Wiki*Node`
+
+這些 projection / read model 是為特定讀取需求與驅動器提供的查詢形狀：
+
+- 它們可由 query-side use case、repository adapter 或 ACL translation 組裝
+- 它們優先服務查詢與呈現，不優先服務 invariant 保護
+- 它們不是 ports，也不是 adapters；而是 adapters / query flows 產出的讀取模型
+
+## Strategic Reminder
+
+- `Workspace` aggregate root 屬於 `workspace` 這個 bounded context 的內部 tactical model
+- 它不等於整個 Xuanwu domain，也不等於 generic subdomain 的全部關係圖
+- Subdomain / Bounded Context 的外部關係應在 `README.md` 與 `context-map.md` 理解，不應把整體戰略關係塞回 aggregate 定義
+- 一個 subdomain 內可以有多個 bounded contexts；本文件只處理 `modules/workspace/` 這個 bounded context 的核心模型
+
+## Factory Boundary
+
+- Factory（工廠）在本 context 中是類別 / 函式，用來建立 aggregate、value object 或對 reconstitution 做集中驗證
+- `Workspace` 與 P1 value objects 應優先透過 factory / parser 建立，而不是由 interface adapter 任意拼接 raw object
+- Factory 不是 Repository，也不是 Domain Service；它的責任是安全建立模型，不是持久化或協調流程
+
+## 與 Application / Ports 的分工
+
+- Aggregate 保護 invariant，不協調長流程
+- Domain Service 補足不自然屬於單一 aggregate 的純規則
+- Application Service 協調多個 use case 或跨 aggregate 流程
+- Output Ports 負責外部能力抽象，不屬於 domain model 本體
+
+## What This File Does Not Own
+
+- Driver / 外部驅動器：例如 Browser UI、Server Actions、其他 bounded context 呼叫者
+- Adapter：例如 Firebase repository classes、Server Action wrappers、query wrappers
+- Port 定義本身：見 [repositories.md](./repositories.md)
+
+## Tactical Debt Notes
+
+- `Workspace` aggregate 目前仍承載 capabilities、grants、locations、personnel 等 supporting records；若之後規則持續成長，應再評估切分 ownership
+- P1 已正式落地於 `domain/value-objects/`：`WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
+- `WikiContentTree` 不是 write-side aggregate；它是為導覽組裝的 query model
+- `WorkspaceMember` 不是目前的 canonical write-side 名稱；查詢模型請使用 `WorkspaceMemberView`
+````
+
+## File: modules/workspace/application-services.md
+````markdown
+# workspace — Application Services
+
+> **Canonical bounded context:** `workspace`
+> **模組路徑:** `modules/workspace/`
+> **Domain Type:** Generic Subdomain
+
+本文件定義 workspace application layer 的目標契約。Application layer 負責承接 driving ports、協調 use cases、DTO、domain services、output ports 與 domain event publishing，不承載 React UI state，也不作為跨模組偷渡 internal implementation 的入口。
+
+從六邊形架構看，application layer 位在 domain model 外層、adapter 內層：它負責接住 inbound requests、呼叫 domain model 與 ports，並協調 outbound integration，但不應吞掉 aggregate 本身的規則。
+
+從依賴反轉看，application layer 應向下依賴 `domain/` 抽象與 `ports/output/`，由 `infrastructure/` 提供實作；UI、Route Handlers、CLI 等 entrypoints 則經由 `ports/input/` 依賴 application layer，而不是直接跨進 repository implementation。
+
+## Application Folder Contract
+
+| 目錄 | 角色 | 放什麼 |
+|---|---|---|
+| `application/use-cases/` | 單一 use case 入口 | 一個 user goal 對應的一段協調流程 |
+| `application/services/` | 跨 use case / 跨 aggregate 流程協調 | process manager、saga-style orchestration、較長流程 |
+| `application/dtos/` | 邊界資料形狀 | input DTO、output DTO、query filter DTO |
+
+## 依賴箭頭（Application 視角）
+
+```txt
+interfaces/*
+	-> ports/input
+	-> application/use-cases
+	-> application/services
+	-> domain/services
+	-> domain/aggregates + domain/entities + domain/value-objects
+	-> ports/output
+	-> infrastructure/*
+```
+
+## Use Case / Service / DTO 分工
+
+| 類型 | 主要責任 | 不該放的內容 |
+|---|---|---|
+| Use Case | 單一使用案例的 command / query 協調 | 長流程狀態、純業務規則、UI state |
+| Application Service | 跨多步驟或跨多 use case 的流程編排 | invariant、value object 規則、Firebase 直接呼叫 |
+| DTO | 進出 application layer 的資料形狀 | domain decision、repository implementation |
+
+## Application Layer 職責
+
+- 協調 command-side use cases
+- 協調 query-side use cases / projection builders
+- 呼叫 output ports 與必要的 domain service
+- 在持久化成功後觸發 domain event publishing
+- 保持 input / output 契約穩定，讓 `interfaces/` 可以薄適配
+
+## Ports / Adapters / Drivers / Read Models
+
+- Driver / 外部驅動器：Browser UI、Route Handlers、CLI / Cron、其他 bounded context 對 `interfaces/api/` 的呼叫者，以及未來可能的事件 subscriber / job trigger
+- Driving Adapters：`interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- Driving Ports：`ports/input/`
+- Driven Ports：`ports/output/`
+- Driven Adapters：Firebase repositories、event bus / event store integration 等外部技術實作
+- Read Models：application layer 在 query-side 協調產出的 `WorkspaceMemberView`、`Wiki*Node` 等讀取模型
+
+## 本文件涉及的 DDD 概念
+
+- Output Port（輸出端口）→ 介面；application layer 依賴的是 output port，而不是 infrastructure adapter 類別
+- Domain Service（領域服務）→ 類別 / 函式；只有當規則不屬於 aggregate / value object 時才由 application layer 協作呼叫
+- Application Service（應用服務）→ 類別 / 函式；專門協調多 use case 或跨 aggregate 流程
+- Factory（工廠）→ 類別 / 函式；用來建立 aggregate、value object、domain event 等有效模型
+- Domain Event（領域事件）→ 事件類別、訊息物件；application layer 可在持久化成功後發布，但事件語言本身屬於 domain
+
+## 在整體 Domain 裡的位置
+
+- 這些 application services 只服務 `workspace` 這個 bounded context
+- 它們不代表整個 generic subdomain 的所有流程，更不應直接編排其他 bounded context 的內部實作
+- 若流程跨越多個 bounded context，應明確透過 `interfaces/api/`、published language 或更高層的 composition orchestration 協作
+
+## Event-Driven 與長流程定位
+
+- 若 workspace 未來出現多步驟、跨事件的長流程協調，預設先放入 `application/services/`，而不是直接塞進 aggregate 或 domain service
+- 只有當流程追蹤本身成為領域概念時，才考慮引入 tracker aggregate 或對應 domain model
+- 目前 workspace application layer 會協調事件發布，但尚未引入專屬的 long-running process executive / saga state object
+
+## Command-side Use Cases
+
+| Use Case | 目的 | 備註 |
+|---|---|---|
+| `CreateWorkspaceUseCase` | 建立工作區 | 最小建立流程 |
+| `CreateWorkspaceWithCapabilitiesUseCase` | 建立工作區並掛載能力 | 透過 `WorkspaceRepository` + `WorkspaceCapabilityRepository` 協作 |
+| `UpdateWorkspaceSettingsUseCase` | 更新名稱、可見性、生命週期與 supporting records | 目前是主要設定更新入口 |
+| `DeleteWorkspaceUseCase` | 刪除工作區 | 應搭配生命週期與下游資料政策檢視 |
+| `MountCapabilitiesUseCase` | 掛載工作區能力 | 僅依賴 `WorkspaceCapabilityRepository` |
+| `GrantTeamAccessUseCase` | 為 workspace 授權 team access | 僅依賴 `WorkspaceAccessRepository` |
+| `GrantIndividualAccessUseCase` | 為 workspace 新增 direct grant | 僅依賴 `WorkspaceAccessRepository` |
+| `CreateWorkspaceLocationUseCase` | 建立工作區位置節點 | 僅依賴 `WorkspaceLocationRepository` |
+
+## Query-side Use Cases / Projection Builders / Read Model Builders
+
+| Use Case / Function | 目的 |
+|---|---|
+| `FetchWorkspaceMembersUseCase` | 組合 `WorkspaceMemberView[]` |
+| `buildWikiContentTree` | 組合工作區導覽樹 projection |
+
+這些輸出是 read model / projection，不是 aggregate。
+
+## Factories 與 Composition Points
+
+- Domain event factories 應放在 `domain/events/` 或 `domain/factories/`，不放在 UI 或 page component
+- Aggregate / Value Object factories 是類別 / 函式，用來建立有效 domain object，不應散落在 React component 中
+- UI draft factories 應留在 `interfaces/web/` 或其他 UI-oriented layer，不應假裝成 application service
+- Route Handlers、CLI handlers 與 query wrappers 是 driving adapter，不是 application service 本體
+
+## 非目標
+
+- 不保存 React component state
+- 不直接 new infrastructure adapter 作為主要協作方式
+- 不把 `WorkspaceDetailScreen` 的 tab composition 寫進 application layer
+- 不把純業務規則塞進 `application/services/`
+
+## 實作對位
+
+### 目前 use-case 檔案
+
+- `application/use-cases/workspace-lifecycle.use-cases.ts`
+- `application/use-cases/workspace-capabilities.use-cases.ts`
+- `application/use-cases/workspace-access.use-cases.ts`
+- `application/use-cases/workspace-member.use-cases.ts`
+- `application/use-cases/wiki-content-tree.use-case.ts`
+- `application/use-cases/workspace.use-cases.ts`（barrel only）
+
+### 收斂方向
+
+- `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` 保持 thin driving adapters
+- `ports/input/` 收斂 inbound contracts
+- `application/services/` 作為跨 use case / 跨 aggregate 流程容器
+- 應用層用語與 `aggregates.md`、`repositories.md`、`domain-events.md` 同步
 ````
 
 ## File: modules/workspace/interfaces/components/WorkspaceOverviewTab.tsx
@@ -80315,6 +80646,445 @@ export function WorkspaceOverviewTab({
 }
 ````
 
+## File: modules/workspace/repositories.md
+````markdown
+# workspace — Repositories
+
+> **Canonical bounded context:** `workspace`
+> **模組路徑:** `modules/workspace/`
+> **Domain Type:** Generic Subdomain
+
+本文件定義 workspace 的 repository ports 與對應 infrastructure adapters。workspace 目前同時存在 write-side 與 read-side repository，目的是把 aggregate 持久化與 projection 查詢分開。
+
+在 workspace 中，Repository（倉儲）可以是介面或類別：`ports/output/` 裡的 port 是介面；`infrastructure/` 裡負責資料存取的 adapter 是類別。
+
+從六邊形架構看，repository ports 是 domain/application 內核朝外宣告的 driven ports；Firebase 類別是被動端 adapter，不應反向把外部技術語言帶回 domain model。
+
+從 event sourcing 視角補充：若未來採 event sourcing，Repository 會改為從 event store 讀取並重建 aggregate；但目前 workspace repository 是 current-state persistence，不是 event-sourced reconstitution。
+
+## Ports and Adapters Distinction
+
+- Output Port：`ports/output/` 中的介面，定義內核需要什麼能力
+- Adapter：`infrastructure/` 中的類別，實作這些能力並接上 Firestore / 其他外部系統
+- Driver 不直接呼叫 adapter；通常由 `interfaces/` / `application/` 經由 port 協作後再使用對應能力
+
+## Output Port Surface
+
+目前 `ports/output/` 包含以下抽象：
+
+- `WorkspaceRepository`
+- `WorkspaceCapabilityRepository`
+- `WorkspaceAccessRepository`
+- `WorkspaceLocationRepository`
+- `WorkspaceQueryRepository`
+- `WikiWorkspaceRepository`
+- `WorkspaceDomainEventPublisher`
+
+## Write-side Repository Ports
+
+### `WorkspaceRepository`
+
+`WorkspaceRepository` 現在只服務 `Workspace` aggregate 的核心持久化與設定更新。
+
+#### 核心方法
+
+- `findById(id)`
+- `findByIdForAccount(accountId, workspaceId)`
+- `findAllByAccountId(accountId)`
+- `save(workspace)`
+- `updateSettings(command)`
+- `delete(id)`
+
+### Supporting Record Ports
+
+#### `WorkspaceCapabilityRepository`
+
+- `mountCapabilities()` / `unmountCapability()`
+
+#### `WorkspaceAccessRepository`
+
+- `grantTeamAccess()` / `revokeTeamAccess()`
+- `grantIndividualAccess()` / `revokeIndividualAccess()`
+
+#### `WorkspaceLocationRepository`
+
+- `createLocation()` / `updateLocation()` / `deleteLocation()`
+
+這些 supporting operations 目前仍由 workspace 擁有，但不再混在核心 aggregate repository port 中；若之後 ownership 外拆，可直接替換對應 supporting port。
+
+## Read-side Repository Ports
+
+### `WorkspaceQueryRepository`
+
+負責工作區查詢投影，而非 aggregate 持久化。
+
+#### 方法
+
+- `subscribeToWorkspacesForAccount(accountId, onUpdate)`
+- `getWorkspaceMembers(workspaceId)`
+
+這個 port 主要輸出 projection / read model，而不是 aggregate。
+
+### `WikiWorkspaceRepository`
+
+負責組合工作區導覽 tree 所需的最小工作區參照。
+
+#### 方法
+
+- `listByAccountId(accountId)`
+
+這個 port 服務的是 read-side composition，因此它的輸出也應視為 read model input，而不是 aggregate source of truth。
+
+## Infrastructure Adapters
+
+| Adapter | 作用 |
+|---|---|
+| `FirebaseWorkspaceRepository` | `WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository` 的 Firestore 實作 |
+| `FirebaseWorkspaceQueryRepository` | `WorkspaceQueryRepository` 的 Firebase / organization read-side 組裝實作 |
+| `FirebaseWikiWorkspaceRepository` | `WikiWorkspaceRepository` 的 Firestore 參照查詢實作 |
+| `SharedWorkspaceDomainEventPublisher` | `WorkspaceDomainEventPublisher` 的事件整合實作 |
+
+## 設計規則
+
+- repository / publisher 介面定義在 `ports/output/`
+- infrastructure adapters 實作在 `infrastructure/`
+- `application/` 只依賴 output ports，不依賴 adapter 類別
+- 跨模組或 app composition consumer 不直接 import repository implementation；一律透過 `interfaces/api/` 或對應 interface adapter 使用
+
+## Output Port 與 Infrastructure 的依賴圖
+
+```txt
+application/use-cases
+	│ calls
+	▼
+ports/output
+	│ implemented by
+	▼
+infrastructure/firebase
+infrastructure/events
+```
+
+## Tactical Debt Notes
+
+- supporting records 仍然物理上儲存在同一份 workspace document，但 application layer 已改為依賴專用 supporting ports
+- `WorkspaceQueryRepository` 同時承擔 read-side translation，尤其是把 `organization` 資料翻譯成 `WorkspaceMemberView`
+- 事件目前用於發布與整合，不用來作為 repository 的唯一狀態來源
+````
+
+## File: modules/workspace/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — workspace
+
+> **範圍：** 僅限 `modules/workspace/` bounded context 內
+
+本文件除了領域名詞，也會用少量 DDD 元術語幫助閱讀 companion docs；這些術語是文件讀法，不是要取代 workspace 自己的通用語言。
+
+## 戰略層級術語
+
+| 術語 | 在 workspace 文件中的意思 |
+|------|------------------------|
+| Domain | 指 Xuanwu 這個整體知識平台業務域 |
+| Subdomain | 指 workspace 所對應的協作容器問題空間；戰略分類屬於 generic subdomain |
+| Bounded Context | 指 `modules/workspace/` 這個語言、模型與 adapter 的邊界 |
+
+子域與限界上下文不是同一件事：subdomain 是業務問題空間；bounded context 是該語言與模型的實作/協作邊界。
+
+同一個 subdomain 可以由一個或多個 bounded contexts 落地；workspace 文件只描述 `modules/workspace/` 這個 bounded context 的語言，不替整個 subdomain 代言所有詞彙。
+
+## 核心術語
+
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 工作區 | `Workspace` | 協作容器的 aggregate root，代表一個工作區範圍 |
+| 工作區 ID | `workspaceId` | `Workspace` 的業務識別子，也是跨 context 的範圍鍵 |
+| 帳戶 ID | `accountId` | 擁有工作區的 account 或 organization 識別子 |
+| 工作區生命週期 | `WorkspaceLifecycleState` | `preparatory | active | stopped` |
+| 工作區可見性 | `WorkspaceVisibility` | `visible | hidden`，控制工作區是否可被發現 |
+
+## Supporting Domain Objects
+
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 工作區授權 | `WorkspaceGrant` | 工作區上的直接授權記錄，描述 user/team 與 role 關係 |
+| 工作區能力 | `Capability` | 目前掛載在工作區上的功能能力記錄 |
+| 工作區位置 | `WorkspaceLocation` | 工作區底下帶 identity 的位置節點 |
+| 工作區人員資訊 | `WorkspacePersonnel` | 工作區上的管理/監督/安全等角色參照集合 |
+| 工作區地址 | `Address` | 工作區地址值型資料 |
+
+## Read-side Projection Terms
+
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 工作區成員檢視 | `WorkspaceMemberView` | 由 workspace + organization 資料組裝出的成員查詢投影 |
+| 工作區成員接入通道 | `WorkspaceMemberAccessChannel` | 成員透過 owner/direct/team/personnel 進入工作區的路徑描述 |
+| 工作區帳戶節點 | `WikiAccountContentNode` | 用於導覽查詢的帳戶層節點 |
+| 工作區導覽節點 | `WikiWorkspaceContentNode` | 用於導覽查詢的工作區節點 |
+| 工作區導覽項 | `WikiContentItemNode` | 導覽/捷徑用的 read projection，不是 domain aggregate |
+
+Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driver 或查詢場景最佳化，但不應回頭成為 write-side truth。
+
+## Domain Event Terms
+
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 工作區已建立事件 | `WorkspaceCreatedEvent` | 工作區建立後對外發布的 domain event 訊息 |
+| 工作區生命週期已轉移事件 | `WorkspaceLifecycleTransitionedEvent` | 工作區生命週期改變後發布的 domain event |
+| 工作區可見性已變更事件 | `WorkspaceVisibilityChangedEvent` | 工作區可見性變更後發布的 domain event |
+
+## Hexagonal / MDDD Terms Used In These Docs
+
+| 術語 | 英文 | 在本組文件中的意思 |
+|------|------|--------------------|
+| 輸入端口 | `Input Port` | `ports/input/` 中的 driving contract，供 `interfaces/` 呼叫 |
+| 輸出端口 | `Output Port` | `ports/output/` 中的 driven contract，供 application layer 呼叫外部能力 |
+| 網頁介面適配器 | `Web Driving Adapter` | `interfaces/web/`，shadcn UI Components + Hooks |
+| API 適配器 | `API Driving Adapter` | `interfaces/api/`，Next.js Route Handler / 同步公開入口 |
+| CLI 適配器 | `CLI Driving Adapter` | `interfaces/cli/`，CLI / Cron Job 入口 |
+| 應用服務 | `Application Service` | `application/services/`，負責流程協調，不負責純規則 |
+| 領域服務 | `Domain Service` | `domain/services/`，負責純業務邏輯，不負責流程編排 |
+| 聚合目錄 | `domain/aggregates/` | Aggregate Root 的正式位置 |
+| DTO 目錄 | `application/dtos/` | application layer 的 input / output data shape |
+
+## 行為語言（Behavioral Language）
+
+| 行為 | 英文 | 在 workspace 中的語意 |
+|------|------|------------------------|
+| 建立工作區 | `create workspace` | 建立一個新的工作區協作容器，初始化 `workspaceId`、生命週期與可見性 |
+| 啟用工作區 | `activate workspace` | 將工作區從 `preparatory` 推進到 `active`，表示它已進入可運作狀態 |
+| 停止工作區 | `stop workspace` | 將工作區從 `active` 推進到 `stopped`，表示該範圍不再繼續運作 |
+| 變更工作區可見性 | `change workspace visibility` | 在 `visible` 與 `hidden` 之間替換可見性，不改變工作區 identity |
+| 掛載工作區能力 | `mount capabilities` | 將能力記錄掛到工作區範圍之下 |
+| 授權工作區存取 | `grant workspace access` | 將 user / team / personnel 路徑的存取權授予工作區 |
+| 建立工作區位置 | `create workspace location` | 在工作區範圍下建立帶 identity 的位置節點 |
+| 發布工作區事件 | `publish workspace event` | 在 aggregate 狀態改變成功後，對外發布對應的 domain event |
+
+這些行為語言描述的是「workspace 做什麼」，不是 UI 按鈕文案，也不是 framework callback 名稱。
+
+## 不變條件（Invariants）
+
+- `workspaceId` 一旦建立，就持續代表同一個工作區範圍
+- `accountId` 與 `accountType` 在 workspace 建立後不應被重新指定
+- `WorkspaceLifecycleState` 的 canonical 值只有 `preparatory | active | stopped`
+- `WorkspaceVisibility` 的 canonical 值只有 `visible | hidden`
+- `WorkspaceVisibility` 是曝光語意，不是生命週期語意；它不能取代 `WorkspaceLifecycleState`
+- `WorkspaceName` 應維持為有效名稱值，而不是未經正規化的任意字串
+- `WorkspaceMemberView` 與 `Wiki*Node` 是 projection / read model，不是 write-side truth
+- 下游 bounded context 只能在有效的 `workspaceId` 範圍內對齊自己的資料與行為
+
+更完整的 aggregate-level invariants 請看 [aggregates.md](./aggregates.md)。本節只記錄通用語言層級必須一致理解的規則。
+
+## 狀態轉移語意（Transition Semantics）
+
+### 生命週期語意
+
+- `preparatory -> active`：工作區從準備中進入可運作狀態
+- `active -> stopped`：工作區從運作中進入停止狀態
+- `stopped`：目前語意上視為終止狀態，不等同 `archived`
+
+### 可見性語意
+
+- `visible -> hidden`：工作區仍存在，但不再以可發現狀態暴露
+- `hidden -> visible`：工作區重新回到可發現狀態
+- 可見性變化不等於生命週期變化；它不建立、刪除或重命名工作區
+
+### 事件語意
+
+- 建立工作區後可發布 `WorkspaceCreatedEvent`
+- 生命週期發生有效轉移後可發布 `WorkspaceLifecycleTransitionedEvent`
+- 可見性發生變更後可發布 `WorkspaceVisibilityChangedEvent`
+
+## 命名守則
+
+- aggregate 與 supporting objects 使用 `Workspace*` 前綴，保持 bounded context 可讀性
+- `WorkspaceLifecycleState` 是 canonical 名稱，不使用 `WorkspaceStatus`
+- `WorkspaceMemberView` 是 projection 名稱，不縮寫成 `WorkspaceMember`
+- 若描述 query tree，使用 `WikiAccountContentNode` / `WikiWorkspaceContentNode` / `WikiContentItemNode`
+- 若描述純規則，使用 `Domain Service`，不要把流程編排也叫成 domain service
+- 若描述流程編排，使用 `Application Service`，不要誤稱為 aggregate 或 domain service
+- 若描述 `ports/output/`，強調它是抽象介面，不等於 Firebase implementation
+
+## 禁止替換術語
+
+| 正確 | 禁止 |
+|------|------|
+| `Workspace` | `Project`, `Space`, `Room` |
+| `WorkspaceLifecycleState` | `WorkspaceStatus`, `ArchivedState` |
+| `WorkspaceVisibility` | `VisibilityMode`, `DiscoveryState` |
+| `WorkspaceMemberView` | `WorkspaceMember`, `Member`, `Participant` |
+| `WikiAccountContentNode` / `WikiWorkspaceContentNode` | `WikiContentTree`, `PageTree`, `Hierarchy`（當你描述 aggregate 或 entity 時） |
+| `Application Service` | `Domain Service`（當你描述流程協調時） |
+| `Output Port` | `Firebase Layer`（當你描述抽象介面時） |
+| `Input Port` | `Controller Layer`（當你描述 port contract 時） |
+
+## 語意說明
+
+- `archived` 不是此 bounded context 的生命週期語言；停止中的工作區使用 `stopped`
+- `WorkspaceMemberView` 與 `Wiki*Node` 是查詢模型，不等同 write-side domain objects
+- `workspaceId` 是下游 context 對齊 workspace scope 的主要 published language
+- 同一組 workspace 語言應在此 bounded context 的 domain、application、interfaces、infrastructure 中保持一致；只有在邊界上才翻譯外部語言
+
+## 文件元術語對照
+
+| 概念 | 在這組文件中的意思 |
+|------|------------------|
+| Entity（實體） | 類別 / 物件，具備 identity，語意上可跨時間被辨識 |
+| Value Object（值對象） | 類別 / 物件，以值相等判斷語意，例如 `WorkspaceVisibility`、`Address` |
+| Aggregate / Aggregate Root（聚合 / 聚合根） | 類別 / 物件，負責保護 write-side 一致性；workspace 的 aggregate root 是 `Workspace` |
+| Repository（倉儲） | 介面或類別，負責 aggregate / projection 的資料存取 |
+| Ports（端口） | 介面，定義內核與外部協作的接縫 |
+| Adapters（適配器） | 類別 / 函式 / 模組，將 driver 或 external system 轉譯成內核可處理的契約 |
+| 外部系統 / Driver（驅動器） | 從 bounded context 外部發起互動的角色 / 系統，例如 UI、Server Actions、其他 context 呼叫者 |
+| Projection / Read Model | 查詢導向的讀取模型，例如 `WorkspaceMemberView`、`Wiki*Node` |
+| Domain Service（領域服務） | 類別 / 函式，承載不自然屬於 aggregate / value object 的純領域規則 |
+| Application Service（應用服務） | 類別 / 函式，協調多 use case 或跨 aggregate 的流程 |
+| Factory（工廠） | 類別 / 函式，負責建立 aggregate、value object、domain event 等有效模型 |
+| Domain Event（領域事件） | 事件類別、訊息物件，作為對外發布的 domain language |
+````
+
+## File: modules/workspace/application/use-cases/workspace-lifecycle.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Workspace lifecycle use cases — create and delete.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceRepository } from "../../ports/output/WorkspaceRepository";
+import type { WorkspaceCapabilityRepository } from "../../ports/output/WorkspaceCapabilityRepository";
+import type {
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  Capability,
+} from "../../domain/entities/Workspace";
+import {
+  createWorkspaceAggregate,
+  reconstituteWorkspaceAggregate,
+  toWorkspaceSnapshot,
+} from "../../domain/factories/WorkspaceFactory";
+import type { Workspace } from "../../domain/entities/Workspace";
+
+function sanitizeWorkspaceSettingsCommand(
+  workspace: Workspace,
+  command: UpdateWorkspaceSettingsCommand,
+): UpdateWorkspaceSettingsCommand {
+  workspace.applySettings(command);
+
+  return {
+    workspaceId: command.workspaceId,
+    accountId: command.accountId,
+    name: command.name !== undefined ? workspace.name : undefined,
+    visibility: command.visibility !== undefined ? workspace.visibility : undefined,
+    lifecycleState:
+      command.lifecycleState !== undefined ? workspace.lifecycleState : undefined,
+    address: command.address !== undefined ? workspace.address : undefined,
+    personnel: command.personnel !== undefined ? workspace.personnel : undefined,
+  };
+}
+
+// ─── Create Workspace ─────────────────────────────────────────────────────────
+
+export class CreateWorkspaceUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
+    try {
+      const workspace = createWorkspaceAggregate(command);
+      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_CREATE_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace",
+      );
+    }
+  }
+}
+
+// ─── Create Workspace with Capabilities ──────────────────────────────────────
+
+export class CreateWorkspaceWithCapabilitiesUseCase {
+  constructor(
+    private readonly workspaceRepo: WorkspaceRepository,
+    private readonly capabilityRepo: WorkspaceCapabilityRepository,
+  ) {}
+
+  async execute(
+    command: CreateWorkspaceCommand,
+    capabilities: Capability[] = [],
+  ): Promise<CommandResult> {
+    try {
+      const workspace = createWorkspaceAggregate(command);
+      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
+      if (capabilities.length > 0) {
+        await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
+      }
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_CREATE_WITH_CAPABILITIES_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace with capabilities",
+      );
+    }
+  }
+}
+
+// ─── Update Settings ──────────────────────────────────────────────────────────
+
+export class UpdateWorkspaceSettingsUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
+    try {
+      const workspace = await this.workspaceRepo.findByIdForAccount(
+        command.accountId,
+        command.workspaceId,
+      );
+      if (!workspace) {
+        return commandFailureFrom(
+          "WORKSPACE_NOT_FOUND",
+          `Workspace ${command.workspaceId} not found`,
+        );
+      }
+      await this.workspaceRepo.updateSettings(
+        sanitizeWorkspaceSettingsCommand(
+          reconstituteWorkspaceAggregate(workspace),
+          command,
+        ),
+      );
+      return commandSuccess(command.workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_UPDATE_FAILED",
+        err instanceof Error ? err.message : "Failed to update workspace settings",
+      );
+    }
+  }
+}
+
+// ─── Delete Workspace ─────────────────────────────────────────────────────────
+
+export class DeleteWorkspaceUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(workspaceId: string): Promise<CommandResult> {
+    try {
+      const workspace = await this.workspaceRepo.findById(workspaceId);
+      if (!workspace) {
+        return commandFailureFrom("WORKSPACE_NOT_FOUND", `Workspace ${workspaceId} not found`);
+      }
+      await this.workspaceRepo.delete(workspaceId);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_DELETE_FAILED",
+        err instanceof Error ? err.message : "Failed to delete workspace",
+      );
+    }
+  }
+}
+````
+
 ## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
 ````typescript
 "use client";
@@ -80560,16 +81330,6 @@ export function WorkspaceDetailScreen({
     </div>
   );
 }
-````
-
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/dev/types/routes.d.ts";
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````
 
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
@@ -81130,12 +81890,26 @@ export function DashboardSidebar({
 }
 ````
 
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+````
+
 ## File: modules/workspace/AGENT.md
 ````markdown
 # AGENT.md — workspace BC
 
-> **強制開發規範**  
+> **文件優先原則**
+> `workspace` 後續重構先以本文件與 companion docs 為準，再用文件去壓代碼收斂。
+>
+> **強制開發規範**
 > 本 BC 領域開發必須使用 Serena 指令：
+>
 > ```
 > serena
 > #use skill serena-mcp
@@ -81143,7 +81917,6 @@ export function DashboardSidebar({
 > #use skill iddd-implementing-ddd
 > #use skill xuanwu-app-skill
 > #use skill context7
-
 > ```
 
 ## 模組定位
@@ -81153,6 +81926,37 @@ export function DashboardSidebar({
 它負責定義「工作區作為協作範圍」的核心語言與公開邊界，讓其他 bounded context 以 `workspaceId` 對齊範圍、生命週期與可見性。
 
 `workspace` 不負責知識內容本身、組織成員真相來源、事件儲存基礎設施，也不把 UI tab 組裝視為 context map。
+
+## 文件位置基線
+
+```txt
+modules/workspace/
+├── domain/                     ← 核心業務邏輯
+│   ├── aggregates/             ← 聚合根
+│   ├── entities/               ← Entity / Value Object
+│   ├── value-objects/
+│   ├── events/                 ← Domain Events
+│   ├── factories/              ← Domain Factories
+│   └── services/               ← Domain Services（純業務邏輯）
+│
+├── application/                ← Use Case 層
+│   ├── dtos/                   ← Input / Output DTO
+│   ├── services/               ← Application Services（協調 Use Case 流程）
+│   └── use-cases/              ← 單一 Use Case（呼叫 Domain Services + Output Ports）
+│
+├── ports/                      ← Hexagonal Ports
+│   ├── input/                  ← Driving Ports（供 UI / API / CLI 呼叫）
+│   └── output/                 ← Driven Ports（Repository / External Service 抽象）
+│
+├── infrastructure/             ← Adapters / Output Port 實作
+│   ├── events/                 ← Event Dispatcher / PubSub 實作
+│   └── firebase/               ← Firestore / Storage / Genkit Adapter
+│
+└── interfaces/                 ← Driving Adapters（外部入口）
+	├── api/                    ← Next.js Route Handler → Input Port
+	├── cli/                    ← CLI / Cron Job → Input Port
+	└── web/                    ← shadcn UI Components + Hooks → Input Port
+```
 
 ## 戰略層級（Domain / Subdomain / Bounded Context）
 
@@ -81166,35 +81970,63 @@ export function DashboardSidebar({
 ## Tactical 對位
 
 - Aggregate Root：`Workspace`
-- Driven Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`、`WorkspaceDomainEventPublisher`
-- Driving Adapters：`interfaces/_actions/`、`interfaces/queries/`、UI composition 與其他進入點
-- Driven Adapters：`FirebaseWorkspaceRepository`、`FirebaseWorkspaceQueryRepository`、`FirebaseWikiWorkspaceRepository`、`SharedWorkspaceDomainEventPublisher`
+- Driving Adapters：`interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- Driving Ports：`ports/input/`
+- Application Layer：`application/use-cases/`、`application/services/`、`application/dtos/`
+- Domain Services：`domain/services/`
+- Domain Models：`domain/aggregates/`、`domain/entities/`、`domain/value-objects/`
+- Driven Ports：`ports/output/`（`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`、`WorkspaceDomainEventPublisher`）
+- Driven Adapters：`infrastructure/firebase/`、`infrastructure/events/`
 - Projection / Read Model：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`、`WikiContentItemNode`
 - Read Projections：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`
-- Repository Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
-- Domain Event Port：`WorkspaceDomainEventPublisher`
 - Domain Events：`WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged`
 
 ## 六邊形交互順序（Runtime）
 
-1. Driver 進入：UI / Server Actions / 其他 bounded context 呼叫 `api/`
-2. Driving Adapter 轉換：`interfaces/*` 轉 command/query
-3. Application Use Case 協調流程
-4. Domain Model 套用 invariant（`Workspace` aggregate + value objects）
-5. 透過 Driven Ports 呼叫外部能力（repositories / event publisher）
-6. Infrastructure Adapters 實作 ports（Firebase / shared event publishing）
+```txt
+interfaces/api ─┐
+interfaces/cli ─┤
+interfaces/web ─┘
+	 │ call
+	 ▼
+   ports/input
+	 │ call
+	 ▼
+ application/use-cases
+	 │ call
+	 ▼
+ application/services
+	 │ call
+	 ▼
+  domain/services
+	 │ use
+	 ▼
+  domain/aggregates/entities
+	 │
+	 └─► ports/output ──► infrastructure/* (Firebase / Genkit / Events)
+```
+
+### 說明
+
+1. `interfaces/` 驅動系統，呼叫 Input Port。
+2. `ports/input/` 是 Input Port 介面定義。
+3. `application/use-cases/` 處理單一 use case，呼叫 Domain Services + Output Ports。
+4. `application/services/` 協調多個 use case 或較長流程。
+5. `ports/output/` 是 Output Port 介面，供 Application 呼叫外部資源。
+6. `infrastructure/` 實作 Output Ports。
+7. `domain/` 保持純業務邏輯，不依賴 Application 或 Infrastructure。
 
 目前實際入口對位：
 
-- `api/contracts.ts`：公開契約（types / events / value object helpers）
-- `api/facade.ts`：公開行為入口（commands / queries）
-- `api/ui.ts`：公開 UI composition surface（components / hooks / tab metadata）
-- `ports/index.ts`：公開 port 抽象（repositories + event publisher port）
+- `interfaces/api/`：公開同步入口（Next.js Route Handler / 模組對外 surface）
+- `interfaces/web/`：Web UI 與 hooks 進入點
+- `ports/index.ts`：公開 port 抽象（input/output 聚合匯出）
 
 ## 六邊形依賴方向（Compile-time）
 
-- `interfaces -> application -> domain`
-- `infrastructure -> domain`（實作 ports）
+- `interfaces -> ports/input -> application -> domain`
+- `application -> ports/output`
+- `infrastructure -> ports/output`（實作 ports）
 - `domain` 不可依賴 `interfaces`、`application`、`infrastructure`
 - `modules/workspace/ports` 只放 port 抽象匯出，不放 adapter 實作
 
@@ -81203,12 +82035,13 @@ export function DashboardSidebar({
 - Entity（實體）→ 類別 / 物件；在 workspace 中例如 `WorkspaceLocation`、`Capability`
 - Value Object（值對象）→ 類別 / 物件；在 workspace 中例如 `WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
 - Aggregate / Aggregate Root（聚合 / 聚合根）→ 類別 / 物件；此 BC 的 write-side aggregate root 是 `Workspace`
-- Repository（倉儲）→ 介面或類別；`domain/repositories/` 定義 port，`infrastructure/` 類別負責資料存取
+- Repository（倉儲）→ 介面或類別；`ports/output/` 暴露 port，`infrastructure/` 類別負責資料存取
 - Ports（端口）→ 介面；宣告 bounded context 核心與外部協作的接縫
 - Adapters（適配器）→ 類別 / 函式 / 模組；把 driver 或外部系統轉成 port 可接受的契約
 - 外部系統 / 驅動器（Driver）→ 從 bounded context 外部發起工作的角色 / 系統，例如 UI、Server Action、其他 context 呼叫者
 - 投影 / Read Model → 查詢用途的物件；服務讀取與呈現，不承擔 write-side invariant
 - Domain Service（領域服務）→ 類別 / 函式；僅在規則不自然屬於 aggregate 或 value object 時才新增
+- Application Service（應用服務）→ 類別 / 函式；協調多個 use case 或跨 aggregate 流程
 - Factory（工廠）→ 類別 / 函式；負責建立 aggregate、value object 或 domain event 訊息
 - Domain Event（領域事件）→ 事件類別、訊息物件；例如 `WorkspaceCreatedEvent`
 
@@ -81223,6 +82056,10 @@ export function DashboardSidebar({
 | `accountId` | ownerId（在 workspace BC 內） |
 | `WorkspaceMemberView` | `WorkspaceMember`（當你描述 read model 時） |
 | `WikiAccountContentNode` / `WikiWorkspaceContentNode` | `WikiContentTree`（當你描述 aggregate 時） |
+| `Domain Service` | Flow Service、Handler（當你描述純邏輯時） |
+| `Application Service` | Domain Service（當你描述流程協調時） |
+| `ports/input` | Controller Layer（當你描述 port contract 時） |
+| `ports/output` | Firebase Layer（當你描述抽象介面時） |
 
 ## 邊界規則
 
@@ -81230,7 +82067,7 @@ export function DashboardSidebar({
 
 ```typescript
 import { getWorkspaceById, WorkspaceDetailScreen } from "@/modules/workspace/interfaces/api";
-import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
+import type { WorkspaceRepository } from "@/modules/workspace/ports";
 ```
 
 ### ❌ 禁止
@@ -81242,10 +82079,11 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 
 ## 分層守衛
 
-- `index.ts` 只能是薄入口；跨模組 consumer 應優先使用 `@/modules/workspace/api`
-- `api/` 只能公開穩定 surface，不得直接變成 infrastructure 捷徑
-- `interfaces/` 可使用本模組的 application/query adapters，但跨模組一律只能走對方 `api/`
-- `infrastructure/` 禁止 import `api/`
+- `index.ts` 只能是薄入口；跨模組與 app composition consumer 應優先使用 `@/modules/workspace/interfaces/api`
+- `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` 只做 driving adapter，不處理 domain 決策
+- `application/use-cases/` 處理單一 use case，不吞進純業務規則
+- `application/services/` 只負責流程，不替代 domain service
+- `infrastructure/` 禁止 import `interfaces/`
 - `FirebaseWikiWorkspaceRepository` 與 `FirebaseWorkspaceRepository` 之間維持本地相對路徑依賴，不透過模組公開入口繞回
 - `modules/workspace` 內禁止 `import { X as Y } from ...` 的 alias import；若出現命名衝突，應調整符號命名或改為 namespace import 以維持通用語言一致性
 
@@ -81253,13 +82091,13 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 
 - Domain Model 在 bounded context 的核心：`domain/`
 - Application layer 包在 domain model 外層：`application/`
-- Driving Adapters 是進入此 bounded context 的入口：`interfaces/`、Server Actions、query wrappers、UI composition
-- Driven Adapters 是對外技術整合：`infrastructure/`
-- Repository ports 是內核朝外的 driven ports；adapter 可以替換，但 domain model 不應感知 Firebase / HTTP / React
-- `api/` 是此 bounded context 對外暴露的穩定入口；它是公開邊界，不是把內部 layers 攤平
+- Driving Adapters 是進入此 bounded context 的入口：`interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- `ports/input/` 是 driving contract 的位置
+- `ports/output/` 是內核朝外的 driven ports；adapter 可以替換，但 domain model 不應感知 Firebase / HTTP / React
+- `interfaces/api/` 是此 bounded context 對外暴露的同步入口；它是公開邊界，不是把內部 layers 攤平
 - 依賴方向維持 inward：`interfaces/` 與 `infrastructure/` 可以依賴 `application/`、`domain/`，但 `domain/` 不反向依賴外部技術
 - 若採事件驅動整合，incoming / outgoing events 也是 bounded context 邊界的一部分，不改變 domain model 必須位於中心的原則
-- Browser UI、Server Actions、其他 bounded context 對 `api/` 的呼叫者，都是此 hexagon 的 drivers；它們透過 adapters 進入，不直接碰 domain model
+- Browser UI、Route Handlers、CLI、其他 bounded context 對 `interfaces/api/` 的呼叫者，都是此 hexagon 的 drivers；它們透過 adapters 進入，不直接碰 domain model
 - `WorkspaceMemberView` 與 `Wiki*Node` 屬於 read model / projection，位於 query-side，不應回頭冒充 aggregate
 
 ## Tactical 建模守則
@@ -81268,6 +82106,7 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 - `WikiContentTree.ts` 目前承載的是導覽/查詢模型，不是 write-side aggregate
 - `WorkspaceLifecycleState` 的 canonical 值是 `preparatory | active | stopped`，不是 `active | archived`
 - 若要新增跨 aggregate 規則，先判斷是否真的需要 domain service；不要用 application service 假裝 aggregate
+- 若要新增跨 use case 長流程，先放進 `application/services/`，不要把流程協調塞進 `domain/services/`
 
 ## 驗證命令
 
@@ -81291,4 +82130,11 @@ npm run build
 | [domain-services.md](./domain-services.md) | domain service 與 ports/adapters/drivers/read models 的區別 |
 | [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
 | [ports/README.md](./ports/README.md) | workspace ports 清單、交互順序與依賴方向 |
+
+| [domain/aggregates/AGENT.md](./domain/aggregates/AGENT.md) | aggregate root 應放什麼、不該放什麼 |
+| [domain/services/AGENT.md](./domain/services/AGENT.md) | 純業務邏輯的 domain service 規則 |
+| [application/dtos/AGENT.md](./application/dtos/AGENT.md) | application DTO 邊界規則 |
+| [application/services/AGENT.md](./application/services/AGENT.md) | application service 流程職責 |
+| [ports/input/AGENT.md](./ports/input/AGENT.md) | input port contract 位置說明 |
+| [ports/output/AGENT.md](./ports/output/AGENT.md) | output port contract 位置說明 |
 ````
