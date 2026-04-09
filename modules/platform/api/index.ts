@@ -73,3 +73,6 @@ export {
   UpdateOrgPolicyUseCase,
   DeleteOrgPolicyUseCase,
 } from "../subdomains/organization";
+
+// background-job — knowledge ingestion pipeline management
+export * from "../subdomains/background-job";
