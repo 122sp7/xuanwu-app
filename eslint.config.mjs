@@ -18,8 +18,10 @@ const moduleElements = ["domain","application","infrastructure","interfaces"].fl
   { type: `module-${layer}`, pattern: `modules/*/${layer}/**/*`, capture: ["module"] },
 ]);
 moduleElements.unshift(
-  { type: "module-root", pattern: "modules/*/index.ts",  capture: ["module"] },
-  { type: "module-api",  pattern: "modules/*/api/**/*",  capture: ["module"] },
+  { type: "module-root",           pattern: "modules/*/index.ts",               capture: ["module"] },
+  { type: "module-api",            pattern: "modules/*/api/**/*",                capture: ["module"] },
+  { type: "module-interfaces-api", pattern: "modules/*/interfaces/api/**/*",    capture: ["module"] },
+  { type: "module-interfaces-web", pattern: "modules/*/interfaces/web/**/*",    capture: ["module"] },
 );
 
 const layers = ["module-domain","module-application","module-infrastructure","module-interfaces"];
@@ -33,21 +35,24 @@ const layerAllows = {
 };
 
 const moduleDependencyRules = [
-  // cross-module → must go through api
-  ...layers.map((type) => ({ from: { type }, allow: [{ to: { type: "module-api" } }] })),
+  // cross-module → must go through api, interfaces/api, or interfaces/web
+  ...layers.map((type) => ({ from: { type }, allow: [{ to: { type: "module-api" } }, { to: { type: "module-interfaces-api" } }, { to: { type: "module-interfaces-web" } }] })),
   // same-module root barrel allowed
   ...layers.map((type) => ({ from: { type }, allow: [sameModule("module-root")] })),
   // api layer owns same-module layers
   { from: { type: "module-api" }, allow: ["module-api",...layers].map(sameModule) },
+  // interfaces/api and interfaces/web as same-module public adapter layers
+  { from: { type: "module-interfaces-api" }, allow: ["module-interfaces-api","module-interfaces-web","module-api",...layers].map(sameModule) },
+  { from: { type: "module-interfaces-web" }, allow: ["module-interfaces-web","module-interfaces-api","module-api",...layers].map(sameModule) },
   // same-module layer purity
   ...layers.map((type) => ({ from: { type }, allow: layerAllows[type].map(sameModule) })),
 ];
 
 // ─── Restricted import patterns ───────────────────────────────────────────────
 const apiEntrypoint   = { regex: "^@/modules/(?!system$)[^/]+$",                          message: "Use @/modules/<module>/api only." };
-const nonApiSubpath   = { regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)).+",    message: "Cross-module deps must use @/modules/<module>/api." };
+const nonApiSubpath   = { regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)|interfaces/(?:api|web)(?:/|$)).+", message: "Cross-module deps must use @/modules/<module>/api, @/modules/<module>/interfaces/api, or @/modules/<module>/interfaces/web." };
 const explicitIndex   = { group: ["**/index","**/index.ts","**/index.tsx"],                message: "Import the target file directly, not an index path." };
-const internalLayer   = { group: layers.flatMap((l) => [`@/modules/*/${l.replace("module-","")}/**`]), message: "Use @/modules/<module>/api, not internal layer paths." };
+const internalLayer   = { group: ["domain","application","infrastructure"].flatMap((l) => [`@/modules/*/${l}/**`]), message: "Use @/modules/<module>/api, @/modules/<module>/interfaces/api, or @/modules/<module>/interfaces/web — not internal layer paths." };
 
 const legacyAliases = [
   { group: ["@/shared/*"],        message: "Use @shared-types / @shared-utils / … instead." },

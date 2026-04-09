@@ -19,11 +19,11 @@ import {
 } from "react";
 
 import { subscribeToAccountsForUser, type AccountEntity } from "@/modules/account/api";
+import { subscribeToWorkspacesForAccount } from "@/modules/workspace/interfaces/api";
 import {
   getWorkspaceStorageKey,
-  subscribeToWorkspacesForAccount,
   toWorkspaceMap,
-} from "@/modules/workspace/api";
+} from "@/modules/workspace/interfaces/web";
 
 import { AppContext, type AppState, type AppAction } from "./app-context";
 import type { AuthUser } from "./auth-context";

@@ -14,7 +14,7 @@ import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/api";
 import {
   type WorkspaceEntity,
-} from "@/modules/workspace/api";
+} from "@/modules/workspace/interfaces/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
