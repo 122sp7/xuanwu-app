@@ -24,7 +24,7 @@ export {
   isWorkspaceTabValue,
 } from "../interfaces/workspace-tabs";
 
-export { getWorkspaceStorageKey, toWorkspaceMap } from "../interfaces/workspace-session";
+export { getWorkspaceStorageKey, toWorkspaceMap, resolveWorkspaceFromMap } from "../interfaces/workspace-session";
 
 export type { WorkspaceNavItem } from "../interfaces/workspace-nav-items";
 export {
