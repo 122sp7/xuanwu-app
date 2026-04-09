@@ -3,4 +3,4 @@ export type {
   WorkspaceMemberAccessSource,
   WorkspaceMemberPresence,
   WorkspaceMemberView,
-} from "../../../application/dtos/workspace-member-view.dto";
+} from "../../../domain/entities/WorkspaceMemberView";

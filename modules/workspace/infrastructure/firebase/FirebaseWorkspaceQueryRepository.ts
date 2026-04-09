@@ -2,7 +2,7 @@ import type {
   WorkspaceMemberAccessChannel,
   WorkspaceMemberPresence,
   WorkspaceMemberView,
-} from "../../application/dtos/workspace-member-view.dto";
+} from "../../domain/entities/WorkspaceMemberView";
 import type { WorkspaceQueryRepository } from "../../ports/output/WorkspaceQueryRepository";
 import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
 import {

@@ -1,7 +1,7 @@
 import { FirebaseWorkspaceRepository } from "./FirebaseWorkspaceRepository";
 
 import type { WikiWorkspaceRepository } from "../../ports/output/WikiWorkspaceRepository";
-import type { WikiWorkspaceRef } from "../../application/dtos/wiki-content-tree.dto";
+import type { WikiWorkspaceRef } from "../../domain/entities/WikiContentTree";
 
 const workspaceRepo = new FirebaseWorkspaceRepository();
 

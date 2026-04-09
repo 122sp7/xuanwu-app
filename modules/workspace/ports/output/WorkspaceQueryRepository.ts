@@ -2,7 +2,7 @@
  * WorkspaceQueryRepository — Port for workspace read projections.
  */
 
-import type { WorkspaceMemberView } from "../../application/dtos/workspace-member-view.dto";
+import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMemberView";
 import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
 
 export type Unsubscribe = () => void;

@@ -10,7 +10,7 @@ import type {
   WikiAccountSeed,
   WikiContentItemNode,
   WikiWorkspaceContentNode,
-} from "../dtos/wiki-content-tree.dto";
+} from "../../domain/entities/WikiContentTree";
 import type { WikiWorkspaceRepository } from "../../ports/output/WikiWorkspaceRepository";
 
 function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {

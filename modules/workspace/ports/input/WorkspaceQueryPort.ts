@@ -1,9 +1,9 @@
 import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import type { WorkspaceMemberView } from "../../application/dtos/workspace-member-view.dto";
+import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMemberView";
 import type {
   WikiAccountContentNode,
   WikiAccountSeed,
-} from "../../application/dtos/wiki-content-tree.dto";
+} from "../../domain/entities/WikiContentTree";
 
 export type WorkspaceQuerySubscription = () => void;
 

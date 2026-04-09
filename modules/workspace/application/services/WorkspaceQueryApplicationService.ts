@@ -1,8 +1,8 @@
 import type {
   WikiAccountContentNode,
   WikiAccountSeed,
-} from "../dtos/wiki-content-tree.dto";
-import type { WorkspaceMemberView } from "../dtos/workspace-member-view.dto";
+} from "../../domain/entities/WikiContentTree";
+import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMemberView";
 import {
   GetWorkspaceByIdForAccountUseCase,
   GetWorkspaceByIdUseCase,
