@@ -3,7 +3,7 @@
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
 
-import { addKnowledgeBlock, createKnowledgePage } from "@/modules/knowledge/api";
+import { addKnowledgeBlock, createKnowledgePage } from "@/modules/notion/api";
 import { buildDraftDocumentRepresentation } from "./file-processing-draft";
 
 const TIPTAP_PROPERTY_KEY = "tiptapJson";

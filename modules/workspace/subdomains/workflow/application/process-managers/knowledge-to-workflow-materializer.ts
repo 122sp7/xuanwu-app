@@ -24,7 +24,7 @@
  * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
  */
 
-import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
+import type { PageApprovedEvent } from "@/modules/notion/api";
 import type { TaskRepository } from "../../domain/repositories/TaskRepository";
 import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
 import { MaterializeTasksFromKnowledgeUseCase } from "../use-cases/materialize-tasks-from-knowledge.use-case";
@@ -50,8 +50,8 @@ export class KnowledgeToWorkflowMaterializer {
    *   Typically resolved from the event's `workspaceId` field if present.
    * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
    */
-  async handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean> {
-    if (this.processedCausationIds.has(event.causationId)) {
+  async handle(event: PageApprovedEvent, workspaceId: string): Promise<boolean> {
+    if (this.processedCausationIds.has(event.payload.causationId)) {
       return false;
     }
 
@@ -59,9 +59,9 @@ export class KnowledgeToWorkflowMaterializer {
 
     const sourceReference: SourceReference = {
       type: "KnowledgePage",
-      id: event.pageId,
-      causationId: event.causationId,
-      correlationId: event.correlationId,
+      id: event.payload.pageId,
+      causationId: event.payload.causationId,
+      correlationId: event.payload.correlationId,
     };
 
     const useCase = new MaterializeTasksFromKnowledgeUseCase(
@@ -71,14 +71,14 @@ export class KnowledgeToWorkflowMaterializer {
 
     const result = await useCase.execute({
       workspaceId,
-      knowledgePageId: event.pageId,
+      knowledgePageId: event.payload.pageId,
       sourceReference,
-      extractedTasks: event.extractedTasks,
-      extractedInvoices: event.extractedInvoices,
+      extractedTasks: event.payload.extractedTasks,
+      extractedInvoices: event.payload.extractedInvoices,
     });
 
     if (result.success) {
-      this.processedCausationIds.add(event.causationId);
+      this.processedCausationIds.add(event.payload.causationId);
       return true;
     }
 

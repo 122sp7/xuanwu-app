@@ -21,7 +21,7 @@
 import { KnowledgeToWorkflowMaterializer } from "../application/process-managers/knowledge-to-workflow-materializer";
 import { FirebaseTaskRepository } from "../infrastructure/repositories/FirebaseTaskRepository";
 import { FirebaseInvoiceRepository } from "../infrastructure/repositories/FirebaseInvoiceRepository";
-import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
+import type { PageApprovedEvent } from "@/modules/notion/api";
 
 // ── Public listener factory ───────────────────────────────────────────────────
 
@@ -38,10 +38,10 @@ export function createKnowledgeToWorkflowListener(): KnowledgeToWorkflowMaterial
 
 // ── Listener type contracts ───────────────────────────────────────────────────
 
-/** Shape of any handler that can process a `knowledge.page_approved` event. */
+/** Shape of any handler that can process a `notion.knowledge.page_approved` event. */
 export interface KnowledgePageApprovedHandler {
-  handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean>;
+  handle(event: PageApprovedEvent, workspaceId: string): Promise<boolean>;
 }
 
-export type { KnowledgePageApprovedEvent };
+export type { PageApprovedEvent };
  

@@ -67,3 +67,6 @@ export type { EditorBlock } from "../interfaces/store/block-editor.store";
 
 // ── Tree node type (needed by app/ pages) ─────────────────────────────────────
 export type { KnowledgePageTreeNode } from "../domain/aggregates/KnowledgePage";
+
+// ── Domain events (published language — for cross-module event subscriptions) ─
+export type { PageApprovedEvent, PageApprovedPayload, ExtractedTask, ExtractedInvoice } from "../domain/events/KnowledgePageEvents";
