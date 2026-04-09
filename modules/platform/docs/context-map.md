@@ -4,7 +4,7 @@
 
 ## Local Platform Map
 
-以下是核心協作關係圖。隨著 subdomain 從 14 擴展到 23 個，部分新子域（如 `account`、`onboarding`、`compliance`、`content`、`search`、`analytics`、`support`、`background-job`、`referral`）的協作路徑尚待細化。
+以下是核心協作關係圖。隨著 subdomain 從 23 擴展到 23 個，部分新子域（如 `account`、`onboarding`、`compliance`、`content`、`search`、`analytics`、`support`、`background-job`、`referral`）的協作路徑尚待細化。
 
 ```text
 identity -> account -> account-profile -> access-control

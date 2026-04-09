@@ -87,3 +87,29 @@
 ## Retired Alias Folders
 
 歷史上曾有一些舊別名資料夾，現已收斂至這 23 個正式子域。若未來需要查舊文件或舊分支，應以當前 23 子域為準。
+
+
+## 新增的子域 (New 23):
+- access-control
+- account
+- account-profile
+- analytics
+- audit-log
+- background-job
+- billing
+- compliance
+- content
+- feature-flag
+- identity
+- integration
+- notification
+- observability
+- onboarding
+- organization
+- platform-config
+- referral
+- search
+- security-policy
+- subscription
+- support
+- workflow

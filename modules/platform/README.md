@@ -133,7 +133,7 @@ export interface UserCreatedEvent {
 | 11 | `content` | CMS、文章、媒體管理 |
 | 12 | `search` | 全文搜尋、跨域資料查詢 |
 | 13 | `integration` | Webhook、第三方 API 串接 |
-| 14 | `workflow` | 流程自動化、狀態機 |
+| 23 | `workflow` | 流程自動化、狀態機 |
 | 15 | `background-job` | 排程任務、Queue、Cron Job |
 | 16 | `feature-flag` | 功能開關、A/B Test |
 | 17 | `audit-log` | 操作記錄、事件稽核追蹤 |
