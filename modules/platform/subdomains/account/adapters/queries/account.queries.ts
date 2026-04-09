@@ -4,9 +4,9 @@
  */
 
 import { FirebaseAccountQueryRepository } from "../firebase/FirebaseAccountQueryRepository";
-import type { AccountEntity, WalletTransaction, AccountRoleRecord } from "../domain/entities/Account";
-import type { WalletBalanceSnapshot, Unsubscribe } from "../domain/repositories/AccountQueryRepository";
-import type { AccountPolicy } from "../domain/entities/AccountPolicy";
+import type { AccountEntity, WalletTransaction, AccountRoleRecord } from "../../domain/entities/Account";
+import type { WalletBalanceSnapshot, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
+import type { AccountPolicy } from "../../domain/entities/AccountPolicy";
 
 const accountQueryRepo = new FirebaseAccountQueryRepository();
 

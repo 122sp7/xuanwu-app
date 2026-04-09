@@ -4,9 +4,11 @@
  * Platform identity adapter implements this port.
  */
 
+export type TokenRefreshReason = "role:changed" | "policy:changed";
+
 export interface TokenRefreshSignalInput {
   accountId: string;
-  reason: string;
+  reason: TokenRefreshReason;
   traceId?: string;
 }
 

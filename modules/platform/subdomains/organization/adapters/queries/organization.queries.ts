@@ -4,7 +4,7 @@
 
 import { FirebaseOrganizationRepository } from "../firebase/FirebaseOrganizationRepository";
 import { FirebaseOrgPolicyRepository } from "../firebase/FirebaseOrgPolicyRepository";
-import type { MemberReference, Team, OrgPolicy } from "../domain/entities/Organization";
+import type { MemberReference, Team, OrgPolicy } from "../../domain/entities/Organization";
 
 const orgRepo = new FirebaseOrganizationRepository();
 const policyRepo = new FirebaseOrgPolicyRepository();
