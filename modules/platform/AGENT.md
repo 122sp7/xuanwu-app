@@ -1,5 +1,17 @@
 # AGENT.md — platform blueprint
 
+> **強制開發規範**
+> 本 BC 領域開發必須使用 Serena 指令：
+>
+> ```
+> serena
+> #use skill serena-mcp
+> #use skill alistair-cockburn
+> #use skill context7
+> #use skill shadcn
+> #use skill next-devtools-mcp
+> ```
+
 ## 模組定位
 
 `platform` 在這裡是平台基礎能力的六邊形架構藍圖。它的任務是保護 platform language、ports/adapters 邊界與子域協作方式，而不是把所有跨領域邏輯集中成單一巨型模組。
