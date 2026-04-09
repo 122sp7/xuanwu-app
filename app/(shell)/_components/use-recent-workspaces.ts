@@ -2,4 +2,4 @@ export {
   MAX_VISIBLE_RECENT_WORKSPACES,
   getWorkspaceIdFromPath,
   useRecentWorkspaces,
-} from "@/modules/workspace/interfaces/web";
+} from "@/modules/workspace/api";

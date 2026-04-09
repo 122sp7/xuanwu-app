@@ -27,7 +27,7 @@ import { useRouter } from "next/navigation";
 import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/api";
-import { type WorkspaceEntity } from "@/modules/workspace/interfaces/api";
+import { type WorkspaceEntity } from "@/modules/workspace/api";
 import {
   DropdownMenu,
   DropdownMenuContent,
