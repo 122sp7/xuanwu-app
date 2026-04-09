@@ -1,7 +1,7 @@
 # notebook — Repositories
 
 > **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
+> **模組路徑:** `modules/notebooklm/`
 > **Domain Type:** Supporting Subdomain
 
 本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
@@ -32,5 +32,5 @@
 
 ## 模組內對應文件
 
-- `../../../modules/notebook/repositories.md`
-- `../../../modules/notebook/aggregates.md`
+- `../../../modules/notebooklm/repositories.md`
+- `../../../modules/notebooklm/aggregates.md`

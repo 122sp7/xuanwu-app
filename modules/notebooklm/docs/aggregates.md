@@ -1,4 +1,4 @@
-# Aggregates — notebook
+# Aggregates — notebooklm
 
 ## 聚合根：Thread
 

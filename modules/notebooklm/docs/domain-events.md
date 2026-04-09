@@ -1,8 +1,8 @@
-# Domain Events — notebook
+# Domain Events — notebooklm
 
 ## 發出事件
 
-`notebook` 域目前不發出 DomainEvent。AI 對話是使用者互動的即時回應，不需要下游事件消費。
+`notebooklm` 域目前不發出 DomainEvent。AI 對話是使用者互動的即時回應，不需要下游事件消費。
 
 未來可考慮：
 
@@ -13,7 +13,7 @@
 
 ## 訂閱事件
 
-`notebook` 不訂閱其他 BC 的事件。
+`notebooklm` 不訂閱其他 BC 的事件。
 
 ## 整合說明
 

@@ -1,7 +1,7 @@
 # notebook — Domain Services
 
 > **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
+> **模組路徑:** `modules/notebooklm/`
 > **Domain Type:** Supporting Subdomain
 
 本文件整理 `notebook` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
@@ -18,5 +18,5 @@
 
 ## 模組內對應文件
 
-- `../../../modules/notebook/domain-services.md`
-- `../../../modules/notebook/aggregates.md`
+- `../../../modules/notebooklm/domain-services.md`
+- `../../../modules/notebooklm/aggregates.md`

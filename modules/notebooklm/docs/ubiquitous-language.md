@@ -1,6 +1,6 @@
-# Ubiquitous Language — notebook
+# Ubiquitous Language — notebooklm
 
-> **範圍：** 僅限 `modules/notebook/` 有界上下文內
+> **範圍：** 僅限 `modules/notebooklm/` 有界上下文內
 
 ## 術語定義
 

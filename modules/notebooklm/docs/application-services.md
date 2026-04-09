@@ -1,10 +1,10 @@
 # notebook — Application Services
 
 > **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
+> **模組路徑:** `modules/notebooklm/`
 > **Domain Type:** Supporting Subdomain
 
-本文件記錄 `notebook` 的 application layer 服務與 use cases。內容與 `modules/notebook/application/` 實作保持一致。
+本文件記錄 `notebook` 的 application layer 服務與 use cases。內容與 `modules/notebooklm/application/` 實作保持一致。
 
 ## Application Layer 職責
 
@@ -23,6 +23,6 @@ Application layer 只負責：
 
 ## 設計對齊
 
-- 模組 README：`../../../modules/notebook/README.md`
-- 模組 AGENT：`../../../modules/notebook/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/notebook/application-services.md`
+- 模組 README：`../../../modules/notebooklm/README.md`
+- 模組 AGENT：`../../../modules/notebooklm/AGENT.md`
+- 與 application layer 有關的模組內就地文件：`../../../modules/notebooklm/application-services.md`
