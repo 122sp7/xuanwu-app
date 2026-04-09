@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { getWorkspaceByIdForAccount } from "../../../api/facade";
+import type { WorkspaceEntity } from "../../api/contracts";
+import { getWorkspaceByIdForAccount } from "../../api/facades";
 
 export type WorkspaceLoadState = "loading" | "loaded" | "error";
 

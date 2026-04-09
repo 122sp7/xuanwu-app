@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { createWorkspace, getWorkspacesForAccount } from "../../../api/facade";
+import type { WorkspaceEntity } from "../../api/contracts";
+import { createWorkspace, getWorkspacesForAccount } from "../../api/facades";
 
 export type WorkspaceHubLoadState = "idle" | "loading" | "loaded" | "error";
 

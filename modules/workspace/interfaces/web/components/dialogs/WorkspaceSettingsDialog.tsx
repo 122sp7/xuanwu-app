@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent } from "react";
-import type { WorkspaceEntity } from "../../../../api/contracts";
+import type { WorkspaceEntity } from "../../../api/contracts";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Dialog,
