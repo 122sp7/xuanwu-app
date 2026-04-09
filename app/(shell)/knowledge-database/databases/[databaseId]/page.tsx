@@ -16,8 +16,8 @@ import {
   DatabaseCalendarView,
   DatabaseGalleryView,
   DatabaseAutomationView,
-} from "@/modules/knowledge-database/api";
-import type { Database, FieldType } from "@/modules/knowledge-database/api";
+} from "@/modules/notion/api";
+import type { Database, FieldType } from "@/modules/notion/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 import { AddFieldDialog } from "./database-add-field-dialog";

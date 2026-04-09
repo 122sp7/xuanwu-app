@@ -3,9 +3,7 @@
 /**
  * Module: notion/subdomains/database
  * Layer: interfaces/_actions
- * Purpose: Database aggregate server actions — create, update, addField, archive.
- *          Record server actions — create, update, delete.
- *          View server actions — create, update, delete.
+ * Purpose: Database, Record, View, and Automation server actions.
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
@@ -20,10 +18,15 @@ import {
   CreateViewUseCase,
   UpdateViewUseCase,
   DeleteViewUseCase,
+  CreateAutomationUseCase,
+  UpdateAutomationUseCase,
+  DeleteAutomationUseCase,
 } from "../../application/use-cases/index";
 import { FirebaseDatabaseRepository } from "../../infrastructure/firebase/FirebaseDatabaseRepository";
 import { FirebaseDatabaseRecordRepository } from "../../infrastructure/firebase/FirebaseDatabaseRecordRepository";
 import { FirebaseViewRepository } from "../../infrastructure/firebase/FirebaseViewRepository";
+import { FirebaseAutomationRepository } from "../../infrastructure/firebase/FirebaseAutomationRepository";
+import type { CreateAutomationInput, UpdateAutomationInput } from "../../domain/repositories/IAutomationRepository";
 import type {
   CreateDatabaseDto,
   UpdateDatabaseDto,
@@ -120,5 +123,31 @@ export async function deleteView(input: DeleteViewDto): Promise<CommandResult> {
     return await new DeleteViewUseCase(new FirebaseViewRepository()).execute(input);
   } catch (err) {
     return commandFailureFrom("VIEW_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+// — — — Automation — — —
+
+export async function createAutomation(input: CreateAutomationInput): Promise<CommandResult> {
+  try {
+    return await new CreateAutomationUseCase(new FirebaseAutomationRepository()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("AUTOMATION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateAutomation(input: UpdateAutomationInput): Promise<CommandResult> {
+  try {
+    return await new UpdateAutomationUseCase(new FirebaseAutomationRepository()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("AUTOMATION_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteAutomation(id: string, accountId: string, databaseId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteAutomationUseCase(new FirebaseAutomationRepository()).execute(id, accountId, databaseId);
+  } catch (err) {
+    return commandFailureFrom("AUTOMATION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }

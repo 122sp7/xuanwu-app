@@ -56,7 +56,11 @@ export class UpdateArticleUseCase {
       tags: parsed.data.tags,
     });
     await this.repo.save(article.getSnapshot());
-    return commandSuccess(article.id, article.getSnapshot().version, article.getSnapshot().version, article.getSnapshot().version);
+    return commandSuccess(article.id, article.getSnapshot().version);
+  }
+}
+
+export class ArchiveArticleUseCase {
   constructor(private readonly repo: IArticleRepository) {}
 
   async execute(input: z.infer<typeof ArchiveArticleSchema>): Promise<CommandResult> {
@@ -73,7 +77,7 @@ export class UpdateArticleUseCase {
   }
 }
 
-export class DeleteArticleUseCase {,, article.getSnapshot().version article.getSnapshot().version
+export class DeleteArticleUseCase {
   constructor(private readonly repo: IArticleRepository) {}
 
   async execute(input: z.infer<typeof DeleteArticleSchema>): Promise<CommandResult> {
@@ -82,7 +86,6 @@ export class DeleteArticleUseCase {,, article.getSnapshot().version article.getS
       return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
     }
     await this.repo.delete(parsed.data.accountId, parsed.data.id);
-    return commandSuccess(parsed.data.id, 0, 0);
+    return commandSuccess(parsed.data.id, 0);
   }
 }
-, 0, 0

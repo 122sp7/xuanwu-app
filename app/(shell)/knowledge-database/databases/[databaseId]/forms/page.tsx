@@ -11,9 +11,9 @@ import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { getDatabase } from "@/modules/knowledge-database/api";
-import type { Database } from "@/modules/knowledge-database/api";
-import { DatabaseFormView } from "@/modules/knowledge-database/api";
+import { getDatabase } from "@/modules/notion/api";
+import type { Database } from "@/modules/notion/api";
+import { DatabaseFormView } from "@/modules/notion/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";

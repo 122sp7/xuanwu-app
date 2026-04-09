@@ -3,19 +3,93 @@
  * Layer: api (public boundary)
  * Purpose: Exposes only what external consumers need.
  *          All cross-module access must go through this file only.
- * Status: Migration-Pending — awaiting full migration from modules/knowledge-database/
  *
  * Open Host Service contracts:
- *   - GetDatabaseById  — consumed by knowledge subdomain (opaque reference resolution)
- *   - LinkArticleToRecord — consumed by authoring subdomain (Article-Record link)
+ *   - getDatabaseById  — consumed by knowledge subdomain (opaque reference resolution)
  */
 
-// TODO: export Database, Record, View snapshot types
-// TODO: export FieldType, ViewType
-// TODO: export AddRecordDto, UpdateRecordDto, CreateViewDto
-// TODO: export server actions (createDatabase, addField, addRecord, createView, ...)
-// TODO: export queries (getDatabaseById, getRecordsByDatabase)
-// TODO: export UI components (DatabaseTableView, DatabaseBoardView, ...)
-// TODO: export Open Host Service functions (getDatabaseById, linkArticleToRecord)
+// Domain types
+export type {
+  DatabaseSnapshot,
+  Field,
+  FieldType,
+  DatabaseId,
+  FieldId,
+} from "../domain/aggregates/Database";
 
-export {};
+export type {
+  DatabaseRecordSnapshot,
+  RecordId,
+} from "../domain/aggregates/DatabaseRecord";
+
+export type {
+  ViewSnapshot,
+  ViewType,
+  FilterRule,
+  SortRule,
+  ViewId,
+} from "../domain/aggregates/View";
+
+export type {
+  DatabaseAutomationSnapshot,
+  AutomationTrigger,
+  AutomationActionType,
+  AutomationCondition,
+  AutomationAction,
+} from "../domain/aggregates/DatabaseAutomation";
+
+// Repository input types
+export type {
+  CreateAutomationInput,
+  UpdateAutomationInput,
+} from "../domain/repositories/IAutomationRepository";
+
+// Application DTOs
+export type {
+  CreateDatabaseDto,
+  UpdateDatabaseDto,
+  AddFieldDto,
+  ArchiveDatabaseDto,
+  CreateRecordDto,
+  UpdateRecordDto,
+  DeleteRecordDto,
+  CreateViewDto,
+  UpdateViewDto,
+  DeleteViewDto,
+} from "../application/dto/DatabaseDto";
+
+// Server actions
+export {
+  createDatabase,
+  updateDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  createRecord,
+  updateRecord,
+  deleteRecord,
+  createView,
+  updateView,
+  deleteView,
+  createAutomation,
+  updateAutomation,
+  deleteAutomation,
+} from "../interfaces/_actions/database.actions";
+
+// Queries
+export {
+  getDatabases,
+  getDatabase,
+  getRecords,
+  getViews,
+  getAutomations,
+} from "../interfaces/queries/index";
+
+// UI components
+export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
+export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
+export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
+export { DatabaseListView } from "../interfaces/components/DatabaseListView";
+export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarView";
+export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
+export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
+export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";

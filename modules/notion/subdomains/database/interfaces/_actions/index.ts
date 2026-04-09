@@ -9,4 +9,7 @@ export {
   createView,
   updateView,
   deleteView,
+  createAutomation,
+  updateAutomation,
+  deleteAutomation,
 } from "./database.actions";
