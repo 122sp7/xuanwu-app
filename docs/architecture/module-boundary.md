@@ -81,7 +81,7 @@ export { knowledgeFacade } from "./knowledge-facade";
 ```typescript
 // 跨模組：走 api/ 邊界
 import { createKnowledgePage } from "@/modules/knowledge/api";
-import { getWorkspaceById } from "@/modules/workspace/api";
+import { getWorkspaceById } from "@/modules/workspace/interfaces/api";
 import { deriveSlugCandidate } from "@/modules/shared/api";
 
 // Package alias

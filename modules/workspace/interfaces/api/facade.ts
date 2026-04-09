@@ -9,10 +9,10 @@ export {
   getWorkspaceByIdForAccount,
   getWorkspacesForAccount,
   subscribeToWorkspacesForAccount,
-} from "../interfaces/queries/workspace.queries";
+} from "../queries/workspace.queries";
 
-export { getWorkspaceMembers } from "../interfaces/queries/workspace-member.queries";
-export { buildWikiContentTree } from "../interfaces/queries/wiki-content-tree.queries";
+export { getWorkspaceMembers } from "../queries/workspace-member.queries";
+export { buildWikiContentTree } from "../queries/wiki-content-tree.queries";
 
 export {
   authorizeWorkspaceTeam,
@@ -23,4 +23,4 @@ export {
   grantIndividualWorkspaceAccess,
   mountCapabilities,
   updateWorkspaceSettings,
-} from "../interfaces/_actions/workspace.actions";
+} from "../_actions/workspace.actions";

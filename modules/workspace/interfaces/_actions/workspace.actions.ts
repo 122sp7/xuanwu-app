@@ -30,12 +30,12 @@ import type {
   WorkspaceGrant,
   WorkspaceLocation,
   WorkspaceDomainEvent,
-} from "../../api/contracts";
+} from "../api/contracts";
 import {
   createWorkspaceCreatedEvent,
   createWorkspaceLifecycleTransitionedEvent,
   createWorkspaceVisibilityChangedEvent,
-} from "../../api/contracts";
+} from "../api/contracts";
 import { SharedWorkspaceDomainEventPublisher } from "../../infrastructure/events/SharedWorkspaceDomainEventPublisher";
 
 const workspaceRepo = new FirebaseWorkspaceRepository();

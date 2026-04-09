@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import type { WorkspaceEntity, WorkspaceMemberView } from "../../api/contracts";
+import type { WorkspaceEntity, WorkspaceMemberView } from "../api/contracts";
 import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
 import { Badge } from "@ui-shadcn/ui/badge";
 import {

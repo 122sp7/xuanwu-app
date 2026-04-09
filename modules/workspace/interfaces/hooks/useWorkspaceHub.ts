@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../api/contracts";
 import { createWorkspace } from "../_actions/workspace.actions";
 import { getWorkspacesForAccount } from "../queries/workspace.queries";
 

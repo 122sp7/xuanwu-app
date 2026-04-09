@@ -1,6 +1,6 @@
 "use client";
 
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 import {
   Avatar,
   AvatarFallback,

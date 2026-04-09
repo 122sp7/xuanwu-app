@@ -1,4 +1,4 @@
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 import { formatDate } from "@shared-utils";
 import type { WorkspaceTabGroup } from "../workspace-tabs";
 

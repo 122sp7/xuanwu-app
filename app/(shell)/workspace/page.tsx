@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 
 import type { ActiveAccount } from "@/app/providers/app-context";
 import { useApp } from "@/app/providers/app-provider";
-import { WorkspaceHubScreen } from "@/modules/workspace/api";
+import { WorkspaceHubScreen } from "@/modules/workspace/interfaces/api";
 
 function isOrganizationAccount(activeAccount: ActiveAccount | null): activeAccount is ActiveAccount & { accountType: "organization" } {
   return Boolean(activeAccount && "accountType" in activeAccount && activeAccount.accountType === "organization");

@@ -289,7 +289,7 @@ export function subscribeToWorkspaceFlowTasks(
 // Server Component 使用 Query 函式（Server-side read）
 // app/(shell)/workspace/[workspaceId]/page.tsx
 
-import { getWorkspaceByIdForAccount } from "@/modules/workspace/api";
+import { getWorkspaceByIdForAccount } from "@/modules/workspace/interfaces/api";
 
 export default async function WorkspacePage({ params }: { params: { workspaceId: string } }) {
   const workspace = await getWorkspaceByIdForAccount(accountId, params.workspaceId);

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../api/contracts";
 
 interface RecentWorkspaceLink {
   id: string;

@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@ui-shadcn/ui/card";
 
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../api/contracts";
 import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
 import { CreateWorkspaceDialog } from "./CreateWorkspaceDialog";
 

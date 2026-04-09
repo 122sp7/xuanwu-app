@@ -19,7 +19,7 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { createKnowledgePage } from "@/modules/knowledge/api";
-import { buildWorkspaceQuickAccessItems } from "@/modules/workspace/api";
+import { buildWorkspaceQuickAccessItems } from "@/modules/workspace/interfaces/api";
 import { useAuth } from "@/app/providers/auth-provider";
 import {
   CustomizeNavigationDialog,

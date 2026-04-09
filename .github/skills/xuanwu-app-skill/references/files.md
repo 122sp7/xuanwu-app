@@ -6970,7 +6970,7 @@ import { useSearchParams } from "next/navigation";
 
 import type { ActiveAccount } from "@/app/providers/app-context";
 import { useApp } from "@/app/providers/app-provider";
-import { WorkspaceHubScreen } from "@/modules/workspace/api";
+import { WorkspaceHubScreen } from "@/modules/workspace/interfaces/api";
 
 function isOrganizationAccount(activeAccount: ActiveAccount | null): activeAccount is ActiveAccount & { accountType: "organization" } {
   return Boolean(activeAccount && "accountType" in activeAccount && activeAccount.accountType === "organization");
@@ -7253,7 +7253,7 @@ export default function RootLayout({
 import { createContext, type Dispatch } from "react";
 
 import type { AccountEntity } from "@/modules/account/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 import type { AuthUser } from "./auth-context";
 
 export type ActiveAccount = AccountEntity | AuthUser;
@@ -32894,7 +32894,7 @@ export * from "./contracts/file-command-result";
 
 ## File: modules/source/interfaces/queries/file.queries.ts
 ````typescript
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 
 import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
 import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
@@ -42121,7 +42121,7 @@ import {
 } from "@ui-shadcn/ui/card";
 import { Plus } from "lucide-react";
 
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 
 import type { WorkDemand } from "../domain/types";
 import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../domain/types";
@@ -42575,7 +42575,7 @@ export class FirebaseWikiWorkspaceRepository implements WikiWorkspaceRepository 
 
 ## File: modules/workspace/interfaces/components/workspace-detail-helpers.ts
 ````typescript
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 import { formatDate } from "@shared-utils";
 import type { WorkspaceTabGroup } from "../workspace-tabs";
 
@@ -56467,7 +56467,7 @@ export default function KnowledgePageDetailPage() {
 import { useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
-import { resolveWorkspaceFromMap } from "@/modules/workspace/api";
+import { resolveWorkspaceFromMap } from "@/modules/workspace/interfaces/api";
 import { RagQueryView } from "@/modules/search/api";
 
 export default function NotebookRagQueryPage() {
@@ -56828,7 +56828,7 @@ export default function OrganizationPage() {
 import { useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
-import { resolveWorkspaceFromMap } from "@/modules/workspace/api";
+import { resolveWorkspaceFromMap } from "@/modules/workspace/interfaces/api";
 import { SourceDocumentsView } from "@/modules/source/api";
 
 export default function SourceDocumentsPage() {
@@ -56881,7 +56881,7 @@ import {
   getWorkspaceStorageKey,
   subscribeToWorkspacesForAccount,
   toWorkspaceMap,
-} from "@/modules/workspace/api";
+} from "@/modules/workspace/interfaces/api";
 
 import { AppContext, type AppState, type AppAction } from "./app-context";
 import type { AuthUser } from "./auth-context";
@@ -62996,7 +62996,7 @@ export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
 import { getWorkspaceFiles } from "../queries/file.queries";
 import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
@@ -65305,7 +65305,7 @@ import {
   CardTitle,
 } from "@ui-shadcn/ui/card";
 
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../api/contracts";
 import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
 import { CreateWorkspaceDialog } from "./CreateWorkspaceDialog";
 
@@ -65498,7 +65498,7 @@ export function WorkspaceContextCard({ workspace }: WorkspaceContextCardProps) {
 ````typescript
 "use client";
 
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../api/contracts";
 import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
 
 interface WorkspaceDailyTabProps {
@@ -65665,7 +65665,7 @@ export function WorkspaceInformationCard({
 
 import { useEffect, useMemo, useState } from "react";
 
-import type { WorkspaceEntity, WorkspaceMemberView } from "../../api/contracts";
+import type { WorkspaceEntity, WorkspaceMemberView } from "../api/contracts";
 import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
 import { Badge } from "@ui-shadcn/ui/badge";
 import {
@@ -65867,7 +65867,7 @@ export function WorkspaceMembersTab({ workspace }: WorkspaceMembersTabProps) {
 ````typescript
 "use client";
 
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {
@@ -66032,7 +66032,7 @@ export function WorkspaceQuickstartCard({ workspaceId }: WorkspaceQuickstartCard
 ````typescript
 import { useEffect, useMemo, useState } from "react";
 
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../api/contracts";
 
 interface RecentWorkspaceLink {
   id: string;
@@ -66127,7 +66127,7 @@ export { MAX_VISIBLE_RECENT_WORKSPACES, getWorkspaceIdFromPath };
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
 
 export type WorkspaceLoadState = "loading" | "loaded" | "error";
@@ -66201,7 +66201,7 @@ export function useWorkspaceDetail(
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../api/contracts";
 import { createWorkspace } from "../_actions/workspace.actions";
 import { getWorkspacesForAccount } from "../queries/workspace.queries";
 
@@ -66350,7 +66350,7 @@ export function useWorkspaceHub({ accountId, accountType }: UseWorkspaceHubOptio
 
 ## File: modules/workspace/interfaces/queries/workspace-member.queries.ts
 ````typescript
-import type { WorkspaceMemberView } from "../../api/contracts";
+import type { WorkspaceMemberView } from "../api/contracts";
 import { FetchWorkspaceMembersUseCase } from "../../application/use-cases/workspace-member.use-cases";
 import { FirebaseWorkspaceQueryRepository } from "../../infrastructure/firebase/FirebaseWorkspaceQueryRepository";
 
@@ -66373,7 +66373,7 @@ export async function getWorkspaceMembers(workspaceId: string): Promise<Workspac
  * Workspace Read Queries — thin wrappers exposing read operations for React components/hooks.
  */
 
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../api/contracts";
 import { FirebaseWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWorkspaceRepository";
 import { FirebaseWorkspaceQueryRepository } from "../../infrastructure/firebase/FirebaseWorkspaceQueryRepository";
 
@@ -67310,7 +67310,7 @@ import { useRouter } from "next/navigation";
 import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/api";
-import { type WorkspaceEntity } from "@/modules/workspace/api";
+import { type WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -67674,7 +67674,7 @@ import { Label } from "@ui-shadcn/ui/label";
 import { Separator } from "@ui-shadcn/ui/separator";
 
 import { CheckRow, WorkspaceCheckRow } from "./nav-check-row";
-import { type WorkspaceNavItem, WORKSPACE_NAV_ITEMS } from "@/modules/workspace/api";
+import { type WorkspaceNavItem, WORKSPACE_NAV_ITEMS } from "@/modules/workspace/interfaces/api";
 import {
   DIALOG_TEXT,
   ORGANIZATION_NAV_ITEMS,
@@ -68038,8 +68038,8 @@ import { BookOpen, Brain, Building2, Database, FileText, FolderKanban, MessageSq
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { buildWikiContentTree } from "@/modules/workspace/api";
-import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
+import { buildWikiContentTree } from "@/modules/workspace/interfaces/api";
+import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/interfaces/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
@@ -68438,7 +68438,7 @@ export default function KnowledgePagesPage() {
 "use client";
 
 import { useApp } from "@/app/providers/app-provider";
-import { OrganizationWorkspacesScreen } from "@/modules/workspace/api";
+import { OrganizationWorkspacesScreen } from "@/modules/workspace/interfaces/api";
 import { isOrganizationAccount } from "../_utils";
 
 export default function OrganizationWorkspacesPage() {
@@ -71550,7 +71550,7 @@ export class FirebaseWorkspaceRepository
 ````typescript
 "use client";
 
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 import {
   Avatar,
   AvatarFallback,
@@ -71650,7 +71650,7 @@ export function WorkspaceOverviewSummaryCard({
 "use client";
 
 import { type FormEvent } from "react";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Dialog,
@@ -72210,7 +72210,7 @@ export function WorkspaceSidebarSection({
 
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 import type { WorkspaceSettingsDraft } from "../workspace-settings";
 import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
@@ -74196,7 +74196,7 @@ export default defineConfig({
 "use client";
 
 import type { ActiveAccount } from "@/app/providers/app-context";
-import { CreateWorkspaceDialogRail as WorkspaceCreateWorkspaceDialogRail } from "@/modules/workspace/api";
+import { CreateWorkspaceDialogRail as WorkspaceCreateWorkspaceDialogRail } from "@/modules/workspace/interfaces/api";
 
 interface CreateWorkspaceDialogRailProps {
   open: boolean;
@@ -74231,7 +74231,7 @@ export {
   MAX_VISIBLE_RECENT_WORKSPACES,
   getWorkspaceIdFromPath,
   useRecentWorkspaces,
-} from "@/modules/workspace/api";
+} from "@/modules/workspace/interfaces/api";
 ````
 
 ## File: app/(shell)/dev-tools/page.tsx
@@ -74720,7 +74720,7 @@ export default function DevToolsPage() {
 import { useParams, useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
-import { WorkspaceDetailRouteScreen } from "@/modules/workspace/api";
+import { WorkspaceDetailRouteScreen } from "@/modules/workspace/interfaces/api";
 
 export default function WorkspaceDetailPage() {
   const params = useParams<{ workspaceId: string }>();
@@ -76077,7 +76077,7 @@ workspace 以兩種主要方式與其他 bounded contexts 協作：
 "use client";
 
 import Link from "next/link";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
@@ -76217,7 +76217,7 @@ export function WorkspaceProductSpineCard({ workspace }: WorkspaceProductSpineCa
 import type {
   WikiAccountContentNode,
   WikiAccountSeed,
-} from "../../api/contracts";
+} from "../api/contracts";
 import type { WikiWorkspaceRepository } from "../../ports";
 import * as wikiContentTreeUseCase from "../../application/use-cases/wiki-content-tree.use-case";
 import { FirebaseWikiWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
@@ -76679,7 +76679,7 @@ import { v7 as uuid } from "@lib-uuid";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/api";
+import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/interfaces/api";
 import { sendChatMessage, saveThread, loadThread } from "./_actions";
 import { cn } from "@shared-utils";
 import { Button } from "@ui-shadcn/ui/button";
@@ -77891,12 +77891,12 @@ import type {
   WorkspaceGrant,
   WorkspaceLocation,
   WorkspaceDomainEvent,
-} from "../../api/contracts";
+} from "../api/contracts";
 import {
   createWorkspaceCreatedEvent,
   createWorkspaceLifecycleTransitionedEvent,
   createWorkspaceVisibilityChangedEvent,
-} from "../../api/contracts";
+} from "../api/contracts";
 import { SharedWorkspaceDomainEventPublisher } from "../../infrastructure/events/SharedWorkspaceDomainEventPublisher";
 
 const workspaceRepo = new FirebaseWorkspaceRepository();
@@ -78085,7 +78085,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../api/contracts";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {
@@ -78478,7 +78478,7 @@ export function WorkspaceHubScreen({
 import {
   WORKSPACE_NAV_ITEMS,
   normalizeWorkspaceOrder,
-} from "@/modules/workspace/api";
+} from "@/modules/workspace/interfaces/api";
 
 // Re-export so existing consumers of this file (customize-navigation-dialog
 // via nav-preferences-data) keep working during the transition.
@@ -78637,7 +78637,7 @@ import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/api";
 import {
   type WorkspaceEntity,
-} from "@/modules/workspace/api";
+} from "@/modules/workspace/interfaces/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -78778,7 +78778,7 @@ export function SimpleNavLinks({
 ````typescript
 "use client";
 
-import { WorkspaceSidebarSection as ModuleWorkspaceSidebarSection } from "@/modules/workspace/api";
+import { WorkspaceSidebarSection as ModuleWorkspaceSidebarSection } from "@/modules/workspace/interfaces/api";
 
 import type { SidebarLocaleBundle } from "./use-sidebar-locale";
 import type { NavPreferences } from "./customize-navigation-dialog";
@@ -79598,7 +79598,7 @@ export type {
 ````typescript
 "use client";
 
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import {
   Card,
@@ -80537,7 +80537,7 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { createKnowledgePage } from "@/modules/knowledge/api";
-import { buildWorkspaceQuickAccessItems } from "@/modules/workspace/api";
+import { buildWorkspaceQuickAccessItems } from "@/modules/workspace/interfaces/api";
 import { useAuth } from "@/app/providers/auth-provider";
 import {
   CustomizeNavigationDialog,
@@ -81229,8 +81229,8 @@ export {
 ### ✅ 允許
 
 ```typescript
-import { getWorkspaceById, WorkspaceDetailScreen } from "@/modules/workspace/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { getWorkspaceById, WorkspaceDetailScreen } from "@/modules/workspace/interfaces/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 ```
 
 ### ❌ 禁止

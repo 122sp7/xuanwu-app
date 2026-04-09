@@ -6,8 +6,8 @@ import { BookOpen, Brain, Building2, Database, FileText, FolderKanban, MessageSq
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { buildWikiContentTree } from "@/modules/workspace/api";
-import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
+import { buildWikiContentTree } from "@/modules/workspace/interfaces/api";
+import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/interfaces/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";

@@ -15389,8 +15389,8 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 ### ✅ 允許
 
 ```typescript
-import { getWorkspaceById, WorkspaceDetailScreen } from "@/modules/workspace/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { getWorkspaceById, WorkspaceDetailScreen } from "@/modules/workspace/interfaces/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 ```
 
 ### ❌ 禁止

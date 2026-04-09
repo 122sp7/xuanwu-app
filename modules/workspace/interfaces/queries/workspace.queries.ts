@@ -2,7 +2,7 @@
  * Workspace Read Queries — thin wrappers exposing read operations for React components/hooks.
  */
 
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../api/contracts";
 import { FirebaseWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWorkspaceRepository";
 import { FirebaseWorkspaceQueryRepository } from "../../infrastructure/firebase/FirebaseWorkspaceQueryRepository";
 

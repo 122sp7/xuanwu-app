@@ -22,7 +22,7 @@ export type {
   WorkspacePersonnelCustomRole,
   WorkspaceVisibility,
   WorkspaceVisibilityInput,
-} from "../domain/entities/Workspace";
+} from "../../domain/entities/Workspace";
 
 export {
   WORKSPACE_LIFECYCLE_STATES,
@@ -35,14 +35,14 @@ export {
   isTerminalWorkspaceLifecycleState,
   isWorkspaceVisible,
   workspaceNameEquals,
-} from "../domain/value-objects";
+} from "../../domain/value-objects";
 
 export type {
   WorkspaceMemberAccessChannel,
   WorkspaceMemberAccessSource,
   WorkspaceMemberPresence,
   WorkspaceMemberView,
-} from "../domain/entities/WorkspaceMember";
+} from "../../domain/entities/WorkspaceMember";
 
 export type {
   WikiAccountContentNode,
@@ -51,14 +51,14 @@ export type {
   WikiContentItemNode,
   WikiWorkspaceContentNode,
   WikiWorkspaceRef,
-} from "../domain/entities/WikiContentTree";
+} from "../../domain/entities/WikiContentTree";
 
 export type {
   WorkspaceCreatedEvent,
   WorkspaceDomainEvent,
   WorkspaceLifecycleTransitionedEvent,
   WorkspaceVisibilityChangedEvent,
-} from "../domain/events/workspace.events";
+} from "../../domain/events/workspace.events";
 
 export {
   WORKSPACE_CREATED_EVENT_TYPE,
@@ -67,4 +67,4 @@ export {
   createWorkspaceCreatedEvent,
   createWorkspaceLifecycleTransitionedEvent,
   createWorkspaceVisibilityChangedEvent,
-} from "../domain/events/workspace.events";
+} from "../../domain/events/workspace.events";

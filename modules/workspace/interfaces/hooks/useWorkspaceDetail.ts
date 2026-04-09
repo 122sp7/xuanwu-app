@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
 
 export type WorkspaceLoadState = "loading" | "loaded" | "error";

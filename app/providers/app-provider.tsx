@@ -23,7 +23,7 @@ import {
   getWorkspaceStorageKey,
   subscribeToWorkspacesForAccount,
   toWorkspaceMap,
-} from "@/modules/workspace/api";
+} from "@/modules/workspace/interfaces/api";
 
 import { AppContext, type AppState, type AppAction } from "./app-context";
 import type { AuthUser } from "./auth-context";

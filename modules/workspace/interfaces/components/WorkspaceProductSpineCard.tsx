@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,

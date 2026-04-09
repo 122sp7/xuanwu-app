@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useApp } from "@/app/providers/app-provider";
-import { OrganizationWorkspacesScreen } from "@/modules/workspace/api";
+import { OrganizationWorkspacesScreen } from "@/modules/workspace/interfaces/api";
 import { isOrganizationAccount } from "../_utils";
 
 export default function OrganizationWorkspacesPage() {
