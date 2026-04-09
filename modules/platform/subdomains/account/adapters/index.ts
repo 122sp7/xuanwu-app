@@ -1,1 +1,1 @@
-﻿// Purpose: Adapter layer placeholder for platform subdomain 'account'.
+﻿export { createLegacyAccountApplicationAdapter } from "./create-legacy-account-application.adapter";

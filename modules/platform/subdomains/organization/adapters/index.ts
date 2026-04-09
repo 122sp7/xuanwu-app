@@ -1,1 +1,1 @@
-﻿// Purpose: Adapter layer placeholder for platform subdomain 'organization'.
+﻿export { createLegacyOrganizationApplicationAdapter } from "./create-legacy-organization-application.adapter";

@@ -1,1 +1,1 @@
-﻿// Purpose: Application layer placeholder for platform subdomain 'account'.
+﻿export type { LegacyAccountApplicationPort } from "./legacy-account-application.port";

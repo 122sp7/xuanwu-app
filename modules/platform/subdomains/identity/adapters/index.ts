@@ -1,1 +1,1 @@
-﻿// Purpose: Adapter layer placeholder for platform subdomain 'identity'.
+﻿export { createLegacyIdentityApplicationAdapter } from "./create-legacy-identity-application.adapter";

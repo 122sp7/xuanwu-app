@@ -1,1 +1,1 @@
-﻿// Purpose: Application layer placeholder for platform subdomain 'notification'.
+﻿export type { LegacyNotificationApplicationPort } from "./legacy-notification-application.port";

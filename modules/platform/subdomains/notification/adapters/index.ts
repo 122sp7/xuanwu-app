@@ -1,1 +1,1 @@
-﻿// Purpose: Adapter layer placeholder for platform subdomain 'notification'.
+﻿export { createLegacyNotificationApplicationAdapter } from "./create-legacy-notification-application.adapter";

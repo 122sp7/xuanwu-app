@@ -1,1 +1,1 @@
-﻿// Purpose: Application layer placeholder for platform subdomain 'identity'.
+﻿export type { LegacyIdentityApplicationPort } from "./legacy-identity-application.port";
