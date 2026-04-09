@@ -53,3 +53,15 @@ export type {
   RepostWorkspaceFeedPostParams,
   WorkspaceFeedInteractionParams,
 } from "../subdomains/feed/api";
+
+export {
+  assignWorkDemand,
+  getAccountDemands,
+  getWorkspaceDemands,
+  submitWorkDemand,
+} from "../subdomains/scheduling/api";
+
+export type {
+  AssignMemberInput,
+  CreateDemandInput,
+} from "../subdomains/scheduling/api";

@@ -95,3 +95,9 @@ export {
   WorkspaceFeedAccountView,
   WorkspaceFeedWorkspaceView,
 } from "../subdomains/feed/api";
+
+export type { AccountMember } from "../subdomains/scheduling/api";
+export {
+  AccountSchedulingView,
+  WorkspaceSchedulingTab,
+} from "../subdomains/scheduling/api";

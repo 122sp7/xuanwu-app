@@ -89,3 +89,19 @@ export type {
 } from "../subdomains/feed/api";
 
 export { WORKSPACE_FEED_POST_TYPES } from "../subdomains/feed/api";
+
+export type {
+  AssignWorkDemandCommand,
+  CreateWorkDemandCommand,
+  DemandPriority,
+  DemandStatus,
+  WorkDemand,
+  WorkDemandDomainEvent,
+} from "../subdomains/scheduling/api";
+
+export {
+  DEMAND_PRIORITIES,
+  DEMAND_PRIORITY_LABELS,
+  DEMAND_STATUSES,
+  DEMAND_STATUS_LABELS,
+} from "../subdomains/scheduling/api";
