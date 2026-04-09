@@ -3722,6 +3722,225 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-development-contracts
 ````
 
+## File: .github/prompts/serena-ddd-refactor.prompt.md
+````markdown
+---
+
+name: serena-ddd-refactor
+description: Scan large files, refactor to follow Vaughn Vernon Implementing Domain-Driven Design without breaking functionality, then update Serena MCP memory and index.
+agent: copilot
+argument-hint: <project-root>
+-----------------------------
+
+# Serena DDD Refactor Prompt
+
+## Objective
+
+Identify oversized files in the project, verify whether they violate Domain-Driven Design layering principles from Vaughn Vernon, refactor them without breaking functionality, then update Serena MCP memory and symbol index.
+
+---
+
+# Step 1 — Start Serena MCP
+
+If Serena MCP is not running:
+
+```
+serena start-mcp-server
+```
+
+Activate project and load memory:
+
+```
+serena
+#use skill serena-mcp > activate_project
+list_memories
+read_memory
+#use skill xuanwu-app-markdown-skill
+#use skill xuanwu-app-skill
+#use skill context7
+```
+
+---
+
+# Step 2 — Find Largest Files
+
+Run PowerShell to locate largest files:
+
+```
+$folders = @("app","modules","packages","py_fn\src")
+
+Get-ChildItem $folders -Recurse -File |
+Where-Object { $_.FullName -notmatch "node_modules|\.next|\.git|dist|build|__pycache__" } |
+Sort-Object Length -Descending |
+Select-Object -First 33 FullName, Length
+```
+
+Focus refactoring on these large files first.
+
+---
+
+# Step 3 — DDD Refactor Rules (Vaughn Vernon)
+
+Refactor files that violate these rules:
+
+## Application Service must NOT contain
+
+* Business logic
+* Repository query logic
+* DTO mapping logic
+* Entity creation logic
+* Infrastructure calls
+
+Application Service should only:
+
+```
+Receive request → Load Aggregate → Call Domain → Save Aggregate → Publish Event
+```
+
+## Aggregate must NOT contain
+
+* Repository
+* Firebase / Database
+* HTTP / API calls
+* UI / DTO
+* Infrastructure logic
+
+Aggregate should contain only:
+
+```
+Entities
+Value Objects
+Domain Logic
+Domain Events
+```
+
+## Repository must NOT contain
+
+* Business logic
+* Domain rules
+* Complex query logic
+* Application logic
+
+Repository should only:
+
+```
+Save
+Get
+Delete
+```
+
+## Domain Service usage
+
+Create Domain Service only when:
+
+* Logic does not belong to a single Entity
+* Requires multiple Aggregates
+* Pure business logic
+* No infrastructure dependency
+
+---
+
+# Step 4 — File Splitting Structure
+
+When splitting large files, use this structure:
+
+```
+domain/
+  aggregates/
+  entities/
+  value-objects/
+  domain-events/
+  domain-services/
+
+application/
+  services/
+  commands/
+  queries/
+
+infrastructure/
+  repositories/
+  firebase/
+  external-services/
+
+interface/
+  controllers/
+  dto/
+  routes/
+```
+
+---
+
+# Step 5 — File Size Guidelines
+
+Recommended file sizes:
+
+```
+Entity < 150 lines
+Aggregate < 300 lines
+Application Service < 150 lines
+Repository < 120 lines
+Controller < 120 lines
+Domain Service < 150 lines
+```
+
+Files exceeding ~300 lines likely indicate boundary or responsibility problems.
+
+---
+
+# Step 6 — After Refactor Update Serena
+
+After modifications:
+
+```
+#sym:update_memory
+#sym:prune_index
+```
+
+Purpose:
+
+```
+update_memory → sync new architecture and symbols
+prune_index → remove outdated symbols
+```
+
+---
+
+# Full Workflow Checklist
+
+```
+1. serena start-mcp-server
+2. activate_project
+3. list_memories
+4. read_memory
+5. Find largest files
+6. Check DDD violations
+7. Refactor and split files
+8. Ensure functionality still works
+9. #sym:update_memory
+10. #sym:prune_index
+```
+
+---
+
+# Core Principle
+
+DDD refactoring goal is not smaller files, but correct boundaries:
+
+```
+Controller → Application Service → Domain → Repository
+```
+
+Domain layer must not depend on:
+
+```
+Database
+Firebase
+HTTP
+UI
+Framework
+```
+````
+
 ## File: .github/prompts/write-docs.prompt.md
 ````markdown
 ---
@@ -13673,225 +13892,6 @@ Any of the following require a context7 lookup before proceeding:
 - Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
 ````
 
-## File: .github/prompts/serena-ddd-refactor.prompt.md
-````markdown
----
-
-name: serena-ddd-refactor
-description: Scan large files, refactor to follow Vaughn Vernon Implementing Domain-Driven Design without breaking functionality, then update Serena MCP memory and index.
-agent: copilot
-argument-hint: <project-root>
------------------------------
-
-# Serena DDD Refactor Prompt
-
-## Objective
-
-Identify oversized files in the project, verify whether they violate Domain-Driven Design layering principles from Vaughn Vernon, refactor them without breaking functionality, then update Serena MCP memory and symbol index.
-
----
-
-# Step 1 — Start Serena MCP
-
-If Serena MCP is not running:
-
-```
-serena start-mcp-server
-```
-
-Activate project and load memory:
-
-```
-serena
-#use skill serena-mcp > activate_project
-list_memories
-read_memory
-#use skill xuanwu-app-markdown-skill
-#use skill xuanwu-app-skill
-#use skill context7
-```
-
----
-
-# Step 2 — Find Largest Files
-
-Run PowerShell to locate largest files:
-
-```
-$folders = @("app","modules","packages","py_fn\src")
-
-Get-ChildItem $folders -Recurse -File |
-Where-Object { $_.FullName -notmatch "node_modules|\.next|\.git|dist|build|__pycache__" } |
-Sort-Object Length -Descending |
-Select-Object -First 33 FullName, Length
-```
-
-Focus refactoring on these large files first.
-
----
-
-# Step 3 — DDD Refactor Rules (Vaughn Vernon)
-
-Refactor files that violate these rules:
-
-## Application Service must NOT contain
-
-* Business logic
-* Repository query logic
-* DTO mapping logic
-* Entity creation logic
-* Infrastructure calls
-
-Application Service should only:
-
-```
-Receive request → Load Aggregate → Call Domain → Save Aggregate → Publish Event
-```
-
-## Aggregate must NOT contain
-
-* Repository
-* Firebase / Database
-* HTTP / API calls
-* UI / DTO
-* Infrastructure logic
-
-Aggregate should contain only:
-
-```
-Entities
-Value Objects
-Domain Logic
-Domain Events
-```
-
-## Repository must NOT contain
-
-* Business logic
-* Domain rules
-* Complex query logic
-* Application logic
-
-Repository should only:
-
-```
-Save
-Get
-Delete
-```
-
-## Domain Service usage
-
-Create Domain Service only when:
-
-* Logic does not belong to a single Entity
-* Requires multiple Aggregates
-* Pure business logic
-* No infrastructure dependency
-
----
-
-# Step 4 — File Splitting Structure
-
-When splitting large files, use this structure:
-
-```
-domain/
-  aggregates/
-  entities/
-  value-objects/
-  domain-events/
-  domain-services/
-
-application/
-  services/
-  commands/
-  queries/
-
-infrastructure/
-  repositories/
-  firebase/
-  external-services/
-
-interface/
-  controllers/
-  dto/
-  routes/
-```
-
----
-
-# Step 5 — File Size Guidelines
-
-Recommended file sizes:
-
-```
-Entity < 150 lines
-Aggregate < 300 lines
-Application Service < 150 lines
-Repository < 120 lines
-Controller < 120 lines
-Domain Service < 150 lines
-```
-
-Files exceeding ~300 lines likely indicate boundary or responsibility problems.
-
----
-
-# Step 6 — After Refactor Update Serena
-
-After modifications:
-
-```
-#sym:update_memory
-#sym:prune_index
-```
-
-Purpose:
-
-```
-update_memory → sync new architecture and symbols
-prune_index → remove outdated symbols
-```
-
----
-
-# Full Workflow Checklist
-
-```
-1. serena start-mcp-server
-2. activate_project
-3. list_memories
-4. read_memory
-5. Find largest files
-6. Check DDD violations
-7. Refactor and split files
-8. Ensure functionality still works
-9. #sym:update_memory
-10. #sym:prune_index
-```
-
----
-
-# Core Principle
-
-DDD refactoring goal is not smaller files, but correct boundaries:
-
-```
-Controller → Application Service → Domain → Repository
-```
-
-Domain layer must not depend on:
-
-```
-Database
-Firebase
-HTTP
-UI
-Framework
-```
-````
-
 ## File: features/README.md
 ````markdown
 ---
@@ -14865,53 +14865,6 @@ workspace-flow 合併後，以下檔案將搬入此目錄：
 - `invoice-transition-policy.ts`
 ````
 
-## File: modules/workspace/interfaces/api/AGENT.md
-````markdown
-# interfaces/api — API Driving Adapters
-
-`api/` 是 **HTTP / Next.js App Router 驅動層**，負責把外部請求轉成 workspace 的 input port 呼叫。
-
-> 新增內容一律以 driving adapter 責任為準；不要把 use case 或 infrastructure 邏輯塞進這裡。
-
----
-
-## ✅ 屬於此處
-
-| 類型 | 範例 |
-|------|------|
-| Route Handlers / API Endpoints | Next.js Route Handler |
-| Request parsing / validation | body、query、headers 轉 DTO |
-| Auth / session adaptation | 從外部請求取 actor context |
-| Response mapping | domain / use-case result → HTTP response |
-| 薄型同步公開入口 | 只做轉接、不做業務判斷的 facade / contracts glue |
-
----
-
-## ❌ 禁止放入
-
-| 禁止項目 | 原因 |
-|----------|------|
-| Domain rule / invariant / policy | 放 `domain/` |
-| Use case 內部流程本體 | 放 `application/use-cases/` |
-| Repository / Database / Genkit concrete call | 應透過 `ports/input/` / `ports/output/` 間接協作 |
-| React component / hooks | 放 `interfaces/web/` |
-
----
-
-## 依賴箭頭
-
-```txt
-interfaces/api
-	-> application/dtos
-interfaces/api
-	-> ports/input
-ports/input
-	-> application/use-cases
-```
-
-`interfaces/api` **不可**直接依賴 `infrastructure/firebase/`、`infrastructure/events/`。
-````
-
 ## File: modules/workspace/interfaces/cli/AGENT.md
 ````markdown
 # interfaces/cli — CLI Driving Adapters
@@ -14954,52 +14907,6 @@ ports/input
 ```
 
 `interfaces/cli` **不可**直接依賴 `infrastructure/*`。
-````
-
-## File: modules/workspace/interfaces/web/AGENT.md
-````markdown
-# interfaces/web — Web Driving Adapters
-
-`web/` 是 **UI 封裝層**，將前端 UI 元件與 workspace input ports 連接，支援 React / shadcn 組件。
-
-> 新增的 UI component / hook 以收斂到這裡為原則；不要再把新的 driving adapter 散落在其他目錄。
-
----
-
-## ✅ 屬於此處
-
-| 類型 | 範例 |
-|------|------|
-| shadcn UI Components | 表單、對話框、screen components |
-| React Hooks | 呼叫 input ports、管理 loading / error state |
-| UI state | 展開、切換、表單草稿等非業務狀態 |
-| DTO mapping | form state / query param → DTO |
-
----
-
-## ❌ 禁止放入
-
-| 禁止項目 | 原因 |
-|----------|------|
-| 核心業務邏輯（Domain / Application） | 放 `domain/`、`application/` |
-| Repository / Database / Genkit concrete call | 應透過 `ports/input/` / use case 間接協作 |
-| HTTP Route Handler | 放 `interfaces/api/` |
-| CLI 命令解析 | 放 `interfaces/cli/` |
-
----
-
-## 依賴箭頭
-
-```txt
-interfaces/web
-	-> application/dtos
-interfaces/web
-	-> ports/input
-ports/input
-	-> application/use-cases
-```
-
-`interfaces/web` **不可**直接依賴 `infrastructure/*`。
 ````
 
 ## File: modules/workspace/ports/input/AGENT.md
@@ -15217,6 +15124,135 @@ domain/aggregates → domain/services（呼叫 domain service，如有需要）
 `domain/aggregates` **不可**依賴 `application/`、`infrastructure/`、`interfaces/`。
 ````
 
+## File: modules/workspace/interfaces/api/AGENT.md
+````markdown
+# interfaces/api — API Driving Adapters
+
+`interfaces/api/` 是 workspace 的 **API adapter implementation layer**。它把外部同步需求整理成契約、query/action adapter、facade 與 runtime composition，但真正對外公開的 cross-module boundary 仍是 `modules/workspace/api/`。
+
+> 新增內容一律以 driving adapter 責任為準；不要把 use case 或 infrastructure 邏輯散落在 query/action 檔案裡。
+
+---
+
+## 目錄結構
+
+```txt
+interfaces/api/
+	contracts/   -> public contracts split by concern
+	facades/     -> thin outward entrypoints grouped by concern
+	queries/     -> read adapters backed by WorkspaceQueryPort
+	actions/     -> write adapters backed by WorkspaceCommandPort
+	runtime/     -> adapter composition and session context
+	ui.ts        -> public web-composition re-export
+	index.ts     -> aggregate export for interfaces/api
+```
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Adapter contracts | `contracts/workspace.contract.ts` |
+| Thin outward facades | `facades/workspace.facade.ts` |
+| Read adapters | `queries/workspace.query.ts` |
+| Write adapters | `actions/workspace.command.ts` |
+| Runtime composition | `runtime/workspace-runtime.ts` |
+| Session context | `runtime/workspace-session-context.ts` |
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Domain rule / invariant / policy | 放 `domain/` |
+| Use case 內部流程本體 | 放 `application/use-cases/` |
+| Repository / Database / Genkit concrete call（除 `runtime/` 外） | 應透過 `ports/input/` / `ports/output/` 間接協作 |
+| React component / hooks | 放 `interfaces/web/` |
+
+---
+
+## 依賴箭頭
+
+```txt
+interfaces/api/contracts
+	-> application/dtos | domain public types
+interfaces/api/{queries,actions,facades}
+	-> ports/input
+interfaces/api/runtime
+	-> application/services | infrastructure adapters
+```
+
+只有 `runtime/` 可以做 adapter composition；其餘 `interfaces/api` 檔案 **不可**直接依賴 `infrastructure/firebase/`、`infrastructure/events/`。
+````
+
+## File: modules/workspace/interfaces/web/AGENT.md
+````markdown
+# interfaces/web — Web Driving Adapters
+
+`web/` 是 **UI 封裝層**，負責 React / shadcn 畫面、hooks 與本地互動狀態。它可以組裝 workspace 的 public API，但不直接承擔 application 或 infrastructure 的流程細節。
+
+> 新增的 UI component / hook 以收斂到這裡為原則；不要再把新的 driving adapter 散落在其他目錄。
+
+---
+
+## 目錄結構
+
+```txt
+interfaces/web/
+	components/
+		dialogs/
+		cards/
+		screens/
+		tabs/
+		rails/
+		layout/
+	hooks/
+	workspace-nav-items.ts
+	workspace-quick-access.tsx
+	workspace-session.ts
+	workspace-settings.ts
+	workspace-supporting-records.ts
+	workspace-tabs.ts
+```
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Screen / route components | `components/screens/*` |
+| Dialog / modal UI | `components/dialogs/*` |
+| Summary / info cards | `components/cards/*` |
+| Tab panes | `components/tabs/*` |
+| Rail / side panel UI | `components/rails/*` |
+| Layout helpers / sections | `components/layout/*` |
+| React Hooks | `hooks/useWorkspaceHub.ts` |
+| UI state / form draft mapping | `workspace-settings.ts` |
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| 核心業務邏輯（Domain / Application） | 放 `domain/`、`application/` |
+| Repository / Database / Genkit concrete call | 應透過 `@/modules/workspace/api` 或本地 api boundary 間接協作 |
+| HTTP Route Handler | 放 `interfaces/api/` |
+| CLI 命令解析 | 放 `interfaces/cli/` |
+
+---
+
+## 依賴箭頭
+
+```txt
+interfaces/web/components | hooks
+	-> modules/workspace/api | ../api/*
+modules/workspace/api
+	-> interfaces/api/{contracts,facades,ui}
+```
+
+`interfaces/web` **不可**直接依賴 `infrastructure/*`、`application/*`、`domain/*`。
+````
+
 ## File: modules/workspace/subdomain.md
 ````markdown
 # Subdomain — workspace
@@ -15424,132 +15460,6 @@ interfaces/web ─┘
 - [context-map.md](./context-map.md) — 對外關係與 integration patterns
 - [aggregates.md](./aggregates.md) — bounded context 內部核心模型
 - [repositories.md](./repositories.md) — output ports 與 adapters
-````
-
-## File: modules/workspace/context-map.md
-````markdown
-# Context Map — workspace
-
-`workspace` 的 context map 只描述 bounded context 之間的關係與 integration patterns，不描述頁面 tab 組裝。
-
-在這份文件裡，Aggregate Root 指的是對外提供 published language 的 domain 類別 / 物件；Domain Event 指的是跨 context 可發布的事件類別、訊息物件。Repository、Factory、Domain Service 不屬於 context map 的主體，但會支撐這些整合 surface 的實作。
-
-## Domain / Subdomain / Bounded Context 層級
-
-- `Xuanwu` 是整體 domain
-- `workspace` 對應的是 generic subdomain 中的協作容器問題空間
-- `modules/workspace/` 是承載這組語言的 bounded context
-- context map 描述的是這個 bounded context 在整體 domain 裡與其他 bounded context 的關係，而不是描述 bounded context 內部的六邊形分層
-- 這是一個 problem-space selected view：只聚焦與 workspace 有關的 subdomains / bounded contexts，不試圖覆蓋整個 Xuanwu domain inventory
-- 某些相關 bounded contexts 可能位於同一 subdomain，也可能來自 supporting / external / generic 區域；關係圖關注的是邊界互動，不是所有權想像
-
-## Drivers and External Systems（不是 Bounded Context）
-
-下列對象會影響 workspace，但不應畫成 context map 中的 bounded context：
-
-- Browser UI / Next.js 頁面與 Server Actions：它們是 drivers
-- Firestore、event bus 等技術系統：它們是 external systems，由 adapters 整合
-- Query projections / read models：它們是讀取結果，不是獨立 bounded context
-- `ports/input/`、`ports/output/`、`application/`、`domain/`、`interfaces/`、`infrastructure/` 等 folder 是 bounded context 的內部實作切面，不是 context map 上的節點
-
-## Upstream Contexts
-
-### `account` → `workspace`（Customer/Supplier）
-
-- `account` 提供 personal ownership 與 actor identity 的基礎語言
-- `workspace.accountId` 在 personal scope 下對齊 `account`
-- `workspace` 依賴 `account` 的存在，但不複製 account 的完整模型
-
-### `organization` → `workspace`（Customer/Supplier + Read-side ACL）
-
-- `organization` 提供 team、member 與 organization ownership 的真相來源
-- `workspace.accountId + accountType="organization"` 讓工作區對齊組織範圍
-- 在 query side，workspace 會把 organization 的成員/團隊語言翻譯成 `WorkspaceMemberView`
-- 這種翻譯屬於 read-side anti-corruption / translation 行為，不代表 `workspace` 擁有組織模型
-
-## Downstream / Dependent Contexts
-
-### `workspace` → `knowledge`（Conformist）
-
-- `knowledge` 使用 `workspaceId` 對齊知識頁面的工作區範圍
-- `knowledge` 對工作區存在性、範圍與可見性語言採 conformist
-
-### `workspace` → `knowledge-base`（Conformist）
-
-- `knowledge-base` 以 `workspaceId` 作為文章與知識資產的工作區範圍鍵
-
-### `workspace` → `source`（Conformist）
-
-- `source` 以 `workspaceId` 管理文件與 library 的工作區範圍
-
-### `workspace` → `notebook`（Conformist）
-
-- `notebook` 以 `workspaceId` 作為查詢與 RAG 工作流範圍
-
-### `workspace` → `workspace-flow`（Conformist）
-
-- `workspace-flow` 以 `workspaceId` 對齊任務、issue、invoice 的工作區範圍
-
-### `workspace` → `workspace-scheduling`（Conformist）
-
-- `workspace-scheduling` 以 `workspaceId` 對齊排程與容量規劃範圍
-
-### `workspace` → `workspace-feed`（Conformist）
-
-- `workspace-feed` 以 `workspaceId` 對齊活動流範圍
-
-### `workspace` → `workspace-audit`（Published Language / Conformist）
-
-- `workspace-audit` 會消費工作區範圍資訊與後續 workspace domain events
-- 在事件真正落地前，雙方仍主要透過同步 API 與共同範圍語言協作
-
-## Public Integration Surfaces
-
-| 類型 | Surface |
-|---|---|
-| 同步 API | `modules/workspace/interfaces/api` |
-| Published Language | `workspaceId`、`WorkspaceLifecycleState`、`WorkspaceVisibility` 等 aggregate / value object 語言 |
-| 非同步事件（目標） | `workspace.created`、`workspace.lifecycle_transitioned`、`workspace.visibility_changed` 等 domain event 訊息物件 |
-
-每一個對外 surface 都可視為一個 hexagon-to-hexagon integration point：不是 page 組裝，不是 repository 內部細節，而是 bounded context 對其他 bounded context 的協作面。
-
-## 內部結構不是 Context Map
-
-以下是 `workspace` bounded context 內部用來實作邊界的切面，但它們不是 context map 本身：
-
-- `interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
-- `ports/input/`、`ports/output/`
-- `application/use-cases/`、`application/services/`、`application/dtos/`
-- `domain/aggregates/`、`domain/entities/`、`domain/value-objects/`、`domain/services/`、`domain/events/`、`domain/factories/`
-- `infrastructure/events/`、`infrastructure/firebase/`
-
-這些 folder 與箭頭描述的是六邊形依賴方向；context map 描述的是 bounded context 與 bounded context 之間的關係。
-
-## Read Models in Collaboration
-
-- `WorkspaceMemberView` 這類 read model 主要服務本地查詢與 ACL translation
-- 除非明確定義為 published language，projection 不應被當成跨 bounded context 的 canonical contract
-
-## Non-Examples
-
-- `WorkspaceDetailScreen` 組合 `WorkspaceFlowTab`、`WorkspaceSchedulingTab`、`WorkspaceAuditTab` 是 UI composition，不是 strategic context map
-- `WikiContentTree` 導覽節點是 query model，不是 context-to-context contract 的替代物
-- `domain/`、`application/`、`ports/`、`interfaces/`、`infrastructure/` 的分工屬於六邊形架構內部切面，不是 context map 本身
-
-## IDDD 整合模式總結
-
-| 關係 | 模式 | 備註 |
-|------|------|------|
-| `account` → `workspace` | Customer/Supplier | 個人 ownership 與 actor identity |
-| `organization` → `workspace` | Customer/Supplier + Read-side ACL | workspace 讀模型翻譯 organization 資料 |
-| `workspace` → `knowledge` | Conformist | 以 `workspaceId` 對齊內容範圍 |
-| `workspace` → `knowledge-base` | Conformist | 以 `workspaceId` 對齊知識資產範圍 |
-| `workspace` → `source` | Conformist | 以 `workspaceId` 對齊來源範圍 |
-| `workspace` → `notebook` | Conformist | 以 `workspaceId` 對齊研究與 RAG 範圍 |
-| `workspace` → `workspace-flow` | Conformist | 以 `workspaceId` 對齊工作流範圍 |
-| `workspace` → `workspace-scheduling` | Conformist | 以 `workspaceId` 對齊排程範圍 |
-| `workspace` → `workspace-feed` | Conformist | 以 `workspaceId` 對齊活動流範圍 |
-| `workspace` → `workspace-audit` | Published Language / Conformist | 範圍資訊與後續事件消費 |
 ````
 
 ## File: modules/workspace/domain-events.md
@@ -15877,6 +15787,132 @@ interfaces/*
 - `ports/input/` 收斂 inbound contracts
 - `application/services/` 作為跨 use case / 跨 aggregate 流程容器
 - 應用層用語與 `aggregates.md`、`repositories.md`、`domain-events.md` 同步
+````
+
+## File: modules/workspace/context-map.md
+````markdown
+# Context Map — workspace
+
+`workspace` 的 context map 只描述 bounded context 之間的關係與 integration patterns，不描述頁面 tab 組裝。
+
+在這份文件裡，Aggregate Root 指的是對外提供 published language 的 domain 類別 / 物件；Domain Event 指的是跨 context 可發布的事件類別、訊息物件。Repository、Factory、Domain Service 不屬於 context map 的主體，但會支撐這些整合 surface 的實作。
+
+## Domain / Subdomain / Bounded Context 層級
+
+- `Xuanwu` 是整體 domain
+- `workspace` 對應的是 generic subdomain 中的協作容器問題空間
+- `modules/workspace/` 是承載這組語言的 bounded context
+- context map 描述的是這個 bounded context 在整體 domain 裡與其他 bounded context 的關係，而不是描述 bounded context 內部的六邊形分層
+- 這是一個 problem-space selected view：只聚焦與 workspace 有關的 subdomains / bounded contexts，不試圖覆蓋整個 Xuanwu domain inventory
+- 某些相關 bounded contexts 可能位於同一 subdomain，也可能來自 supporting / external / generic 區域；關係圖關注的是邊界互動，不是所有權想像
+
+## Drivers and External Systems（不是 Bounded Context）
+
+下列對象會影響 workspace，但不應畫成 context map 中的 bounded context：
+
+- Browser UI / Next.js 頁面與 Server Actions：它們是 drivers
+- Firestore、event bus 等技術系統：它們是 external systems，由 adapters 整合
+- Query projections / read models：它們是讀取結果，不是獨立 bounded context
+- `ports/input/`、`ports/output/`、`application/`、`domain/`、`interfaces/`、`infrastructure/` 等 folder 是 bounded context 的內部實作切面，不是 context map 上的節點
+
+## Upstream Contexts
+
+### `account` → `workspace`（Customer/Supplier）
+
+- `account` 提供 personal ownership 與 actor identity 的基礎語言
+- `workspace.accountId` 在 personal scope 下對齊 `account`
+- `workspace` 依賴 `account` 的存在，但不複製 account 的完整模型
+
+### `organization` → `workspace`（Customer/Supplier + Read-side ACL）
+
+- `organization` 提供 team、member 與 organization ownership 的真相來源
+- `workspace.accountId + accountType="organization"` 讓工作區對齊組織範圍
+- 在 query side，workspace 會把 organization 的成員/團隊語言翻譯成 `WorkspaceMemberView`
+- 這種翻譯屬於 read-side anti-corruption / translation 行為，不代表 `workspace` 擁有組織模型
+
+## Downstream / Dependent Contexts
+
+### `workspace` → `knowledge`（Conformist）
+
+- `knowledge` 使用 `workspaceId` 對齊知識頁面的工作區範圍
+- `knowledge` 對工作區存在性、範圍與可見性語言採 conformist
+
+### `workspace` → `knowledge-base`（Conformist）
+
+- `knowledge-base` 以 `workspaceId` 作為文章與知識資產的工作區範圍鍵
+
+### `workspace` → `source`（Conformist）
+
+- `source` 以 `workspaceId` 管理文件與 library 的工作區範圍
+
+### `workspace` → `notebook`（Conformist）
+
+- `notebook` 以 `workspaceId` 作為查詢與 RAG 工作流範圍
+
+### `workspace` → `workspace-flow`（Conformist）
+
+- `workspace-flow` 以 `workspaceId` 對齊任務、issue、invoice 的工作區範圍
+
+### `workspace` → `workspace-scheduling`（Conformist）
+
+- `workspace-scheduling` 以 `workspaceId` 對齊排程與容量規劃範圍
+
+### `workspace` → `workspace-feed`（Conformist）
+
+- `workspace-feed` 以 `workspaceId` 對齊活動流範圍
+
+### `workspace` → `workspace-audit`（Published Language / Conformist）
+
+- `workspace-audit` 會消費工作區範圍資訊與後續 workspace domain events
+- 在事件真正落地前，雙方仍主要透過同步 API 與共同範圍語言協作
+
+## Public Integration Surfaces
+
+| 類型 | Surface |
+|---|---|
+| 同步 API | `modules/workspace/api` |
+| Published Language | `workspaceId`、`WorkspaceLifecycleState`、`WorkspaceVisibility` 等 aggregate / value object 語言 |
+| 非同步事件（目標） | `workspace.created`、`workspace.lifecycle_transitioned`、`workspace.visibility_changed` 等 domain event 訊息物件 |
+
+每一個對外 surface 都可視為一個 hexagon-to-hexagon integration point：不是 page 組裝，不是 repository 內部細節，而是 bounded context 對其他 bounded context 的協作面。
+
+## 內部結構不是 Context Map
+
+以下是 `workspace` bounded context 內部用來實作邊界的切面，但它們不是 context map 本身：
+
+- `interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- `ports/input/`、`ports/output/`
+- `application/use-cases/`、`application/services/`、`application/dtos/`
+- `domain/aggregates/`、`domain/entities/`、`domain/value-objects/`、`domain/services/`、`domain/events/`、`domain/factories/`
+- `infrastructure/events/`、`infrastructure/firebase/`
+
+這些 folder 與箭頭描述的是六邊形依賴方向；context map 描述的是 bounded context 與 bounded context 之間的關係。
+
+## Read Models in Collaboration
+
+- `WorkspaceMemberView` 這類 read model 主要服務本地查詢與 ACL translation
+- 除非明確定義為 published language，projection 不應被當成跨 bounded context 的 canonical contract
+
+## Non-Examples
+
+- `WorkspaceDetailScreen` 組合 `WorkspaceFlowTab`、`WorkspaceSchedulingTab`、`WorkspaceAuditTab` 是 UI composition，不是 strategic context map
+- `WikiContentTree` 導覽節點是 query model，不是 context-to-context contract 的替代物
+- `domain/`、`application/`、`ports/`、`interfaces/`、`infrastructure/` 的分工屬於六邊形架構內部切面，不是 context map 本身
+
+## IDDD 整合模式總結
+
+| 關係 | 模式 | 備註 |
+|------|------|------|
+| `account` → `workspace` | Customer/Supplier | 個人 ownership 與 actor identity |
+| `organization` → `workspace` | Customer/Supplier + Read-side ACL | workspace 讀模型翻譯 organization 資料 |
+| `workspace` → `knowledge` | Conformist | 以 `workspaceId` 對齊內容範圍 |
+| `workspace` → `knowledge-base` | Conformist | 以 `workspaceId` 對齊知識資產範圍 |
+| `workspace` → `source` | Conformist | 以 `workspaceId` 對齊來源範圍 |
+| `workspace` → `notebook` | Conformist | 以 `workspaceId` 對齊研究與 RAG 範圍 |
+| `workspace` → `workspace-flow` | Conformist | 以 `workspaceId` 對齊工作流範圍 |
+| `workspace` → `workspace-scheduling` | Conformist | 以 `workspaceId` 對齊排程範圍 |
+| `workspace` → `workspace-feed` | Conformist | 以 `workspaceId` 對齊活動流範圍 |
+| `workspace` → `workspace-audit` | Published Language / Conformist | 範圍資訊與後續事件消費 |
 ````
 
 ## File: modules/workspace/README.md
@@ -16564,9 +16600,9 @@ modules/workspace/
 │   └── firebase/               ← Firestore / Storage / Genkit Adapter
 │
 └── interfaces/                 ← Driving Adapters（外部入口）
-	├── api/                    ← Next.js Route Handler → Input Port
+	├── api/                    ← Adapter implementation（contracts / facades / queries / actions / runtime）
 	├── cli/                    ← CLI / Cron Job → Input Port
-	└── web/                    ← shadcn UI Components + Hooks → Input Port
+	└── web/                    ← shadcn UI Components + Hooks（cards / dialogs / screens / tabs / rails / layout）
 ```
 
 ## 戰略層級（Domain / Subdomain / Bounded Context）
@@ -16629,7 +16665,8 @@ interfaces/web ─┘
 
 目前實際入口對位：
 
-- `interfaces/api/`：公開同步入口（Next.js Route Handler / 模組對外 surface）
+- `api/`：模組正式對外公開邊界（cross-module 與 app composition 應從這裡進入）
+- `interfaces/api/`：同步 adapter implementation（contracts / facades / queries / actions / runtime）
 - `interfaces/web/`：Web UI 與 hooks 進入點
 - `ports/index.ts`：公開 port 抽象（input/output 聚合匯出）
 
@@ -16690,7 +16727,7 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 
 ## 分層守衛
 
-- `api/index.ts` 只能是薄入口；跨模組與 app composition consumer 應優先使用 `@/modules/workspace/api`
+- `api/index.ts`、`api/contracts.ts`、`api/facade.ts`、`api/ui.ts` 只能是薄入口；跨模組與 app composition consumer 應優先使用 `@/modules/workspace/api`
 - `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` 只做 driving adapter，不處理 domain 決策
 - `application/use-cases/` 處理單一 use case，不吞進純業務規則
 - `application/services/` 只負責流程，不替代 domain service
@@ -16705,7 +16742,7 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 - Driving Adapters 是進入此 bounded context 的入口：`interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
 - `ports/input/` 是 driving contract 的位置
 - `ports/output/` 是內核朝外的 driven ports；adapter 可以替換，但 domain model 不應感知 Firebase / HTTP / React
-- `interfaces/api/` 是此 bounded context 對外暴露的同步入口；它是公開邊界，不是把內部 layers 攤平
+- `interfaces/api/` 是公開邊界背後的同步 adapter implementation；真正的 cross-module surface 是 `api/`
 - 依賴方向維持 inward：`interfaces/` 與 `infrastructure/` 可以依賴 `application/`、`domain/`，但 `domain/` 不反向依賴外部技術
 - 若採事件驅動整合，incoming / outgoing events 也是 bounded context 邊界的一部分，不改變 domain model 必須位於中心的原則
 - Browser UI、Route Handlers、CLI、其他 bounded context 對 `interfaces/api/` 的呼叫者，都是此 hexagon 的 drivers；它們透過 adapters 進入，不直接碰 domain model
