@@ -1,7 +1,7 @@
 "use client";
 
 import type { ActiveAccount } from "@/app/providers/app-context";
-import { CreateWorkspaceDialogRail as WorkspaceCreateWorkspaceDialogRail } from "@/modules/workspace/api";
+import { CreateWorkspaceDialogRail as WorkspaceCreateWorkspaceDialogRail } from "@/modules/workspace/interfaces/web";
 
 interface CreateWorkspaceDialogRailProps {
   open: boolean;

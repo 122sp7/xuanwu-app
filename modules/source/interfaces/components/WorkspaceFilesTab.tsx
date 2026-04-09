@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
 import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
 import { getWorkspaceFiles } from "../queries/file.queries";
 import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
