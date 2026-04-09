@@ -14,4 +14,3 @@ This subdomain owns workspace-centered audit read/query capabilities and UI audi
 ### Integration rule
 
 - Parent workspace public API (`@/modules/workspace/api`) is the preferred cross-module entry.
-- `@/modules/workspace-audit/api` is now compatibility-only and re-exports this subdomain API.
