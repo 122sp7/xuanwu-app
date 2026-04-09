@@ -35,6 +35,16 @@ export {
 export {
   workspaceFeedFacade,
   WorkspaceFeedFacade,
+  getAccountWorkspaceFeed,
+  getWorkspaceFeed,
+  getWorkspaceFeedPost,
+  bookmarkWorkspaceFeedPost,
+  createWorkspaceFeedPost,
+  likeWorkspaceFeedPost,
+  replyWorkspaceFeedPost,
+  repostWorkspaceFeedPost,
+  shareWorkspaceFeedPost,
+  viewWorkspaceFeedPost,
 } from "../subdomains/feed/api";
 
 export type {
@@ -43,19 +53,3 @@ export type {
   RepostWorkspaceFeedPostParams,
   WorkspaceFeedInteractionParams,
 } from "../subdomains/feed/api";
-
-export {
-  getAccountWorkspaceFeed,
-  getWorkspaceFeed,
-  getWorkspaceFeedPost,
-} from "../subdomains/feed/interfaces/queries/workspace-feed.queries";
-
-export {
-  bookmarkWorkspaceFeedPost,
-  createWorkspaceFeedPost,
-  likeWorkspaceFeedPost,
-  replyWorkspaceFeedPost,
-  repostWorkspaceFeedPost,
-  shareWorkspaceFeedPost,
-  viewWorkspaceFeedPost,
-} from "../subdomains/feed/interfaces/_actions/workspace-feed.actions";

@@ -14,5 +14,21 @@ export {
   WORKSPACE_FEED_POST_TYPES,
 } from "../domain/entities/workspace-feed-post.entity";
 
+export {
+  getAccountWorkspaceFeed,
+  getWorkspaceFeed,
+  getWorkspaceFeedPost,
+} from "../interfaces/queries/workspace-feed.queries";
+
+export {
+  bookmarkWorkspaceFeedPost,
+  createWorkspaceFeedPost,
+  likeWorkspaceFeedPost,
+  replyWorkspaceFeedPost,
+  repostWorkspaceFeedPost,
+  shareWorkspaceFeedPost,
+  viewWorkspaceFeedPost,
+} from "../interfaces/_actions/workspace-feed.actions";
+
 export { WorkspaceFeedWorkspaceView } from "../interfaces/components/WorkspaceFeedWorkspaceView";
 export { WorkspaceFeedAccountView } from "../interfaces/components/WorkspaceFeedAccountView";
