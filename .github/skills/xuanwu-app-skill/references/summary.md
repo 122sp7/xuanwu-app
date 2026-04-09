@@ -38,21 +38,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1587 files | 75,800 lines
+1682 files | 76,904 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 754 | 33,038 |
-| Markdown | 317 | 11,350 |
-| No Extension | 244 | 328 |
+| TypeScript | 857 | 35,213 |
+| Markdown | 307 | 10,850 |
+| No Extension | 256 | 340 |
 | TypeScript (TSX) | 185 | 25,295 |
 | Python | 61 | 3,823 |
-| MERMAID | 10 | 583 |
 | JSON | 7 | 821 |
 | Text | 3 | 116 |
 | RULES | 2 | 18 |
 | JavaScript (ESM) | 2 | 167 |
-| Other | 2 | 261 |
+| CSS | 1 | 197 |
+| Other | 1 | 64 |
 
 **Largest files:**
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
