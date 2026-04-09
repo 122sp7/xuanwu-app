@@ -26,3 +26,8 @@ export {
 export {
   getWorkspaceMembers,
 } from "../interfaces/api/facades/workspace-member.facade";
+
+export {
+  getOrganizationAuditLogs,
+  getWorkspaceAuditLogs,
+} from "../subdomains/audit/api";

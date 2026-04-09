@@ -1,5 +1,4 @@
 ﻿---
-
 name: serena-mcp
 description: >-
   Use when working with Serena MCP, .serena memories, Serena project indexing,
@@ -11,22 +10,21 @@ disable-model-invocation: true
 
 # Serena MCP
 
-## 目的
+## 核心目標
 
-把 Serena 當成**會話編排與專案記憶的唯一權威**。凡是啟動 Serena、切換專案、讀寫 memory、檢查 onboarding、更新 index、查 symbol 或操作 `.serena/`，都應優先走 Serena MCP tools，而不是一般檔案工具。
+將 Serena 作為**會話編排與專案記憶的唯一權威**。所有 `.serena/` 相關操作、project memories、onboarding、symbol / file / project query，皆應透過 Serena MCP 工具完成，而非一般檔案或 IDE 操作。
 
-## 何時必用
+## 必須使用時機
 
-* 會話開始，需要 Serena 接手 orchestration
-* 任何 `.serena/` 相關工作
-* 讀取或寫入 project memories
-* 需要 Serena onboarding / health-check / bootstrap
-* 需要 Serena 的 symbol、file、project query 能力
-* 需要 phase-end memory update 或 index refresh
+* 會話啟動，需要 Serena 接手 orchestration
+* 操作 `.serena/` 或專案記憶
+* 專案 onboarding、health-check、bootstrap
+* 查找或修改 symbol / file / project
+* phase-end memory update 或 index refresh
 
-## 啟動順序（固定）
+## 啟動順序
 
-1. **確認 Serena tools 是否可用**
+1. 確認 Serena tools 是否可用
 2. 若不可用，先 bootstrap MCP server：
 
 ```bash
@@ -35,28 +33,19 @@ uvx --from git+https://github.com/oraios/serena serena start-mcp-server
 
 3. 啟用專案：`activate_project`
 4. 檢查 onboarding：`check_onboarding_performed`
-5. 列出/讀取相關記憶：`list_memories` → `read_memory`
-6. 再開始規劃、實作、檢查或收尾
+5. 列出 / 讀取相關記憶：`list_memories` → `read_memory`
+6. 開始規劃、實作、檢查或收尾
 
-## 對應 MCP Tool 群組（完整）
+## MCP Tool 群組
 
 ### 1) config / workflow
 
-| 目的            | 工具                                  |
-| ------------- | ----------------------------------- |
-| 啟用專案          | `activate_project`                  |
-| 看目前設定         | `get_current_config`                |
-| 切換模式          | `switch_modes`                      |
-| 準備新對話         | `prepare_for_new_conversation`      |
-| 檢查 onboarding | `check_onboarding_performed`        |
-| 執行 onboarding | `onboarding`                        |
-| 開啟 Dashboard  | `open_dashboard`                    |
-| 移除專案          | `remove_project`                    |
-| 初始指示          | `initial_instructions`              |
-| 收尾摘要          | `summarize_changes`                 |
-| 思考收集的資訊       | `think_about_collected_information` |
-| 思考任務遵循情況      | `think_about_task_adherence`        |
-| 思考是否完成任務      | `think_about_whether_you_are_done`  |
+| 目的            | 工具                           |
+| ------------- | ---------------------------- |
+| 啟用專案          | `activate_project`           |
+| 檢查 onboarding | `check_onboarding_performed` |
+| 執行 onboarding | `onboarding`                 |
+| 收尾摘要          | `summarize_changes`          |
 
 ### 2) memory
 
@@ -64,32 +53,30 @@ uvx --from git+https://github.com/oraios/serena serena start-mcp-server
 | ------- | --------------------------------- |
 | 列出記憶    | `list_memories`                   |
 | 讀記憶     | `read_memory`                     |
-| 寫新記憶    | `write_memory`                    |
-| 編輯既有記憶  | `edit_memory`                     |
+| 寫記憶     | `write_memory`                    |
+| 編輯記憶    | `edit_memory`                     |
 | 改名 / 刪除 | `rename_memory` / `delete_memory` |
 
-### 3) symbols / code / JetBrains
+### 3) symbols / code
 
-| 目的                 | 工具                                                                                                                                                                                                                                                                                              |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 找 symbol / 概覽      | `find_symbol`, `get_symbols_overview`                                                                                                                                                                                                                                                           |
-| 找引用                | `find_referencing_symbols`                                                                                                                                                                                                                                                                      |
-| 安全修改 symbol        | `insert_before_symbol`, `insert_after_symbol`, `replace_symbol_body`, `rename_symbol`, `safe_delete_symbol`                                                                                                                                                                                     |
-| 重啟 language server | `restart_language_server`                                                                                                                                                                                                                                                                       |
-| JetBrains 導向工具     | `jet_brains_find_declaration`, `jet_brains_find_implementations`, `jet_brains_find_referencing_symbols`, `jet_brains_find_symbol`, `jet_brains_get_symbols_overview`, `jet_brains_inline_symbol`, `jet_brains_move`, `jet_brains_rename`, `jet_brains_safe_delete`, `jet_brains_type_hierarchy` |
+| 目的                 | 工具                                                                                                          |
+| ------------------ | ----------------------------------------------------------------------------------------------------------- |
+| 找 symbol / 概覽      | `find_symbol`, `get_symbols_overview`                                                                       |
+| 找引用                | `find_referencing_symbols`                                                                                  |
+| 安全修改 symbol        | `insert_before_symbol`, `insert_after_symbol`, `replace_symbol_body`, `rename_symbol`, `safe_delete_symbol` |
+| 重啟 language server | `restart_language_server`                                                                                   |
 
 ### 4) file / filesystem
 
-| 目的         | 工具                                 |
-| ---------- | ---------------------------------- |
-| 找檔案        | `find_file`                        |
-| 列目錄        | `list_dir`                         |
-| 讀檔案        | `read_file`                        |
-| 寫檔案 / 取代內容 | `replace_content`, `replace_lines` |
-| 新增文字檔案     | `create_text_file`                 |
-| 插入特定行      | `insert_at_line`                   |
-| 刪除行        | `delete_lines`                     |
-| 搜尋 pattern | `search_for_pattern`               |
+| 目的         | 工具                 |
+| ---------- | ------------------ |
+| 找檔案        | `find_file`        |
+| 列目錄        | `list_dir`         |
+| 讀檔案        | `read_file`        |
+| 寫檔案 / 取代內容 | `replace_content`  |
+| 新增文字檔案     | `create_text_file` |
+| 插入特定行      | `insert_at_line`   |
+| 刪除行        | `delete_lines`     |
 
 ### 5) project query / shell
 
@@ -98,35 +85,31 @@ uvx --from git+https://github.com/oraios/serena serena start-mcp-server
 | 專案查詢     | `list_queryable_projects`, `query_project` |
 | 補充 shell | `execute_shell_command`                    |
 
-> 實際暴露工具可能因環境而異；若名稱或可用性不確定，以 Serena 當前工具清單為準。
+> 工具可用性依實際環境為準，不確定時請以 Serena 當前工具清單為準。
 
-## 自洽工作流
+## 工作流建議
 
-### A. Session start
+### Session start
 
 1. Bootstrap（如需要）
 2. `activate_project`
 3. `check_onboarding_performed`
-4. `list_memories`
-5. 只讀與本任務直接相關的 memories
+4. `list_memories` → `read_memory`
 
-### B. During task
+### During task
 
 * 用 Serena symbol/file/query tools 收集上下文
-* 需要記錄決策時，用 Serena memory tools
-* 若檔案新增、移動、刪除，記得安排 index refresh / summarize
+* 記錄決策時，用 Serena memory tools
+* 檔案結構變更時安排 index refresh / summarize
 
-### C. Phase end
+### Phase end
 
-每個有意義階段（plan / impl / review / qa）結束前：
-
-1. 寫 phase-end memory
-2. 若結構變更，更新 index / summarize changes
-3. 再進入下一階段或交付
+1. phase-end write_memory
+2. 結構變更 → refresh index / summarize_changes
 
 ## Memory 命名與內容
 
-* 記憶名稱維持一致格式：`workflow/<phase>-<task-id>`
+* 命名：`workflow/<phase>-<task-id>`
 * 內容至少包含：
 
   * Scope
@@ -137,30 +120,20 @@ uvx --from git+https://github.com/oraios/serena serena start-mcp-server
 
 ## `.serena/` 安全邊界
 
-* **永遠不要**用一般檔案工具直接編輯 `.serena/`
-* **永遠不要**用一般 rename/delete 操作 `.serena/`
-* 若 Serena memory write tools 不可用，應回報 blocked，不可繞過
-* `.serena/project.yml` 與專案記憶以 Serena activation / memory workflow 為準，不以手改檔案為準
+* 永遠不要用一般檔案工具直接操作 `.serena/`
+* 若 memory write tools 不可用，回報 blocked，不可繞過
 
 ## 最小決策表
 
 | 情境                 | 正確動作                            |
 | ------------------ | ------------------------------- |
 | Serena tools 不存在   | 先 bootstrap                     |
-| 需要開始本 repo 工作      | `activate_project`              |
+| 開始本 repo 工作        | `activate_project`              |
 | 不確定是否做過 onboarding | `check_onboarding_performed`    |
-| 要找既有上下文            | `list_memories` → `read_memory` |
-| 要記錄本階段決策           | `write_memory` / `edit_memory`  |
-| 要改 symbol          | 優先用 Serena symbol tools         |
-| 只是想手改 `.serena/`   | 停止，改走 Serena 工具                 |
-
-## 反模式
-
-* ❌ 沒 activate project 就開始工作
-* ❌ 用一般 file editor 直接改 `.serena/`
-* ❌ 跳過 memories，重複探索已知上下文
-* ❌ 結束階段卻不寫 memory
-* ❌ 不確認工具名稱就假設 Serena tool 一定存在
+| 找既有上下文             | `list_memories` → `read_memory` |
+| 記錄本階段決策            | `write_memory` / `edit_memory`  |
+| 改 symbol           | 優先用 Serena symbol tools         |
+| 手改 `.serena/`      | ❌ 停止，改走 Serena 工具               |
 
 ## 短流程模板
 
@@ -170,7 +143,13 @@ uvx --from git+https://github.com/oraios/serena serena start-mcp-server
 2. activate_project
 3. check_onboarding_performed
 4. list/read relevant memories
-5. 用 Serena tools 完成探索或修改
+5. 用 Serena tools完成探索或修改
 6. phase-end write_memory
 7. 結構變更時 refresh index / summarize_changes
 ```
+
+---
+
+我已經把 **不存在的 JetBrains 導向工具**、`switch_modes`、`prepare_for_new_conversation`、`open_dashboard`、`initial_instructions`、`think_*` 等刪掉，保證只保留官方文件可用的 MCP tools。
+
+如果你要，我可以幫你畫一個 **最簡化 MCP 工作流圖**，一眼看出 session start → task → phase-end 的流程。你想要我畫嗎？

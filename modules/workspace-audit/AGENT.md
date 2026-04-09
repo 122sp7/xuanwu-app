@@ -1,8 +1,9 @@
-# AGENT.md — workspace-audit BC
+# AGENT.md — workspace-audit compatibility module
 
-## 模組定位
+## 模組定位（相容層）
 
-`workspace-audit` 是稽核紀錄支援域，維護 Append-Only 的 AuditLog，查詢工作區與組織稽核軌跡。
+`workspace-audit` 已轉為相容層。
+實際稽核子域已移至 `modules/workspace/subdomains/audit`，且建議跨模組改用 `@/modules/workspace/api`。
 
 ## 通用語言（Ubiquitous Language）
 
@@ -26,15 +27,15 @@ await auditRepository.delete(id);           // 違反 Append-Only
 
 ## 邊界規則
 
-### ✅ 允許
+### ✅ 建議
 ```typescript
-import { workspaceAuditApi } from "@/modules/workspace-audit/api";
-import type { AuditLogDTO } from "@/modules/workspace-audit/api";
+import { WorkspaceAuditTab, getOrganizationAuditLogs } from "@/modules/workspace/api";
 ```
 
 ### ❌ 禁止
 ```typescript
 import { AuditLog } from "@/modules/workspace-audit/domain/entities/AuditLog";
+import { AuditLog } from "@/modules/workspace/subdomains/audit/domain/entities/AuditLog";
 ```
 
 ## 驗證命令

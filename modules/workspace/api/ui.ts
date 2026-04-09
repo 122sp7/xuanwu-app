@@ -85,3 +85,8 @@ export {
   getWorkspaceIdFromPath,
   useRecentWorkspaces,
 } from "../interfaces/web/hooks/useRecentWorkspaces";
+
+export {
+  AuditStream,
+  WorkspaceAuditTab,
+} from "../subdomains/audit/api";
