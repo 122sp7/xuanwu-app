@@ -89,10 +89,25 @@ export class FirebaseKnowledgePageRepository implements IKnowledgePageRepository
     return snaps.docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
   }
 
-  async nextOrder(accountId: string, parentPageId: string | null): Promise<number> {
+  async countByParent(accountId: string, parentPageId: string | null): Promise<number> {
     const snaps = await getDocs(
       query(pagesCol(this.db, accountId), where("parentPageId", "==", parentPageId ?? null)),
     );
     return snaps.size;
+  }
+
+  async findSnapshotById(accountId: string, pageId: string): Promise<import("../../domain/aggregates/KnowledgePage").KnowledgePageSnapshot | null> {
+    const page = await this.findById(accountId, pageId);
+    return page ? page.getSnapshot() : null;
+  }
+
+  async listSnapshotsByAccountId(accountId: string): Promise<import("../../domain/aggregates/KnowledgePage").KnowledgePageSnapshot[]> {
+    const pages = await this.listByAccountId(accountId);
+    return pages.map((p) => p.getSnapshot());
+  }
+
+  async listSnapshotsByWorkspaceId(accountId: string, workspaceId: string): Promise<import("../../domain/aggregates/KnowledgePage").KnowledgePageSnapshot[]> {
+    const pages = await this.listByWorkspaceId(accountId, workspaceId);
+    return pages.map((p) => p.getSnapshot());
   }
 }

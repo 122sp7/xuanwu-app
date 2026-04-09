@@ -45,7 +45,6 @@ function toSnapshot(id: string, d: Record<string, unknown>): ContentBlockSnapsho
     content: toBlockContent(d.content),
     order: typeof d.order === "number" ? d.order : 0,
     parentBlockId: typeof d.parentBlockId === "string" ? d.parentBlockId : null,
-    isDeleted: d.isDeleted === true,
     createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
     updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
   };
@@ -75,7 +74,7 @@ export class FirebaseContentBlockRepository implements IContentBlockRepository {
 
   async listByPageId(accountId: string, pageId: string): Promise<ContentBlock[]> {
     const snaps = await getDocs(
-      query(blocksCol(this.db, accountId), where("pageId", "==", pageId), where("isDeleted", "==", false)),
+      query(blocksCol(this.db, accountId), where("pageId", "==", pageId)),
     );
     return snaps.docs.map((d) => ContentBlock.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
   }
@@ -86,8 +85,13 @@ export class FirebaseContentBlockRepository implements IContentBlockRepository {
 
   async nextOrder(accountId: string, pageId: string): Promise<number> {
     const snaps = await getDocs(
-      query(blocksCol(this.db, accountId), where("pageId", "==", pageId), where("isDeleted", "==", false)),
+      query(blocksCol(this.db, accountId), where("pageId", "==", pageId)),
     );
+    return snaps.size;
+  }
+
+  async countByPageId(accountId: string, pageId: string): Promise<number> {
+    const snaps = await getDocs(query(blocksCol(this.db, accountId), where("pageId", "==", pageId)));
     return snaps.size;
   }
 }
