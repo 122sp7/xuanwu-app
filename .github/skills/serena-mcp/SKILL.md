@@ -1,4 +1,5 @@
 ﻿---
+
 name: serena-mcp
 description: >-
   Use when working with Serena MCP, .serena memories, Serena project indexing,
@@ -6,7 +7,7 @@ description: >-
   project memory operations, .serena scoped work, and Serena MCP startup.
 user-invocable: false
 disable-model-invocation: true
----
+------------------------------
 
 # Serena MCP
 
@@ -16,12 +17,12 @@ disable-model-invocation: true
 
 ## 何時必用
 
-- 會話開始，需要 Serena 接手 orchestration
-- 任何 `.serena/` 相關工作
-- 讀取或寫入 project memories
-- 需要 Serena onboarding / health-check / bootstrap
-- 需要 Serena 的 symbol、file、project query 能力
-- 需要 phase-end memory update 或 index refresh
+* 會話開始，需要 Serena 接手 orchestration
+* 任何 `.serena/` 相關工作
+* 讀取或寫入 project memories
+* 需要 Serena onboarding / health-check / bootstrap
+* 需要 Serena 的 symbol、file、project query 能力
+* 需要 phase-end memory update 或 index refresh
 
 ## 啟動順序（固定）
 
@@ -37,40 +38,65 @@ uvx --from git+https://github.com/oraios/serena serena start-mcp-server
 5. 列出/讀取相關記憶：`list_memories` → `read_memory`
 6. 再開始規劃、實作、檢查或收尾
 
-## 對應 MCP Tool 群組
+## 對應 MCP Tool 群組（完整）
 
 ### 1) config / workflow
 
-| 目的 | 工具 |
-|---|---|
-| 啟用專案 | `activate_project` |
-| 看目前設定 | `get_current_config` |
-| 切換模式 | `switch_modes` |
-| 準備新對話 | `prepare_for_new_conversation` |
-| 檢查 onboarding | `check_onboarding_performed` |
-| 執行 onboarding | `onboarding` |
-| 收尾摘要 | `summarize_changes` |
+| 目的            | 工具                                  |
+| ------------- | ----------------------------------- |
+| 啟用專案          | `activate_project`                  |
+| 看目前設定         | `get_current_config`                |
+| 切換模式          | `switch_modes`                      |
+| 準備新對話         | `prepare_for_new_conversation`      |
+| 檢查 onboarding | `check_onboarding_performed`        |
+| 執行 onboarding | `onboarding`                        |
+| 開啟 Dashboard  | `open_dashboard`                    |
+| 移除專案          | `remove_project`                    |
+| 初始指示          | `initial_instructions`              |
+| 收尾摘要          | `summarize_changes`                 |
+| 思考收集的資訊       | `think_about_collected_information` |
+| 思考任務遵循情況      | `think_about_task_adherence`        |
+| 思考是否完成任務      | `think_about_whether_you_are_done`  |
 
 ### 2) memory
 
-| 目的 | 工具 |
-|---|---|
-| 列出記憶 | `list_memories` |
-| 讀記憶 | `read_memory` |
-| 寫新記憶 | `write_memory` |
-| 編輯既有記憶 | `edit_memory` |
+| 目的      | 工具                                |
+| ------- | --------------------------------- |
+| 列出記憶    | `list_memories`                   |
+| 讀記憶     | `read_memory`                     |
+| 寫新記憶    | `write_memory`                    |
+| 編輯既有記憶  | `edit_memory`                     |
 | 改名 / 刪除 | `rename_memory` / `delete_memory` |
 
-### 3) symbols / files / query
+### 3) symbols / code / JetBrains
 
-| 目的 | 工具 |
-|---|---|
-| 找 symbol / 概覽 | `find_symbol`, `get_symbols_overview` |
-| 找引用 | `find_referencing_symbols` |
-| 安全修改 symbol | `insert_before_symbol`, `insert_after_symbol`, `replace_symbol_body`, `rename_symbol`, `safe_delete_symbol` |
-| Serena file tools | `find_file`, `list_dir`, `read_file`, `replace_content`, `replace_lines`, `insert_at_line`, `delete_lines`, `create_text_file` |
-| 專案查詢 | `list_queryable_projects`, `query_project` |
-| 補充 shell | `execute_shell_command` |
+| 目的                 | 工具                                                                                                                                                                                                                                                                                              |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 找 symbol / 概覽      | `find_symbol`, `get_symbols_overview`                                                                                                                                                                                                                                                           |
+| 找引用                | `find_referencing_symbols`                                                                                                                                                                                                                                                                      |
+| 安全修改 symbol        | `insert_before_symbol`, `insert_after_symbol`, `replace_symbol_body`, `rename_symbol`, `safe_delete_symbol`                                                                                                                                                                                     |
+| 重啟 language server | `restart_language_server`                                                                                                                                                                                                                                                                       |
+| JetBrains 導向工具     | `jet_brains_find_declaration`, `jet_brains_find_implementations`, `jet_brains_find_referencing_symbols`, `jet_brains_find_symbol`, `jet_brains_get_symbols_overview`, `jet_brains_inline_symbol`, `jet_brains_move`, `jet_brains_rename`, `jet_brains_safe_delete`, `jet_brains_type_hierarchy` |
+
+### 4) file / filesystem
+
+| 目的         | 工具                                 |
+| ---------- | ---------------------------------- |
+| 找檔案        | `find_file`                        |
+| 列目錄        | `list_dir`                         |
+| 讀檔案        | `read_file`                        |
+| 寫檔案 / 取代內容 | `replace_content`, `replace_lines` |
+| 新增文字檔案     | `create_text_file`                 |
+| 插入特定行      | `insert_at_line`                   |
+| 刪除行        | `delete_lines`                     |
+| 搜尋 pattern | `search_for_pattern`               |
+
+### 5) project query / shell
+
+| 目的       | 工具                                         |
+| -------- | ------------------------------------------ |
+| 專案查詢     | `list_queryable_projects`, `query_project` |
+| 補充 shell | `execute_shell_command`                    |
 
 > 實際暴露工具可能因環境而異；若名稱或可用性不確定，以 Serena 當前工具清單為準。
 
@@ -86,9 +112,9 @@ uvx --from git+https://github.com/oraios/serena serena start-mcp-server
 
 ### B. During task
 
-- 用 Serena symbol/file/query tools 收集上下文
-- 需要記錄決策時，用 Serena memory tools
-- 若檔案新增、移動、刪除，記得安排 index refresh / summarize
+* 用 Serena symbol/file/query tools 收集上下文
+* 需要記錄決策時，用 Serena memory tools
+* 若檔案新增、移動、刪除，記得安排 index refresh / summarize
 
 ### C. Phase end
 
@@ -100,40 +126,41 @@ uvx --from git+https://github.com/oraios/serena serena start-mcp-server
 
 ## Memory 命名與內容
 
-- 記憶名稱維持一致格式：`workflow/<phase>-<task-id>`
-- 內容至少包含：
-  - Scope
-  - Decisions / Findings
-  - Validation / Evidence
-  - Deviations / Risks
-  - Open Questions
+* 記憶名稱維持一致格式：`workflow/<phase>-<task-id>`
+* 內容至少包含：
+
+  * Scope
+  * Decisions / Findings
+  * Validation / Evidence
+  * Deviations / Risks
+  * Open Questions
 
 ## `.serena/` 安全邊界
 
-- **永遠不要**用一般檔案工具直接編輯 `.serena/`
-- **永遠不要**用一般 rename/delete 操作 `.serena/`
-- 若 Serena memory write tools 不可用，應回報 blocked，不可繞過
-- `.serena/project.yml` 與專案記憶以 Serena activation / memory workflow 為準，不以手改檔案為準
+* **永遠不要**用一般檔案工具直接編輯 `.serena/`
+* **永遠不要**用一般 rename/delete 操作 `.serena/`
+* 若 Serena memory write tools 不可用，應回報 blocked，不可繞過
+* `.serena/project.yml` 與專案記憶以 Serena activation / memory workflow 為準，不以手改檔案為準
 
 ## 最小決策表
 
-| 情境 | 正確動作 |
-|---|---|
-| Serena tools 不存在 | 先 bootstrap |
-| 需要開始本 repo 工作 | `activate_project` |
-| 不確定是否做過 onboarding | `check_onboarding_performed` |
-| 要找既有上下文 | `list_memories` → `read_memory` |
-| 要記錄本階段決策 | `write_memory` / `edit_memory` |
-| 要改 symbol | 優先用 Serena symbol tools |
-| 只是想手改 `.serena/` | 停止，改走 Serena 工具 |
+| 情境                 | 正確動作                            |
+| ------------------ | ------------------------------- |
+| Serena tools 不存在   | 先 bootstrap                     |
+| 需要開始本 repo 工作      | `activate_project`              |
+| 不確定是否做過 onboarding | `check_onboarding_performed`    |
+| 要找既有上下文            | `list_memories` → `read_memory` |
+| 要記錄本階段決策           | `write_memory` / `edit_memory`  |
+| 要改 symbol          | 優先用 Serena symbol tools         |
+| 只是想手改 `.serena/`   | 停止，改走 Serena 工具                 |
 
 ## 反模式
 
-- ❌ 沒 activate project 就開始工作
-- ❌ 用一般 file editor 直接改 `.serena/`
-- ❌ 跳過 memories，重複探索已知上下文
-- ❌ 結束階段卻不寫 memory
-- ❌ 不確認工具名稱就假設 Serena tool 一定存在
+* ❌ 沒 activate project 就開始工作
+* ❌ 用一般 file editor 直接改 `.serena/`
+* ❌ 跳過 memories，重複探索已知上下文
+* ❌ 結束階段卻不寫 memory
+* ❌ 不確認工具名稱就假設 Serena tool 一定存在
 
 ## 短流程模板
 
