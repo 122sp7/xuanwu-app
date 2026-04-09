@@ -52724,6 +52724,301 @@ ports/input
 `interfaces/cli` **不可**直接依賴 `infrastructure/*`。
 ````
 
+## File: modules/workspace/interfaces/web/components/cards/WorkspaceInformationCard.tsx
+````typescript
+"use client";
+
+import type { ReactNode } from "react";
+
+import { Badge } from "@ui-shadcn/ui/badge";
+
+export interface WorkspaceInformationRoleItem {
+  readonly id: string;
+  readonly roleName: ReactNode;
+  readonly roleValue: ReactNode;
+  readonly roleActions?: ReactNode;
+}
+
+interface WorkspaceInformationCardProps {
+  readonly workspaceName: ReactNode;
+  readonly workspaceAddress: ReactNode;
+  readonly workspaceRoles: WorkspaceInformationRoleItem[];
+  readonly rolesAction?: ReactNode;
+  readonly emptyRolesState?: ReactNode;
+  readonly className?: string;
+}
+
+export function WorkspaceInformationCard({
+  workspaceName,
+  workspaceAddress,
+  workspaceRoles,
+  rolesAction,
+  emptyRolesState,
+  className,
+}: WorkspaceInformationCardProps) {
+  return (
+    <div className={["space-y-6", className].filter(Boolean).join(" ")}>
+      <section className="space-y-2">
+        <p className="text-sm font-medium text-foreground">工作區名稱</p>
+        <div className="rounded-xl border border-border/40 bg-card/70 p-4 shadow-sm">
+          {workspaceName}
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <p className="text-sm font-medium text-foreground">工作區地址</p>
+        <div className="rounded-xl border border-border/40 bg-card/70 p-4 shadow-sm">
+          {workspaceAddress}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-foreground">工作區角色</p>
+            <Badge variant="secondary">{workspaceRoles.length}</Badge>
+          </div>
+          {rolesAction}
+        </div>
+
+        <div className="space-y-3 rounded-xl border border-border/40 bg-card/70 p-4 shadow-sm">
+          {workspaceRoles.length > 0 ? (
+            workspaceRoles.map((item) => (
+              <div
+                key={item.id}
+                className="grid gap-3 rounded-lg border border-border/30 bg-background/80 p-3 sm:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)_auto]"
+              >
+                <div className="min-w-0 space-y-1.5">
+                  <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                    角色名稱
+                  </p>
+                  <div className="min-w-0">{item.roleName}</div>
+                </div>
+
+                <div className="min-w-0 space-y-1.5">
+                  <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
+                    角色
+                  </p>
+                  <div className="min-w-0">{item.roleValue}</div>
+                </div>
+
+                {item.roleActions ? (
+                  <div className="flex items-start justify-end">{item.roleActions}</div>
+                ) : null}
+              </div>
+            ))
+          ) : (
+            emptyRolesState ?? (
+              <p className="text-sm text-muted-foreground">尚未設定任何工作區角色。</p>
+            )
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/cards/WorkspaceQuickstartCard.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+
+interface WorkspaceQuickstartCardProps {
+  readonly workspaceId: string;
+}
+
+export function WorkspaceQuickstartCard({ workspaceId }: WorkspaceQuickstartCardProps) {
+  return (
+    <Card className="border border-primary/20 bg-primary/5">
+      <CardHeader>
+        <CardTitle>🚀 開始使用這個工作區</CardTitle>
+        <CardDescription>完成以下步驟，讓工作區進入運作狀態。</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <p className="text-sm font-semibold">Step 1 · 上傳文件</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            先把原始文件上傳到 Files 分頁，作為知識基底。
+          </p>
+          <Button asChild size="sm" variant="outline" className="mt-3">
+            <Link href={`/workspace/${workspaceId}?tab=Files`}>前往 Files</Link>
+          </Button>
+        </div>
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <p className="text-sm font-semibold">Step 2 · 建立頁面</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            直接在工作區知識頁面建立第一個頁面，整理結構。
+          </p>
+          <Button asChild size="sm" variant="outline" className="mt-3">
+            <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspaceId)}`}>前往知識頁面</Link>
+          </Button>
+        </div>
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <p className="text-sm font-semibold">Step 3 · AI 查詢</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            用 RAG Query 對工作區知識提問，驗證內容可被檢索。
+          </p>
+          <Button asChild size="sm" variant="outline" className="mt-3">
+            <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspaceId)}`}>
+              前往 RAG Query
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/dialogs/CreateWorkspaceDialog.tsx
+````typescript
+"use client";
+
+import { type FormEvent } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+interface CreateWorkspaceDialogProps {
+  readonly open: boolean;
+  readonly workspaceName: string;
+  readonly createError: string | null;
+  readonly isCreatingWorkspace: boolean;
+  readonly accountId: string | null | undefined;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly onWorkspaceNameChange: (name: string) => void;
+  readonly onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}
+
+export function CreateWorkspaceDialog({
+  open,
+  workspaceName,
+  createError,
+  isCreatingWorkspace,
+  accountId,
+  onOpenChange,
+  onWorkspaceNameChange,
+  onSubmit,
+}: CreateWorkspaceDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent aria-describedby="create-workspace-description">
+        <DialogHeader>
+          <DialogTitle>建立工作區</DialogTitle>
+          <DialogDescription id="create-workspace-description">
+            建立後會直接出現在目前帳號的工作區清單中。
+          </DialogDescription>
+        </DialogHeader>
+
+        <form className="space-y-4" onSubmit={onSubmit}>
+          <div className="space-y-2">
+            <label
+              className="text-sm font-medium text-foreground"
+              htmlFor="workspace-name"
+            >
+              工作區名稱
+            </label>
+            <Input
+              id="workspace-name"
+              value={workspaceName}
+              onChange={(event) => onWorkspaceNameChange(event.target.value)}
+              placeholder="例如：北區營運中心"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+              disabled={isCreatingWorkspace}
+              maxLength={80}
+            />
+            {createError && (
+              <p className="text-sm text-destructive">{createError}</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isCreatingWorkspace}
+            >
+              取消
+            </Button>
+            <Button type="submit" disabled={isCreatingWorkspace || !accountId}>
+              {isCreatingWorkspace ? "建立中…" : "直接建立"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailRouteScreen.tsx
+````typescript
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+import { WorkspaceDetailScreen } from "./WorkspaceDetailScreen";
+
+interface WorkspaceDetailRouteScreenProps {
+  workspaceId: string;
+  accountId: string | null | undefined;
+  accountsHydrated: boolean;
+  initialTab?: string;
+  initialOverviewPanel?: string;
+}
+
+export function WorkspaceDetailRouteScreen({
+  workspaceId,
+  accountId,
+  accountsHydrated,
+  initialTab,
+  initialOverviewPanel,
+}: WorkspaceDetailRouteScreenProps) {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (initialTab === "Wiki" && workspaceId) {
+      router.replace(`/knowledge/pages?workspaceId=${encodeURIComponent(workspaceId)}`);
+    }
+  }, [initialTab, router, workspaceId]);
+
+  if (initialTab === "Wiki" && workspaceId) {
+    return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向工作區知識頁面…</div>;
+  }
+
+  return (
+    <WorkspaceDetailScreen
+      workspaceId={workspaceId}
+      accountId={accountId}
+      accountsHydrated={accountsHydrated}
+      initialTab={initialTab}
+      initialOverviewPanel={initialOverviewPanel}
+    />
+  );
+}
+````
+
 ## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
 ````typescript
 import { useEffect, useMemo, useState } from "react";
@@ -69630,546 +69925,6 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 // Purpose: Public entry point placeholder for platform subdomain 'workflow'.
 ````
 
-## File: modules/source/interfaces/components/WorkspaceFilesTab.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-
-import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
-import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
-import { getWorkspaceFiles } from "../queries/file.queries";
-import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
-import { uploadCompleteFile, uploadInitFile } from "../_actions/file.actions";
-import { FileProcessingDialog } from "./FileProcessingDialog";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { getFirebaseStorage } from "@integration-firebase";
-
-interface WorkspaceFilesTabProps {
-  readonly workspace: WorkspaceEntity;
-}
-
-interface PendingUploadProcessing {
-  readonly sourceFileId: string;
-  readonly filename: string;
-  readonly gcsUri: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-}
-
-export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
-  const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
-  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
-  const [pendingUploadProcessing, setPendingUploadProcessing] = useState<PendingUploadProcessing | null>(null);
-
-  const reloadFiles = useCallback(async () => {
-    setLoadState("loading");
-
-    try {
-      const nextAssets = await getWorkspaceFiles(workspace);
-      setAssets(nextAssets);
-      setLoadState("loaded");
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn(
-          "[WorkspaceFilesTab] Failed to load file metadata:",
-          error instanceof Error ? error.message : "unknown error",
-        );
-      }
-
-      setAssets([]);
-      setLoadState("error");
-    }
-  }, [workspace]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadFiles() {
-      await reloadFiles();
-      if (cancelled) {
-        return;
-      }
-    }
-
-    void loadFiles();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadFiles]);
-
-  async function handleUploadFile(file: File) {
-    const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
-    setUploadState("uploading");
-    setUploadMessage(null);
-
-    try {
-      const initResult = await uploadInitFile({
-        workspaceId: workspace.id,
-        organizationId,
-        actorAccountId: workspace.accountId,
-        fileName: file.name,
-        mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
-      });
-
-      if (!initResult.ok) {
-        setUploadState("error");
-        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);
-        return;
-      }
-
-      const storage = getFirebaseStorage();
-      const storageRef = ref(storage, initResult.data.uploadPath);
-      await uploadBytes(storageRef, file, {
-        contentType: file.type || "application/octet-stream",
-      });
-      await getDownloadURL(storageRef);
-
-      const completeResult = await uploadCompleteFile({
-        workspaceId: workspace.id,
-        organizationId,
-        actorAccountId: workspace.accountId,
-        fileId: initResult.data.fileId,
-        versionId: initResult.data.versionId,
-      });
-
-      if (!completeResult.ok) {
-        setUploadState("error");
-        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);
-        return;
-      }
-
-      setUploadState("success");
-      setUploadMessage(
-        `Uploaded ${file.name}; 接下來可由使用者決定是否解析、建立 RAG，或保留為單純檔案。`,
-      );
-      setPendingUploadProcessing({
-        sourceFileId: initResult.data.fileId,
-        filename: file.name,
-        gcsUri: `gs://${storageRef.bucket}/${storageRef.fullPath}`,
-        mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
-      });
-
-      await reloadFiles();
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceFilesTab] Upload flow failed:", error);
-      }
-      setUploadState("error");
-      setUploadMessage(
-        error instanceof Error
-          ? `Storage upload failed: ${error.message}`
-          : "Storage upload failed unexpectedly.",
-      );
-    }
-  }
-
-  const availableCount = useMemo(
-    () => assets.filter((asset) => asset.status === "active").length,
-    [assets],
-  );
-
-  return (
-    <Card className="border border-border/50">
-      <CardHeader>
-        <CardTitle>Files</CardTitle>
-        <CardDescription>
-          盤點目前已註冊或可立即導出的工作區資產，並提供 upload → storage → firestore 的完整流程入口。
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="rounded-xl border border-border/40 px-4 py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="space-y-1">
-              <Label htmlFor="workspace-file-upload" className="text-sm font-semibold text-foreground">
-                Upload file
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                This triggers upload-init, uploads binary to Storage, then writes completion + RAG registration to Firestore.
-              </p>
-            </div>
-            <Input
-              id="workspace-file-upload"
-              type="file"
-              className="max-w-xs"
-              disabled={uploadState === "uploading"}
-              onChange={(event) => {
-                const nextFile = event.target.files?.[0];
-                if (!nextFile) {
-                  return;
-                }
-
-                void handleUploadFile(nextFile);
-                event.currentTarget.value = "";
-              }}
-            />
-          </div>
-          {uploadMessage && (
-            <p
-              className={`mt-3 text-xs ${
-                uploadState === "error" ? "text-destructive" : "text-emerald-600"
-              }`}
-            >
-              {uploadMessage}
-            </p>
-          )}
-          {uploadState === "uploading" && (
-            <p className="mt-3 text-xs text-muted-foreground">Uploading and persisting metadata…</p>
-          )}
-        </div>
-
-        {loadState === "loading" && (
-          <p className="text-sm text-muted-foreground">Loading file metadata…</p>
-        )}
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">
-            無法載入已持久化的檔案資料，請稍後再試。
-          </p>
-        )}
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Registered assets</p>
-            <p className="mt-1 text-xl font-semibold">{assets.length}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Directly available</p>
-            <p className="mt-1 text-xl font-semibold">{availableCount}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Derived manifests</p>
-            <p className="mt-1 text-xl font-semibold">{assets.length - availableCount}</p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {loadState === "loaded" && assets.length === 0 && (
-            <div className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
-              尚未有持久化的檔案紀錄，後續 upload-init 流程會先在此建立 metadata。
-            </div>
-          )}
-
-          {assets.map((asset) => (
-            <div key={asset.id} className="rounded-xl border border-border/40 px-4 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-foreground">{asset.name}</p>
-                    <Badge variant={asset.status === "active" ? "secondary" : "outline"}>
-                      {asset.status}
-                    </Badge>
-                    <Badge variant="outline">{asset.kind}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{asset.detail}</p>
-                </div>
-                <div className="text-xs text-muted-foreground sm:text-right">
-                  <p>Source: {asset.source}</p>
-                  {asset.href && (
-                    <Button asChild variant="link" className="mt-1 inline-flex h-auto p-0 text-xs">
-                      <a href={asset.href} target="_blank" rel="noreferrer">
-                        Open asset
-                      </a>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-
-      {pendingUploadProcessing && (
-        <FileProcessingDialog
-          open
-          onClose={() => setPendingUploadProcessing(null)}
-          accountId={workspace.accountId}
-          workspaceId={workspace.id}
-          sourceFileId={pendingUploadProcessing.sourceFileId}
-          filename={pendingUploadProcessing.filename}
-          gcsUri={pendingUploadProcessing.gcsUri}
-          mimeType={pendingUploadProcessing.mimeType}
-          sizeBytes={pendingUploadProcessing.sizeBytes}
-        />
-      )}
-    </Card>
-  );
-}
-````
-
-## File: modules/source/interfaces/queries/file.queries.ts
-````typescript
-import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
-
-import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
-import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
-import { ListWorkspaceFilesUseCase } from "../../application/use-cases/list-workspace-files.use-case";
-import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
-import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
-import type { RagDocumentRecord } from "../../domain/repositories/RagDocumentRepository";
-
-export async function getWorkspaceFiles(workspace: WorkspaceEntity): Promise<WorkspaceFileListItemDto[]> {
-  const listWorkspaceFilesUseCase = new ListWorkspaceFilesUseCase(new FirebaseFileRepository());
-  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
-
-  return listWorkspaceFilesUseCase.execute({
-    workspaceId: workspace.id,
-    organizationId,
-    actorAccountId: workspace.accountId,
-  });
-}
-
-export async function getWorkspaceRagDocuments(
-  workspace: WorkspaceEntity,
-): Promise<readonly RagDocumentRecord[]> {
-  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
-  const repo = new FirebaseRagDocumentRepository();
-
-  return repo.findByWorkspace({
-    organizationId,
-    workspaceId: workspace.id,
-  });
-}
-````
-
-## File: modules/workspace-scheduling/interfaces/WorkspaceSchedulingTab.tsx
-````typescript
-"use client";
-
-/**
- * Module: workspace-scheduling
- * Layer: interfaces
- * Purpose: Workspace (tenant) view — submit demands, view own schedule.
- *
- * Occam's Razor: calendar + quick-capture form only.
- * No complex state machines — useState + server actions.
- */
-
-import { useCallback, useEffect, useState } from "react";
-
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Plus } from "lucide-react";
-
-import type { WorkspaceEntity } from "@/modules/workspace/interfaces/api";
-
-import type { WorkDemand } from "../domain/types";
-import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../domain/types";
-import { submitWorkDemand } from "./_actions/work-demand.actions";
-import { getWorkspaceDemands } from "./queries/work-demand.queries";
-import { CalendarWidget } from "./components/CalendarWidget";
-import { CreateDemandForm } from "./components/CreateDemandForm";
-import type { CreateDemandFormValues } from "./components/CreateDemandForm";
-
-// ── Status badge variant ──────────────────────────────────────────────────────
-
-const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "outline" | "destructive"> = {
-  draft: "outline",
-  open: "secondary",
-  in_progress: "default",
-  completed: "default",
-};
-
-const PRIORITY_CLASS: Record<WorkDemand["priority"], string> = {
-  low: "text-muted-foreground",
-  medium: "text-amber-600",
-  high: "text-red-600",
-};
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-interface WorkspaceSchedulingTabProps {
-  readonly workspace: WorkspaceEntity;
-  /** Account ID for scoping demands. */
-  readonly accountId: string;
-  /** ID of the current user (requesterId). */
-  readonly currentUserId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function WorkspaceSchedulingTab({
-  workspace,
-  accountId,
-  currentUserId,
-}: WorkspaceSchedulingTabProps) {
-  const [demands, setDemands] = useState<WorkDemand[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [formOpen, setFormOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const loadDemands = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const data = await getWorkspaceDemands(workspace.id);
-      setDemands(data);
-      setLoadState("loaded");
-    } catch {
-      setLoadState("error");
-    }
-  }, [workspace.id]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      if (!cancelled) await loadDemands();
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadDemands]);
-
-  function handleDayClick(date: Date) {
-    setSelectedDate(date);
-    setFormOpen(true);
-  }
-
-  function handleNewDemand() {
-    setSelectedDate(undefined);
-    setFormOpen(true);
-  }
-
-  async function handleSubmit(values: CreateDemandFormValues) {
-    setActionError(null);
-    const result = await submitWorkDemand({
-      workspaceId: workspace.id,
-      accountId,
-      requesterId: currentUserId,
-      title: values.title,
-      description: values.description,
-      priority: values.priority,
-      scheduledAt: values.scheduledAt,
-    });
-    if (!result.success) {
-      throw new Error(result.error.message);
-    }
-    await loadDemands();
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">{workspace.name} — 工作規劃</h2>
-          <p className="text-sm text-muted-foreground">
-            點擊日期或「新增需求」快速建立工作需求。
-          </p>
-        </div>
-        <Button size="sm" onClick={handleNewDemand}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          新增需求
-        </Button>
-      </div>
-
-      {actionError && (
-        <p role="alert" className="text-sm text-destructive">
-          {actionError}
-        </p>
-      )}
-
-      {/* ── Calendar ───────────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">排程日曆</CardTitle>
-          <CardDescription className="text-xs">
-            點擊日期快速排程新需求
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loadState === "loading" ? (
-            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-              載入中…
-            </div>
-          ) : (
-            <CalendarWidget demands={demands} onDayClick={handleDayClick} />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── Demand list ────────────────────────────────────────────────── */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          需求列表 ({demands.length})
-        </h3>
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">載入失敗，請重新整理。</p>
-        )}
-
-        {loadState === "loaded" && demands.length === 0 && (
-          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            目前尚無需求。點擊日曆日期或「新增需求」開始排程。
-          </div>
-        )}
-
-        {demands.map((demand) => (
-          <div
-            key={demand.id}
-            className="flex items-start justify-between rounded-lg border border-border/60 bg-card px-4 py-3"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium text-sm">{demand.title}</p>
-              {demand.description && (
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {demand.description}
-                </p>
-              )}
-              <p className="mt-1 text-xs text-muted-foreground">
-                排程日期：{demand.scheduledAt}
-              </p>
-            </div>
-            <div className="ml-4 flex shrink-0 flex-col items-end gap-1.5">
-              <Badge variant={STATUS_VARIANT[demand.status]}>
-                {DEMAND_STATUS_LABELS[demand.status]}
-              </Badge>
-              <span className={`text-xs font-medium ${PRIORITY_CLASS[demand.priority]}`}>
-                {DEMAND_PRIORITY_LABELS[demand.priority]}優先
-              </span>
-              {demand.assignedUserId && (
-                <span className="text-xs text-muted-foreground">已指派</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Create form dialog ─────────────────────────────────────────── */}
-      <CreateDemandForm
-        open={formOpen}
-        initialDate={selectedDate}
-        onClose={() => setFormOpen(false)}
-        onSubmit={handleSubmit}
-      />
-    </div>
-  );
-}
-````
-
 ## File: modules/workspace/aggregates.md
 ````markdown
 # Aggregates — workspace
@@ -70331,6 +70086,87 @@ Domain services:
 The directory exists as the canonical place for domain-service evolution; event publishing, repository access, and process orchestration remain outside domain services.
 ````
 
+## File: modules/workspace/interfaces/api/actions/workspace.command.ts
+````typescript
+"use server";
+
+/**
+ * Workspace Server Actions — thin adapter: Next.js Server Actions → Input Port.
+ */
+
+import type { CommandResult } from "@shared-types";
+import type {
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  Capability,
+  WorkspaceGrant,
+  WorkspaceLocation,
+} from "../contracts";
+import { workspaceCommandPort } from "../runtime";
+
+export async function createWorkspace(command: CreateWorkspaceCommand): Promise<CommandResult> {
+  return workspaceCommandPort.createWorkspace(command);
+}
+
+export async function createWorkspaceWithCapabilities(
+  command: CreateWorkspaceCommand,
+  capabilities: Capability[],
+): Promise<CommandResult> {
+  return workspaceCommandPort.createWorkspaceWithCapabilities(command, capabilities);
+}
+
+export async function updateWorkspaceSettings(
+  command: UpdateWorkspaceSettingsCommand,
+): Promise<CommandResult> {
+  return workspaceCommandPort.updateWorkspaceSettings(command);
+}
+
+export async function deleteWorkspace(workspaceId: string): Promise<CommandResult> {
+  return workspaceCommandPort.deleteWorkspace(workspaceId);
+}
+
+export async function mountCapabilities(
+  workspaceId: string,
+  capabilities: Capability[],
+): Promise<CommandResult> {
+  return workspaceCommandPort.mountCapabilities(workspaceId, capabilities);
+}
+
+export async function authorizeWorkspaceTeam(
+  workspaceId: string,
+  teamId: string,
+): Promise<CommandResult> {
+  return workspaceCommandPort.authorizeWorkspaceTeam(workspaceId, teamId);
+}
+
+export async function grantIndividualWorkspaceAccess(
+  workspaceId: string,
+  grant: WorkspaceGrant,
+): Promise<CommandResult> {
+  return workspaceCommandPort.grantIndividualWorkspaceAccess(workspaceId, grant);
+}
+
+export async function createWorkspaceLocation(
+  workspaceId: string,
+  location: Omit<WorkspaceLocation, "locationId">,
+): Promise<CommandResult> {
+  return workspaceCommandPort.createWorkspaceLocation(workspaceId, location);
+}
+````
+
+## File: modules/workspace/interfaces/api/contracts/index.ts
+````typescript
+/**
+ * workspace API contracts.
+ *
+ * Pure public type/contracts surface for cross-module and adapter consumption.
+ */
+
+export * from "./workspace.contract";
+export * from "./workspace-member.contract";
+export * from "./wiki-content.contract";
+````
+
 ## File: modules/workspace/interfaces/api/contracts/wiki-content.contract.ts
 ````typescript
 export type {
@@ -70405,10 +70241,126 @@ export {
 } from "../../../domain/events/workspace.events";
 ````
 
+## File: modules/workspace/interfaces/api/facades/index.ts
+````typescript
+/**
+ * workspace API facade.
+ *
+ * Public behavior entrypoints (commands/queries) exposed to callers.
+ */
+
+export * from "./workspace.facade";
+export * from "./workspace-member.facade";
+````
+
+## File: modules/workspace/interfaces/api/queries/wiki-content-tree.query.ts
+````typescript
+import type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+} from "../contracts";
+import { workspaceQueryPort } from "../runtime";
+
+export function buildWikiContentTree(
+  seeds: WikiAccountSeed[],
+): Promise<WikiAccountContentNode[]> {
+  return workspaceQueryPort.buildWikiContentTree(seeds);
+}
+````
+
+## File: modules/workspace/interfaces/api/queries/workspace-member.query.ts
+````typescript
+import type { WorkspaceMemberView } from "../contracts";
+import { workspaceQueryPort } from "../runtime";
+
+export async function getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
+  const normalizedWorkspaceId = workspaceId.trim();
+  if (!normalizedWorkspaceId) {
+    return [];
+  }
+
+  return workspaceQueryPort.getWorkspaceMembers(normalizedWorkspaceId);
+}
+````
+
+## File: modules/workspace/interfaces/api/queries/workspace.query.ts
+````typescript
+/**
+ * Workspace Read Queries — thin wrappers exposing read operations through the input port.
+ */
+
+import type { WorkspaceEntity } from "../contracts";
+import { workspaceQueryPort } from "../runtime";
+
+export async function getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]> {
+  return workspaceQueryPort.getWorkspacesForAccount(accountId);
+}
+
+export function subscribeToWorkspacesForAccount(
+  accountId: string,
+  onUpdate: (workspaces: WorkspaceEntity[]) => void,
+) {
+  return workspaceQueryPort.subscribeToWorkspacesForAccount(accountId, onUpdate);
+}
+
+export async function getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null> {
+  return workspaceQueryPort.getWorkspaceById(workspaceId);
+}
+
+export async function getWorkspaceByIdForAccount(
+  accountId: string,
+  workspaceId: string,
+): Promise<WorkspaceEntity | null> {
+  return workspaceQueryPort.getWorkspaceByIdForAccount(accountId, workspaceId);
+}
+````
+
 ## File: modules/workspace/interfaces/api/runtime/index.ts
 ````typescript
 export * from "./workspace-runtime";
 export * from "./workspace-session-context";
+````
+
+## File: modules/workspace/interfaces/api/runtime/workspace-runtime.ts
+````typescript
+import { WorkspaceCommandApplicationService } from "../../../application/services/WorkspaceCommandApplicationService";
+import { WorkspaceQueryApplicationService } from "../../../application/services/WorkspaceQueryApplicationService";
+import { SharedWorkspaceDomainEventPublisher } from "../../../infrastructure/events/SharedWorkspaceDomainEventPublisher";
+import { FirebaseWikiWorkspaceRepository } from "../../../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
+import { FirebaseWorkspaceQueryRepository } from "../../../infrastructure/firebase/FirebaseWorkspaceQueryRepository";
+import { FirebaseWorkspaceRepository } from "../../../infrastructure/firebase/FirebaseWorkspaceRepository";
+import type { WorkspaceCommandPort } from "../../../ports/input/WorkspaceCommandPort";
+import type { WorkspaceQueryPort } from "../../../ports/input/WorkspaceQueryPort";
+import { createWorkspaceSessionContext } from "./workspace-session-context";
+
+const workspaceRepo = new FirebaseWorkspaceRepository();
+const workspaceQueryRepo = new FirebaseWorkspaceQueryRepository();
+const wikiWorkspaceRepo = new FirebaseWikiWorkspaceRepository();
+const workspaceDomainEventPublisher = new SharedWorkspaceDomainEventPublisher();
+
+const workspaceCommandPort: WorkspaceCommandPort = new WorkspaceCommandApplicationService({
+  workspaceRepo,
+  workspaceCapabilityRepo: workspaceRepo,
+  workspaceAccessRepo: workspaceRepo,
+  workspaceLocationRepo: workspaceRepo,
+  workspaceDomainEventPublisher,
+});
+
+const workspaceQueryPort: WorkspaceQueryPort = new WorkspaceQueryApplicationService({
+  workspaceRepo,
+  workspaceQueryRepo,
+  wikiWorkspaceRepo,
+});
+
+export const workspaceSessionContext = createWorkspaceSessionContext(
+  workspaceCommandPort,
+  workspaceQueryPort,
+);
+
+export const { workspaceCommandPort: commandPort, workspaceQueryPort: queryPort } =
+  workspaceSessionContext;
+
+export { commandPort as workspaceCommandPort, queryPort as workspaceQueryPort };
 ````
 
 ## File: modules/workspace/interfaces/api/runtime/workspace-session-context.ts
@@ -70429,253 +70381,6 @@ export function createWorkspaceSessionContext(
     workspaceCommandPort,
     workspaceQueryPort,
   };
-}
-````
-
-## File: modules/workspace/interfaces/web/components/cards/WorkspaceInformationCard.tsx
-````typescript
-"use client";
-
-import type { ReactNode } from "react";
-
-import { Badge } from "@ui-shadcn/ui/badge";
-
-export interface WorkspaceInformationRoleItem {
-  readonly id: string;
-  readonly roleName: ReactNode;
-  readonly roleValue: ReactNode;
-  readonly roleActions?: ReactNode;
-}
-
-interface WorkspaceInformationCardProps {
-  readonly workspaceName: ReactNode;
-  readonly workspaceAddress: ReactNode;
-  readonly workspaceRoles: WorkspaceInformationRoleItem[];
-  readonly rolesAction?: ReactNode;
-  readonly emptyRolesState?: ReactNode;
-  readonly className?: string;
-}
-
-export function WorkspaceInformationCard({
-  workspaceName,
-  workspaceAddress,
-  workspaceRoles,
-  rolesAction,
-  emptyRolesState,
-  className,
-}: WorkspaceInformationCardProps) {
-  return (
-    <div className={["space-y-6", className].filter(Boolean).join(" ")}>
-      <section className="space-y-2">
-        <p className="text-sm font-medium text-foreground">工作區名稱</p>
-        <div className="rounded-xl border border-border/40 bg-card/70 p-4 shadow-sm">
-          {workspaceName}
-        </div>
-      </section>
-
-      <section className="space-y-2">
-        <p className="text-sm font-medium text-foreground">工作區地址</p>
-        <div className="rounded-xl border border-border/40 bg-card/70 p-4 shadow-sm">
-          {workspaceAddress}
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-foreground">工作區角色</p>
-            <Badge variant="secondary">{workspaceRoles.length}</Badge>
-          </div>
-          {rolesAction}
-        </div>
-
-        <div className="space-y-3 rounded-xl border border-border/40 bg-card/70 p-4 shadow-sm">
-          {workspaceRoles.length > 0 ? (
-            workspaceRoles.map((item) => (
-              <div
-                key={item.id}
-                className="grid gap-3 rounded-lg border border-border/30 bg-background/80 p-3 sm:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)_auto]"
-              >
-                <div className="min-w-0 space-y-1.5">
-                  <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                    角色名稱
-                  </p>
-                  <div className="min-w-0">{item.roleName}</div>
-                </div>
-
-                <div className="min-w-0 space-y-1.5">
-                  <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                    角色
-                  </p>
-                  <div className="min-w-0">{item.roleValue}</div>
-                </div>
-
-                {item.roleActions ? (
-                  <div className="flex items-start justify-end">{item.roleActions}</div>
-                ) : null}
-              </div>
-            ))
-          ) : (
-            emptyRolesState ?? (
-              <p className="text-sm text-muted-foreground">尚未設定任何工作區角色。</p>
-            )
-          )}
-        </div>
-      </section>
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/cards/WorkspaceQuickstartCard.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-
-interface WorkspaceQuickstartCardProps {
-  readonly workspaceId: string;
-}
-
-export function WorkspaceQuickstartCard({ workspaceId }: WorkspaceQuickstartCardProps) {
-  return (
-    <Card className="border border-primary/20 bg-primary/5">
-      <CardHeader>
-        <CardTitle>🚀 開始使用這個工作區</CardTitle>
-        <CardDescription>完成以下步驟，讓工作區進入運作狀態。</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-border/40 px-4 py-4">
-          <p className="text-sm font-semibold">Step 1 · 上傳文件</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            先把原始文件上傳到 Files 分頁，作為知識基底。
-          </p>
-          <Button asChild size="sm" variant="outline" className="mt-3">
-            <Link href={`/workspace/${workspaceId}?tab=Files`}>前往 Files</Link>
-          </Button>
-        </div>
-        <div className="rounded-xl border border-border/40 px-4 py-4">
-          <p className="text-sm font-semibold">Step 2 · 建立頁面</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            直接在工作區知識頁面建立第一個頁面，整理結構。
-          </p>
-          <Button asChild size="sm" variant="outline" className="mt-3">
-            <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspaceId)}`}>前往知識頁面</Link>
-          </Button>
-        </div>
-        <div className="rounded-xl border border-border/40 px-4 py-4">
-          <p className="text-sm font-semibold">Step 3 · AI 查詢</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            用 RAG Query 對工作區知識提問，驗證內容可被檢索。
-          </p>
-          <Button asChild size="sm" variant="outline" className="mt-3">
-            <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspaceId)}`}>
-              前往 RAG Query
-            </Link>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/dialogs/CreateWorkspaceDialog.tsx
-````typescript
-"use client";
-
-import { type FormEvent } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-interface CreateWorkspaceDialogProps {
-  readonly open: boolean;
-  readonly workspaceName: string;
-  readonly createError: string | null;
-  readonly isCreatingWorkspace: boolean;
-  readonly accountId: string | null | undefined;
-  readonly onOpenChange: (open: boolean) => void;
-  readonly onWorkspaceNameChange: (name: string) => void;
-  readonly onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}
-
-export function CreateWorkspaceDialog({
-  open,
-  workspaceName,
-  createError,
-  isCreatingWorkspace,
-  accountId,
-  onOpenChange,
-  onWorkspaceNameChange,
-  onSubmit,
-}: CreateWorkspaceDialogProps) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-describedby="create-workspace-description">
-        <DialogHeader>
-          <DialogTitle>建立工作區</DialogTitle>
-          <DialogDescription id="create-workspace-description">
-            建立後會直接出現在目前帳號的工作區清單中。
-          </DialogDescription>
-        </DialogHeader>
-
-        <form className="space-y-4" onSubmit={onSubmit}>
-          <div className="space-y-2">
-            <label
-              className="text-sm font-medium text-foreground"
-              htmlFor="workspace-name"
-            >
-              工作區名稱
-            </label>
-            <Input
-              id="workspace-name"
-              value={workspaceName}
-              onChange={(event) => onWorkspaceNameChange(event.target.value)}
-              placeholder="例如：北區營運中心"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-              disabled={isCreatingWorkspace}
-              maxLength={80}
-            />
-            {createError && (
-              <p className="text-sm text-destructive">{createError}</p>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isCreatingWorkspace}
-            >
-              取消
-            </Button>
-            <Button type="submit" disabled={isCreatingWorkspace || !accountId}>
-              {isCreatingWorkspace ? "建立中…" : "直接建立"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
 }
 ````
 
@@ -70763,54 +70468,6 @@ export function buildWorkspaceQuickAccessItems(workspaceId: string): WorkspaceQu
     ...item,
     href: item.href.replaceAll("{workspaceId}", encodedWorkspaceId),
   }));
-}
-````
-
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailRouteScreen.tsx
-````typescript
-"use client";
-
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
-import { WorkspaceDetailScreen } from "./WorkspaceDetailScreen";
-
-interface WorkspaceDetailRouteScreenProps {
-  workspaceId: string;
-  accountId: string | null | undefined;
-  accountsHydrated: boolean;
-  initialTab?: string;
-  initialOverviewPanel?: string;
-}
-
-export function WorkspaceDetailRouteScreen({
-  workspaceId,
-  accountId,
-  accountsHydrated,
-  initialTab,
-  initialOverviewPanel,
-}: WorkspaceDetailRouteScreenProps) {
-  const router = useRouter();
-
-  useEffect(() => {
-    if (initialTab === "Wiki" && workspaceId) {
-      router.replace(`/knowledge/pages?workspaceId=${encodeURIComponent(workspaceId)}`);
-    }
-  }, [initialTab, router, workspaceId]);
-
-  if (initialTab === "Wiki" && workspaceId) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向工作區知識頁面…</div>;
-  }
-
-  return (
-    <WorkspaceDetailScreen
-      workspaceId={workspaceId}
-      accountId={accountId}
-      accountsHydrated={accountsHydrated}
-      initialTab={initialTab}
-      initialOverviewPanel={initialOverviewPanel}
-    />
-  );
 }
 ````
 
@@ -75570,6 +75227,546 @@ export type PlatformSubdomain = (typeof PLATFORM_SUBDOMAIN_INVENTORY)[number];
 
 ````
 
+## File: modules/source/interfaces/components/WorkspaceFilesTab.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
+import { getWorkspaceFiles } from "../queries/file.queries";
+import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
+import { uploadCompleteFile, uploadInitFile } from "../_actions/file.actions";
+import { FileProcessingDialog } from "./FileProcessingDialog";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { getFirebaseStorage } from "@integration-firebase";
+
+interface WorkspaceFilesTabProps {
+  readonly workspace: WorkspaceEntity;
+}
+
+interface PendingUploadProcessing {
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+
+export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
+  const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [pendingUploadProcessing, setPendingUploadProcessing] = useState<PendingUploadProcessing | null>(null);
+
+  const reloadFiles = useCallback(async () => {
+    setLoadState("loading");
+
+    try {
+      const nextAssets = await getWorkspaceFiles(workspace);
+      setAssets(nextAssets);
+      setLoadState("loaded");
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          "[WorkspaceFilesTab] Failed to load file metadata:",
+          error instanceof Error ? error.message : "unknown error",
+        );
+      }
+
+      setAssets([]);
+      setLoadState("error");
+    }
+  }, [workspace]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFiles() {
+      await reloadFiles();
+      if (cancelled) {
+        return;
+      }
+    }
+
+    void loadFiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadFiles]);
+
+  async function handleUploadFile(file: File) {
+    const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
+    setUploadState("uploading");
+    setUploadMessage(null);
+
+    try {
+      const initResult = await uploadInitFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      });
+
+      if (!initResult.ok) {
+        setUploadState("error");
+        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);
+        return;
+      }
+
+      const storage = getFirebaseStorage();
+      const storageRef = ref(storage, initResult.data.uploadPath);
+      await uploadBytes(storageRef, file, {
+        contentType: file.type || "application/octet-stream",
+      });
+      await getDownloadURL(storageRef);
+
+      const completeResult = await uploadCompleteFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileId: initResult.data.fileId,
+        versionId: initResult.data.versionId,
+      });
+
+      if (!completeResult.ok) {
+        setUploadState("error");
+        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);
+        return;
+      }
+
+      setUploadState("success");
+      setUploadMessage(
+        `Uploaded ${file.name}; 接下來可由使用者決定是否解析、建立 RAG，或保留為單純檔案。`,
+      );
+      setPendingUploadProcessing({
+        sourceFileId: initResult.data.fileId,
+        filename: file.name,
+        gcsUri: `gs://${storageRef.bucket}/${storageRef.fullPath}`,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      });
+
+      await reloadFiles();
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceFilesTab] Upload flow failed:", error);
+      }
+      setUploadState("error");
+      setUploadMessage(
+        error instanceof Error
+          ? `Storage upload failed: ${error.message}`
+          : "Storage upload failed unexpectedly.",
+      );
+    }
+  }
+
+  const availableCount = useMemo(
+    () => assets.filter((asset) => asset.status === "active").length,
+    [assets],
+  );
+
+  return (
+    <Card className="border border-border/50">
+      <CardHeader>
+        <CardTitle>Files</CardTitle>
+        <CardDescription>
+          盤點目前已註冊或可立即導出的工作區資產，並提供 upload → storage → firestore 的完整流程入口。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="workspace-file-upload" className="text-sm font-semibold text-foreground">
+                Upload file
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                This triggers upload-init, uploads binary to Storage, then writes completion + RAG registration to Firestore.
+              </p>
+            </div>
+            <Input
+              id="workspace-file-upload"
+              type="file"
+              className="max-w-xs"
+              disabled={uploadState === "uploading"}
+              onChange={(event) => {
+                const nextFile = event.target.files?.[0];
+                if (!nextFile) {
+                  return;
+                }
+
+                void handleUploadFile(nextFile);
+                event.currentTarget.value = "";
+              }}
+            />
+          </div>
+          {uploadMessage && (
+            <p
+              className={`mt-3 text-xs ${
+                uploadState === "error" ? "text-destructive" : "text-emerald-600"
+              }`}
+            >
+              {uploadMessage}
+            </p>
+          )}
+          {uploadState === "uploading" && (
+            <p className="mt-3 text-xs text-muted-foreground">Uploading and persisting metadata…</p>
+          )}
+        </div>
+
+        {loadState === "loading" && (
+          <p className="text-sm text-muted-foreground">Loading file metadata…</p>
+        )}
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">
+            無法載入已持久化的檔案資料，請稍後再試。
+          </p>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Registered assets</p>
+            <p className="mt-1 text-xl font-semibold">{assets.length}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Directly available</p>
+            <p className="mt-1 text-xl font-semibold">{availableCount}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Derived manifests</p>
+            <p className="mt-1 text-xl font-semibold">{assets.length - availableCount}</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {loadState === "loaded" && assets.length === 0 && (
+            <div className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
+              尚未有持久化的檔案紀錄，後續 upload-init 流程會先在此建立 metadata。
+            </div>
+          )}
+
+          {assets.map((asset) => (
+            <div key={asset.id} className="rounded-xl border border-border/40 px-4 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground">{asset.name}</p>
+                    <Badge variant={asset.status === "active" ? "secondary" : "outline"}>
+                      {asset.status}
+                    </Badge>
+                    <Badge variant="outline">{asset.kind}</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{asset.detail}</p>
+                </div>
+                <div className="text-xs text-muted-foreground sm:text-right">
+                  <p>Source: {asset.source}</p>
+                  {asset.href && (
+                    <Button asChild variant="link" className="mt-1 inline-flex h-auto p-0 text-xs">
+                      <a href={asset.href} target="_blank" rel="noreferrer">
+                        Open asset
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+
+      {pendingUploadProcessing && (
+        <FileProcessingDialog
+          open
+          onClose={() => setPendingUploadProcessing(null)}
+          accountId={workspace.accountId}
+          workspaceId={workspace.id}
+          sourceFileId={pendingUploadProcessing.sourceFileId}
+          filename={pendingUploadProcessing.filename}
+          gcsUri={pendingUploadProcessing.gcsUri}
+          mimeType={pendingUploadProcessing.mimeType}
+          sizeBytes={pendingUploadProcessing.sizeBytes}
+        />
+      )}
+    </Card>
+  );
+}
+````
+
+## File: modules/source/interfaces/queries/file.queries.ts
+````typescript
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
+import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
+import { ListWorkspaceFilesUseCase } from "../../application/use-cases/list-workspace-files.use-case";
+import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
+import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
+import type { RagDocumentRecord } from "../../domain/repositories/RagDocumentRepository";
+
+export async function getWorkspaceFiles(workspace: WorkspaceEntity): Promise<WorkspaceFileListItemDto[]> {
+  const listWorkspaceFilesUseCase = new ListWorkspaceFilesUseCase(new FirebaseFileRepository());
+  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
+
+  return listWorkspaceFilesUseCase.execute({
+    workspaceId: workspace.id,
+    organizationId,
+    actorAccountId: workspace.accountId,
+  });
+}
+
+export async function getWorkspaceRagDocuments(
+  workspace: WorkspaceEntity,
+): Promise<readonly RagDocumentRecord[]> {
+  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
+  const repo = new FirebaseRagDocumentRepository();
+
+  return repo.findByWorkspace({
+    organizationId,
+    workspaceId: workspace.id,
+  });
+}
+````
+
+## File: modules/workspace-scheduling/interfaces/WorkspaceSchedulingTab.tsx
+````typescript
+"use client";
+
+/**
+ * Module: workspace-scheduling
+ * Layer: interfaces
+ * Purpose: Workspace (tenant) view — submit demands, view own schedule.
+ *
+ * Occam's Razor: calendar + quick-capture form only.
+ * No complex state machines — useState + server actions.
+ */
+
+import { useCallback, useEffect, useState } from "react";
+
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Plus } from "lucide-react";
+
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+import type { WorkDemand } from "../domain/types";
+import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../domain/types";
+import { submitWorkDemand } from "./_actions/work-demand.actions";
+import { getWorkspaceDemands } from "./queries/work-demand.queries";
+import { CalendarWidget } from "./components/CalendarWidget";
+import { CreateDemandForm } from "./components/CreateDemandForm";
+import type { CreateDemandFormValues } from "./components/CreateDemandForm";
+
+// ── Status badge variant ──────────────────────────────────────────────────────
+
+const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "outline" | "destructive"> = {
+  draft: "outline",
+  open: "secondary",
+  in_progress: "default",
+  completed: "default",
+};
+
+const PRIORITY_CLASS: Record<WorkDemand["priority"], string> = {
+  low: "text-muted-foreground",
+  medium: "text-amber-600",
+  high: "text-red-600",
+};
+
+// ── Props ─────────────────────────────────────────────────────────────────────
+
+interface WorkspaceSchedulingTabProps {
+  readonly workspace: WorkspaceEntity;
+  /** Account ID for scoping demands. */
+  readonly accountId: string;
+  /** ID of the current user (requesterId). */
+  readonly currentUserId: string;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function WorkspaceSchedulingTab({
+  workspace,
+  accountId,
+  currentUserId,
+}: WorkspaceSchedulingTabProps) {
+  const [demands, setDemands] = useState<WorkDemand[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [formOpen, setFormOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadDemands = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const data = await getWorkspaceDemands(workspace.id);
+      setDemands(data);
+      setLoadState("loaded");
+    } catch {
+      setLoadState("error");
+    }
+  }, [workspace.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!cancelled) await loadDemands();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadDemands]);
+
+  function handleDayClick(date: Date) {
+    setSelectedDate(date);
+    setFormOpen(true);
+  }
+
+  function handleNewDemand() {
+    setSelectedDate(undefined);
+    setFormOpen(true);
+  }
+
+  async function handleSubmit(values: CreateDemandFormValues) {
+    setActionError(null);
+    const result = await submitWorkDemand({
+      workspaceId: workspace.id,
+      accountId,
+      requesterId: currentUserId,
+      title: values.title,
+      description: values.description,
+      priority: values.priority,
+      scheduledAt: values.scheduledAt,
+    });
+    if (!result.success) {
+      throw new Error(result.error.message);
+    }
+    await loadDemands();
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">{workspace.name} — 工作規劃</h2>
+          <p className="text-sm text-muted-foreground">
+            點擊日期或「新增需求」快速建立工作需求。
+          </p>
+        </div>
+        <Button size="sm" onClick={handleNewDemand}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          新增需求
+        </Button>
+      </div>
+
+      {actionError && (
+        <p role="alert" className="text-sm text-destructive">
+          {actionError}
+        </p>
+      )}
+
+      {/* ── Calendar ───────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">排程日曆</CardTitle>
+          <CardDescription className="text-xs">
+            點擊日期快速排程新需求
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadState === "loading" ? (
+            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+              載入中…
+            </div>
+          ) : (
+            <CalendarWidget demands={demands} onDayClick={handleDayClick} />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Demand list ────────────────────────────────────────────────── */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          需求列表 ({demands.length})
+        </h3>
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">載入失敗，請重新整理。</p>
+        )}
+
+        {loadState === "loaded" && demands.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            目前尚無需求。點擊日曆日期或「新增需求」開始排程。
+          </div>
+        )}
+
+        {demands.map((demand) => (
+          <div
+            key={demand.id}
+            className="flex items-start justify-between rounded-lg border border-border/60 bg-card px-4 py-3"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium text-sm">{demand.title}</p>
+              {demand.description && (
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {demand.description}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                排程日期：{demand.scheduledAt}
+              </p>
+            </div>
+            <div className="ml-4 flex shrink-0 flex-col items-end gap-1.5">
+              <Badge variant={STATUS_VARIANT[demand.status]}>
+                {DEMAND_STATUS_LABELS[demand.status]}
+              </Badge>
+              <span className={`text-xs font-medium ${PRIORITY_CLASS[demand.priority]}`}>
+                {DEMAND_PRIORITY_LABELS[demand.priority]}優先
+              </span>
+              {demand.assignedUserId && (
+                <span className="text-xs text-muted-foreground">已指派</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Create form dialog ─────────────────────────────────────────── */}
+      <CreateDemandForm
+        open={formOpen}
+        initialDate={selectedDate}
+        onClose={() => setFormOpen(false)}
+        onSubmit={handleSubmit}
+      />
+    </div>
+  );
+}
+````
+
 ## File: modules/workspace/application-services.md
 ````markdown
 # Application Services — workspace
@@ -75635,74 +75832,6 @@ This file defines the application-layer contract of the workspace bounded contex
 Do not move domain invariants into application services.
 ````
 
-## File: modules/workspace/interfaces/api/actions/workspace.command.ts
-````typescript
-"use server";
-
-/**
- * Workspace Server Actions — thin adapter: Next.js Server Actions → Input Port.
- */
-
-import type { CommandResult } from "@shared-types";
-import type {
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  Capability,
-  WorkspaceGrant,
-  WorkspaceLocation,
-} from "../contracts";
-import { workspaceCommandPort } from "../runtime";
-
-export async function createWorkspace(command: CreateWorkspaceCommand): Promise<CommandResult> {
-  return workspaceCommandPort.createWorkspace(command);
-}
-
-export async function createWorkspaceWithCapabilities(
-  command: CreateWorkspaceCommand,
-  capabilities: Capability[],
-): Promise<CommandResult> {
-  return workspaceCommandPort.createWorkspaceWithCapabilities(command, capabilities);
-}
-
-export async function updateWorkspaceSettings(
-  command: UpdateWorkspaceSettingsCommand,
-): Promise<CommandResult> {
-  return workspaceCommandPort.updateWorkspaceSettings(command);
-}
-
-export async function deleteWorkspace(workspaceId: string): Promise<CommandResult> {
-  return workspaceCommandPort.deleteWorkspace(workspaceId);
-}
-
-export async function mountCapabilities(
-  workspaceId: string,
-  capabilities: Capability[],
-): Promise<CommandResult> {
-  return workspaceCommandPort.mountCapabilities(workspaceId, capabilities);
-}
-
-export async function authorizeWorkspaceTeam(
-  workspaceId: string,
-  teamId: string,
-): Promise<CommandResult> {
-  return workspaceCommandPort.authorizeWorkspaceTeam(workspaceId, teamId);
-}
-
-export async function grantIndividualWorkspaceAccess(
-  workspaceId: string,
-  grant: WorkspaceGrant,
-): Promise<CommandResult> {
-  return workspaceCommandPort.grantIndividualWorkspaceAccess(workspaceId, grant);
-}
-
-export async function createWorkspaceLocation(
-  workspaceId: string,
-  location: Omit<WorkspaceLocation, "locationId">,
-): Promise<CommandResult> {
-  return workspaceCommandPort.createWorkspaceLocation(workspaceId, location);
-}
-````
-
 ## File: modules/workspace/interfaces/api/AGENT.md
 ````markdown
 # interfaces/api — API Driving Adapters
@@ -75761,31 +75890,6 @@ interfaces/api/runtime
 ```
 
 只有 `runtime/` 可以做 adapter composition；其餘 `interfaces/api` 檔案 **不可**直接依賴 `infrastructure/firebase/`、`infrastructure/events/`。
-````
-
-## File: modules/workspace/interfaces/api/contracts/index.ts
-````typescript
-/**
- * workspace API contracts.
- *
- * Pure public type/contracts surface for cross-module and adapter consumption.
- */
-
-export * from "./workspace.contract";
-export * from "./workspace-member.contract";
-export * from "./wiki-content.contract";
-````
-
-## File: modules/workspace/interfaces/api/facades/index.ts
-````typescript
-/**
- * workspace API facade.
- *
- * Public behavior entrypoints (commands/queries) exposed to callers.
- */
-
-export * from "./workspace.facade";
-export * from "./workspace-member.facade";
 ````
 
 ## File: modules/workspace/interfaces/api/facades/workspace-member.facade.ts
@@ -75851,110 +75955,6 @@ export {
   mountCapabilities,
   updateWorkspaceSettings,
 } from "../actions/workspace.command";
-````
-
-## File: modules/workspace/interfaces/api/queries/wiki-content-tree.query.ts
-````typescript
-import type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-} from "../contracts";
-import { workspaceQueryPort } from "../runtime";
-
-export function buildWikiContentTree(
-  seeds: WikiAccountSeed[],
-): Promise<WikiAccountContentNode[]> {
-  return workspaceQueryPort.buildWikiContentTree(seeds);
-}
-````
-
-## File: modules/workspace/interfaces/api/queries/workspace-member.query.ts
-````typescript
-import type { WorkspaceMemberView } from "../contracts";
-import { workspaceQueryPort } from "../runtime";
-
-export async function getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedWorkspaceId) {
-    return [];
-  }
-
-  return workspaceQueryPort.getWorkspaceMembers(normalizedWorkspaceId);
-}
-````
-
-## File: modules/workspace/interfaces/api/queries/workspace.query.ts
-````typescript
-/**
- * Workspace Read Queries — thin wrappers exposing read operations through the input port.
- */
-
-import type { WorkspaceEntity } from "../contracts";
-import { workspaceQueryPort } from "../runtime";
-
-export async function getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]> {
-  return workspaceQueryPort.getWorkspacesForAccount(accountId);
-}
-
-export function subscribeToWorkspacesForAccount(
-  accountId: string,
-  onUpdate: (workspaces: WorkspaceEntity[]) => void,
-) {
-  return workspaceQueryPort.subscribeToWorkspacesForAccount(accountId, onUpdate);
-}
-
-export async function getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null> {
-  return workspaceQueryPort.getWorkspaceById(workspaceId);
-}
-
-export async function getWorkspaceByIdForAccount(
-  accountId: string,
-  workspaceId: string,
-): Promise<WorkspaceEntity | null> {
-  return workspaceQueryPort.getWorkspaceByIdForAccount(accountId, workspaceId);
-}
-````
-
-## File: modules/workspace/interfaces/api/runtime/workspace-runtime.ts
-````typescript
-import { WorkspaceCommandApplicationService } from "../../../application/services/WorkspaceCommandApplicationService";
-import { WorkspaceQueryApplicationService } from "../../../application/services/WorkspaceQueryApplicationService";
-import { SharedWorkspaceDomainEventPublisher } from "../../../infrastructure/events/SharedWorkspaceDomainEventPublisher";
-import { FirebaseWikiWorkspaceRepository } from "../../../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
-import { FirebaseWorkspaceQueryRepository } from "../../../infrastructure/firebase/FirebaseWorkspaceQueryRepository";
-import { FirebaseWorkspaceRepository } from "../../../infrastructure/firebase/FirebaseWorkspaceRepository";
-import type { WorkspaceCommandPort } from "../../../ports/input/WorkspaceCommandPort";
-import type { WorkspaceQueryPort } from "../../../ports/input/WorkspaceQueryPort";
-import { createWorkspaceSessionContext } from "./workspace-session-context";
-
-const workspaceRepo = new FirebaseWorkspaceRepository();
-const workspaceQueryRepo = new FirebaseWorkspaceQueryRepository();
-const wikiWorkspaceRepo = new FirebaseWikiWorkspaceRepository();
-const workspaceDomainEventPublisher = new SharedWorkspaceDomainEventPublisher();
-
-const workspaceCommandPort: WorkspaceCommandPort = new WorkspaceCommandApplicationService({
-  workspaceRepo,
-  workspaceCapabilityRepo: workspaceRepo,
-  workspaceAccessRepo: workspaceRepo,
-  workspaceLocationRepo: workspaceRepo,
-  workspaceDomainEventPublisher,
-});
-
-const workspaceQueryPort: WorkspaceQueryPort = new WorkspaceQueryApplicationService({
-  workspaceRepo,
-  workspaceQueryRepo,
-  wikiWorkspaceRepo,
-});
-
-export const workspaceSessionContext = createWorkspaceSessionContext(
-  workspaceCommandPort,
-  workspaceQueryPort,
-);
-
-export const { workspaceCommandPort: commandPort, workspaceQueryPort: queryPort } =
-  workspaceSessionContext;
-
-export { commandPort as workspaceCommandPort, queryPort as workspaceQueryPort };
 ````
 
 ## File: modules/workspace/interfaces/web/AGENT.md
@@ -76026,6 +76026,682 @@ modules/workspace/api
 ```
 
 `interfaces/web` **不可**直接依賴 `infrastructure/*`、`application/*`、`domain/*`。
+````
+
+## File: modules/workspace/interfaces/web/components/dialogs/WorkspaceSettingsInformationFields.tsx
+````typescript
+"use client";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+
+import {
+  createWorkspaceCustomRoleDraft,
+  type WorkspaceSettingsDraft,
+} from "../../state/workspace-settings";
+import { WorkspaceInformationCard } from "../cards/WorkspaceInformationCard";
+
+interface WorkspaceSettingsInformationFieldsProps {
+  readonly settingsDraft: WorkspaceSettingsDraft;
+  readonly setSettingsDraft: React.Dispatch<React.SetStateAction<WorkspaceSettingsDraft | null>>;
+  readonly isSaving: boolean;
+}
+
+export function WorkspaceSettingsInformationFields({
+  settingsDraft,
+  setSettingsDraft,
+  isSaving,
+}: WorkspaceSettingsInformationFieldsProps) {
+  return (
+    <WorkspaceInformationCard
+      workspaceName={(
+        <Input
+          aria-label="工作區名稱"
+          id="workspace-detail-name"
+          value={settingsDraft.name}
+          onChange={(event) =>
+            setSettingsDraft((current) =>
+              current ? { ...current, name: event.target.value } : current,
+            )
+          }
+          disabled={isSaving}
+          maxLength={80}
+        />
+      )}
+      workspaceAddress={(
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2 sm:col-span-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-street">
+              Street
+            </label>
+            <Input
+              id="workspace-address-street"
+              value={settingsDraft.street}
+              onChange={(event) =>
+                setSettingsDraft((current) =>
+                  current ? { ...current, street: event.target.value } : current,
+                )
+              }
+              disabled={isSaving}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-city">
+              City
+            </label>
+            <Input
+              id="workspace-address-city"
+              value={settingsDraft.city}
+              onChange={(event) =>
+                setSettingsDraft((current) =>
+                  current ? { ...current, city: event.target.value } : current,
+                )
+              }
+              disabled={isSaving}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-state">
+              State
+            </label>
+            <Input
+              id="workspace-address-state"
+              value={settingsDraft.state}
+              onChange={(event) =>
+                setSettingsDraft((current) =>
+                  current ? { ...current, state: event.target.value } : current,
+                )
+              }
+              disabled={isSaving}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-postal-code">
+              Postal code
+            </label>
+            <Input
+              id="workspace-address-postal-code"
+              value={settingsDraft.postalCode}
+              onChange={(event) =>
+                setSettingsDraft((current) =>
+                  current ? { ...current, postalCode: event.target.value } : current,
+                )
+              }
+              disabled={isSaving}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-country">
+              Country
+            </label>
+            <Input
+              id="workspace-address-country"
+              value={settingsDraft.country}
+              onChange={(event) =>
+                setSettingsDraft((current) =>
+                  current ? { ...current, country: event.target.value } : current,
+                )
+              }
+              disabled={isSaving}
+            />
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-details">
+              Details
+            </label>
+            <Input
+              id="workspace-address-details"
+              value={settingsDraft.details}
+              onChange={(event) =>
+                setSettingsDraft((current) =>
+                  current ? { ...current, details: event.target.value } : current,
+                )
+              }
+              disabled={isSaving}
+            />
+          </div>
+        </div>
+      )}
+      workspaceRoles={[
+        {
+          id: "workspace-manager-role",
+          roleName: <p className="text-sm font-medium text-foreground">Manager</p>,
+          roleValue: (
+            <Input
+              id="workspace-manager-id"
+              value={settingsDraft.managerId}
+              onChange={(event) =>
+                setSettingsDraft((current) =>
+                  current ? { ...current, managerId: event.target.value } : current,
+                )
+              }
+              disabled={isSaving}
+            />
+          ),
+        },
+        {
+          id: "workspace-supervisor-role",
+          roleName: <p className="text-sm font-medium text-foreground">Supervisor</p>,
+          roleValue: (
+            <Input
+              id="workspace-supervisor-id"
+              value={settingsDraft.supervisorId}
+              onChange={(event) =>
+                setSettingsDraft((current) =>
+                  current ? { ...current, supervisorId: event.target.value } : current,
+                )
+              }
+              disabled={isSaving}
+            />
+          ),
+        },
+        {
+          id: "workspace-safety-officer-role",
+          roleName: <p className="text-sm font-medium text-foreground">Safety officer</p>,
+          roleValue: (
+            <Input
+              id="workspace-safety-officer-id"
+              value={settingsDraft.safetyOfficerId}
+              onChange={(event) =>
+                setSettingsDraft((current) =>
+                  current ? { ...current, safetyOfficerId: event.target.value } : current,
+                )
+              }
+              disabled={isSaving}
+            />
+          ),
+        },
+        ...settingsDraft.customRoles.map((entry) => ({
+          id: entry.roleId,
+          roleName: (
+            <Input
+              aria-label="角色名稱"
+              value={entry.roleName}
+              onChange={(event) =>
+                setSettingsDraft((current) =>
+                  current
+                    ? {
+                        ...current,
+                        customRoles: current.customRoles.map((role) =>
+                          role.roleId === entry.roleId
+                            ? { ...role, roleName: event.target.value }
+                            : role,
+                        ),
+                      }
+                    : current,
+                )
+              }
+              disabled={isSaving}
+              placeholder="例如：Site lead"
+            />
+          ),
+          roleValue: (
+            <Input
+              aria-label="角色"
+              value={entry.role}
+              onChange={(event) =>
+                setSettingsDraft((current) =>
+                  current
+                    ? {
+                        ...current,
+                        customRoles: current.customRoles.map((role) =>
+                          role.roleId === entry.roleId
+                            ? { ...role, role: event.target.value }
+                            : role,
+                        ),
+                      }
+                    : current,
+                )
+              }
+              disabled={isSaving}
+              placeholder="輸入角色內容"
+            />
+          ),
+          roleActions: (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() =>
+                setSettingsDraft((current) =>
+                  current
+                    ? {
+                        ...current,
+                        customRoles: current.customRoles.filter((role) => role.roleId !== entry.roleId),
+                      }
+                    : current,
+                )
+              }
+              disabled={isSaving}
+            >
+              移除
+            </Button>
+          ),
+        })),
+      ]}
+      rolesAction={(
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            setSettingsDraft((current) =>
+              current
+                ? {
+                    ...current,
+                    customRoles: [...current.customRoles, createWorkspaceCustomRoleDraft()],
+                  }
+                : current,
+            )
+          }
+          disabled={isSaving}
+        >
+          新增角色
+        </Button>
+      )}
+    />
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/layout/WorkspaceSidebarSection.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabsByGroup,
+  getWorkspaceTabStatus,
+  isWorkspaceTabValue,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+
+export interface WorkspaceSidebarLocaleBundle {
+  workspace?: {
+    tabLabels?: Record<string, string>;
+  };
+}
+
+export interface WorkspaceNavigationPreferences {
+  pinnedWorkspace: string[];
+  workspaceOrder: string[];
+}
+
+interface TabLinkItem {
+  value: WorkspaceTabValue;
+  label: string;
+}
+
+function createWorkspaceLinkItems(group: WorkspaceTabGroup): TabLinkItem[] {
+  return getWorkspaceTabsByGroup(group).map((value) => ({
+    value,
+    label: getWorkspaceTabLabel(value),
+  }));
+}
+
+const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
+const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
+const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
+const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
+const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
+
+function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue): string {
+  return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
+}
+
+function tTab(
+  tab: WorkspaceTabValue,
+  fallback: string,
+  localeBundle: WorkspaceSidebarLocaleBundle | null,
+): string {
+  return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
+}
+
+function tTabWithDevStatus(
+  tab: WorkspaceTabValue,
+  fallback: string,
+  localeBundle: WorkspaceSidebarLocaleBundle | null,
+): string {
+  const label = tTab(tab, fallback, localeBundle);
+  const status = getWorkspaceTabStatus(tab);
+  return `${status} ${label}`;
+}
+
+function getPrefId(tabValue: string): string {
+  return getWorkspaceTabPrefId(tabValue as WorkspaceTabValue) ?? tabValue;
+}
+
+function isItemEnabled(prefId: string, navPrefs: WorkspaceNavigationPreferences): boolean {
+  return navPrefs.pinnedWorkspace.includes(prefId);
+}
+
+function getItemOrder(prefId: string, navPrefs: WorkspaceNavigationPreferences): number {
+  const index = navPrefs.workspaceOrder.indexOf(prefId);
+  return index === -1 ? 999 : index;
+}
+
+function sortByPreferenceOrder<T extends { value: string }>(
+  items: readonly T[],
+  navPrefs: WorkspaceNavigationPreferences,
+): T[] {
+  return [...items].sort(
+    (left, right) =>
+      getItemOrder(getPrefId(left.value), navPrefs) -
+      getItemOrder(getPrefId(right.value), navPrefs),
+  );
+}
+
+interface WorkspaceSidebarSectionProps {
+  workspacePathId: string;
+  navPrefs: WorkspaceNavigationPreferences;
+  localeBundle: WorkspaceSidebarLocaleBundle | null;
+  getItemClassName: (isActive: boolean) => string;
+}
+
+export function WorkspaceSidebarSection({
+  workspacePathId,
+  navPrefs,
+  localeBundle,
+  getItemClassName,
+}: WorkspaceSidebarSectionProps) {
+  const searchParams = useSearchParams();
+  const rawTab = searchParams.get("tab") ?? "Overview";
+  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawTab) ? rawTab : "Overview";
+
+  const groups: Array<{ key: string; items: readonly TabLinkItem[] }> = [
+    { key: "primary", items: WORKSPACE_PRIMARY_LINK_ITEMS },
+    { key: "modules", items: WORKSPACE_MODULE_LINK_ITEMS },
+    { key: "spaces", items: WORKSPACE_SPACE_ITEMS },
+    { key: "databases", items: WORKSPACE_DATABASE_ITEMS },
+    { key: "library", items: WORKSPACE_LIBRARY_LINK_ITEMS },
+  ];
+
+  const visibleGroups = groups
+    .map((g) => ({
+      key: g.key,
+      visible: sortByPreferenceOrder(g.items, navPrefs).filter((item) =>
+        isItemEnabled(getPrefId(item.value), navPrefs),
+      ),
+    }))
+    .filter((g) => g.visible.length > 0);
+
+  return (
+    <nav className="space-y-0.5" aria-label="Workspace navigation">
+      {visibleGroups.map((group, groupIndex) => (
+        <div key={group.key}>
+          {groupIndex > 0 && <div className="my-1.5 border-t border-border/40" />}
+          <div className="space-y-0.5">
+            {group.visible.map((item) => {
+              const isActive = activeWorkspaceTab === item.value;
+              return (
+                <Link
+                  key={item.value}
+                  href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                  aria-current={isActive ? "page" : undefined}
+                  className={getItemClassName(isActive)}
+                >
+                  {tTabWithDevStatus(item.value, item.label, localeBundle)}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </nav>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+import {
+  Card,
+  CardContent,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
+import { WorkspaceFilesTab } from "@/modules/source/api";
+import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
+import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
+import { useApp } from "@/app/providers/app-provider";
+
+import {
+  createSettingsDraft,
+  type WorkspaceSettingsDraft,
+} from "../../state/workspace-settings";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../../view-models/workspace-supporting-records";
+import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
+import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
+import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
+import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+  readonly initialOverviewPanel?: string;
+}
+
+export function WorkspaceDetailScreen({
+  workspaceId,
+  accountId,
+  accountsHydrated,
+  initialTab,
+  initialOverviewPanel,
+}: WorkspaceDetailScreenProps) {
+  const { state: appState, dispatch } = useApp();
+  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
+    workspaceId,
+    accountId,
+    accountsHydrated,
+  );
+  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
+
+  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
+    workspace,
+    accountId,
+    onSaved: (updated) => {
+      setWorkspace(updated);
+      setSettingsDraft(createSettingsDraft(updated));
+      setIsEditWorkspaceOpen(false);
+    },
+  });
+
+  const personnelEntries = useMemo(() => {
+    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
+  }, [workspace]);
+
+  const addressLines = useMemo(() => {
+    return workspace ? getWorkspaceAddressLines(workspace) : [];
+  }, [workspace]);
+
+  function renderTabContent(tab: WorkspaceTabValue) {
+    if (!workspace) return null;
+
+    switch (tab) {
+      case "Overview":
+        return (
+          <WorkspaceOverviewTab
+            workspace={workspace}
+            activeWorkspaceId={appState.activeWorkspaceId}
+            personnelEntries={personnelEntries}
+            addressLines={addressLines}
+            showSettingsPanel={initialOverviewPanel === "settings"}
+            onEditClick={() => {
+              setSettingsDraft(createSettingsDraft(workspace));
+              clearSaveError();
+              setIsEditWorkspaceOpen(true);
+            }}
+            onSetActiveWorkspace={() =>
+              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
+            }
+          />
+        );
+      case "Members":
+        return <WorkspaceMembersTab workspace={workspace} />;
+      case "Daily":
+        return <WorkspaceDailyTab workspace={workspace} />;
+      case "Files":
+        return <WorkspaceFilesTab workspace={workspace} />;
+      case "Schedule":
+        return (
+          <WorkspaceSchedulingTab
+            workspace={workspace}
+            accountId={accountId ?? workspace.accountId}
+            currentUserId={accountId ?? "anonymous"}
+          />
+        );
+      case "Audit":
+        return <WorkspaceAuditTab workspaceId={workspace.id} />;
+      case "Tasks":
+        return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
+      case "Feed":
+        return (
+          <WorkspaceFeedWorkspaceView
+            accountId={accountId ?? workspace.accountId}
+            workspaceId={workspace.id}
+            workspaceName={workspace.name}
+          />
+        );
+      default:
+        return null;
+    }
+  }
+
+  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
+    ? initialTab
+    : "Overview";
+
+  return (
+    <div className="space-y-6">
+      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
+        ← 返回 Workspace Hub
+      </Link>
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          正在同步帳號內容…
+        </div>
+      )}
+
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            Loading workspace detail…
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入工作區資料，請返回清單後重試。
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "loaded" && !workspace && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            找不到此工作區。
+          </CardContent>
+        </Card>
+      )}
+
+      {workspace && (
+        <div className="space-y-6">
+          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+          <nav
+            aria-label="Workspace tab navigation"
+            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
+          >
+            <div className="flex min-w-max items-center gap-0.5">
+              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
+                const tabs = getWorkspaceTabsByGroup(group);
+                const links = tabs.map((tab) => {
+                  const isActive = resolvedTab === tab;
+                  return (
+                    <Link
+                      key={tab}
+                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {getWorkspaceTabLabel(tab)}
+                    </Link>
+                  );
+                });
+                if (groupIndex > 0) {
+                  return [
+                    <div
+                      key={`sep-${group}`}
+                      aria-hidden="true"
+                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
+                    />,
+                    ...links,
+                  ];
+                }
+                return links;
+              })}
+            </div>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
+          </div>
+          {renderTabContent(resolvedTab)}
+        </div>
+      )}
+
+      <WorkspaceSettingsDialog
+        open={isEditWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsEditWorkspaceOpen(open);
+          if (!open) {
+            clearSaveError();
+            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
+          }
+        }}
+        settingsDraft={settingsDraft}
+        setSettingsDraft={setSettingsDraft}
+        isSaving={isSavingWorkspace}
+        saveError={saveError}
+        onSubmit={(event) => void handleSave(event, settingsDraft)}
+      />
+    </div>
+  );
+}
 ````
 
 ## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
@@ -76252,99 +76928,6 @@ export function useWorkspaceHub({ accountId, accountType }: UseWorkspaceHubOptio
     workspaces,
   };
 }
-````
-
-## File: modules/workspace/README.md
-````markdown
-# workspace
-
-`workspace` is the bounded context that defines collaboration scope through `workspaceId`, lifecycle, and visibility language.
-
-> Domain Type: **Generic Subdomain**
-
-## Why this context exists
-
-This context gives the rest of the system a stable collaboration container:
-
-- scope identity (`workspaceId`)
-- lifecycle semantics (`preparatory | active | stopped`)
-- visibility semantics (`visible | hidden`)
-- public contracts via `modules/workspace/api`
-
-## Current structure (matches code)
-
-```text
-modules/workspace/
-├── api/
-├── application/
-│   ├── dtos/
-│   ├── services/
-│   └── use-cases/
-├── domain/
-│   ├── aggregates/
-│   ├── entities/
-│   ├── events/
-│   ├── factories/
-│   ├── services/
-│   └── value-objects/
-├── infrastructure/
-│   ├── events/
-│   └── firebase/
-├── interfaces/
-│   ├── api/
-│   ├── cli/
-│   └── web/
-├── ports/
-│   ├── input/
-│   └── output/
-└── subdomains/
-```
-
-## Hexagonal mapping
-
-| Hexagonal part | workspace implementation |
-|---|---|
-| Domain core | `domain/` |
-| Application ring | `application/` |
-| Driving adapters | `interfaces/api`, `interfaces/cli`, `interfaces/web` |
-| Driving ports | `ports/input` |
-| Driven ports | `ports/output` |
-| Driven adapters | `infrastructure/firebase`, `infrastructure/events` |
-| Public boundary | `api/` |
-
-## Tactical summary
-
-- Aggregate Root: `Workspace`
-- Domain Events:
-  - `WorkspaceCreatedEvent`
-  - `WorkspaceLifecycleTransitionedEvent`
-  - `WorkspaceVisibilityChangedEvent`
-- Output port for event publishing:
-  - `WorkspaceDomainEventPublisher`
-- Read projections:
-  - `WorkspaceMemberView`
-  - `WikiAccountContentNode`
-  - `WikiWorkspaceContentNode`
-  - `WikiContentItemNode`
-
-## Scope guardrails
-
-- This context does not own organization truth (members/teams governance).
-- This context does not own knowledge-content semantics.
-- UI tab composition is interface composition, not context-map ownership.
-
-## Documentation index
-
-- [AGENT.md](./AGENT.md)
-- [subdomain.md](./subdomain.md)
-- [bounded-context.md](./bounded-context.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [aggregates.md](./aggregates.md)
-- [application-services.md](./application-services.md)
-- [domain-services.md](./domain-services.md)
-- [repositories.md](./repositories.md)
-- [domain-events.md](./domain-events.md)
 ````
 
 ## File: modules/workspace/repositories.md
@@ -77481,1127 +78064,6 @@ It is not:
 - read projection shape design details
 ````
 
-## File: modules/workspace/interfaces/web/components/dialogs/WorkspaceSettingsInformationFields.tsx
-````typescript
-"use client";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-
-import {
-  createWorkspaceCustomRoleDraft,
-  type WorkspaceSettingsDraft,
-} from "../../state/workspace-settings";
-import { WorkspaceInformationCard } from "../cards/WorkspaceInformationCard";
-
-interface WorkspaceSettingsInformationFieldsProps {
-  readonly settingsDraft: WorkspaceSettingsDraft;
-  readonly setSettingsDraft: React.Dispatch<React.SetStateAction<WorkspaceSettingsDraft | null>>;
-  readonly isSaving: boolean;
-}
-
-export function WorkspaceSettingsInformationFields({
-  settingsDraft,
-  setSettingsDraft,
-  isSaving,
-}: WorkspaceSettingsInformationFieldsProps) {
-  return (
-    <WorkspaceInformationCard
-      workspaceName={(
-        <Input
-          aria-label="工作區名稱"
-          id="workspace-detail-name"
-          value={settingsDraft.name}
-          onChange={(event) =>
-            setSettingsDraft((current) =>
-              current ? { ...current, name: event.target.value } : current,
-            )
-          }
-          disabled={isSaving}
-          maxLength={80}
-        />
-      )}
-      workspaceAddress={(
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2 sm:col-span-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-street">
-              Street
-            </label>
-            <Input
-              id="workspace-address-street"
-              value={settingsDraft.street}
-              onChange={(event) =>
-                setSettingsDraft((current) =>
-                  current ? { ...current, street: event.target.value } : current,
-                )
-              }
-              disabled={isSaving}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-city">
-              City
-            </label>
-            <Input
-              id="workspace-address-city"
-              value={settingsDraft.city}
-              onChange={(event) =>
-                setSettingsDraft((current) =>
-                  current ? { ...current, city: event.target.value } : current,
-                )
-              }
-              disabled={isSaving}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-state">
-              State
-            </label>
-            <Input
-              id="workspace-address-state"
-              value={settingsDraft.state}
-              onChange={(event) =>
-                setSettingsDraft((current) =>
-                  current ? { ...current, state: event.target.value } : current,
-                )
-              }
-              disabled={isSaving}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-postal-code">
-              Postal code
-            </label>
-            <Input
-              id="workspace-address-postal-code"
-              value={settingsDraft.postalCode}
-              onChange={(event) =>
-                setSettingsDraft((current) =>
-                  current ? { ...current, postalCode: event.target.value } : current,
-                )
-              }
-              disabled={isSaving}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-country">
-              Country
-            </label>
-            <Input
-              id="workspace-address-country"
-              value={settingsDraft.country}
-              onChange={(event) =>
-                setSettingsDraft((current) =>
-                  current ? { ...current, country: event.target.value } : current,
-                )
-              }
-              disabled={isSaving}
-            />
-          </div>
-          <div className="space-y-2 sm:col-span-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-details">
-              Details
-            </label>
-            <Input
-              id="workspace-address-details"
-              value={settingsDraft.details}
-              onChange={(event) =>
-                setSettingsDraft((current) =>
-                  current ? { ...current, details: event.target.value } : current,
-                )
-              }
-              disabled={isSaving}
-            />
-          </div>
-        </div>
-      )}
-      workspaceRoles={[
-        {
-          id: "workspace-manager-role",
-          roleName: <p className="text-sm font-medium text-foreground">Manager</p>,
-          roleValue: (
-            <Input
-              id="workspace-manager-id"
-              value={settingsDraft.managerId}
-              onChange={(event) =>
-                setSettingsDraft((current) =>
-                  current ? { ...current, managerId: event.target.value } : current,
-                )
-              }
-              disabled={isSaving}
-            />
-          ),
-        },
-        {
-          id: "workspace-supervisor-role",
-          roleName: <p className="text-sm font-medium text-foreground">Supervisor</p>,
-          roleValue: (
-            <Input
-              id="workspace-supervisor-id"
-              value={settingsDraft.supervisorId}
-              onChange={(event) =>
-                setSettingsDraft((current) =>
-                  current ? { ...current, supervisorId: event.target.value } : current,
-                )
-              }
-              disabled={isSaving}
-            />
-          ),
-        },
-        {
-          id: "workspace-safety-officer-role",
-          roleName: <p className="text-sm font-medium text-foreground">Safety officer</p>,
-          roleValue: (
-            <Input
-              id="workspace-safety-officer-id"
-              value={settingsDraft.safetyOfficerId}
-              onChange={(event) =>
-                setSettingsDraft((current) =>
-                  current ? { ...current, safetyOfficerId: event.target.value } : current,
-                )
-              }
-              disabled={isSaving}
-            />
-          ),
-        },
-        ...settingsDraft.customRoles.map((entry) => ({
-          id: entry.roleId,
-          roleName: (
-            <Input
-              aria-label="角色名稱"
-              value={entry.roleName}
-              onChange={(event) =>
-                setSettingsDraft((current) =>
-                  current
-                    ? {
-                        ...current,
-                        customRoles: current.customRoles.map((role) =>
-                          role.roleId === entry.roleId
-                            ? { ...role, roleName: event.target.value }
-                            : role,
-                        ),
-                      }
-                    : current,
-                )
-              }
-              disabled={isSaving}
-              placeholder="例如：Site lead"
-            />
-          ),
-          roleValue: (
-            <Input
-              aria-label="角色"
-              value={entry.role}
-              onChange={(event) =>
-                setSettingsDraft((current) =>
-                  current
-                    ? {
-                        ...current,
-                        customRoles: current.customRoles.map((role) =>
-                          role.roleId === entry.roleId
-                            ? { ...role, role: event.target.value }
-                            : role,
-                        ),
-                      }
-                    : current,
-                )
-              }
-              disabled={isSaving}
-              placeholder="輸入角色內容"
-            />
-          ),
-          roleActions: (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() =>
-                setSettingsDraft((current) =>
-                  current
-                    ? {
-                        ...current,
-                        customRoles: current.customRoles.filter((role) => role.roleId !== entry.roleId),
-                      }
-                    : current,
-                )
-              }
-              disabled={isSaving}
-            >
-              移除
-            </Button>
-          ),
-        })),
-      ]}
-      rolesAction={(
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            setSettingsDraft((current) =>
-              current
-                ? {
-                    ...current,
-                    customRoles: [...current.customRoles, createWorkspaceCustomRoleDraft()],
-                  }
-                : current,
-            )
-          }
-          disabled={isSaving}
-        >
-          新增角色
-        </Button>
-      )}
-    />
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/layout/WorkspaceSidebarSection.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabsByGroup,
-  getWorkspaceTabStatus,
-  isWorkspaceTabValue,
-  type WorkspaceTabGroup,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-
-export interface WorkspaceSidebarLocaleBundle {
-  workspace?: {
-    tabLabels?: Record<string, string>;
-  };
-}
-
-export interface WorkspaceNavigationPreferences {
-  pinnedWorkspace: string[];
-  workspaceOrder: string[];
-}
-
-interface TabLinkItem {
-  value: WorkspaceTabValue;
-  label: string;
-}
-
-function createWorkspaceLinkItems(group: WorkspaceTabGroup): TabLinkItem[] {
-  return getWorkspaceTabsByGroup(group).map((value) => ({
-    value,
-    label: getWorkspaceTabLabel(value),
-  }));
-}
-
-const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
-const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
-const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
-const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
-const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
-
-function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue): string {
-  return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
-}
-
-function tTab(
-  tab: WorkspaceTabValue,
-  fallback: string,
-  localeBundle: WorkspaceSidebarLocaleBundle | null,
-): string {
-  return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
-}
-
-function tTabWithDevStatus(
-  tab: WorkspaceTabValue,
-  fallback: string,
-  localeBundle: WorkspaceSidebarLocaleBundle | null,
-): string {
-  const label = tTab(tab, fallback, localeBundle);
-  const status = getWorkspaceTabStatus(tab);
-  return `${status} ${label}`;
-}
-
-function getPrefId(tabValue: string): string {
-  return getWorkspaceTabPrefId(tabValue as WorkspaceTabValue) ?? tabValue;
-}
-
-function isItemEnabled(prefId: string, navPrefs: WorkspaceNavigationPreferences): boolean {
-  return navPrefs.pinnedWorkspace.includes(prefId);
-}
-
-function getItemOrder(prefId: string, navPrefs: WorkspaceNavigationPreferences): number {
-  const index = navPrefs.workspaceOrder.indexOf(prefId);
-  return index === -1 ? 999 : index;
-}
-
-function sortByPreferenceOrder<T extends { value: string }>(
-  items: readonly T[],
-  navPrefs: WorkspaceNavigationPreferences,
-): T[] {
-  return [...items].sort(
-    (left, right) =>
-      getItemOrder(getPrefId(left.value), navPrefs) -
-      getItemOrder(getPrefId(right.value), navPrefs),
-  );
-}
-
-interface WorkspaceSidebarSectionProps {
-  workspacePathId: string;
-  navPrefs: WorkspaceNavigationPreferences;
-  localeBundle: WorkspaceSidebarLocaleBundle | null;
-  getItemClassName: (isActive: boolean) => string;
-}
-
-export function WorkspaceSidebarSection({
-  workspacePathId,
-  navPrefs,
-  localeBundle,
-  getItemClassName,
-}: WorkspaceSidebarSectionProps) {
-  const searchParams = useSearchParams();
-  const rawTab = searchParams.get("tab") ?? "Overview";
-  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawTab) ? rawTab : "Overview";
-
-  const groups: Array<{ key: string; items: readonly TabLinkItem[] }> = [
-    { key: "primary", items: WORKSPACE_PRIMARY_LINK_ITEMS },
-    { key: "modules", items: WORKSPACE_MODULE_LINK_ITEMS },
-    { key: "spaces", items: WORKSPACE_SPACE_ITEMS },
-    { key: "databases", items: WORKSPACE_DATABASE_ITEMS },
-    { key: "library", items: WORKSPACE_LIBRARY_LINK_ITEMS },
-  ];
-
-  const visibleGroups = groups
-    .map((g) => ({
-      key: g.key,
-      visible: sortByPreferenceOrder(g.items, navPrefs).filter((item) =>
-        isItemEnabled(getPrefId(item.value), navPrefs),
-      ),
-    }))
-    .filter((g) => g.visible.length > 0);
-
-  return (
-    <nav className="space-y-0.5" aria-label="Workspace navigation">
-      {visibleGroups.map((group, groupIndex) => (
-        <div key={group.key}>
-          {groupIndex > 0 && <div className="my-1.5 border-t border-border/40" />}
-          <div className="space-y-0.5">
-            {group.visible.map((item) => {
-              const isActive = activeWorkspaceTab === item.value;
-              return (
-                <Link
-                  key={item.value}
-                  href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={getItemClassName(isActive)}
-                >
-                  {tTabWithDevStatus(item.value, item.label, localeBundle)}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </nav>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useMemo, useState } from "react";
-
-import {
-  Card,
-  CardContent,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
-import { WorkspaceFilesTab } from "@/modules/source/api";
-import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
-import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
-import { useApp } from "@/app/providers/app-provider";
-
-import {
-  createSettingsDraft,
-  type WorkspaceSettingsDraft,
-} from "../../state/workspace-settings";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
-import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
-import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
-import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
-
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-  readonly initialOverviewPanel?: string;
-}
-
-export function WorkspaceDetailScreen({
-  workspaceId,
-  accountId,
-  accountsHydrated,
-  initialTab,
-  initialOverviewPanel,
-}: WorkspaceDetailScreenProps) {
-  const { state: appState, dispatch } = useApp();
-  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
-    workspaceId,
-    accountId,
-    accountsHydrated,
-  );
-  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
-  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
-
-  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
-    workspace,
-    accountId,
-    onSaved: (updated) => {
-      setWorkspace(updated);
-      setSettingsDraft(createSettingsDraft(updated));
-      setIsEditWorkspaceOpen(false);
-    },
-  });
-
-  const personnelEntries = useMemo(() => {
-    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
-  }, [workspace]);
-
-  const addressLines = useMemo(() => {
-    return workspace ? getWorkspaceAddressLines(workspace) : [];
-  }, [workspace]);
-
-  function renderTabContent(tab: WorkspaceTabValue) {
-    if (!workspace) return null;
-
-    switch (tab) {
-      case "Overview":
-        return (
-          <WorkspaceOverviewTab
-            workspace={workspace}
-            activeWorkspaceId={appState.activeWorkspaceId}
-            personnelEntries={personnelEntries}
-            addressLines={addressLines}
-            showSettingsPanel={initialOverviewPanel === "settings"}
-            onEditClick={() => {
-              setSettingsDraft(createSettingsDraft(workspace));
-              clearSaveError();
-              setIsEditWorkspaceOpen(true);
-            }}
-            onSetActiveWorkspace={() =>
-              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
-            }
-          />
-        );
-      case "Members":
-        return <WorkspaceMembersTab workspace={workspace} />;
-      case "Daily":
-        return <WorkspaceDailyTab workspace={workspace} />;
-      case "Files":
-        return <WorkspaceFilesTab workspace={workspace} />;
-      case "Schedule":
-        return (
-          <WorkspaceSchedulingTab
-            workspace={workspace}
-            accountId={accountId ?? workspace.accountId}
-            currentUserId={accountId ?? "anonymous"}
-          />
-        );
-      case "Audit":
-        return <WorkspaceAuditTab workspaceId={workspace.id} />;
-      case "Tasks":
-        return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
-      case "Feed":
-        return (
-          <WorkspaceFeedWorkspaceView
-            accountId={accountId ?? workspace.accountId}
-            workspaceId={workspace.id}
-            workspaceName={workspace.name}
-          />
-        );
-      default:
-        return null;
-    }
-  }
-
-  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
-    ? initialTab
-    : "Overview";
-
-  return (
-    <div className="space-y-6">
-      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
-        ← 返回 Workspace Hub
-      </Link>
-
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          正在同步帳號內容…
-        </div>
-      )}
-
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            Loading workspace detail…
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入工作區資料，請返回清單後重試。
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "loaded" && !workspace && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            找不到此工作區。
-          </CardContent>
-        </Card>
-      )}
-
-      {workspace && (
-        <div className="space-y-6">
-          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
-          <nav
-            aria-label="Workspace tab navigation"
-            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
-          >
-            <div className="flex min-w-max items-center gap-0.5">
-              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
-                const tabs = getWorkspaceTabsByGroup(group);
-                const links = tabs.map((tab) => {
-                  const isActive = resolvedTab === tab;
-                  return (
-                    <Link
-                      key={tab}
-                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
-                      aria-current={isActive ? "page" : undefined}
-                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {getWorkspaceTabLabel(tab)}
-                    </Link>
-                  );
-                });
-                if (groupIndex > 0) {
-                  return [
-                    <div
-                      key={`sep-${group}`}
-                      aria-hidden="true"
-                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
-                    />,
-                    ...links,
-                  ];
-                }
-                return links;
-              })}
-            </div>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
-          </div>
-          {renderTabContent(resolvedTab)}
-        </div>
-      )}
-
-      <WorkspaceSettingsDialog
-        open={isEditWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsEditWorkspaceOpen(open);
-          if (!open) {
-            clearSaveError();
-            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
-          }
-        }}
-        settingsDraft={settingsDraft}
-        setSettingsDraft={setSettingsDraft}
-        isSaving={isSavingWorkspace}
-        saveError={saveError}
-        onSubmit={(event) => void handleSave(event, settingsDraft)}
-      />
-    </div>
-  );
-}
-````
-
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/dev/types/routes.d.ts";
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
-````
-
-## File: modules/platform/docs/context-map.md
-````markdown
-# Context Map — platform
-
-本文件描述 platform 的 23 個子域如何在本地 bounded context 內協作。這是一張 local platform map，不是全系統上下文圖。
-
-## Local Platform Map
-
-以下是核心協作關係圖。新增到 canonical inventory 的子域（例如 `onboarding`、`compliance`、`content`、`search`、`analytics`、`support`、`background-job`、`referral`）在不同實作階段可先以最小路徑接入，待對應 port 穩定後再擴展協作邊。
-
-```text
-identity -> account -> account-profile -> access-control
-identity -> audit-log
-
-organization -> access-control
-organization -> audit-log
-
-security-policy -> access-control
-security-policy -> compliance
-security-policy -> workflow
-security-policy -> audit-log
-
-platform-config -> feature-flag
-platform-config -> access-control
-platform-config -> integration
-platform-config -> workflow
-platform-config -> notification
-platform-config -> observability
-
-onboarding -> account-profile
-onboarding -> notification
-
-subscription -> billing
-subscription -> feature-flag
-subscription -> access-control
-subscription -> integration
-subscription -> workflow
-
-referral -> account
-referral -> billing
-referral -> analytics
-
-access-control -> integration
-access-control -> workflow
-access-control -> audit-log
-
-workflow -> notification
-workflow -> background-job
-workflow -> audit-log
-workflow -> observability
-
-integration -> audit-log
-integration -> observability
-
-notification -> audit-log
-notification -> observability
-
-billing -> audit-log
-billing -> observability
-
-content -> search
-content -> audit-log
-
-search -> analytics
-search -> observability
-
-background-job -> observability
-background-job -> audit-log
-
-compliance -> audit-log
-compliance -> observability
-
-support -> analytics
-support -> audit-log
-
-audit-log -> observability
-audit-log -> analytics
-
-analytics -> observability
-```
-
-## 協作關係
-
-| Source | Target | 共享語言 | 為何需要這個關係 |
-|---|---|---|---|
-| `identity` | `account` | `AuthenticatedSubject`, `AccountLifecycle` | 驗證後主體需映射到可治理帳戶 |
-| `identity` | `account-profile` | `AuthenticatedSubject`, `SubjectScope` | 驗證過的主體需要被映射成可治理輪廓 |
-| `account-profile` | `access-control` | `AccountProfile`, `SubjectPreference` | 授權決策需要主體屬性與偏好 |
-| `organization` | `access-control` | `MembershipBoundary`, `RoleAssignment` | 存取控制需要群組與角色資訊 |
-| `onboarding` | `account-profile` | `OnboardingFlow`, `SetupProgress` | 初始設定結果要轉成可治理輪廓 |
-| `security-policy` | `access-control` | `PolicyCatalog`, `AccessPolicy` | 授權判斷要遵守安全政策 |
-| `security-policy` | `compliance` | `PolicyCatalog`, `CompliancePolicy` | 合規檢查需套用統一政策版本 |
-| `platform-config` | `feature-flag` | `ConfigurationProfile`, `CapabilityToggle` | 能力開關需要設定輪廓與 rollout 參數 |
-| `platform-config` | `workflow` | `ConfigurationProfile` | 流程啟動依賴設定化規則與參數 |
-| `subscription` | `feature-flag` | `Entitlement`, `UsageLimit` | feature rollout 必須受方案權益約束 |
-| `subscription` | `integration` | `PlanConstraint`, `DeliveryAllowance` | 某些整合只在特定方案與配額下可用 |
-| `subscription` | `billing` | `SubscriptionAgreement`, `BillingState` | 訂閱生命週期與計費狀態互相影響 |
-| `referral` | `billing` | `ReferralReward`, `BillingState` | 推薦回饋會影響帳務處理 |
-| `access-control` | `workflow` | `PermissionDecision` | 流程觸發前要先通過授權 |
-| `workflow` | `notification` | `WorkflowTrigger`, `NotificationDispatch` | 流程結果常需轉成通知請求 |
-| `workflow` | `background-job` | `WorkflowTrigger`, `JobSchedule` | 長時程任務由背景排程承接 |
-| `workflow` | `audit-log` | `AuditSignal`, `CorrelationContext` | 重要流程節點需要留下證據 |
-| `integration` | `audit-log` | `AuditSignal`, `DispatchOutcome` | 外部交付結果屬治理軌跡 |
-| `notification` | `audit-log` | `DispatchOutcome`, `AuditSignal` | 派送成功或失敗都要記錄 |
-| `content` | `search` | `ContentAsset`, `SearchQuery` | 內容發布需可被檢索索引與查詢 |
-| `support` | `analytics` | `SupportTicket`, `BehaviorMetric` | 支援流程輸出服務品質指標 |
-| `audit-log` | `observability` | `AuditClassification`, `ObservabilitySignal` | 稽核分類可轉為運維診斷訊號 |
-| `analytics` | `observability` | `BehaviorMetric`, `ObservabilitySignal` | 分析結果需進入告警與健康視圖 |
-| `billing` | `observability` | `BillingState`, `ObservabilitySignal` | 計費異常需要被量測與告警 |
-
-## Context Map Rule
-
-若某個新需求無法被這張 map 中的既有節點與共享語言吸收，先調整 map 與 `subdomains.md`，而不是直接再加新資料夾。
-````
-
-## File: modules/platform/docs/README.md
-````markdown
-# platform docs
-
-`platform/docs/` 是平台藍圖的文件索引入口。本資料夾採「單一主題、單一文件」拆分，避免把邊界、語言、聚合、事件與存取契約混在同一份 README。
-
-## 文件分工
-
-| 文件 | 主題 |
-|---|---|
-| `aggregates.md` | 核心聚合、值物件與不變數 |
-| `application-services.md` | use case handlers、命令/查詢協調與 input ports 對應 |
-| `bounded-context.md` | platform 邊界、責任範圍與 closed inventory 規則 |
-| `context-map.md` | 23 個子域間協作方向與共享語言 |
-| `domain-events.md` | 事件命名、事件擁有者、發出/訂閱清單 |
-| `domain-services.md` | 跨聚合純規則與 decision objects |
-| `repositories.md` | repositories、support ports、delivery ports |
-| `subdomains.md` | 正式 23 子域 inventory 與責任對照 |
-| `ubiquitous-language.md` | platform 通用語言與 port 詞彙 |
-
-## 讀取順序
-
-1. 先讀 `bounded-context.md` 確認邊界與封板規則
-2. 讀 `subdomains.md` 與 `context-map.md` 確認責任與協作
-3. 讀 `ubiquitous-language.md` 鎖定命名
-4. 最後讀 `aggregates.md`、`domain-services.md`、`application-services.md`、`repositories.md`、`domain-events.md` 進入設計細節
-
-## 變更同步規則
-
-- 變更聚合或值物件：同步更新 `aggregates.md` 與 `ubiquitous-language.md`
-- 變更 use case handlers 或 input ports：同步更新 `application-services.md`
-- 變更 output ports 或 repository：同步更新 `repositories.md`
-- 變更事件名稱或 payload：同步更新 `domain-events.md`
-- 變更子域責任：同步更新 `subdomains.md` 與 `context-map.md`
-- 變更平台邊界：同步更新 `bounded-context.md` 與 `../AGENT.md`
-
-## 文件閉環檢查清單
-
-每次調整 platform 文件後，至少確認以下四點：
-
-1. 單一文件只承載單一主題（邊界、術語、聚合、事件、ports 不混寫）
-2. `subdomains.md` 出現的術語都能在 `ubiquitous-language.md` 找到定義
-3. `application-services.md` 與 `subdomains.md` 提到的 ports 都能在 `repositories.md` 找到契約
-4. `domain-events.md` 的事件命名、事件擁有者與 `context-map.md` 協作語言沒有衝突
-````
-
-## File: modules/platform/docs/subdomains.md
-````markdown
-# Subdomains — platform
-
-本文件是 platform 的正式子域 inventory。這份清單是 closed by default 的：後續開發必須先把能力映射到既有子域，而不是再新增新的子域名稱。
-
-## Canonical Inventory
-
-| 子域 | 核心問題 | 主要語言 | Port 焦點 |
-|---|---|---|---|
-| `identity` | 誰是已驗證主體 | `AuthenticatedSubject`, `IdentitySignal` | `PlatformEventIngressPort`, `SubjectDirectory` |
-| `account` | 帳號聚合根與生命週期狀態 | `Account`, `AccountLifecycle` | `PlatformCommandPort`, `AccountRepository` |
-| `account-profile` | 主體有哪些可治理屬性與偏好 | `AccountProfile`, `SubjectPreference` | `PlatformEventIngressPort`, `SubjectDirectory` |
-| `organization` | 主體處於哪些組織與角色邊界 | `MembershipBoundary`, `RoleAssignment` | `PlatformEventIngressPort`, `SubjectDirectory` |
-| `access-control` | 主體現在能做什麼 | `PermissionDecision`, `AccessPolicy` | `PlatformCommandPort`, `PolicyCatalogRepository` |
-| `security-policy` | 平台安全規則如何被定義與發佈 | `PolicyCatalog`, `PolicyRule` | `PlatformCommandPort`, `PolicyCatalogRepository` |
-| `platform-config` | 平台以何種設定輪廓運作 | `ConfigurationProfile`, `ConfigurationProfileRef` | `PlatformCommandPort`, `ConfigurationProfileStore` |
-| `feature-flag` | 哪些能力在哪種條件下被打開 | `PlatformCapability`, `CapabilityToggle` | `PlatformCommandPort`, `ConfigurationProfileStore` |
-| `onboarding` | 新主體如何被引導完成初始設定 | `OnboardingFlow`, `SetupProgress` | `PlatformCommandPort`, `OnboardingRepository` |
-| `compliance` | 資料保留、隱私與法規要求如何被執行 | `CompliancePolicy`, `DataRetentionRule` | `PlatformCommandPort`, `CompliancePolicyStore` |
-| `billing` | 計費狀態、收費結果與財務證據如何被管理 | `BillingState`, `DispatchOutcome` | `PlatformCommandPort`, `DeliveryHistoryRepository`, `AuditSignalStore` |
-| `subscription` | 方案、權益、配額與有效期間如何被管理 | `SubscriptionAgreement`, `Entitlement`, `UsageLimit` | `PlatformCommandPort`, `SubscriptionAgreementRepository`, `UsageMeterRepository` |
-| `referral` | 推薦關係與獎勵如何被追蹤 | `ReferralLink`, `ReferralReward` | `PlatformCommandPort`, `ReferralRepository` |
-| `integration` | 平台如何與外部系統安全協作 | `IntegrationContract`, `DeliveryPolicy` | `PlatformCommandPort`, `IntegrationContractRepository`, `ExternalSystemGateway` |
-| `workflow` | 哪些事實要被轉成可執行流程 | `WorkflowTrigger`, `WorkflowPolicy` | `PlatformCommandPort`, `WorkflowPolicyRepository`, `WorkflowDispatcherPort` |
-| `notification` | 哪些對象應收到什麼訊息 | `NotificationDispatch`, `NotificationRoute` | `PlatformCommandPort`, `NotificationGateway`, `DeliveryHistoryRepository` |
-| `background-job` | 長時程或排程任務如何被提交與監控 | `JobSchedule`, `JobExecution` | `PlatformCommandPort`, `JobQueuePort` |
-| `content` | 內容資產如何被管理與發布 | `ContentAsset`, `PublicationState` | `PlatformCommandPort`, `ContentRepository` |
-| `search` | 跨域搜尋請求如何被路由與執行 | `SearchQuery`, `SearchResult` | `PlatformCommandPort`, `SearchIndexPort` |
-| `audit-log` | 什麼事必須被永久追蹤 | `AuditSignal`, `AuditClassification` | `PlatformCommandPort`, `AuditSignalStore` |
-| `observability` | 如何量測健康、追蹤與告警 | `ObservabilitySignal`, `HealthIndicator` | `PlatformCommandPort`, `ObservabilitySink` |
-| `analytics` | 使用行為如何被量測與分析 | `AnalyticsEvent`, `BehaviorMetric` | `PlatformCommandPort`, `AnalyticsSink` |
-| `support` | 客服工單與支援知識如何被管理 | `SupportTicket`, `KnowledgeArticle` | `PlatformCommandPort`, `SupportRepository` |
-
-
-## Capability Groups
-
-
-### 主體與名錄
-
-- `identity`
-- `account`
-- `account-profile`
-- `organization`
-
-### 治理與安全
-
-- `access-control`
-- `security-policy`
-- `platform-config`
-- `feature-flag`
-- `onboarding`
-- `compliance`
-
-### 商業與權益
-
-- `billing`
-- `subscription`
-- `referral`
-
-### 流程與交付
-
-- `integration`
-- `workflow`
-- `notification`
-- `background-job`
-
-### 內容與檢索
-
-- `content`
-- `search`
-
-### 證據與診斷
-
-- `audit-log`
-- `observability`
-- `analytics`
-- `support`
-
-## Inventory Freeze Rule
-
-後續若有人想新增 platform 子域，必須先證明以下三件事都成立：
-
-1. 既有 23 個子域沒有任何一個能吸收該能力
-2. 新能力需要獨立的語言、port 焦點與責任邊界
-3. `README.md`、`bounded-context.md`、`context-map.md`、本文件都已先被更新
-
-若無法同時滿足這三件事，預設不允許新增子域。
-
-## Retired Alias Folders
-
-歷史上曾有一些舊別名資料夾，現已收斂至這 23 個正式子域。若未來需要查舊文件或舊分支，應以當前 23 子域為準。
-````
-
-## File: modules/platform/subdomains/access-control/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'access-control'. -->
-````
-
-## File: modules/platform/subdomains/identity/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'identity'. -->
-````
-
-## File: modules/platform/subdomains/integration/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'integration'. -->
-````
-
-## File: modules/platform/subdomains/observability/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'observability'. -->
-````
-
-## File: modules/platform/subdomains/subscription/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'subscription'. -->
-````
-
-## File: modules/platform/subdomains/workflow/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'workflow'. -->
-````
-
-## File: modules/workspace/api/contracts.ts
-````typescript
-/**
- * workspace api/contracts.ts
- *
- * Canonical public type surface for the workspace bounded context.
- * Cross-module and app-layer consumers should import types from here.
- *
- * Internal source: interfaces/api/contracts/
- */
-
-export type {
-  Address,
-  AddressInput,
-  Capability,
-  CapabilitySpec,
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceEntity,
-  WorkspaceGrant,
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-  WorkspaceLocation,
-  WorkspaceName,
-  WorkspaceNameInput,
-  WorkspacePersonnel,
-  WorkspacePersonnelCustomRole,
-  WorkspaceVisibility,
-  WorkspaceVisibilityInput,
-} from "../interfaces/api/contracts/workspace.contract";
-
-export type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberAccessSource,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../interfaces/api/contracts/workspace-member.contract";
-
-export type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiAccountType,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-  WikiWorkspaceRef,
-} from "../interfaces/api/contracts/wiki-content.contract";
-
-export {
-  WORKSPACE_LIFECYCLE_STATES,
-  WORKSPACE_VISIBILITIES,
-  createAddress,
-  createWorkspaceLifecycleState,
-  createWorkspaceName,
-  createWorkspaceVisibility,
-  formatAddress,
-  isTerminalWorkspaceLifecycleState,
-  isWorkspaceVisible,
-  workspaceNameEquals,
-} from "../interfaces/api/contracts/workspace.contract";
-
-export type {
-  WorkspaceCreatedEvent,
-  WorkspaceDomainEvent,
-  WorkspaceLifecycleTransitionedEvent,
-  WorkspaceVisibilityChangedEvent,
-} from "../interfaces/api/contracts/workspace.contract";
-
-export {
-  WORKSPACE_CREATED_EVENT_TYPE,
-  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
-  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
-  createWorkspaceCreatedEvent,
-  createWorkspaceLifecycleTransitionedEvent,
-  createWorkspaceVisibilityChangedEvent,
-} from "../interfaces/api/contracts/workspace.contract";
-````
-
-## File: modules/workspace/api/facade.ts
-````typescript
-/**
- * workspace api/facade.ts
- *
- * Canonical public behavior surface for the workspace bounded context.
- * Cross-module and app-layer consumers invoke commands and queries from here.
- *
- * Internal source: interfaces/api/facades/
- */
-
-export {
-  getWorkspacesForAccount,
-  subscribeToWorkspacesForAccount,
-  getWorkspaceById,
-  getWorkspaceByIdForAccount,
-  buildWikiContentTree,
-  authorizeWorkspaceTeam,
-  createWorkspace,
-  createWorkspaceLocation,
-  createWorkspaceWithCapabilities,
-  deleteWorkspace,
-  grantIndividualWorkspaceAccess,
-  mountCapabilities,
-  updateWorkspaceSettings,
-} from "../interfaces/api/facades/workspace.facade";
-
-export {
-  getWorkspaceMembers,
-} from "../interfaces/api/facades/workspace-member.facade";
-````
-
-## File: modules/workspace/api/index.ts
-````typescript
-/**
- * workspace api/index.ts
- *
- * Canonical public boundary for the workspace bounded context.
- *
- * Cross-module consumers (app/, other modules) MUST import from this path:
- *   import { ... } from "@/modules/workspace/api"
- *
- * Direct imports into domain/, application/, infrastructure/, interfaces/, or
- * ports/ sub-directories from outside this bounded context are forbidden.
- *
- * Surface breakdown:
- *  - contracts.ts  → types, value-object helpers, domain event contracts
- *  - facade.ts     → commands and queries (Server Actions / query functions)
- *  - ui.ts         → web UI components, hooks, navigation, state utilities
- */
-
-export * from "./contracts";
-export * from "./facade";
-export * from "./ui";
-````
-
-## File: modules/workspace/interfaces/api/index.ts
-````typescript
-/**
- * workspace interfaces/api aggregate export.
- *
- * Public API boundary for contracts, facades, queries, actions, and runtime.
- * App-layer and cross-module consumers should import from this path for
- * domain contracts, facades, and server-side query/command surfaces.
- *
- * For web UI components, hooks, and navigation helpers, use
- * modules/workspace/interfaces/web instead.
- */
-
-export * from "./contracts";
-export * from "./facades";
-````
-
 ## File: modules/workspace/interfaces/web/components/cards/WorkspaceContextCard.tsx
 ````typescript
 "use client";
@@ -79270,222 +78732,89 @@ export function WorkspaceOverviewSettingsTab({
 }
 ````
 
-## File: modules/workspace/interfaces/web/hooks/useWorkspaceSettingsSave.ts
-````typescript
-"use client";
-
-import { type FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { WorkspaceEntity } from "../../api/contracts";
-import { getWorkspaceByIdForAccount, updateWorkspaceSettings } from "../../api/facades";
-import type { WorkspaceSettingsDraft } from "../state/workspace-settings";
-import { trimOrUndefined } from "../components/layout/workspace-detail-helpers";
-
-interface UseWorkspaceSettingsSaveOptions {
-  readonly workspace: WorkspaceEntity | null;
-  readonly accountId: string | null | undefined;
-  readonly onSaved: (updated: WorkspaceEntity) => void;
-}
-
-interface UseWorkspaceSettingsSaveResult {
-  readonly isSaving: boolean;
-  readonly saveError: string | null;
-  readonly clearSaveError: () => void;
-  readonly handleSave: (
-    event: FormEvent<HTMLFormElement>,
-    settingsDraft: WorkspaceSettingsDraft | null,
-  ) => Promise<void>;
-}
-
-export function useWorkspaceSettingsSave({
-  workspace,
-  accountId,
-  onSaved,
-}: UseWorkspaceSettingsSaveOptions): UseWorkspaceSettingsSaveResult {
-  const router = useRouter();
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  async function handleSave(
-    event: FormEvent<HTMLFormElement>,
-    settingsDraft: WorkspaceSettingsDraft | null,
-  ) {
-    event.preventDefault();
-
-    if (!workspace || !settingsDraft) return;
-
-    if (!accountId) {
-      setSaveError("帳號上下文尚未完成同步，請稍候再試。");
-      return;
-    }
-
-    const nextWorkspaceName = settingsDraft.name.trim();
-    if (!nextWorkspaceName) {
-      setSaveError("請輸入工作區名稱。");
-      return;
-    }
-
-    setIsSaving(true);
-    setSaveError(null);
-
-    const hasAddressContent = Boolean(
-      settingsDraft.street.trim() ||
-        settingsDraft.city.trim() ||
-        settingsDraft.state.trim() ||
-        settingsDraft.postalCode.trim() ||
-        settingsDraft.country.trim() ||
-        settingsDraft.details.trim(),
-    );
-    const hasPersonnelContent = Boolean(
-      settingsDraft.managerId.trim() ||
-        settingsDraft.supervisorId.trim() ||
-        settingsDraft.safetyOfficerId.trim() ||
-        settingsDraft.customRoles.some((entry) => entry.roleName.trim() || entry.role.trim()),
-    );
-
-    const normalizedCustomRoles = settingsDraft.customRoles
-      .map((entry) => ({
-        roleId: entry.roleId,
-        roleName: entry.roleName.trim(),
-        role: entry.role.trim(),
-      }))
-      .filter((entry) => entry.roleName || entry.role);
-
-    const result = await updateWorkspaceSettings({
-      workspaceId: workspace.id,
-      accountId,
-      name: nextWorkspaceName,
-      visibility: settingsDraft.visibility,
-      lifecycleState: settingsDraft.lifecycleState,
-      address:
-        workspace.address != null || hasAddressContent
-          ? {
-              street: settingsDraft.street.trim(),
-              city: settingsDraft.city.trim(),
-              state: settingsDraft.state.trim(),
-              postalCode: settingsDraft.postalCode.trim(),
-              country: settingsDraft.country.trim(),
-              details: trimOrUndefined(settingsDraft.details),
-            }
-          : undefined,
-      personnel:
-        workspace.personnel != null || hasPersonnelContent
-          ? {
-              managerId: trimOrUndefined(settingsDraft.managerId),
-              supervisorId: trimOrUndefined(settingsDraft.supervisorId),
-              safetyOfficerId: trimOrUndefined(settingsDraft.safetyOfficerId),
-              customRoles: normalizedCustomRoles.length > 0 ? normalizedCustomRoles : undefined,
-            }
-          : undefined,
-    });
-
-    if (!result.success) {
-      setSaveError(result.error.message);
-      setIsSaving(false);
-      return;
-    }
-
-    try {
-      const detail = await getWorkspaceByIdForAccount(accountId, workspace.id);
-      if (!detail) {
-        router.replace("/workspace?context=unavailable");
-        return;
-      }
-      onSaved(detail);
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[useWorkspaceSettingsSave] Failed to refresh workspace after save:", error);
-      }
-      setSaveError("工作區已更新，但重新整理資料失敗。請稍後再試。");
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  return {
-    isSaving,
-    saveError,
-    clearSaveError: () => setSaveError(null),
-    handleSave,
-  };
-}
-````
-
-## File: modules/workspace/AGENT.md
+## File: modules/workspace/README.md
 ````markdown
-# AGENT.md — workspace bounded context
+# workspace
 
-`workspace` is a **Generic Subdomain** bounded context that provides collaboration-scope language and stable boundaries for downstream modules.
+`workspace` is the bounded context that defines collaboration scope through `workspaceId`, lifecycle, and visibility language.
 
-## Mandatory workflow
+> Domain Type: **Generic Subdomain**
 
-```text
-serena
-activate_project
-list_memories
-read_memory
-#use skill context7
-```
+## Why this context exists
 
-## Strategic position
+This context gives the rest of the system a stable collaboration container:
 
-- **Domain**: Xuanwu knowledge platform.
-- **Subdomain**: workspace collaboration container (generic, not differentiating core).
-- **Bounded Context**: `modules/workspace/`.
+- scope identity (`workspaceId`)
+- lifecycle semantics (`preparatory | active | stopped`)
+- visibility semantics (`visible | hidden`)
+- public contracts via `modules/workspace/api`
 
-## Current hexagonal shape (authoritative in this module)
+## Current structure (matches code)
 
 ```text
 modules/workspace/
-├── api/                # Public boundary for app/ and other modules
-├── application/        # Use cases, app services, DTO orchestration
-├── domain/             # Aggregates, entities, value objects, events, services
-├── infrastructure/     # Driven adapters (Firebase/events)
-├── interfaces/         # Driving adapters (api/cli/web)
-├── ports/              # input/ and output/ contracts
-└── subdomains/         # workspace-centered subdomain views
+├── api/
+├── application/
+│   ├── dtos/
+│   ├── services/
+│   └── use-cases/
+├── domain/
+│   ├── aggregates/
+│   ├── entities/
+│   ├── events/
+│   ├── factories/
+│   ├── services/
+│   └── value-objects/
+├── docs/
+├── infrastructure/
+│   ├── events/
+│   └── firebase/
+├── interfaces/
+│   ├── api/
+│   ├── cli/
+│   └── web/
+├── ports/
+│   ├── input/
+│   └── output/
+└── subdomains/
 ```
 
-## Boundary and dependency rules
+## Hexagonal mapping
 
-- Cross-module access must go through `@/modules/workspace/api`.
-- Keep dependency direction: `interfaces -> application -> domain <- infrastructure`.
-- Keep `domain/` framework-free.
-- Keep ports as contracts; do not leak adapter internals through public APIs.
+| Hexagonal part | workspace implementation |
+|---|---|
+| Domain core | `domain/` |
+| Application ring | `application/` |
+| Driving adapters | `interfaces/api`, `interfaces/cli`, `interfaces/web` |
+| Driving ports | `ports/input` |
+| Driven ports | `ports/output` |
+| Driven adapters | `infrastructure/firebase`, `infrastructure/events` |
+| Public boundary | `api/` |
 
-## Canonical language anchors
+## Tactical summary
 
 - Aggregate Root: `Workspace`
-- Lifecycle: `preparatory | active | stopped`
-- Visibility: `visible | hidden`
-- Event discriminants:
-  - `workspace.created`
-  - `workspace.lifecycle_transitioned`
-  - `workspace.visibility_changed`
-
-## Read model vs write model
-
-- Write-side truth: `Workspace` aggregate and domain objects in `domain/`.
-- Query/read projections:
+- Domain Events:
+  - `WorkspaceCreatedEvent`
+  - `WorkspaceLifecycleTransitionedEvent`
+  - `WorkspaceVisibilityChangedEvent`
+- Output port for event publishing:
+  - `WorkspaceDomainEventPublisher`
+- Read projections:
   - `WorkspaceMemberView`
   - `WikiAccountContentNode`
   - `WikiWorkspaceContentNode`
   - `WikiContentItemNode`
 
-These projection types are not aggregate roots.
+## Scope guardrails
 
-## Context7 grounding used for this module documentation
+- This context does not own organization truth (members/teams governance).
+- This context does not own knowledge-content semantics.
+- UI tab composition is interface composition, not context-map ownership.
 
-Based on `/sairyss/domain-driven-hexagon`:
+## Documentation index
 
-- Hexagonal architecture emphasizes clear ports/adapters boundaries.
-- Domain layer should not depend on API/database layers.
-- Repository abstractions belong to ports; infrastructure implements them.
-- Keep solutions pragmatic and avoid overengineering.
-
-## Related module docs
-
-- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
 - [subdomain.md](./subdomain.md)
 - [bounded-context.md](./bounded-context.md)
 - [context-map.md](./context-map.md)
@@ -79497,95 +78826,449 @@ Based on `/sairyss/domain-driven-hexagon`:
 - [domain-events.md](./domain-events.md)
 ````
 
-## File: modules/workspace/api/ui.ts
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+````
+
+## File: modules/platform/docs/context-map.md
+````markdown
+# Context Map — platform
+
+本文件描述 platform 的 23 個子域如何在本地 bounded context 內協作。這是一張 local platform map，不是全系統上下文圖。
+
+## Local Platform Map
+
+以下是核心協作關係圖。新增到 canonical inventory 的子域（例如 `onboarding`、`compliance`、`content`、`search`、`analytics`、`support`、`background-job`、`referral`）在不同實作階段可先以最小路徑接入，待對應 port 穩定後再擴展協作邊。
+
+```text
+identity -> account -> account-profile -> access-control
+identity -> audit-log
+
+organization -> access-control
+organization -> audit-log
+
+security-policy -> access-control
+security-policy -> compliance
+security-policy -> workflow
+security-policy -> audit-log
+
+platform-config -> feature-flag
+platform-config -> access-control
+platform-config -> integration
+platform-config -> workflow
+platform-config -> notification
+platform-config -> observability
+
+onboarding -> account-profile
+onboarding -> notification
+
+subscription -> billing
+subscription -> feature-flag
+subscription -> access-control
+subscription -> integration
+subscription -> workflow
+
+referral -> account
+referral -> billing
+referral -> analytics
+
+access-control -> integration
+access-control -> workflow
+access-control -> audit-log
+
+workflow -> notification
+workflow -> background-job
+workflow -> audit-log
+workflow -> observability
+
+integration -> audit-log
+integration -> observability
+
+notification -> audit-log
+notification -> observability
+
+billing -> audit-log
+billing -> observability
+
+content -> search
+content -> audit-log
+
+search -> analytics
+search -> observability
+
+background-job -> observability
+background-job -> audit-log
+
+compliance -> audit-log
+compliance -> observability
+
+support -> analytics
+support -> audit-log
+
+audit-log -> observability
+audit-log -> analytics
+
+analytics -> observability
+```
+
+## 協作關係
+
+| Source | Target | 共享語言 | 為何需要這個關係 |
+|---|---|---|---|
+| `identity` | `account` | `AuthenticatedSubject`, `AccountLifecycle` | 驗證後主體需映射到可治理帳戶 |
+| `identity` | `account-profile` | `AuthenticatedSubject`, `SubjectScope` | 驗證過的主體需要被映射成可治理輪廓 |
+| `account-profile` | `access-control` | `AccountProfile`, `SubjectPreference` | 授權決策需要主體屬性與偏好 |
+| `organization` | `access-control` | `MembershipBoundary`, `RoleAssignment` | 存取控制需要群組與角色資訊 |
+| `onboarding` | `account-profile` | `OnboardingFlow`, `SetupProgress` | 初始設定結果要轉成可治理輪廓 |
+| `security-policy` | `access-control` | `PolicyCatalog`, `AccessPolicy` | 授權判斷要遵守安全政策 |
+| `security-policy` | `compliance` | `PolicyCatalog`, `CompliancePolicy` | 合規檢查需套用統一政策版本 |
+| `platform-config` | `feature-flag` | `ConfigurationProfile`, `CapabilityToggle` | 能力開關需要設定輪廓與 rollout 參數 |
+| `platform-config` | `workflow` | `ConfigurationProfile` | 流程啟動依賴設定化規則與參數 |
+| `subscription` | `feature-flag` | `Entitlement`, `UsageLimit` | feature rollout 必須受方案權益約束 |
+| `subscription` | `integration` | `PlanConstraint`, `DeliveryAllowance` | 某些整合只在特定方案與配額下可用 |
+| `subscription` | `billing` | `SubscriptionAgreement`, `BillingState` | 訂閱生命週期與計費狀態互相影響 |
+| `referral` | `billing` | `ReferralReward`, `BillingState` | 推薦回饋會影響帳務處理 |
+| `access-control` | `workflow` | `PermissionDecision` | 流程觸發前要先通過授權 |
+| `workflow` | `notification` | `WorkflowTrigger`, `NotificationDispatch` | 流程結果常需轉成通知請求 |
+| `workflow` | `background-job` | `WorkflowTrigger`, `JobSchedule` | 長時程任務由背景排程承接 |
+| `workflow` | `audit-log` | `AuditSignal`, `CorrelationContext` | 重要流程節點需要留下證據 |
+| `integration` | `audit-log` | `AuditSignal`, `DispatchOutcome` | 外部交付結果屬治理軌跡 |
+| `notification` | `audit-log` | `DispatchOutcome`, `AuditSignal` | 派送成功或失敗都要記錄 |
+| `content` | `search` | `ContentAsset`, `SearchQuery` | 內容發布需可被檢索索引與查詢 |
+| `support` | `analytics` | `SupportTicket`, `BehaviorMetric` | 支援流程輸出服務品質指標 |
+| `audit-log` | `observability` | `AuditClassification`, `ObservabilitySignal` | 稽核分類可轉為運維診斷訊號 |
+| `analytics` | `observability` | `BehaviorMetric`, `ObservabilitySignal` | 分析結果需進入告警與健康視圖 |
+| `billing` | `observability` | `BillingState`, `ObservabilitySignal` | 計費異常需要被量測與告警 |
+
+## Context Map Rule
+
+若某個新需求無法被這張 map 中的既有節點與共享語言吸收，先調整 map 與 `subdomains.md`，而不是直接再加新資料夾。
+````
+
+## File: modules/platform/docs/README.md
+````markdown
+# platform docs
+
+`platform/docs/` 是平台藍圖的文件索引入口。本資料夾採「單一主題、單一文件」拆分，避免把邊界、語言、聚合、事件與存取契約混在同一份 README。
+
+## 文件分工
+
+| 文件 | 主題 |
+|---|---|
+| `aggregates.md` | 核心聚合、值物件與不變數 |
+| `application-services.md` | use case handlers、命令/查詢協調與 input ports 對應 |
+| `bounded-context.md` | platform 邊界、責任範圍與 closed inventory 規則 |
+| `context-map.md` | 23 個子域間協作方向與共享語言 |
+| `domain-events.md` | 事件命名、事件擁有者、發出/訂閱清單 |
+| `domain-services.md` | 跨聚合純規則與 decision objects |
+| `repositories.md` | repositories、support ports、delivery ports |
+| `subdomains.md` | 正式 23 子域 inventory 與責任對照 |
+| `ubiquitous-language.md` | platform 通用語言與 port 詞彙 |
+
+## 讀取順序
+
+1. 先讀 `bounded-context.md` 確認邊界與封板規則
+2. 讀 `subdomains.md` 與 `context-map.md` 確認責任與協作
+3. 讀 `ubiquitous-language.md` 鎖定命名
+4. 最後讀 `aggregates.md`、`domain-services.md`、`application-services.md`、`repositories.md`、`domain-events.md` 進入設計細節
+
+## 變更同步規則
+
+- 變更聚合或值物件：同步更新 `aggregates.md` 與 `ubiquitous-language.md`
+- 變更 use case handlers 或 input ports：同步更新 `application-services.md`
+- 變更 output ports 或 repository：同步更新 `repositories.md`
+- 變更事件名稱或 payload：同步更新 `domain-events.md`
+- 變更子域責任：同步更新 `subdomains.md` 與 `context-map.md`
+- 變更平台邊界：同步更新 `bounded-context.md` 與 `../AGENT.md`
+
+## 文件閉環檢查清單
+
+每次調整 platform 文件後，至少確認以下四點：
+
+1. 單一文件只承載單一主題（邊界、術語、聚合、事件、ports 不混寫）
+2. `subdomains.md` 出現的術語都能在 `ubiquitous-language.md` 找到定義
+3. `application-services.md` 與 `subdomains.md` 提到的 ports 都能在 `repositories.md` 找到契約
+4. `domain-events.md` 的事件命名、事件擁有者與 `context-map.md` 協作語言沒有衝突
+````
+
+## File: modules/platform/docs/subdomains.md
+````markdown
+# Subdomains — platform
+
+本文件是 platform 的正式子域 inventory。這份清單是 closed by default 的：後續開發必須先把能力映射到既有子域，而不是再新增新的子域名稱。
+
+## Canonical Inventory
+
+| 子域 | 核心問題 | 主要語言 | Port 焦點 |
+|---|---|---|---|
+| `identity` | 誰是已驗證主體 | `AuthenticatedSubject`, `IdentitySignal` | `PlatformEventIngressPort`, `SubjectDirectory` |
+| `account` | 帳號聚合根與生命週期狀態 | `Account`, `AccountLifecycle` | `PlatformCommandPort`, `AccountRepository` |
+| `account-profile` | 主體有哪些可治理屬性與偏好 | `AccountProfile`, `SubjectPreference` | `PlatformEventIngressPort`, `SubjectDirectory` |
+| `organization` | 主體處於哪些組織與角色邊界 | `MembershipBoundary`, `RoleAssignment` | `PlatformEventIngressPort`, `SubjectDirectory` |
+| `access-control` | 主體現在能做什麼 | `PermissionDecision`, `AccessPolicy` | `PlatformCommandPort`, `PolicyCatalogRepository` |
+| `security-policy` | 平台安全規則如何被定義與發佈 | `PolicyCatalog`, `PolicyRule` | `PlatformCommandPort`, `PolicyCatalogRepository` |
+| `platform-config` | 平台以何種設定輪廓運作 | `ConfigurationProfile`, `ConfigurationProfileRef` | `PlatformCommandPort`, `ConfigurationProfileStore` |
+| `feature-flag` | 哪些能力在哪種條件下被打開 | `PlatformCapability`, `CapabilityToggle` | `PlatformCommandPort`, `ConfigurationProfileStore` |
+| `onboarding` | 新主體如何被引導完成初始設定 | `OnboardingFlow`, `SetupProgress` | `PlatformCommandPort`, `OnboardingRepository` |
+| `compliance` | 資料保留、隱私與法規要求如何被執行 | `CompliancePolicy`, `DataRetentionRule` | `PlatformCommandPort`, `CompliancePolicyStore` |
+| `billing` | 計費狀態、收費結果與財務證據如何被管理 | `BillingState`, `DispatchOutcome` | `PlatformCommandPort`, `DeliveryHistoryRepository`, `AuditSignalStore` |
+| `subscription` | 方案、權益、配額與有效期間如何被管理 | `SubscriptionAgreement`, `Entitlement`, `UsageLimit` | `PlatformCommandPort`, `SubscriptionAgreementRepository`, `UsageMeterRepository` |
+| `referral` | 推薦關係與獎勵如何被追蹤 | `ReferralLink`, `ReferralReward` | `PlatformCommandPort`, `ReferralRepository` |
+| `integration` | 平台如何與外部系統安全協作 | `IntegrationContract`, `DeliveryPolicy` | `PlatformCommandPort`, `IntegrationContractRepository`, `ExternalSystemGateway` |
+| `workflow` | 哪些事實要被轉成可執行流程 | `WorkflowTrigger`, `WorkflowPolicy` | `PlatformCommandPort`, `WorkflowPolicyRepository`, `WorkflowDispatcherPort` |
+| `notification` | 哪些對象應收到什麼訊息 | `NotificationDispatch`, `NotificationRoute` | `PlatformCommandPort`, `NotificationGateway`, `DeliveryHistoryRepository` |
+| `background-job` | 長時程或排程任務如何被提交與監控 | `JobSchedule`, `JobExecution` | `PlatformCommandPort`, `JobQueuePort` |
+| `content` | 內容資產如何被管理與發布 | `ContentAsset`, `PublicationState` | `PlatformCommandPort`, `ContentRepository` |
+| `search` | 跨域搜尋請求如何被路由與執行 | `SearchQuery`, `SearchResult` | `PlatformCommandPort`, `SearchIndexPort` |
+| `audit-log` | 什麼事必須被永久追蹤 | `AuditSignal`, `AuditClassification` | `PlatformCommandPort`, `AuditSignalStore` |
+| `observability` | 如何量測健康、追蹤與告警 | `ObservabilitySignal`, `HealthIndicator` | `PlatformCommandPort`, `ObservabilitySink` |
+| `analytics` | 使用行為如何被量測與分析 | `AnalyticsEvent`, `BehaviorMetric` | `PlatformCommandPort`, `AnalyticsSink` |
+| `support` | 客服工單與支援知識如何被管理 | `SupportTicket`, `KnowledgeArticle` | `PlatformCommandPort`, `SupportRepository` |
+
+
+## Capability Groups
+
+
+### 主體與名錄
+
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+
+### 治理與安全
+
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+
+### 商業與權益
+
+- `billing`
+- `subscription`
+- `referral`
+
+### 流程與交付
+
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+
+### 內容與檢索
+
+- `content`
+- `search`
+
+### 證據與診斷
+
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
+
+## Inventory Freeze Rule
+
+後續若有人想新增 platform 子域，必須先證明以下三件事都成立：
+
+1. 既有 23 個子域沒有任何一個能吸收該能力
+2. 新能力需要獨立的語言、port 焦點與責任邊界
+3. `README.md`、`bounded-context.md`、`context-map.md`、本文件都已先被更新
+
+若無法同時滿足這三件事，預設不允許新增子域。
+
+## Retired Alias Folders
+
+歷史上曾有一些舊別名資料夾，現已收斂至這 23 個正式子域。若未來需要查舊文件或舊分支，應以當前 23 子域為準。
+````
+
+## File: modules/platform/subdomains/access-control/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'access-control'. -->
+````
+
+## File: modules/platform/subdomains/identity/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'identity'. -->
+````
+
+## File: modules/platform/subdomains/integration/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'integration'. -->
+````
+
+## File: modules/platform/subdomains/observability/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'observability'. -->
+````
+
+## File: modules/platform/subdomains/subscription/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'subscription'. -->
+````
+
+## File: modules/platform/subdomains/workflow/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'workflow'. -->
+````
+
+## File: modules/workspace/api/contracts.ts
 ````typescript
 /**
- * workspace api/ui.ts
+ * workspace api/contracts.ts
  *
- * Canonical public web UI surface for the workspace bounded context.
- * App-layer consumers that need workspace UI components, hooks, and
- * navigation utilities should import from here.
+ * Canonical public type surface for the workspace bounded context.
+ * Cross-module and app-layer consumers should import types from here.
  *
- * Internal source: interfaces/web/
+ * Internal source: interfaces/api/contracts/
  */
 
-// ── Screen components ────────────────────────────────────────────────────────
-
-export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
-export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
-export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
-export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
-
-// ── Card components ──────────────────────────────────────────────────────────
-
-export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
-
-// ── Tab components ───────────────────────────────────────────────────────────
-
-export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
-
-// ── Layout components ────────────────────────────────────────────────────────
-
-export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
-
-// ── Rail components ──────────────────────────────────────────────────────────
-
-export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
-
-// ── Navigation ────────────────────────────────────────────────────────────────
+export type {
+  Address,
+  AddressInput,
+  Capability,
+  CapabilitySpec,
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceEntity,
+  WorkspaceGrant,
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+  WorkspaceLocation,
+  WorkspaceName,
+  WorkspaceNameInput,
+  WorkspacePersonnel,
+  WorkspacePersonnelCustomRole,
+  WorkspaceVisibility,
+  WorkspaceVisibilityInput,
+} from "../interfaces/api/contracts/workspace.contract";
 
 export type {
-  WorkspaceTabDevStatus,
-  WorkspaceTabGroup,
-  WorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
-
-export {
-  WORKSPACE_TAB_GROUPS,
-  WORKSPACE_TAB_META,
-  WORKSPACE_TAB_VALUES,
-  getWorkspaceTabLabel,
-  getWorkspaceTabMeta,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
-
-export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
-export {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "../interfaces/web/navigation/workspace-nav-items";
-
-// ── Quick-access navigation ───────────────────────────────────────────────────
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberAccessSource,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../interfaces/api/contracts/workspace-member.contract";
 
 export type {
-  WorkspaceQuickAccessItem,
-  WorkspaceQuickAccessMatcherOptions,
-} from "../interfaces/web/components/navigation/workspace-quick-access";
-
-export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
-
-// ── State helpers ─────────────────────────────────────────────────────────────
-
-export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
-
-// ── Map utilities ─────────────────────────────────────────────────────────────
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiAccountType,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+  WikiWorkspaceRef,
+} from "../interfaces/api/contracts/wiki-content.contract";
 
 export {
-  resolveWorkspaceFromMap,
-  toWorkspaceMap,
-} from "../interfaces/web/utils/workspace-map";
+  WORKSPACE_LIFECYCLE_STATES,
+  WORKSPACE_VISIBILITIES,
+  createAddress,
+  createWorkspaceLifecycleState,
+  createWorkspaceName,
+  createWorkspaceVisibility,
+  formatAddress,
+  isTerminalWorkspaceLifecycleState,
+  isWorkspaceVisible,
+  workspaceNameEquals,
+} from "../interfaces/api/contracts/workspace.contract";
 
-// ── Hooks ─────────────────────────────────────────────────────────────────────
+export type {
+  WorkspaceCreatedEvent,
+  WorkspaceDomainEvent,
+  WorkspaceLifecycleTransitionedEvent,
+  WorkspaceVisibilityChangedEvent,
+} from "../interfaces/api/contracts/workspace.contract";
 
-export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
 export {
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  getWorkspaceIdFromPath,
-  useRecentWorkspaces,
-} from "../interfaces/web/hooks/useRecentWorkspaces";
+  WORKSPACE_CREATED_EVENT_TYPE,
+  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
+  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
+  createWorkspaceCreatedEvent,
+  createWorkspaceLifecycleTransitionedEvent,
+  createWorkspaceVisibilityChangedEvent,
+} from "../interfaces/api/contracts/workspace.contract";
+````
+
+## File: modules/workspace/api/facade.ts
+````typescript
+/**
+ * workspace api/facade.ts
+ *
+ * Canonical public behavior surface for the workspace bounded context.
+ * Cross-module and app-layer consumers invoke commands and queries from here.
+ *
+ * Internal source: interfaces/api/facades/
+ */
+
+export {
+  getWorkspacesForAccount,
+  subscribeToWorkspacesForAccount,
+  getWorkspaceById,
+  getWorkspaceByIdForAccount,
+  buildWikiContentTree,
+  authorizeWorkspaceTeam,
+  createWorkspace,
+  createWorkspaceLocation,
+  createWorkspaceWithCapabilities,
+  deleteWorkspace,
+  grantIndividualWorkspaceAccess,
+  mountCapabilities,
+  updateWorkspaceSettings,
+} from "../interfaces/api/facades/workspace.facade";
+
+export {
+  getWorkspaceMembers,
+} from "../interfaces/api/facades/workspace-member.facade";
+````
+
+## File: modules/workspace/api/index.ts
+````typescript
+/**
+ * workspace api/index.ts
+ *
+ * Canonical public boundary for the workspace bounded context.
+ *
+ * Cross-module consumers (app/, other modules) MUST import from this path:
+ *   import { ... } from "@/modules/workspace/api"
+ *
+ * Direct imports into domain/, application/, infrastructure/, interfaces/, or
+ * ports/ sub-directories from outside this bounded context are forbidden.
+ *
+ * Surface breakdown:
+ *  - contracts.ts  → types, value-object helpers, domain event contracts
+ *  - facade.ts     → commands and queries (Server Actions / query functions)
+ *  - ui.ts         → web UI components, hooks, navigation, state utilities
+ */
+
+export * from "./contracts";
+export * from "./facade";
+export * from "./ui";
+````
+
+## File: modules/workspace/interfaces/api/index.ts
+````typescript
+/**
+ * workspace interfaces/api aggregate export.
+ *
+ * Public API boundary for contracts, facades, queries, actions, and runtime.
+ * App-layer and cross-module consumers should import from this path for
+ * domain contracts, facades, and server-side query/command surfaces.
+ *
+ * For web UI components, hooks, and navigation helpers, use
+ * modules/workspace/interfaces/web instead.
+ */
+
+export * from "./contracts";
+export * from "./facades";
 ````
 
 ## File: modules/workspace/interfaces/web/components/cards/WorkspaceOverviewSummaryCard.tsx
@@ -80562,6 +80245,325 @@ export function WorkspaceOverviewTab({
     </Tabs>
   );
 }
+````
+
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceSettingsSave.ts
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { WorkspaceEntity } from "../../api/contracts";
+import { getWorkspaceByIdForAccount, updateWorkspaceSettings } from "../../api/facades";
+import type { WorkspaceSettingsDraft } from "../state/workspace-settings";
+import { trimOrUndefined } from "../components/layout/workspace-detail-helpers";
+
+interface UseWorkspaceSettingsSaveOptions {
+  readonly workspace: WorkspaceEntity | null;
+  readonly accountId: string | null | undefined;
+  readonly onSaved: (updated: WorkspaceEntity) => void;
+}
+
+interface UseWorkspaceSettingsSaveResult {
+  readonly isSaving: boolean;
+  readonly saveError: string | null;
+  readonly clearSaveError: () => void;
+  readonly handleSave: (
+    event: FormEvent<HTMLFormElement>,
+    settingsDraft: WorkspaceSettingsDraft | null,
+  ) => Promise<void>;
+}
+
+export function useWorkspaceSettingsSave({
+  workspace,
+  accountId,
+  onSaved,
+}: UseWorkspaceSettingsSaveOptions): UseWorkspaceSettingsSaveResult {
+  const router = useRouter();
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  async function handleSave(
+    event: FormEvent<HTMLFormElement>,
+    settingsDraft: WorkspaceSettingsDraft | null,
+  ) {
+    event.preventDefault();
+
+    if (!workspace || !settingsDraft) return;
+
+    if (!accountId) {
+      setSaveError("帳號上下文尚未完成同步，請稍候再試。");
+      return;
+    }
+
+    const nextWorkspaceName = settingsDraft.name.trim();
+    if (!nextWorkspaceName) {
+      setSaveError("請輸入工作區名稱。");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    const hasAddressContent = Boolean(
+      settingsDraft.street.trim() ||
+        settingsDraft.city.trim() ||
+        settingsDraft.state.trim() ||
+        settingsDraft.postalCode.trim() ||
+        settingsDraft.country.trim() ||
+        settingsDraft.details.trim(),
+    );
+    const hasPersonnelContent = Boolean(
+      settingsDraft.managerId.trim() ||
+        settingsDraft.supervisorId.trim() ||
+        settingsDraft.safetyOfficerId.trim() ||
+        settingsDraft.customRoles.some((entry) => entry.roleName.trim() || entry.role.trim()),
+    );
+
+    const normalizedCustomRoles = settingsDraft.customRoles
+      .map((entry) => ({
+        roleId: entry.roleId,
+        roleName: entry.roleName.trim(),
+        role: entry.role.trim(),
+      }))
+      .filter((entry) => entry.roleName || entry.role);
+
+    const result = await updateWorkspaceSettings({
+      workspaceId: workspace.id,
+      accountId,
+      name: nextWorkspaceName,
+      visibility: settingsDraft.visibility,
+      lifecycleState: settingsDraft.lifecycleState,
+      address:
+        workspace.address != null || hasAddressContent
+          ? {
+              street: settingsDraft.street.trim(),
+              city: settingsDraft.city.trim(),
+              state: settingsDraft.state.trim(),
+              postalCode: settingsDraft.postalCode.trim(),
+              country: settingsDraft.country.trim(),
+              details: trimOrUndefined(settingsDraft.details),
+            }
+          : undefined,
+      personnel:
+        workspace.personnel != null || hasPersonnelContent
+          ? {
+              managerId: trimOrUndefined(settingsDraft.managerId),
+              supervisorId: trimOrUndefined(settingsDraft.supervisorId),
+              safetyOfficerId: trimOrUndefined(settingsDraft.safetyOfficerId),
+              customRoles: normalizedCustomRoles.length > 0 ? normalizedCustomRoles : undefined,
+            }
+          : undefined,
+    });
+
+    if (!result.success) {
+      setSaveError(result.error.message);
+      setIsSaving(false);
+      return;
+    }
+
+    try {
+      const detail = await getWorkspaceByIdForAccount(accountId, workspace.id);
+      if (!detail) {
+        router.replace("/workspace?context=unavailable");
+        return;
+      }
+      onSaved(detail);
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[useWorkspaceSettingsSave] Failed to refresh workspace after save:", error);
+      }
+      setSaveError("工作區已更新，但重新整理資料失敗。請稍後再試。");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return {
+    isSaving,
+    saveError,
+    clearSaveError: () => setSaveError(null),
+    handleSave,
+  };
+}
+````
+
+## File: modules/workspace/api/ui.ts
+````typescript
+/**
+ * workspace api/ui.ts
+ *
+ * Canonical public web UI surface for the workspace bounded context.
+ * App-layer consumers that need workspace UI components, hooks, and
+ * navigation utilities should import from here.
+ *
+ * Internal source: interfaces/web/
+ */
+
+// ── Screen components ────────────────────────────────────────────────────────
+
+export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
+export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
+
+// ── Card components ──────────────────────────────────────────────────────────
+
+export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
+
+// ── Tab components ───────────────────────────────────────────────────────────
+
+export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
+
+// ── Layout components ────────────────────────────────────────────────────────
+
+export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
+
+// ── Rail components ──────────────────────────────────────────────────────────
+
+export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+export type {
+  WorkspaceTabDevStatus,
+  WorkspaceTabGroup,
+  WorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export {
+  WORKSPACE_TAB_GROUPS,
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_VALUES,
+  getWorkspaceTabLabel,
+  getWorkspaceTabMeta,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
+export {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "../interfaces/web/navigation/workspace-nav-items";
+
+// ── Quick-access navigation ───────────────────────────────────────────────────
+
+export type {
+  WorkspaceQuickAccessItem,
+  WorkspaceQuickAccessMatcherOptions,
+} from "../interfaces/web/components/navigation/workspace-quick-access";
+
+export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
+
+// ── State helpers ─────────────────────────────────────────────────────────────
+
+export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
+
+// ── Map utilities ─────────────────────────────────────────────────────────────
+
+export {
+  resolveWorkspaceFromMap,
+  toWorkspaceMap,
+} from "../interfaces/web/utils/workspace-map";
+
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+
+export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
+export {
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  getWorkspaceIdFromPath,
+  useRecentWorkspaces,
+} from "../interfaces/web/hooks/useRecentWorkspaces";
+````
+
+## File: modules/workspace/AGENT.md
+````markdown
+# AGENT.md — workspace bounded context
+
+`workspace` is a **Generic Subdomain** bounded context that provides collaboration-scope language and stable boundaries for downstream modules.
+
+## Mandatory workflow
+
+```text
+serena
+activate_project
+list_memories
+read_memory
+#use skill context7
+```
+
+## Strategic position
+
+- **Domain**: Xuanwu knowledge platform.
+- **Subdomain**: workspace collaboration container (generic, not differentiating core).
+- **Bounded Context**: `modules/workspace/`.
+
+## Current hexagonal shape (authoritative in this module)
+
+```text
+modules/workspace/
+├── api/                # Public boundary for app/ and other modules
+├── application/        # Use cases, app services, DTO orchestration
+├── domain/             # Aggregates, entities, value objects, events, services
+├── docs/               # Module-local design and reference notes
+├── infrastructure/     # Driven adapters (Firebase/events)
+├── interfaces/         # Driving adapters (api/cli/web)
+├── ports/              # input/ and output/ contracts
+└── subdomains/         # workspace-centered subdomain views
+```
+
+## Boundary and dependency rules
+
+- Cross-module access must go through `@/modules/workspace/api`.
+- Keep dependency direction: `interfaces -> application -> domain <- infrastructure`.
+- Keep `domain/` framework-free.
+- Keep ports as contracts; do not leak adapter internals through public APIs.
+
+## Canonical language anchors
+
+- Aggregate Root: `Workspace`
+- Lifecycle: `preparatory | active | stopped`
+- Visibility: `visible | hidden`
+- Event discriminants:
+  - `workspace.created`
+  - `workspace.lifecycle_transitioned`
+  - `workspace.visibility_changed`
+
+## Read model vs write model
+
+- Write-side truth: `Workspace` aggregate and domain objects in `domain/`.
+- Query/read projections:
+  - `WorkspaceMemberView`
+  - `WikiAccountContentNode`
+  - `WikiWorkspaceContentNode`
+  - `WikiContentItemNode`
+
+These projection types are not aggregate roots.
+
+## Context7 grounding used for this module documentation
+
+Based on `/sairyss/domain-driven-hexagon`:
+
+- Hexagonal architecture emphasizes clear ports/adapters boundaries.
+- Domain layer should not depend on API/database layers.
+- Repository abstractions belong to ports; infrastructure implements them.
+- Keep solutions pragmatic and avoid overengineering.
+
+## Related module docs
+
+- [README.md](./README.md)
+- [subdomain.md](./subdomain.md)
+- [bounded-context.md](./bounded-context.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [aggregates.md](./aggregates.md)
+- [application-services.md](./application-services.md)
+- [domain-services.md](./domain-services.md)
+- [repositories.md](./repositories.md)
+- [domain-events.md](./domain-events.md)
 ````
 
 ## File: modules/platform/AGENT.md
