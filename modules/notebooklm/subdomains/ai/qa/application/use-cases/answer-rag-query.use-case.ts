@@ -12,14 +12,14 @@
 
 import { randomUUID } from "node:crypto";
 
-import type { IRagRetrievalRepository } from "../../grounding/domain/repositories/IRagRetrievalRepository";
+import type { IRagRetrievalRepository } from "../../../grounding/domain/repositories/IRagRetrievalRepository";
 import type {
   AnswerRagQueryInput,
   AnswerRagQueryOutput,
   AnswerRagQueryResult,
   RagRetrievalSummary,
-} from "../domain/entities/rag-query.entities";
-import type { IRagGenerationRepository } from "../../synthesis/domain/repositories/IRagGenerationRepository";
+} from "../../domain/entities/rag-query.entities";
+import type { IRagGenerationRepository } from "../../../synthesis/domain/repositories/IRagGenerationRepository";
 
 const DEFAULT_TOP_K = 5;
 const DEFAULT_MAX_TOP_K = 20; // Raise from the legacy hard-coded 10

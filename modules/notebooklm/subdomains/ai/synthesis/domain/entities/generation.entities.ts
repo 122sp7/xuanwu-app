@@ -12,7 +12,7 @@
 
 import type { DomainError } from "@shared-types";
 
-import type { RagRetrievedChunk } from "../../grounding/domain/entities/retrieval.entities";
+import type { RagRetrievedChunk } from "../../../grounding/domain/entities/retrieval.entities";
 
 export type { RagRetrievedChunk };
 

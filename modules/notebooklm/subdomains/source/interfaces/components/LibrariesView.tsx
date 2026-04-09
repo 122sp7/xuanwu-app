@@ -12,7 +12,7 @@ import {
   type WikiLibrary,
   type WikiLibraryFieldType,
   type WikiLibraryRow,
-} from "../../api";
+} from "../../index";
 
 interface WikiLibrariesViewProps {
   readonly accountId: string;
@@ -37,12 +37,10 @@ function parseFieldType(value: string): WikiLibraryFieldType {
 export function LibrariesView({ accountId, workspaceId }: WikiLibrariesViewProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [libraries, setLibraries] = useState<WikiLibrary[]>([]);
   const [selectedLibraryId, setSelectedLibraryId] = useState<string>("");
   const [fieldsPreview, setFieldsPreview] = useState<{ key: string; label: string; type: string }[]>([]);
   const [rowsPreview, setRowsPreview] = useState<WikiLibraryRow[]>([]);
-
   const [libraryName, setLibraryName] = useState("");
   const [fieldKey, setFieldKey] = useState("");
   const [fieldLabel, setFieldLabel] = useState("");
@@ -60,12 +58,8 @@ export function LibrariesView({ accountId, workspaceId }: WikiLibrariesViewProps
     try {
       const result = await listWikiLibraries(accountId, workspaceId);
       setLibraries(result);
-      if (!selectedLibraryId && result.length > 0) {
-        setSelectedLibraryId(result[0].id);
-      }
-      if (result.length === 0) {
-        setSelectedLibraryId("");
-      }
+      if (!selectedLibraryId && result.length > 0) setSelectedLibraryId(result[0]?.id ?? "");
+      if (result.length === 0) setSelectedLibraryId("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to list libraries");
     } finally {
@@ -79,7 +73,6 @@ export function LibrariesView({ accountId, workspaceId }: WikiLibrariesViewProps
       setRowsPreview([]);
       return;
     }
-
     try {
       const snapshot = await getWikiLibrarySnapshot(accountId, selectedLibraryId);
       setFieldsPreview(snapshot.fields.map((field) => ({ key: field.key, label: field.label, type: field.type })));
@@ -89,13 +82,8 @@ export function LibrariesView({ accountId, workspaceId }: WikiLibrariesViewProps
     }
   }, [accountId, selectedLibraryId]);
 
-  useEffect(() => {
-    void refreshLibraries();
-  }, [refreshLibraries]);
-
-  useEffect(() => {
-    void refreshSelectedSnapshot();
-  }, [refreshSelectedSnapshot]);
+  useEffect(() => { void refreshLibraries(); }, [refreshLibraries]);
+  useEffect(() => { void refreshSelectedSnapshot(); }, [refreshSelectedSnapshot]);
 
   const handleCreateLibrary = useCallback(async () => {
     try {
@@ -110,13 +98,7 @@ export function LibrariesView({ accountId, workspaceId }: WikiLibrariesViewProps
   const handleAddField = useCallback(async () => {
     if (!selectedLibraryId) return;
     try {
-      await addWikiLibraryField({
-        accountId,
-        libraryId: selectedLibraryId,
-        key: fieldKey,
-        label: fieldLabel,
-        type: fieldType,
-      });
+      await addWikiLibraryField({ accountId, libraryId: selectedLibraryId, key: fieldKey, label: fieldLabel, type: fieldType });
       setFieldKey("");
       setFieldLabel("");
       await refreshSelectedSnapshot();
@@ -129,15 +111,8 @@ export function LibrariesView({ accountId, workspaceId }: WikiLibrariesViewProps
     if (!selectedLibraryId) return;
     try {
       const parsed = JSON.parse(rowJson);
-      if (!isRecord(parsed)) {
-        throw new Error("row JSON must be an object");
-      }
-      const values = parsed;
-      await createWikiLibraryRow({
-        accountId,
-        libraryId: selectedLibraryId,
-        values,
-      });
+      if (!isRecord(parsed)) throw new Error("row JSON must be an object");
+      await createWikiLibraryRow({ accountId, libraryId: selectedLibraryId, values: parsed });
       await refreshSelectedSnapshot();
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to create row");
@@ -156,8 +131,7 @@ export function LibrariesView({ accountId, workspaceId }: WikiLibrariesViewProps
 
       {loading ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          載入 libraries 中...
+          <Loader2 className="size-4 animate-spin" />載入 libraries 中...
         </div>
       ) : null}
 
@@ -185,7 +159,6 @@ export function LibrariesView({ accountId, workspaceId }: WikiLibrariesViewProps
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
           <h3 className="text-sm font-semibold text-foreground">Libraries</h3>
-
           <select
             value={selectedLibraryId}
             onChange={(event) => setSelectedLibraryId(event.target.value)}
@@ -199,13 +172,11 @@ export function LibrariesView({ accountId, workspaceId }: WikiLibrariesViewProps
               </option>
             ))}
           </select>
-
           {selectedLibrary ? (
             <p className="text-xs text-muted-foreground">{selectedLibrary.name} / {selectedLibrary.slug}</p>
           ) : (
             <p className="text-xs text-muted-foreground">請先建立或選擇一個 library。</p>
           )}
-
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Fields</p>
             {fieldsPreview.length === 0 ? (
@@ -224,60 +195,29 @@ export function LibrariesView({ accountId, workspaceId }: WikiLibrariesViewProps
 
         <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
           <h3 className="text-sm font-semibold text-foreground">Add Field / Add Row</h3>
-
           <div className="grid gap-2 md:grid-cols-2">
-            <input
-              type="text"
-              value={fieldKey}
-              onChange={(event) => setFieldKey(event.target.value)}
-              placeholder="field key"
-              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm"
-            />
-            <input
-              type="text"
-              value={fieldLabel}
-              onChange={(event) => setFieldLabel(event.target.value)}
-              placeholder="field label"
-              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm"
-            />
+            <input type="text" value={fieldKey} onChange={(event) => setFieldKey(event.target.value)} placeholder="field key"
+              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm" />
+            <input type="text" value={fieldLabel} onChange={(event) => setFieldLabel(event.target.value)} placeholder="field label"
+              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm" />
           </div>
-
           <div className="flex flex-wrap gap-2">
-            <select
-              value={fieldType}
-              onChange={(event) => setFieldType(parseFieldType(event.target.value))}
-              className="h-9 rounded-md border border-border/60 bg-background px-2 text-sm"
-            >
-              {FIELD_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
+            <select value={fieldType} onChange={(event) => setFieldType(parseFieldType(event.target.value))}
+              className="h-9 rounded-md border border-border/60 bg-background px-2 text-sm">
+              {FIELD_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
             </select>
-            <button
-              type="button"
-              onClick={() => void handleAddField()}
-              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm text-muted-foreground hover:text-foreground"
-            >
+            <button type="button" onClick={() => void handleAddField()}
+              className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm text-muted-foreground hover:text-foreground">
               新增欄位
             </button>
           </div>
-
-          <textarea
-            value={rowJson}
-            onChange={(event) => setRowJson(event.target.value)}
+          <textarea value={rowJson} onChange={(event) => setRowJson(event.target.value)}
             className="min-h-24 w-full rounded-md border border-border/60 bg-background px-3 py-2 text-xs"
-            placeholder='{"title":"My record"}'
-          />
-
-          <button
-            type="button"
-            onClick={() => void handleCreateRow()}
-            className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm text-muted-foreground hover:text-foreground"
-          >
+            placeholder='{"title":"My record"}' />
+          <button type="button" onClick={() => void handleCreateRow()}
+            className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm text-muted-foreground hover:text-foreground">
             建立 Row
           </button>
-
           <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Rows Preview</p>
             {rowsPreview.length === 0 ? (

@@ -10,17 +10,9 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from "@lib-tanstack";
-import {
-  draggable,
-  dropTargetForElements,
-  monitorForElements,
-} from "@lib-dragdrop";
+import { draggable, dropTargetForElements, monitorForElements } from "@lib-dragdrop";
 
-import {
-  getWikiLibrarySnapshot,
-  listWikiLibraries,
-  type WikiLibraryRow,
-} from "../../api";
+import { getWikiLibrarySnapshot, listWikiLibraries, type WikiLibraryRow } from "../../index";
 
 interface LibraryTableViewProps {
   readonly accountId: string;
@@ -32,7 +24,7 @@ type RowData = WikiLibraryRow & { _values: Record<string, unknown> };
 const columnHelper = createColumnHelper<RowData>();
 
 /**
- * WikiLibraryTableView
+ * LibraryTableView
  *
  * TanStack Table rendering library rows with:
  * - Column-level text filter (global filter input)
@@ -53,9 +45,7 @@ export function LibraryTableView({ accountId, workspaceId }: LibraryTableViewPro
       try {
         const result = await listWikiLibraries(accountId, workspaceId);
         setLibraries(result.map((l) => ({ id: l.id, name: l.name })));
-        if (result.length > 0 && result[0]) {
-          setSelectedId(result[0].id);
-        }
+        if (result.length > 0 && result[0]) setSelectedId(result[0].id);
       } catch (e) {
         setError(e instanceof Error ? e.message : "載入 Libraries 失敗");
       } finally {
@@ -73,12 +63,7 @@ export function LibraryTableView({ accountId, workspaceId }: LibraryTableViewPro
         const snap = await getWikiLibrarySnapshot(accountId, selectedId);
         const keys = snap.fields.map((f) => f.key);
         setFieldKeys(keys);
-        setRows(
-          snap.rows.map((r) => ({
-            ...r,
-            _values: r.values as Record<string, unknown>,
-          })),
-        );
+        setRows(snap.rows.map((r) => ({ ...r, _values: r.values as Record<string, unknown> })));
       } catch (e) {
         setError(e instanceof Error ? e.message : "載入資料列失敗");
       } finally {
@@ -149,12 +134,9 @@ export function LibraryTableView({ accountId, workspaceId }: LibraryTableViewPro
           aria-label="選擇 Library"
         >
           {libraries.map((lib) => (
-            <option key={lib.id} value={lib.id}>
-              {lib.name}
-            </option>
+            <option key={lib.id} value={lib.id}>{lib.name}</option>
           ))}
         </select>
-
         <input
           type="search"
           value={filter}
@@ -179,10 +161,7 @@ export function LibraryTableView({ accountId, workspaceId }: LibraryTableViewPro
                 <tr key={hg.id}>
                   <th className="w-8 px-2 py-2" />
                   {hg.headers.map((header) => (
-                    <th
-                      key={header.id}
-                      className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-widest text-muted-foreground"
-                    >
+                    <th key={header.id} className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                       {flexRender(header.column.columnDef.header, header.getContext())}
                     </th>
                   ))}
@@ -192,9 +171,7 @@ export function LibraryTableView({ accountId, workspaceId }: LibraryTableViewPro
             <tbody className="divide-y divide-border/40">
               {table.getRowModel().rows.length === 0 ? (
                 <tr>
-                  <td colSpan={fieldKeys.length + 1} className="px-3 py-4 text-center text-sm text-muted-foreground">
-                    無資料
-                  </td>
+                  <td colSpan={fieldKeys.length + 1} className="px-3 py-4 text-center text-sm text-muted-foreground">無資料</td>
                 </tr>
               ) : (
                 table.getRowModel().rows.map((row) => (
@@ -228,14 +205,8 @@ function DraggableRow({ rowId, children }: DraggableRowProps) {
     const handleEl = dragHandleRef.current;
     const rowEl = rowRef.current;
     if (!handleEl || !rowEl) return;
-    const cleanupDraggable = draggable({
-      element: handleEl,
-      getInitialData: () => ({ rowId }),
-    });
-    const cleanupDrop = dropTargetForElements({
-      element: rowEl,
-      getData: () => ({ rowId }),
-    });
+    const cleanupDraggable = draggable({ element: handleEl, getInitialData: () => ({ rowId }) });
+    const cleanupDrop = dropTargetForElements({ element: rowEl, getData: () => ({ rowId }) });
     return () => {
       cleanupDraggable();
       cleanupDrop();

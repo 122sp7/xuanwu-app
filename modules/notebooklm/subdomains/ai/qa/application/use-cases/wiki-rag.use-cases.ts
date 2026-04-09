@@ -7,10 +7,10 @@
  * use by callers via notebooklm/api.
  */
 
-import type { IWikiContentRepository, WikiParsedDocument, WikiRagQueryResult, WikiReindexInput } from "../../grounding/domain/repositories/IWikiContentRepository";
+import type { IWikiContentRepository, WikiParsedDocument, WikiRagQueryResult, WikiReindexInput } from "../../../grounding/domain/repositories/IWikiContentRepository";
 
 export type { WikiParsedDocument, WikiRagQueryResult, WikiReindexInput };
-export type { WikiCitation } from "../../grounding/domain/repositories/IWikiContentRepository";
+export type { WikiCitation } from "../../../grounding/domain/repositories/IWikiContentRepository";
 
 export async function runWikiRagQuery(
   query: string,

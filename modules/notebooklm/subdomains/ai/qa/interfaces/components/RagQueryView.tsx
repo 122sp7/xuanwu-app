@@ -39,7 +39,7 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [answer, setAnswer] = useState("");
-  const [citations, setCitations] = useState<WikiCitation[]>([]);
+  const [citations, setCitations] = useState<readonly WikiCitation[]>([]);
   const [queried, setQueried] = useState(false);
 
   async function handleSubmit() {

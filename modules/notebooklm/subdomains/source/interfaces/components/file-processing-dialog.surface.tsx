@@ -4,20 +4,8 @@ import type { ReactNode } from "react";
 
 import { useIsMobile } from "@ui-shadcn";
 import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@ui-shadcn/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@ui-shadcn/ui/sheet";
 
 interface FileProcessingDialogSurfaceProps {
   readonly open: boolean;

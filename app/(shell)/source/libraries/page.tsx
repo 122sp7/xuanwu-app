@@ -2,7 +2,7 @@
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { LibrariesView, LibraryTableView } from "@/modules/source/api";
+import { LibrariesView, LibraryTableView } from "@/modules/notebooklm/api";
 
 export default function SourceLibrariesPage() {
   const { state: appState } = useApp();

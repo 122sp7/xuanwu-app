@@ -11,7 +11,7 @@
 
 import type { DomainError } from "@shared-types";
 
-import type { RagCitation, RagRetrievalSummary } from "../../grounding/domain/entities/retrieval.entities";
+import type { RagCitation, RagRetrievalSummary } from "../../../grounding/domain/entities/retrieval.entities";
 
 export type { RagCitation, RagRetrievalSummary };
 

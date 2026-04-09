@@ -5,8 +5,8 @@ import type {
   GenerateNotebookResponseResult,
 } from "../../domain/entities/AgentGeneration";
 import type { Thread } from "../../domain/entities/thread";
-import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/search/api";
-import { createAnswerRagQueryUseCase } from "@/modules/search/api/server";
+import type { AnswerRagQueryInput, AnswerRagQueryResult } from "../../subdomains/ai/qa";
+import { createAnswerRagQueryUseCase } from "../../subdomains/ai/qa/server";
 import { GenerateNotebookResponseUseCase } from "../../application/use-cases/generate-agent-response.use-case";
 import { GenkitNotebookRepository } from "../../infrastructure/genkit/GenkitNotebookRepository";
 import { FirebaseThreadRepository } from "../../infrastructure/firebase/FirebaseThreadRepository";

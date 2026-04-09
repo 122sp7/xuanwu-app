@@ -6,6 +6,10 @@ import Link from "next/link";
 import { useAuth } from "@/app/providers/auth-provider";
 import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
 import { Button } from "@ui-shadcn/ui/button";
+
+import { createKnowledgeDraftFromSourceDocument } from "../_actions/source-processing.actions";
+import { FileProcessingDialogBody } from "./file-processing-dialog.body";
+import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
 import {
   createIdleSummary,
   readCallableData,
@@ -14,9 +18,6 @@ import {
   type ExecutionSummary,
   waitForParsedDocument,
 } from "./file-processing-dialog.utils";
-import { createKnowledgeDraftFromSourceDocument } from "../_actions/file-processing.actions";
-import { FileProcessingDialogBody } from "./file-processing-dialog.body";
-import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
 
 interface FileProcessingDialogProps {
   readonly open: boolean;
@@ -52,9 +53,7 @@ export function FileProcessingDialog({
   const canDismiss = step !== "executing";
 
   function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen && canDismiss) {
-      onClose();
-    }
+    if (!nextOpen && canDismiss) onClose();
   }
 
   async function handleExecute() {
@@ -99,10 +98,7 @@ export function FileProcessingDialog({
         ...current,
         pageCount: parsedDocument.pageCount,
         jsonGcsUri: parsedDocument.jsonGcsUri,
-        parse: {
-          status: "success",
-          detail: `解析完成，共 ${parsedDocument.pageCount} 頁。`,
-        },
+        parse: { status: "success", detail: `解析完成，共 ${parsedDocument.pageCount} 頁。` },
       }));
 
       if (shouldCreatePage) {
@@ -112,9 +108,7 @@ export function FileProcessingDialog({
         }));
 
         try {
-          if (!user?.id) {
-            throw new Error("缺少登入使用者，無法建立 Knowledge Page 草稿");
-          }
+          if (!user?.id) throw new Error("缺少登入使用者，無法建立 Knowledge Page 草稿");
 
           const draftPage = await createKnowledgeDraftFromSourceDocument({
             accountId,
@@ -126,24 +120,16 @@ export function FileProcessingDialog({
             pageCount: parsedDocument.pageCount,
           });
 
-          if (!draftPage.success) {
-            throw new Error(draftPage.error.message || "建立 Knowledge Page 失敗");
-          }
+          if (!draftPage.success) throw new Error(draftPage.error.message || "建立 Knowledge Page 失敗");
 
           setSummary((current) => ({
             ...current,
             pageHref: `/knowledge/pages/${draftPage.aggregateId}`,
-            page: {
-              status: "success",
-              detail: "已建立單頁 Draft，可直接進頁面補內容、調整結構，後續再迭代切頁策略。",
-            },
+            page: { status: "success", detail: "已建立單頁 Draft，可直接進頁面補內容、調整結構，後續再迭代切頁策略。" },
           }));
         } catch (error) {
           const message = error instanceof Error ? error.message : "建立 Knowledge Page 失敗";
-          setSummary((current) => ({
-            ...current,
-            page: { status: "error", detail: message },
-          }));
+          setSummary((current) => ({ ...current, page: { status: "error", detail: message } }));
         }
       }
 
@@ -175,31 +161,19 @@ export function FileProcessingDialog({
           }));
         } catch (error) {
           const message = error instanceof Error ? error.message : "RAG 索引失敗";
-          setSummary((current) => ({
-            ...current,
-            rag: { status: "error", detail: message },
-          }));
+          setSummary((current) => ({ ...current, rag: { status: "error", detail: message } }));
         }
       }
 
       setStep("done");
     } catch (error) {
       const message = error instanceof Error ? error.message : "文件處理失敗";
-
       setSummary((current) => {
         if (current.parse.status === "running") {
-          return {
-            ...current,
-            parse: { status: "error", detail: message },
-          };
+          return { ...current, parse: { status: "error", detail: message } };
         }
-
-        return {
-          ...current,
-          rag: { status: "error", detail: message },
-        };
+        return { ...current, rag: { status: "error", detail: message } };
       });
-
       setStep("done");
     }
   }
@@ -210,23 +184,15 @@ export function FileProcessingDialog({
     <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
       {step === "decide" && (
         <>
-          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
-            保留檔案即可
-          </Button>
-          <Button onClick={() => setStep("select")} className="w-full sm:w-auto">
-            我要決定後續處理
-          </Button>
+          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">保留檔案即可</Button>
+          <Button onClick={() => setStep("select")} className="w-full sm:w-auto">我要決定後續處理</Button>
         </>
       )}
 
       {step === "select" && (
         <>
-          <Button variant="outline" onClick={() => setStep("decide")} className="w-full sm:w-auto">
-            上一步
-          </Button>
-          <Button onClick={() => { void handleExecute(); }} disabled={!canContinue} className="w-full sm:w-auto">
-            開始處理
-          </Button>
+          <Button variant="outline" onClick={() => setStep("decide")} className="w-full sm:w-auto">上一步</Button>
+          <Button onClick={() => { void handleExecute(); }} disabled={!canContinue} className="w-full sm:w-auto">開始處理</Button>
         </>
       )}
 

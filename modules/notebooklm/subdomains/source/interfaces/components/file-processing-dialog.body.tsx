@@ -7,11 +7,7 @@ import { Checkbox } from "@ui-shadcn/ui/checkbox";
 import { Label } from "@ui-shadcn/ui/label";
 
 import type { ExecutionSummary } from "./file-processing-dialog.utils";
-import {
-  FileProcessingPathValue,
-  FileProcessingResultRow,
-  FileProcessingSourceCard,
-} from "./file-processing-dialog.parts";
+import { FileProcessingPathValue, FileProcessingResultRow, FileProcessingSourceCard } from "./file-processing-dialog.parts";
 
 interface FileProcessingDialogBodyProps {
   readonly step: "decide" | "select" | "executing" | "done";
@@ -40,12 +36,7 @@ export function FileProcessingDialogBody({
 }: FileProcessingDialogBodyProps) {
   return (
     <>
-      <FileProcessingSourceCard
-        filename={filename}
-        mimeType={mimeType}
-        gcsUri={gcsUri}
-        sizeBytes={sizeBytes}
-      />
+      <FileProcessingSourceCard filename={filename} mimeType={mimeType} gcsUri={gcsUri} sizeBytes={sizeBytes} />
 
       {step === "decide" && (
         <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm sm:p-5">

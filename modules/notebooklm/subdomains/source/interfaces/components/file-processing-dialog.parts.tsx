@@ -4,6 +4,7 @@ import { CheckCircle2, FileText, Loader2, XCircle } from "lucide-react";
 
 import { cn } from "@ui-shadcn";
 import { Badge } from "@ui-shadcn/ui/badge";
+
 import type { TaskResult } from "./file-processing-dialog.utils";
 
 function formatFileSize(sizeBytes: number): string | null {
@@ -23,18 +24,11 @@ function formatFileSize(sizeBytes: number): string | null {
   }).format(value)} ${units[unitIndex]}`;
 }
 
-export function FileProcessingPathValue({
-  value,
-}: {
-  readonly value: string;
-}) {
+export function FileProcessingPathValue({ value }: { readonly value: string }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border/50 bg-background/80">
       <div className="overflow-x-auto overscroll-x-contain px-3 py-2">
-        <p
-          className="min-w-max font-mono text-[11px] leading-5 text-muted-foreground"
-          translate="no"
-        >
+        <p className="min-w-max font-mono text-[11px] leading-5 text-muted-foreground" translate="no">
           {value}
         </p>
       </div>
@@ -73,7 +67,6 @@ export function FileProcessingSourceCard({
               {fileSizeLabel ? <Badge variant="secondary">{fileSizeLabel}</Badge> : null}
             </div>
           </div>
-
           <div className="space-y-1.5">
             <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
               Source URI
