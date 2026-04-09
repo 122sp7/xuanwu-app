@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 
-import type { WorkspaceEntity } from "../../../api/contracts";
+import type { WorkspaceEntity } from "../../../../api/contracts";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {

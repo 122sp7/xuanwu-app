@@ -2,8 +2,8 @@
 
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { WorkspaceEntity } from "../../api/contracts";
-import { getWorkspaceByIdForAccount, updateWorkspaceSettings } from "../../api/facade";
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { getWorkspaceByIdForAccount, updateWorkspaceSettings } from "../../../api/facade";
 import type { WorkspaceSettingsDraft } from "../workspace-settings";
 import { trimOrUndefined } from "../components/layout/workspace-detail-helpers";
 

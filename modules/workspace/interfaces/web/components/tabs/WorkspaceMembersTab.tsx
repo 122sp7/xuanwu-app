@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import type { WorkspaceEntity, WorkspaceMemberView } from "../../../api/contracts";
+import type { WorkspaceEntity, WorkspaceMemberView } from "../../../../api/contracts";
 import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
 import { Badge } from "@ui-shadcn/ui/badge";
 import {
@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@ui-shadcn/ui/card";
-import { getWorkspaceMembers } from "../../../api/facade";
+import { getWorkspaceMembers } from "../../../../api/facade";
 
 function getMemberInitials(name: string) {
   const trimmed = name.trim();

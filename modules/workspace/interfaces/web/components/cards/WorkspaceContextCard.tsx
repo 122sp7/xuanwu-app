@@ -12,7 +12,7 @@ import { FolderKanban } from "lucide-react";
 
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import type { WorkspaceEntity } from "../../../api/contracts";
+import type { WorkspaceEntity } from "../../../../api/contracts";
 
 interface WorkspaceContextCardProps {
   readonly workspace: WorkspaceEntity | null;
