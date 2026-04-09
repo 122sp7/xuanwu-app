@@ -22,36 +22,38 @@
 
 platform 的正式子域清單已固定為：
 
+
 - `identity`
+- `account`
 - `account-profile`
 - `organization`
 - `access-control`
 - `security-policy`
 - `platform-config`
 - `feature-flag`
+- `onboarding`
+- `compliance`
+- `billing`
+- `subscription`
+- `referral`
 - `integration`
 - `workflow`
 - `notification`
+- `background-job`
+- `content`
+- `search`
 - `audit-log`
 - `observability`
-- `billing`
-- `subscription`
-
-這份 inventory 預設為 closed by default。代理人必須先把需求映射到這 14 個子域之一，不能為了方便再建立新的資料夾別名。
+- `analytics`
+- `support`
+這份 inventory 預設為 closed by default。代理人必須先把需求映射到這 23 個子域之一，不能為了方便再建立新的資料夾別名。
 
 ## 禁用舊名稱
 
-以下舊子域名稱已退休，不得重新建立或重新引用：
+以下舊資料夾別名已退休，不得重新建立或重新引用。若舊子域已被吸收進新名稱，應優先使用canonical名稱：
 
-- `account`
-- `organization`
-- `config`
-- `permission`
-- `integration`
-- `workflow`
-- `notification`
-- `audit`
-- `subscription`
+（舊別名已收斂至 23 個正式子域，不再維護單獨的舊名對照表。）
+
 
 ## 代理人工作契約
 

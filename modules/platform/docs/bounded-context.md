@@ -14,9 +14,11 @@ platform 這個 bounded context 負責回答五類問題：
 
 ## Canonical Capability Groups
 
+
 ### 主體與名錄
 
 - `identity`
+- `account`
 - `account-profile`
 - `organization`
 
@@ -26,22 +28,33 @@ platform 這個 bounded context 負責回答五類問題：
 - `security-policy`
 - `platform-config`
 - `feature-flag`
+- `onboarding`
+- `compliance`
 
 ### 商業與權益
 
 - `billing`
 - `subscription`
+- `referral`
 
 ### 流程與交付
 
 - `integration`
 - `workflow`
 - `notification`
+- `background-job`
+
+### 內容與檢索
+
+- `content`
+- `search`
 
 ### 證據與診斷
 
 - `audit-log`
 - `observability`
+- `analytics`
+- `support`
 
 ## 邊界包含什麼
 
@@ -81,7 +94,7 @@ platform 包含：
 
 ## Closed Inventory Boundary Rule
 
-這個 bounded context 以 14 個子域作為封閉 inventory。任何新需求預設都應被視為既有子域的責任延伸，而不是新增第 15 個子域。只有在既有 14 個子域無法吸收時，才允許重新打開 inventory。
+這個 bounded context 以 23 個子域作為封閉 inventory。任何新需求預設都應被視為既有子域的責任延伸，而不是新增第 24 個子域。只有在既有 23 個子域無法吸收時，才允許重新打開 inventory。
 
 ## 邊界測試問題
 

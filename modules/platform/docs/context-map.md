@@ -1,17 +1,20 @@
 # Context Map — platform
 
-本文件描述 platform 的 14 個子域如何在本地 bounded context 內協作。這是一張 local platform map，不是全系統上下文圖。
+本文件描述 platform 的 23 個子域如何在本地 bounded context 內協作。這是一張 local platform map，不是全系統上下文圖。
 
 ## Local Platform Map
 
+以下是核心協作關係圖。隨著 subdomain 從 14 擴展到 23 個，部分新子域（如 `account`、`onboarding`、`compliance`、`content`、`search`、`analytics`、`support`、`background-job`、`referral`）的協作路徑尚待細化。
+
 ```text
-identity -> account-profile -> access-control
+identity -> account -> account-profile -> access-control
 identity -> audit-log
 
 organization -> access-control
 organization -> audit-log
 
 security-policy -> access-control
+security-policy -> compliance
 security-policy -> workflow
 security-policy -> audit-log
 
@@ -22,17 +25,25 @@ platform-config -> workflow
 platform-config -> notification
 platform-config -> observability
 
+onboarding -> account-profile
+onboarding -> notification
+
 subscription -> billing
 subscription -> feature-flag
 subscription -> access-control
 subscription -> integration
 subscription -> workflow
 
+referral -> account
+referral -> billing
+referral -> analytics
+
 access-control -> integration
 access-control -> workflow
 access-control -> audit-log
 
 workflow -> notification
+workflow -> background-job
 workflow -> audit-log
 workflow -> observability
 
@@ -45,7 +56,25 @@ notification -> observability
 billing -> audit-log
 billing -> observability
 
+content -> search
+content -> audit-log
+
+search -> analytics
+search -> observability
+
+background-job -> observability
+background-job -> audit-log
+
+compliance -> audit-log
+compliance -> observability
+
+support -> analytics
+support -> audit-log
+
 audit-log -> observability
+audit-log -> analytics
+
+analytics -> observability
 ```
 
 ## 協作關係
