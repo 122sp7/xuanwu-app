@@ -27,7 +27,7 @@
 .github/agents/test-scenario-writer.agent.md (33 lines)
 .github/agents/ts-interface-writer.agent.md (39 lines)
 .github/agents/workspace-audit.agent.md (0 lines)
-.github/copilot-instructions.md (164 lines)
+.github/copilot-instructions.md (161 lines)
 .github/instructions/architecture-api-boundary.instructions.md (35 lines)
 .github/instructions/architecture-mddd.instructions.md (35 lines)
 .github/instructions/architecture-modules.instructions.md (38 lines)
