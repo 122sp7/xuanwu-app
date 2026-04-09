@@ -11,6 +11,7 @@ export { WorkspaceMembersTab } from "../interfaces/components/WorkspaceMembersTa
 export { WorkspaceSidebarSection } from "../interfaces/components/WorkspaceSidebarSection";
 export { CreateWorkspaceDialogRail } from "../interfaces/components/CreateWorkspaceDialogRail";
 export { OrganizationWorkspacesScreen } from "../interfaces/components/OrganizationWorkspacesScreen";
+export { WorkspaceContextCard } from "../interfaces/components/WorkspaceContextCard";
 
 export {
   WORKSPACE_TAB_GROUPS,
