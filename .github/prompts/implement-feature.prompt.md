@@ -23,6 +23,6 @@ argument-hint: Provide approved plan reference and tasks to execute.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
+#use skill hexagonal-ddd
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices

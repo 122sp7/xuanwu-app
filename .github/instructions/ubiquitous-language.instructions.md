@@ -35,4 +35,4 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx}'
 - 若使用新術語，同步更新 `terminology-glossary.md` 的「DDD 戰術設計術語」章節。
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill xuanwu-mddd-boundaries
+#use skill hexagonal-ddd

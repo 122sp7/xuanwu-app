@@ -27,8 +27,10 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 Read these in order before making non-trivial decisions:
 
 1. [instructions/ubiquitous-language.instructions.md](./instructions/ubiquitous-language.instructions.md) for canonical terminology routing.
-2. [agents/knowledge-base.md](./agents/knowledge-base.md) for repository-wide architecture rules and module boundaries.
-3. [agents/commands.md](./agents/commands.md) for validation commands, build, lint, test, and deployment workflows.
+2. [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for module isolation and cross-context collaboration boundaries.
+3. `modules/<context>/context-map.md` for context relationships, upstream/downstream contracts, and anti-corruption decisions.
+4. [agents/knowledge-base.md](./agents/knowledge-base.md) for repository-wide architecture rules and module boundaries.
+5. [agents/commands.md](./agents/commands.md) for validation commands, build, lint, test, and deployment workflows.
 
 ## DDD Reference Authority
 
@@ -47,6 +49,14 @@ Strategic DDD root maps are currently owned by `modules/subdomains.md` and `modu
 | Context domain services | `modules/<context>/domain-services.md` |
 
 **Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `modules/subdomains.md` + `modules/bounded-contexts.md` contain strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
+
+## Hexagonal DDD Canonical Triad
+
+- **Ubiquitous Language**: `instructions/ubiquitous-language.instructions.md` + `modules/<context>/ubiquitous-language.md`
+- **Bounded Context**: `instructions/bounded-context-rules.instructions.md` + `modules/bounded-contexts.md`
+- **Context Map**: `modules/<context>/context-map.md`
+
+Any architecture/design update must stay consistent across this triad.
 
 ## Workspace-Wide Operating Rules
 
@@ -143,7 +153,7 @@ Any of the following require a context7 lookup before proceeding:
 
 - Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
 - Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters.
-- Use [skills/alistair-cockburn/SKILL.md](skills/alistair-cockburn/SKILL.md) when designing module boundaries, writing use cases, evaluating methodology fit, or applying hexagonal architecture and Heart of Agile principles.
+- Use [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) when applying Hexagonal Architecture with DDD to module boundaries, ports/adapters, and cross-module API contracts.
 - Use boundary or contract skills only when the task actually crosses those concerns.
 - Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
 

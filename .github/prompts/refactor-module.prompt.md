@@ -16,4 +16,4 @@ argument-hint: Provide module name, refactor goal, and boundary risks.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
+#use skill hexagonal-ddd

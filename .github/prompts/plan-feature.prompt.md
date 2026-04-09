@@ -11,5 +11,5 @@ Use the implementation plan template and include scope, ownership, risks, valida
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
+#use skill hexagonal-ddd
 #use skill xuanwu-development-contracts

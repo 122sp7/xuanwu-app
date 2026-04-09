@@ -32,4 +32,4 @@ applyTo: '{app,modules,packages,providers,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
+#use skill hexagonal-ddd
