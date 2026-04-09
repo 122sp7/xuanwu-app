@@ -39,11 +39,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-335 files | 11,743 lines
+336 files | 11,832 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 335 | 11,743 |
+| Markdown | 336 | 11,832 |
 
 **Largest files:**
 - `py_fn/README.md` (265 lines)
@@ -51,8 +51,8 @@ This skill contains the following reference files:
 - `.github/prompts/serena-ddd-refactor.prompt.md` (215 lines)
 - `.github/copilot-instructions.md` (171 lines)
 - `.github/prompts/playwright-mcp-inspect.prompt.md` (163 lines)
+- `modules/platform/docs/aggregates.md` (160 lines)
 - `modules/platform/AGENT.md` (152 lines)
-- `modules/platform/docs/aggregates.md` (147 lines)
-- `modules/platform/docs/ubiquitous-language.md` (139 lines)
+- `modules/platform/docs/ubiquitous-language.md` (135 lines)
+- `modules/platform/docs/bounded-context.md` (129 lines)
 - `.github/prompts/playwright-mcp-test.prompt.md` (127 lines)
-- `modules/knowledge/aggregates.md` (127 lines)
