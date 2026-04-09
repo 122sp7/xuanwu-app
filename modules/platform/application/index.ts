@@ -1,1 +1,8 @@
-﻿// Purpose: Placeholder scaffold file for platform module development.
+﻿/**
+ * platform application layer barrel.
+ */
+
+export * from "./commands";
+export * from "./queries";
+export * from "./handlers";
+export * from "./dtos";

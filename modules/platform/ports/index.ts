@@ -1,1 +1,6 @@
-﻿// Purpose: Placeholder scaffold file for platform module development.
+﻿/**
+ * platform ports barrel.
+ */
+
+export * from "./input";
+export * from "./output";

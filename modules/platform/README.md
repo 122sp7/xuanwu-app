@@ -8,6 +8,13 @@
 - `domain/` 保持 framework-free，不引入 HTTP、DB SDK、訊息匯流排與監控 SDK
 - 所有外部輸入先進 `ports/input`
 - 所有外部依賴先定義為 `ports/output`，再由 adapters / infrastructure 實作
+- `ports/` 只依賴 `application/` 與 `domain/` 契約，不依賴 `api/`
+- `api/` 只做公開邊界 re-export，不作為核心層的型別來源
+
+## Hexagonal Mapping
+
+- 本地藍圖使用 `adapters/` 作為 driving/driven adapter 統一層，語意上等同一般模組的 `interfaces/`
+- `events/contracts` 只是投影層；事件語言單一來源在 `domain/events`
 
 ## 模組骨架
 

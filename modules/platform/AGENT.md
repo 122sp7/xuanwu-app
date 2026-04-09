@@ -70,6 +70,9 @@ platform 的正式子域清單已固定為：
 - input ports 定義進入系統的請求語言
 - output ports 定義離開系統的依賴語言
 - adapters 只實作 ports，不改寫業務語意
+- ports 只可依賴 `application/` 與 `domain/`，不得依賴 `api/`
+- `api/` 僅為公開邊界投影層，契約真實來源在 `application/` 與 `domain/`
+- 事件語言單一來源在 `domain/events`；`events/contracts` 僅可 re-export
 
 ## 通用語言守則
 

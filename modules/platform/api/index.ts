@@ -1,1 +1,6 @@
-﻿// Purpose: Placeholder scaffold file for platform module development.
+﻿/**
+ * platform public API boundary.
+ */
+
+export * from "./contracts";
+export * from "./facade";
