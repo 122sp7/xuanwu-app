@@ -1,6 +1,6 @@
 "use client";
 
-import { WorkspaceSidebarSection as ModuleWorkspaceSidebarSection } from "@/modules/workspace/interfaces/web";
+import { WorkspaceSidebarSection as ModuleWorkspaceSidebarSection } from "@/modules/workspace/api";
 
 import type { SidebarLocaleBundle } from "./use-sidebar-locale";
 import type { NavPreferences } from "./customize-navigation-dialog";

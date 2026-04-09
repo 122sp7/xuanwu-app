@@ -8,7 +8,7 @@
 import {
   WORKSPACE_NAV_ITEMS,
   normalizeWorkspaceOrder,
-} from "@/modules/workspace/interfaces/web";
+} from "@/modules/workspace/api";
 
 // Re-export so existing consumers of this file (customize-navigation-dialog
 // via nav-preferences-data) keep working during the transition.
