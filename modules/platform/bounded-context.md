@@ -1,82 +1,93 @@
 # Bounded Context — platform
 
-本文件定義 `platform` 這份本地藍圖的邊界。它的目的是把平台層的共享治理能力描述清楚，避免把主體、權限、配置、訂閱、整合、工作流、通知、稽核與可觀測性揉成一團。
+本文件定義 `platform` 這份本地藍圖的邊界。platform 的任務是把平台級的主體、治理、商業限制、交付與診斷能力收斂成一套清楚的六邊形邊界，而不是讓這些能力散落成日後才補名的共享雜物間。
 
 ## Context Purpose
 
-platform blueprint 關心的是平台基礎能力如何以 hexagonal architecture 運作，而不是任何單一產品功能如何呈現。它負責回答的核心問題是：
+platform 這個 bounded context 負責回答五類問題：
 
-- 誰可以做什麼
-- 能力何時可用或不可用
-- 事件如何流向外部世界
-- 重要決策與 side effects 如何被追蹤與觀測
+- 誰是平台可治理的主體
+- 主體在什麼條件下可以做什麼
+- 哪些能力在當前方案、設定與安全政策下可用
+- 平台如何把事實轉成流程、外部交付與通知
+- 平台如何留下證據並暴露診斷訊號
 
-## 這個邊界包含什麼
+## Canonical Capability Groups
 
-platform 內部包含以下類型的責任：
+### 主體與名錄
 
-- 主體邊界：identity、account、organization
-- 治理決策：permission、config、subscription
-- 執行協調：workflow、integration、notification
-- 記錄與診斷：audit、observability
+- `identity`
+- `account-profile`
+- `organization-directory`
 
-這些能力都以 ports and adapters 為基本切分原則。
+### 治理與安全
 
-## 這個邊界刻意不包含什麼
+- `access-control`
+- `security-policies`
+- `platform-configuration`
+- `feature-toggles`
 
-以下問題不應被 platform 直接擁有：
+### 商業與權益
+
+- `billing`
+- `user-subscriptions`
+
+### 流程與交付
+
+- `external-integrations`
+- `process-workflows`
+- `notification-delivery`
+
+### 證據與診斷
+
+- `audit-trail`
+- `observability`
+
+## 邊界包含什麼
+
+platform 包含：
+
+- 可被 platform 主體語言描述的決策
+- 可被 platform policy 語言描述的治理規則
+- 可被 platform ports 表達的交付與持久化依賴
+- 可被平台診斷與稽核需求追蹤的訊號
+
+## 邊界刻意不包含什麼
 
 - 產品內容本身的建立、編排與發布
-- 檢索排序、知識推理或內容相關性決策
-- 文件攝入、轉換、切片等內容處理流程
-- adapter-specific 的 UI 呈現與前端狀態管理
+- 檢索、推理、內容相關性或知識生成
+- 任何 UI 呈現細節本身
+- 以「暫時先開個資料夾」為名的未定義能力
 
-也就是說，platform 不是產品特色本身，而是讓產品特色能以一致規則運作的基礎層。
-
-## 邊界內部的六邊形分工
+## 六邊形分工
 
 ### Domain
 
-- 聚合、值物件、領域服務與事件語言
-- 不依賴資料庫、HTTP、message bus、scheduler、telemetry SDK
+- 聚合、值物件、domain services、domain events
 
 ### Application
 
-- use case handlers / request processors
-- 協調 aggregates、repositories 與 event publisher ports
+- use case handlers、command/query orchestration、projection 組裝
 
 ### Ports
 
-- `input ports`：描述進入平台的請求語言
-- `output ports`：描述離開平台的依賴語言
+- input ports：命令、查詢、事件匯入入口
+- output ports：repository、support store、gateway、sink
 
-### Adapters
+### Adapters / Infrastructure
 
-- `driving adapters`：API、CLI、scheduler、queue consumer、webhook receiver
-- `driven adapters`：database repository、event publisher、HTTP client、notification sender、metrics exporter
+- driving adapters：API、CLI、scheduler、webhook、consumer
+- driven adapters：repository、event publisher、gateway、observability exporter
 
-這裡的 `adapters` 是語意上的總稱，不要求未來物理資料夾只能使用單一命名；但不論實際落地名稱為何，都不能改變 `driving -> application -> domain <- driven` 的方向。
+## Closed Inventory Boundary Rule
 
-### Subdomains
-
-- 子域用來切分語言與責任焦點，不用來繞過 ports/adapters
-
-## 邊界規則
-
-- 子域之間共享的是穩定語言與事件，不是彼此的 adapter 實作
-- application 只能透過 output ports 對外互動
-- domain event 的 schema 由 domain 擁有，transport format 由 adapter 負責
-- capability enablement 必須同時受 policy 與 subscription 約束
-
-## 本地結構規則
-
-這份藍圖預期 platform 以 `domain/`, `application/`, `ports/`, `adapters/`, `subdomains/`, `docs/` 六個主要結構面成長。若未來實作改動此結構，必須同步更新本文件與 `README.md`。
+這個 bounded context 以 14 個子域作為封閉 inventory。任何新需求預設都應被視為既有子域的責任延伸，而不是新增第 15 個子域。只有在既有 14 個子域無法吸收時，才允許重新打開 inventory。
 
 ## 邊界測試問題
 
-若一段新設計無法清楚回答以下任一問題，表示邊界仍不夠清楚：
+1. 這個變更屬於哪個既有子域
+2. 它需要的是新語言、還是既有語言的細化
+3. 它需要的是新 port、還是既有 port 的新 adapter
+4. 它是否會破壞 closed inventory
 
-1. 它是平台規則、應用協調，還是 adapter 細節？
-2. 它屬於哪個平台子域？
-3. 它是否需要新 port，還是既有 port 的新實作？
-4. 它會改變 published language 嗎？
+若第 1 題答不出來，表示 platform 邊界尚未被正確理解。

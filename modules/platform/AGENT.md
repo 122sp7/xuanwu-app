@@ -18,6 +18,41 @@
 
 `platform` 在這裡是平台基礎能力的六邊形架構藍圖。它的任務是保護 platform language、ports/adapters 邊界與子域協作方式，而不是把所有跨領域邏輯集中成單一巨型模組。
 
+## Canonical Subdomain Inventory
+
+platform 的正式子域清單已固定為：
+
+- `identity`
+- `account-profile`
+- `organization-directory`
+- `access-control`
+- `security-policies`
+- `platform-configuration`
+- `feature-toggles`
+- `external-integrations`
+- `process-workflows`
+- `notification-delivery`
+- `audit-trail`
+- `observability`
+- `billing`
+- `user-subscriptions`
+
+這份 inventory 預設為 closed by default。代理人必須先把需求映射到這 14 個子域之一，不能為了方便再建立新的資料夾別名。
+
+## 禁用舊名稱
+
+以下舊子域名稱已退休，不得重新建立或重新引用：
+
+- `account`
+- `organization`
+- `config`
+- `permission`
+- `integration`
+- `workflow`
+- `notification`
+- `audit`
+- `subscription`
+
 ## 代理人工作契約
 
 任何在 `modules/platform/` 的變更，都應遵守以下順序：

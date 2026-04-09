@@ -1,97 +1,74 @@
 # Context Map — platform
 
-本文件描述 platform blueprint 內部子域與外部世界之間的主要協作方向。這裡的 map 是本地平台地圖，用來說明 platform capabilities 如何透過 ports/adapters 組裝，而不是描述全系統所有上下文。
+本文件描述 platform 的 14 個子域如何在本地 bounded context 內協作。這是一張 local platform map，不是全系統上下文圖。
 
 ## Local Platform Map
 
 ```text
-identity -> account -> permission
-identity -> audit
+identity -> account-profile -> access-control
+identity -> audit-trail
 
-organization -> permission
-organization -> workflow
-organization -> audit
+organization-directory -> access-control
+organization-directory -> audit-trail
 
-subscription -> permission
-subscription -> config
-subscription -> integration
-subscription -> workflow
+security-policies -> access-control
+security-policies -> process-workflows
+security-policies -> audit-trail
 
-config -> integration
-config -> notification
-config -> observability
-config -> workflow
+platform-configuration -> feature-toggles
+platform-configuration -> access-control
+platform-configuration -> external-integrations
+platform-configuration -> process-workflows
+platform-configuration -> notification-delivery
+platform-configuration -> observability
 
-permission -> integration
-permission -> notification
-permission -> workflow
+user-subscriptions -> billing
+user-subscriptions -> feature-toggles
+user-subscriptions -> access-control
+user-subscriptions -> external-integrations
+user-subscriptions -> process-workflows
 
-workflow -> notification
-workflow -> audit
-workflow -> observability
+access-control -> external-integrations
+access-control -> process-workflows
+access-control -> audit-trail
 
-integration -> audit
-integration -> observability
+process-workflows -> notification-delivery
+process-workflows -> audit-trail
+process-workflows -> observability
 
-notification -> audit
-notification -> observability
+external-integrations -> audit-trail
+external-integrations -> observability
 
-audit -> observability
+notification-delivery -> audit-trail
+notification-delivery -> observability
+
+billing -> audit-trail
+billing -> observability
+
+audit-trail -> observability
 ```
 
-## 子域協作關係
+## 協作關係
 
 | Source | Target | 共享語言 | 為何需要這個關係 |
 |---|---|---|---|
-| `identity` | `account` | `AuthenticatedSubject`, `SubjectScope` | 已驗證主體需要被轉成可治理的帳戶輪廓 |
-| `account` | `permission` | `AccountProfile`, `PermissionDecision` | 權限決策需要帳戶屬性與狀態 |
-| `organization` | `permission` | `MembershipBoundary`, `RoleAssignment` | 存取控制常依賴組織成員語意 |
-| `subscription` | `config` | `Entitlement`, `UsageLimit` | 配置與 capability toggle 不能超出方案權益 |
-| `subscription` | `integration` | `PlanConstraint`, `DeliveryAllowance` | 某些整合只在特定方案可用 |
-| `config` | `workflow` | `ConfigurationProfile`, `WorkflowPolicy` | workflow 需要使用被發佈的規則與參數 |
-| `config` | `permission` | `AccessPolicy`, `ConfigurationProfile` | 授權決策常需要配置化的 policy 組態 |
-| `permission` | `workflow` | `PermissionDecision` | workflow trigger 必須先通過授權 |
-| `permission` | `audit` | `PermissionDecision`, `AuditClassification` | 關鍵授權決策需要留下證據 |
-| `workflow` | `notification` | `NotificationDispatch` | 觸發結果常需通知人或系統 |
-| `workflow` | `audit` | `AuditSignal` | 關鍵觸發必須留下不可變紀錄 |
-| `integration` | `observability` | `ObservabilitySignal` | 外部交付結果需要被量測與告警 |
-| `notification` | `audit` | `DispatchOutcome`, `AuditSignal` | 派送成功或失敗都屬治理軌跡 |
-| `audit` | `observability` | `AuditClassification`, `ObservabilitySignal` | 稽核事件可轉為 operational diagnostics |
+| `identity` | `account-profile` | `AuthenticatedSubject`, `SubjectScope` | 驗證過的主體需要被映射成可治理輪廓 |
+| `account-profile` | `access-control` | `AccountProfile`, `SubjectPreference` | 授權決策需要主體屬性與偏好 |
+| `organization-directory` | `access-control` | `MembershipBoundary`, `RoleAssignment` | 存取控制需要群組與角色資訊 |
+| `security-policies` | `access-control` | `PolicyCatalog`, `AccessPolicy` | 授權判斷要遵守安全政策 |
+| `platform-configuration` | `feature-toggles` | `ConfigurationProfile`, `CapabilityToggle` | 能力開關需要設定輪廓與 rollout 參數 |
+| `platform-configuration` | `process-workflows` | `ConfigurationProfile` | 流程啟動依賴設定化規則與參數 |
+| `user-subscriptions` | `feature-toggles` | `Entitlement`, `UsageLimit` | feature rollout 必須受方案權益約束 |
+| `user-subscriptions` | `external-integrations` | `PlanConstraint`, `DeliveryAllowance` | 某些整合只在特定方案與配額下可用 |
+| `user-subscriptions` | `billing` | `SubscriptionAgreement`, `BillingState` | 訂閱生命週期與計費狀態互相影響 |
+| `access-control` | `process-workflows` | `PermissionDecision` | 流程觸發前要先通過授權 |
+| `process-workflows` | `notification-delivery` | `WorkflowTrigger`, `NotificationDispatch` | 流程結果常需轉成通知請求 |
+| `process-workflows` | `audit-trail` | `AuditSignal`, `CorrelationContext` | 重要流程節點需要留下證據 |
+| `external-integrations` | `audit-trail` | `AuditSignal`, `DispatchOutcome` | 外部交付結果屬治理軌跡 |
+| `notification-delivery` | `audit-trail` | `DispatchOutcome`, `AuditSignal` | 派送成功或失敗都要記錄 |
+| `audit-trail` | `observability` | `AuditClassification`, `ObservabilitySignal` | 稽核分類可轉為運維診斷訊號 |
+| `billing` | `observability` | `BillingState`, `ObservabilitySignal` | 計費異常需要被量測與告警 |
 
-## 語言完整性規則
+## Context Map Rule
 
-若 context map 引入新的共享語言，例如 `WorkflowPolicy`、`AuditClassification` 或 `DispatchOutcome`，該術語必須同時出現在 `ubiquitous-language.md`。若沒有，表示 map 仍然有設計缺口。
-
-## 與外部世界的六邊形互動
-
-### Driving Side
-
-外部輸入通常來自：
-
-- API / UI 請求
-- scheduler
-- queue consumer
-- webhook receiver
-- operator CLI
-
-它們都不應直接觸碰 domain model，而必須先經過 input ports 與 application services。
-
-### Driven Side
-
-platform 會透過 output ports 驅動以下外部能力：
-
-- repository persistence
-- domain event publishing
-- notification channels
-- external integration endpoints
-- metrics / tracing / alerting backends
-- audit storage
-
-## Context Map 規則
-
-- `identity`, `account`, `organization` 組成主體與邊界語言
-- `subscription`, `config`, `permission` 組成治理語言
-- `workflow`, `integration`, `notification` 組成執行與交付語言
-- `audit`, `observability` 組成追蹤與診斷語言
-
-一個子域若同時扮演多種角色，應優先共享語言與事件，而不是直接共享內部結構。
+若某個新需求無法被這張 map 中的既有節點與共享語言吸收，先調整 map 與 `subdomains.md`，而不是直接再加新資料夾。
