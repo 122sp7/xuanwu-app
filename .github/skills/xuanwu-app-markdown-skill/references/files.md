@@ -15124,74 +15124,6 @@ domain/aggregates → domain/services（呼叫 domain service，如有需要）
 `domain/aggregates` **不可**依賴 `application/`、`infrastructure/`、`interfaces/`。
 ````
 
-## File: modules/workspace/interfaces/web/AGENT.md
-````markdown
-# interfaces/web — Web Driving Adapters
-
-`web/` 是 **UI 封裝層**，負責 React / shadcn 畫面、hooks 與本地互動狀態。它可以組裝 workspace 的 public API，但不直接承擔 application 或 infrastructure 的流程細節。
-
-> 新增的 UI component / hook 以收斂到這裡為原則；不要再把新的 driving adapter 散落在其他目錄。
-
----
-
-## 目錄結構
-
-```txt
-interfaces/web/
-	components/
-		dialogs/
-		cards/
-		screens/
-		tabs/
-		rails/
-		layout/
-	hooks/
-	workspace-nav-items.ts
-	workspace-quick-access.tsx
-	workspace-session.ts
-	workspace-settings.ts
-	workspace-supporting-records.ts
-	workspace-tabs.ts
-```
-
-## ✅ 屬於此處
-
-| 類型 | 範例 |
-|------|------|
-| Screen / route components | `components/screens/*` |
-| Dialog / modal UI | `components/dialogs/*` |
-| Summary / info cards | `components/cards/*` |
-| Tab panes | `components/tabs/*` |
-| Rail / side panel UI | `components/rails/*` |
-| Layout helpers / sections | `components/layout/*` |
-| React Hooks | `hooks/useWorkspaceHub.ts` |
-| UI state / form draft mapping | `workspace-settings.ts` |
-
----
-
-## ❌ 禁止放入
-
-| 禁止項目 | 原因 |
-|----------|------|
-| 核心業務邏輯（Domain / Application） | 放 `domain/`、`application/` |
-| Repository / Database / Genkit concrete call | 應透過 `@/modules/workspace/api` 或本地 api boundary 間接協作 |
-| HTTP Route Handler | 放 `interfaces/api/` |
-| CLI 命令解析 | 放 `interfaces/cli/` |
-
----
-
-## 依賴箭頭
-
-```txt
-interfaces/web/components | hooks
-	-> modules/workspace/api | ../api/*
-modules/workspace/api
-	-> interfaces/api/{contracts,facades,ui}
-```
-
-`interfaces/web` **不可**直接依賴 `infrastructure/*`、`application/*`、`domain/*`。
-````
-
 ## File: modules/workspace/interfaces/api/AGENT.md
 ````markdown
 # interfaces/api — API Driving Adapters
@@ -15250,6 +15182,77 @@ interfaces/api/runtime
 ```
 
 只有 `runtime/` 可以做 adapter composition；其餘 `interfaces/api` 檔案 **不可**直接依賴 `infrastructure/firebase/`、`infrastructure/events/`。
+````
+
+## File: modules/workspace/interfaces/web/AGENT.md
+````markdown
+# interfaces/web — Web Driving Adapters
+
+`web/` 是 **UI 封裝層**，負責 React / shadcn 畫面、hooks 與本地互動狀態。它可以組裝 workspace 的 public API，但不直接承擔 application 或 infrastructure 的流程細節。
+
+> 新增的 UI component / hook 以收斂到這裡為原則；不要再把新的 driving adapter 散落在其他目錄。
+
+---
+
+## 目錄結構
+
+```txt
+interfaces/web/
+	components/
+		navigation/
+		dialogs/
+		cards/
+		screens/
+		tabs/
+		rails/
+		layout/
+	hooks/
+	navigation/
+	state/
+	utils/
+	view-models/
+```
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Screen / route components | `components/screens/*` |
+| Dialog / modal UI | `components/dialogs/*` |
+| Summary / info cards | `components/cards/*` |
+| Tab panes | `components/tabs/*` |
+| Rail / side panel UI | `components/rails/*` |
+| Layout helpers / sections | `components/layout/*` |
+| Navigation UI composition | `components/navigation/*` |
+| React Hooks | `hooks/useWorkspaceHub.ts` |
+| Navigation metadata / tab catalogs | `navigation/*` |
+| UI state / draft/session mapping | `state/*` |
+| Entity → UI record mapping | `view-models/*` |
+| Small pure helpers | `utils/*` |
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| 核心業務邏輯（Domain / Application） | 放 `domain/`、`application/` |
+| Repository / Database / Genkit concrete call | 應透過 `@/modules/workspace/api` 或本地 api boundary 間接協作 |
+| HTTP Route Handler | 放 `interfaces/api/` |
+| CLI 命令解析 | 放 `interfaces/cli/` |
+
+---
+
+## 依賴箭頭
+
+```txt
+interfaces/web/components | hooks | navigation | state | utils | view-models
+	-> modules/workspace/api | ../api/*
+modules/workspace/api
+	-> interfaces/api/{contracts,facades} + interfaces/web public composition
+```
+
+`interfaces/web` **不可**直接依賴 `infrastructure/*`、`application/*`、`domain/*`。
 ````
 
 ## File: modules/workspace/subdomain.md
@@ -16603,7 +16606,7 @@ modules/workspace/
 └── interfaces/                 ← Driving Adapters（外部入口）
 	├── api/                    ← Adapter implementation（contracts / facades / queries / actions / runtime）
 	├── cli/                    ← CLI / Cron Job → Input Port
-	└── web/                    ← shadcn UI Components + Hooks（cards / dialogs / screens / tabs / rails / layout）
+	└── web/                    ← shadcn UI + navigation/state/view-models（components / hooks / navigation / state / utils / view-models）
 ```
 
 ## 戰略層級（Domain / Subdomain / Bounded Context）
