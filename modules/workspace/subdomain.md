@@ -2,7 +2,7 @@
 
 `workspace` 所對應的問題空間在 Xuanwu 的戰略分類中屬於 generic subdomain。
 
-全域 subdomain 分類由 [docs/ddd/subdomains.md](../../docs/ddd/subdomains.md) 擁有；本文件只說明 workspace 為什麼落在這個分類，以及它在 selected problem-space view 中的意義。
+全域 subdomain 分類由 [modules/subdomains.md](../subdomains.md) 擁有；本文件只說明 workspace 為什麼落在這個分類，以及它在 selected problem-space view 中的意義。
 
 ## Why Generic
 

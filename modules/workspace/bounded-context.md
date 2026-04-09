@@ -2,7 +2,7 @@
 
 `modules/workspace/` 是 Xuanwu 中承載 workspace 語言、模型、應用流程與 adapters 的 bounded context。
 
-全域 bounded-context 地圖由 [docs/ddd/bounded-contexts.md](../../docs/ddd/bounded-contexts.md) 擁有；本文件只描述 `workspace` 這個本地 bounded context 的內外邊界，不重複整份全域地圖。
+全域 bounded-context 地圖由 [modules/bounded-contexts.md](../bounded-contexts.md) 擁有；本文件只描述 `workspace` 這個本地 bounded context 的內外邊界，不重複整份全域地圖。
 
 ## Boundaries
 
