@@ -25,6 +25,7 @@ modules/workspace/
 ├── api/                # Public boundary for app/ and other modules
 ├── application/        # Use cases, app services, DTO orchestration
 ├── domain/             # Aggregates, entities, value objects, events, services
+├── docs/               # Module-local design and reference notes
 ├── infrastructure/     # Driven adapters (Firebase/events)
 ├── interfaces/         # Driving adapters (api/cli/web)
 ├── ports/              # input/ and output/ contracts

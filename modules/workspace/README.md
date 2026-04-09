@@ -29,6 +29,7 @@ modules/workspace/
 │   ├── factories/
 │   ├── services/
 │   └── value-objects/
+├── docs/
 ├── infrastructure/
 │   ├── events/
 │   └── firebase/
