@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
+import { resolveWorkspaceFromMap } from "@/modules/workspace/api";
 import { SourceDocumentsView } from "@/modules/source/api";
 
 export default function SourceDocumentsPage() {
@@ -11,10 +12,8 @@ export default function SourceDocumentsPage() {
     state: { workspaces, activeWorkspaceId },
   } = useApp();
   const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const workspaceId =
-    requestedWorkspaceId && Object.hasOwn(workspaces, requestedWorkspaceId)
-      ? requestedWorkspaceId
-      : activeWorkspaceId || undefined;
+  const resolvedWorkspace = resolveWorkspaceFromMap(workspaces, requestedWorkspaceId);
+  const workspaceId = resolvedWorkspace?.id ?? activeWorkspaceId ?? undefined;
 
   return (
     <div className="space-y-4">

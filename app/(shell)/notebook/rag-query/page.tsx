@@ -3,16 +3,15 @@
 import { useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
+import { resolveWorkspaceFromMap } from "@/modules/workspace/api";
 import { RagQueryView } from "@/modules/search/api";
 
 export default function NotebookRagQueryPage() {
   const searchParams = useSearchParams();
   const { state: appState } = useApp();
   const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const workspaceId =
-    requestedWorkspaceId && Object.hasOwn(appState.workspaces, requestedWorkspaceId)
-      ? requestedWorkspaceId
-      : appState.activeWorkspaceId || undefined;
+  const resolvedWorkspace = resolveWorkspaceFromMap(appState.workspaces, requestedWorkspaceId);
+  const workspaceId = resolvedWorkspace?.id ?? appState.activeWorkspaceId ?? undefined;
 
   return (
     <div className="space-y-4">
