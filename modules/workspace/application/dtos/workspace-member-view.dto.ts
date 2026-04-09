@@ -1,5 +1,5 @@
 /**
- * Workspace member read models — pure TypeScript projections for workspace access views.
+ * Workspace member read models — query-side DTOs for workspace access views.
  */
 
 export type WorkspaceMemberPresence = "active" | "away" | "offline" | "unknown";

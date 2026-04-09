@@ -69,7 +69,7 @@
 
 ### `workspace` 模組
 
-**代碼位置：** `modules/workspace/interfaces/queries/workspace.queries.ts`
+**代碼位置：** `modules/workspace/interfaces/api/workspace.queries.ts`
 
 ```typescript
 // 一次性查詢
@@ -91,12 +91,11 @@ export function subscribeToWorkspacesForAccount(
 
 ### `workspace` 成員查詢
 
-**代碼位置：** `modules/workspace/interfaces/queries/workspace-member.queries.ts`
+**代碼位置：** `modules/workspace/interfaces/api/workspace-member.queries.ts`
 
 | 函式 | 說明 |
 |------|------|
-| `listWorkspaceMembers(workspaceId)` | 列出工作區成員 |
-| `getWorkspaceMember(workspaceId, userId)` | 取得特定成員 |
+| `getWorkspaceMembers(workspaceId)` | 取得工作區成員查詢投影 |
 
 ---
 
@@ -289,7 +288,7 @@ export function subscribeToWorkspaceFlowTasks(
 // Server Component 使用 Query 函式（Server-side read）
 // app/(shell)/workspace/[workspaceId]/page.tsx
 
-import { getWorkspaceByIdForAccount } from "@/modules/workspace/interfaces/api";
+import { getWorkspaceByIdForAccount } from "@/modules/workspace/api";
 
 export default async function WorkspacePage({ params }: { params: { workspaceId: string } }) {
   const workspace = await getWorkspaceByIdForAccount(accountId, params.workspaceId);
@@ -300,7 +299,7 @@ export default async function WorkspacePage({ params }: { params: { workspaceId:
 
 ```typescript
 // Client Component 使用訂閱 Hook（Client-side real-time）
-// modules/workspace/interfaces/hooks/useWorkspaces.ts
+// modules/workspace/interfaces/web/hooks/useWorkspaceHub.ts
 
 export function useWorkspaces(accountId: string) {
   const [workspaces, setWorkspaces] = useState<WorkspaceEntity[]>([]);

@@ -6,6 +6,12 @@
  */
 
 // Driven ports (domain/application core -> outside)
+export type { WorkspaceCommandPort } from "./input/WorkspaceCommandPort";
+export type {
+  WorkspaceQueryPort,
+  WorkspaceQuerySubscription,
+} from "./input/WorkspaceQueryPort";
+
 export type { WorkspaceRepository } from "./output/WorkspaceRepository";
 export type { WorkspaceCapabilityRepository } from "./output/WorkspaceCapabilityRepository";
 export type { WorkspaceAccessRepository } from "./output/WorkspaceAccessRepository";

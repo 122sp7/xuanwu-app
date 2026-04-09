@@ -162,7 +162,7 @@ interfaces/web ─┘
 ### ✅ 允許
 
 ```typescript
-import { getWorkspaceById, WorkspaceDetailScreen } from "@/modules/workspace/interfaces/api";
+import { getWorkspaceById, WorkspaceDetailScreen } from "@/modules/workspace/api";
 import type { WorkspaceRepository } from "@/modules/workspace/ports";
 ```
 
@@ -175,7 +175,7 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 
 ## 分層守衛
 
-- `index.ts` 只能是薄入口；跨模組與 app composition consumer 應優先使用 `@/modules/workspace/interfaces/api`
+- `api/index.ts` 只能是薄入口；跨模組與 app composition consumer 應優先使用 `@/modules/workspace/api`
 - `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` 只做 driving adapter，不處理 domain 決策
 - `application/use-cases/` 處理單一 use case，不吞進純業務規則
 - `application/services/` 只負責流程，不替代 domain service
@@ -198,8 +198,8 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 
 ## Tactical 建模守則
 
-- `WorkspaceMemberView` 是 read projection，不是 aggregate、entity 或 value object
-- `WikiContentTree.ts` 目前承載的是導覽/查詢模型，不是 write-side aggregate
+- `WorkspaceMemberView` 是 read projection，應放在 query-side DTO，而不是 aggregate、entity 或 value object
+- `WikiContentTree` 相關型別目前應放在 `application/dtos/`，不是 write-side aggregate
 - `WorkspaceLifecycleState` 的 canonical 值是 `preparatory | active | stopped`，不是 `active | archived`
 - 若要新增跨 aggregate 規則，先判斷是否真的需要 domain service；不要用 application service 假裝 aggregate
 - 若要新增跨 use case 長流程，先放進 `application/services/`，不要把流程協調塞進 `domain/services/`

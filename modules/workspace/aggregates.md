@@ -83,7 +83,7 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 | `WikiWorkspaceContentNode` | 工作區導覽節點 |
 | `WikiContentItemNode` | 導覽項 read projection |
 
-`WorkspaceMemberView` 與 `Wiki*Node` 型別目前放在 `domain/entities/` 下，但語意上是 query-side projection，不是 write-side aggregate、entity 或 value object。
+`WorkspaceMemberView` 與 `Wiki*Node` 型別應放在 `application/dtos/` 下，作為 query-side projection，而不是 write-side aggregate、entity 或 value object。
 
 文件上必須清楚區分：
 

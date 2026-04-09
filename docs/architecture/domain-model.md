@@ -147,7 +147,7 @@
 └── role: string
 ```
 
-**代碼位置：** `modules/workspace/domain/entities/Workspace.ts`
+**代碼位置：** `modules/workspace/domain/aggregates/Workspace.ts`
 
 ---
 

@@ -19,12 +19,20 @@
 
 ## 依賴方向（Compile-time）
 
-- `interfaces -> application -> domain`
-- `infrastructure -> domain`（實作 ports）
+- `interfaces -> ports/input -> application -> domain`
+- `application -> ports/output`
+- `infrastructure -> ports/output`（實作 ports）
 - `domain` 不可反向依賴 `interfaces`、`application`、`infrastructure`
 - `ports` 只匯出抽象，不可匯出 adapter 類別
 
 ## 目前 Port 清單
+
+### Driving Ports
+
+- `WorkspaceCommandPort`
+- `WorkspaceQueryPort`
+
+### Driven Ports
 
 - `WorkspaceRepository`
 - `WorkspaceCapabilityRepository`

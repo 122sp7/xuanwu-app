@@ -1,9 +1,5 @@
 import type { WorkspaceMemberView } from "./contracts";
-import { FetchWorkspaceMembersUseCase } from "../../application/use-cases/workspace-member.use-cases";
-import { FirebaseWorkspaceQueryRepository } from "../../infrastructure/firebase/FirebaseWorkspaceQueryRepository";
-
-const workspaceQueryRepo = new FirebaseWorkspaceQueryRepository();
-const fetchWorkspaceMembersUseCase = new FetchWorkspaceMembersUseCase(workspaceQueryRepo);
+import { workspaceQueryPort } from "./workspace-runtime";
 
 export async function getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
   const normalizedWorkspaceId = workspaceId.trim();
@@ -11,5 +7,5 @@ export async function getWorkspaceMembers(workspaceId: string): Promise<Workspac
     return [];
   }
 
-  return fetchWorkspaceMembersUseCase.execute(normalizedWorkspaceId);
+  return workspaceQueryPort.getWorkspaceMembers(normalizedWorkspaceId);
 }

@@ -32,12 +32,13 @@ Aggregate Root 是 write-side 的一致性邊界。
 
 ## 現況
 
-> `Workspace` 目前仍在 `domain/entities/Workspace.ts`。
-> 在 Phase 3（workspace-flow 合併）完成後，將整批遷移：
+`Workspace` 已收斂到 `domain/aggregates/Workspace.ts`，目前這個目錄承載 workspace BC 的 write-side aggregate root。
+
+後續 Phase 3（workspace-flow 合併）時，預計再補入：
 
 | Aggregate Root | 來源 | 狀態 |
 |---------------|------|------|
-| `Workspace` | `domain/entities/Workspace.ts` | 待遷移 |
+| `Workspace` | `domain/aggregates/Workspace.ts` | 已收斂 |
 | `Task` | `workspace-flow` 合併 | Phase 3 |
 | `Issue` | `workspace-flow` 合併 | Phase 3 |
 | `Invoice` | `workspace-flow` 合併 | Phase 3 |

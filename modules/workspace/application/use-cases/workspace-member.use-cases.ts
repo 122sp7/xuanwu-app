@@ -1,4 +1,4 @@
-import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMember";
+import type { WorkspaceMemberView } from "../dtos/workspace-member-view.dto";
 import type { WorkspaceQueryRepository } from "../../ports/output/WorkspaceQueryRepository";
 
 export class FetchWorkspaceMembersUseCase {

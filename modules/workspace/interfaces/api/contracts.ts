@@ -42,7 +42,7 @@ export type {
   WorkspaceMemberAccessSource,
   WorkspaceMemberPresence,
   WorkspaceMemberView,
-} from "../../domain/entities/WorkspaceMember";
+} from "../../application/dtos/workspace-member-view.dto";
 
 export type {
   WikiAccountContentNode,
@@ -51,7 +51,7 @@ export type {
   WikiContentItemNode,
   WikiWorkspaceContentNode,
   WikiWorkspaceRef,
-} from "../../domain/entities/WikiContentTree";
+} from "../../application/dtos/wiki-content-tree.dto";
 
 export type {
   WorkspaceCreatedEvent,

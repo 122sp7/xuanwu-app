@@ -1,9 +1,7 @@
 /**
  * Module: workspace
- * Layer: domain/entities
- * Purpose: Wiki content-tree navigation types — the sidebar/overview tree
- *          built from workspace membership. Lives in workspace because the tree
- *          is anchored to account→workspace hierarchy.
+ * Layer: application/dtos
+ * Purpose: Query-side DTOs for the workspace wiki/navigation content tree.
  */
 
 export type WikiAccountType = "personal" | "organization";

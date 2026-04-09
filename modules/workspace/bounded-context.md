@@ -114,7 +114,7 @@ interfaces/web ─┘
 
 ## Ownership Guardrails
 
-- 跨模組或 app composition consumer 應透過 `@/modules/workspace/interfaces/api` 協作
+- 跨模組或 app composition consumer 應透過 `@/modules/workspace/api` 協作
 - `domain/` 不感知 React、Firebase SDK、HTTP client
 - `application/` 不直接依賴 infrastructure implementation
 - `infrastructure/` 不透過 `interfaces/` 反向回繞
