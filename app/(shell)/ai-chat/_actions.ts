@@ -4,12 +4,12 @@ import type {
   GenerateNotebookResponseInput,
   GenerateNotebookResponseResult,
   Thread,
-} from "@/modules/notebook/api";
+} from "@/modules/notebooklm/api";
 import {
   GenerateNotebookResponseUseCase,
   GenkitNotebookRepository,
-} from "@/modules/notebook/api/server";
-import { saveThread, loadThread } from "@/modules/notebook/api";
+} from "@/modules/notebooklm/api/server";
+import { saveThread, loadThread } from "@/modules/notebooklm/api";
 
 export async function sendChatMessage(
   input: GenerateNotebookResponseInput,
