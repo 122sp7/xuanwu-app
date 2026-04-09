@@ -16,12 +16,11 @@ import { UploadCompleteFileUseCase } from "../../application/use-cases/upload-co
 import { UploadInitFileUseCase } from "../../application/use-cases/upload-init-file.use-case";
 import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
 import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
-import { KnowledgeIngestionApi } from "@/modules/ai/api";
+import { ingestionService } from "@/modules/platform/api";
 import type { FileCommandResult } from "../contracts/file-command-result";
 import { deleteDoc, doc, getFirestore, serverTimestamp, updateDoc } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
 
-const knowledgeIngestionApi = new KnowledgeIngestionApi();
 
 function createCommandId(idempotencyKey?: string) {
   const normalized = idempotencyKey?.trim();
@@ -60,7 +59,7 @@ export async function uploadCompleteFile(
   if (result.ok) {
     const file = await fileRepository.findById(input.fileId);
 
-    const registration = await knowledgeIngestionApi.registerDocument({
+    const registration = await ingestionService.registerDocument({
       organizationId: input.organizationId,
       workspaceId: input.workspaceId,
       sourceFileId: input.fileId,
