@@ -5,5 +5,5 @@
   - Python worker in `py_fn/` owns ingestion, parsing, chunking, embedding, and background processing.
 - Key directories: `app/`, `modules/`, `packages/`, `py_fn/`, `docs/`, `.github/`.
 - Documentation entrypoints: `docs/README.md` and `docs/SOURCE-OF-TRUTH.md`.
-- Domain/source-of-truth entrypoints: `docs/ddd/subdomains.md`, `docs/ddd/bounded-contexts.md`, `modules/subdomains.md`, and `modules/bounded-contexts.md`.
+- Domain/source-of-truth entrypoints: `modules/subdomains.md` and `modules/bounded-contexts.md`.
 - Knowledge surface note: treat historical `wiki` / `wiki-beta` wording as migration context only, not as the current route or module topology.

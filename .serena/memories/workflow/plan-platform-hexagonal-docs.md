@@ -19,7 +19,7 @@
 - Saved comprehensive execution plan to /memories/session/plan.md
 
 ### Deviations / Risks
-- Local platform docs will remain non-canonical relative to global DDD inventory because user excluded docs/ddd sync
+- Local platform docs remain non-canonical relative to global inventory because user excluded global strategic sync
 - Context7 sources are demo projects, not canonical theory docs
 
 ### Open Questions

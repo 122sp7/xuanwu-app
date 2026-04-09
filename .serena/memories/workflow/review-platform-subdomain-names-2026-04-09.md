@@ -11,7 +11,7 @@
 - Strong rename candidates for better Copilot comprehension are identity, analytics, process-workflows, and billing.
 
 ### Validation / Evidence
-- Reviewed modules/platform/README.md, modules/platform/subdomains.md, modules/platform/AGENT.md, modules/platform/ubiquitous-language.md, and docs/ddd/bounded-contexts.md.
+- Reviewed modules/platform/README.md, modules/platform/subdomains.md, modules/platform/AGENT.md, modules/platform/ubiquitous-language.md, and modules/bounded-contexts.md.
 - Confirmed live subdomain directory listing under modules/platform/subdomains/.
 
 ### Deviations / Risks

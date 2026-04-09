@@ -2,7 +2,7 @@
 - Sync date: 2026-04-06.
 - Git working tree was clean at sync time.
 - Current docs entrypoints: `docs/README.md` and `docs/SOURCE-OF-TRUTH.md`.
-- Current domain/source-of-truth docs: `docs/ddd/subdomains.md` and `docs/ddd/bounded-contexts.md`; `modules/subdomains.md` and `modules/bounded-contexts.md` are mirror entrypoints.
+- Current domain/source-of-truth docs: `modules/subdomains.md` and `modules/bounded-contexts.md`.
 - Current modules root contains 18 bounded contexts plus `modules/system.ts`.
 - Cross-module collaboration remains API-only via each module's public `api/` boundary.
 - Core Serena memory corrections in this sync: authoritative replacements were written to `project_overview_current` and `architecture_current` because the protected `project_overview` and `architecture` names are governed by Serena read-only rules.
@@ -10,5 +10,5 @@
 - Current MCP topology from `.mcp.json` includes Serena, Context7, Playwright MCP, Next DevTools, Chrome DevTools, sequential-thinking, filesystem, shadcn, mongodb, supabase-mcp, markitdown, and mcp-run-python.
 - Serena CLI `project index` completed successfully on 2026-04-06 and refreshed the TypeScript symbol cache across 603 indexed files.
 - Serena CLI `project health-check` currently fails because `.serena/project.yml` includes invalid optional tool names `serena/*` and `context7/*` for direct SerenaAgent initialization in this environment.
-- `llms.txt` remains non-authoritative if it drifts from `.github/agents/*`, `docs/ddd/*`, or current workspace structure.
+- `llms.txt` remains non-authoritative if it drifts from `.github/agents/*`, current module boundary docs, or current workspace structure.
 - Historical `wiki-beta` references should be treated as migration history, not live module topology.
