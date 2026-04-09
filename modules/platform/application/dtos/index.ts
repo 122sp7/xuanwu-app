@@ -37,34 +37,6 @@ export interface PlatformCommandResult {
 	metadata?: Record<string, unknown>;
 }
 
-export interface PlatformContextView {
-	contextId: string;
-	lifecycleState: string;
-	capabilityKeys: string[];
-}
-
-export interface PolicyCatalogView {
-	contextId: string;
-	revision: number;
-	permissionRuleCount: number;
-	workflowRuleCount: number;
-	notificationRuleCount: number;
-	auditRuleCount: number;
-}
-
-export interface SubscriptionEntitlementsView {
-	contextId: string;
-	planCode: string;
-	entitlements: string[];
-	usageLimits: string[];
-}
-
-export interface WorkflowPolicyView {
-	contextId: string;
-	triggerKey: string;
-	enabled: boolean;
-}
-
 export interface RegisterPlatformContextInput {
 	contextId: string;
 	subjectScope: string;

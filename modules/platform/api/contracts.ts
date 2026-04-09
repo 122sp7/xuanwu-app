@@ -5,4 +5,10 @@
  */
 
 export * from "../application/dtos";
+export type {
+	PlatformContextView,
+	PolicyCatalogView,
+	SubscriptionEntitlementsView,
+	WorkflowPolicyView,
+} from "../ports/output";
 export * from "../domain/events";

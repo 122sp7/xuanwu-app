@@ -2,13 +2,7 @@
  * platform output ports.
  */
 
-import type {
-	PlatformCommandResult,
-	PlatformContextView,
-	PolicyCatalogView,
-	SubscriptionEntitlementsView,
-	WorkflowPolicyView,
-} from "../../application/dtos";
+import type { PlatformCommandResult } from "../input";
 import type { PlatformDomainEvent } from "../../domain/events";
 
 export interface PlatformContextRepository {
@@ -53,6 +47,34 @@ export interface ContentRepository {
 
 export interface SupportRepository {
 	findById(ticketId: string): Promise<unknown | null>;
+}
+
+export interface PlatformContextView {
+	contextId: string;
+	lifecycleState: string;
+	capabilityKeys: string[];
+}
+
+export interface PolicyCatalogView {
+	contextId: string;
+	revision: number;
+	permissionRuleCount: number;
+	workflowRuleCount: number;
+	notificationRuleCount: number;
+	auditRuleCount: number;
+}
+
+export interface SubscriptionEntitlementsView {
+	contextId: string;
+	planCode: string;
+	entitlements: string[];
+	usageLimits: string[];
+}
+
+export interface WorkflowPolicyView {
+	contextId: string;
+	triggerKey: string;
+	enabled: boolean;
 }
 
 export interface PlatformContextViewRepository {
