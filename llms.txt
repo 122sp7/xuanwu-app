@@ -6,86 +6,77 @@ This file is the AI-first documentation router for the repository. Read this bef
 
 ## Primary repository truths
 
-- AGENTS.md: repository-wide operating rules
-- .github/copilot-instructions.md: Copilot delivery baseline
-- .github/agents/knowledge-base.md: MDDD architecture, module boundaries, package aliases
-- .github/agents/commands.md: build, lint, test, and deployment commands
-- docs/README.md: documentation root index
-- docs/SOURCE-OF-TRUTH.md: documentation structure source
-- modules/bounded-contexts.md: bounded-context map
-- modules/subdomains.md: subdomain classification
+- `.github/copilot-instructions.md` — Copilot workspace guidance (always-on baseline)
+- `.github/agents/knowledge-base.md` — MDDD architecture, module boundaries, package aliases
+- `.github/agents/commands.md` — Build, lint, test, and deployment workflows
+- `.github/instructions/` — Behavioral constraints (branching, commit, ubiquitous language, bounded contexts)
+- `docs/ubiquitous-language.md` — Strategic DDD terminology authority
+- `docs/bounded-contexts.md` — Bounded context map and responsibilities
+- `docs/subdomains.md` — Subdomain classification (Core, Supporting, Generic)
+- `modules/<context>/context-map.md` — Per-context relationships and anti-corruption patterns
 
 ## Documentation reading order
 
 Read from high level to detail:
 
-1. docs/README.md
-2. docs/SOURCE-OF-TRUTH.md
-3. .github/agents/knowledge-base.md
-4. .github/agents/commands.md
-5. modules/bounded-contexts.md
-6. modules/subdomains.md
-5. the nearest docs README in the relevant subfolder
-6. the specific contract, guide, or architecture page
-7. diagrams or ADRs only after the relevant higher-level page is identified
+1. This file (`llms.txt`)
+2. `.github/copilot-instructions.md` (Copilot session contract)
+3. `.github/agents/knowledge-base.md` (MDDD foundation)
+4. `.github/agents/commands.md` (Validation and deployment)
+5. `.github/instructions/ubiquitous-language.instructions.md` (Terminology rules)
+6. `.github/instructions/bounded-context-rules.instructions.md` (Module isolation rules)
+7. `docs/ubiquitous-language.md` (Canonical terminology)
+8. `docs/bounded-contexts.md` (Context ownership matrix)
+9. `docs/subdomains.md` (Strategic classification)
+10. `modules/<context>/` documentation (context-specific detail)
 
 ## Topic routing
 
-- Repository rules and contribution workflow:
-  - AGENTS.md
-  - CONTRIBUTING.md
-  - .github/agents/README.md
-- Architecture and module boundaries:
-  - .github/agents/knowledge-base.md
-  - modules/
-  - docs/architecture/
-- Development workflows and implementation rules:
-  - .github/agents/commands.md
-  - docs/development/
-  - docs/guides/
-- Contract-governed workflows:
-  - docs/reference/
-  - specific contract or specification pages under docs/reference/ and docs/templates/
-- AI workflow and Copilot customization assets:
-  - .github/copilot-instructions.md
-  - .github/skills/
-  - docs/skills.md
-  - docs/mcp-servers.md
-  - docs/customization.md
-- Diagrams and explanatory support:
-  - diagrams/
-  - docs/diagrams/
-  - docs/guides/explanation/
+| Topic | Location |
+|-------|----------|
+| Copilot customization & session contract | `.github/copilot-instructions.md` |
+| Module boundaries & dependency rules | `.github/instructions/bounded-context-rules.instructions.md` |
+| Terminology and naming conventions | `.github/instructions/ubiquitous-language.instructions.md` |
+| Commit and branching strategy | `.github/instructions/` |
+| Architecture overview & MDDD patterns | `.github/agents/knowledge-base.md` |
+| Build, lint, test commands | `.github/agents/commands.md` |
+| Skill and MCP workflows | `.github/skills/` (serena-mcp, context7, xuanwu-app-skill, hexagonal-ddd) |
+| Strategic DDD routing (subdomains) | `docs/subdomains.md` |
+| Bounded context boundaries | `docs/bounded-contexts.md` |
+| Ubiquitous language & glossary | `docs/ubiquitous-language.md` |
+| Per-context model details | `modules/<context>/ubiquitous-language.md` |
+| Cross-context collaboration | `modules/<context>/context-map.md` |
 
 ## Document layers
 
-- High layer:
-  - docs/README.md
-  - docs/SOURCE-OF-TRUTH.md
-  - .github/agents/knowledge-base.md
-- Mid layer:
-  - folder READMEs
-  - docs/development/
-  - docs/guides/
-  - docs/reference/
-- Low layer:
-  - detailed diagrams
-  - templates
-  - deep technical explanations
+- **Always-on layer:**
+  - `.github/copilot-instructions.md`
+  - `.github/instructions/` (behavioral constraints)
+- **Foundation layer:**
+  - `.github/agents/knowledge-base.md`
+  - `.github/agents/commands.md`
+  - `docs/ubiquitous-language.md`
+  - `docs/bounded-contexts.md`
+  - `docs/subdomains.md`
+- **Context layer:**
+  - `modules/<context>/ubiquitous-language.md`
+  - `modules/<context>/context-map.md`
+  - `modules/<context>/aggregates.md`
+  - `modules/<context>/repositories.md`
 
-Use the smallest useful layer first.
+Use the smallest useful layer matching your current task.
 
 ## Documentation organization rule
 
 When adding or changing docs:
 
-1. keep one canonical file per topic,
-2. add a short summary near the top,
-3. use clear headings for section-based chunking,
-4. update the nearest README index,
-5. update docs/README.md or this file if routing changes.
+1. Keep one canonical file per topic.
+2. Add a short summary near the top.
+3. Use clear headings for section-based chunking.
+4. Link to authoritative sources instead of duplicating.
+5. Update this file (`llms.txt`) if routing fundamentally changes.
+6. Use Serena memory tools to record documentation changes.
 
 ## AI working rule
 
-If a question is broad, inspect summaries and README indexes before opening detailed files.
-If multiple files appear to overlap, identify the canonical file and treat others as supporting context.
+Start every session with Serena MCP. If a question spans modules or architecture, consult the DDD reference authority (ubiquitous-language, bounded-contexts, context-map) before implementation.
