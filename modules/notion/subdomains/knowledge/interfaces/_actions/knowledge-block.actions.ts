@@ -7,7 +7,7 @@ import {
   UpdateContentBlockUseCase,
   DeleteContentBlockUseCase,
 } from "../../application/use-cases/ContentBlockUseCases";
-import type { AddContentBlockDto, UpdateContentBlockDto, DeleteContentBlockDto } from "../../application/dto/ContentBlockDto";
+import type { AddKnowledgeBlockDto as AddContentBlockDto, UpdateKnowledgeBlockDto as UpdateContentBlockDto, DeleteKnowledgeBlockDto as DeleteContentBlockDto } from "../../application/dto/ContentBlockDto";
 
 const makeBlockRepo = () => new FirebaseContentBlockRepository();
 

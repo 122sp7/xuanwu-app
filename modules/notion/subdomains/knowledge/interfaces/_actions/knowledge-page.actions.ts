@@ -1,6 +1,7 @@
 "use server";
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
+import type { IEventStoreRepository, IEventBusRepository } from "@/modules/shared/api";
 import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
 import {
   CreateKnowledgePageUseCase,
@@ -32,6 +33,20 @@ import type { VerifyKnowledgePageDto, RequestPageReviewDto, AssignPageOwnerDto, 
 
 const makePageRepo = () => new FirebaseKnowledgePageRepository();
 
+/** Stub event store — persists nothing. Replace with a real impl once infrastructure is wired. */
+const makeEventStore = (): IEventStoreRepository => ({
+  save: async () => {},
+  findById: async () => null,
+  findByAggregate: async () => [],
+  findUndispatched: async () => [],
+  markDispatched: async () => {},
+});
+
+/** Stub event bus — publishes nothing. Replace with QStash/Firestore publish once infrastructure is wired. */
+const makeEventBus = (): IEventBusRepository => ({
+  publish: async () => {},
+});
+
 export async function createKnowledgePage(input: CreateKnowledgePageDto): Promise<CommandResult> {
   try { return await new CreateKnowledgePageUseCase(makePageRepo()).execute(input); }
   catch (e) { return commandFailureFrom("PAGE_CREATE_FAILED", (e as Error)?.message ?? "Unknown"); }
@@ -57,13 +72,13 @@ export async function reorderKnowledgePageBlocks(input: ReorderKnowledgePageBloc
   catch (e) { return commandFailureFrom("PAGE_REORDER_FAILED", (e as Error)?.message ?? "Unknown"); }
 }
 
-export async function publishKnowledgeVersion(input: { accountId: string; pageId: string }): Promise<CommandResult> {
+export async function publishKnowledgeVersion(input: { accountId: string; pageId: string; createdByUserId: string }): Promise<CommandResult> {
   try { return await new PublishKnowledgeVersionUseCase().execute(input); }
   catch (e) { return commandFailureFrom("VERSION_PUBLISH_FAILED", (e as Error)?.message ?? "Unknown"); }
 }
 
 export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Promise<CommandResult> {
-  try { return await new ApproveKnowledgePageUseCase(makePageRepo()).execute(input); }
+  try { return await new ApproveKnowledgePageUseCase(makePageRepo(), makeEventStore(), makeEventBus()).execute(input); }
   catch (e) { return commandFailureFrom("PAGE_APPROVE_FAILED", (e as Error)?.message ?? "Unknown"); }
 }
 

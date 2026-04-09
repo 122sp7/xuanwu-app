@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { useBlockEditorStore } from "../store/block-editor.store";
+import { richTextToPlainText } from "../../../../core/domain/value-objects/BlockContent";
 
 /**
  * Notion knowledge subdomain — minimal block editor.
@@ -27,7 +28,7 @@ export function BlockEditorView() {
 
   function handleInput(e: React.FormEvent<HTMLDivElement>, blockId: string) {
     const text = (e.currentTarget as HTMLDivElement).textContent ?? "";
-    updateBlock(blockId, { type: "text", richText: [{ text, annotations: { bold: false, italic: false, strikethrough: false, underline: false, code: false }, href: null }] });
+    updateBlock(blockId, { type: "text", richText: [{ type: "text", plainText: text }] });
   }
 
   if (!blocks.length) {
@@ -49,7 +50,7 @@ export function BlockEditorView() {
   return (
     <div ref={containerRef} className="flex flex-col gap-0.5">
       {blocks.map((block) => {
-        const text = block.content.richText.map((s) => s.text).join("") ?? "";
+        const text = richTextToPlainText(block.content.richText);
         return (
           <div
             key={block.id}
