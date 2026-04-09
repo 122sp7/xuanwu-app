@@ -18,6 +18,22 @@
 | `audit` | 什麼事必須被永久追蹤 | `AuditSignal`, `AuditClassification` |
 | `observability` | 如何量測、追蹤與告警 | `ObservabilitySignal`, `HealthIndicator` |
 
+## 子域與 Port 焦點
+
+| 子域 | 主要 input / output 關注 |
+|---|---|
+| `identity` | `PlatformEventIngressPort`, `SubjectDirectory` |
+| `account` | `PlatformEventIngressPort`, `SubjectDirectory` |
+| `organization` | `PlatformEventIngressPort`, `SubjectDirectory` |
+| `permission` | `PlatformCommandPort`, `PolicyCatalogRepository` |
+| `subscription` | `PlatformCommandPort`, `SubscriptionAgreementRepository`, `UsageMeterRepository` |
+| `config` | `PlatformCommandPort`, `ConfigurationProfileStore` |
+| `integration` | `PlatformCommandPort`, `IntegrationContractRepository`, `ExternalSystemGateway` |
+| `workflow` | `PlatformCommandPort`, `WorkflowPolicyRepository`, `WorkflowDispatcherPort` |
+| `notification` | `PlatformCommandPort`, `NotificationGateway`, `DeliveryHistoryRepository` |
+| `audit` | `PlatformCommandPort`, `AuditSignalStore` |
+| `observability` | `PlatformCommandPort`, `ObservabilitySink` |
+
 ## 子域分群
 
 ### 主體與邊界

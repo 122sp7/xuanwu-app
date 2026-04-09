@@ -55,6 +55,8 @@ platform 內部包含以下類型的責任：
 - `driving adapters`：API、CLI、scheduler、queue consumer、webhook receiver
 - `driven adapters`：database repository、event publisher、HTTP client、notification sender、metrics exporter
 
+這裡的 `adapters` 是語意上的總稱，不要求未來物理資料夾只能使用單一命名；但不論實際落地名稱為何，都不能改變 `driving -> application -> domain <- driven` 的方向。
+
 ### Subdomains
 
 - 子域用來切分語言與責任焦點，不用來繞過 ports/adapters

@@ -72,6 +72,25 @@ platform blueprint 目前包含 11 個本地子域：
 - 所有外部輸入都必須先經過 input ports，再進入 use case handlers
 - 事件是已發生的事實，不是命令的別名
 
+## 核心輸入介面
+
+這份藍圖目前使用三組 input port 語言作為進入點：
+
+- `PlatformCommandPort`：建立、啟用、發布、套用、觸發、派送、記錄等命令型入口
+- `PlatformQueryPort`：平台總覽、權益、能力與規則摘要等查詢入口
+- `PlatformEventIngressPort`：外部或相鄰子域傳入的事件型訊號入口
+
+## 核心輸出介面
+
+這份藍圖目前以四類 output port 表達對外依賴：
+
+- aggregate repositories：保存與載入聚合狀態
+- support stores / policy repositories：提供配置輪廓、workflow policy、subject directory 等支援資料
+- delivery gateways：通知、工作流、外部系統交付
+- evidence sinks：event publishing、audit 與 observability
+
+若未來新增 handler 或子域能力，應先確認它落在哪一類 output port，而不是直接把 SDK 或 client 寫進 application layer。
+
 ## 文件導覽
 
 | 文件 | 用途 |

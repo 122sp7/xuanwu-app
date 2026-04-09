@@ -12,6 +12,8 @@
 > #use skill next-devtools-mcp
 > ```
 
+其中 `shadcn` 與 `next-devtools-mcp` 只在 platform 變更實際觸及 driving adapters、web UI 或 Next.js route composition 時適用。若工作只限於 `domain/`、`application/`、`ports/` 或本地架構文件，這兩個技能不得反向主導平台邊界。
+
 ## 模組定位
 
 `platform` 在這裡是平台基礎能力的六邊形架構藍圖。它的任務是保護 platform language、ports/adapters 邊界與子域協作方式，而不是把所有跨領域邏輯集中成單一巨型模組。
@@ -72,6 +74,7 @@
 - 變更聚合或值物件：同步更新 `aggregates.md` 與 `ubiquitous-language.md`
 - 變更 use case handler：同步更新 `application-services.md`
 - 變更 repository/output port：同步更新 `repositories.md`
+- 變更 input port、support port 或 decision object：同步更新 `application-services.md`、`repositories.md` 與 `ubiquitous-language.md`
 - 變更事件名稱或 payload：同步更新 `domain-events.md`
 - 變更子域責任：同步更新 `subdomains.md` 與 `context-map.md`
 - 變更 platform 邊界：同步更新 `bounded-context.md` 與 `README.md`

@@ -49,12 +49,18 @@ audit -> observability
 | `subscription` | `config` | `Entitlement`, `UsageLimit` | 配置與 capability toggle 不能超出方案權益 |
 | `subscription` | `integration` | `PlanConstraint`, `DeliveryAllowance` | 某些整合只在特定方案可用 |
 | `config` | `workflow` | `ConfigurationProfile`, `WorkflowPolicy` | workflow 需要使用被發佈的規則與參數 |
+| `config` | `permission` | `AccessPolicy`, `ConfigurationProfile` | 授權決策常需要配置化的 policy 組態 |
 | `permission` | `workflow` | `PermissionDecision` | workflow trigger 必須先通過授權 |
+| `permission` | `audit` | `PermissionDecision`, `AuditClassification` | 關鍵授權決策需要留下證據 |
 | `workflow` | `notification` | `NotificationDispatch` | 觸發結果常需通知人或系統 |
 | `workflow` | `audit` | `AuditSignal` | 關鍵觸發必須留下不可變紀錄 |
 | `integration` | `observability` | `ObservabilitySignal` | 外部交付結果需要被量測與告警 |
 | `notification` | `audit` | `DispatchOutcome`, `AuditSignal` | 派送成功或失敗都屬治理軌跡 |
 | `audit` | `observability` | `AuditClassification`, `ObservabilitySignal` | 稽核事件可轉為 operational diagnostics |
+
+## 語言完整性規則
+
+若 context map 引入新的共享語言，例如 `WorkflowPolicy`、`AuditClassification` 或 `DispatchOutcome`，該術語必須同時出現在 `ubiquitous-language.md`。若沒有，表示 map 仍然有設計缺口。
 
 ## 與外部世界的六邊形互動
 

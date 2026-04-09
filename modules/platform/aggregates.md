@@ -122,6 +122,21 @@
 | `NotificationRoute` | 通知通道與對象語言 |
 | `ObservabilitySignal` | 指標、追蹤、告警語言的統一封裝 |
 
+## 主要識別值與狀態值
+
+| 型別 | 用途 |
+|---|---|
+| `PlatformContextId` | `PlatformContext` 的識別值 |
+| `PolicyCatalogId` | `PolicyCatalog` 的識別值 |
+| `IntegrationContractId` | `IntegrationContract` 的識別值 |
+| `SubscriptionAgreementId` | `SubscriptionAgreement` 的識別值 |
+| `PlatformLifecycleState` | `draft | active | suspended | retired` |
+| `ContractState` | `draft | active | paused | revoked` |
+| `BillingState` | `pending | active | delinquent | expired | cancelled` |
+| `EffectivePeriod` | 生效起訖區間 |
+| `EndpointRef` | 外部端點參照 |
+| `SecretReference` | 認證資料參照 |
+
 ## 聚合邊界規則
 
 - `PlatformContext` 負責 capability enablement，不直接儲存外部 integration 細節
