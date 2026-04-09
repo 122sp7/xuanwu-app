@@ -7,7 +7,7 @@
  */
 
 import { useApp } from "@/app/providers/app-provider";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
 
 export default function WorkspaceFeedPage() {
   const { state } = useApp();

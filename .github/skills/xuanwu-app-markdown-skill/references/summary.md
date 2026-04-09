@@ -39,11 +39,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-336 files | 11,832 lines
+322 files | 11,636 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 336 | 11,832 |
+| Markdown | 322 | 11,636 |
 
 **Largest files:**
 - `py_fn/README.md` (265 lines)

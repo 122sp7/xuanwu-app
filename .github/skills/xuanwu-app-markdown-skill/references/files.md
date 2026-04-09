@@ -4557,6 +4557,66 @@ interface KnowledgePagePromotedEvent {
 - `../../../modules/knowledge/aggregates.md`
 ````
 
+## File: modules/knowledge/subdomains/knowledge-ai/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-authoring/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-automation/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-base/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-collaboration/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-core/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-database/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-integration/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-query/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-search/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-source/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-versioning/README.md
+````markdown
+
+````
+
 ## File: modules/knowledge/ubiquitous-language.md
 ````markdown
 # Ubiquitous Language — knowledge
@@ -6238,577 +6298,6 @@ Application layer 只負責：
 | `SourceDocument` | `File`, `Document`, `Asset` |
 | `WikiLibrary` | `Library`, `Folder`, `Collection` |
 | `RetentionPolicy` | `Policy`, `LifecycleRule` |
-````
-
-## File: modules/workspace-audit/AGENT.md
-````markdown
-# AGENT.md — workspace-audit BC
-
-## 模組定位
-
-`workspace-audit` 是稽核紀錄支援域，維護 Append-Only 的 AuditLog，查詢工作區與組織稽核軌跡。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `AuditLog` | Log、Record、History、ActivityLog |
-| `auditEventType` | EventType、ActionType |
-| `actorId` | UserId、PerformerId |
-| `workspaceId` / `organizationId` | Scope（作為稽核範圍） |
-
-## 最重要規則：Append-Only
-
-```typescript
-// ✅ 只允許追加新記錄
-await auditRepository.append(newAuditLog);
-
-// ❌ 禁止修改或刪除
-await auditRepository.update(id, changes);  // 違反 Append-Only
-await auditRepository.delete(id);           // 違反 Append-Only
-```
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { workspaceAuditApi } from "@/modules/workspace-audit/api";
-import type { AuditLogDTO } from "@/modules/workspace-audit/api";
-```
-
-### ❌ 禁止
-```typescript
-import { AuditLog } from "@/modules/workspace-audit/domain/entities/AuditLog";
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/workspace-audit/aggregates.md
-````markdown
-# Aggregates — workspace-audit
-
-## 聚合根：AuditLog（Append-Only）
-
-### 職責
-記錄工作區或組織範圍內重要操作的不可變稽核軌跡。一旦寫入，永不修改或刪除。
-
-### Append-Only 約束
-
-> **核心不變數：** AuditLog 只能被建立，不能被更新或刪除。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 記錄主鍵（UUID） |
-| `workspaceId` | `string \| null` | 所屬工作區（可選，組織級記錄可能無 workspaceId） |
-| `organizationId` | `string` | 所屬組織 |
-| `actorId` | `string` | 操作者帳戶 ID |
-| `auditEventType` | `string` | 操作類型（如 `workspace.member_joined`） |
-| `targetId` | `string \| null` | 操作對象 ID（可選） |
-| `targetType` | `string \| null` | 操作對象類型（可選） |
-| `metadata` | `Record<string, unknown>` | 附加資訊 |
-| `auditedAt` | `string` | ISO 8601 操作時間 |
-
-### 不變數
-
-- `id` 建立後不可變
-- `auditedAt` 使用記錄建立時的系統時間，不可後期修改
-- 所有欄位建立後均不可修改（immutable record）
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `AuditLogRepository` | `append()`, `listByWorkspace()`, `listByOrganization()` |
-
-**注意：** `AuditLogRepository` 不提供 `update()` 或 `delete()` 方法，強制執行 Append-Only。
-````
-
-## File: modules/workspace-audit/application-services.md
-````markdown
-# workspace-audit — Application Services
-
-> **Canonical bounded context:** `workspace-audit`
-> **模組路徑:** `modules/workspace-audit/`
-> **Domain Type:** Supporting Subdomain
-
-本文件記錄 `workspace-audit` 的 application layer 服務與 use cases。內容與 `modules/workspace-audit/application/` 實作保持一致。
-
-## Application Layer 職責
-
-以 append-only 模式記錄工作區與組織範圍內的重要稽核軌跡。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/.gitkeep`
-- `application/use-cases/audit.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/workspace-audit/README.md`
-- 模組 AGENT：`../../../modules/workspace-audit/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/workspace-audit/application-services.md`
-````
-
-## File: modules/workspace-audit/context-map.md
-````markdown
-# Context Map — workspace-audit
-
-## 上游（依賴）
-
-`workspace-audit` 訂閱所有業務 BC 的事件，但**不依賴**任何 BC 的 api。它是純事件消費者。
-
-```
-所有業務 BC ──[Domain Events]──► workspace-audit（Terminal Sink）
-```
-
-### 主要事件來源
-
-| 來源 BC | 整合模式 |
-|---------|---------|
-| `workspace` | Published Language（被動消費） |
-| `organization` | Published Language（被動消費） |
-| `workspace-flow` | Published Language（被動消費） |
-| `workspace-scheduling` | Published Language（被動消費） |
-| `source` | Published Language（被動消費） |
-| `ai` | Published Language（被動消費） |
-
----
-
-## 下游（被依賴）
-
-### workspace-audit → WorkspaceDetailScreen（Interfaces）
-
-- `workspace-audit/api` 提供稽核查詢 API 給 `workspace` 的 WorkspaceDetailScreen tab
-
----
-
-## Terminal Sink 原則
-
-`workspace-audit` 是事件消費的**終點**，不向其他 BC 發出事件。業務流程不應等待或依賴稽核記錄的完成。
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| 所有 BC → workspace-audit | 各 BC | workspace-audit | Published Language (Terminal Sink) |
-| workspace-audit → workspace UI | workspace-audit | app/ | Customer/Supplier（查詢） |
-````
-
-## File: modules/workspace-audit/domain-events.md
-````markdown
-# Domain Events — workspace-audit
-
-## 發出事件
-
-`workspace-audit` 不發出 DomainEvent。它是事件的**最終消費者（Terminal Sink）**，不產生進一步的業務事件。
-
-## 訂閱事件（消費端）
-
-`workspace-audit` 訂閱所有需要留下稽核軌跡的業務事件：
-
-| 來源 BC | 訂閱事件 | AuditLog.auditEventType |
-|---------|---------|------------------------|
-| `workspace` | `workspace.created` | `workspace.created` |
-| `workspace` | `workspace.member_joined` | `workspace.member_joined` |
-| `workspace` | `workspace.archived` | `workspace.archived` |
-| `organization` | `organization.member_joined` | `organization.member_joined` |
-| `organization` | `organization.member_removed` | `organization.member_removed` |
-| `workspace-flow` | `workspace-flow.task_status_changed` | `task.status_changed` |
-| `workspace-flow` | `workspace-flow.invoice_paid` | `invoice.paid` |
-| `workspace-scheduling` | `workspace-scheduling.demand_status_changed` | `demand.status_changed` |
-| `source` | `source.upload_completed` | `document.uploaded` |
-| `ai` | `ai.ingestion_completed / failed` | `ingestion.completed / failed` |
-
-## 說明
-
-稽核模組是事件消費的「終點站」。業務 BC 不應依賴稽核模組的狀態，稽核只做記錄，不影響業務流程。
-````
-
-## File: modules/workspace-audit/domain-services.md
-````markdown
-# workspace-audit — Domain Services
-
-> **Canonical bounded context:** `workspace-audit`
-> **模組路徑:** `modules/workspace-audit/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-audit` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/workspace-audit/domain-services.md`
-- `../../../modules/workspace-audit/aggregates.md`
-````
-
-## File: modules/workspace-audit/README.md
-````markdown
-# workspace-audit — 工作區稽核上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-audit/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-audit` 是工作區治理的追溯層，透過 append-only 稽核紀錄保存重要操作的事後可查性。它不是直接創造知識價值的核心域，但對信任、治理與合規至關重要。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 稽核寫入 | 接收重要行為或事件並追加紀錄 |
-| 稽核查詢 | 依工作區或組織範圍提供可查詢的 audit trail |
-| 治理可見性 | 支援事後追查、責任歸屬與決策證據 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 與 `organization` 提供查詢與可見性範圍。
-- `workspace-flow`、`workspace-feed` 與其他上下文可作為稽核事件來源。
-
-## 核心聚合 / 核心概念
-
-- **`AuditLog`**
-- **`AuditActor`**
-- **`AuditScope`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/workspace-audit/repositories.md
-````markdown
-# workspace-audit — Repositories
-
-> **Canonical bounded context:** `workspace-audit`
-> **模組路徑:** `modules/workspace-audit/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-audit` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/AuditRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/.gitkeep`
-- `infrastructure/firebase/FirebaseAuditRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/workspace-audit/repositories.md`
-- `../../../modules/workspace-audit/aggregates.md`
-````
-
-## File: modules/workspace-audit/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — workspace-audit
-
-> **範圍：** 僅限 `modules/workspace-audit/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 稽核記錄 | AuditLog | 一條不可變的操作紀錄（Append-Only，永不修改） |
-| 稽核事件類型 | auditEventType | 記錄的操作類型字串（如 `workspace.member_joined`） |
-| 操作者 ID | actorId | 執行此操作的帳戶 ID |
-| 稽核範圍 | auditScope | 此記錄的範圍（workspace 或 organization） |
-| 稽核時間 | auditedAt | 操作發生時間，ISO 8601 |
-| 元資料 | metadata | 操作的附加資訊（JSON，可選） |
-
-## Append-Only 原則
-
-`AuditLog` 一旦寫入即不可更改。任何試圖修改或刪除 AuditLog 的操作都違反此域的核心不變數。
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `AuditLog` | `Log`, `Record`, `History` |
-| `actorId` | `userId`, `performerId` |
-| `auditedAt` | `timestamp`, `createdAt`（在稽核上下文中） |
-````
-
-## File: modules/workspace-feed/AGENT.md
-````markdown
-# AGENT.md — workspace-feed BC
-
-## 通用語言
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `WorkspaceFeedPost` | Post、Tweet、Message |
-| `WorkspaceFeedPostType` | Type、PostType |
-| `authorAccountId` | authorId、userId |
-
-## 邊界規則
-
-```typescript
-// ✅
-import { workspaceFeedApi } from "@/modules/workspace-feed/api";
-// ❌
-import { WorkspaceFeedPost } from "@/modules/workspace-feed/domain/entities/WorkspaceFeedPost";
-```
-````
-
-## File: modules/workspace-feed/aggregates.md
-````markdown
-# Aggregates — workspace-feed
-
-## 聚合根：WorkspaceFeedPost
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 貼文主鍵 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `authorAccountId` | `string` | 作者帳戶 ID |
-| `type` | `WorkspaceFeedPostType` | `post \| reply \| repost` |
-| `content` | `string` | 貼文內容 |
-| `replyToPostId` | `string \| null` | 回覆目標 |
-| `repostOfPostId` | `string \| null` | 轉貼目標 |
-| `likeCount` | `number` | 按讚數 |
-| `viewCount` | `number` | 瀏覽數 |
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `WorkspaceFeedRepository` | `save()`, `findById()`, `listByWorkspace()` |
-````
-
-## File: modules/workspace-feed/application-services.md
-````markdown
-# workspace-feed — Application Services
-
-> **Canonical bounded context:** `workspace-feed`
-> **模組路徑:** `modules/workspace-feed/`
-> **Domain Type:** Supporting Subdomain
-
-本文件記錄 `workspace-feed` 的 application layer 服務與 use cases。內容與 `modules/workspace-feed/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理工作區的社交動態貼文與互動事件。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/dto/workspace-feed.dto.ts`
-- `application/use-cases/workspace-feed.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/workspace-feed/README.md`
-- 模組 AGENT：`../../../modules/workspace-feed/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/workspace-feed/application-services.md`
-````
-
-## File: modules/workspace-feed/context-map.md
-````markdown
-# Context Map — workspace-feed
-
-## 上游（依賴）
-
-### workspace → workspace-feed（Conformist）
-
-- `WorkspaceFeedPost.workspaceId` 隸屬工作區
-
-## 下游（被依賴）
-
-### workspace-feed → notification（Published Language）
-
-- `WorkspaceFeedPostCreated` 可觸發通知
-
-### workspace-feed → workspace-audit（Published Language）
-
-- 貼文操作記錄稽核軌跡
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| workspace → workspace-feed | workspace | workspace-feed | Conformist |
-| workspace-feed → notification | workspace-feed | notification | Published Language |
-| workspace-feed → workspace-audit | workspace-feed | workspace-audit | Published Language |
-````
-
-## File: modules/workspace-feed/domain-events.md
-````markdown
-# Domain Events — workspace-feed
-
-## 發出事件
-
-| 事件 | 觸發條件 |
-|------|---------|
-| `WorkspaceFeedPostCreated` | 新貼文發布 |
-| `WorkspaceFeedReplyCreated` | 回覆發布 |
-| `WorkspaceFeedRepostCreated` | 轉貼發布 |
-| `WorkspaceFeedPostLiked` | 按讚 |
-| `WorkspaceFeedPostViewed` | 瀏覽 |
-| `WorkspaceFeedPostBookmarked` | 收藏 |
-| `WorkspaceFeedPostShared` | 分享 |
-
-所有事件繼承 `WorkspaceFeedBaseEvent`（`accountId`, `workspaceId`, `postId`, `actorAccountId`, `occurredAtISO`）。
-
-## 訂閱事件
-
-`workspace-feed` 不訂閱其他 BC 的事件。
-````
-
-## File: modules/workspace-feed/domain-services.md
-````markdown
-# workspace-feed — Domain Services
-
-> **Canonical bounded context:** `workspace-feed`
-> **模組路徑:** `modules/workspace-feed/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-feed` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/workspace-feed/domain-services.md`
-- `../../../modules/workspace-feed/aggregates.md`
-````
-
-## File: modules/workspace-feed/README.md
-````markdown
-# workspace-feed — 工作區動態上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-feed/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-feed` 是工作區的動態流與互動層，把知識、任務與協作事件轉成團隊可感知的貼文、回覆與互動紀錄。它提升知識平台的協作流動性與可見性。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 動態貼文 | 管理 post / reply / repost 等工作區動態內容 |
-| 互動紀錄 | 記錄 like / view / bookmark / share 等互動 |
-| 事件可見化 | 把協作行為轉成工作區成員可追蹤的活動流 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供動態的歸屬邊界。
-- `workspace-flow`、`knowledge`、`notification` 可與動態流形成聯動。
-
-## 核心聚合 / 核心概念
-
-- **`WorkspaceFeedPost`**
-- **`FeedReaction`**
-- **`FeedThread`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/workspace-feed/repositories.md
-````markdown
-# workspace-feed — Repositories
-
-> **Canonical bounded context:** `workspace-feed`
-> **模組路徑:** `modules/workspace-feed/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-feed` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/workspace-feed.repositories.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository.ts`
-- `infrastructure/firebase/FirebaseWorkspaceFeedPostRepository.ts`
-- `infrastructure/index.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/workspace-feed/repositories.md`
-- `../../../modules/workspace-feed/aggregates.md`
-````
-
-## File: modules/workspace-feed/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — workspace-feed
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 動態貼文 | WorkspaceFeedPost | 工作區社交動態貼文（post / reply / repost） |
-| 貼文類型 | WorkspaceFeedPostType | `"post" \| "reply" \| "repost"` |
-| 作者帳戶 ID | authorAccountId | 發文者帳戶 ID |
-| 回覆目標 | replyToPostId | 此貼文回覆的原貼文 ID |
-| 轉貼目標 | repostOfPostId | 此貼文轉貼的原貼文 ID |
 ````
 
 ## File: modules/workspace-flow/AGENT.md
@@ -8661,6 +8150,21 @@ ports/output → domain/（只取型別，e.g., WorkspaceDomainEvent）
 - `WorkspaceDomainEventPublisher`
 ````
 
+## File: modules/workspace/subdomains/feed/README.md
+````markdown
+
+````
+
+## File: modules/workspace/subdomains/scheduling/README.md
+````markdown
+
+````
+
+## File: modules/workspace/subdomains/workflow/README.md
+````markdown
+
+````
+
 ## File: py_fn/README.md
 ````markdown
 # py_fn 架構規範（路徑級依賴版）
@@ -9757,6 +9261,310 @@ flowchart LR
 3. Record boundary changes in `docs/context-map.md` and ADRs.
 ````
 
+## File: docs/contexts/knowledge/README.md
+````markdown
+# knowledge
+
+> **Domain Type:** Core Domain  
+> **Module:** `modules/knowledge/`  
+> **Authoritative docs:** [`modules/knowledge/`](../../../modules/knowledge/)
+
+## Boundary
+
+- **Responsible for:**
+  - `KnowledgePage` lifecycle — create, edit, version, archive, restore
+  - `ContentBlock` management — add, update, delete blocks within a page
+  - `ContentVersion` snapshots and manual publish
+  - `KnowledgeCollection` — wiki space ownership (verification, ownership, review workflow)
+  - `KnowledgeCollection` — database space opaque reference (ID only; structure owned by `knowledge-database` per D1)
+  - Page approval workflow for AI-generated drafts (`approvalState`)
+  - Page verification and review-request workflow (wiki space, `verificationState`)
+  - D3 Promote: emitting `knowledge.page_promoted` to initiate Article creation in `knowledge-base`
+
+- **Not responsible for:**
+  - Database schema, records, views → `knowledge-database`
+  - Article / Category lifecycle → `knowledge-base`
+  - Organization member and team governance → `workspace` / `organization`
+  - AI ingestion pipeline → `ai`
+  - Semantic search and retrieval → `search`
+  - Conversation / Q&A interface → `notebook`
+  - Task and invoice materialization from approved pages → `workspace-flow`
+
+## Published Language
+
+- **Commands:**
+  - `CreateKnowledgePage` (requires `workspaceId` on write path)
+  - `ArchiveKnowledgePage` (cascades to child pages — D2)
+  - `ApprovePage`
+  - `VerifyPage` / `RequestPageReview`
+  - `AssignPageOwner`
+  - `PromotePage` (D3 Promote to Article)
+  - `AddContentBlock` / `UpdateContentBlock` / `DeleteContentBlock`
+  - `PublishContentVersion`
+
+- **Queries:**
+  - `GetKnowledgePage`
+  - `ListKnowledgePages` (workspace-scoped by default; explicit summary mode for account/org overview)
+  - `GetPageTree`
+
+- **Events:**
+  - `knowledge.page_created`
+  - `knowledge.page_renamed`
+  - `knowledge.page_moved`
+  - `knowledge.page_archived`
+  - `knowledge.page_approved` ← primary integration point (triggers `workspace-flow` + `ai`)
+  - `knowledge.page_promoted`
+  - `knowledge.page_verified`
+  - `knowledge.page_review_requested`
+  - `knowledge.page_owner_assigned`
+  - `knowledge.block_added`
+  - `knowledge.block_updated`
+  - `knowledge.block_deleted`
+  - `knowledge.version_published`
+
+## Upstream / Downstream
+
+- **Upstream:**
+  - `identity` → knowledge — validates `createdByUserId` on page operations
+  - `workspace` → knowledge — provides `workspaceId` container; workspace-first scope is the default; account-level summary requires explicit mode
+
+- **Downstream:**
+  - knowledge → `workspace-flow` — `knowledge.page_approved` drives Task and Invoice materialization (Published Language / Customer-Supplier)
+  - knowledge → `ai` — `knowledge.page_approved` triggers RAG ingestion pipeline (Customer/Supplier via Events)
+  - knowledge → `knowledge-database` — opaque `KnowledgeCollection.id` reference for database-type collections (Open Host Service)
+  - knowledge → `knowledge-base` — `knowledge.page_promoted` initiates Article creation (Customer/Supplier — D3 Promote)
+
+- **Relationship types:**
+  - `identity → knowledge`: Customer/Supplier
+  - `workspace → knowledge`: Customer/Supplier
+  - `knowledge → workspace-flow`: Published Language (Events)
+  - `knowledge → ai`: Customer/Supplier (Events)
+  - `knowledge → knowledge-database`: Open Host Service
+  - `knowledge → knowledge-base`: Customer/Supplier (Promote Events)
+
+## Context Rules
+
+1. Keep domain model isolated from external model leakage.
+2. Expose only stable contracts via published language.
+3. Record boundary changes in `docs/context-map.md` and ADRs.
+4. `createKnowledgePage` write path **must** carry `workspaceId`; account-level summary is an explicit mode, not a default.
+5. Do not add a `"trash"` status — `archived` is the canonical soft-delete state (ADR governs any change).
+6. Database space collections are opaque references only; schema/record/view lifecycle belongs to `knowledge-database`.
+````
+
+## File: docs/contexts/notebook/README.md
+````markdown
+# notebook
+
+> **Domain Type:** Supporting Subdomain  
+> **Module:** `modules/notebooklm/`  
+> **Authoritative docs:** [`modules/notebooklm/`](../../../modules/notebooklm/)
+
+## Boundary
+
+- **Responsible for:**
+  - `Thread` lifecycle — create and maintain AI conversation threads
+  - `Message` history — ordered, append-only message list within a thread
+  - RAG-augmented response generation — transforms retrieval results into readable, citable answers
+  - Citation and source trace — preserves `citation` / source references for trustworthy responses
+  - `Summary` production — condensed knowledge insights from retrieved content
+
+- **Not responsible for:**
+  - Semantic search and chunk retrieval → `search`
+  - AI ingestion pipeline → `ai`
+  - Knowledge content creation or editing → `knowledge` / `knowledge-base`
+  - External document ingestion → `source`
+  - Workspace/collaboration scope management → `workspace`
+
+## Published Language
+
+- **Commands:**
+  - `GenerateNotebookResponse` (RAG-augmented, via `search` upstream)
+
+- **Queries:**
+  - `GetThread`
+  - `ListMessages`
+
+- **Events:**
+  - None currently published.
+  - Potential future events: `notebook.thread_created`, `notebook.response_generated` (for audit and token tracking)
+
+## Upstream / Downstream
+
+- **Upstream:**
+  - `search` → notebook — provides semantic retrieval chunks for RAG-augmented generation (Customer/Supplier, synchronous query)
+  - `knowledge` / `knowledge-base` / `source` — content origins ingested via `ai` and indexed by `search`; consumed indirectly
+
+- **Downstream:**
+  - notebook → `app/(shell)/ai-chat` — AI Chat page calls `notebook/api` through a local `_actions.ts` anti-corruption adapter; `notebook/api` barrel must **not** be imported directly in Client Components (Genkit server-only)
+
+- **Relationship types:**
+  - `search → notebook`: Customer/Supplier (synchronous query)
+  - `notebook → app/(shell)/ai-chat`: Anti-Corruption Layer (ACL via `_actions.ts`)
+
+## Context Rules
+
+1. Keep domain model isolated from external model leakage.
+2. Expose only stable contracts via published language.
+3. Record boundary changes in `docs/context-map.md` and ADRs.
+4. `notebook/api` barrel is server-only (Genkit); never import it directly in Client Components.
+5. `Thread.messages` is append-only — messages cannot be reordered or deleted.
+6. Retrieval is always delegated to `search`; `notebook` does not own embedding or indexing.
+````
+
+## File: docs/contexts/platform/README.md
+````markdown
+# platform
+
+> **Domain Type:** Generic Subdomain (Platform Infrastructure)  
+> **Module:** `modules/platform/`  
+> **Authoritative docs:** [`modules/platform/docs/`](../../../modules/platform/docs/)
+
+## Boundary
+
+- **Responsible for:**
+  - Subject governance — `identity`, `account`, `account-profile`, `organization`
+  - Policy and security — `access-control`, `security-policy`, `platform-config`, `feature-flag`, `onboarding`, `compliance`
+  - Commercial and entitlement — `billing`, `subscription`, `referral`
+  - Process and delivery — `workflow`, `notification`, `integration`, `background-job`
+  - Content and search — `content`, `search`
+  - Evidence and diagnostics — `audit-log`, `observability`, `analytics`, `support`
+  - Platform capability enablement via `PlatformContext` aggregate
+  - Versioned policy governance via `PolicyCatalog` aggregate
+
+- **Not responsible for:**
+  - Business domain knowledge content lifecycle → `knowledge`, `knowledge-base`
+  - Workspace collaboration semantics → `workspace`
+  - AI conversation and Q&A → `notebook`
+  - RAG ingestion details → `ai`
+  - Domain-specific business rules outside platform governance
+
+## Published Language
+
+- **Commands (representative, per subdomain):**
+  - `CreateAccount` / `UpdateAccountProfile`
+  - `EnableFeatureFlag` / `DisableFeatureFlag`
+  - `CreateSubscription` / `ChangeSubscriptionPlan`
+  - `TriggerNotification`
+  - `SubmitAuditSignal`
+  - `EnablePlatformCapability`
+
+- **Queries (representative, per subdomain):**
+  - `GetAccountProfile`
+  - `GetSubscriptionPlan` / `GetEntitlement`
+  - `ListAuditLogs`
+  - `GetFeatureFlagState`
+  - `GetPlatformCapabilities`
+
+- **Events (representative, per subdomain):**
+  - `platform.account_created`
+  - `platform.subscription_changed`
+  - `platform.policy_updated`
+  - `platform.feature_flag_toggled`
+  - `platform.capability_enabled`
+  - See [`modules/platform/docs/domain-events.md`](../../../modules/platform/docs/domain-events.md) for the full 21-event inventory.
+
+## Upstream / Downstream
+
+- **Upstream:**
+  - External integrations (ACL) — partner and external API boundaries translated via `integration` subdomain adapters
+  - Observability and config systems (Shared Kernel) — telemetry and runtime configuration signals
+
+- **Downstream:**
+  - `knowledge`, `workspace`, `notebook`, `knowledge-base`, `source`, and all other business contexts — conform to platform identity, subscription entitlement, and feature-flag policies
+  - `audit-log` and `observability` receive signals from all other platform subdomains
+
+- **Relationship types:**
+  - `platform → business contexts` (knowledge, workspace, etc.): Published Language / Conformist
+  - `external systems → platform integration`: ACL
+  - `platform-config ↔ observability`: Shared Kernel
+
+## Context Rules
+
+1. Keep domain model isolated from external model leakage.
+2. Expose only stable contracts via published language.
+3. Record boundary changes in `docs/context-map.md` and ADRs.
+4. Subdomain inventory is **closed by default** — new subdomains require documented boundary rationale before addition.
+5. `domain/` must remain framework-free; no Firebase SDK, HTTP clients, or monitoring SDKs.
+6. Cross-subdomain collaboration uses published language and ports, not direct adapter-to-adapter calls.
+7. Dependency direction: `adapters/ → application/ → domain/ ← infrastructure/`.
+````
+
+## File: docs/contexts/workspace/README.md
+````markdown
+# workspace
+
+> **Domain Type:** Generic Subdomain  
+> **Module:** `modules/workspace/`  
+> **Authoritative docs:** [`modules/workspace/`](../../../modules/workspace/)
+
+## Boundary
+
+- **Responsible for:**
+  - `Workspace` aggregate lifecycle — `preparatory | active | stopped`
+  - Workspace visibility — `visible | hidden`
+  - Stable collaboration container identity — `workspaceId` as the canonical scope anchor for all downstream contexts
+  - Public contracts via `modules/workspace/api` (contracts, facade, ui, index)
+  - Read projections: `WorkspaceMemberView`, `WikiAccountContentNode`, `WikiWorkspaceContentNode`, `WikiContentItemNode`
+
+- **Not responsible for:**
+  - Organization member and team governance → `organization`
+  - Knowledge content semantics → `knowledge`
+  - UI tab composition (interface composition, not context-map ownership)
+  - Business domain rules beyond collaboration scope
+
+## Published Language
+
+- **Commands:**
+  - `CreateWorkspace`
+  - `RenameWorkspace`
+  - `ChangeWorkspaceVisibility`
+  - `TransitionWorkspaceLifecycle` (`activate`, `stop`)
+  - `UpdateWorkspaceAddress`
+  - `UpdateWorkspacePersonnel`
+  - `ApplyWorkspaceSettings`
+
+- **Queries:**
+  - `GetWorkspace`
+  - `ListWorkspacesByAccount`
+  - `GetWorkspaceMembers`
+
+- **Events:**
+  - `workspace.created`
+  - `workspace.lifecycle_transitioned`
+  - `workspace.visibility_changed`
+
+## Upstream / Downstream
+
+- **Upstream:**
+  - `account` → workspace — owner identity context (Customer/Supplier)
+  - `organization` → workspace — org ownership and member/team read translation (Customer/Supplier)
+
+- **Downstream (conformist consumers scoped by `workspaceId`):**
+  - `knowledge`
+  - `knowledge-base`
+  - `source`
+  - `notebook`
+  - `workspace-flow`
+  - `workspace-scheduling`
+  - `workspace-feed`
+  - `workspace-audit`
+
+- **Relationship types:**
+  - `account → workspace`: Customer/Supplier
+  - `organization → workspace`: Customer/Supplier
+  - `workspace → downstream contexts`: Published Language (workspaceId scope + domain events)
+
+## Context Rules
+
+1. Keep domain model isolated from external model leakage.
+2. Expose only stable contracts via published language.
+3. Record boundary changes in `docs/context-map.md` and ADRs.
+4. Cross-module access must use `modules/workspace/api` only — never import internal `domain/`, `application/`, `infrastructure/`, or `interfaces/` directly.
+5. This context does not own organization truth (member/team governance).
+6. This context does not own knowledge-content semantics.
+````
+
 ## File: docs/decisions/0001-hexagonal-architecture.md
 ````markdown
 # ADR 0001: Use Hexagonal Architecture
@@ -9959,66 +9767,6 @@ flowchart TD
 1. Terms in this file are authoritative for strategic docs.
 2. New term introduction requires definition + owner context.
 3. Do not use synonyms if canonical term exists.
-````
-
-## File: modules/knowledge/subdomains/knowledge-ai/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-authoring/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-automation/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-base/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-collaboration/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-core/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-database/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-integration/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-query/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-search/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-source/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-versioning/README.md
-````markdown
-
 ````
 
 ## File: modules/notebooklm/AGENT.md
@@ -10586,26 +10334,6 @@ Domain services:
 ## Current state
 
 The directory exists as the canonical place for domain-service evolution; event publishing, repository access, and process orchestration remain outside domain services.
-````
-
-## File: modules/workspace/subdomains/audit/README.md
-````markdown
-
-````
-
-## File: modules/workspace/subdomains/feed/README.md
-````markdown
-
-````
-
-## File: modules/workspace/subdomains/scheduling/README.md
-````markdown
-
-````
-
-## File: modules/workspace/subdomains/workflow/README.md
-````markdown
-
 ````
 
 ## File: modules/workspace/ubiquitous-language.md
@@ -11208,9 +10936,24 @@ flowchart TD
 跨聚合規則若無法收斂到單一聚合，應交由 `domain-services.md` 中的 domain services 處理。
 ````
 
+## File: modules/platform/subdomains/account/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'account'. -->
+````
+
 ## File: modules/platform/subdomains/billing/README.md
 ````markdown
 <!-- Purpose: Subdomain scaffold overview for platform 'billing'. -->
+````
+
+## File: modules/platform/subdomains/notification/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'notification'. -->
+````
+
+## File: modules/platform/subdomains/organization/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'organization'. -->
 ````
 
 ## File: modules/workspace/application-services.md
@@ -11406,6 +11149,26 @@ Keep this subdomain pragmatic:
 - low-friction integration contracts
 ````
 
+## File: modules/workspace/subdomains/audit/README.md
+````markdown
+## workspace audit subdomain
+
+This subdomain owns workspace-centered audit read/query capabilities and UI audit views.
+
+### Hexagonal shape
+
+- `api/`: public subdomain boundary
+- `application/`: use cases
+- `domain/`: entities, schema, repository contracts
+- `infrastructure/`: Firebase repository adapter
+- `interfaces/`: query functions and UI components
+- `ports/`: reserved for future explicit input/output port contracts
+
+### Integration rule
+
+- Parent workspace public API (`@/modules/workspace/api`) is the preferred cross-module entry.
+````
+
 ## File: .github/instructions/architecture-mddd.instructions.md
 ````markdown
 ---
@@ -11569,19 +11332,29 @@ application services 應回傳兩種結果之一：
 <!-- Purpose: Subdomain scaffold overview for platform 'account-profile'. -->
 ````
 
-## File: modules/platform/subdomains/account/README.md
+## File: modules/platform/subdomains/identity/README.md
 ````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'account'. -->
+<!-- Purpose: Subdomain scaffold overview for platform 'identity'. -->
 ````
 
-## File: modules/platform/subdomains/notification/README.md
+## File: modules/platform/subdomains/integration/README.md
 ````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'notification'. -->
+<!-- Purpose: Subdomain scaffold overview for platform 'integration'. -->
 ````
 
-## File: modules/platform/subdomains/organization/README.md
+## File: modules/platform/subdomains/observability/README.md
 ````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'organization'. -->
+<!-- Purpose: Subdomain scaffold overview for platform 'observability'. -->
+````
+
+## File: modules/platform/subdomains/subscription/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'subscription'. -->
+````
+
+## File: modules/platform/subdomains/workflow/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'workflow'. -->
 ````
 
 ## File: modules/workspace/AGENT.md
@@ -12603,31 +12376,6 @@ platform 事件推薦使用：
 ## File: modules/platform/subdomains/access-control/README.md
 ````markdown
 <!-- Purpose: Subdomain scaffold overview for platform 'access-control'. -->
-````
-
-## File: modules/platform/subdomains/identity/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'identity'. -->
-````
-
-## File: modules/platform/subdomains/integration/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'integration'. -->
-````
-
-## File: modules/platform/subdomains/observability/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'observability'. -->
-````
-
-## File: modules/platform/subdomains/subscription/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'subscription'. -->
-````
-
-## File: modules/platform/subdomains/workflow/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'workflow'. -->
 ````
 
 ## File: modules/platform/docs/context-map.md

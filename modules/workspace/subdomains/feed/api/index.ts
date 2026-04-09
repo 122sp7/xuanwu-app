@@ -6,6 +6,13 @@ export type {
   WorkspaceFeedInteractionParams,
 } from "./workspace-feed.facade";
 
-// ── UI components (cross-module public) ──────────────────────────────────────
+export type {
+  WorkspaceFeedPost,
+  WorkspaceFeedPostType,
+} from "../domain/entities/workspace-feed-post.entity";
+export {
+  WORKSPACE_FEED_POST_TYPES,
+} from "../domain/entities/workspace-feed-post.entity";
+
 export { WorkspaceFeedWorkspaceView } from "../interfaces/components/WorkspaceFeedWorkspaceView";
 export { WorkspaceFeedAccountView } from "../interfaces/components/WorkspaceFeedAccountView";

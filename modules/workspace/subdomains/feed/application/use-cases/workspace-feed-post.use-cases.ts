@@ -1,9 +1,3 @@
-/**
- * Module: workspace-feed
- * Layer: application/use-cases
- * Purpose: Post lifecycle use cases — create, reply, repost, get, list.
- */
-
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 
 import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";

@@ -1,9 +1,3 @@
-/**
- * Module: workspace-feed
- * Layer: application/use-cases
- * Purpose: Feed interaction use cases — like, bookmark, view, share.
- */
-
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 
 import type {

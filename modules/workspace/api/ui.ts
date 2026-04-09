@@ -90,3 +90,8 @@ export {
   AuditStream,
   WorkspaceAuditTab,
 } from "../subdomains/audit/api";
+
+export {
+  WorkspaceFeedAccountView,
+  WorkspaceFeedWorkspaceView,
+} from "../subdomains/feed/api";

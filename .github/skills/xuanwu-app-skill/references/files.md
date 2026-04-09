@@ -7315,135 +7315,6 @@ export function formatDateTime(value: string | Date | null | undefined): string 
 }
 ````
 
-## File: app/(shell)/organization/audit/page.tsx
-````typescript
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { AuditStream, getOrganizationAuditLogs } from "@/modules/workspace-audit/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { formatDateTime, isOrganizationAccount } from "../_utils";
-
-const MAX_DISPLAYED_AUDIT_LOGS = 50;
-
-export default function OrganizationAuditPage() {
-  const { state: appState } = useApp();
-  const { activeAccount, workspaces, workspacesHydrated } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  const [auditLogs, setAuditLogs] = useState<
-    Awaited<ReturnType<typeof getOrganizationAuditLogs>>
-  >([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  // workspaceNameById is derived from the app-provider subscription — no extra fetch needed.
-  const workspaceNameById = useMemo(
-    () => new Map(Object.values(workspaces).map((w) => [w.id, w.name])),
-    [workspaces],
-  );
-
-  useEffect(() => {
-    if (!activeOrganizationId || !workspacesHydrated) return;
-    let cancelled = false;
-    const workspaceIds = Object.keys(workspaces);
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const logs = await getOrganizationAuditLogs(workspaceIds, MAX_DISPLAYED_AUDIT_LOGS);
-        if (!cancelled) {
-          setAuditLogs(logs);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setAuditLogs([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId, workspacesHydrated, workspaces]);
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">稽核</h1>
-        <p className="mt-1 text-sm text-muted-foreground">組織下所有工作區的 audit log 彙整。</p>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Audit</CardTitle>
-          <CardDescription>組織下所有工作區的 audit log 彙整。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入稽核資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取稽核資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && auditLogs.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的 audit logs。</p>
-          )}
-          {loadState === "loaded" &&
-            auditLogs.slice(0, MAX_DISPLAYED_AUDIT_LOGS).map((log) => (
-              <div key={log.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium">{log.action}</p>
-                  <Badge variant="outline">{log.source}</Badge>
-                  <Badge variant="secondary">
-                    {workspaceNameById.get(log.workspaceId) ?? log.workspaceId}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{log.detail || "—"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {formatDateTime(log.occurredAtISO)}
-                </p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      {/* ── 稽核時間軸（新版 AuditStream）─────────────────────────────── */}
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>稽核時間軸</CardTitle>
-          <CardDescription>
-            以時間軸視覺化呈現稽核事件；嚴重程度由色點標示（藍 = 中、橘 = 高、紅 = 嚴重）。
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AuditStream logs={auditLogs} height={500} />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/organization/content/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
@@ -7462,7 +7333,7 @@ export default function OrganizationKnowledgePage() {
 "use client";
 
 import { useApp } from "@/app/providers/app-provider";
-import { WorkspaceFeedAccountView } from "@/modules/workspace-feed/api";
+import { WorkspaceFeedAccountView } from "@/modules/workspace/api";
 import { isOrganizationAccount } from "../_utils";
 
 export default function OrganizationDailyPage() {
@@ -8698,7 +8569,7 @@ export default function SourcePage() {
  */
 
 import { useApp } from "@/app/providers/app-provider";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
 
 export default function WorkspaceFeedPage() {
   const { state } = useApp();
@@ -22257,6 +22128,11 @@ knowledge ─── knowledge.page_promoted ───► knowledge-base
 | knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |
 ````
 
+## File: modules/knowledge/docs/.gitkeep
+````
+
+````
+
 ## File: modules/knowledge/domain-events.md
 ````markdown
 # Domain Events — knowledge
@@ -26497,6 +26373,366 @@ export const useBlockEditorStore = create<BlockEditorState>((set) => ({
 - `../../../modules/knowledge/aggregates.md`
 ````
 
+## File: modules/knowledge/subdomains/knowledge-ai/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-ai/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-ai/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-ai/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-ai/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-ai/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-authoring/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-authoring/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-authoring/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-authoring/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-authoring/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-authoring/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-automation/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-automation/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-automation/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-automation/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-automation/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-automation/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-base/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-base/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-base/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-base/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-base/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-base/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-collaboration/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-collaboration/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-collaboration/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-collaboration/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-collaboration/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-collaboration/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-core/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-core/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-core/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-core/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-core/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-core/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-database/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-database/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-database/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-database/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-database/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-database/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-integration/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-integration/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-integration/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-integration/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-integration/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-integration/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-query/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-query/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-query/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-query/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-query/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-query/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-search/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-search/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-search/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-search/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-search/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-search/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-source/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-source/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-source/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-source/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-source/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-source/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-versioning/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-versioning/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-versioning/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-versioning/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-versioning/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-versioning/README.md
+````markdown
+
+````
+
 ## File: modules/knowledge/ubiquitous-language.md
 ````markdown
 # Ubiquitous Language — knowledge
@@ -29535,6 +29771,96 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 | `Organization` | `Company`, `Tenant`, `Client` |
 | `MemberReference` | `Member`, `OrgUser` |
 | `OrganizationRole` | `Role`, `Permission` |
+````
+
+## File: modules/platform/adapters/external/.gitkeep
+````
+
+````
+
+## File: modules/platform/adapters/persistence/.gitkeep
+````
+
+````
+
+## File: modules/platform/adapters/web/.gitkeep
+````
+
+````
+
+## File: modules/platform/application/commands/.gitkeep
+````
+
+````
+
+## File: modules/platform/application/handlers/.gitkeep
+````
+
+````
+
+## File: modules/platform/application/queries/.gitkeep
+````
+
+````
+
+## File: modules/platform/domain/aggregates/.gitkeep
+````
+
+````
+
+## File: modules/platform/domain/entities/.gitkeep
+````
+
+````
+
+## File: modules/platform/domain/events/.gitkeep
+````
+
+````
+
+## File: modules/platform/domain/factories/.gitkeep
+````
+
+````
+
+## File: modules/platform/domain/services/.gitkeep
+````
+
+````
+
+## File: modules/platform/domain/value-objects/.gitkeep
+````
+
+````
+
+## File: modules/platform/ports/input/.gitkeep
+````
+
+````
+
+## File: modules/platform/ports/output/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/identity/application/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/identity/domain/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/observability/application/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/observability/domain/.gitkeep
+````
+
 ````
 
 ## File: modules/search/AGENT.md
@@ -38495,2821 +38821,6 @@ export const DEMO_ACCOUNT_ID = "demo-account";
 
 const eventBus = new SimpleEventBus();
 export const contentApi = new KnowledgeApi(eventBus);
-````
-
-## File: modules/workspace-audit/AGENT.md
-````markdown
-# AGENT.md — workspace-audit BC
-
-## 模組定位
-
-`workspace-audit` 是稽核紀錄支援域，維護 Append-Only 的 AuditLog，查詢工作區與組織稽核軌跡。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `AuditLog` | Log、Record、History、ActivityLog |
-| `auditEventType` | EventType、ActionType |
-| `actorId` | UserId、PerformerId |
-| `workspaceId` / `organizationId` | Scope（作為稽核範圍） |
-
-## 最重要規則：Append-Only
-
-```typescript
-// ✅ 只允許追加新記錄
-await auditRepository.append(newAuditLog);
-
-// ❌ 禁止修改或刪除
-await auditRepository.update(id, changes);  // 違反 Append-Only
-await auditRepository.delete(id);           // 違反 Append-Only
-```
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { workspaceAuditApi } from "@/modules/workspace-audit/api";
-import type { AuditLogDTO } from "@/modules/workspace-audit/api";
-```
-
-### ❌ 禁止
-```typescript
-import { AuditLog } from "@/modules/workspace-audit/domain/entities/AuditLog";
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/workspace-audit/aggregates.md
-````markdown
-# Aggregates — workspace-audit
-
-## 聚合根：AuditLog（Append-Only）
-
-### 職責
-記錄工作區或組織範圍內重要操作的不可變稽核軌跡。一旦寫入，永不修改或刪除。
-
-### Append-Only 約束
-
-> **核心不變數：** AuditLog 只能被建立，不能被更新或刪除。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 記錄主鍵（UUID） |
-| `workspaceId` | `string \| null` | 所屬工作區（可選，組織級記錄可能無 workspaceId） |
-| `organizationId` | `string` | 所屬組織 |
-| `actorId` | `string` | 操作者帳戶 ID |
-| `auditEventType` | `string` | 操作類型（如 `workspace.member_joined`） |
-| `targetId` | `string \| null` | 操作對象 ID（可選） |
-| `targetType` | `string \| null` | 操作對象類型（可選） |
-| `metadata` | `Record<string, unknown>` | 附加資訊 |
-| `auditedAt` | `string` | ISO 8601 操作時間 |
-
-### 不變數
-
-- `id` 建立後不可變
-- `auditedAt` 使用記錄建立時的系統時間，不可後期修改
-- 所有欄位建立後均不可修改（immutable record）
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `AuditLogRepository` | `append()`, `listByWorkspace()`, `listByOrganization()` |
-
-**注意：** `AuditLogRepository` 不提供 `update()` 或 `delete()` 方法，強制執行 Append-Only。
-````
-
-## File: modules/workspace-audit/api/index.ts
-````typescript
-/**
- * Module: workspace-audit
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Audit domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-
-// ─── Core entity types ────────────────────────────────────────────────────────
-
-export type { AuditLogEntity, AuditLogSource } from "../domain/entities/AuditLog";
-
-export type {
-  AuditLog,
-  AuditAction,
-  AuditSeverity,
-  ChangeRecord,
-} from "../domain/schema";
-
-export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../domain/schema";
-
-// ─── Query functions ──────────────────────────────────────────────────────────
-
-export {
-  getOrganizationAuditLogs,
-  getWorkspaceAuditLogs,
-} from "../interfaces/queries/audit.queries";
-
-export { WorkspaceAuditTab } from "../interfaces/components/WorkspaceAuditTab";
-export { AuditStream } from "../interfaces/components/AuditStream";
-````
-
-## File: modules/workspace-audit/application-services.md
-````markdown
-# workspace-audit — Application Services
-
-> **Canonical bounded context:** `workspace-audit`
-> **模組路徑:** `modules/workspace-audit/`
-> **Domain Type:** Supporting Subdomain
-
-本文件記錄 `workspace-audit` 的 application layer 服務與 use cases。內容與 `modules/workspace-audit/application/` 實作保持一致。
-
-## Application Layer 職責
-
-以 append-only 模式記錄工作區與組織範圍內的重要稽核軌跡。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/.gitkeep`
-- `application/use-cases/audit.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/workspace-audit/README.md`
-- 模組 AGENT：`../../../modules/workspace-audit/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/workspace-audit/application-services.md`
-````
-
-## File: modules/workspace-audit/application/.gitkeep
-````
-
-````
-
-## File: modules/workspace-audit/application/use-cases/audit.use-cases.ts
-````typescript
-import type { AuditLogEntity } from "../../domain/entities/AuditLog";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-
-export class ListWorkspaceAuditLogsUseCase {
-  constructor(private readonly auditRepo: AuditRepository) {}
-
-  execute(workspaceId: string): Promise<AuditLogEntity[]> {
-    return this.auditRepo.findByWorkspaceId(workspaceId);
-  }
-}
-
-export class ListOrganizationAuditLogsUseCase {
-  constructor(private readonly auditRepo: AuditRepository) {}
-
-  execute(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]> {
-    return this.auditRepo.findByWorkspaceIds(workspaceIds, maxCount);
-  }
-}
-````
-
-## File: modules/workspace-audit/context-map.md
-````markdown
-# Context Map — workspace-audit
-
-## 上游（依賴）
-
-`workspace-audit` 訂閱所有業務 BC 的事件，但**不依賴**任何 BC 的 api。它是純事件消費者。
-
-```
-所有業務 BC ──[Domain Events]──► workspace-audit（Terminal Sink）
-```
-
-### 主要事件來源
-
-| 來源 BC | 整合模式 |
-|---------|---------|
-| `workspace` | Published Language（被動消費） |
-| `organization` | Published Language（被動消費） |
-| `workspace-flow` | Published Language（被動消費） |
-| `workspace-scheduling` | Published Language（被動消費） |
-| `source` | Published Language（被動消費） |
-| `ai` | Published Language（被動消費） |
-
----
-
-## 下游（被依賴）
-
-### workspace-audit → WorkspaceDetailScreen（Interfaces）
-
-- `workspace-audit/api` 提供稽核查詢 API 給 `workspace` 的 WorkspaceDetailScreen tab
-
----
-
-## Terminal Sink 原則
-
-`workspace-audit` 是事件消費的**終點**，不向其他 BC 發出事件。業務流程不應等待或依賴稽核記錄的完成。
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| 所有 BC → workspace-audit | 各 BC | workspace-audit | Published Language (Terminal Sink) |
-| workspace-audit → workspace UI | workspace-audit | app/ | Customer/Supplier（查詢） |
-````
-
-## File: modules/workspace-audit/domain-events.md
-````markdown
-# Domain Events — workspace-audit
-
-## 發出事件
-
-`workspace-audit` 不發出 DomainEvent。它是事件的**最終消費者（Terminal Sink）**，不產生進一步的業務事件。
-
-## 訂閱事件（消費端）
-
-`workspace-audit` 訂閱所有需要留下稽核軌跡的業務事件：
-
-| 來源 BC | 訂閱事件 | AuditLog.auditEventType |
-|---------|---------|------------------------|
-| `workspace` | `workspace.created` | `workspace.created` |
-| `workspace` | `workspace.member_joined` | `workspace.member_joined` |
-| `workspace` | `workspace.archived` | `workspace.archived` |
-| `organization` | `organization.member_joined` | `organization.member_joined` |
-| `organization` | `organization.member_removed` | `organization.member_removed` |
-| `workspace-flow` | `workspace-flow.task_status_changed` | `task.status_changed` |
-| `workspace-flow` | `workspace-flow.invoice_paid` | `invoice.paid` |
-| `workspace-scheduling` | `workspace-scheduling.demand_status_changed` | `demand.status_changed` |
-| `source` | `source.upload_completed` | `document.uploaded` |
-| `ai` | `ai.ingestion_completed / failed` | `ingestion.completed / failed` |
-
-## 說明
-
-稽核模組是事件消費的「終點站」。業務 BC 不應依賴稽核模組的狀態，稽核只做記錄，不影響業務流程。
-````
-
-## File: modules/workspace-audit/domain-services.md
-````markdown
-# workspace-audit — Domain Services
-
-> **Canonical bounded context:** `workspace-audit`
-> **模組路徑:** `modules/workspace-audit/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-audit` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/workspace-audit/domain-services.md`
-- `../../../modules/workspace-audit/aggregates.md`
-````
-
-## File: modules/workspace-audit/domain/.gitkeep
-````
-
-````
-
-## File: modules/workspace-audit/domain/entities/AuditLog.ts
-````typescript
-export type AuditLogSource = "workspace" | "finance" | "notification" | "system";
-
-export interface AuditLogEntity {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly actorId: string;
-  readonly action: string;
-  readonly detail: string;
-  readonly source: AuditLogSource;
-  readonly occurredAtISO: string;
-}
-````
-
-## File: modules/workspace-audit/domain/repositories/AuditRepository.ts
-````typescript
-import type { AuditLogEntity } from "../entities/AuditLog";
-
-export interface AuditRepository {
-  findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]>;
-  findByWorkspaceIds(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]>;
-}
-````
-
-## File: modules/workspace-audit/domain/schema.ts
-````typescript
-/**
- * Audit 模組領域 Schema — 不可變事件流（Immutable Event Stream）。
- * 遵循奧卡姆剃刀：稽核日誌只需記錄「誰、何時、做了什麼」。
- */
-
-import { z } from "@lib-zod";
-import { BaseEntitySchema } from "../../shared/domain/types";
-
-// ── 操作類型 ────────────────────────────────────────────────────────────────
-
-/**
- * 稽核操作類型：
- * - create（建立）：新增資源
- * - update（更新）：修改資源內容
- * - delete（刪除）：移除資源
- * - login（登入）：使用者登入事件
- * - export（匯出）：資料匯出操作
- */
-export const AUDIT_ACTIONS = ["create", "update", "delete", "login", "export"] as const;
-export type AuditAction = (typeof AUDIT_ACTIONS)[number];
-
-// ── 嚴重程度 ────────────────────────────────────────────────────────────────
-
-/**
- * 事件嚴重程度：
- * - low（低）：一般日常操作
- * - medium（中）：需留意的操作
- * - high（高）：敏感操作，需主管審閱
- * - critical（嚴重）：高風險操作，需即時關注
- */
-export const AUDIT_SEVERITIES = ["low", "medium", "high", "critical"] as const;
-export type AuditSeverity = (typeof AUDIT_SEVERITIES)[number];
-
-// ── 欄位變更紀錄 ──────────────────────────────────────────────────────────
-
-const ChangeRecordSchema = z.object({
-  /** 被修改的欄位名稱 */
-  field: z.string(),
-  /** 修改前的值 */
-  oldValue: z.unknown(),
-  /** 修改後的值 */
-  newValue: z.unknown(),
-});
-
-export type ChangeRecord = z.infer<typeof ChangeRecordSchema>;
-
-// ── 主要 Schema ────────────────────────────────────────────────────────────
-
-/**
- * 稽核日誌 Schema — 不可變的操作事件紀錄。
- * 繼承 BaseEntitySchema 取得租戶隔離與操作者資訊。
- */
-export const AuditLogSchema = BaseEntitySchema.extend({
-  /** 操作類型 */
-  action: z.enum(AUDIT_ACTIONS),
-  /** 被操作資源的類型，例如 'contract'、'daily_post'、'user_settings' */
-  resourceType: z.string(),
-  /** 被操作資源的唯一識別碼 */
-  resourceId: z.string(),
-  /** 事件嚴重程度 */
-  severity: z.enum(AUDIT_SEVERITIES),
-  /** 欄位變更明細（選填，僅 update 操作有意義） */
-  changes: z.array(ChangeRecordSchema).optional(),
-});
-
-export type AuditLog = z.infer<typeof AuditLogSchema>;
-````
-
-## File: modules/workspace-audit/index.ts
-````typescript
-export type { AuditLogEntity, AuditLogSource } from "./domain/entities/AuditLog";
-export type { AuditRepository } from "./domain/repositories/AuditRepository";
-export {
-  ListOrganizationAuditLogsUseCase,
-  ListWorkspaceAuditLogsUseCase,
-} from "./application/use-cases/audit.use-cases";
-export { FirebaseAuditRepository } from "./infrastructure/firebase/FirebaseAuditRepository";
-export {
-  getOrganizationAuditLogs,
-  getWorkspaceAuditLogs,
-} from "./interfaces/queries/audit.queries";
-export { WorkspaceAuditTab } from "./interfaces/components/WorkspaceAuditTab";
-
-// ── 新增：精簡領域 Schema 與稽核時間軸元件（interfaces 層） ─────────────────
-export type {
-  AuditLog,
-  AuditAction,
-  AuditSeverity,
-  ChangeRecord,
-} from "./domain/schema";
-export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "./domain/schema";
-export { AuditStream } from "./interfaces/components/AuditStream";
-````
-
-## File: modules/workspace-audit/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/workspace-audit/infrastructure/firebase/FirebaseAuditRepository.ts
-````typescript
-import {
-  collection,
-  getDocs,
-  getFirestore,
-  limit,
-  query,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-
-const VALID_AUDIT_LOG_SOURCES = new Set<AuditLogSource>([
-  "workspace",
-  "finance",
-  "notification",
-  "system",
-]);
-
-function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity {
-  const source = VALID_AUDIT_LOG_SOURCES.has(data.source as AuditLogSource)
-    ? (data.source as AuditLogSource)
-    : "workspace";
-
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    actorId: typeof data.actorId === "string" ? data.actorId : "system",
-    action: typeof data.action === "string" ? data.action : "unknown",
-    detail: typeof data.detail === "string" ? data.detail : "",
-    source,
-    occurredAtISO:
-      typeof data.occurredAtISO === "string"
-        ? data.occurredAtISO
-        : "",
-  };
-}
-
-export class FirebaseAuditRepository implements AuditRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]> {
-    const snaps = await getDocs(
-      query(collection(this.db, "auditLogs"), where("workspaceId", "==", workspaceId)),
-    );
-
-    return snaps.docs
-      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
-      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO));
-  }
-
-  async findByWorkspaceIds(
-    workspaceIds: string[],
-    maxCount = 200,
-  ): Promise<AuditLogEntity[]> {
-    if (workspaceIds.length === 0) {
-      return [];
-    }
-
-    const chunks: string[][] = [];
-    for (let index = 0; index < workspaceIds.length; index += 10) {
-      chunks.push(workspaceIds.slice(index, index + 10));
-    }
-
-    const perChunkLimit = Math.max(1, Math.ceil(maxCount / chunks.length));
-
-    const snapshots = await Promise.all(
-      chunks.map((chunk) =>
-        getDocs(
-          query(
-            collection(this.db, "auditLogs"),
-            where("workspaceId", "in", chunk),
-            limit(perChunkLimit),
-          ),
-        ),
-      ),
-    );
-
-    return snapshots
-      .flatMap((snapshot) => snapshot.docs)
-      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
-      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO))
-      .slice(0, maxCount);
-  }
-}
-````
-
-## File: modules/workspace-audit/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/workspace-audit/interfaces/components/AuditStream.tsx
-````typescript
-"use client";
-
-/**
- * AuditStream — 高密度稽核事件時間軸。
- * 接受現有 AuditLogEntity 陣列，在 interfaces 層進行視圖映射後渲染。
- */
-
-import { format } from "date-fns";
-import { zhTW } from "date-fns/locale/zh-TW";
-import { ShieldAlert } from "lucide-react";
-
-import { Badge } from "@ui-shadcn/ui/badge";
-import { ScrollArea } from "@ui-shadcn/ui/scroll-area";
-
-import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
-import type { AuditSeverity } from "../../domain/schema";
-
-// ── AuditLogEntity → 視圖物件（interfaces 層視圖映射） ───────────────────
-
-interface AuditStreamItem {
-  id: string;
-  actorName: string;
-  action: string;
-  resourceType: string;
-  detail: string;
-  severity: AuditSeverity;
-  workspaceId: string;
-  occurredAtISO: string;
-}
-
-const SOURCE_SEVERITY: Record<AuditLogSource, AuditSeverity> = {
-  workspace: "low",
-  finance: "high",
-  notification: "low",
-  system: "medium",
-};
-
-function toStreamItem(entity: AuditLogEntity): AuditStreamItem {
-  return {
-    id: entity.id,
-    actorName: entity.actorId,
-    action: entity.action,
-    resourceType: entity.source,
-    detail: entity.detail,
-    severity: SOURCE_SEVERITY[entity.source] ?? "low",
-    workspaceId: entity.workspaceId,
-    occurredAtISO: entity.occurredAtISO,
-  };
-}
-
-// ── 嚴重程度視覺樣式 ──────────────────────────────────────────────────────
-
-const SEVERITY_DOT: Record<AuditSeverity, string> = {
-  low: "bg-muted-foreground/40",
-  medium: "bg-blue-500",
-  high: "bg-orange-500",
-  critical: "bg-destructive",
-};
-
-const SEVERITY_LABEL: Record<AuditSeverity, string> = {
-  low: "低",
-  medium: "中",
-  high: "高",
-  critical: "嚴重",
-};
-
-// ── 單筆事件列 ─────────────────────────────────────────────────────────────
-
-interface AuditRowProps {
-  item: AuditStreamItem;
-}
-
-function AuditRow({ item }: AuditRowProps) {
-  const timeLabel = (() => {
-    try {
-      return format(new Date(item.occurredAtISO), "yyyy-MM-dd HH:mm:ss", { locale: zhTW });
-    } catch {
-      return item.occurredAtISO;
-    }
-  })();
-
-  return (
-    <div className="mb-6 ml-6 relative group">
-      {/* 時間軸節點 */}
-      <span
-        className={`absolute -left-[1.85rem] flex h-3.5 w-3.5 items-center justify-center rounded-full ring-2 ring-background ${SEVERITY_DOT[item.severity]}`}
-      />
-
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1">
-        <div className="space-y-0.5 min-w-0">
-          {/* 操作摘要 */}
-          <div className="flex flex-wrap items-center gap-1.5 text-sm">
-            <span className="font-semibold truncate max-w-[120px]">{item.actorName}</span>
-            <span className="text-muted-foreground">執行了</span>
-            <Badge variant="outline" className="text-xs uppercase px-1.5 py-0">
-              {item.action}
-            </Badge>
-            <span className="text-muted-foreground">於</span>
-            <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">
-              {item.resourceType}
-            </code>
-            {item.severity === "critical" && (
-              <ShieldAlert className="h-3.5 w-3.5 text-destructive shrink-0" />
-            )}
-          </div>
-
-          {/* 操作詳情 */}
-          {item.detail && (
-            <p className="text-xs text-muted-foreground">{item.detail}</p>
-          )}
-
-          {/* 嚴重程度 + 工作區來源 */}
-          <div className="flex items-center gap-2 mt-1">
-            <Badge variant="secondary" className="text-xs px-1.5 py-0">
-              {SEVERITY_LABEL[item.severity]}
-            </Badge>
-            <span className="text-xs text-muted-foreground">@{item.workspaceId}</span>
-          </div>
-        </div>
-
-        {/* 時間 */}
-        <time className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-          {timeLabel}
-        </time>
-      </div>
-    </div>
-  );
-}
-
-// ── 主要元件 ────────────────────────────────────────────────────────────────
-
-interface AuditStreamProps {
-  /** 稽核日誌清單（AuditLogEntity 陣列，由頁面傳入） */
-  logs: readonly AuditLogEntity[];
-  /** ScrollArea 高度，預設 500px */
-  height?: number;
-}
-
-export function AuditStream({ logs, height = 500 }: AuditStreamProps) {
-  if (logs.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        目前尚無稽核紀錄。
-      </p>
-    );
-  }
-
-  const items = logs.map(toStreamItem);
-
-  return (
-    <ScrollArea className="w-full rounded-md border" style={{ height }}>
-      <div className="p-4">
-        {/* 時間軸容器 */}
-        <div className="relative border-l border-border/60 ml-1.5">
-          {items.map((item) => (
-            <AuditRow key={item.id} item={item} />
-          ))}
-        </div>
-      </div>
-    </ScrollArea>
-  );
-}
-````
-
-## File: modules/workspace-audit/interfaces/components/WorkspaceAuditTab.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import type { AuditLogEntity } from "../../domain/entities/AuditLog";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { getWorkspaceAuditLogs } from "../queries/audit.queries";
-
-function formatAuditDate(value: string) {
-  if (!value) {
-    return "—";
-  }
-
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(value));
-  } catch {
-    return value;
-  }
-}
-
-interface WorkspaceAuditTabProps {
-  readonly workspaceId: string;
-}
-
-export function WorkspaceAuditTab({ workspaceId }: WorkspaceAuditTabProps) {
-  const [logs, setLogs] = useState<AuditLogEntity[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadLogs() {
-      setLoadState("loading");
-
-      try {
-        const nextLogs = await getWorkspaceAuditLogs(workspaceId);
-        if (cancelled) {
-          return;
-        }
-
-        setLogs(nextLogs);
-        setLoadState("loaded");
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[WorkspaceAuditTab] Failed to load audit logs:", error);
-        }
-
-        if (!cancelled) {
-          setLogs([]);
-          setLoadState("error");
-        }
-      }
-    }
-
-    void loadLogs();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [workspaceId]);
-
-  return (
-    <Card className="border border-border/50">
-      <CardHeader>
-        <CardTitle>Audit</CardTitle>
-        <CardDescription>
-          工作區相關行為紀錄、來源與時間軸。
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {loadState === "loading" && (
-          <p className="text-sm text-muted-foreground">Loading audit log…</p>
-        )}
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">
-            無法載入 audit log，請重新整理頁面或稍後再試。
-          </p>
-        )}
-
-        {loadState === "loaded" && logs.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            目前尚未記錄這個工作區的 audit entries。
-          </p>
-        )}
-
-        {loadState === "loaded" && logs.length > 0 && (
-          <div className="space-y-3">
-            {logs.map((log) => (
-              <div
-                key={log.id}
-                className="rounded-xl border border-border/40 px-4 py-4"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground">{log.action}</p>
-                      <Badge variant="outline">{log.source}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{log.detail || "—"}</p>
-                    <p className="text-xs text-muted-foreground">Actor: {log.actorId}</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {formatAuditDate(log.occurredAtISO)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-````
-
-## File: modules/workspace-audit/interfaces/queries/audit.queries.ts
-````typescript
-import type { AuditLogEntity } from "../../domain/entities/AuditLog";
-import {
-  ListOrganizationAuditLogsUseCase,
-  ListWorkspaceAuditLogsUseCase,
-} from "../../application/use-cases/audit.use-cases";
-import { FirebaseAuditRepository } from "../../infrastructure/firebase/FirebaseAuditRepository";
-
-const auditRepo = new FirebaseAuditRepository();
-const listWorkspaceAuditLogsUseCase = new ListWorkspaceAuditLogsUseCase(auditRepo);
-const listOrganizationAuditLogsUseCase = new ListOrganizationAuditLogsUseCase(auditRepo);
-
-export async function getWorkspaceAuditLogs(
-  workspaceId: string,
-): Promise<AuditLogEntity[]> {
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedWorkspaceId) {
-    return [];
-  }
-
-  return listWorkspaceAuditLogsUseCase.execute(normalizedWorkspaceId);
-}
-
-export async function getOrganizationAuditLogs(
-  workspaceIds: string[],
-  maxCount = 200,
-): Promise<AuditLogEntity[]> {
-  const normalizedWorkspaceIds = workspaceIds
-    .map((workspaceId) => workspaceId.trim())
-    .filter(Boolean);
-
-  if (normalizedWorkspaceIds.length === 0) {
-    return [];
-  }
-
-  return listOrganizationAuditLogsUseCase.execute(normalizedWorkspaceIds, maxCount);
-}
-````
-
-## File: modules/workspace-audit/ports/.gitkeep
-````
-
-````
-
-## File: modules/workspace-audit/README.md
-````markdown
-# workspace-audit — 工作區稽核上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-audit/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-audit` 是工作區治理的追溯層，透過 append-only 稽核紀錄保存重要操作的事後可查性。它不是直接創造知識價值的核心域，但對信任、治理與合規至關重要。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 稽核寫入 | 接收重要行為或事件並追加紀錄 |
-| 稽核查詢 | 依工作區或組織範圍提供可查詢的 audit trail |
-| 治理可見性 | 支援事後追查、責任歸屬與決策證據 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 與 `organization` 提供查詢與可見性範圍。
-- `workspace-flow`、`workspace-feed` 與其他上下文可作為稽核事件來源。
-
-## 核心聚合 / 核心概念
-
-- **`AuditLog`**
-- **`AuditActor`**
-- **`AuditScope`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/workspace-audit/repositories.md
-````markdown
-# workspace-audit — Repositories
-
-> **Canonical bounded context:** `workspace-audit`
-> **模組路徑:** `modules/workspace-audit/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-audit` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/AuditRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/.gitkeep`
-- `infrastructure/firebase/FirebaseAuditRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/workspace-audit/repositories.md`
-- `../../../modules/workspace-audit/aggregates.md`
-````
-
-## File: modules/workspace-audit/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — workspace-audit
-
-> **範圍：** 僅限 `modules/workspace-audit/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 稽核記錄 | AuditLog | 一條不可變的操作紀錄（Append-Only，永不修改） |
-| 稽核事件類型 | auditEventType | 記錄的操作類型字串（如 `workspace.member_joined`） |
-| 操作者 ID | actorId | 執行此操作的帳戶 ID |
-| 稽核範圍 | auditScope | 此記錄的範圍（workspace 或 organization） |
-| 稽核時間 | auditedAt | 操作發生時間，ISO 8601 |
-| 元資料 | metadata | 操作的附加資訊（JSON，可選） |
-
-## Append-Only 原則
-
-`AuditLog` 一旦寫入即不可更改。任何試圖修改或刪除 AuditLog 的操作都違反此域的核心不變數。
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `AuditLog` | `Log`, `Record`, `History` |
-| `actorId` | `userId`, `performerId` |
-| `auditedAt` | `timestamp`, `createdAt`（在稽核上下文中） |
-````
-
-## File: modules/workspace-feed/AGENT.md
-````markdown
-# AGENT.md — workspace-feed BC
-
-## 通用語言
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `WorkspaceFeedPost` | Post、Tweet、Message |
-| `WorkspaceFeedPostType` | Type、PostType |
-| `authorAccountId` | authorId、userId |
-
-## 邊界規則
-
-```typescript
-// ✅
-import { workspaceFeedApi } from "@/modules/workspace-feed/api";
-// ❌
-import { WorkspaceFeedPost } from "@/modules/workspace-feed/domain/entities/WorkspaceFeedPost";
-```
-````
-
-## File: modules/workspace-feed/aggregates.md
-````markdown
-# Aggregates — workspace-feed
-
-## 聚合根：WorkspaceFeedPost
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 貼文主鍵 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `authorAccountId` | `string` | 作者帳戶 ID |
-| `type` | `WorkspaceFeedPostType` | `post \| reply \| repost` |
-| `content` | `string` | 貼文內容 |
-| `replyToPostId` | `string \| null` | 回覆目標 |
-| `repostOfPostId` | `string \| null` | 轉貼目標 |
-| `likeCount` | `number` | 按讚數 |
-| `viewCount` | `number` | 瀏覽數 |
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `WorkspaceFeedRepository` | `save()`, `findById()`, `listByWorkspace()` |
-````
-
-## File: modules/workspace-feed/api/index.ts
-````typescript
-export { WorkspaceFeedFacade, workspaceFeedFacade } from "./workspace-feed.facade";
-export type {
-  CreateWorkspaceFeedPostParams,
-  ReplyWorkspaceFeedPostParams,
-  RepostWorkspaceFeedPostParams,
-  WorkspaceFeedInteractionParams,
-} from "./workspace-feed.facade";
-
-// ── UI components (cross-module public) ──────────────────────────────────────
-export { WorkspaceFeedWorkspaceView } from "../interfaces/components/WorkspaceFeedWorkspaceView";
-export { WorkspaceFeedAccountView } from "../interfaces/components/WorkspaceFeedAccountView";
-````
-
-## File: modules/workspace-feed/api/workspace-feed.facade.ts
-````typescript
-import type { WorkspaceFeedPost } from "../domain/entities/workspace-feed-post.entity";
-import type {
-  WorkspaceFeedInteractionRepository,
-  WorkspaceFeedPostRepository,
-} from "../domain/repositories/workspace-feed.repositories";
-import {
-  BookmarkWorkspaceFeedPostUseCase,
-  CreateWorkspaceFeedPostUseCase,
-  GetWorkspaceFeedPostUseCase,
-  LikeWorkspaceFeedPostUseCase,
-  ListAccountWorkspaceFeedUseCase,
-  ListWorkspaceFeedUseCase,
-  ReplyWorkspaceFeedPostUseCase,
-  RepostWorkspaceFeedPostUseCase,
-  ShareWorkspaceFeedPostUseCase,
-  ViewWorkspaceFeedPostUseCase,
-} from "../application/use-cases/workspace-feed.use-cases";
-import {
-  FirebaseWorkspaceFeedInteractionRepository,
-  FirebaseWorkspaceFeedPostRepository,
-} from "../infrastructure";
-
-export interface CreateWorkspaceFeedPostParams {
-  accountId: string;
-  workspaceId: string;
-  authorAccountId: string;
-  content: string;
-}
-
-export interface ReplyWorkspaceFeedPostParams {
-  accountId: string;
-  workspaceId: string;
-  parentPostId: string;
-  authorAccountId: string;
-  content: string;
-}
-
-export interface RepostWorkspaceFeedPostParams {
-  accountId: string;
-  workspaceId: string;
-  sourcePostId: string;
-  actorAccountId: string;
-  comment?: string;
-}
-
-export interface WorkspaceFeedInteractionParams {
-  accountId: string;
-  postId: string;
-  actorAccountId: string;
-}
-
-export class WorkspaceFeedFacade {
-  private readonly postRepo: WorkspaceFeedPostRepository;
-  private readonly interactionRepo: WorkspaceFeedInteractionRepository;
-
-  constructor(
-    postRepo: WorkspaceFeedPostRepository = new FirebaseWorkspaceFeedPostRepository(),
-    interactionRepo: WorkspaceFeedInteractionRepository = new FirebaseWorkspaceFeedInteractionRepository(),
-  ) {
-    this.postRepo = postRepo;
-    this.interactionRepo = interactionRepo;
-  }
-
-  async createPost(params: CreateWorkspaceFeedPostParams): Promise<string | null> {
-    const result = await new CreateWorkspaceFeedPostUseCase(this.postRepo).execute(params);
-    return result.success ? result.aggregateId : null;
-  }
-
-  async reply(params: ReplyWorkspaceFeedPostParams): Promise<string | null> {
-    const result = await new ReplyWorkspaceFeedPostUseCase(this.postRepo).execute(params);
-    return result.success ? result.aggregateId : null;
-  }
-
-  async repost(params: RepostWorkspaceFeedPostParams): Promise<string | null> {
-    const result = await new RepostWorkspaceFeedPostUseCase(this.postRepo).execute(params);
-    return result.success ? result.aggregateId : null;
-  }
-
-  async like(params: WorkspaceFeedInteractionParams): Promise<boolean> {
-    const result = await new LikeWorkspaceFeedPostUseCase(this.postRepo, this.interactionRepo).execute(params);
-    return result.success;
-  }
-
-  async view(params: WorkspaceFeedInteractionParams): Promise<boolean> {
-    const result = await new ViewWorkspaceFeedPostUseCase(this.postRepo, this.interactionRepo).execute(params);
-    return result.success;
-  }
-
-  async bookmark(params: WorkspaceFeedInteractionParams): Promise<boolean> {
-    const result = await new BookmarkWorkspaceFeedPostUseCase(this.postRepo, this.interactionRepo).execute(params);
-    return result.success;
-  }
-
-  async share(params: WorkspaceFeedInteractionParams): Promise<boolean> {
-    const result = await new ShareWorkspaceFeedPostUseCase(this.postRepo, this.interactionRepo).execute(params);
-    return result.success;
-  }
-
-  async getPost(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
-    return new GetWorkspaceFeedPostUseCase(this.postRepo).execute(accountId, postId);
-  }
-
-  async getWorkspaceFeed(
-    accountId: string,
-    workspaceId: string,
-    maxRows = 50,
-  ): Promise<WorkspaceFeedPost[]> {
-    return new ListWorkspaceFeedUseCase(this.postRepo).execute({
-      accountId,
-      workspaceId,
-      limit: maxRows,
-    });
-  }
-
-  async getAccountFeed(accountId: string, maxRows = 50): Promise<WorkspaceFeedPost[]> {
-    return new ListAccountWorkspaceFeedUseCase(this.postRepo).execute({
-      accountId,
-      limit: maxRows,
-    });
-  }
-}
-
-export const workspaceFeedFacade = new WorkspaceFeedFacade();
-````
-
-## File: modules/workspace-feed/application-services.md
-````markdown
-# workspace-feed — Application Services
-
-> **Canonical bounded context:** `workspace-feed`
-> **模組路徑:** `modules/workspace-feed/`
-> **Domain Type:** Supporting Subdomain
-
-本文件記錄 `workspace-feed` 的 application layer 服務與 use cases。內容與 `modules/workspace-feed/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理工作區的社交動態貼文與互動事件。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/dto/workspace-feed.dto.ts`
-- `application/use-cases/workspace-feed.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/workspace-feed/README.md`
-- 模組 AGENT：`../../../modules/workspace-feed/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/workspace-feed/application-services.md`
-````
-
-## File: modules/workspace-feed/application/dto/workspace-feed.dto.ts
-````typescript
-import { z } from "@lib-zod";
-
-const AccountScopeSchema = z.object({
-  accountId: z.string().min(1),
-});
-
-const WorkspaceScopeSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1),
-});
-
-export const FeedLimitSchema = z.number().int().min(1).max(200).default(50);
-
-export const CreateWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
-  authorAccountId: z.string().min(1),
-  content: z.string().trim().min(1).max(5000),
-});
-
-export type CreateWorkspaceFeedPostDto = z.infer<typeof CreateWorkspaceFeedPostSchema>;
-
-export const ReplyWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
-  parentPostId: z.string().min(1),
-  authorAccountId: z.string().min(1),
-  content: z.string().trim().min(1).max(5000),
-});
-
-export type ReplyWorkspaceFeedPostDto = z.infer<typeof ReplyWorkspaceFeedPostSchema>;
-
-export const RepostWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
-  sourcePostId: z.string().min(1),
-  actorAccountId: z.string().min(1),
-  comment: z.string().trim().max(1000).optional(),
-});
-
-export type RepostWorkspaceFeedPostDto = z.infer<typeof RepostWorkspaceFeedPostSchema>;
-
-export const FeedInteractionSchema = AccountScopeSchema.extend({
-  postId: z.string().min(1),
-  actorAccountId: z.string().min(1),
-});
-
-export type FeedInteractionDto = z.infer<typeof FeedInteractionSchema>;
-
-export const ListWorkspaceFeedSchema = WorkspaceScopeSchema.extend({
-  limit: FeedLimitSchema.optional(),
-});
-
-export type ListWorkspaceFeedDto = z.infer<typeof ListWorkspaceFeedSchema>;
-
-export const ListAccountFeedSchema = AccountScopeSchema.extend({
-  limit: FeedLimitSchema.optional(),
-});
-
-export type ListAccountFeedDto = z.infer<typeof ListAccountFeedSchema>;
-````
-
-## File: modules/workspace-feed/application/use-cases/workspace-feed-interaction.use-cases.ts
-````typescript
-/**
- * Module: workspace-feed
- * Layer: application/use-cases
- * Purpose: Feed interaction use cases — like, bookmark, view, share.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type {
-  WorkspaceFeedInteractionRepository,
-  WorkspaceFeedPostRepository,
-} from "../../domain/repositories/workspace-feed.repositories";
-import { FeedInteractionSchema } from "../dto/workspace-feed.dto";
-
-export class LikeWorkspaceFeedPostUseCase {
-  constructor(
-    private readonly postRepo: WorkspaceFeedPostRepository,
-    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
-  ) {}
-
-  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
-    const parsed = FeedInteractionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
-    if (!post) {
-      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
-    }
-
-    const liked = await this.interactionRepo.like(
-      parsed.data.accountId,
-      parsed.data.postId,
-      parsed.data.actorAccountId,
-    );
-    if (liked) {
-      await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { likeDelta: 1 });
-    }
-
-    return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-
-export class BookmarkWorkspaceFeedPostUseCase {
-  constructor(
-    private readonly postRepo: WorkspaceFeedPostRepository,
-    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
-  ) {}
-
-  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
-    const parsed = FeedInteractionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
-    if (!post) {
-      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
-    }
-
-    const bookmarked = await this.interactionRepo.bookmark(
-      parsed.data.accountId,
-      parsed.data.postId,
-      parsed.data.actorAccountId,
-    );
-    if (bookmarked) {
-      await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { bookmarkDelta: 1 });
-    }
-
-    return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-
-export class ViewWorkspaceFeedPostUseCase {
-  constructor(
-    private readonly postRepo: WorkspaceFeedPostRepository,
-    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
-  ) {}
-
-  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
-    const parsed = FeedInteractionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
-    if (!post) {
-      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
-    }
-
-    await this.interactionRepo.view(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
-    await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { viewDelta: 1 });
-    return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-
-export class ShareWorkspaceFeedPostUseCase {
-  constructor(
-    private readonly postRepo: WorkspaceFeedPostRepository,
-    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
-  ) {}
-
-  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
-    const parsed = FeedInteractionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
-    if (!post) {
-      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
-    }
-
-    await this.interactionRepo.share(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
-    await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { shareDelta: 1 });
-    return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-feed/application/use-cases/workspace-feed-post.use-cases.ts
-````typescript
-/**
- * Module: workspace-feed
- * Layer: application/use-cases
- * Purpose: Post lifecycle use cases — create, reply, repost, get, list.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
-import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
-import {
-  CreateWorkspaceFeedPostSchema,
-  type CreateWorkspaceFeedPostDto,
-  ListAccountFeedSchema,
-  type ListAccountFeedDto,
-  ListWorkspaceFeedSchema,
-  type ListWorkspaceFeedDto,
-  ReplyWorkspaceFeedPostSchema,
-  type ReplyWorkspaceFeedPostDto,
-  RepostWorkspaceFeedPostSchema,
-  type RepostWorkspaceFeedPostDto,
-} from "../dto/workspace-feed.dto";
-
-export class CreateWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = CreateWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.repo.createPost(parsed.data);
-    return commandSuccess(post.id, Date.now());
-  }
-}
-
-export class ReplyWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = ReplyWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const parent = await this.repo.findById(parsed.data.accountId, parsed.data.parentPostId);
-    if (!parent) {
-      return commandFailureFrom("WORKSPACE_FEED_PARENT_NOT_FOUND", "Parent post not found.");
-    }
-    if (parent.workspaceId !== parsed.data.workspaceId) {
-      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Parent post is in another workspace.");
-    }
-
-    const reply = await this.repo.createReply(parsed.data);
-    return commandSuccess(reply.id, Date.now());
-  }
-}
-
-export class RepostWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = RepostWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const source = await this.repo.findById(parsed.data.accountId, parsed.data.sourcePostId);
-    if (!source) {
-      return commandFailureFrom("WORKSPACE_FEED_SOURCE_NOT_FOUND", "Source post not found.");
-    }
-    if (source.workspaceId !== parsed.data.workspaceId) {
-      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Source post is in another workspace.");
-    }
-
-    const repost = await this.repo.createRepost(parsed.data);
-    if (!repost) {
-      return commandFailureFrom("WORKSPACE_FEED_REPOST_FAILED", "Failed to create repost.");
-    }
-
-    return commandSuccess(repost.id, Date.now());
-  }
-}
-
-export class GetWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
-    if (!accountId.trim() || !postId.trim()) return null;
-    return this.repo.findById(accountId, postId);
-  }
-}
-
-export class ListWorkspaceFeedUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ListWorkspaceFeedDto): Promise<WorkspaceFeedPost[]> {
-    const parsed = ListWorkspaceFeedSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByWorkspaceId(parsed.data.accountId, parsed.data.workspaceId, parsed.data.limit ?? 50);
-  }
-}
-
-export class ListAccountWorkspaceFeedUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ListAccountFeedDto): Promise<WorkspaceFeedPost[]> {
-    const parsed = ListAccountFeedSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByAccountId(parsed.data.accountId, parsed.data.limit ?? 50);
-  }
-}
-````
-
-## File: modules/workspace-feed/application/use-cases/workspace-feed.use-cases.ts
-````typescript
-/**
- * Module: workspace-feed
- * Layer: application/use-cases
- * Purpose: Re-export barrel for all workspace-feed use cases.
- *          Split by subdomain for IDDD single-responsibility:
- *  - workspace-feed-post.use-cases.ts        (create, reply, repost, get, list)
- *  - workspace-feed-interaction.use-cases.ts  (like, bookmark, view, share)
- */
-
-export {
-  CreateWorkspaceFeedPostUseCase,
-  ReplyWorkspaceFeedPostUseCase,
-  RepostWorkspaceFeedPostUseCase,
-  GetWorkspaceFeedPostUseCase,
-  ListWorkspaceFeedUseCase,
-  ListAccountWorkspaceFeedUseCase,
-} from "./workspace-feed-post.use-cases";
-
-export {
-  LikeWorkspaceFeedPostUseCase,
-  BookmarkWorkspaceFeedPostUseCase,
-  ViewWorkspaceFeedPostUseCase,
-  ShareWorkspaceFeedPostUseCase,
-} from "./workspace-feed-interaction.use-cases";
-````
-
-## File: modules/workspace-feed/context-map.md
-````markdown
-# Context Map — workspace-feed
-
-## 上游（依賴）
-
-### workspace → workspace-feed（Conformist）
-
-- `WorkspaceFeedPost.workspaceId` 隸屬工作區
-
-## 下游（被依賴）
-
-### workspace-feed → notification（Published Language）
-
-- `WorkspaceFeedPostCreated` 可觸發通知
-
-### workspace-feed → workspace-audit（Published Language）
-
-- 貼文操作記錄稽核軌跡
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| workspace → workspace-feed | workspace | workspace-feed | Conformist |
-| workspace-feed → notification | workspace-feed | notification | Published Language |
-| workspace-feed → workspace-audit | workspace-feed | workspace-audit | Published Language |
-````
-
-## File: modules/workspace-feed/domain-events.md
-````markdown
-# Domain Events — workspace-feed
-
-## 發出事件
-
-| 事件 | 觸發條件 |
-|------|---------|
-| `WorkspaceFeedPostCreated` | 新貼文發布 |
-| `WorkspaceFeedReplyCreated` | 回覆發布 |
-| `WorkspaceFeedRepostCreated` | 轉貼發布 |
-| `WorkspaceFeedPostLiked` | 按讚 |
-| `WorkspaceFeedPostViewed` | 瀏覽 |
-| `WorkspaceFeedPostBookmarked` | 收藏 |
-| `WorkspaceFeedPostShared` | 分享 |
-
-所有事件繼承 `WorkspaceFeedBaseEvent`（`accountId`, `workspaceId`, `postId`, `actorAccountId`, `occurredAtISO`）。
-
-## 訂閱事件
-
-`workspace-feed` 不訂閱其他 BC 的事件。
-````
-
-## File: modules/workspace-feed/domain-services.md
-````markdown
-# workspace-feed — Domain Services
-
-> **Canonical bounded context:** `workspace-feed`
-> **模組路徑:** `modules/workspace-feed/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-feed` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/workspace-feed/domain-services.md`
-- `../../../modules/workspace-feed/aggregates.md`
-````
-
-## File: modules/workspace-feed/domain/entities/workspace-feed-post.entity.ts
-````typescript
-export const WORKSPACE_FEED_POST_TYPES = ["post", "reply", "repost"] as const;
-export type WorkspaceFeedPostType = (typeof WORKSPACE_FEED_POST_TYPES)[number];
-
-export interface WorkspaceFeedPost {
-  id: string;
-  accountId: string;
-  workspaceId: string;
-  authorAccountId: string;
-  type: WorkspaceFeedPostType;
-  content: string;
-  replyToPostId: string | null;
-  repostOfPostId: string | null;
-  likeCount: number;
-  replyCount: number;
-  repostCount: number;
-  viewCount: number;
-  bookmarkCount: number;
-  shareCount: number;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-
-export interface CreateWorkspaceFeedPostInput {
-  accountId: string;
-  workspaceId: string;
-  authorAccountId: string;
-  content: string;
-}
-
-export interface CreateWorkspaceFeedReplyInput {
-  accountId: string;
-  workspaceId: string;
-  parentPostId: string;
-  authorAccountId: string;
-  content: string;
-}
-
-export interface CreateWorkspaceFeedRepostInput {
-  accountId: string;
-  workspaceId: string;
-  sourcePostId: string;
-  actorAccountId: string;
-  comment?: string;
-}
-
-export interface WorkspaceFeedCounterPatch {
-  likeDelta?: number;
-  replyDelta?: number;
-  repostDelta?: number;
-  viewDelta?: number;
-  bookmarkDelta?: number;
-  shareDelta?: number;
-}
-````
-
-## File: modules/workspace-feed/domain/events/workspace-feed.events.ts
-````typescript
-export const WORKSPACE_FEED_EVENT_TYPES = [
-  "WorkspaceFeedPostCreated",
-  "WorkspaceFeedReplyCreated",
-  "WorkspaceFeedRepostCreated",
-  "WorkspaceFeedPostLiked",
-  "WorkspaceFeedPostViewed",
-  "WorkspaceFeedPostBookmarked",
-  "WorkspaceFeedPostShared",
-] as const;
-
-export type WorkspaceFeedEventType = (typeof WORKSPACE_FEED_EVENT_TYPES)[number];
-
-interface WorkspaceFeedBaseEvent {
-  type: WorkspaceFeedEventType;
-  accountId: string;
-  workspaceId: string;
-  postId: string;
-  actorAccountId: string;
-  occurredAtISO: string;
-}
-
-export interface WorkspaceFeedPostCreatedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostCreated";
-}
-
-export interface WorkspaceFeedReplyCreatedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedReplyCreated";
-  parentPostId: string;
-}
-
-export interface WorkspaceFeedRepostCreatedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedRepostCreated";
-  sourcePostId: string;
-}
-
-export interface WorkspaceFeedPostLikedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostLiked";
-}
-
-export interface WorkspaceFeedPostViewedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostViewed";
-}
-
-export interface WorkspaceFeedPostBookmarkedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostBookmarked";
-}
-
-export interface WorkspaceFeedPostSharedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostShared";
-}
-
-export type WorkspaceFeedDomainEvent =
-  | WorkspaceFeedPostCreatedEvent
-  | WorkspaceFeedReplyCreatedEvent
-  | WorkspaceFeedRepostCreatedEvent
-  | WorkspaceFeedPostLikedEvent
-  | WorkspaceFeedPostViewedEvent
-  | WorkspaceFeedPostBookmarkedEvent
-  | WorkspaceFeedPostSharedEvent;
-````
-
-## File: modules/workspace-feed/domain/index.ts
-````typescript
-export type {
-  WorkspaceFeedPost,
-  WorkspaceFeedPostType,
-  CreateWorkspaceFeedPostInput,
-  CreateWorkspaceFeedReplyInput,
-  CreateWorkspaceFeedRepostInput,
-  WorkspaceFeedCounterPatch,
-} from "./entities/workspace-feed-post.entity";
-
-export { WORKSPACE_FEED_POST_TYPES } from "./entities/workspace-feed-post.entity";
-
-export type {
-  WorkspaceFeedDomainEvent,
-  WorkspaceFeedPostCreatedEvent,
-  WorkspaceFeedReplyCreatedEvent,
-  WorkspaceFeedRepostCreatedEvent,
-  WorkspaceFeedPostLikedEvent,
-  WorkspaceFeedPostViewedEvent,
-  WorkspaceFeedPostBookmarkedEvent,
-  WorkspaceFeedPostSharedEvent,
-} from "./events/workspace-feed.events";
-
-export { WORKSPACE_FEED_EVENT_TYPES } from "./events/workspace-feed.events";
-
-export type {
-  WorkspaceFeedPostRepository,
-  WorkspaceFeedInteractionRepository,
-} from "./repositories/workspace-feed.repositories";
-````
-
-## File: modules/workspace-feed/domain/repositories/workspace-feed.repositories.ts
-````typescript
-import type {
-  CreateWorkspaceFeedPostInput,
-  CreateWorkspaceFeedReplyInput,
-  CreateWorkspaceFeedRepostInput,
-  WorkspaceFeedCounterPatch,
-  WorkspaceFeedPost,
-} from "../entities/workspace-feed-post.entity";
-
-export interface WorkspaceFeedPostRepository {
-  createPost(input: CreateWorkspaceFeedPostInput): Promise<WorkspaceFeedPost>;
-  createReply(input: CreateWorkspaceFeedReplyInput): Promise<WorkspaceFeedPost>;
-  createRepost(input: CreateWorkspaceFeedRepostInput): Promise<WorkspaceFeedPost | null>;
-  patchCounters(accountId: string, postId: string, patch: WorkspaceFeedCounterPatch): Promise<void>;
-  findById(accountId: string, postId: string): Promise<WorkspaceFeedPost | null>;
-  listByWorkspaceId(accountId: string, workspaceId: string, limit: number): Promise<WorkspaceFeedPost[]>;
-  listByAccountId(accountId: string, limit: number): Promise<WorkspaceFeedPost[]>;
-}
-
-export interface WorkspaceFeedInteractionRepository {
-  like(accountId: string, postId: string, actorAccountId: string): Promise<boolean>;
-  bookmark(accountId: string, postId: string, actorAccountId: string): Promise<boolean>;
-  view(accountId: string, postId: string, actorAccountId: string): Promise<void>;
-  share(accountId: string, postId: string, actorAccountId: string): Promise<void>;
-}
-````
-
-## File: modules/workspace-feed/index.ts
-````typescript
-/**
- * Module: workspace-feed
- * Layer: module/barrel (public API)
- *
- * Domain isolation rule:
- * - Cross-module callers must use `workspaceFeedFacade`.
- * - Internal layers remain private to this module.
- */
-
-export { WorkspaceFeedFacade, workspaceFeedFacade } from "./api";
-export type {
-  CreateWorkspaceFeedPostParams,
-  ReplyWorkspaceFeedPostParams,
-  RepostWorkspaceFeedPostParams,
-  WorkspaceFeedInteractionParams,
-} from "./api";
-
-export { WorkspaceFeedWorkspaceView, WorkspaceFeedAccountView } from "./interfaces";
-
-// Read model exposed for API consumers.
-export type { WorkspaceFeedPost, WorkspaceFeedPostType } from "./domain/entities/workspace-feed-post.entity";
-export { WORKSPACE_FEED_POST_TYPES } from "./domain/entities/workspace-feed-post.entity";
-````
-
-## File: modules/workspace-feed/infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository.ts
-````typescript
-import {
-  collection,
-  doc,
-  getDoc,
-  getFirestore,
-  serverTimestamp,
-  setDoc,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-
-import type { WorkspaceFeedInteractionRepository } from "../../domain/repositories/workspace-feed.repositories";
-
-type FirestoreDb = ReturnType<typeof getFirestore>;
-
-function postDoc(db: FirestoreDb, accountId: string, postId: string) {
-  return doc(db, "accounts", accountId, "workspaceFeedPosts", postId);
-}
-
-function likesDoc(db: FirestoreDb, accountId: string, postId: string, actorAccountId: string) {
-  return doc(postDoc(db, accountId, postId), "likes", actorAccountId);
-}
-
-function bookmarksDoc(db: FirestoreDb, accountId: string, postId: string, actorAccountId: string) {
-  return doc(postDoc(db, accountId, postId), "bookmarks", actorAccountId);
-}
-
-function viewsCol(db: FirestoreDb, accountId: string, postId: string) {
-  return collection(postDoc(db, accountId, postId), "views");
-}
-
-function sharesCol(db: FirestoreDb, accountId: string, postId: string) {
-  return collection(postDoc(db, accountId, postId), "shares");
-}
-
-export class FirebaseWorkspaceFeedInteractionRepository implements WorkspaceFeedInteractionRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async like(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
-    const ref = likesDoc(this.db, accountId, postId, actorAccountId);
-    const snap = await getDoc(ref);
-    if (snap.exists()) return false;
-
-    await setDoc(ref, {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-    return true;
-  }
-
-  async bookmark(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
-    const ref = bookmarksDoc(this.db, accountId, postId, actorAccountId);
-    const snap = await getDoc(ref);
-    if (snap.exists()) return false;
-
-    await setDoc(ref, {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-    return true;
-  }
-
-  async view(accountId: string, postId: string, actorAccountId: string): Promise<void> {
-    await setDoc(doc(viewsCol(this.db, accountId, postId), generateId()), {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-  }
-
-  async share(accountId: string, postId: string, actorAccountId: string): Promise<void> {
-    await setDoc(doc(sharesCol(this.db, accountId, postId), generateId()), {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-  }
-}
-````
-
-## File: modules/workspace-feed/infrastructure/firebase/FirebaseWorkspaceFeedPostRepository.ts
-````typescript
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  increment,
-  limit,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-
-import type {
-  CreateWorkspaceFeedPostInput,
-  CreateWorkspaceFeedReplyInput,
-  CreateWorkspaceFeedRepostInput,
-  WorkspaceFeedCounterPatch,
-  WorkspaceFeedPost,
-} from "../../domain/entities/workspace-feed-post.entity";
-import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
-
-type FirestoreDb = ReturnType<typeof getFirestore>;
-
-function postsCol(db: FirestoreDb, accountId: string) {
-  return collection(db, "accounts", accountId, "workspaceFeedPosts");
-}
-
-function postDoc(db: FirestoreDb, accountId: string, postId: string) {
-  return doc(db, "accounts", accountId, "workspaceFeedPosts", postId);
-}
-
-function repostMapDoc(db: FirestoreDb, accountId: string, actorAccountId: string, sourcePostId: string) {
-  return doc(db, "accounts", accountId, "workspaceFeedReposts", `${actorAccountId}__${sourcePostId}`);
-}
-
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function asNumber(value: unknown): number {
-  return typeof value === "number" ? value : 0;
-}
-
-function toWorkspaceFeedPost(id: string, data: Record<string, unknown>): WorkspaceFeedPost {
-  const type = asString(data.type, "post");
-  return {
-    id,
-    accountId: asString(data.accountId),
-    workspaceId: asString(data.workspaceId),
-    authorAccountId: asString(data.authorAccountId),
-    type: type === "reply" || type === "repost" ? type : "post",
-    content: asString(data.content),
-    replyToPostId: typeof data.replyToPostId === "string" ? data.replyToPostId : null,
-    repostOfPostId: typeof data.repostOfPostId === "string" ? data.repostOfPostId : null,
-    likeCount: asNumber(data.likeCount),
-    replyCount: asNumber(data.replyCount),
-    repostCount: asNumber(data.repostCount),
-    viewCount: asNumber(data.viewCount),
-    bookmarkCount: asNumber(data.bookmarkCount),
-    shareCount: asNumber(data.shareCount),
-    createdAtISO: asString(data.createdAtISO),
-    updatedAtISO: asString(data.updatedAtISO),
-  };
-}
-
-function createBasePostData(
-  accountId: string,
-  workspaceId: string,
-  authorAccountId: string,
-  content: string,
-  type: "post" | "reply" | "repost",
-): Record<string, unknown> {
-  const nowISO = new Date().toISOString();
-  return {
-    accountId,
-    workspaceId,
-    authorAccountId,
-    type,
-    content,
-    likeCount: 0,
-    replyCount: 0,
-    repostCount: 0,
-    viewCount: 0,
-    bookmarkCount: 0,
-    shareCount: 0,
-    createdAtISO: nowISO,
-    updatedAtISO: nowISO,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  };
-}
-
-export class FirebaseWorkspaceFeedPostRepository implements WorkspaceFeedPostRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async createPost(input: CreateWorkspaceFeedPostInput): Promise<WorkspaceFeedPost> {
-    const id = generateId();
-    const data = createBasePostData(
-      input.accountId,
-      input.workspaceId,
-      input.authorAccountId,
-      input.content,
-      "post",
-    );
-    await setDoc(postDoc(this.db, input.accountId, id), data);
-    return toWorkspaceFeedPost(id, data);
-  }
-
-  async createReply(input: CreateWorkspaceFeedReplyInput): Promise<WorkspaceFeedPost> {
-    const id = generateId();
-    const data: Record<string, unknown> = {
-      ...createBasePostData(
-        input.accountId,
-        input.workspaceId,
-        input.authorAccountId,
-        input.content,
-        "reply",
-      ),
-      replyToPostId: input.parentPostId,
-      repostOfPostId: null,
-    };
-
-    await setDoc(postDoc(this.db, input.accountId, id), data);
-    await this.patchCounters(input.accountId, input.parentPostId, { replyDelta: 1 });
-    return toWorkspaceFeedPost(id, data);
-  }
-
-  async createRepost(input: CreateWorkspaceFeedRepostInput): Promise<WorkspaceFeedPost | null> {
-    const mapRef = repostMapDoc(this.db, input.accountId, input.actorAccountId, input.sourcePostId);
-    const existingMap = await getDoc(mapRef);
-    if (existingMap.exists()) {
-      const repostPostId = asString(existingMap.data().repostPostId);
-      if (!repostPostId) return null;
-      return this.findById(input.accountId, repostPostId);
-    }
-
-    const source = await this.findById(input.accountId, input.sourcePostId);
-    if (!source) return null;
-
-    const id = generateId();
-    const content = input.comment?.trim() || source.content;
-    const data: Record<string, unknown> = {
-      ...createBasePostData(
-        input.accountId,
-        input.workspaceId,
-        input.actorAccountId,
-        content,
-        "repost",
-      ),
-      replyToPostId: null,
-      repostOfPostId: input.sourcePostId,
-    };
-
-    await setDoc(postDoc(this.db, input.accountId, id), data);
-    await setDoc(mapRef, {
-      accountId: input.accountId,
-      workspaceId: input.workspaceId,
-      sourcePostId: input.sourcePostId,
-      actorAccountId: input.actorAccountId,
-      repostPostId: id,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-    await this.patchCounters(input.accountId, input.sourcePostId, { repostDelta: 1 });
-    return toWorkspaceFeedPost(id, data);
-  }
-
-  async patchCounters(accountId: string, postId: string, patch: WorkspaceFeedCounterPatch): Promise<void> {
-    const updates: Record<string, unknown> = {
-      updatedAtISO: new Date().toISOString(),
-      updatedAt: serverTimestamp(),
-    };
-    if (patch.likeDelta) updates.likeCount = increment(patch.likeDelta);
-    if (patch.replyDelta) updates.replyCount = increment(patch.replyDelta);
-    if (patch.repostDelta) updates.repostCount = increment(patch.repostDelta);
-    if (patch.viewDelta) updates.viewCount = increment(patch.viewDelta);
-    if (patch.bookmarkDelta) updates.bookmarkCount = increment(patch.bookmarkDelta);
-    if (patch.shareDelta) updates.shareCount = increment(patch.shareDelta);
-    await updateDoc(postDoc(this.db, accountId, postId), updates);
-  }
-
-  async findById(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
-    const snap = await getDoc(postDoc(this.db, accountId, postId));
-    if (!snap.exists()) return null;
-    return toWorkspaceFeedPost(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByWorkspaceId(accountId: string, workspaceId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
-    const snaps = await getDocs(
-      query(
-        postsCol(this.db, accountId),
-        where("workspaceId", "==", workspaceId),
-        orderBy("createdAtISO", "desc"),
-        limit(maxRows),
-      ),
-    );
-    return snaps.docs.map((row) => toWorkspaceFeedPost(row.id, row.data() as Record<string, unknown>));
-  }
-
-  async listByAccountId(accountId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
-    const snaps = await getDocs(
-      query(postsCol(this.db, accountId), orderBy("createdAtISO", "desc"), limit(maxRows)),
-    );
-    return snaps.docs.map((row) => toWorkspaceFeedPost(row.id, row.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/workspace-feed/infrastructure/index.ts
-````typescript
-export { FirebaseWorkspaceFeedPostRepository } from "./firebase/FirebaseWorkspaceFeedPostRepository";
-export { FirebaseWorkspaceFeedInteractionRepository } from "./firebase/FirebaseWorkspaceFeedInteractionRepository";
-````
-
-## File: modules/workspace-feed/interfaces/_actions/workspace-feed.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-
-import type {
-  CreateWorkspaceFeedPostDto,
-  FeedInteractionDto,
-  ReplyWorkspaceFeedPostDto,
-  RepostWorkspaceFeedPostDto,
-} from "../../application/dto/workspace-feed.dto";
-import {
-  BookmarkWorkspaceFeedPostUseCase,
-  CreateWorkspaceFeedPostUseCase,
-  LikeWorkspaceFeedPostUseCase,
-  ReplyWorkspaceFeedPostUseCase,
-  RepostWorkspaceFeedPostUseCase,
-  ShareWorkspaceFeedPostUseCase,
-  ViewWorkspaceFeedPostUseCase,
-} from "../../application/use-cases/workspace-feed.use-cases";
-import {
-  FirebaseWorkspaceFeedInteractionRepository,
-  FirebaseWorkspaceFeedPostRepository,
-} from "../../infrastructure";
-
-function makePostRepo() {
-  return new FirebaseWorkspaceFeedPostRepository();
-}
-
-function makeInteractionRepo() {
-  return new FirebaseWorkspaceFeedInteractionRepository();
-}
-
-export async function createWorkspaceFeedPost(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
-  try {
-    return await new CreateWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_CREATE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function replyWorkspaceFeedPost(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
-  try {
-    return await new ReplyWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_REPLY_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function repostWorkspaceFeedPost(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
-  try {
-    return await new RepostWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_REPOST_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function likeWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
-  try {
-    return await new LikeWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_LIKE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function viewWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
-  try {
-    return await new ViewWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_VIEW_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function bookmarkWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
-  try {
-    return await new BookmarkWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_BOOKMARK_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function shareWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
-  try {
-    return await new ShareWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_SHARE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-````
-
-## File: modules/workspace-feed/interfaces/components/WorkspaceFeedAccountView.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { Eye, Heart, MessageCircle, Repeat2, Share2, Star } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { Button } from "@ui-shadcn/ui/button";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
-import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
-
-interface WorkspaceFeedAccountViewProps {
-  readonly accountId: string;
-}
-
-export function WorkspaceFeedAccountView({ accountId }: WorkspaceFeedAccountViewProps) {
-  const { state: appState } = useApp();
-  const actorId = appState.activeAccount?.id ?? accountId;
-
-  const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
-  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
-  const [activeReplyPostId, setActiveReplyPostId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [actingPostId, setActingPostId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const refreshFeed = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const rows = await workspaceFeedFacade.getAccountFeed(accountId, 80);
-      setPosts(rows);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "載入 account feed 失敗");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accountId]);
-
-  useEffect(() => {
-    void refreshFeed();
-  }, [refreshFeed]);
-
-  async function handleAction(post: WorkspaceFeedPost, action: "like" | "view" | "bookmark" | "share" | "repost") {
-    setActingPostId(post.id);
-    setError(null);
-    try {
-      if (action === "like") {
-        await workspaceFeedFacade.like({ accountId, postId: post.id, actorAccountId: actorId });
-      }
-      if (action === "view") {
-        await workspaceFeedFacade.view({ accountId, postId: post.id, actorAccountId: actorId });
-      }
-      if (action === "bookmark") {
-        await workspaceFeedFacade.bookmark({ accountId, postId: post.id, actorAccountId: actorId });
-      }
-      if (action === "share") {
-        await workspaceFeedFacade.share({ accountId, postId: post.id, actorAccountId: actorId });
-      }
-      if (action === "repost") {
-        await workspaceFeedFacade.repost({
-          accountId,
-          workspaceId: post.workspaceId,
-          sourcePostId: post.id,
-          actorAccountId: actorId,
-        });
-      }
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "互動失敗");
-    } finally {
-      setActingPostId(null);
-    }
-  }
-
-  async function handleReply(post: WorkspaceFeedPost) {
-    const content = replyDrafts[post.id]?.trim() ?? "";
-    if (!content) return;
-
-    setActingPostId(post.id);
-    setError(null);
-    try {
-      await workspaceFeedFacade.reply({
-        accountId,
-        workspaceId: post.workspaceId,
-        parentPostId: post.id,
-        authorAccountId: actorId,
-        content,
-      });
-      setReplyDrafts((prev) => ({ ...prev, [post.id]: "" }));
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "回覆失敗");
-    } finally {
-      setActingPostId(null);
-    }
-  }
-
-  return (
-    <>
-      {error && (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
-      )}
-
-      <div className="space-y-3">
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">載入 account feed 中...</p>
-        ) : posts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">目前沒有任何 workspace 貼文。</p>
-        ) : (
-          posts.map((post) => (
-            <article key={post.id} className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {post.type.toUpperCase()} · workspace {post.workspaceId} · {new Date(post.createdAtISO).toLocaleString()}
-                </p>
-                <p className="text-xs text-muted-foreground">by {post.authorAccountId}</p>
-              </div>
-
-              <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant={activeReplyPostId === post.id ? "default" : "outline"}
-                  onClick={() => setActiveReplyPostId((current) => (current === post.id ? null : post.id))}
-                >
-                  <MessageCircle className="mr-1 h-4 w-4" />
-                  Reply {post.replyCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "repost")} disabled={actingPostId === post.id}>
-                  <Repeat2 className="mr-1 h-4 w-4" />
-                  Repost {post.repostCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "like")} disabled={actingPostId === post.id}>
-                  <Heart className="mr-1 h-4 w-4" />
-                  Like {post.likeCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "view")} disabled={actingPostId === post.id}>
-                  <Eye className="mr-1 h-4 w-4" />
-                  View {post.viewCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "bookmark")} disabled={actingPostId === post.id}>
-                  <Star className="mr-1 h-4 w-4" />
-                  bookmark {post.bookmarkCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "share")} disabled={actingPostId === post.id}>
-                  <Share2 className="mr-1 h-4 w-4" />
-                  share {post.shareCount}
-                </Button>
-              </div>
-
-              {activeReplyPostId === post.id && (
-                <div className="space-y-2 rounded-xl border border-border/40 p-3">
-                  <Textarea
-                    value={replyDrafts[post.id] ?? ""}
-                    onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
-                    placeholder="回覆這則貼文..."
-                    rows={2}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" type="button" variant="ghost" onClick={() => setActiveReplyPostId(null)}>
-                      取消
-                    </Button>
-                    <Button
-                      size="sm"
-                      type="button"
-                      onClick={() => void handleReply(post)}
-                      disabled={actingPostId === post.id || !(replyDrafts[post.id] ?? "").trim()}
-                    >
-                      回覆
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </article>
-          ))
-        )}
-      </div>
-    </>
-  );
-}
-````
-
-## File: modules/workspace-feed/interfaces/components/WorkspaceFeedWorkspaceView.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Eye, Heart, MessageCircle, Repeat2, Send, Share2, Star } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { Avatar, AvatarFallback, AvatarImage } from "@ui-shadcn/ui/avatar";
-import { Button } from "@ui-shadcn/ui/button";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
-import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
-
-interface WorkspaceFeedWorkspaceViewProps {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly workspaceName: string;
-}
-
-export function WorkspaceFeedWorkspaceView({
-  accountId,
-  workspaceId,
-  workspaceName,
-}: WorkspaceFeedWorkspaceViewProps) {
-  const { state: appState } = useApp();
-  const actor = appState.activeAccount;
-  const actorId = actor?.id ?? accountId;
-
-  const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
-  const [composer, setComposer] = useState("");
-  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
-  const [activeReplyPostId, setActiveReplyPostId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [actingPostId, setActingPostId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const actorName = actor?.name ?? "未知";
-  const actorAvatar = "photoURL" in (actor ?? {}) ? (actor as { photoURL?: string }).photoURL : undefined;
-  const actorInitial = actorName.charAt(0).toUpperCase();
-
-  const canPublish = useMemo(() => composer.trim().length > 0, [composer]);
-
-  const refreshFeed = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const rows = await workspaceFeedFacade.getWorkspaceFeed(accountId, workspaceId, 50);
-      setPosts(rows);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "載入 feed 失敗");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => {
-    void refreshFeed();
-  }, [refreshFeed]);
-
-  async function handlePublish() {
-    if (!canPublish || isPublishing) return;
-    setIsPublishing(true);
-    setError(null);
-    try {
-      const createdId = await workspaceFeedFacade.createPost({
-        accountId,
-        workspaceId,
-        authorAccountId: actorId,
-        content: composer.trim(),
-      });
-      if (!createdId) {
-        setError("建立貼文失敗");
-        return;
-      }
-      setComposer("");
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "建立貼文失敗");
-    } finally {
-      setIsPublishing(false);
-    }
-  }
-
-  async function handleAction(postId: string, action: "like" | "view" | "bookmark" | "share" | "repost") {
-    setActingPostId(postId);
-    setError(null);
-    try {
-      if (action === "like") {
-        await workspaceFeedFacade.like({ accountId, postId, actorAccountId: actorId });
-      }
-      if (action === "view") {
-        await workspaceFeedFacade.view({ accountId, postId, actorAccountId: actorId });
-      }
-      if (action === "bookmark") {
-        await workspaceFeedFacade.bookmark({ accountId, postId, actorAccountId: actorId });
-      }
-      if (action === "share") {
-        await workspaceFeedFacade.share({ accountId, postId, actorAccountId: actorId });
-      }
-      if (action === "repost") {
-        const current = posts.find((row) => row.id === postId);
-        if (!current) return;
-        await workspaceFeedFacade.repost({
-          accountId,
-          workspaceId: current.workspaceId,
-          sourcePostId: postId,
-          actorAccountId: actorId,
-        });
-      }
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "互動失敗");
-    } finally {
-      setActingPostId(null);
-    }
-  }
-
-  async function handleReply(postId: string) {
-    const text = replyDrafts[postId]?.trim() ?? "";
-    if (!text) return;
-    setActingPostId(postId);
-    setError(null);
-    try {
-      const current = posts.find((row) => row.id === postId);
-      if (!current) return;
-      await workspaceFeedFacade.reply({
-        accountId,
-        workspaceId: current.workspaceId,
-        parentPostId: postId,
-        authorAccountId: actorId,
-        content: text,
-      });
-      setReplyDrafts((prev) => ({ ...prev, [postId]: "" }));
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "回覆失敗");
-    } finally {
-      setActingPostId(null);
-    }
-  }
-
-  return (
-    <section className="mx-auto max-w-3xl space-y-6 rounded-3xl border border-border/60 bg-card/50 p-6">
-      <header className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-12 w-12 shrink-0">
-            <AvatarImage src={actorAvatar} alt={actorName} />
-            <AvatarFallback className="text-sm font-bold">{actorInitial}</AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="text-sm font-semibold">{workspaceName} Feed</p>
-            <p className="text-xs text-muted-foreground">workspaceId: {workspaceId}</p>
-          </div>
-        </div>
-        <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-          live
-        </div>
-      </header>
-
-      <div className="space-y-3 rounded-2xl border border-border/60 bg-background/80 p-4">
-        <Textarea
-          value={composer}
-          onChange={(event) => setComposer(event.target.value)}
-          placeholder="發佈你的想法到 workspace feed..."
-          rows={4}
-        />
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">actor: {actorName} / account: {accountId}</p>
-          <Button type="button" onClick={handlePublish} disabled={!canPublish || isPublishing}>
-            <Send className="mr-2 h-4 w-4" />
-            {isPublishing ? "送出中..." : "發佈"}
-          </Button>
-        </div>
-      </div>
-
-      {error && (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
-      )}
-
-      <div className="space-y-3">
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">載入 feed 中...</p>
-        ) : posts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">目前還沒有貼文，發佈第一則吧。</p>
-        ) : (
-          posts.map((post) => (
-            <article key={post.id} className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {post.type.toUpperCase()} · {post.workspaceId} · {new Date(post.createdAtISO).toLocaleString()}
-                </p>
-                <p className="text-xs text-muted-foreground">by {post.authorAccountId}</p>
-              </div>
-              <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant={activeReplyPostId === post.id ? "default" : "outline"}
-                  onClick={() => setActiveReplyPostId((current) => (current === post.id ? null : post.id))}
-                >
-                  <MessageCircle className="mr-1 h-4 w-4" />
-                  Reply {post.replyCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "repost")} disabled={actingPostId === post.id}>
-                  <Repeat2 className="mr-1 h-4 w-4" />
-                  Repost {post.repostCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "like")} disabled={actingPostId === post.id}>
-                  <Heart className="mr-1 h-4 w-4" />
-                  Like {post.likeCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "view")} disabled={actingPostId === post.id}>
-                  <Eye className="mr-1 h-4 w-4" />
-                  View {post.viewCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "bookmark")} disabled={actingPostId === post.id}>
-                  <Star className="mr-1 h-4 w-4" />
-                  bookmark {post.bookmarkCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "share")} disabled={actingPostId === post.id}>
-                  <Share2 className="mr-1 h-4 w-4" />
-                  share {post.shareCount}
-                </Button>
-              </div>
-
-              {activeReplyPostId === post.id && (
-                <div className="space-y-2 rounded-xl border border-border/40 p-3">
-                  <Textarea
-                    value={replyDrafts[post.id] ?? ""}
-                    onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
-                    placeholder="回覆這則貼文..."
-                    rows={2}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" type="button" variant="ghost" onClick={() => setActiveReplyPostId(null)}>
-                      取消
-                    </Button>
-                    <Button
-                      size="sm"
-                      type="button"
-                      onClick={() => void handleReply(post.id)}
-                      disabled={actingPostId === post.id || !(replyDrafts[post.id] ?? "").trim()}
-                    >
-                      回覆
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </article>
-          ))
-        )}
-      </div>
-    </section>
-  );
-}
-````
-
-## File: modules/workspace-feed/interfaces/index.ts
-````typescript
-export {
-  createWorkspaceFeedPost,
-  replyWorkspaceFeedPost,
-  repostWorkspaceFeedPost,
-  likeWorkspaceFeedPost,
-  viewWorkspaceFeedPost,
-  bookmarkWorkspaceFeedPost,
-  shareWorkspaceFeedPost,
-} from "./_actions/workspace-feed.actions";
-
-export {
-  getWorkspaceFeedPost,
-  getWorkspaceFeed,
-  getAccountWorkspaceFeed,
-} from "./queries/workspace-feed.queries";
-
-export { WorkspaceFeedWorkspaceView } from "./components/WorkspaceFeedWorkspaceView";
-export { WorkspaceFeedAccountView } from "./components/WorkspaceFeedAccountView";
-````
-
-## File: modules/workspace-feed/interfaces/queries/workspace-feed.queries.ts
-````typescript
-import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
-import {
-  GetWorkspaceFeedPostUseCase,
-  ListAccountWorkspaceFeedUseCase,
-  ListWorkspaceFeedUseCase,
-} from "../../application/use-cases/workspace-feed.use-cases";
-import { FirebaseWorkspaceFeedPostRepository } from "../../infrastructure";
-
-export async function getWorkspaceFeedPost(
-  accountId: string,
-  postId: string,
-): Promise<WorkspaceFeedPost | null> {
-  return new GetWorkspaceFeedPostUseCase(new FirebaseWorkspaceFeedPostRepository()).execute(
-    accountId,
-    postId,
-  );
-}
-
-export async function getWorkspaceFeed(
-  accountId: string,
-  workspaceId: string,
-  limit = 50,
-): Promise<WorkspaceFeedPost[]> {
-  return new ListWorkspaceFeedUseCase(new FirebaseWorkspaceFeedPostRepository()).execute({
-    accountId,
-    workspaceId,
-    limit,
-  });
-}
-
-export async function getAccountWorkspaceFeed(accountId: string, limit = 50): Promise<WorkspaceFeedPost[]> {
-  return new ListAccountWorkspaceFeedUseCase(new FirebaseWorkspaceFeedPostRepository()).execute({
-    accountId,
-    limit,
-  });
-}
-````
-
-## File: modules/workspace-feed/README.md
-````markdown
-# workspace-feed — 工作區動態上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-feed/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-feed` 是工作區的動態流與互動層，把知識、任務與協作事件轉成團隊可感知的貼文、回覆與互動紀錄。它提升知識平台的協作流動性與可見性。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 動態貼文 | 管理 post / reply / repost 等工作區動態內容 |
-| 互動紀錄 | 記錄 like / view / bookmark / share 等互動 |
-| 事件可見化 | 把協作行為轉成工作區成員可追蹤的活動流 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供動態的歸屬邊界。
-- `workspace-flow`、`knowledge`、`notification` 可與動態流形成聯動。
-
-## 核心聚合 / 核心概念
-
-- **`WorkspaceFeedPost`**
-- **`FeedReaction`**
-- **`FeedThread`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/workspace-feed/repositories.md
-````markdown
-# workspace-feed — Repositories
-
-> **Canonical bounded context:** `workspace-feed`
-> **模組路徑:** `modules/workspace-feed/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-feed` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/workspace-feed.repositories.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository.ts`
-- `infrastructure/firebase/FirebaseWorkspaceFeedPostRepository.ts`
-- `infrastructure/index.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/workspace-feed/repositories.md`
-- `../../../modules/workspace-feed/aggregates.md`
-````
-
-## File: modules/workspace-feed/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — workspace-feed
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 動態貼文 | WorkspaceFeedPost | 工作區社交動態貼文（post / reply / repost） |
-| 貼文類型 | WorkspaceFeedPostType | `"post" \| "reply" \| "repost"` |
-| 作者帳戶 ID | authorAccountId | 發文者帳戶 ID |
-| 回覆目標 | replyToPostId | 此貼文回覆的原貼文 ID |
-| 轉貼目標 | repostOfPostId | 此貼文轉貼的原貼文 ID |
 ````
 
 ## File: modules/workspace-flow/AGENT.md
@@ -50663,6 +48174,11 @@ export {
 } from "./workspace-query.use-cases";
 ````
 
+## File: modules/workspace/docs/.gitkeep
+````
+
+````
+
 ## File: modules/workspace/domain/aggregates/AGENT.md
 ````markdown
 # domain/aggregates — Aggregate Roots（聚合根）
@@ -53543,253 +51059,6 @@ export function WorkspaceDetailRouteScreen({
 }
 ````
 
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useMemo, useState } from "react";
-
-import {
-  Card,
-  CardContent,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
-import { WorkspaceFilesTab } from "@/modules/source/api";
-import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
-import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
-import { useApp } from "@/app/providers/app-provider";
-
-import {
-  createSettingsDraft,
-  type WorkspaceSettingsDraft,
-} from "../../state/workspace-settings";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
-import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
-import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
-import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
-
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-  readonly initialOverviewPanel?: string;
-}
-
-export function WorkspaceDetailScreen({
-  workspaceId,
-  accountId,
-  accountsHydrated,
-  initialTab,
-  initialOverviewPanel,
-}: WorkspaceDetailScreenProps) {
-  const { state: appState, dispatch } = useApp();
-  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
-    workspaceId,
-    accountId,
-    accountsHydrated,
-  );
-  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
-  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
-
-  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
-    workspace,
-    accountId,
-    onSaved: (updated) => {
-      setWorkspace(updated);
-      setSettingsDraft(createSettingsDraft(updated));
-      setIsEditWorkspaceOpen(false);
-    },
-  });
-
-  const personnelEntries = useMemo(() => {
-    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
-  }, [workspace]);
-
-  const addressLines = useMemo(() => {
-    return workspace ? getWorkspaceAddressLines(workspace) : [];
-  }, [workspace]);
-
-  function renderTabContent(tab: WorkspaceTabValue) {
-    if (!workspace) return null;
-
-    switch (tab) {
-      case "Overview":
-        return (
-          <WorkspaceOverviewTab
-            workspace={workspace}
-            activeWorkspaceId={appState.activeWorkspaceId}
-            personnelEntries={personnelEntries}
-            addressLines={addressLines}
-            showSettingsPanel={initialOverviewPanel === "settings"}
-            onEditClick={() => {
-              setSettingsDraft(createSettingsDraft(workspace));
-              clearSaveError();
-              setIsEditWorkspaceOpen(true);
-            }}
-            onSetActiveWorkspace={() =>
-              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
-            }
-          />
-        );
-      case "Members":
-        return <WorkspaceMembersTab workspace={workspace} />;
-      case "Daily":
-        return <WorkspaceDailyTab workspace={workspace} />;
-      case "Files":
-        return <WorkspaceFilesTab workspace={workspace} />;
-      case "Schedule":
-        return (
-          <WorkspaceSchedulingTab
-            workspace={workspace}
-            accountId={accountId ?? workspace.accountId}
-            currentUserId={accountId ?? "anonymous"}
-          />
-        );
-      case "Audit":
-        return <WorkspaceAuditTab workspaceId={workspace.id} />;
-      case "Tasks":
-        return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
-      case "Feed":
-        return (
-          <WorkspaceFeedWorkspaceView
-            accountId={accountId ?? workspace.accountId}
-            workspaceId={workspace.id}
-            workspaceName={workspace.name}
-          />
-        );
-      default:
-        return null;
-    }
-  }
-
-  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
-    ? initialTab
-    : "Overview";
-
-  return (
-    <div className="space-y-6">
-      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
-        ← 返回 Workspace Hub
-      </Link>
-
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          正在同步帳號內容…
-        </div>
-      )}
-
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            Loading workspace detail…
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入工作區資料，請返回清單後重試。
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "loaded" && !workspace && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            找不到此工作區。
-          </CardContent>
-        </Card>
-      )}
-
-      {workspace && (
-        <div className="space-y-6">
-          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
-          <nav
-            aria-label="Workspace tab navigation"
-            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
-          >
-            <div className="flex min-w-max items-center gap-0.5">
-              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
-                const tabs = getWorkspaceTabsByGroup(group);
-                const links = tabs.map((tab) => {
-                  const isActive = resolvedTab === tab;
-                  return (
-                    <Link
-                      key={tab}
-                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
-                      aria-current={isActive ? "page" : undefined}
-                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {getWorkspaceTabLabel(tab)}
-                    </Link>
-                  );
-                });
-                if (groupIndex > 0) {
-                  return [
-                    <div
-                      key={`sep-${group}`}
-                      aria-hidden="true"
-                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
-                    />,
-                    ...links,
-                  ];
-                }
-                return links;
-              })}
-            </div>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
-          </div>
-          {renderTabContent(resolvedTab)}
-        </div>
-      )}
-
-      <WorkspaceSettingsDialog
-        open={isEditWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsEditWorkspaceOpen(open);
-          if (!open) {
-            clearSaveError();
-            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
-          }
-        }}
-        settingsDraft={settingsDraft}
-        setSettingsDraft={setSettingsDraft}
-        isSaving={isSavingWorkspace}
-        saveError={saveError}
-        onSubmit={(event) => void handleSave(event, settingsDraft)}
-      />
-    </div>
-  );
-}
-````
-
 ## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
 ````typescript
 import { useEffect, useMemo, useState } from "react";
@@ -54458,6 +51727,1671 @@ export interface WorkspaceRepository {
 - `WorkspaceQueryRepository`
 - `WikiWorkspaceRepository`
 - `WorkspaceDomainEventPublisher`
+````
+
+## File: modules/workspace/subdomains/audit/application/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/audit/domain/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/audit/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/audit/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/audit/ports/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/feed/api/index.ts
+````typescript
+export { WorkspaceFeedFacade, workspaceFeedFacade } from "./workspace-feed.facade";
+export type {
+  CreateWorkspaceFeedPostParams,
+  ReplyWorkspaceFeedPostParams,
+  RepostWorkspaceFeedPostParams,
+  WorkspaceFeedInteractionParams,
+} from "./workspace-feed.facade";
+
+export type {
+  WorkspaceFeedPost,
+  WorkspaceFeedPostType,
+} from "../domain/entities/workspace-feed-post.entity";
+export {
+  WORKSPACE_FEED_POST_TYPES,
+} from "../domain/entities/workspace-feed-post.entity";
+
+export { WorkspaceFeedWorkspaceView } from "../interfaces/components/WorkspaceFeedWorkspaceView";
+export { WorkspaceFeedAccountView } from "../interfaces/components/WorkspaceFeedAccountView";
+````
+
+## File: modules/workspace/subdomains/feed/api/workspace-feed.facade.ts
+````typescript
+import type { WorkspaceFeedPost } from "../domain/entities/workspace-feed-post.entity";
+import type {
+  WorkspaceFeedInteractionRepository,
+  WorkspaceFeedPostRepository,
+} from "../domain/repositories/workspace-feed.repositories";
+import {
+  BookmarkWorkspaceFeedPostUseCase,
+  CreateWorkspaceFeedPostUseCase,
+  GetWorkspaceFeedPostUseCase,
+  LikeWorkspaceFeedPostUseCase,
+  ListAccountWorkspaceFeedUseCase,
+  ListWorkspaceFeedUseCase,
+  ReplyWorkspaceFeedPostUseCase,
+  RepostWorkspaceFeedPostUseCase,
+  ShareWorkspaceFeedPostUseCase,
+  ViewWorkspaceFeedPostUseCase,
+} from "../application/use-cases/workspace-feed.use-cases";
+import {
+  FirebaseWorkspaceFeedInteractionRepository,
+  FirebaseWorkspaceFeedPostRepository,
+} from "../infrastructure";
+
+export interface CreateWorkspaceFeedPostParams {
+  accountId: string;
+  workspaceId: string;
+  authorAccountId: string;
+  content: string;
+}
+
+export interface ReplyWorkspaceFeedPostParams {
+  accountId: string;
+  workspaceId: string;
+  parentPostId: string;
+  authorAccountId: string;
+  content: string;
+}
+
+export interface RepostWorkspaceFeedPostParams {
+  accountId: string;
+  workspaceId: string;
+  sourcePostId: string;
+  actorAccountId: string;
+  comment?: string;
+}
+
+export interface WorkspaceFeedInteractionParams {
+  accountId: string;
+  postId: string;
+  actorAccountId: string;
+}
+
+export class WorkspaceFeedFacade {
+  private readonly postRepo: WorkspaceFeedPostRepository;
+  private readonly interactionRepo: WorkspaceFeedInteractionRepository;
+
+  constructor(
+    postRepo: WorkspaceFeedPostRepository = new FirebaseWorkspaceFeedPostRepository(),
+    interactionRepo: WorkspaceFeedInteractionRepository = new FirebaseWorkspaceFeedInteractionRepository(),
+  ) {
+    this.postRepo = postRepo;
+    this.interactionRepo = interactionRepo;
+  }
+
+  async createPost(params: CreateWorkspaceFeedPostParams): Promise<string | null> {
+    const result = await new CreateWorkspaceFeedPostUseCase(this.postRepo).execute(params);
+    return result.success ? result.aggregateId : null;
+  }
+
+  async reply(params: ReplyWorkspaceFeedPostParams): Promise<string | null> {
+    const result = await new ReplyWorkspaceFeedPostUseCase(this.postRepo).execute(params);
+    return result.success ? result.aggregateId : null;
+  }
+
+  async repost(params: RepostWorkspaceFeedPostParams): Promise<string | null> {
+    const result = await new RepostWorkspaceFeedPostUseCase(this.postRepo).execute(params);
+    return result.success ? result.aggregateId : null;
+  }
+
+  async like(params: WorkspaceFeedInteractionParams): Promise<boolean> {
+    const result = await new LikeWorkspaceFeedPostUseCase(this.postRepo, this.interactionRepo).execute(params);
+    return result.success;
+  }
+
+  async view(params: WorkspaceFeedInteractionParams): Promise<boolean> {
+    const result = await new ViewWorkspaceFeedPostUseCase(this.postRepo, this.interactionRepo).execute(params);
+    return result.success;
+  }
+
+  async bookmark(params: WorkspaceFeedInteractionParams): Promise<boolean> {
+    const result = await new BookmarkWorkspaceFeedPostUseCase(this.postRepo, this.interactionRepo).execute(params);
+    return result.success;
+  }
+
+  async share(params: WorkspaceFeedInteractionParams): Promise<boolean> {
+    const result = await new ShareWorkspaceFeedPostUseCase(this.postRepo, this.interactionRepo).execute(params);
+    return result.success;
+  }
+
+  async getPost(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
+    return new GetWorkspaceFeedPostUseCase(this.postRepo).execute(accountId, postId);
+  }
+
+  async getWorkspaceFeed(
+    accountId: string,
+    workspaceId: string,
+    maxRows = 50,
+  ): Promise<WorkspaceFeedPost[]> {
+    return new ListWorkspaceFeedUseCase(this.postRepo).execute({
+      accountId,
+      workspaceId,
+      limit: maxRows,
+    });
+  }
+
+  async getAccountFeed(accountId: string, maxRows = 50): Promise<WorkspaceFeedPost[]> {
+    return new ListAccountWorkspaceFeedUseCase(this.postRepo).execute({
+      accountId,
+      limit: maxRows,
+    });
+  }
+}
+
+export const workspaceFeedFacade = new WorkspaceFeedFacade();
+````
+
+## File: modules/workspace/subdomains/feed/application/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/feed/application/dto/workspace-feed.dto.ts
+````typescript
+import { z } from "@lib-zod";
+
+const AccountScopeSchema = z.object({
+  accountId: z.string().min(1),
+});
+
+const WorkspaceScopeSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1),
+});
+
+export const FeedLimitSchema = z.number().int().min(1).max(200).default(50);
+
+export const CreateWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
+  authorAccountId: z.string().min(1),
+  content: z.string().trim().min(1).max(5000),
+});
+
+export type CreateWorkspaceFeedPostDto = z.infer<typeof CreateWorkspaceFeedPostSchema>;
+
+export const ReplyWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
+  parentPostId: z.string().min(1),
+  authorAccountId: z.string().min(1),
+  content: z.string().trim().min(1).max(5000),
+});
+
+export type ReplyWorkspaceFeedPostDto = z.infer<typeof ReplyWorkspaceFeedPostSchema>;
+
+export const RepostWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
+  sourcePostId: z.string().min(1),
+  actorAccountId: z.string().min(1),
+  comment: z.string().trim().max(1000).optional(),
+});
+
+export type RepostWorkspaceFeedPostDto = z.infer<typeof RepostWorkspaceFeedPostSchema>;
+
+export const FeedInteractionSchema = AccountScopeSchema.extend({
+  postId: z.string().min(1),
+  actorAccountId: z.string().min(1),
+});
+
+export type FeedInteractionDto = z.infer<typeof FeedInteractionSchema>;
+
+export const ListWorkspaceFeedSchema = WorkspaceScopeSchema.extend({
+  limit: FeedLimitSchema.optional(),
+});
+
+export type ListWorkspaceFeedDto = z.infer<typeof ListWorkspaceFeedSchema>;
+
+export const ListAccountFeedSchema = AccountScopeSchema.extend({
+  limit: FeedLimitSchema.optional(),
+});
+
+export type ListAccountFeedDto = z.infer<typeof ListAccountFeedSchema>;
+````
+
+## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed-interaction.use-cases.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type {
+  WorkspaceFeedInteractionRepository,
+  WorkspaceFeedPostRepository,
+} from "../../domain/repositories/workspace-feed.repositories";
+import { FeedInteractionSchema } from "../dto/workspace-feed.dto";
+
+export class LikeWorkspaceFeedPostUseCase {
+  constructor(
+    private readonly postRepo: WorkspaceFeedPostRepository,
+    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
+  ) {}
+
+  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
+    const parsed = FeedInteractionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
+    if (!post) {
+      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
+    }
+
+    const liked = await this.interactionRepo.like(
+      parsed.data.accountId,
+      parsed.data.postId,
+      parsed.data.actorAccountId,
+    );
+    if (liked) {
+      await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { likeDelta: 1 });
+    }
+
+    return commandSuccess(parsed.data.postId, Date.now());
+  }
+}
+
+export class BookmarkWorkspaceFeedPostUseCase {
+  constructor(
+    private readonly postRepo: WorkspaceFeedPostRepository,
+    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
+  ) {}
+
+  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
+    const parsed = FeedInteractionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
+    if (!post) {
+      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
+    }
+
+    const bookmarked = await this.interactionRepo.bookmark(
+      parsed.data.accountId,
+      parsed.data.postId,
+      parsed.data.actorAccountId,
+    );
+    if (bookmarked) {
+      await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { bookmarkDelta: 1 });
+    }
+
+    return commandSuccess(parsed.data.postId, Date.now());
+  }
+}
+
+export class ViewWorkspaceFeedPostUseCase {
+  constructor(
+    private readonly postRepo: WorkspaceFeedPostRepository,
+    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
+  ) {}
+
+  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
+    const parsed = FeedInteractionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
+    if (!post) {
+      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
+    }
+
+    await this.interactionRepo.view(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
+    await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { viewDelta: 1 });
+    return commandSuccess(parsed.data.postId, Date.now());
+  }
+}
+
+export class ShareWorkspaceFeedPostUseCase {
+  constructor(
+    private readonly postRepo: WorkspaceFeedPostRepository,
+    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
+  ) {}
+
+  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
+    const parsed = FeedInteractionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
+    if (!post) {
+      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
+    }
+
+    await this.interactionRepo.share(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
+    await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { shareDelta: 1 });
+    return commandSuccess(parsed.data.postId, Date.now());
+  }
+}
+````
+
+## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed-post.use-cases.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
+import {
+  CreateWorkspaceFeedPostSchema,
+  type CreateWorkspaceFeedPostDto,
+  ListAccountFeedSchema,
+  type ListAccountFeedDto,
+  ListWorkspaceFeedSchema,
+  type ListWorkspaceFeedDto,
+  ReplyWorkspaceFeedPostSchema,
+  type ReplyWorkspaceFeedPostDto,
+  RepostWorkspaceFeedPostSchema,
+  type RepostWorkspaceFeedPostDto,
+} from "../dto/workspace-feed.dto";
+
+export class CreateWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = CreateWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.repo.createPost(parsed.data);
+    return commandSuccess(post.id, Date.now());
+  }
+}
+
+export class ReplyWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = ReplyWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const parent = await this.repo.findById(parsed.data.accountId, parsed.data.parentPostId);
+    if (!parent) {
+      return commandFailureFrom("WORKSPACE_FEED_PARENT_NOT_FOUND", "Parent post not found.");
+    }
+    if (parent.workspaceId !== parsed.data.workspaceId) {
+      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Parent post is in another workspace.");
+    }
+
+    const reply = await this.repo.createReply(parsed.data);
+    return commandSuccess(reply.id, Date.now());
+  }
+}
+
+export class RepostWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = RepostWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const source = await this.repo.findById(parsed.data.accountId, parsed.data.sourcePostId);
+    if (!source) {
+      return commandFailureFrom("WORKSPACE_FEED_SOURCE_NOT_FOUND", "Source post not found.");
+    }
+    if (source.workspaceId !== parsed.data.workspaceId) {
+      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Source post is in another workspace.");
+    }
+
+    const repost = await this.repo.createRepost(parsed.data);
+    if (!repost) {
+      return commandFailureFrom("WORKSPACE_FEED_REPOST_FAILED", "Failed to create repost.");
+    }
+
+    return commandSuccess(repost.id, Date.now());
+  }
+}
+
+export class GetWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
+    if (!accountId.trim() || !postId.trim()) return null;
+    return this.repo.findById(accountId, postId);
+  }
+}
+
+export class ListWorkspaceFeedUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ListWorkspaceFeedDto): Promise<WorkspaceFeedPost[]> {
+    const parsed = ListWorkspaceFeedSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByWorkspaceId(parsed.data.accountId, parsed.data.workspaceId, parsed.data.limit ?? 50);
+  }
+}
+
+export class ListAccountWorkspaceFeedUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ListAccountFeedDto): Promise<WorkspaceFeedPost[]> {
+    const parsed = ListAccountFeedSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByAccountId(parsed.data.accountId, parsed.data.limit ?? 50);
+  }
+}
+````
+
+## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed.use-cases.ts
+````typescript
+export {
+  CreateWorkspaceFeedPostUseCase,
+  ReplyWorkspaceFeedPostUseCase,
+  RepostWorkspaceFeedPostUseCase,
+  GetWorkspaceFeedPostUseCase,
+  ListWorkspaceFeedUseCase,
+  ListAccountWorkspaceFeedUseCase,
+} from "./workspace-feed-post.use-cases";
+
+export {
+  LikeWorkspaceFeedPostUseCase,
+  BookmarkWorkspaceFeedPostUseCase,
+  ViewWorkspaceFeedPostUseCase,
+  ShareWorkspaceFeedPostUseCase,
+} from "./workspace-feed-interaction.use-cases";
+````
+
+## File: modules/workspace/subdomains/feed/domain/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/feed/domain/entities/workspace-feed-post.entity.ts
+````typescript
+export const WORKSPACE_FEED_POST_TYPES = ["post", "reply", "repost"] as const;
+export type WorkspaceFeedPostType = (typeof WORKSPACE_FEED_POST_TYPES)[number];
+
+export interface WorkspaceFeedPost {
+  id: string;
+  accountId: string;
+  workspaceId: string;
+  authorAccountId: string;
+  type: WorkspaceFeedPostType;
+  content: string;
+  replyToPostId: string | null;
+  repostOfPostId: string | null;
+  likeCount: number;
+  replyCount: number;
+  repostCount: number;
+  viewCount: number;
+  bookmarkCount: number;
+  shareCount: number;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+
+export interface CreateWorkspaceFeedPostInput {
+  accountId: string;
+  workspaceId: string;
+  authorAccountId: string;
+  content: string;
+}
+
+export interface CreateWorkspaceFeedReplyInput {
+  accountId: string;
+  workspaceId: string;
+  parentPostId: string;
+  authorAccountId: string;
+  content: string;
+}
+
+export interface CreateWorkspaceFeedRepostInput {
+  accountId: string;
+  workspaceId: string;
+  sourcePostId: string;
+  actorAccountId: string;
+  comment?: string;
+}
+
+export interface WorkspaceFeedCounterPatch {
+  likeDelta?: number;
+  replyDelta?: number;
+  repostDelta?: number;
+  viewDelta?: number;
+  bookmarkDelta?: number;
+  shareDelta?: number;
+}
+````
+
+## File: modules/workspace/subdomains/feed/domain/events/workspace-feed.events.ts
+````typescript
+export const WORKSPACE_FEED_EVENT_TYPES = [
+  "WorkspaceFeedPostCreated",
+  "WorkspaceFeedReplyCreated",
+  "WorkspaceFeedRepostCreated",
+  "WorkspaceFeedPostLiked",
+  "WorkspaceFeedPostViewed",
+  "WorkspaceFeedPostBookmarked",
+  "WorkspaceFeedPostShared",
+] as const;
+
+export type WorkspaceFeedEventType = (typeof WORKSPACE_FEED_EVENT_TYPES)[number];
+
+interface WorkspaceFeedBaseEvent {
+  type: WorkspaceFeedEventType;
+  accountId: string;
+  workspaceId: string;
+  postId: string;
+  actorAccountId: string;
+  occurredAtISO: string;
+}
+
+export interface WorkspaceFeedPostCreatedEvent extends WorkspaceFeedBaseEvent {
+  type: "WorkspaceFeedPostCreated";
+}
+
+export interface WorkspaceFeedReplyCreatedEvent extends WorkspaceFeedBaseEvent {
+  type: "WorkspaceFeedReplyCreated";
+  parentPostId: string;
+}
+
+export interface WorkspaceFeedRepostCreatedEvent extends WorkspaceFeedBaseEvent {
+  type: "WorkspaceFeedRepostCreated";
+  sourcePostId: string;
+}
+
+export interface WorkspaceFeedPostLikedEvent extends WorkspaceFeedBaseEvent {
+  type: "WorkspaceFeedPostLiked";
+}
+
+export interface WorkspaceFeedPostViewedEvent extends WorkspaceFeedBaseEvent {
+  type: "WorkspaceFeedPostViewed";
+}
+
+export interface WorkspaceFeedPostBookmarkedEvent extends WorkspaceFeedBaseEvent {
+  type: "WorkspaceFeedPostBookmarked";
+}
+
+export interface WorkspaceFeedPostSharedEvent extends WorkspaceFeedBaseEvent {
+  type: "WorkspaceFeedPostShared";
+}
+
+export type WorkspaceFeedDomainEvent =
+  | WorkspaceFeedPostCreatedEvent
+  | WorkspaceFeedReplyCreatedEvent
+  | WorkspaceFeedRepostCreatedEvent
+  | WorkspaceFeedPostLikedEvent
+  | WorkspaceFeedPostViewedEvent
+  | WorkspaceFeedPostBookmarkedEvent
+  | WorkspaceFeedPostSharedEvent;
+````
+
+## File: modules/workspace/subdomains/feed/domain/index.ts
+````typescript
+export type {
+  WorkspaceFeedPost,
+  WorkspaceFeedPostType,
+  CreateWorkspaceFeedPostInput,
+  CreateWorkspaceFeedReplyInput,
+  CreateWorkspaceFeedRepostInput,
+  WorkspaceFeedCounterPatch,
+} from "./entities/workspace-feed-post.entity";
+
+export { WORKSPACE_FEED_POST_TYPES } from "./entities/workspace-feed-post.entity";
+
+export type {
+  WorkspaceFeedDomainEvent,
+  WorkspaceFeedPostCreatedEvent,
+  WorkspaceFeedReplyCreatedEvent,
+  WorkspaceFeedRepostCreatedEvent,
+  WorkspaceFeedPostLikedEvent,
+  WorkspaceFeedPostViewedEvent,
+  WorkspaceFeedPostBookmarkedEvent,
+  WorkspaceFeedPostSharedEvent,
+} from "./events/workspace-feed.events";
+
+export { WORKSPACE_FEED_EVENT_TYPES } from "./events/workspace-feed.events";
+
+export type {
+  WorkspaceFeedPostRepository,
+  WorkspaceFeedInteractionRepository,
+} from "./repositories/workspace-feed.repositories";
+````
+
+## File: modules/workspace/subdomains/feed/domain/repositories/workspace-feed.repositories.ts
+````typescript
+import type {
+  CreateWorkspaceFeedPostInput,
+  CreateWorkspaceFeedReplyInput,
+  CreateWorkspaceFeedRepostInput,
+  WorkspaceFeedCounterPatch,
+  WorkspaceFeedPost,
+} from "../entities/workspace-feed-post.entity";
+
+export interface WorkspaceFeedPostRepository {
+  createPost(input: CreateWorkspaceFeedPostInput): Promise<WorkspaceFeedPost>;
+  createReply(input: CreateWorkspaceFeedReplyInput): Promise<WorkspaceFeedPost>;
+  createRepost(input: CreateWorkspaceFeedRepostInput): Promise<WorkspaceFeedPost | null>;
+  patchCounters(accountId: string, postId: string, patch: WorkspaceFeedCounterPatch): Promise<void>;
+  findById(accountId: string, postId: string): Promise<WorkspaceFeedPost | null>;
+  listByWorkspaceId(accountId: string, workspaceId: string, limit: number): Promise<WorkspaceFeedPost[]>;
+  listByAccountId(accountId: string, limit: number): Promise<WorkspaceFeedPost[]>;
+}
+
+export interface WorkspaceFeedInteractionRepository {
+  like(accountId: string, postId: string, actorAccountId: string): Promise<boolean>;
+  bookmark(accountId: string, postId: string, actorAccountId: string): Promise<boolean>;
+  view(accountId: string, postId: string, actorAccountId: string): Promise<void>;
+  share(accountId: string, postId: string, actorAccountId: string): Promise<void>;
+}
+````
+
+## File: modules/workspace/subdomains/feed/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository.ts
+````typescript
+import {
+  collection,
+  doc,
+  getDoc,
+  getFirestore,
+  serverTimestamp,
+  setDoc,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+
+import type { WorkspaceFeedInteractionRepository } from "../../domain/repositories/workspace-feed.repositories";
+
+type FirestoreDb = ReturnType<typeof getFirestore>;
+
+function postDoc(db: FirestoreDb, accountId: string, postId: string) {
+  return doc(db, "accounts", accountId, "workspaceFeedPosts", postId);
+}
+
+function likesDoc(db: FirestoreDb, accountId: string, postId: string, actorAccountId: string) {
+  return doc(postDoc(db, accountId, postId), "likes", actorAccountId);
+}
+
+function bookmarksDoc(db: FirestoreDb, accountId: string, postId: string, actorAccountId: string) {
+  return doc(postDoc(db, accountId, postId), "bookmarks", actorAccountId);
+}
+
+function viewsCol(db: FirestoreDb, accountId: string, postId: string) {
+  return collection(postDoc(db, accountId, postId), "views");
+}
+
+function sharesCol(db: FirestoreDb, accountId: string, postId: string) {
+  return collection(postDoc(db, accountId, postId), "shares");
+}
+
+export class FirebaseWorkspaceFeedInteractionRepository implements WorkspaceFeedInteractionRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async like(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
+    const ref = likesDoc(this.db, accountId, postId, actorAccountId);
+    const snap = await getDoc(ref);
+    if (snap.exists()) return false;
+
+    await setDoc(ref, {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+      createdAt: serverTimestamp(),
+    });
+    return true;
+  }
+
+  async bookmark(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
+    const ref = bookmarksDoc(this.db, accountId, postId, actorAccountId);
+    const snap = await getDoc(ref);
+    if (snap.exists()) return false;
+
+    await setDoc(ref, {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+      createdAt: serverTimestamp(),
+    });
+    return true;
+  }
+
+  async view(accountId: string, postId: string, actorAccountId: string): Promise<void> {
+    await setDoc(doc(viewsCol(this.db, accountId, postId), generateId()), {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+      createdAt: serverTimestamp(),
+    });
+  }
+
+  async share(accountId: string, postId: string, actorAccountId: string): Promise<void> {
+    await setDoc(doc(sharesCol(this.db, accountId, postId), generateId()), {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+      createdAt: serverTimestamp(),
+    });
+  }
+}
+````
+
+## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedPostRepository.ts
+````typescript
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  increment,
+  limit,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+
+import type {
+  CreateWorkspaceFeedPostInput,
+  CreateWorkspaceFeedReplyInput,
+  CreateWorkspaceFeedRepostInput,
+  WorkspaceFeedCounterPatch,
+  WorkspaceFeedPost,
+} from "../../domain/entities/workspace-feed-post.entity";
+import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
+
+type FirestoreDb = ReturnType<typeof getFirestore>;
+
+function postsCol(db: FirestoreDb, accountId: string) {
+  return collection(db, "accounts", accountId, "workspaceFeedPosts");
+}
+
+function postDoc(db: FirestoreDb, accountId: string, postId: string) {
+  return doc(db, "accounts", accountId, "workspaceFeedPosts", postId);
+}
+
+function repostMapDoc(db: FirestoreDb, accountId: string, actorAccountId: string, sourcePostId: string) {
+  return doc(db, "accounts", accountId, "workspaceFeedReposts", `${actorAccountId}__${sourcePostId}`);
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asNumber(value: unknown): number {
+  return typeof value === "number" ? value : 0;
+}
+
+function toWorkspaceFeedPost(id: string, data: Record<string, unknown>): WorkspaceFeedPost {
+  const type = asString(data.type, "post");
+  return {
+    id,
+    accountId: asString(data.accountId),
+    workspaceId: asString(data.workspaceId),
+    authorAccountId: asString(data.authorAccountId),
+    type: type === "reply" || type === "repost" ? type : "post",
+    content: asString(data.content),
+    replyToPostId: typeof data.replyToPostId === "string" ? data.replyToPostId : null,
+    repostOfPostId: typeof data.repostOfPostId === "string" ? data.repostOfPostId : null,
+    likeCount: asNumber(data.likeCount),
+    replyCount: asNumber(data.replyCount),
+    repostCount: asNumber(data.repostCount),
+    viewCount: asNumber(data.viewCount),
+    bookmarkCount: asNumber(data.bookmarkCount),
+    shareCount: asNumber(data.shareCount),
+    createdAtISO: asString(data.createdAtISO),
+    updatedAtISO: asString(data.updatedAtISO),
+  };
+}
+
+function createBasePostData(
+  accountId: string,
+  workspaceId: string,
+  authorAccountId: string,
+  content: string,
+  type: "post" | "reply" | "repost",
+): Record<string, unknown> {
+  const nowISO = new Date().toISOString();
+  return {
+    accountId,
+    workspaceId,
+    authorAccountId,
+    type,
+    content,
+    likeCount: 0,
+    replyCount: 0,
+    repostCount: 0,
+    viewCount: 0,
+    bookmarkCount: 0,
+    shareCount: 0,
+    createdAtISO: nowISO,
+    updatedAtISO: nowISO,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+}
+
+export class FirebaseWorkspaceFeedPostRepository implements WorkspaceFeedPostRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async createPost(input: CreateWorkspaceFeedPostInput): Promise<WorkspaceFeedPost> {
+    const id = generateId();
+    const data = createBasePostData(
+      input.accountId,
+      input.workspaceId,
+      input.authorAccountId,
+      input.content,
+      "post",
+    );
+    await setDoc(postDoc(this.db, input.accountId, id), data);
+    return toWorkspaceFeedPost(id, data);
+  }
+
+  async createReply(input: CreateWorkspaceFeedReplyInput): Promise<WorkspaceFeedPost> {
+    const id = generateId();
+    const data: Record<string, unknown> = {
+      ...createBasePostData(
+        input.accountId,
+        input.workspaceId,
+        input.authorAccountId,
+        input.content,
+        "reply",
+      ),
+      replyToPostId: input.parentPostId,
+      repostOfPostId: null,
+    };
+
+    await setDoc(postDoc(this.db, input.accountId, id), data);
+    await this.patchCounters(input.accountId, input.parentPostId, { replyDelta: 1 });
+    return toWorkspaceFeedPost(id, data);
+  }
+
+  async createRepost(input: CreateWorkspaceFeedRepostInput): Promise<WorkspaceFeedPost | null> {
+    const mapRef = repostMapDoc(this.db, input.accountId, input.actorAccountId, input.sourcePostId);
+    const existingMap = await getDoc(mapRef);
+    if (existingMap.exists()) {
+      const repostPostId = asString(existingMap.data().repostPostId);
+      if (!repostPostId) return null;
+      return this.findById(input.accountId, repostPostId);
+    }
+
+    const source = await this.findById(input.accountId, input.sourcePostId);
+    if (!source) return null;
+
+    const id = generateId();
+    const content = input.comment?.trim() || source.content;
+    const data: Record<string, unknown> = {
+      ...createBasePostData(
+        input.accountId,
+        input.workspaceId,
+        input.actorAccountId,
+        content,
+        "repost",
+      ),
+      replyToPostId: null,
+      repostOfPostId: input.sourcePostId,
+    };
+
+    await setDoc(postDoc(this.db, input.accountId, id), data);
+    await setDoc(mapRef, {
+      accountId: input.accountId,
+      workspaceId: input.workspaceId,
+      sourcePostId: input.sourcePostId,
+      actorAccountId: input.actorAccountId,
+      repostPostId: id,
+      createdAtISO: new Date().toISOString(),
+      createdAt: serverTimestamp(),
+    });
+    await this.patchCounters(input.accountId, input.sourcePostId, { repostDelta: 1 });
+    return toWorkspaceFeedPost(id, data);
+  }
+
+  async patchCounters(accountId: string, postId: string, patch: WorkspaceFeedCounterPatch): Promise<void> {
+    const updates: Record<string, unknown> = {
+      updatedAtISO: new Date().toISOString(),
+      updatedAt: serverTimestamp(),
+    };
+    if (patch.likeDelta) updates.likeCount = increment(patch.likeDelta);
+    if (patch.replyDelta) updates.replyCount = increment(patch.replyDelta);
+    if (patch.repostDelta) updates.repostCount = increment(patch.repostDelta);
+    if (patch.viewDelta) updates.viewCount = increment(patch.viewDelta);
+    if (patch.bookmarkDelta) updates.bookmarkCount = increment(patch.bookmarkDelta);
+    if (patch.shareDelta) updates.shareCount = increment(patch.shareDelta);
+    await updateDoc(postDoc(this.db, accountId, postId), updates);
+  }
+
+  async findById(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
+    const snap = await getDoc(postDoc(this.db, accountId, postId));
+    if (!snap.exists()) return null;
+    return toWorkspaceFeedPost(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
+    const snaps = await getDocs(
+      query(
+        postsCol(this.db, accountId),
+        where("workspaceId", "==", workspaceId),
+        orderBy("createdAtISO", "desc"),
+        limit(maxRows),
+      ),
+    );
+    return snaps.docs.map((row) => toWorkspaceFeedPost(row.id, row.data() as Record<string, unknown>));
+  }
+
+  async listByAccountId(accountId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
+    const snaps = await getDocs(
+      query(postsCol(this.db, accountId), orderBy("createdAtISO", "desc"), limit(maxRows)),
+    );
+    return snaps.docs.map((row) => toWorkspaceFeedPost(row.id, row.data() as Record<string, unknown>));
+  }
+}
+````
+
+## File: modules/workspace/subdomains/feed/infrastructure/index.ts
+````typescript
+export { FirebaseWorkspaceFeedPostRepository } from "./firebase/FirebaseWorkspaceFeedPostRepository";
+export { FirebaseWorkspaceFeedInteractionRepository } from "./firebase/FirebaseWorkspaceFeedInteractionRepository";
+````
+
+## File: modules/workspace/subdomains/feed/interfaces/_actions/workspace-feed.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+
+import type {
+  CreateWorkspaceFeedPostDto,
+  FeedInteractionDto,
+  ReplyWorkspaceFeedPostDto,
+  RepostWorkspaceFeedPostDto,
+} from "../../application/dto/workspace-feed.dto";
+import {
+  BookmarkWorkspaceFeedPostUseCase,
+  CreateWorkspaceFeedPostUseCase,
+  LikeWorkspaceFeedPostUseCase,
+  ReplyWorkspaceFeedPostUseCase,
+  RepostWorkspaceFeedPostUseCase,
+  ShareWorkspaceFeedPostUseCase,
+  ViewWorkspaceFeedPostUseCase,
+} from "../../application/use-cases/workspace-feed.use-cases";
+import {
+  FirebaseWorkspaceFeedInteractionRepository,
+  FirebaseWorkspaceFeedPostRepository,
+} from "../../infrastructure";
+
+function makePostRepo() {
+  return new FirebaseWorkspaceFeedPostRepository();
+}
+
+function makeInteractionRepo() {
+  return new FirebaseWorkspaceFeedInteractionRepository();
+}
+
+export async function createWorkspaceFeedPost(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
+  try {
+    return await new CreateWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_CREATE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function replyWorkspaceFeedPost(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
+  try {
+    return await new ReplyWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_REPLY_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function repostWorkspaceFeedPost(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
+  try {
+    return await new RepostWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_REPOST_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function likeWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
+  try {
+    return await new LikeWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_LIKE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function viewWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
+  try {
+    return await new ViewWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_VIEW_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function bookmarkWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
+  try {
+    return await new BookmarkWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_BOOKMARK_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function shareWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
+  try {
+    return await new ShareWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_SHARE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+````
+
+## File: modules/workspace/subdomains/feed/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedAccountView.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Eye, Heart, MessageCircle, Repeat2, Share2, Star } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
+import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+
+interface WorkspaceFeedAccountViewProps {
+  readonly accountId: string;
+}
+
+export function WorkspaceFeedAccountView({ accountId }: WorkspaceFeedAccountViewProps) {
+  const { state: appState } = useApp();
+  const actorId = appState.activeAccount?.id ?? accountId;
+
+  const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [activeReplyPostId, setActiveReplyPostId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [actingPostId, setActingPostId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refreshFeed = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const rows = await workspaceFeedFacade.getAccountFeed(accountId, 80);
+      setPosts(rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "載入 account feed 失敗");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [accountId]);
+
+  useEffect(() => {
+    void refreshFeed();
+  }, [refreshFeed]);
+
+  async function handleAction(post: WorkspaceFeedPost, action: "like" | "view" | "bookmark" | "share" | "repost") {
+    setActingPostId(post.id);
+    setError(null);
+    try {
+      if (action === "like") {
+        await workspaceFeedFacade.like({ accountId, postId: post.id, actorAccountId: actorId });
+      }
+      if (action === "view") {
+        await workspaceFeedFacade.view({ accountId, postId: post.id, actorAccountId: actorId });
+      }
+      if (action === "bookmark") {
+        await workspaceFeedFacade.bookmark({ accountId, postId: post.id, actorAccountId: actorId });
+      }
+      if (action === "share") {
+        await workspaceFeedFacade.share({ accountId, postId: post.id, actorAccountId: actorId });
+      }
+      if (action === "repost") {
+        await workspaceFeedFacade.repost({
+          accountId,
+          workspaceId: post.workspaceId,
+          sourcePostId: post.id,
+          actorAccountId: actorId,
+        });
+      }
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "互動失敗");
+    } finally {
+      setActingPostId(null);
+    }
+  }
+
+  async function handleReply(post: WorkspaceFeedPost) {
+    const content = replyDrafts[post.id]?.trim() ?? "";
+    if (!content) return;
+
+    setActingPostId(post.id);
+    setError(null);
+    try {
+      await workspaceFeedFacade.reply({
+        accountId,
+        workspaceId: post.workspaceId,
+        parentPostId: post.id,
+        authorAccountId: actorId,
+        content,
+      });
+      setReplyDrafts((prev) => ({ ...prev, [post.id]: "" }));
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "回覆失敗");
+    } finally {
+      setActingPostId(null);
+    }
+  }
+
+  return (
+    <>
+      {error && (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
+      )}
+
+      <div className="space-y-3">
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">載入 account feed 中...</p>
+        ) : posts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">目前沒有任何 workspace 貼文。</p>
+        ) : (
+          posts.map((post) => (
+            <article key={post.id} className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {post.type.toUpperCase()} · workspace {post.workspaceId} · {new Date(post.createdAtISO).toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground">by {post.authorAccountId}</p>
+              </div>
+
+              <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={activeReplyPostId === post.id ? "default" : "outline"}
+                  onClick={() => setActiveReplyPostId((current) => (current === post.id ? null : post.id))}
+                >
+                  <MessageCircle className="mr-1 h-4 w-4" />
+                  Reply {post.replyCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "repost")} disabled={actingPostId === post.id}>
+                  <Repeat2 className="mr-1 h-4 w-4" />
+                  Repost {post.repostCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "like")} disabled={actingPostId === post.id}>
+                  <Heart className="mr-1 h-4 w-4" />
+                  Like {post.likeCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "view")} disabled={actingPostId === post.id}>
+                  <Eye className="mr-1 h-4 w-4" />
+                  View {post.viewCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "bookmark")} disabled={actingPostId === post.id}>
+                  <Star className="mr-1 h-4 w-4" />
+                  bookmark {post.bookmarkCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "share")} disabled={actingPostId === post.id}>
+                  <Share2 className="mr-1 h-4 w-4" />
+                  share {post.shareCount}
+                </Button>
+              </div>
+
+              {activeReplyPostId === post.id && (
+                <div className="space-y-2 rounded-xl border border-border/40 p-3">
+                  <Textarea
+                    value={replyDrafts[post.id] ?? ""}
+                    onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
+                    placeholder="回覆這則貼文..."
+                    rows={2}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" type="button" variant="ghost" onClick={() => setActiveReplyPostId(null)}>
+                      取消
+                    </Button>
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={() => void handleReply(post)}
+                      disabled={actingPostId === post.id || !(replyDrafts[post.id] ?? "").trim()}
+                    >
+                      回覆
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </article>
+          ))
+        )}
+      </div>
+    </>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedWorkspaceView.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Eye, Heart, MessageCircle, Repeat2, Send, Share2, Star } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { Avatar, AvatarFallback, AvatarImage } from "@ui-shadcn/ui/avatar";
+import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
+import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+
+interface WorkspaceFeedWorkspaceViewProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly workspaceName: string;
+}
+
+export function WorkspaceFeedWorkspaceView({
+  accountId,
+  workspaceId,
+  workspaceName,
+}: WorkspaceFeedWorkspaceViewProps) {
+  const { state: appState } = useApp();
+  const actor = appState.activeAccount;
+  const actorId = actor?.id ?? accountId;
+
+  const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
+  const [composer, setComposer] = useState("");
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [activeReplyPostId, setActiveReplyPostId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [actingPostId, setActingPostId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const actorName = actor?.name ?? "未知";
+  const actorAvatar = "photoURL" in (actor ?? {}) ? (actor as { photoURL?: string }).photoURL : undefined;
+  const actorInitial = actorName.charAt(0).toUpperCase();
+
+  const canPublish = useMemo(() => composer.trim().length > 0, [composer]);
+
+  const refreshFeed = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const rows = await workspaceFeedFacade.getWorkspaceFeed(accountId, workspaceId, 50);
+      setPosts(rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "載入 feed 失敗");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [accountId, workspaceId]);
+
+  useEffect(() => {
+    void refreshFeed();
+  }, [refreshFeed]);
+
+  async function handlePublish() {
+    if (!canPublish || isPublishing) return;
+    setIsPublishing(true);
+    setError(null);
+    try {
+      const createdId = await workspaceFeedFacade.createPost({
+        accountId,
+        workspaceId,
+        authorAccountId: actorId,
+        content: composer.trim(),
+      });
+      if (!createdId) {
+        setError("建立貼文失敗");
+        return;
+      }
+      setComposer("");
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立貼文失敗");
+    } finally {
+      setIsPublishing(false);
+    }
+  }
+
+  async function handleAction(postId: string, action: "like" | "view" | "bookmark" | "share" | "repost") {
+    setActingPostId(postId);
+    setError(null);
+    try {
+      if (action === "like") {
+        await workspaceFeedFacade.like({ accountId, postId, actorAccountId: actorId });
+      }
+      if (action === "view") {
+        await workspaceFeedFacade.view({ accountId, postId, actorAccountId: actorId });
+      }
+      if (action === "bookmark") {
+        await workspaceFeedFacade.bookmark({ accountId, postId, actorAccountId: actorId });
+      }
+      if (action === "share") {
+        await workspaceFeedFacade.share({ accountId, postId, actorAccountId: actorId });
+      }
+      if (action === "repost") {
+        const current = posts.find((row) => row.id === postId);
+        if (!current) return;
+        await workspaceFeedFacade.repost({
+          accountId,
+          workspaceId: current.workspaceId,
+          sourcePostId: postId,
+          actorAccountId: actorId,
+        });
+      }
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "互動失敗");
+    } finally {
+      setActingPostId(null);
+    }
+  }
+
+  async function handleReply(postId: string) {
+    const text = replyDrafts[postId]?.trim() ?? "";
+    if (!text) return;
+    setActingPostId(postId);
+    setError(null);
+    try {
+      const current = posts.find((row) => row.id === postId);
+      if (!current) return;
+      await workspaceFeedFacade.reply({
+        accountId,
+        workspaceId: current.workspaceId,
+        parentPostId: postId,
+        authorAccountId: actorId,
+        content: text,
+      });
+      setReplyDrafts((prev) => ({ ...prev, [postId]: "" }));
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "回覆失敗");
+    } finally {
+      setActingPostId(null);
+    }
+  }
+
+  return (
+    <section className="mx-auto max-w-3xl space-y-6 rounded-3xl border border-border/60 bg-card/50 p-6">
+      <header className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-12 w-12 shrink-0">
+            <AvatarImage src={actorAvatar} alt={actorName} />
+            <AvatarFallback className="text-sm font-bold">{actorInitial}</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="text-sm font-semibold">{workspaceName} Feed</p>
+            <p className="text-xs text-muted-foreground">workspaceId: {workspaceId}</p>
+          </div>
+        </div>
+        <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+          live
+        </div>
+      </header>
+
+      <div className="space-y-3 rounded-2xl border border-border/60 bg-background/80 p-4">
+        <Textarea
+          value={composer}
+          onChange={(event) => setComposer(event.target.value)}
+          placeholder="發佈你的想法到 workspace feed..."
+          rows={4}
+        />
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">actor: {actorName} / account: {accountId}</p>
+          <Button type="button" onClick={handlePublish} disabled={!canPublish || isPublishing}>
+            <Send className="mr-2 h-4 w-4" />
+            {isPublishing ? "送出中..." : "發佈"}
+          </Button>
+        </div>
+      </div>
+
+      {error && (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
+      )}
+
+      <div className="space-y-3">
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">載入 feed 中...</p>
+        ) : posts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">目前還沒有貼文，發佈第一則吧。</p>
+        ) : (
+          posts.map((post) => (
+            <article key={post.id} className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {post.type.toUpperCase()} · {post.workspaceId} · {new Date(post.createdAtISO).toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground">by {post.authorAccountId}</p>
+              </div>
+              <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={activeReplyPostId === post.id ? "default" : "outline"}
+                  onClick={() => setActiveReplyPostId((current) => (current === post.id ? null : post.id))}
+                >
+                  <MessageCircle className="mr-1 h-4 w-4" />
+                  Reply {post.replyCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "repost")} disabled={actingPostId === post.id}>
+                  <Repeat2 className="mr-1 h-4 w-4" />
+                  Repost {post.repostCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "like")} disabled={actingPostId === post.id}>
+                  <Heart className="mr-1 h-4 w-4" />
+                  Like {post.likeCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "view")} disabled={actingPostId === post.id}>
+                  <Eye className="mr-1 h-4 w-4" />
+                  View {post.viewCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "bookmark")} disabled={actingPostId === post.id}>
+                  <Star className="mr-1 h-4 w-4" />
+                  bookmark {post.bookmarkCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "share")} disabled={actingPostId === post.id}>
+                  <Share2 className="mr-1 h-4 w-4" />
+                  share {post.shareCount}
+                </Button>
+              </div>
+
+              {activeReplyPostId === post.id && (
+                <div className="space-y-2 rounded-xl border border-border/40 p-3">
+                  <Textarea
+                    value={replyDrafts[post.id] ?? ""}
+                    onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
+                    placeholder="回覆這則貼文..."
+                    rows={2}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" type="button" variant="ghost" onClick={() => setActiveReplyPostId(null)}>
+                      取消
+                    </Button>
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={() => void handleReply(post.id)}
+                      disabled={actingPostId === post.id || !(replyDrafts[post.id] ?? "").trim()}
+                    >
+                      回覆
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </article>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/feed/interfaces/queries/workspace-feed.queries.ts
+````typescript
+import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+import {
+  GetWorkspaceFeedPostUseCase,
+  ListAccountWorkspaceFeedUseCase,
+  ListWorkspaceFeedUseCase,
+} from "../../application/use-cases/workspace-feed.use-cases";
+import { FirebaseWorkspaceFeedPostRepository } from "../../infrastructure";
+
+export async function getWorkspaceFeedPost(
+  accountId: string,
+  postId: string,
+): Promise<WorkspaceFeedPost | null> {
+  return new GetWorkspaceFeedPostUseCase(new FirebaseWorkspaceFeedPostRepository()).execute(
+    accountId,
+    postId,
+  );
+}
+
+export async function getWorkspaceFeed(
+  accountId: string,
+  workspaceId: string,
+  limit = 50,
+): Promise<WorkspaceFeedPost[]> {
+  return new ListWorkspaceFeedUseCase(new FirebaseWorkspaceFeedPostRepository()).execute({
+    accountId,
+    workspaceId,
+    limit,
+  });
+}
+
+export async function getAccountWorkspaceFeed(accountId: string, limit = 50): Promise<WorkspaceFeedPost[]> {
+  return new ListAccountWorkspaceFeedUseCase(new FirebaseWorkspaceFeedPostRepository()).execute({
+    accountId,
+    limit,
+  });
+}
+````
+
+## File: modules/workspace/subdomains/feed/ports/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/feed/README.md
+````markdown
+
+````
+
+## File: modules/workspace/subdomains/scheduling/application/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/scheduling/domain/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/scheduling/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/scheduling/ports/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/scheduling/README.md
+````markdown
+
+````
+
+## File: modules/workspace/subdomains/workflow/application/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/workflow/domain/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/workflow/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/workflow/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/workflow/ports/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/workflow/README.md
+````markdown
+
 ````
 
 ## File: next.config.ts
@@ -68071,6 +67005,135 @@ export { saveThread, loadThread };
 export type { Thread };
 ````
 
+## File: app/(shell)/organization/audit/page.tsx
+````typescript
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { AuditStream, getOrganizationAuditLogs } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { formatDateTime, isOrganizationAccount } from "../_utils";
+
+const MAX_DISPLAYED_AUDIT_LOGS = 50;
+
+export default function OrganizationAuditPage() {
+  const { state: appState } = useApp();
+  const { activeAccount, workspaces, workspacesHydrated } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  const [auditLogs, setAuditLogs] = useState<
+    Awaited<ReturnType<typeof getOrganizationAuditLogs>>
+  >([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  // workspaceNameById is derived from the app-provider subscription — no extra fetch needed.
+  const workspaceNameById = useMemo(
+    () => new Map(Object.values(workspaces).map((w) => [w.id, w.name])),
+    [workspaces],
+  );
+
+  useEffect(() => {
+    if (!activeOrganizationId || !workspacesHydrated) return;
+    let cancelled = false;
+    const workspaceIds = Object.keys(workspaces);
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const logs = await getOrganizationAuditLogs(workspaceIds, MAX_DISPLAYED_AUDIT_LOGS);
+        if (!cancelled) {
+          setAuditLogs(logs);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setAuditLogs([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId, workspacesHydrated, workspaces]);
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">稽核</h1>
+        <p className="mt-1 text-sm text-muted-foreground">組織下所有工作區的 audit log 彙整。</p>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Audit</CardTitle>
+          <CardDescription>組織下所有工作區的 audit log 彙整。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入稽核資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取稽核資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && auditLogs.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的 audit logs。</p>
+          )}
+          {loadState === "loaded" &&
+            auditLogs.slice(0, MAX_DISPLAYED_AUDIT_LOGS).map((log) => (
+              <div key={log.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">{log.action}</p>
+                  <Badge variant="outline">{log.source}</Badge>
+                  <Badge variant="secondary">
+                    {workspaceNameById.get(log.workspaceId) ?? log.workspaceId}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{log.detail || "—"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {formatDateTime(log.occurredAtISO)}
+                </p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      {/* ── 稽核時間軸（新版 AuditStream）─────────────────────────────── */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>稽核時間軸</CardTitle>
+          <CardDescription>
+            以時間軸視覺化呈現稽核事件；嚴重程度由色點標示（藍 = 中、橘 = 高、紅 = 嚴重）。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AuditStream logs={auditLogs} height={500} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+````
+
 ## File: docs/architecture-overview.md
 ````markdown
 # Architecture Overview
@@ -68187,24 +67250,308 @@ flowchart LR
 3. Record boundary changes in `docs/context-map.md` and ADRs.
 ````
 
-## File: docs/contexts/knowledge/.gitkeep
+## File: docs/contexts/knowledge/README.md
+````markdown
+# knowledge
+
+> **Domain Type:** Core Domain  
+> **Module:** `modules/knowledge/`  
+> **Authoritative docs:** [`modules/knowledge/`](../../../modules/knowledge/)
+
+## Boundary
+
+- **Responsible for:**
+  - `KnowledgePage` lifecycle — create, edit, version, archive, restore
+  - `ContentBlock` management — add, update, delete blocks within a page
+  - `ContentVersion` snapshots and manual publish
+  - `KnowledgeCollection` — wiki space ownership (verification, ownership, review workflow)
+  - `KnowledgeCollection` — database space opaque reference (ID only; structure owned by `knowledge-database` per D1)
+  - Page approval workflow for AI-generated drafts (`approvalState`)
+  - Page verification and review-request workflow (wiki space, `verificationState`)
+  - D3 Promote: emitting `knowledge.page_promoted` to initiate Article creation in `knowledge-base`
+
+- **Not responsible for:**
+  - Database schema, records, views → `knowledge-database`
+  - Article / Category lifecycle → `knowledge-base`
+  - Organization member and team governance → `workspace` / `organization`
+  - AI ingestion pipeline → `ai`
+  - Semantic search and retrieval → `search`
+  - Conversation / Q&A interface → `notebook`
+  - Task and invoice materialization from approved pages → `workspace-flow`
+
+## Published Language
+
+- **Commands:**
+  - `CreateKnowledgePage` (requires `workspaceId` on write path)
+  - `ArchiveKnowledgePage` (cascades to child pages — D2)
+  - `ApprovePage`
+  - `VerifyPage` / `RequestPageReview`
+  - `AssignPageOwner`
+  - `PromotePage` (D3 Promote to Article)
+  - `AddContentBlock` / `UpdateContentBlock` / `DeleteContentBlock`
+  - `PublishContentVersion`
+
+- **Queries:**
+  - `GetKnowledgePage`
+  - `ListKnowledgePages` (workspace-scoped by default; explicit summary mode for account/org overview)
+  - `GetPageTree`
+
+- **Events:**
+  - `knowledge.page_created`
+  - `knowledge.page_renamed`
+  - `knowledge.page_moved`
+  - `knowledge.page_archived`
+  - `knowledge.page_approved` ← primary integration point (triggers `workspace-flow` + `ai`)
+  - `knowledge.page_promoted`
+  - `knowledge.page_verified`
+  - `knowledge.page_review_requested`
+  - `knowledge.page_owner_assigned`
+  - `knowledge.block_added`
+  - `knowledge.block_updated`
+  - `knowledge.block_deleted`
+  - `knowledge.version_published`
+
+## Upstream / Downstream
+
+- **Upstream:**
+  - `identity` → knowledge — validates `createdByUserId` on page operations
+  - `workspace` → knowledge — provides `workspaceId` container; workspace-first scope is the default; account-level summary requires explicit mode
+
+- **Downstream:**
+  - knowledge → `workspace-flow` — `knowledge.page_approved` drives Task and Invoice materialization (Published Language / Customer-Supplier)
+  - knowledge → `ai` — `knowledge.page_approved` triggers RAG ingestion pipeline (Customer/Supplier via Events)
+  - knowledge → `knowledge-database` — opaque `KnowledgeCollection.id` reference for database-type collections (Open Host Service)
+  - knowledge → `knowledge-base` — `knowledge.page_promoted` initiates Article creation (Customer/Supplier — D3 Promote)
+
+- **Relationship types:**
+  - `identity → knowledge`: Customer/Supplier
+  - `workspace → knowledge`: Customer/Supplier
+  - `knowledge → workspace-flow`: Published Language (Events)
+  - `knowledge → ai`: Customer/Supplier (Events)
+  - `knowledge → knowledge-database`: Open Host Service
+  - `knowledge → knowledge-base`: Customer/Supplier (Promote Events)
+
+## Context Rules
+
+1. Keep domain model isolated from external model leakage.
+2. Expose only stable contracts via published language.
+3. Record boundary changes in `docs/context-map.md` and ADRs.
+4. `createKnowledgePage` write path **must** carry `workspaceId`; account-level summary is an explicit mode, not a default.
+5. Do not add a `"trash"` status — `archived` is the canonical soft-delete state (ADR governs any change).
+6. Database space collections are opaque references only; schema/record/view lifecycle belongs to `knowledge-database`.
 ````
 
+## File: docs/contexts/notebook/README.md
+````markdown
+# notebook
+
+> **Domain Type:** Supporting Subdomain  
+> **Module:** `modules/notebooklm/`  
+> **Authoritative docs:** [`modules/notebooklm/`](../../../modules/notebooklm/)
+
+## Boundary
+
+- **Responsible for:**
+  - `Thread` lifecycle — create and maintain AI conversation threads
+  - `Message` history — ordered, append-only message list within a thread
+  - RAG-augmented response generation — transforms retrieval results into readable, citable answers
+  - Citation and source trace — preserves `citation` / source references for trustworthy responses
+  - `Summary` production — condensed knowledge insights from retrieved content
+
+- **Not responsible for:**
+  - Semantic search and chunk retrieval → `search`
+  - AI ingestion pipeline → `ai`
+  - Knowledge content creation or editing → `knowledge` / `knowledge-base`
+  - External document ingestion → `source`
+  - Workspace/collaboration scope management → `workspace`
+
+## Published Language
+
+- **Commands:**
+  - `GenerateNotebookResponse` (RAG-augmented, via `search` upstream)
+
+- **Queries:**
+  - `GetThread`
+  - `ListMessages`
+
+- **Events:**
+  - None currently published.
+  - Potential future events: `notebook.thread_created`, `notebook.response_generated` (for audit and token tracking)
+
+## Upstream / Downstream
+
+- **Upstream:**
+  - `search` → notebook — provides semantic retrieval chunks for RAG-augmented generation (Customer/Supplier, synchronous query)
+  - `knowledge` / `knowledge-base` / `source` — content origins ingested via `ai` and indexed by `search`; consumed indirectly
+
+- **Downstream:**
+  - notebook → `app/(shell)/ai-chat` — AI Chat page calls `notebook/api` through a local `_actions.ts` anti-corruption adapter; `notebook/api` barrel must **not** be imported directly in Client Components (Genkit server-only)
+
+- **Relationship types:**
+  - `search → notebook`: Customer/Supplier (synchronous query)
+  - `notebook → app/(shell)/ai-chat`: Anti-Corruption Layer (ACL via `_actions.ts`)
+
+## Context Rules
+
+1. Keep domain model isolated from external model leakage.
+2. Expose only stable contracts via published language.
+3. Record boundary changes in `docs/context-map.md` and ADRs.
+4. `notebook/api` barrel is server-only (Genkit); never import it directly in Client Components.
+5. `Thread.messages` is append-only — messages cannot be reordered or deleted.
+6. Retrieval is always delegated to `search`; `notebook` does not own embedding or indexing.
 ````
 
-## File: docs/contexts/notebook/.gitkeep
+## File: docs/contexts/platform/README.md
+````markdown
+# platform
+
+> **Domain Type:** Generic Subdomain (Platform Infrastructure)  
+> **Module:** `modules/platform/`  
+> **Authoritative docs:** [`modules/platform/docs/`](../../../modules/platform/docs/)
+
+## Boundary
+
+- **Responsible for:**
+  - Subject governance — `identity`, `account`, `account-profile`, `organization`
+  - Policy and security — `access-control`, `security-policy`, `platform-config`, `feature-flag`, `onboarding`, `compliance`
+  - Commercial and entitlement — `billing`, `subscription`, `referral`
+  - Process and delivery — `workflow`, `notification`, `integration`, `background-job`
+  - Content and search — `content`, `search`
+  - Evidence and diagnostics — `audit-log`, `observability`, `analytics`, `support`
+  - Platform capability enablement via `PlatformContext` aggregate
+  - Versioned policy governance via `PolicyCatalog` aggregate
+
+- **Not responsible for:**
+  - Business domain knowledge content lifecycle → `knowledge`, `knowledge-base`
+  - Workspace collaboration semantics → `workspace`
+  - AI conversation and Q&A → `notebook`
+  - RAG ingestion details → `ai`
+  - Domain-specific business rules outside platform governance
+
+## Published Language
+
+- **Commands (representative, per subdomain):**
+  - `CreateAccount` / `UpdateAccountProfile`
+  - `EnableFeatureFlag` / `DisableFeatureFlag`
+  - `CreateSubscription` / `ChangeSubscriptionPlan`
+  - `TriggerNotification`
+  - `SubmitAuditSignal`
+  - `EnablePlatformCapability`
+
+- **Queries (representative, per subdomain):**
+  - `GetAccountProfile`
+  - `GetSubscriptionPlan` / `GetEntitlement`
+  - `ListAuditLogs`
+  - `GetFeatureFlagState`
+  - `GetPlatformCapabilities`
+
+- **Events (representative, per subdomain):**
+  - `platform.account_created`
+  - `platform.subscription_changed`
+  - `platform.policy_updated`
+  - `platform.feature_flag_toggled`
+  - `platform.capability_enabled`
+  - See [`modules/platform/docs/domain-events.md`](../../../modules/platform/docs/domain-events.md) for the full 21-event inventory.
+
+## Upstream / Downstream
+
+- **Upstream:**
+  - External integrations (ACL) — partner and external API boundaries translated via `integration` subdomain adapters
+  - Observability and config systems (Shared Kernel) — telemetry and runtime configuration signals
+
+- **Downstream:**
+  - `knowledge`, `workspace`, `notebook`, `knowledge-base`, `source`, and all other business contexts — conform to platform identity, subscription entitlement, and feature-flag policies
+  - `audit-log` and `observability` receive signals from all other platform subdomains
+
+- **Relationship types:**
+  - `platform → business contexts` (knowledge, workspace, etc.): Published Language / Conformist
+  - `external systems → platform integration`: ACL
+  - `platform-config ↔ observability`: Shared Kernel
+
+## Context Rules
+
+1. Keep domain model isolated from external model leakage.
+2. Expose only stable contracts via published language.
+3. Record boundary changes in `docs/context-map.md` and ADRs.
+4. Subdomain inventory is **closed by default** — new subdomains require documented boundary rationale before addition.
+5. `domain/` must remain framework-free; no Firebase SDK, HTTP clients, or monitoring SDKs.
+6. Cross-subdomain collaboration uses published language and ports, not direct adapter-to-adapter calls.
+7. Dependency direction: `adapters/ → application/ → domain/ ← infrastructure/`.
 ````
 
-````
+## File: docs/contexts/workspace/README.md
+````markdown
+# workspace
 
-## File: docs/contexts/platform/.gitkeep
-````
+> **Domain Type:** Generic Subdomain  
+> **Module:** `modules/workspace/`  
+> **Authoritative docs:** [`modules/workspace/`](../../../modules/workspace/)
 
-````
+## Boundary
 
-## File: docs/contexts/workspace/.gitkeep
-````
+- **Responsible for:**
+  - `Workspace` aggregate lifecycle — `preparatory | active | stopped`
+  - Workspace visibility — `visible | hidden`
+  - Stable collaboration container identity — `workspaceId` as the canonical scope anchor for all downstream contexts
+  - Public contracts via `modules/workspace/api` (contracts, facade, ui, index)
+  - Read projections: `WorkspaceMemberView`, `WikiAccountContentNode`, `WikiWorkspaceContentNode`, `WikiContentItemNode`
 
+- **Not responsible for:**
+  - Organization member and team governance → `organization`
+  - Knowledge content semantics → `knowledge`
+  - UI tab composition (interface composition, not context-map ownership)
+  - Business domain rules beyond collaboration scope
+
+## Published Language
+
+- **Commands:**
+  - `CreateWorkspace`
+  - `RenameWorkspace`
+  - `ChangeWorkspaceVisibility`
+  - `TransitionWorkspaceLifecycle` (`activate`, `stop`)
+  - `UpdateWorkspaceAddress`
+  - `UpdateWorkspacePersonnel`
+  - `ApplyWorkspaceSettings`
+
+- **Queries:**
+  - `GetWorkspace`
+  - `ListWorkspacesByAccount`
+  - `GetWorkspaceMembers`
+
+- **Events:**
+  - `workspace.created`
+  - `workspace.lifecycle_transitioned`
+  - `workspace.visibility_changed`
+
+## Upstream / Downstream
+
+- **Upstream:**
+  - `account` → workspace — owner identity context (Customer/Supplier)
+  - `organization` → workspace — org ownership and member/team read translation (Customer/Supplier)
+
+- **Downstream (conformist consumers scoped by `workspaceId`):**
+  - `knowledge`
+  - `knowledge-base`
+  - `source`
+  - `notebook`
+  - `workspace-flow`
+  - `workspace-scheduling`
+  - `workspace-feed`
+  - `workspace-audit`
+
+- **Relationship types:**
+  - `account → workspace`: Customer/Supplier
+  - `organization → workspace`: Customer/Supplier
+  - `workspace → downstream contexts`: Published Language (workspaceId scope + domain events)
+
+## Context Rules
+
+1. Keep domain model isolated from external model leakage.
+2. Expose only stable contracts via published language.
+3. Record boundary changes in `docs/context-map.md` and ADRs.
+4. Cross-module access must use `modules/workspace/api` only — never import internal `domain/`, `application/`, `infrastructure/`, or `interfaces/` directly.
+5. This context does not own organization truth (member/team governance).
+6. This context does not own knowledge-content semantics.
 ````
 
 ## File: docs/decisions/0001-hexagonal-architecture.md
@@ -68504,371 +67851,6 @@ When adding or changing docs:
 
 If a question is broad, inspect summaries and README indexes before opening detailed files.
 If multiple files appear to overlap, identify the canonical file and treat others as supporting context.
-````
-
-## File: modules/knowledge/docs/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-ai/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-ai/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-ai/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-ai/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-ai/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-ai/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-authoring/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-authoring/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-authoring/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-authoring/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-authoring/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-authoring/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-automation/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-automation/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-automation/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-automation/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-automation/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-automation/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-base/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-base/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-base/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-base/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-base/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-base/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-collaboration/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-collaboration/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-collaboration/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-collaboration/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-collaboration/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-collaboration/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-core/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-core/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-core/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-core/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-core/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-core/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-database/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-database/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-database/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-database/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-database/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-database/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-integration/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-integration/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-integration/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-integration/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-integration/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-integration/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-query/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-query/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-query/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-query/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-query/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-query/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-search/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-search/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-search/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-search/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-search/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-search/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-source/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-source/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-source/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-source/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-source/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-source/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-versioning/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-versioning/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-versioning/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-versioning/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-versioning/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-versioning/README.md
-````markdown
-
 ````
 
 ## File: modules/notebooklm/AGENT.md
@@ -69621,66 +68603,6 @@ export { answerRagQuery, generateNotebookResponse } from "./_actions/notebook.ac
 | `NotebookResponse` | `AIResponse`, `LLMOutput` |
 ````
 
-## File: modules/platform/adapters/external/.gitkeep
-````
-
-````
-
-## File: modules/platform/adapters/persistence/.gitkeep
-````
-
-````
-
-## File: modules/platform/adapters/web/.gitkeep
-````
-
-````
-
-## File: modules/platform/application/commands/.gitkeep
-````
-
-````
-
-## File: modules/platform/application/handlers/.gitkeep
-````
-
-````
-
-## File: modules/platform/application/queries/.gitkeep
-````
-
-````
-
-## File: modules/platform/domain/aggregates/.gitkeep
-````
-
-````
-
-## File: modules/platform/domain/entities/.gitkeep
-````
-
-````
-
-## File: modules/platform/domain/events/.gitkeep
-````
-
-````
-
-## File: modules/platform/domain/factories/.gitkeep
-````
-
-````
-
-## File: modules/platform/domain/services/.gitkeep
-````
-
-````
-
-## File: modules/platform/domain/value-objects/.gitkeep
-````
-
-````
-
 ## File: modules/platform/events/contracts/.gitkeep
 ````
 
@@ -69831,16 +68753,6 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 
 ````
 
-## File: modules/platform/ports/input/.gitkeep
-````
-
-````
-
-## File: modules/platform/ports/output/.gitkeep
-````
-
-````
-
 ## File: modules/platform/shared/constants/.gitkeep
 ````
 
@@ -69946,9 +68858,19 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 // Purpose: Adapter layer placeholder for platform subdomain 'account'.
 ````
 
+## File: modules/platform/subdomains/account/application/.gitkeep
+````
+
+````
+
 ## File: modules/platform/subdomains/account/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for platform subdomain 'account'.
+````
+
+## File: modules/platform/subdomains/account/domain/.gitkeep
+````
+
 ````
 
 ## File: modules/platform/subdomains/account/domain/index.ts
@@ -70246,19 +69168,9 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 // Purpose: Adapter layer placeholder for platform subdomain 'identity'.
 ````
 
-## File: modules/platform/subdomains/identity/application/.gitkeep
-````
-
-````
-
 ## File: modules/platform/subdomains/identity/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for platform subdomain 'identity'.
-````
-
-## File: modules/platform/subdomains/identity/domain/.gitkeep
-````
-
 ````
 
 ## File: modules/platform/subdomains/identity/domain/index.ts
@@ -70281,9 +69193,19 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 // Purpose: Adapter layer placeholder for platform subdomain 'integration'.
 ````
 
+## File: modules/platform/subdomains/integration/application/.gitkeep
+````
+
+````
+
 ## File: modules/platform/subdomains/integration/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for platform subdomain 'integration'.
+````
+
+## File: modules/platform/subdomains/integration/domain/.gitkeep
+````
+
 ````
 
 ## File: modules/platform/subdomains/integration/domain/index.ts
@@ -70306,9 +69228,19 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 // Purpose: Adapter layer placeholder for platform subdomain 'notification'.
 ````
 
+## File: modules/platform/subdomains/notification/application/.gitkeep
+````
+
+````
+
 ## File: modules/platform/subdomains/notification/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for platform subdomain 'notification'.
+````
+
+## File: modules/platform/subdomains/notification/domain/.gitkeep
+````
+
 ````
 
 ## File: modules/platform/subdomains/notification/domain/index.ts
@@ -70331,19 +69263,9 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 // Purpose: Adapter layer placeholder for platform subdomain 'observability'.
 ````
 
-## File: modules/platform/subdomains/observability/application/.gitkeep
-````
-
-````
-
 ## File: modules/platform/subdomains/observability/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for platform subdomain 'observability'.
-````
-
-## File: modules/platform/subdomains/observability/domain/.gitkeep
-````
-
 ````
 
 ## File: modules/platform/subdomains/observability/domain/index.ts
@@ -70406,9 +69328,19 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 // Purpose: Adapter layer placeholder for platform subdomain 'organization'.
 ````
 
+## File: modules/platform/subdomains/organization/application/.gitkeep
+````
+
+````
+
 ## File: modules/platform/subdomains/organization/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for platform subdomain 'organization'.
+````
+
+## File: modules/platform/subdomains/organization/domain/.gitkeep
+````
+
 ````
 
 ## File: modules/platform/subdomains/organization/domain/index.ts
@@ -70591,9 +69523,19 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 // Purpose: Adapter layer placeholder for platform subdomain 'subscription'.
 ````
 
+## File: modules/platform/subdomains/subscription/application/.gitkeep
+````
+
+````
+
 ## File: modules/platform/subdomains/subscription/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for platform subdomain 'subscription'.
+````
+
+## File: modules/platform/subdomains/subscription/domain/.gitkeep
+````
+
 ````
 
 ## File: modules/platform/subdomains/subscription/domain/index.ts
@@ -70656,9 +69598,19 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 // Purpose: Adapter layer placeholder for platform subdomain 'workflow'.
 ````
 
+## File: modules/platform/subdomains/workflow/application/.gitkeep
+````
+
+````
+
 ## File: modules/platform/subdomains/workflow/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for platform subdomain 'workflow'.
+````
+
+## File: modules/platform/subdomains/workflow/domain/.gitkeep
+````
+
 ````
 
 ## File: modules/platform/subdomains/workflow/domain/index.ts
@@ -70914,11 +69866,6 @@ export class FetchWorkspaceMembersUseCase {
     return this.workspaceQueryRepo.getWorkspaceMembers(workspaceId);
   }
 }
-````
-
-## File: modules/workspace/docs/.gitkeep
-````
-
 ````
 
 ## File: modules/workspace/domain-events.md
@@ -72101,6 +71048,253 @@ export function OrganizationWorkspacesScreen({ accountId }: OrganizationWorkspac
 }
 ````
 
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+import {
+  Card,
+  CardContent,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { WorkspaceAuditTab } from "@/modules/workspace/api";
+import { WorkspaceFilesTab } from "@/modules/source/api";
+import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
+import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
+import { useApp } from "@/app/providers/app-provider";
+
+import {
+  createSettingsDraft,
+  type WorkspaceSettingsDraft,
+} from "../../state/workspace-settings";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../../view-models/workspace-supporting-records";
+import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
+import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
+import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
+import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+  readonly initialOverviewPanel?: string;
+}
+
+export function WorkspaceDetailScreen({
+  workspaceId,
+  accountId,
+  accountsHydrated,
+  initialTab,
+  initialOverviewPanel,
+}: WorkspaceDetailScreenProps) {
+  const { state: appState, dispatch } = useApp();
+  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
+    workspaceId,
+    accountId,
+    accountsHydrated,
+  );
+  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
+
+  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
+    workspace,
+    accountId,
+    onSaved: (updated) => {
+      setWorkspace(updated);
+      setSettingsDraft(createSettingsDraft(updated));
+      setIsEditWorkspaceOpen(false);
+    },
+  });
+
+  const personnelEntries = useMemo(() => {
+    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
+  }, [workspace]);
+
+  const addressLines = useMemo(() => {
+    return workspace ? getWorkspaceAddressLines(workspace) : [];
+  }, [workspace]);
+
+  function renderTabContent(tab: WorkspaceTabValue) {
+    if (!workspace) return null;
+
+    switch (tab) {
+      case "Overview":
+        return (
+          <WorkspaceOverviewTab
+            workspace={workspace}
+            activeWorkspaceId={appState.activeWorkspaceId}
+            personnelEntries={personnelEntries}
+            addressLines={addressLines}
+            showSettingsPanel={initialOverviewPanel === "settings"}
+            onEditClick={() => {
+              setSettingsDraft(createSettingsDraft(workspace));
+              clearSaveError();
+              setIsEditWorkspaceOpen(true);
+            }}
+            onSetActiveWorkspace={() =>
+              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
+            }
+          />
+        );
+      case "Members":
+        return <WorkspaceMembersTab workspace={workspace} />;
+      case "Daily":
+        return <WorkspaceDailyTab workspace={workspace} />;
+      case "Files":
+        return <WorkspaceFilesTab workspace={workspace} />;
+      case "Schedule":
+        return (
+          <WorkspaceSchedulingTab
+            workspace={workspace}
+            accountId={accountId ?? workspace.accountId}
+            currentUserId={accountId ?? "anonymous"}
+          />
+        );
+      case "Audit":
+        return <WorkspaceAuditTab workspaceId={workspace.id} />;
+      case "Tasks":
+        return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
+      case "Feed":
+        return (
+          <WorkspaceFeedWorkspaceView
+            accountId={accountId ?? workspace.accountId}
+            workspaceId={workspace.id}
+            workspaceName={workspace.name}
+          />
+        );
+      default:
+        return null;
+    }
+  }
+
+  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
+    ? initialTab
+    : "Overview";
+
+  return (
+    <div className="space-y-6">
+      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
+        ← 返回 Workspace Hub
+      </Link>
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          正在同步帳號內容…
+        </div>
+      )}
+
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            Loading workspace detail…
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入工作區資料，請返回清單後重試。
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "loaded" && !workspace && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            找不到此工作區。
+          </CardContent>
+        </Card>
+      )}
+
+      {workspace && (
+        <div className="space-y-6">
+          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+          <nav
+            aria-label="Workspace tab navigation"
+            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
+          >
+            <div className="flex min-w-max items-center gap-0.5">
+              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
+                const tabs = getWorkspaceTabsByGroup(group);
+                const links = tabs.map((tab) => {
+                  const isActive = resolvedTab === tab;
+                  return (
+                    <Link
+                      key={tab}
+                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {getWorkspaceTabLabel(tab)}
+                    </Link>
+                  );
+                });
+                if (groupIndex > 0) {
+                  return [
+                    <div
+                      key={`sep-${group}`}
+                      aria-hidden="true"
+                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
+                    />,
+                    ...links,
+                  ];
+                }
+                return links;
+              })}
+            </div>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
+          </div>
+          {renderTabContent(resolvedTab)}
+        </div>
+      )}
+
+      <WorkspaceSettingsDialog
+        open={isEditWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsEditWorkspaceOpen(open);
+          if (!open) {
+            clearSaveError();
+            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
+          }
+        }}
+        settingsDraft={settingsDraft}
+        setSettingsDraft={setSettingsDraft}
+        isSaving={isSavingWorkspace}
+        saveError={saveError}
+        onSubmit={(event) => void handleSave(event, settingsDraft)}
+      />
+    </div>
+  );
+}
+````
+
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
 ````typescript
 "use client";
@@ -72386,7 +71580,7 @@ export function WorkspaceHubScreen({
 "use client";
 
 import type { WorkspaceEntity } from "../../../api/contracts";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
 
 interface WorkspaceDailyTabProps {
   readonly workspace: WorkspaceEntity;
@@ -73477,124 +72671,519 @@ export interface WorkspaceQueryRepository {
 }
 ````
 
-## File: modules/workspace/subdomains/audit/application/.gitkeep
+## File: modules/workspace/subdomains/audit/api/index.ts
+````typescript
+/**
+ * workspace/subdomains/audit API boundary.
+ */
+
+export type { AuditLogEntity, AuditLogSource } from "../domain/entities/AuditLog";
+
+export type {
+  AuditLog,
+  AuditAction,
+  AuditSeverity,
+  ChangeRecord,
+} from "../domain/schema";
+
+export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../domain/schema";
+
+export {
+  getOrganizationAuditLogs,
+  getWorkspaceAuditLogs,
+} from "../interfaces/queries/audit.queries";
+
+export { WorkspaceAuditTab } from "../interfaces/components/WorkspaceAuditTab";
+export { AuditStream } from "../interfaces/components/AuditStream";
 ````
 
+## File: modules/workspace/subdomains/audit/application/use-cases/list-audit-logs.use-cases.ts
+````typescript
+import type { AuditLogEntity } from "../../domain/entities/AuditLog";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+
+export class ListWorkspaceAuditLogsUseCase {
+  constructor(private readonly auditRepo: AuditRepository) {}
+
+  execute(workspaceId: string): Promise<AuditLogEntity[]> {
+    return this.auditRepo.findByWorkspaceId(workspaceId);
+  }
+}
+
+export class ListOrganizationAuditLogsUseCase {
+  constructor(private readonly auditRepo: AuditRepository) {}
+
+  execute(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]> {
+    return this.auditRepo.findByWorkspaceIds(workspaceIds, maxCount);
+  }
+}
 ````
 
-## File: modules/workspace/subdomains/audit/domain/.gitkeep
+## File: modules/workspace/subdomains/audit/domain/entities/AuditLog.ts
+````typescript
+export type AuditLogSource = "workspace" | "finance" | "notification" | "system";
+
+export interface AuditLogEntity {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly actorId: string;
+  readonly action: string;
+  readonly detail: string;
+  readonly source: AuditLogSource;
+  readonly occurredAtISO: string;
+}
 ````
 
+## File: modules/workspace/subdomains/audit/domain/repositories/AuditRepository.ts
+````typescript
+import type { AuditLogEntity } from "../entities/AuditLog";
+
+export interface AuditRepository {
+  findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]>;
+  findByWorkspaceIds(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]>;
+}
 ````
 
-## File: modules/workspace/subdomains/audit/infrastructure/.gitkeep
+## File: modules/workspace/subdomains/audit/domain/schema.ts
+````typescript
+/**
+ * Audit subdomain schema — immutable operation records.
+ */
+
+import { z } from "@lib-zod";
+import { BaseEntitySchema } from "@/modules/shared/domain/types";
+
+export const AUDIT_ACTIONS = ["create", "update", "delete", "login", "export"] as const;
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+export const AUDIT_SEVERITIES = ["low", "medium", "high", "critical"] as const;
+export type AuditSeverity = (typeof AUDIT_SEVERITIES)[number];
+
+const ChangeRecordSchema = z.object({
+  field: z.string(),
+  oldValue: z.unknown(),
+  newValue: z.unknown(),
+});
+
+export type ChangeRecord = z.infer<typeof ChangeRecordSchema>;
+
+export const AuditLogSchema = BaseEntitySchema.extend({
+  action: z.enum(AUDIT_ACTIONS),
+  resourceType: z.string(),
+  resourceId: z.string(),
+  severity: z.enum(AUDIT_SEVERITIES),
+  changes: z.array(ChangeRecordSchema).optional(),
+});
+
+export type AuditLog = z.infer<typeof AuditLogSchema>;
 ````
 
+## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
+````typescript
+import {
+  collection,
+  getDocs,
+  getFirestore,
+  limit,
+  query,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+
+const VALID_AUDIT_LOG_SOURCES = new Set<AuditLogSource>([
+  "workspace",
+  "finance",
+  "notification",
+  "system",
+]);
+
+function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity {
+  const source = VALID_AUDIT_LOG_SOURCES.has(data.source as AuditLogSource)
+    ? (data.source as AuditLogSource)
+    : "workspace";
+
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    actorId: typeof data.actorId === "string" ? data.actorId : "system",
+    action: typeof data.action === "string" ? data.action : "unknown",
+    detail: typeof data.detail === "string" ? data.detail : "",
+    source,
+    occurredAtISO:
+      typeof data.occurredAtISO === "string"
+        ? data.occurredAtISO
+        : "",
+  };
+}
+
+export class FirebaseAuditRepository implements AuditRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]> {
+    const snaps = await getDocs(
+      query(collection(this.db, "auditLogs"), where("workspaceId", "==", workspaceId)),
+    );
+
+    return snaps.docs
+      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
+      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO));
+  }
+
+  async findByWorkspaceIds(
+    workspaceIds: string[],
+    maxCount = 200,
+  ): Promise<AuditLogEntity[]> {
+    if (workspaceIds.length === 0) {
+      return [];
+    }
+
+    const chunks: string[][] = [];
+    for (let index = 0; index < workspaceIds.length; index += 10) {
+      chunks.push(workspaceIds.slice(index, index + 10));
+    }
+
+    const perChunkLimit = Math.max(1, Math.ceil(maxCount / chunks.length));
+
+    const snapshots = await Promise.all(
+      chunks.map((chunk) =>
+        getDocs(
+          query(
+            collection(this.db, "auditLogs"),
+            where("workspaceId", "in", chunk),
+            limit(perChunkLimit),
+          ),
+        ),
+      ),
+    );
+
+    return snapshots
+      .flatMap((snapshot) => snapshot.docs)
+      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
+      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO))
+      .slice(0, maxCount);
+  }
+}
 ````
 
-## File: modules/workspace/subdomains/audit/interfaces/.gitkeep
+## File: modules/workspace/subdomains/audit/interfaces/components/AuditStream.tsx
+````typescript
+"use client";
+
+import { format } from "date-fns";
+import { zhTW } from "date-fns/locale/zh-TW";
+import { ShieldAlert } from "lucide-react";
+
+import { Badge } from "@ui-shadcn/ui/badge";
+import { ScrollArea } from "@ui-shadcn/ui/scroll-area";
+
+import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
+import type { AuditSeverity } from "../../domain/schema";
+
+interface AuditStreamItem {
+  id: string;
+  actorName: string;
+  action: string;
+  resourceType: string;
+  detail: string;
+  severity: AuditSeverity;
+  workspaceId: string;
+  occurredAtISO: string;
+}
+
+const SOURCE_SEVERITY: Record<AuditLogSource, AuditSeverity> = {
+  workspace: "low",
+  finance: "high",
+  notification: "low",
+  system: "medium",
+};
+
+function toStreamItem(entity: AuditLogEntity): AuditStreamItem {
+  return {
+    id: entity.id,
+    actorName: entity.actorId,
+    action: entity.action,
+    resourceType: entity.source,
+    detail: entity.detail,
+    severity: SOURCE_SEVERITY[entity.source] ?? "low",
+    workspaceId: entity.workspaceId,
+    occurredAtISO: entity.occurredAtISO,
+  };
+}
+
+const SEVERITY_DOT: Record<AuditSeverity, string> = {
+  low: "bg-muted-foreground/40",
+  medium: "bg-blue-500",
+  high: "bg-orange-500",
+  critical: "bg-destructive",
+};
+
+const SEVERITY_LABEL: Record<AuditSeverity, string> = {
+  low: "低",
+  medium: "中",
+  high: "高",
+  critical: "嚴重",
+};
+
+interface AuditRowProps {
+  item: AuditStreamItem;
+}
+
+function AuditRow({ item }: AuditRowProps) {
+  const timeLabel = (() => {
+    try {
+      return format(new Date(item.occurredAtISO), "yyyy-MM-dd HH:mm:ss", { locale: zhTW });
+    } catch {
+      return item.occurredAtISO;
+    }
+  })();
+
+  return (
+    <div className="mb-6 ml-6 relative group">
+      <span
+        className={`absolute -left-[1.85rem] flex h-3.5 w-3.5 items-center justify-center rounded-full ring-2 ring-background ${SEVERITY_DOT[item.severity]}`}
+      />
+
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1">
+        <div className="space-y-0.5 min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5 text-sm">
+            <span className="font-semibold truncate max-w-[120px]">{item.actorName}</span>
+            <span className="text-muted-foreground">執行了</span>
+            <Badge variant="outline" className="text-xs uppercase px-1.5 py-0">
+              {item.action}
+            </Badge>
+            <span className="text-muted-foreground">於</span>
+            <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">
+              {item.resourceType}
+            </code>
+            {item.severity === "critical" && (
+              <ShieldAlert className="h-3.5 w-3.5 text-destructive shrink-0" />
+            )}
+          </div>
+
+          {item.detail && (
+            <p className="text-xs text-muted-foreground">{item.detail}</p>
+          )}
+
+          <div className="flex items-center gap-2 mt-1">
+            <Badge variant="secondary" className="text-xs px-1.5 py-0">
+              {SEVERITY_LABEL[item.severity]}
+            </Badge>
+            <span className="text-xs text-muted-foreground">@{item.workspaceId}</span>
+          </div>
+        </div>
+
+        <time className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
+          {timeLabel}
+        </time>
+      </div>
+    </div>
+  );
+}
+
+interface AuditStreamProps {
+  logs: readonly AuditLogEntity[];
+  height?: number;
+}
+
+export function AuditStream({ logs, height = 500 }: AuditStreamProps) {
+  if (logs.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground py-8 text-center">
+        目前尚無稽核紀錄。
+      </p>
+    );
+  }
+
+  const items = logs.map(toStreamItem);
+
+  return (
+    <ScrollArea className="w-full rounded-md border" style={{ height }}>
+      <div className="p-4">
+        <div className="relative border-l border-border/60 ml-1.5">
+          {items.map((item) => (
+            <AuditRow key={item.id} item={item} />
+          ))}
+        </div>
+      </div>
+    </ScrollArea>
+  );
+}
 ````
 
+## File: modules/workspace/subdomains/audit/interfaces/components/WorkspaceAuditTab.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import type { AuditLogEntity } from "../../domain/entities/AuditLog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { getWorkspaceAuditLogs } from "../queries/audit.queries";
+
+function formatAuditDate(value: string) {
+  if (!value) {
+    return "—";
+  }
+
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+interface WorkspaceAuditTabProps {
+  readonly workspaceId: string;
+}
+
+export function WorkspaceAuditTab({ workspaceId }: WorkspaceAuditTabProps) {
+  const [logs, setLogs] = useState<AuditLogEntity[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadLogs() {
+      setLoadState("loading");
+
+      try {
+        const nextLogs = await getWorkspaceAuditLogs(workspaceId);
+        if (cancelled) {
+          return;
+        }
+
+        setLogs(nextLogs);
+        setLoadState("loaded");
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[WorkspaceAuditTab] Failed to load audit logs:", error);
+        }
+
+        if (!cancelled) {
+          setLogs([]);
+          setLoadState("error");
+        }
+      }
+    }
+
+    void loadLogs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId]);
+
+  return (
+    <Card className="border border-border/50">
+      <CardHeader>
+        <CardTitle>Audit</CardTitle>
+        <CardDescription>
+          工作區相關行為紀錄、來源與時間軸。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {loadState === "loading" && (
+          <p className="text-sm text-muted-foreground">Loading audit log…</p>
+        )}
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">
+            無法載入 audit log，請重新整理頁面或稍後再試。
+          </p>
+        )}
+
+        {loadState === "loaded" && logs.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            目前尚未記錄這個工作區的 audit entries。
+          </p>
+        )}
+
+        {loadState === "loaded" && logs.length > 0 && (
+          <div className="space-y-3">
+            {logs.map((log) => (
+              <div
+                key={log.id}
+                className="rounded-xl border border-border/40 px-4 py-4"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">{log.action}</p>
+                      <Badge variant="outline">{log.source}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{log.detail || "—"}</p>
+                    <p className="text-xs text-muted-foreground">Actor: {log.actorId}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {formatAuditDate(log.occurredAtISO)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 ````
 
-## File: modules/workspace/subdomains/audit/ports/.gitkeep
-````
+## File: modules/workspace/subdomains/audit/interfaces/queries/audit.queries.ts
+````typescript
+import type { AuditLogEntity } from "../../domain/entities/AuditLog";
+import {
+  ListOrganizationAuditLogsUseCase,
+  ListWorkspaceAuditLogsUseCase,
+} from "../../application/use-cases/list-audit-logs.use-cases";
+import { FirebaseAuditRepository } from "../../infrastructure/firebase/FirebaseAuditRepository";
 
-````
+const auditRepo = new FirebaseAuditRepository();
+const listWorkspaceAuditLogsUseCase = new ListWorkspaceAuditLogsUseCase(auditRepo);
+const listOrganizationAuditLogsUseCase = new ListOrganizationAuditLogsUseCase(auditRepo);
 
-## File: modules/workspace/subdomains/audit/README.md
-````markdown
+export async function getWorkspaceAuditLogs(
+  workspaceId: string,
+): Promise<AuditLogEntity[]> {
+  const normalizedWorkspaceId = workspaceId.trim();
+  if (!normalizedWorkspaceId) {
+    return [];
+  }
 
-````
+  return listWorkspaceAuditLogsUseCase.execute(normalizedWorkspaceId);
+}
 
-## File: modules/workspace/subdomains/feed/application/.gitkeep
-````
+export async function getOrganizationAuditLogs(
+  workspaceIds: string[],
+  maxCount = 200,
+): Promise<AuditLogEntity[]> {
+  const normalizedWorkspaceIds = workspaceIds
+    .map((workspaceId) => workspaceId.trim())
+    .filter(Boolean);
 
-````
+  if (normalizedWorkspaceIds.length === 0) {
+    return [];
+  }
 
-## File: modules/workspace/subdomains/feed/domain/.gitkeep
-````
-
-````
-
-## File: modules/workspace/subdomains/feed/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/workspace/subdomains/feed/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/workspace/subdomains/feed/ports/.gitkeep
-````
-
-````
-
-## File: modules/workspace/subdomains/feed/README.md
-````markdown
-
-````
-
-## File: modules/workspace/subdomains/scheduling/application/.gitkeep
-````
-
-````
-
-## File: modules/workspace/subdomains/scheduling/domain/.gitkeep
-````
-
-````
-
-## File: modules/workspace/subdomains/scheduling/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/workspace/subdomains/scheduling/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/workspace/subdomains/scheduling/ports/.gitkeep
-````
-
-````
-
-## File: modules/workspace/subdomains/scheduling/README.md
-````markdown
-
-````
-
-## File: modules/workspace/subdomains/workflow/application/.gitkeep
-````
-
-````
-
-## File: modules/workspace/subdomains/workflow/domain/.gitkeep
-````
-
-````
-
-## File: modules/workspace/subdomains/workflow/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/workspace/subdomains/workflow/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/workspace/subdomains/workflow/ports/.gitkeep
-````
-
-````
-
-## File: modules/workspace/subdomains/workflow/README.md
-````markdown
-
+  return listOrganizationAuditLogsUseCase.execute(normalizedWorkspaceIds, maxCount);
+}
 ````
 
 ## File: modules/workspace/ubiquitous-language.md
@@ -76950,18 +76539,6 @@ export const PLATFORM_ADAPTER_WEB_FUNCTIONS = [
 export type PlatformAdapterWebFunction = (typeof PLATFORM_ADAPTER_WEB_FUNCTIONS)[number];
 ````
 
-## File: modules/platform/api/contracts.ts
-````typescript
-/**
- * platform API contracts boundary.
- *
- * Keep the source of truth in application/domain and re-export here for API consumers.
- */
-
-export * from "../application/dtos";
-export * from "../domain/events";
-````
-
 ## File: modules/platform/api/facade.ts
 ````typescript
 /**
@@ -77090,151 +76667,6 @@ export const PLATFORM_APPLICATION_COMMANDS = [
 ] as const;
 
 export type PlatformApplicationCommand = (typeof PLATFORM_APPLICATION_COMMANDS)[number];
-````
-
-## File: modules/platform/application/dtos/index.ts
-````typescript
-/**
- * platform application contracts and DTOs.
- */
-
-export type PlatformCommandName =
-	| "registerPlatformContext"
-	| "publishPolicyCatalog"
-	| "applyConfigurationProfile"
-	| "registerIntegrationContract"
-	| "activateSubscriptionAgreement"
-	| "fireWorkflowTrigger"
-	| "requestNotificationDispatch"
-	| "recordAuditSignal"
-	| "emitObservabilitySignal";
-
-export type PlatformQueryName =
-	| "getPlatformContextView"
-	| "listEnabledCapabilities"
-	| "getPolicyCatalogView"
-	| "getSubscriptionEntitlements"
-	| "getWorkflowPolicyView";
-
-export interface PlatformCommand<TName extends PlatformCommandName = PlatformCommandName, TPayload = unknown> {
-	name: TName;
-	payload: TPayload;
-}
-
-export interface PlatformQuery<TName extends PlatformQueryName = PlatformQueryName, TPayload = unknown> {
-	name: TName;
-	payload: TPayload;
-}
-
-export interface PlatformCommandResult {
-	ok: boolean;
-	code?: string;
-	message?: string;
-	metadata?: Record<string, unknown>;
-}
-
-export interface PlatformContextView {
-	contextId: string;
-	lifecycleState: string;
-	capabilityKeys: string[];
-}
-
-export interface PolicyCatalogView {
-	contextId: string;
-	revision: number;
-	permissionRuleCount: number;
-	workflowRuleCount: number;
-	notificationRuleCount: number;
-	auditRuleCount: number;
-}
-
-export interface SubscriptionEntitlementsView {
-	contextId: string;
-	planCode: string;
-	entitlements: string[];
-	usageLimits: string[];
-}
-
-export interface WorkflowPolicyView {
-	contextId: string;
-	triggerKey: string;
-	enabled: boolean;
-}
-
-export interface RegisterPlatformContextInput {
-	contextId: string;
-	subjectScope: string;
-}
-
-export interface PublishPolicyCatalogInput {
-	contextId: string;
-	revision: number;
-}
-
-export interface ApplyConfigurationProfileInput {
-	contextId: string;
-	profileRef: string;
-}
-
-export interface RegisterIntegrationContractInput {
-	contextId: string;
-	integrationContractId: string;
-	endpointRef: string;
-	protocol: "http" | "webhook" | "queue" | "topic" | "file";
-}
-
-export interface ActivateSubscriptionAgreementInput {
-	contextId: string;
-	subscriptionAgreementId: string;
-	planCode: string;
-}
-
-export interface FireWorkflowTriggerInput {
-	contextId: string;
-	triggerKey: string;
-	triggeredBy: string;
-}
-
-export interface RequestNotificationDispatchInput {
-	contextId: string;
-	channel: string;
-	recipientRef: string;
-	templateKey: string;
-}
-
-export interface RecordAuditSignalInput {
-	contextId: string;
-	signalType: string;
-	severity: string;
-}
-
-export interface EmitObservabilitySignalInput {
-	contextId: string;
-	signalName: string;
-	signalLevel: string;
-	sourceRef: string;
-}
-
-export interface GetPlatformContextViewInput {
-	contextId: string;
-}
-
-export interface ListEnabledCapabilitiesInput {
-	contextId: string;
-}
-
-export interface GetPolicyCatalogViewInput {
-	contextId: string;
-}
-
-export interface GetSubscriptionEntitlementsInput {
-	contextId: string;
-}
-
-export interface GetWorkflowPolicyViewInput {
-	contextId: string;
-	triggerKey: string;
-}
 ````
 
 ## File: modules/platform/application/handlers/index.ts
@@ -77724,156 +77156,6 @@ export * from "./input";
 export * from "./output";
 ````
 
-## File: modules/platform/ports/input/index.ts
-````typescript
-/**
- * platform input ports.
- */
-
-import type { PlatformCommand, PlatformCommandResult, PlatformQuery } from "../../application/dtos";
-import type { PlatformDomainEvent } from "../../domain/events";
-
-export interface PlatformCommandPort {
-	executeCommand<TCommand extends PlatformCommand>(command: TCommand): Promise<PlatformCommandResult>;
-}
-
-export interface PlatformQueryPort {
-	executeQuery<TResult, TQuery extends PlatformQuery>(query: TQuery): Promise<TResult>;
-}
-
-export interface PlatformEventIngressPort {
-	ingestEvent(event: PlatformDomainEvent): Promise<void>;
-}
-````
-
-## File: modules/platform/ports/output/index.ts
-````typescript
-/**
- * platform output ports.
- */
-
-import type {
-	PlatformCommandResult,
-	PlatformContextView,
-	PolicyCatalogView,
-	SubscriptionEntitlementsView,
-	WorkflowPolicyView,
-} from "../../application/dtos";
-import type { PlatformDomainEvent } from "../../domain/events";
-
-export interface PlatformContextRepository {
-	findById(contextId: string): Promise<unknown | null>;
-	save(context: unknown): Promise<void>;
-}
-
-export interface PolicyCatalogRepository {
-	findActiveByContextId(contextId: string): Promise<unknown | null>;
-	saveRevision(catalog: unknown): Promise<void>;
-}
-
-export interface IntegrationContractRepository {
-	findById(integrationContractId: string): Promise<unknown | null>;
-	save(contract: unknown): Promise<void>;
-}
-
-export interface SubscriptionAgreementRepository {
-	findEffectiveByContextId(contextId: string): Promise<unknown | null>;
-	save(agreement: unknown): Promise<void>;
-}
-
-export interface AccountRepository {
-	findById(accountId: string): Promise<unknown | null>;
-}
-
-export interface OnboardingRepository {
-	findById(onboardingId: string): Promise<unknown | null>;
-}
-
-export interface CompliancePolicyStore {
-	getPolicy(policyRef: string): Promise<unknown | null>;
-}
-
-export interface ReferralRepository {
-	findById(referralId: string): Promise<unknown | null>;
-}
-
-export interface ContentRepository {
-	findById(contentId: string): Promise<unknown | null>;
-}
-
-export interface SupportRepository {
-	findById(ticketId: string): Promise<unknown | null>;
-}
-
-export interface PlatformContextViewRepository {
-	getView(contextId: string): Promise<PlatformContextView | null>;
-}
-
-export interface PolicyCatalogViewRepository {
-	getView(contextId: string): Promise<PolicyCatalogView | null>;
-}
-
-export interface UsageMeterRepository {
-	getEntitlementsView(contextId: string): Promise<SubscriptionEntitlementsView | null>;
-}
-
-export interface DeliveryHistoryRepository {
-	listByContext(contextId: string): Promise<readonly unknown[]>;
-}
-
-export interface WorkflowPolicyRepository {
-	getView(contextId: string, triggerKey: string): Promise<WorkflowPolicyView | null>;
-}
-
-export interface ConfigurationProfileStore {
-	getProfile(profileRef: string): Promise<unknown | null>;
-}
-
-export interface SubjectDirectory {
-	getSubject(subjectId: string): Promise<unknown | null>;
-}
-
-export interface SecretReferenceResolver {
-	resolve(secretRef: string): Promise<string>;
-}
-
-export interface DomainEventPublisher {
-	publish(events: readonly PlatformDomainEvent[]): Promise<void>;
-}
-
-export interface WorkflowDispatcherPort {
-	dispatch(triggerKey: string, payload: Record<string, unknown>): Promise<PlatformCommandResult>;
-}
-
-export interface NotificationGateway {
-	dispatch(request: Record<string, unknown>): Promise<PlatformCommandResult>;
-}
-
-export interface AuditSignalStore {
-	write(signal: Record<string, unknown>): Promise<void>;
-}
-
-export interface ObservabilitySink {
-	emit(signal: Record<string, unknown>): Promise<void>;
-}
-
-export interface AnalyticsSink {
-	record(event: Record<string, unknown>): Promise<void>;
-}
-
-export interface ExternalSystemGateway {
-	call(request: Record<string, unknown>): Promise<PlatformCommandResult>;
-}
-
-export interface JobQueuePort {
-	enqueue(job: Record<string, unknown>): Promise<PlatformCommandResult>;
-}
-
-export interface SearchIndexPort {
-	index(document: Record<string, unknown>): Promise<void>;
-}
-````
-
 ## File: modules/platform/shared/constants/index.ts
 ````typescript
 /**
@@ -77985,14 +77267,9 @@ export const PLATFORM_SHARED_VALUE_OBJECT_FACTORIES = [
 export type PlatformSharedValueObjectFactory = (typeof PLATFORM_SHARED_VALUE_OBJECT_FACTORIES)[number];
 ````
 
-## File: modules/platform/subdomains/account/application/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/account/domain/.gitkeep
-````
-
+## File: modules/platform/subdomains/account/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'account'. -->
 ````
 
 ## File: modules/platform/subdomains/billing/README.md
@@ -78035,54 +77312,14 @@ export const PLATFORM_SUBDOMAIN_INVENTORY = [
 export type PlatformSubdomain = (typeof PLATFORM_SUBDOMAIN_INVENTORY)[number];
 ````
 
-## File: modules/platform/subdomains/integration/application/.gitkeep
+## File: modules/platform/subdomains/notification/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'notification'. -->
 ````
 
-````
-
-## File: modules/platform/subdomains/integration/domain/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/notification/application/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/notification/domain/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/organization/application/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/organization/domain/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/subscription/application/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/subscription/domain/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/workflow/application/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/workflow/domain/.gitkeep
-````
-
+## File: modules/platform/subdomains/organization/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'organization'. -->
 ````
 
 ## File: modules/source/interfaces/components/WorkspaceFilesTab.tsx
@@ -78625,129 +77862,6 @@ export function WorkspaceSchedulingTab({
 }
 ````
 
-## File: modules/workspace/api/facade.ts
-````typescript
-/**
- * workspace api/facade.ts
- *
- * Canonical public behavior surface for the workspace bounded context.
- * Cross-module and app-layer consumers invoke commands and queries from here.
- *
- * Internal source: interfaces/api/facades/
- */
-
-export {
-  getWorkspacesForAccount,
-  subscribeToWorkspacesForAccount,
-  getWorkspaceById,
-  getWorkspaceByIdForAccount,
-  buildWikiContentTree,
-  authorizeWorkspaceTeam,
-  createWorkspace,
-  createWorkspaceLocation,
-  createWorkspaceWithCapabilities,
-  deleteWorkspace,
-  grantIndividualWorkspaceAccess,
-  mountCapabilities,
-  updateWorkspaceSettings,
-} from "../interfaces/api/facades/workspace.facade";
-
-export {
-  getWorkspaceMembers,
-} from "../interfaces/api/facades/workspace-member.facade";
-````
-
-## File: modules/workspace/api/ui.ts
-````typescript
-/**
- * workspace api/ui.ts
- *
- * Canonical public web UI surface for the workspace bounded context.
- * App-layer consumers that need workspace UI components, hooks, and
- * navigation utilities should import from here.
- *
- * Internal source: interfaces/web/
- */
-
-// ── Screen components ────────────────────────────────────────────────────────
-
-export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
-export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
-export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
-export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
-
-// ── Card components ──────────────────────────────────────────────────────────
-
-export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
-
-// ── Tab components ───────────────────────────────────────────────────────────
-
-export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
-
-// ── Layout components ────────────────────────────────────────────────────────
-
-export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
-
-// ── Rail components ──────────────────────────────────────────────────────────
-
-export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
-
-// ── Navigation ────────────────────────────────────────────────────────────────
-
-export type {
-  WorkspaceTabDevStatus,
-  WorkspaceTabGroup,
-  WorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
-
-export {
-  WORKSPACE_TAB_GROUPS,
-  WORKSPACE_TAB_META,
-  WORKSPACE_TAB_VALUES,
-  getWorkspaceTabLabel,
-  getWorkspaceTabMeta,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
-
-export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
-export {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "../interfaces/web/navigation/workspace-nav-items";
-
-// ── Quick-access navigation ───────────────────────────────────────────────────
-
-export type {
-  WorkspaceQuickAccessItem,
-  WorkspaceQuickAccessMatcherOptions,
-} from "../interfaces/web/components/navigation/workspace-quick-access";
-
-export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
-
-// ── State helpers ─────────────────────────────────────────────────────────────
-
-export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
-
-// ── Map utilities ─────────────────────────────────────────────────────────────
-
-export {
-  resolveWorkspaceFromMap,
-  toWorkspaceMap,
-} from "../interfaces/web/utils/workspace-map";
-
-// ── Hooks ─────────────────────────────────────────────────────────────────────
-
-export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
-export {
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  getWorkspaceIdFromPath,
-  useRecentWorkspaces,
-} from "../interfaces/web/hooks/useRecentWorkspaces";
-````
-
 ## File: modules/workspace/application-services.md
 ````markdown
 # Application Services — workspace
@@ -78958,6 +78072,26 @@ Keep this subdomain pragmatic:
 - low-friction integration contracts
 ````
 
+## File: modules/workspace/subdomains/audit/README.md
+````markdown
+## workspace audit subdomain
+
+This subdomain owns workspace-centered audit read/query capabilities and UI audit views.
+
+### Hexagonal shape
+
+- `api/`: public subdomain boundary
+- `application/`: use cases
+- `domain/`: entities, schema, repository contracts
+- `infrastructure/`: Firebase repository adapter
+- `interfaces/`: query functions and UI components
+- `ports/`: reserved for future explicit input/output port contracts
+
+### Integration rule
+
+- Parent workspace public API (`@/modules/workspace/api`) is the preferred cross-module entry.
+````
+
 ## File: .github/instructions/architecture-mddd.instructions.md
 ````markdown
 ---
@@ -79037,6 +78171,141 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill modules-mddd-api-surface
 #use skill hexagonal-ddd
+````
+
+## File: modules/platform/api/contracts.ts
+````typescript
+/**
+ * platform API contracts boundary.
+ *
+ * Keep the source of truth in application/domain and re-export here for API consumers.
+ */
+
+export * from "../application/dtos";
+export type {
+	PlatformContextView,
+	PolicyCatalogView,
+	SubscriptionEntitlementsView,
+	WorkflowPolicyView,
+} from "../ports/output";
+export * from "../domain/events";
+````
+
+## File: modules/platform/application/dtos/index.ts
+````typescript
+/**
+ * platform application contracts and DTOs.
+ */
+
+export type PlatformCommandName =
+	| "registerPlatformContext"
+	| "publishPolicyCatalog"
+	| "applyConfigurationProfile"
+	| "registerIntegrationContract"
+	| "activateSubscriptionAgreement"
+	| "fireWorkflowTrigger"
+	| "requestNotificationDispatch"
+	| "recordAuditSignal"
+	| "emitObservabilitySignal";
+
+export type PlatformQueryName =
+	| "getPlatformContextView"
+	| "listEnabledCapabilities"
+	| "getPolicyCatalogView"
+	| "getSubscriptionEntitlements"
+	| "getWorkflowPolicyView";
+
+export interface PlatformCommand<TName extends PlatformCommandName = PlatformCommandName, TPayload = unknown> {
+	name: TName;
+	payload: TPayload;
+}
+
+export interface PlatformQuery<TName extends PlatformQueryName = PlatformQueryName, TPayload = unknown> {
+	name: TName;
+	payload: TPayload;
+}
+
+export interface PlatformCommandResult {
+	ok: boolean;
+	code?: string;
+	message?: string;
+	metadata?: Record<string, unknown>;
+}
+
+export interface RegisterPlatformContextInput {
+	contextId: string;
+	subjectScope: string;
+}
+
+export interface PublishPolicyCatalogInput {
+	contextId: string;
+	revision: number;
+}
+
+export interface ApplyConfigurationProfileInput {
+	contextId: string;
+	profileRef: string;
+}
+
+export interface RegisterIntegrationContractInput {
+	contextId: string;
+	integrationContractId: string;
+	endpointRef: string;
+	protocol: "http" | "webhook" | "queue" | "topic" | "file";
+}
+
+export interface ActivateSubscriptionAgreementInput {
+	contextId: string;
+	subscriptionAgreementId: string;
+	planCode: string;
+}
+
+export interface FireWorkflowTriggerInput {
+	contextId: string;
+	triggerKey: string;
+	triggeredBy: string;
+}
+
+export interface RequestNotificationDispatchInput {
+	contextId: string;
+	channel: string;
+	recipientRef: string;
+	templateKey: string;
+}
+
+export interface RecordAuditSignalInput {
+	contextId: string;
+	signalType: string;
+	severity: string;
+}
+
+export interface EmitObservabilitySignalInput {
+	contextId: string;
+	signalName: string;
+	signalLevel: string;
+	sourceRef: string;
+}
+
+export interface GetPlatformContextViewInput {
+	contextId: string;
+}
+
+export interface ListEnabledCapabilitiesInput {
+	contextId: string;
+}
+
+export interface GetPolicyCatalogViewInput {
+	contextId: string;
+}
+
+export interface GetSubscriptionEntitlementsInput {
+	contextId: string;
+}
+
+export interface GetWorkflowPolicyViewInput {
+	contextId: string;
+	triggerKey: string;
+}
 ````
 
 ## File: modules/platform/docs/application-services.md
@@ -79201,24 +78470,240 @@ export const PLATFORM_DOMAIN_EVENT_TYPES = [
 export type PlatformDomainEventType = (typeof PLATFORM_DOMAIN_EVENT_TYPES)[number];
 ````
 
+## File: modules/platform/ports/input/index.ts
+````typescript
+/**
+ * platform input ports.
+ */
+
+import type { PlatformDomainEvent } from "../../domain/events";
+
+export type PlatformCommandName =
+	| "registerPlatformContext"
+	| "publishPolicyCatalog"
+	| "applyConfigurationProfile"
+	| "registerIntegrationContract"
+	| "activateSubscriptionAgreement"
+	| "fireWorkflowTrigger"
+	| "requestNotificationDispatch"
+	| "recordAuditSignal"
+	| "emitObservabilitySignal";
+
+export type PlatformQueryName =
+	| "getPlatformContextView"
+	| "listEnabledCapabilities"
+	| "getPolicyCatalogView"
+	| "getSubscriptionEntitlements"
+	| "getWorkflowPolicyView";
+
+export interface PlatformCommand<TName extends PlatformCommandName = PlatformCommandName, TPayload = unknown> {
+	name: TName;
+	payload: TPayload;
+}
+
+export interface PlatformQuery<TName extends PlatformQueryName = PlatformQueryName, TPayload = unknown> {
+	name: TName;
+	payload: TPayload;
+}
+
+export interface PlatformCommandResult {
+	ok: boolean;
+	code?: string;
+	message?: string;
+	metadata?: Record<string, unknown>;
+}
+
+export interface PlatformCommandPort {
+	executeCommand<TCommand extends PlatformCommand>(command: TCommand): Promise<PlatformCommandResult>;
+}
+
+export interface PlatformQueryPort {
+	executeQuery<TResult, TQuery extends PlatformQuery>(query: TQuery): Promise<TResult>;
+}
+
+export interface PlatformEventIngressPort {
+	ingestEvent(event: PlatformDomainEvent): Promise<void>;
+}
+````
+
+## File: modules/platform/ports/output/index.ts
+````typescript
+/**
+ * platform output ports.
+ */
+
+import type { PlatformCommandResult } from "../input";
+import type { PlatformDomainEvent } from "../../domain/events";
+
+export interface PlatformContextRepository {
+	findById(contextId: string): Promise<unknown | null>;
+	save(context: unknown): Promise<void>;
+}
+
+export interface PolicyCatalogRepository {
+	findActiveByContextId(contextId: string): Promise<unknown | null>;
+	saveRevision(catalog: unknown): Promise<void>;
+}
+
+export interface IntegrationContractRepository {
+	findById(integrationContractId: string): Promise<unknown | null>;
+	save(contract: unknown): Promise<void>;
+}
+
+export interface SubscriptionAgreementRepository {
+	findEffectiveByContextId(contextId: string): Promise<unknown | null>;
+	save(agreement: unknown): Promise<void>;
+}
+
+export interface AccountRepository {
+	findById(accountId: string): Promise<unknown | null>;
+}
+
+export interface OnboardingRepository {
+	findById(onboardingId: string): Promise<unknown | null>;
+}
+
+export interface CompliancePolicyStore {
+	getPolicy(policyRef: string): Promise<unknown | null>;
+}
+
+export interface ReferralRepository {
+	findById(referralId: string): Promise<unknown | null>;
+}
+
+export interface ContentRepository {
+	findById(contentId: string): Promise<unknown | null>;
+}
+
+export interface SupportRepository {
+	findById(ticketId: string): Promise<unknown | null>;
+}
+
+export interface PlatformContextView {
+	contextId: string;
+	lifecycleState: string;
+	capabilityKeys: string[];
+}
+
+export interface PolicyCatalogView {
+	contextId: string;
+	revision: number;
+	permissionRuleCount: number;
+	workflowRuleCount: number;
+	notificationRuleCount: number;
+	auditRuleCount: number;
+}
+
+export interface SubscriptionEntitlementsView {
+	contextId: string;
+	planCode: string;
+	entitlements: string[];
+	usageLimits: string[];
+}
+
+export interface WorkflowPolicyView {
+	contextId: string;
+	triggerKey: string;
+	enabled: boolean;
+}
+
+export interface PlatformContextViewRepository {
+	getView(contextId: string): Promise<PlatformContextView | null>;
+}
+
+export interface PolicyCatalogViewRepository {
+	getView(contextId: string): Promise<PolicyCatalogView | null>;
+}
+
+export interface UsageMeterRepository {
+	getEntitlementsView(contextId: string): Promise<SubscriptionEntitlementsView | null>;
+}
+
+export interface DeliveryHistoryRepository {
+	listByContext(contextId: string): Promise<readonly unknown[]>;
+}
+
+export interface WorkflowPolicyRepository {
+	getView(contextId: string, triggerKey: string): Promise<WorkflowPolicyView | null>;
+}
+
+export interface ConfigurationProfileStore {
+	getProfile(profileRef: string): Promise<unknown | null>;
+}
+
+export interface SubjectDirectory {
+	getSubject(subjectId: string): Promise<unknown | null>;
+}
+
+export interface SecretReferenceResolver {
+	resolve(secretRef: string): Promise<string>;
+}
+
+export interface DomainEventPublisher {
+	publish(events: readonly PlatformDomainEvent[]): Promise<void>;
+}
+
+export interface WorkflowDispatcherPort {
+	dispatch(triggerKey: string, payload: Record<string, unknown>): Promise<PlatformCommandResult>;
+}
+
+export interface NotificationGateway {
+	dispatch(request: Record<string, unknown>): Promise<PlatformCommandResult>;
+}
+
+export interface AuditSignalStore {
+	write(signal: Record<string, unknown>): Promise<void>;
+}
+
+export interface ObservabilitySink {
+	emit(signal: Record<string, unknown>): Promise<void>;
+}
+
+export interface AnalyticsSink {
+	record(event: Record<string, unknown>): Promise<void>;
+}
+
+export interface ExternalSystemGateway {
+	call(request: Record<string, unknown>): Promise<PlatformCommandResult>;
+}
+
+export interface JobQueuePort {
+	enqueue(job: Record<string, unknown>): Promise<PlatformCommandResult>;
+}
+
+export interface SearchIndexPort {
+	index(document: Record<string, unknown>): Promise<void>;
+}
+````
+
 ## File: modules/platform/subdomains/account-profile/README.md
 ````markdown
 <!-- Purpose: Subdomain scaffold overview for platform 'account-profile'. -->
 ````
 
-## File: modules/platform/subdomains/account/README.md
+## File: modules/platform/subdomains/identity/README.md
 ````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'account'. -->
+<!-- Purpose: Subdomain scaffold overview for platform 'identity'. -->
 ````
 
-## File: modules/platform/subdomains/notification/README.md
+## File: modules/platform/subdomains/integration/README.md
 ````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'notification'. -->
+<!-- Purpose: Subdomain scaffold overview for platform 'integration'. -->
 ````
 
-## File: modules/platform/subdomains/organization/README.md
+## File: modules/platform/subdomains/observability/README.md
 ````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'organization'. -->
+<!-- Purpose: Subdomain scaffold overview for platform 'observability'. -->
+````
+
+## File: modules/platform/subdomains/subscription/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'subscription'. -->
+````
+
+## File: modules/platform/subdomains/workflow/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'workflow'. -->
 ````
 
 ## File: modules/workspace/AGENT.md
@@ -79308,81 +78793,69 @@ Based on `/sairyss/domain-driven-hexagon`:
 - [domain-events.md](./domain-events.md)
 ````
 
-## File: modules/workspace/api/contracts.ts
+## File: modules/workspace/api/facade.ts
 ````typescript
 /**
- * workspace api/contracts.ts
+ * workspace api/facade.ts
  *
- * Canonical public type surface for the workspace bounded context.
- * Cross-module and app-layer consumers should import types from here.
+ * Canonical public behavior surface for the workspace bounded context.
+ * Cross-module and app-layer consumers invoke commands and queries from here.
  *
- * Internal source: interfaces/api/contracts/
+ * Internal source: interfaces/api/facades/
  */
 
-export type {
-  Address,
-  AddressInput,
-  Capability,
-  CapabilitySpec,
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceEntity,
-  WorkspaceGrant,
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-  WorkspaceLocation,
-  WorkspaceName,
-  WorkspaceNameInput,
-  WorkspacePersonnel,
-  WorkspacePersonnelCustomRole,
-  WorkspaceVisibility,
-  WorkspaceVisibilityInput,
-} from "../domain/aggregates/Workspace";
-
-export type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberAccessSource,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../domain/entities/WorkspaceMemberView";
-
-export type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiAccountType,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-  WikiWorkspaceRef,
-} from "../domain/entities/WikiContentTree";
+export {
+  getWorkspacesForAccount,
+  subscribeToWorkspacesForAccount,
+  getWorkspaceById,
+  getWorkspaceByIdForAccount,
+  buildWikiContentTree,
+  authorizeWorkspaceTeam,
+  createWorkspace,
+  createWorkspaceLocation,
+  createWorkspaceWithCapabilities,
+  deleteWorkspace,
+  grantIndividualWorkspaceAccess,
+  mountCapabilities,
+  updateWorkspaceSettings,
+} from "../interfaces/api/facades/workspace.facade";
 
 export {
-  WORKSPACE_LIFECYCLE_STATES,
-  WORKSPACE_VISIBILITIES,
-  createAddress,
-  createWorkspaceLifecycleState,
-  createWorkspaceName,
-  createWorkspaceVisibility,
-  formatAddress,
-  isTerminalWorkspaceLifecycleState,
-  isWorkspaceVisible,
-  workspaceNameEquals,
-} from "../domain/value-objects";
-
-export type {
-  WorkspaceCreatedEvent,
-  WorkspaceDomainEvent,
-  WorkspaceLifecycleTransitionedEvent,
-  WorkspaceVisibilityChangedEvent,
-} from "../domain/events/workspace.events";
+  getWorkspaceMembers,
+} from "../interfaces/api/facades/workspace-member.facade";
 
 export {
-  WORKSPACE_CREATED_EVENT_TYPE,
-  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
-  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
-  createWorkspaceCreatedEvent,
-  createWorkspaceLifecycleTransitionedEvent,
-  createWorkspaceVisibilityChangedEvent,
-} from "../domain/events/workspace.events";
+  getOrganizationAuditLogs,
+  getWorkspaceAuditLogs,
+} from "../subdomains/audit/api";
+
+export {
+  workspaceFeedFacade,
+  WorkspaceFeedFacade,
+} from "../subdomains/feed/api";
+
+export type {
+  CreateWorkspaceFeedPostParams,
+  ReplyWorkspaceFeedPostParams,
+  RepostWorkspaceFeedPostParams,
+  WorkspaceFeedInteractionParams,
+} from "../subdomains/feed/api";
+
+export {
+  getAccountWorkspaceFeed,
+  getWorkspaceFeed,
+  getWorkspaceFeedPost,
+} from "../subdomains/feed/interfaces/queries/workspace-feed.queries";
+
+export {
+  bookmarkWorkspaceFeedPost,
+  createWorkspaceFeedPost,
+  likeWorkspaceFeedPost,
+  replyWorkspaceFeedPost,
+  repostWorkspaceFeedPost,
+  shareWorkspaceFeedPost,
+  viewWorkspaceFeedPost,
+} from "../subdomains/feed/interfaces/_actions/workspace-feed.actions";
 ````
 
 ## File: modules/workspace/api/index.ts
@@ -79407,6 +78880,107 @@ export {
 export * from "./contracts";
 export * from "./facade";
 export * from "./ui";
+````
+
+## File: modules/workspace/api/ui.ts
+````typescript
+/**
+ * workspace api/ui.ts
+ *
+ * Canonical public web UI surface for the workspace bounded context.
+ * App-layer consumers that need workspace UI components, hooks, and
+ * navigation utilities should import from here.
+ *
+ * Internal source: interfaces/web/
+ */
+
+// ── Screen components ────────────────────────────────────────────────────────
+
+export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
+export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
+
+// ── Card components ──────────────────────────────────────────────────────────
+
+export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
+
+// ── Tab components ───────────────────────────────────────────────────────────
+
+export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
+
+// ── Layout components ────────────────────────────────────────────────────────
+
+export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
+
+// ── Rail components ──────────────────────────────────────────────────────────
+
+export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+export type {
+  WorkspaceTabDevStatus,
+  WorkspaceTabGroup,
+  WorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export {
+  WORKSPACE_TAB_GROUPS,
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_VALUES,
+  getWorkspaceTabLabel,
+  getWorkspaceTabMeta,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
+export {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "../interfaces/web/navigation/workspace-nav-items";
+
+// ── Quick-access navigation ───────────────────────────────────────────────────
+
+export type {
+  WorkspaceQuickAccessItem,
+  WorkspaceQuickAccessMatcherOptions,
+} from "../interfaces/web/components/navigation/workspace-quick-access";
+
+export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
+
+// ── State helpers ─────────────────────────────────────────────────────────────
+
+export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
+
+// ── Map utilities ─────────────────────────────────────────────────────────────
+
+export {
+  resolveWorkspaceFromMap,
+  toWorkspaceMap,
+} from "../interfaces/web/utils/workspace-map";
+
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+
+export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
+export {
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  getWorkspaceIdFromPath,
+  useRecentWorkspaces,
+} from "../interfaces/web/hooks/useRecentWorkspaces";
+
+export {
+  AuditStream,
+  WorkspaceAuditTab,
+} from "../subdomains/audit/api";
+
+export {
+  WorkspaceFeedAccountView,
+  WorkspaceFeedWorkspaceView,
+} from "../subdomains/feed/api";
 ````
 
 ## File: modules/workspace/bounded-context.md
@@ -80343,29 +79917,99 @@ platform 事件推薦使用：
 <!-- Purpose: Subdomain scaffold overview for platform 'access-control'. -->
 ````
 
-## File: modules/platform/subdomains/identity/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'identity'. -->
-````
+## File: modules/workspace/api/contracts.ts
+````typescript
+/**
+ * workspace api/contracts.ts
+ *
+ * Canonical public type surface for the workspace bounded context.
+ * Cross-module and app-layer consumers should import types from here.
+ *
+ * Internal source: interfaces/api/contracts/
+ */
 
-## File: modules/platform/subdomains/integration/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'integration'. -->
-````
+export type {
+  Address,
+  AddressInput,
+  Capability,
+  CapabilitySpec,
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceEntity,
+  WorkspaceGrant,
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+  WorkspaceLocation,
+  WorkspaceName,
+  WorkspaceNameInput,
+  WorkspacePersonnel,
+  WorkspacePersonnelCustomRole,
+  WorkspaceVisibility,
+  WorkspaceVisibilityInput,
+} from "../domain/aggregates/Workspace";
 
-## File: modules/platform/subdomains/observability/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'observability'. -->
-````
+export type {
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberAccessSource,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../domain/entities/WorkspaceMemberView";
 
-## File: modules/platform/subdomains/subscription/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'subscription'. -->
-````
+export type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiAccountType,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+  WikiWorkspaceRef,
+} from "../domain/entities/WikiContentTree";
 
-## File: modules/platform/subdomains/workflow/README.md
-````markdown
-<!-- Purpose: Subdomain scaffold overview for platform 'workflow'. -->
+export {
+  WORKSPACE_LIFECYCLE_STATES,
+  WORKSPACE_VISIBILITIES,
+  createAddress,
+  createWorkspaceLifecycleState,
+  createWorkspaceName,
+  createWorkspaceVisibility,
+  formatAddress,
+  isTerminalWorkspaceLifecycleState,
+  isWorkspaceVisible,
+  workspaceNameEquals,
+} from "../domain/value-objects";
+
+export type {
+  WorkspaceCreatedEvent,
+  WorkspaceDomainEvent,
+  WorkspaceLifecycleTransitionedEvent,
+  WorkspaceVisibilityChangedEvent,
+} from "../domain/events/workspace.events";
+
+export {
+  WORKSPACE_CREATED_EVENT_TYPE,
+  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
+  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
+  createWorkspaceCreatedEvent,
+  createWorkspaceLifecycleTransitionedEvent,
+  createWorkspaceVisibilityChangedEvent,
+} from "../domain/events/workspace.events";
+
+export type {
+  AuditAction,
+  AuditLog,
+  AuditLogEntity,
+  AuditLogSource,
+  AuditSeverity,
+  ChangeRecord,
+} from "../subdomains/audit/api";
+
+export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../subdomains/audit/api";
+
+export type {
+  WorkspaceFeedPost,
+  WorkspaceFeedPostType,
+} from "../subdomains/feed/api";
+
+export { WORKSPACE_FEED_POST_TYPES } from "../subdomains/feed/api";
 ````
 
 ## File: modules/platform/docs/context-map.md
