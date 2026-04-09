@@ -4,7 +4,7 @@ import type { DomainEvent } from "@/modules/shared/api";
 import type {
   WorkspaceLifecycleState,
   WorkspaceVisibility,
-} from "../entities/Workspace";
+} from "../aggregates/Workspace";
 
 export const WORKSPACE_CREATED_EVENT_TYPE = "workspace.created" as const;
 export const WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE = "workspace.lifecycle_transitioned" as const;

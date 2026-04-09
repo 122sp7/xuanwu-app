@@ -8,13 +8,14 @@
  */
 
 import Link from "next/link";
-import { Bot, BookOpen, Brain, FileText, FolderKanban, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
+import { Bot, BookOpen, Brain, FileText, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { v7 as uuid } from "@lib-uuid";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
+import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/api";
 import { sendChatMessage, saveThread, loadThread } from "./_actions";
 import { cn } from "@shared-utils";
 import { Button } from "@ui-shadcn/ui/button";
@@ -40,10 +41,7 @@ export default function AiChatPage() {
   const [threadCreatedAt, setThreadCreatedAt] = useState<string>(new Date().toISOString());
   const bottomRef = useRef<HTMLDivElement>(null);
   const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const currentWorkspace =
-    requestedWorkspaceId && workspaces && Object.hasOwn(workspaces, requestedWorkspaceId)
-      ? workspaces[requestedWorkspaceId] ?? null
-      : null;
+  const currentWorkspace = resolveWorkspaceFromMap(workspaces ?? {}, requestedWorkspaceId);
   const workspaceName = currentWorkspace?.name ?? null;
   const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
   const latestUserPrompt = [...messages].reverse().find((message) => message.role === "user")?.content ?? null;
@@ -166,38 +164,7 @@ export default function AiChatPage() {
             </CardHeader>
           </Card>
 
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <FolderKanban className="size-4 text-primary" />
-                Workspace context
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              {currentWorkspace ? (
-                <>
-                  <div>
-                    <p className="font-medium text-foreground">{currentWorkspace.name}</p>
-                    <p className="mt-1 text-xs">
-                      Notebook 會優先消費這個工作區的 Knowledge、知識頁面與 RAG Query 結果。
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/workspace/${currentWorkspace.id}`}>Workspace</Link>
-                    </Button>
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(currentWorkspace.id)}`}>知識頁面</Link>
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <p className="text-xs">
-                  尚未帶入工作區。建議從 Workspace Hub 或工作區頁面進入，讓 Notebook 綁定知識上下文。
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          <WorkspaceContextCard workspace={currentWorkspace} />
 
           <Card className="border-border/60">
             <CardHeader className="pb-3">

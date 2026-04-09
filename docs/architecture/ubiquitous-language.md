@@ -39,13 +39,13 @@
 
 | 術語 | 英文 | 定義 | 所在模組 | 代碼位置 |
 |------|------|------|---------|---------|
-| **工作區** | Workspace | 組織下的業務容器，掛載多種能力（feed/flow/scheduling/wiki） | `workspace` | `modules/workspace/domain/entities/Workspace.ts` |
+| **工作區** | Workspace | 組織下的業務容器，掛載多種能力（feed/flow/scheduling/wiki） | `workspace` | `modules/workspace/domain/aggregates/Workspace.ts` |
 | **Space** | Space | Workspace 的同義詞，在 UI / 產品語境中常見 | `workspace` | — |
 | **工作區生命週期** | WorkspaceLifecycleState | `"preparatory" \| "active" \| "stopped"` | `workspace` | `Workspace.ts` |
 | **工作區能見度** | WorkspaceVisibility | `"visible" \| "hidden"` | `workspace` | `Workspace.ts` |
 | **工作區授權** | WorkspaceGrant | 授予特定 userId 或 teamId 的工作區存取角色 | `workspace` | `Workspace.ts → WorkspaceGrant` |
 | **能力** | Capability | 掛載於工作區的功能模組規格（type: ui/api/data/governance/monitoring） | `workspace` | `Workspace.ts → Capability` |
-| **工作區成員** | WorkspaceMember | 加入工作區的帳戶，具有工作區層級角色 | `workspace` | `modules/workspace/domain/entities/WorkspaceMember.ts` |
+| **工作區成員檢視** | WorkspaceMemberView | 由 workspace 與 organization 組裝出的查詢投影，用於成員列表與授權呈現 | `workspace` | `modules/workspace/application/dtos/workspace-member-view.dto.ts` |
 
 ### 通知
 

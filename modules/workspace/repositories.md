@@ -6,7 +6,7 @@
 
 本文件定義 workspace 的 repository ports 與對應 infrastructure adapters。workspace 目前同時存在 write-side 與 read-side repository，目的是把 aggregate 持久化與 projection 查詢分開。
 
-在 workspace 中，Repository（倉儲）可以是介面或類別：`domain/repositories/` 裡的 port 是介面；`infrastructure/` 裡負責資料存取的 adapter 是類別。
+在 workspace 中，Repository（倉儲）可以是介面或類別：`ports/output/` 裡的 port 是介面；`infrastructure/` 裡負責資料存取的 adapter 是類別。
 
 從六邊形架構看，repository ports 是 domain/application 內核朝外宣告的 driven ports；Firebase 類別是被動端 adapter，不應反向把外部技術語言帶回 domain model。
 
@@ -14,9 +14,21 @@
 
 ## Ports and Adapters Distinction
 
-- Port：`domain/repositories/` 中的介面，定義內核需要什麼能力
+- Output Port：`ports/output/` 中的介面，定義內核需要什麼能力
 - Adapter：`infrastructure/` 中的類別，實作這些能力並接上 Firestore / 其他外部系統
-- Driver 不直接呼叫 adapter；通常由 `interfaces/` / `application/` 協作後再使用對應 port
+- Driver 不直接呼叫 adapter；通常由 `interfaces/` / `application/` 經由 port 協作後再使用對應能力
+
+## Output Port Surface
+
+目前 `ports/output/` 包含以下抽象：
+
+- `WorkspaceRepository`
+- `WorkspaceCapabilityRepository`
+- `WorkspaceAccessRepository`
+- `WorkspaceLocationRepository`
+- `WorkspaceQueryRepository`
+- `WikiWorkspaceRepository`
+- `WorkspaceDomainEventPublisher`
 
 ## Write-side Repository Ports
 
@@ -80,13 +92,27 @@
 | `FirebaseWorkspaceRepository` | `WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository` 的 Firestore 實作 |
 | `FirebaseWorkspaceQueryRepository` | `WorkspaceQueryRepository` 的 Firebase / organization read-side 組裝實作 |
 | `FirebaseWikiWorkspaceRepository` | `WikiWorkspaceRepository` 的 Firestore 參照查詢實作 |
+| `SharedWorkspaceDomainEventPublisher` | `WorkspaceDomainEventPublisher` 的事件整合實作 |
 
 ## 設計規則
 
-- repository 介面定義在 `domain/repositories/`
+- repository / publisher 介面定義在 `ports/output/`
 - infrastructure adapters 實作在 `infrastructure/`
-- `application/` 只依賴 repository ports，不依賴 adapter 類別
-- 跨模組 consumer 不直接 import repository implementation；一律透過 `api/` 或對應 interface adapter 使用
+- `application/` 只依賴 output ports，不依賴 adapter 類別
+- 跨模組或 app composition consumer 不直接 import repository implementation；一律透過 `interfaces/api/` 或對應 interface adapter 使用
+
+## Output Port 與 Infrastructure 的依賴圖
+
+```txt
+application/use-cases
+	│ calls
+	▼
+ports/output
+	│ implemented by
+	▼
+infrastructure/firebase
+infrastructure/events
+```
 
 ## Tactical Debt Notes
 

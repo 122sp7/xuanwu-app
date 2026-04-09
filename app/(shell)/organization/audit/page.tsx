@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { AuditStream, getOrganizationAuditLogs } from "@/modules/workspace-audit/api";
-import { getWorkspacesForAccount } from "@/modules/workspace/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import {
   Card,
@@ -19,36 +18,35 @@ const MAX_DISPLAYED_AUDIT_LOGS = 50;
 
 export default function OrganizationAuditPage() {
   const { state: appState } = useApp();
-  const { activeAccount } = appState;
+  const { activeAccount, workspaces, workspacesHydrated } = appState;
   const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
 
-  const [workspaces, setWorkspaces] = useState<
-    Awaited<ReturnType<typeof getWorkspacesForAccount>>
-  >([]);
   const [auditLogs, setAuditLogs] = useState<
     Awaited<ReturnType<typeof getOrganizationAuditLogs>>
   >([]);
   const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
 
+  // workspaceNameById is derived from the app-provider subscription — no extra fetch needed.
+  const workspaceNameById = useMemo(
+    () => new Map(Object.values(workspaces).map((w) => [w.id, w.name])),
+    [workspaces],
+  );
+
   useEffect(() => {
-    if (!activeOrganizationId) return;
+    if (!activeOrganizationId || !workspacesHydrated) return;
     let cancelled = false;
-    const organizationId = activeOrganizationId;
+    const workspaceIds = Object.keys(workspaces);
 
     async function load() {
       setLoadState("loading");
       try {
-        const nextWorkspaces = await getWorkspacesForAccount(organizationId);
-        const workspaceIds = nextWorkspaces.map((w) => w.id);
         const logs = await getOrganizationAuditLogs(workspaceIds, MAX_DISPLAYED_AUDIT_LOGS);
         if (!cancelled) {
-          setWorkspaces(nextWorkspaces);
           setAuditLogs(logs);
           setLoadState("loaded");
         }
       } catch {
         if (!cancelled) {
-          setWorkspaces([]);
           setAuditLogs([]);
           setLoadState("error");
         }
@@ -59,12 +57,7 @@ export default function OrganizationAuditPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeOrganizationId]);
-
-  const workspaceNameById = useMemo(
-    () => new Map(workspaces.map((w) => [w.id, w.name])),
-    [workspaces],
-  );
+  }, [activeOrganizationId, workspacesHydrated, workspaces]);
 
   if (!activeOrganizationId) {
     return (

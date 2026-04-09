@@ -38,13 +38,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1141 files | 76,303 lines
+1177 files | 78,025 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 516 | 29,897 |
-| Markdown | 302 | 14,245 |
-| TypeScript (TSX) | 183 | 25,448 |
+| TypeScript | 534 | 30,379 |
+| Markdown | 318 | 15,519 |
+| TypeScript (TSX) | 185 | 25,414 |
 | Python | 61 | 3,823 |
 | No Extension | 51 | 135 |
 | MERMAID | 10 | 583 |
@@ -63,5 +63,5 @@ This skill contains the following reference files:
 - `firestore.indexes.json` (437 lines)
 - `modules/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts` (389 lines)
 - `eslint.config.mjs` (379 lines)
-- `app/(shell)/ai-chat/page.tsx` (370 lines)
 - `docs/guides/how-to/ui-ux/component-patterns.md` (362 lines)
+- `app/(shell)/_components/app-rail.tsx` (360 lines)

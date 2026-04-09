@@ -2,9 +2,9 @@ import type {
   WorkspaceMemberAccessChannel,
   WorkspaceMemberPresence,
   WorkspaceMemberView,
-} from "../../domain/entities/WorkspaceMember";
-import type { WorkspaceQueryRepository } from "../../domain/repositories/WorkspaceQueryRepository";
-import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+} from "../../application/dtos/workspace-member-view.dto";
+import type { WorkspaceQueryRepository } from "../../ports/output/WorkspaceQueryRepository";
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
 import {
   organizationApi,
   type OrganizationMemberDTO,

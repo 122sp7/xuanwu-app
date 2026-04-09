@@ -6,18 +6,24 @@
  */
 
 // Driven ports (domain/application core -> outside)
-export type { WorkspaceRepository } from "../domain/repositories/WorkspaceRepository";
-export type { WorkspaceCapabilityRepository } from "../domain/repositories/WorkspaceCapabilityRepository";
-export type { WorkspaceAccessRepository } from "../domain/repositories/WorkspaceAccessRepository";
-export type { WorkspaceLocationRepository } from "../domain/repositories/WorkspaceLocationRepository";
+export type { WorkspaceCommandPort } from "./input/WorkspaceCommandPort";
+export type {
+  WorkspaceQueryPort,
+  WorkspaceQuerySubscription,
+} from "./input/WorkspaceQueryPort";
+
+export type { WorkspaceRepository } from "./output/WorkspaceRepository";
+export type { WorkspaceCapabilityRepository } from "./output/WorkspaceCapabilityRepository";
+export type { WorkspaceAccessRepository } from "./output/WorkspaceAccessRepository";
+export type { WorkspaceLocationRepository } from "./output/WorkspaceLocationRepository";
 export type {
   WorkspaceQueryRepository,
   Unsubscribe as WorkspaceQueryUnsubscribe,
-} from "../domain/repositories/WorkspaceQueryRepository";
-export type { WikiWorkspaceRepository } from "../domain/repositories/WikiWorkspaceRepository";
+} from "./output/WorkspaceQueryRepository";
+export type { WikiWorkspaceRepository } from "./output/WikiWorkspaceRepository";
 
 // Domain event publishing port
 export type {
   WorkspaceDomainEventPublisher,
   WorkspaceEventPublishMetadata,
-} from "../domain/ports/WorkspaceDomainEventPublisher";
+} from "./output/WorkspaceDomainEventPublisher";

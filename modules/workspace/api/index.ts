@@ -1,6 +1,8 @@
 /**
- * workspace 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 workspace 模組內部實作。
+ * workspace public API boundary.
+ *
+ * Cross-module and app-layer consumers must import from here instead of
+ * reaching into interfaces/api directly.
  */
 
 export * from "./contracts";

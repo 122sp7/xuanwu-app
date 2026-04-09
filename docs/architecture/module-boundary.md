@@ -147,10 +147,9 @@ Next.js App Router 的 `"use server"` 與 `"use client"` 邊界與模組 API 邊
 
 | 類別 | 位置 | Server 端可用 | Client 端可用 |
 |------|------|:---:|:---:|
-| Server Actions | `interfaces/_actions/` | ✅ | ✅（透過 `"use server"` 包裹） |
-| Query 函式（async） | `interfaces/queries/` | ✅ | ✅ |
-| Query Hooks（`use*`） | `interfaces/hooks/` | ❌ | ✅ |
-| React Components | `interfaces/components/` | ❌ | ✅ |
+| Server Actions / Query 入口 | `interfaces/api/` | ✅ | ✅（透過 facade 或 `"use server"` 包裹） |
+| Query Hooks（`use*`） | `interfaces/web/hooks/` | ❌ | ✅ |
+| React Components | `interfaces/web/components/` | ❌ | ✅ |
 | Domain 型別 | `api/contracts.ts` | ✅ | ✅ |
 
 ---

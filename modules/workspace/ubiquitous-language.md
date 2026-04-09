@@ -56,6 +56,20 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 | 工作區生命週期已轉移事件 | `WorkspaceLifecycleTransitionedEvent` | 工作區生命週期改變後發布的 domain event |
 | 工作區可見性已變更事件 | `WorkspaceVisibilityChangedEvent` | 工作區可見性變更後發布的 domain event |
 
+## Hexagonal / MDDD Terms Used In These Docs
+
+| 術語 | 英文 | 在本組文件中的意思 |
+|------|------|--------------------|
+| 輸入端口 | `Input Port` | `ports/input/` 中的 driving contract，供 `interfaces/` 呼叫 |
+| 輸出端口 | `Output Port` | `ports/output/` 中的 driven contract，供 application layer 呼叫外部能力 |
+| 網頁介面適配器 | `Web Driving Adapter` | `interfaces/web/`，shadcn UI Components + Hooks |
+| API 適配器 | `API Driving Adapter` | `interfaces/api/`，Next.js Route Handler / 同步公開入口 |
+| CLI 適配器 | `CLI Driving Adapter` | `interfaces/cli/`，CLI / Cron Job 入口 |
+| 應用服務 | `Application Service` | `application/services/`，負責流程協調，不負責純規則 |
+| 領域服務 | `Domain Service` | `domain/services/`，負責純業務邏輯，不負責流程編排 |
+| 聚合目錄 | `domain/aggregates/` | Aggregate Root 的正式位置 |
+| DTO 目錄 | `application/dtos/` | application layer 的 input / output data shape |
+
 ## 行為語言（Behavioral Language）
 
 | 行為 | 英文 | 在 workspace 中的語意 |
@@ -110,6 +124,9 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 - `WorkspaceLifecycleState` 是 canonical 名稱，不使用 `WorkspaceStatus`
 - `WorkspaceMemberView` 是 projection 名稱，不縮寫成 `WorkspaceMember`
 - 若描述 query tree，使用 `WikiAccountContentNode` / `WikiWorkspaceContentNode` / `WikiContentItemNode`
+- 若描述純規則，使用 `Domain Service`，不要把流程編排也叫成 domain service
+- 若描述流程編排，使用 `Application Service`，不要誤稱為 aggregate 或 domain service
+- 若描述 `ports/output/`，強調它是抽象介面，不等於 Firebase implementation
 
 ## 禁止替換術語
 
@@ -120,6 +137,9 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 | `WorkspaceVisibility` | `VisibilityMode`, `DiscoveryState` |
 | `WorkspaceMemberView` | `WorkspaceMember`, `Member`, `Participant` |
 | `WikiAccountContentNode` / `WikiWorkspaceContentNode` | `WikiContentTree`, `PageTree`, `Hierarchy`（當你描述 aggregate 或 entity 時） |
+| `Application Service` | `Domain Service`（當你描述流程協調時） |
+| `Output Port` | `Firebase Layer`（當你描述抽象介面時） |
+| `Input Port` | `Controller Layer`（當你描述 port contract 時） |
 
 ## 語意說明
 
@@ -141,5 +161,6 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 | 外部系統 / Driver（驅動器） | 從 bounded context 外部發起互動的角色 / 系統，例如 UI、Server Actions、其他 context 呼叫者 |
 | Projection / Read Model | 查詢導向的讀取模型，例如 `WorkspaceMemberView`、`Wiki*Node` |
 | Domain Service（領域服務） | 類別 / 函式，承載不自然屬於 aggregate / value object 的純領域規則 |
+| Application Service（應用服務） | 類別 / 函式，協調多 use case 或跨 aggregate 的流程 |
 | Factory（工廠） | 類別 / 函式，負責建立 aggregate、value object、domain event 等有效模型 |
 | Domain Event（領域事件） | 事件類別、訊息物件，作為對外發布的 domain language |

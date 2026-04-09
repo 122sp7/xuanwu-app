@@ -5,9 +5,9 @@
  */
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceAccessRepository } from "../../domain/repositories/WorkspaceAccessRepository";
-import type { WorkspaceLocationRepository } from "../../domain/repositories/WorkspaceLocationRepository";
-import type { WorkspaceGrant, WorkspaceLocation } from "../../domain/entities/Workspace";
+import type { WorkspaceAccessRepository } from "../../ports/output/WorkspaceAccessRepository";
+import type { WorkspaceLocationRepository } from "../../ports/output/WorkspaceLocationRepository";
+import type { WorkspaceGrant, WorkspaceLocation } from "../../domain/aggregates/Workspace";
 
 // ─── Grant Team Access ────────────────────────────────────────────────────────
 

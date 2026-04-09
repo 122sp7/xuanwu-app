@@ -2,7 +2,7 @@ import {
   Workspace,
   type CreateWorkspaceCommand,
   type WorkspaceEntity,
-} from "../entities/Workspace";
+} from "../aggregates/Workspace";
 
 export function createWorkspaceAggregate(command: CreateWorkspaceCommand): Workspace {
   return Workspace.create(command);

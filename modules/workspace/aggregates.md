@@ -8,11 +8,25 @@
 
 Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain model 外圍。這份文件只在需要區分 read model / projection 時提及外層結構。
 
+## Domain Model Folder Contract
+
+| 目錄 | 角色 | 放什麼 |
+|---|---|---|
+| `domain/aggregates/` | Aggregate Root 主體 | write-side consistency boundary、aggregate commands、aggregate methods |
+| `domain/entities/` | supporting entities / 既有 domain objects | 具 identity 的 supporting objects、過渡期既有模型 |
+| `domain/value-objects/` | value equality 語意 | `WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address` |
+| `domain/services/` | 純業務規則 | 不自然屬於單一 aggregate 的規則 |
+| `domain/events/` | published domain language | 對外發布的事件語言 |
+
+文件與後續代碼應以這個結構為收斂方向。
+
 ## Write-side Aggregate Root
 
 ### `Workspace`
 
 `Workspace` 是此 bounded context 的 aggregate root。它代表一個協作範圍，並保護工作區生命週期、可見性與工作區範圍識別語言的一致性。
+
+在目標結構下，`Workspace` 應位於 `domain/aggregates/`。若某些既有程式仍暫放在 `domain/entities/`，應視為收斂中的過渡狀態，而不是新的建模準則。
 
 ### 核心屬性
 
@@ -43,6 +57,8 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 | `Capability` | 目前以 `id` 識別的工作區能力記錄；若治理規則成長，可再評估外拆 |
 | `WorkspacePersonnelCustomRole` | 以 `roleId` 識別的人員自訂角色記錄 |
 
+這些 supporting entities 應放在 `domain/entities/`，而不是回頭冒充 aggregate root。
+
 ### Value Objects
 
 | 類型 | 說明 |
@@ -55,6 +71,8 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 | `WorkspacePersonnel` | 管理/監督/安全等角色參照集合 |
 | `CapabilitySpec` | 能力定義的值型描述 |
 
+這些型別應留在 `domain/value-objects/`，不應放進 `application/dtos/` 或 `interfaces/` 充當資料傳輸形狀。
+
 ## Read-side Projections / Read Models（不是 Aggregate）
 
 | 類型 | 說明 |
@@ -65,7 +83,12 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 | `WikiWorkspaceContentNode` | 工作區導覽節點 |
 | `WikiContentItemNode` | 導覽項 read projection |
 
-`WorkspaceMemberView` 與 `Wiki*Node` 型別目前放在 `domain/entities/` 下，但語意上是 query-side projection，不是 write-side aggregate、entity 或 value object。
+`WorkspaceMemberView` 與 `Wiki*Node` 型別應放在 `application/dtos/` 下，作為 query-side projection，而不是 write-side aggregate、entity 或 value object。
+
+文件上必須清楚區分：
+
+- write-side truth：`domain/aggregates/`、`domain/entities/`、`domain/value-objects/`
+- read-side projection：供查詢與呈現使用的 `WorkspaceMemberView`、`Wiki*Node`
 
 這些 projection / read model 是為特定讀取需求與驅動器提供的查詢形狀：
 
@@ -85,6 +108,13 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 - Factory（工廠）在本 context 中是類別 / 函式，用來建立 aggregate、value object 或對 reconstitution 做集中驗證
 - `Workspace` 與 P1 value objects 應優先透過 factory / parser 建立，而不是由 interface adapter 任意拼接 raw object
 - Factory 不是 Repository，也不是 Domain Service；它的責任是安全建立模型，不是持久化或協調流程
+
+## 與 Application / Ports 的分工
+
+- Aggregate 保護 invariant，不協調長流程
+- Domain Service 補足不自然屬於單一 aggregate 的純規則
+- Application Service 協調多個 use case 或跨 aggregate 流程
+- Output Ports 負責外部能力抽象，不屬於 domain model 本體
 
 ## What This File Does Not Own
 
