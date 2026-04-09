@@ -1,6 +1,12 @@
 # Subdomains — platform
 
-本文件是 platform 的正式子域 inventory。這份清單是 closed by default 的：後續開發必須先把能力映射到既有子域，而不是再新增新的子域名稱。
+本文件是 platform 的正式子域 inventory。這份清單是 **closed by default** 的：後續開發必須先把能力映射到既有子域，而不是再新增新的子域名稱。
+
+## Subdomain Rule in Hexagonal DDD
+
+- 每個子域描述的是平台核心能力，不是資料夾便利分類
+- `Port 焦點` 欄位代表該子域主要透過哪些 input/output contracts 參與六邊形邊界
+- 子域之間共享語言時，應先落地到 `ubiquitous-language.md`、`context-map.md` 與相關 ports 文件
 
 ## Canonical Inventory
 
@@ -30,9 +36,7 @@
 | `analytics` | 使用行為如何被量測與分析 | `AnalyticsEvent`, `BehaviorMetric` | `PlatformCommandPort`, `AnalyticsSink` |
 | `support` | 客服工單與支援知識如何被管理 | `SupportTicket`, `KnowledgeArticle` | `PlatformCommandPort`, `SupportRepository` |
 
-
 ## Capability Groups
-
 
 ### 主體與名錄
 
@@ -84,7 +88,3 @@
 3. `README.md`、`bounded-context.md`、`context-map.md`、本文件都已先被更新
 
 若無法同時滿足這三件事，預設不允許新增子域。
-
-## Retired Alias Folders
-
-歷史上曾有一些舊別名資料夾，現已收斂至這 23 個正式子域。若未來需要查舊文件或舊分支，應以當前 23 子域為準。

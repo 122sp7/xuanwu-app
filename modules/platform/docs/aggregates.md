@@ -1,12 +1,24 @@
 # Aggregates — platform
 
-本文件定義 platform blueprint 中的核心聚合、值物件與不變數。這些聚合的目的，是把平台層的核心決策留在 domain，而把 persistence、delivery 與 transport 留給 adapters。
+本文件定義 platform blueprint 中的核心聚合、值物件與不變數。它們屬於 `domain/` 核心，目的是把平台層的關鍵決策留在 domain，而把 persistence、delivery 與 transport 留給 output ports 與 adapters。
+
+## Aggregate Lifecycle in Hexagonal Architecture
+
+在 platform blueprint 中，聚合遵循以下生命週期：
+
+1. driving adapter 把外部請求翻譯成 command 或 query
+2. application service 透過 repository port 載入聚合
+3. 聚合執行命令方法並守住不變數
+4. application service 透過 repository port 保存新狀態
+5. application service 在持久化成功後拉取並發布 domain events
+
+聚合本身不直接呼叫 repository、gateway、queue、event bus 或任何 SDK。
 
 ## 聚合根：PlatformContext
 
-### 職責
+### Hexagonal role
 
-`PlatformContext` 代表單一平台範圍中的能力啟用狀態、主體邊界與治理基準。它回答的是：「這個平台範圍目前允許哪些能力，並以什麼政策與配置運作？」
+`PlatformContext` 是 platform 範圍能力啟用與治理基準的 aggregate root。它回答的是：「這個平台範圍目前允許哪些能力，並以什麼政策與配置運作？」
 
 ### 關鍵屬性
 
@@ -30,9 +42,9 @@
 
 ## 聚合根：PolicyCatalog
 
-### 職責
+### Hexagonal role
 
-`PolicyCatalog` 擁有平台範圍內用來評估權限、通知、工作流與稽核規則的版本化政策集合。
+`PolicyCatalog` 擁有平台範圍內用來評估權限、通知、工作流與稽核規則的版本化政策集合。它是 domain 對治理語意的單一來源，而不是 adapter 設定容器。
 
 ### 關鍵屬性
 
@@ -56,9 +68,9 @@
 
 ## 聚合根：IntegrationContract
 
-### 職責
+### Hexagonal role
 
-`IntegrationContract` 管理平台與外部系統互動時所需的 endpoint、通訊協議、認證參照與 delivery policy。
+`IntegrationContract` 管理平台與外部系統互動時所需的 endpoint、通訊協議、認證參照與 delivery policy。它定義 business-facing integration 語言，但不直接執行外部呼叫。
 
 ### 關鍵屬性
 
@@ -83,7 +95,7 @@
 
 ## 聚合根：SubscriptionAgreement
 
-### 職責
+### Hexagonal role
 
 `SubscriptionAgreement` 代表一個平台範圍目前採用的方案、權益與限制。它是 capability enablement 與 usage governance 的商業邊界。
 
@@ -143,5 +155,6 @@
 - `PolicyCatalog` 負責規則版本化，不直接執行通知或外呼
 - `IntegrationContract` 負責外部交付契約，不直接決定權限或訂閱方案
 - `SubscriptionAgreement` 負責 entitlement 與限制，不直接承載通知或 workflow 規則
+- repository ports 負責聚合的載入與保存；聚合本身不持有 persistence 策略
 
-跨聚合規則若無法收斂到單一聚合，應交由 domain services 處理。
+跨聚合規則若無法收斂到單一聚合，應交由 `domain-services.md` 中的 domain services 處理。

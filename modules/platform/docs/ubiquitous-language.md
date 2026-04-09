@@ -56,9 +56,7 @@
 | 知識文章 | KnowledgeArticle | 支援流程中引用的知識內容語言 |
 | 資源描述子 | ResourceDescriptor | 權限或 workflow 決策所面向的資源描述 |
 | 關聯上下文 | CorrelationContext | 用來串接 workflow、integration、notification、audit 的追蹤語言 |
-| 輸入介面 | InputPort | 進入 application layer 的穩定契約 |
-| 輸出介面 | OutputPort | 離開 domain / application 的依賴契約 |
-| 適配器 | Adapter | 對 ports 的具體實作 |
+| 公開邊界 | PublicBoundary | 對其他模組暴露的穩定 boundary，於 platform 中即 `api/` |
 | 發佈語言 | PublishedLanguage | 跨邊界共享的事件與契約語言 |
 | 藍圖 | Blueprint | 對目標結構與語言的設計說明，而非既有實作聲明 |
 
@@ -69,6 +67,10 @@
 | 平台命令介面 | PlatformCommandPort | 接收命令型請求的 input port |
 | 平台查詢介面 | PlatformQueryPort | 接收查詢型請求的 input port |
 | 平台事件匯入介面 | PlatformEventIngressPort | 吸收外部或相鄰子域訊號的 input port |
+| 使用案例處理器 | UseCaseHandler | 實作 input port、協調 domain 與 output ports 的 application service |
+| 倉儲介面 | RepositoryPort | 載入與保存聚合狀態的 output port |
+| 查詢介面 | QueryPort | 提供 read model / projection 的 output port |
+| 支援介面 | SupportPort | 提供查表、設定或目錄資料的 output port |
 | 事件發佈器 | DomainEventPublisher | 發佈 domain events 的 output port |
 | 配置輪廓儲存介面 | ConfigurationProfileStore | 提供 configuration profile 的 support port |
 | 主體目錄 | SubjectDirectory | 提供帳戶輪廓、偏好與角色資料的 support port |
@@ -87,6 +89,8 @@
 | 分析匯流介面 | AnalyticsSink | 發送分析事件與行為指標的 output port |
 | 支援倉儲 | SupportRepository | 提供支援工單與知識關聯的 repository port |
 | 密鑰參照解析器 | SecretReferenceResolver | 解析憑證參照的 support port |
+| 驅動適配器 | DrivingAdapter | 把 HTTP、CLI、scheduler、webhook 等輸入翻譯成 input port 語言的 adapter |
+| 受驅動適配器 | DrivenAdapter | 實作 repository、gateway、sink 等 output ports 的 adapter |
 
 ## 事件語言
 
@@ -120,6 +124,7 @@ platform 事件推薦使用：
 | `ObservabilitySignal` | Error Message, Console Output |
 | `InputPort` | Controller Method |
 | `OutputPort` | SDK Call |
+| `PublicBoundary` | Barrel File |
 
 ## 語言使用規則
 
@@ -127,13 +132,4 @@ platform 事件推薦使用：
 - 若一個詞描述的是跨邊界共享契約，應優先保持簡短、穩定且可序列化
 - 若一個詞只在單一 adapter 有意義，不應升格成 platform 通用語言
 - 若新詞與既有詞重疊，先擴充定義，再考慮新增術語
-
-## 術語治理
-
-任何新的 aggregate、port、event 或子域命名，都應先檢查是否已能被本文件的術語覆蓋。若不能覆蓋，再更新本文件，而不是先在實作或其他文件中發明第二套說法。
-
-## 與 docs/README 的分工
-
-- 本文件只維護命名與詞彙定義
-- 子域職責請見 `subdomains.md`
-- 邊界規則請見 `bounded-context.md`
+- 若一個詞其實是 boundary 角色，應明確區分 `PublicBoundary`、`InputPort`、`OutputPort` 與 `Adapter`
