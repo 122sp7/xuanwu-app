@@ -4557,66 +4557,6 @@ interface KnowledgePagePromotedEvent {
 - `../../../modules/knowledge/aggregates.md`
 ````
 
-## File: modules/knowledge/subdomains/knowledge-ai/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-authoring/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-automation/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-base/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-collaboration/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-core/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-database/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-integration/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-query/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-search/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-source/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-versioning/README.md
-````markdown
-
-````
-
 ## File: modules/knowledge/ubiquitous-language.md
 ````markdown
 # Ubiquitous Language — knowledge
@@ -6838,332 +6778,6 @@ flowchart TD
 ```
 
 ---
-````
-
-## File: modules/workspace-scheduling/AGENT.md
-````markdown
-# AGENT.md — workspace-scheduling BC
-
-## 模組定位
-
-`workspace-scheduling` 是工作需求排程支援域，管理 WorkDemand 生命週期與日曆視圖。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `WorkDemand` | Demand、Request、Ticket、Requirement |
-| `DemandStatus` | Status（單獨使用）、State |
-| `DemandPriority` | Priority（單獨使用）、Urgency |
-| `CalendarWidget` | Calendar、Scheduler |
-
-## 狀態機（必須遵守）
-
-```
-DemandStatus: draft → open → in_progress → completed
-DemandPriority: low | medium | high
-```
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { workspaceSchedulingApi } from "@/modules/workspace-scheduling/api";
-import type { WorkDemandDTO } from "@/modules/workspace-scheduling/api";
-```
-
-### ❌ 禁止
-```typescript
-import { WorkDemand } from "@/modules/workspace-scheduling/domain/types";
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/workspace-scheduling/aggregates.md
-````markdown
-# Aggregates — workspace-scheduling
-
-## 聚合根：WorkDemand
-
-### 職責
-代表一個工作需求記錄。管理需求的排程生命週期（draft → completed）。
-
-### 生命週期狀態機
-```
-draft ──► open ──► in_progress ──► completed
-```
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 需求主鍵 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `accountId` | `string` | 所屬帳戶 |
-| `title` | `string` | 需求標題 |
-| `description` | `string \| null` | 描述（可選） |
-| `status` | `DemandStatus` | `draft \| open \| in_progress \| completed` |
-| `priority` | `DemandPriority` | `low \| medium \| high` |
-| `dueDate` | `string \| null` | 截止日期 ISO 8601 |
-| `createdAt` | `string` | ISO 8601 |
-| `updatedAt` | `string` | ISO 8601 |
-
-### 不變數
-
-- `title` 不可為空
-- `completed` 狀態不可逆回 `draft`
-
----
-
-## 值物件
-
-| 值物件 | 說明 |
-|--------|------|
-| `DemandStatus` | `"draft" \| "open" \| "in_progress" \| "completed"` |
-| `DemandPriority` | `"low" \| "medium" \| "high"` |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `DemandRepository` | `save()`, `findById()`, `listByWorkspace()`, `updateStatus()` |
-````
-
-## File: modules/workspace-scheduling/application-services.md
-````markdown
-# workspace-scheduling — Application Services
-
-> **Canonical bounded context:** `workspace-scheduling`
-> **模組路徑:** `modules/workspace-scheduling/`
-> **Domain Type:** Supporting Subdomain
-
-本文件記錄 `workspace-scheduling` 的 application layer 服務與 use cases。內容與 `modules/workspace-scheduling/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理 WorkDemand 的排程生命週期、優先級與日曆視圖。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/work-demand.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/workspace-scheduling/README.md`
-- 模組 AGENT：`../../../modules/workspace-scheduling/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/workspace-scheduling/application-services.md`
-````
-
-## File: modules/workspace-scheduling/context-map.md
-````markdown
-# Context Map — workspace-scheduling
-
-## 上游（依賴）
-
-### workspace → workspace-scheduling（Conformist）
-
-- WorkDemand 隸屬 `workspaceId`
-- `WorkspaceSchedulingTab` 接收 `workspaceId` 作為 props
-
-### account → workspace-scheduling（Customer/Supplier）
-
-- `AccountSchedulingView` 按 `accountId` 聚合跨工作區排程視圖
-
----
-
-## 下游（被依賴）
-
-### workspace-scheduling → notification（Published Language）
-
-- 需求建立/狀態變更事件觸發通知
-
-### workspace-scheduling → workspace-audit（Published Language）
-
-- 排程操作供稽核紀錄消費
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| workspace → workspace-scheduling | workspace | workspace-scheduling | Conformist |
-| account → workspace-scheduling | account | workspace-scheduling | Customer/Supplier |
-| workspace-scheduling → notification | workspace-scheduling | notification | Published Language |
-| workspace-scheduling → workspace-audit | workspace-scheduling | workspace-audit | Published Language |
-````
-
-## File: modules/workspace-scheduling/domain-events.md
-````markdown
-# Domain Events — workspace-scheduling
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `workspace-scheduling.demand_created` | WorkDemand 建立 | `demandId`, `workspaceId`, `title`, `priority`, `occurredAt` |
-| `workspace-scheduling.demand_status_changed` | 狀態轉換 | `demandId`, `previousStatus`, `newStatus`, `occurredAt` |
-| `workspace-scheduling.demand_completed` | WorkDemand 完成 | `demandId`, `workspaceId`, `occurredAt` |
-
-## 訂閱事件
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `workspace-flow` | `workspace-flow.task_created` | 同步相關 WorkDemand 的排程狀態（可選） |
-
-## 消費 workspace-scheduling 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `notification` | `workspace-scheduling.demand_created` | 通知相關成員 |
-| `workspace-audit` | 所有狀態變更事件 | 記錄排程稽核軌跡 |
-````
-
-## File: modules/workspace-scheduling/domain-services.md
-````markdown
-# workspace-scheduling — Domain Services
-
-> **Canonical bounded context:** `workspace-scheduling`
-> **模組路徑:** `modules/workspace-scheduling/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-scheduling` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/workspace-scheduling/domain-services.md`
-- `../../../modules/workspace-scheduling/aggregates.md`
-````
-
-## File: modules/workspace-scheduling/README.md
-````markdown
-# workspace-scheduling — 工作區排程上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-scheduling/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-scheduling` 讓知識與流程成果進一步進入時間與容量管理，將工作需求落入日曆、截止與排程視角。它支援團隊把抽象工作轉成可安排的協作負載。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 需求排程 | 建立與管理 WorkDemand 的狀態生命週期 |
-| 時間視圖 | 提供日曆、截止與安排視角 |
-| 容量協調 | 讓工作需求能與流程與工作區情境一起被安排 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace-flow` 可作為排程需求來源。
-- `workspace` 提供排程歸屬與成員範圍。
-
-## 核心聚合 / 核心概念
-
-- **`WorkDemand`**
-- **`ScheduleWindow`**
-- **`CapacityAllocation`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/workspace-scheduling/repositories.md
-````markdown
-# workspace-scheduling — Repositories
-
-> **Canonical bounded context:** `workspace-scheduling`
-> **模組路徑:** `modules/workspace-scheduling/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-scheduling` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- 目前沒有對應檔案。
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseDemandRepository.ts`
-- `infrastructure/mock-demand-repository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/workspace-scheduling/repositories.md`
-- `../../../modules/workspace-scheduling/aggregates.md`
-````
-
-## File: modules/workspace-scheduling/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — workspace-scheduling
-
-> **範圍：** 僅限 `modules/workspace-scheduling/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 工作需求 | WorkDemand | 一個已排程或待排程的工作請求，含標題、截止日期與優先級 |
-| 需求狀態 | DemandStatus | WorkDemand 的生命週期狀態：`draft \| open \| in_progress \| completed` |
-| 需求優先級 | DemandPriority | 工作緊急程度：`low \| medium \| high` |
-| 日曆控件 | CalendarWidget | 顯示工作需求排程的日曆 UI 元件 |
-| 帳戶排程視圖 | AccountSchedulingView | 跨工作區的帳戶級別排程總覽頁面 |
-
-## 狀態標籤（顯示文字）
-
-| 狀態 | 中文標籤 |
-|------|---------|
-| `draft` | 草稿 |
-| `open` | 待處理 |
-| `in_progress` | 進行中 |
-| `completed` | 已完成 |
-| `low` | 低 |
-| `medium` | 中 |
-| `high` | 高 |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `WorkDemand` | `Demand`, `Request`, `Ticket` |
-| `DemandStatus` | `Status`, `WorkStatus` |
 ````
 
 ## File: modules/workspace/application/dtos/AGENT.md
@@ -9767,6 +9381,86 @@ flowchart TD
 1. Terms in this file are authoritative for strategic docs.
 2. New term introduction requires definition + owner context.
 3. Do not use synonyms if canonical term exists.
+````
+
+## File: modules/knowledge/subdomains/ai/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/analytics/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/authoring/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/automation/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/base/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/collaboration/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/core/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/database/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/integration/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/media/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/portability/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/query/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/search/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/source/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/template/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/versioning/README.md
+````markdown
+
 ````
 
 ## File: modules/notebooklm/AGENT.md

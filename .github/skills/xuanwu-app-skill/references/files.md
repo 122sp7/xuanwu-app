@@ -7328,49 +7328,6 @@ export default function OrganizationKnowledgePage() {
 }
 ````
 
-## File: app/(shell)/organization/daily/page.tsx
-````typescript
-"use client";
-
-import { useApp } from "@/app/providers/app-provider";
-import { WorkspaceFeedAccountView } from "@/modules/workspace/api";
-import { isOrganizationAccount } from "../_utils";
-
-export default function OrganizationDailyPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <section className="mx-auto max-w-4xl space-y-6">
-      <header className="rounded-3xl border border-border/60 bg-card/50 p-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold">Account Workspace Feed</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              聚合名下所有 workspace 的 feed，並提供 Reply / Repost / Like / View / Bookmark / Share 互動。
-            </p>
-          </div>
-          <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-            live
-          </div>
-        </div>
-      </header>
-
-      <WorkspaceFeedAccountView accountId={activeOrganizationId} />
-    </section>
-  );
-}
-````
-
 ## File: app/(shell)/organization/members/page.tsx
 ````typescript
 "use client";
@@ -8037,50 +7994,6 @@ export default function DispatcherPage() {
 }
 ````
 
-## File: app/(shell)/organization/schedule/page.tsx
-````typescript
-"use client";
-
-import { useApp } from "@/app/providers/app-provider";
-import { AccountSchedulingView } from "@/modules/workspace-scheduling/api";
-import { isOrganizationAccount } from "../_utils";
-
-export default function OrganizationSchedulePage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-
-  const activeOrganizationId = isOrganizationAccount(activeAccount)
-    ? activeAccount.id
-    : null;
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <section className="flex flex-col gap-6 px-4 py-6">
-      <header className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">
-          Account Scheduling
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          工作需求總覽
-        </h1>
-      </header>
-
-      <AccountSchedulingView
-        accountId={activeOrganizationId}
-        currentUserId={activeOrganizationId}
-      />
-    </section>
-  );
-}
-````
-
 ## File: app/(shell)/organization/teams/page.tsx
 ````typescript
 "use client";
@@ -8555,46 +8468,6 @@ import { redirect } from "next/navigation";
 
 export default function SourcePage() {
   redirect("/source/documents");
-}
-````
-
-## File: app/(shell)/workspace-feed/page.tsx
-````typescript
-"use client";
-
-/**
- * Route: /workspace-feed
- * Purpose: Workspace activity feed — shows posts, reactions, and replies for the
- *          currently active workspace.
- */
-
-import { useApp } from "@/app/providers/app-provider";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
-
-export default function WorkspaceFeedPage() {
-  const { state } = useApp();
-  const accountId = state.activeAccount?.id ?? "";
-  const workspaceId = state.activeWorkspaceId ?? "";
-  const workspaceName = "工作區";
-
-  if (!accountId || !workspaceId) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        請先選擇工作區
-      </div>
-    );
-  }
-
-  return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
-      <h1 className="mb-4 text-xl font-semibold">動態牆</h1>
-      <WorkspaceFeedWorkspaceView
-        accountId={accountId}
-        workspaceId={workspaceId}
-        workspaceName={workspaceName}
-      />
-    </div>
-  );
 }
 ````
 
@@ -26373,366 +26246,6 @@ export const useBlockEditorStore = create<BlockEditorState>((set) => ({
 - `../../../modules/knowledge/aggregates.md`
 ````
 
-## File: modules/knowledge/subdomains/knowledge-ai/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-ai/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-ai/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-ai/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-ai/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-ai/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-authoring/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-authoring/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-authoring/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-authoring/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-authoring/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-authoring/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-automation/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-automation/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-automation/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-automation/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-automation/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-automation/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-base/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-base/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-base/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-base/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-base/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-base/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-collaboration/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-collaboration/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-collaboration/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-collaboration/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-collaboration/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-collaboration/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-core/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-core/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-core/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-core/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-core/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-core/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-database/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-database/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-database/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-database/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-database/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-database/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-integration/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-integration/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-integration/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-integration/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-integration/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-integration/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-query/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-query/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-query/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-query/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-query/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-query/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-search/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-search/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-search/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-search/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-search/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-search/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-source/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-source/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-source/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-source/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-source/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-source/README.md
-````markdown
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-versioning/application/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-versioning/domain/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-versioning/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-versioning/interfaces/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-versioning/ports/.gitkeep
-````
-
-````
-
-## File: modules/knowledge/subdomains/knowledge-versioning/README.md
-````markdown
-
-````
-
 ## File: modules/knowledge/ubiquitous-language.md
 ````markdown
 # Ubiquitous Language — knowledge
@@ -29829,6 +29342,26 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 ````
 
 ## File: modules/platform/domain/value-objects/.gitkeep
+````
+
+````
+
+## File: modules/platform/infrastructure/cache/.gitkeep
+````
+
+````
+
+## File: modules/platform/infrastructure/db/.gitkeep
+````
+
+````
+
+## File: modules/platform/infrastructure/messaging/.gitkeep
+````
+
+````
+
+## File: modules/platform/infrastructure/storage/.gitkeep
 ````
 
 ````
@@ -45693,1643 +45226,6 @@ flowchart TB
   api_rule -. governs .-> invoice_draft
 ````
 
-## File: modules/workspace-scheduling/AGENT.md
-````markdown
-# AGENT.md — workspace-scheduling BC
-
-## 模組定位
-
-`workspace-scheduling` 是工作需求排程支援域，管理 WorkDemand 生命週期與日曆視圖。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `WorkDemand` | Demand、Request、Ticket、Requirement |
-| `DemandStatus` | Status（單獨使用）、State |
-| `DemandPriority` | Priority（單獨使用）、Urgency |
-| `CalendarWidget` | Calendar、Scheduler |
-
-## 狀態機（必須遵守）
-
-```
-DemandStatus: draft → open → in_progress → completed
-DemandPriority: low | medium | high
-```
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { workspaceSchedulingApi } from "@/modules/workspace-scheduling/api";
-import type { WorkDemandDTO } from "@/modules/workspace-scheduling/api";
-```
-
-### ❌ 禁止
-```typescript
-import { WorkDemand } from "@/modules/workspace-scheduling/domain/types";
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/workspace-scheduling/aggregates.md
-````markdown
-# Aggregates — workspace-scheduling
-
-## 聚合根：WorkDemand
-
-### 職責
-代表一個工作需求記錄。管理需求的排程生命週期（draft → completed）。
-
-### 生命週期狀態機
-```
-draft ──► open ──► in_progress ──► completed
-```
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 需求主鍵 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `accountId` | `string` | 所屬帳戶 |
-| `title` | `string` | 需求標題 |
-| `description` | `string \| null` | 描述（可選） |
-| `status` | `DemandStatus` | `draft \| open \| in_progress \| completed` |
-| `priority` | `DemandPriority` | `low \| medium \| high` |
-| `dueDate` | `string \| null` | 截止日期 ISO 8601 |
-| `createdAt` | `string` | ISO 8601 |
-| `updatedAt` | `string` | ISO 8601 |
-
-### 不變數
-
-- `title` 不可為空
-- `completed` 狀態不可逆回 `draft`
-
----
-
-## 值物件
-
-| 值物件 | 說明 |
-|--------|------|
-| `DemandStatus` | `"draft" \| "open" \| "in_progress" \| "completed"` |
-| `DemandPriority` | `"low" \| "medium" \| "high"` |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `DemandRepository` | `save()`, `findById()`, `listByWorkspace()`, `updateStatus()` |
-````
-
-## File: modules/workspace-scheduling/api/index.ts
-````typescript
-/**
- * Module: workspace-scheduling
- * Layer: api/barrel
- * Purpose: Public anti-corruption layer for the WorkDemand API contract.
- *
- * Other modules and UI layers import schemas and types from here.
- * Direct imports into domain/, application/, or infrastructure/ are forbidden.
- */
-
-export {
-  CreateDemandSchema,
-  AssignMemberSchema,
-} from "./schema";
-
-export type {
-  CreateDemandInput,
-  AssignMemberInput,
-} from "./schema";
-
-export { WorkspaceSchedulingTab } from "../interfaces/WorkspaceSchedulingTab";
-export { AccountSchedulingView } from "../interfaces/AccountSchedulingView";
-````
-
-## File: modules/workspace-scheduling/api/schema.ts
-````typescript
-/**
- * Module: workspace-scheduling
- * Layer: api/schema
- * Purpose: Zod validation schemas for WorkDemand commands.
- *
- * This is the boundary guard — all input from UI must be validated here
- * before reaching the application layer.
- */
-
-import { z } from "@lib-zod";
-
-// ── CreateDemand ──────────────────────────────────────────────────────────────
-
-export const CreateDemandSchema = z.object({
-  workspaceId: z.string().min(1, "workspaceId is required"),
-  accountId: z.string().min(1, "accountId is required"),
-  requesterId: z.string().min(1, "requesterId is required"),
-  title: z.string().min(2, "標題至少需要 2 個字"),
-  description: z.string().optional().default(""),
-  priority: z.enum(["low", "medium", "high"]).default("medium"),
-  scheduledAt: z.string().min(1, "請選擇排程日期"),
-});
-
-export type CreateDemandInput = z.infer<typeof CreateDemandSchema>;
-
-// ── AssignMember ──────────────────────────────────────────────────────────────
-
-export const AssignMemberSchema = z.object({
-  demandId: z.string().min(1, "demandId is required"),
-  userId: z.string().min(1, "userId is required"),
-  assignedBy: z.string().min(1, "assignedBy is required"),
-});
-
-export type AssignMemberInput = z.infer<typeof AssignMemberSchema>;
-````
-
-## File: modules/workspace-scheduling/application-services.md
-````markdown
-# workspace-scheduling — Application Services
-
-> **Canonical bounded context:** `workspace-scheduling`
-> **模組路徑:** `modules/workspace-scheduling/`
-> **Domain Type:** Supporting Subdomain
-
-本文件記錄 `workspace-scheduling` 的 application layer 服務與 use cases。內容與 `modules/workspace-scheduling/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理 WorkDemand 的排程生命週期、優先級與日曆視圖。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/work-demand.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/workspace-scheduling/README.md`
-- 模組 AGENT：`../../../modules/workspace-scheduling/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/workspace-scheduling/application-services.md`
-````
-
-## File: modules/workspace-scheduling/application/work-demand.use-cases.ts
-````typescript
-/**
- * Module: workspace-scheduling
- * Layer: application/use-cases
- * Purpose: Application services — orchestrate domain logic.
- *
- * Each use case is a pure function of its inputs and the repository port.
- * No framework dependencies; no direct DB calls.
- */
-
-import type { CommandResult } from "@shared-types";
-import { commandFailureFrom, commandSuccess } from "@shared-types";
-
-import type { WorkDemand } from "../domain/types";
-import type { IDemandRepository } from "../domain/repository";
-import type { CreateDemandInput, AssignMemberInput } from "../api/schema";
-
-// ── SubmitDemand ──────────────────────────────────────────────────────────────
-
-export class SubmitWorkDemandUseCase {
-  constructor(private readonly repo: IDemandRepository) {}
-
-  async execute(input: CreateDemandInput): Promise<CommandResult> {
-    try {
-      const id = crypto.randomUUID();
-      const now = new Date().toISOString();
-      const demand: WorkDemand = {
-        id,
-        workspaceId: input.workspaceId,
-        accountId: input.accountId,
-        requesterId: input.requesterId,
-        title: input.title,
-        description: input.description,
-        priority: input.priority,
-        scheduledAt: input.scheduledAt,
-        status: "open",
-        createdAtISO: now,
-        updatedAtISO: now,
-      };
-      await this.repo.save(demand);
-      return commandSuccess(id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORK_DEMAND_SUBMIT_FAILED",
-        err instanceof Error ? err.message : "Failed to submit work demand",
-      );
-    }
-  }
-}
-
-// ── AssignMember ──────────────────────────────────────────────────────────────
-
-export class AssignWorkDemandUseCase {
-  constructor(private readonly repo: IDemandRepository) {}
-
-  async execute(input: AssignMemberInput): Promise<CommandResult> {
-    try {
-      const demand = await this.repo.findById(input.demandId);
-      if (!demand) {
-        return commandFailureFrom("DEMAND_NOT_FOUND", `Demand ${input.demandId} not found`);
-      }
-      const updated: WorkDemand = {
-        ...demand,
-        assignedUserId: input.userId,
-        status: "in_progress",
-        updatedAtISO: new Date().toISOString(),
-      };
-      await this.repo.update(updated);
-      return commandSuccess(input.demandId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORK_DEMAND_ASSIGN_FAILED",
-        err instanceof Error ? err.message : "Failed to assign work demand",
-      );
-    }
-  }
-}
-
-// ── ListWorkspaceDemands ──────────────────────────────────────────────────────
-
-export class ListWorkspaceDemandsUseCase {
-  constructor(private readonly repo: IDemandRepository) {}
-
-  async execute(workspaceId: string): Promise<WorkDemand[]> {
-    return this.repo.listByWorkspace(workspaceId);
-  }
-}
-
-// ── ListAccountDemands ────────────────────────────────────────────────────────
-
-export class ListAccountDemandsUseCase {
-  constructor(private readonly repo: IDemandRepository) {}
-
-  async execute(accountId: string): Promise<WorkDemand[]> {
-    return this.repo.listByAccount(accountId);
-  }
-}
-````
-
-## File: modules/workspace-scheduling/context-map.md
-````markdown
-# Context Map — workspace-scheduling
-
-## 上游（依賴）
-
-### workspace → workspace-scheduling（Conformist）
-
-- WorkDemand 隸屬 `workspaceId`
-- `WorkspaceSchedulingTab` 接收 `workspaceId` 作為 props
-
-### account → workspace-scheduling（Customer/Supplier）
-
-- `AccountSchedulingView` 按 `accountId` 聚合跨工作區排程視圖
-
----
-
-## 下游（被依賴）
-
-### workspace-scheduling → notification（Published Language）
-
-- 需求建立/狀態變更事件觸發通知
-
-### workspace-scheduling → workspace-audit（Published Language）
-
-- 排程操作供稽核紀錄消費
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| workspace → workspace-scheduling | workspace | workspace-scheduling | Conformist |
-| account → workspace-scheduling | account | workspace-scheduling | Customer/Supplier |
-| workspace-scheduling → notification | workspace-scheduling | notification | Published Language |
-| workspace-scheduling → workspace-audit | workspace-scheduling | workspace-audit | Published Language |
-````
-
-## File: modules/workspace-scheduling/domain-events.md
-````markdown
-# Domain Events — workspace-scheduling
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `workspace-scheduling.demand_created` | WorkDemand 建立 | `demandId`, `workspaceId`, `title`, `priority`, `occurredAt` |
-| `workspace-scheduling.demand_status_changed` | 狀態轉換 | `demandId`, `previousStatus`, `newStatus`, `occurredAt` |
-| `workspace-scheduling.demand_completed` | WorkDemand 完成 | `demandId`, `workspaceId`, `occurredAt` |
-
-## 訂閱事件
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `workspace-flow` | `workspace-flow.task_created` | 同步相關 WorkDemand 的排程狀態（可選） |
-
-## 消費 workspace-scheduling 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `notification` | `workspace-scheduling.demand_created` | 通知相關成員 |
-| `workspace-audit` | 所有狀態變更事件 | 記錄排程稽核軌跡 |
-````
-
-## File: modules/workspace-scheduling/domain-services.md
-````markdown
-# workspace-scheduling — Domain Services
-
-> **Canonical bounded context:** `workspace-scheduling`
-> **模組路徑:** `modules/workspace-scheduling/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-scheduling` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/workspace-scheduling/domain-services.md`
-- `../../../modules/workspace-scheduling/aggregates.md`
-````
-
-## File: modules/workspace-scheduling/domain/repository.ts
-````typescript
-/**
- * Module: workspace-scheduling
- * Layer: domain/repository
- * Purpose: IDemandRepository port — implemented by infrastructure adapters.
- *
- * Domain must NOT depend on Firebase SDK, HTTP clients, or any framework.
- */
-
-import type { WorkDemand } from "./types";
-
-export interface IDemandRepository {
-  /** List all demands for a specific workspace (tenant view). */
-  listByWorkspace(workspaceId: string): Promise<WorkDemand[]>;
-  /** List all demands across all workspaces for an account (manager view). */
-  listByAccount(accountId: string): Promise<WorkDemand[]>;
-  /** Persist a new demand. */
-  save(demand: WorkDemand): Promise<void>;
-  /** Update an existing demand. */
-  update(demand: WorkDemand): Promise<void>;
-  /** Find a single demand by ID. */
-  findById(id: string): Promise<WorkDemand | null>;
-}
-````
-
-## File: modules/workspace-scheduling/domain/types.ts
-````typescript
-/**
- * Module: workspace-scheduling
- * Layer: domain
- * Purpose: Core WorkDemand entity and value types.
- *
- * Occam's Razor: minimal essential entities only.
- * No external dependencies — pure TypeScript.
- */
-
-// ── Status ────────────────────────────────────────────────────────────────────
-
-export type DemandStatus = "draft" | "open" | "in_progress" | "completed";
-
-export const DEMAND_STATUSES: readonly DemandStatus[] = [
-  "draft",
-  "open",
-  "in_progress",
-  "completed",
-] as const;
-
-export const DEMAND_STATUS_LABELS: Record<DemandStatus, string> = {
-  draft: "草稿",
-  open: "待處理",
-  in_progress: "進行中",
-  completed: "已完成",
-};
-
-// ── Priority ──────────────────────────────────────────────────────────────────
-
-export type DemandPriority = "low" | "medium" | "high";
-
-export const DEMAND_PRIORITIES: readonly DemandPriority[] = [
-  "low",
-  "medium",
-  "high",
-] as const;
-
-export const DEMAND_PRIORITY_LABELS: Record<DemandPriority, string> = {
-  low: "低",
-  medium: "中",
-  high: "高",
-};
-
-// ── Aggregate root: WorkDemand ────────────────────────────────────────────────
-
-/**
- * WorkDemand aggregate root.
- * Represents a scheduled work request from a Workspace to the Account.
- *
- * Inspired by Postiz "Launch" concept — a demand is a unit of work
- * scheduled for a target date, with status progression.
- */
-export interface WorkDemand {
-  readonly id: string;
-  /** Tenant scoping: which workspace raised this demand. */
-  readonly workspaceId: string;
-  /** Account (organisation) this demand belongs to. */
-  readonly accountId: string;
-  /** User ID of whoever created this demand. */
-  readonly requesterId: string;
-  readonly title: string;
-  readonly description: string;
-  readonly status: DemandStatus;
-  readonly priority: DemandPriority;
-  /**
-   * Target date for the demand (ISO date string, e.g. "2026-04-15").
-   * Rendered on the calendar widget.
-   */
-  readonly scheduledAt: string;
-  /** Account-level member assigned to handle this demand. */
-  readonly assignedUserId?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-// ── Commands ──────────────────────────────────────────────────────────────────
-
-export interface CreateWorkDemandCommand {
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly requesterId: string;
-  readonly title: string;
-  readonly description: string;
-  readonly priority: DemandPriority;
-  readonly scheduledAt: string;
-}
-
-export interface AssignWorkDemandCommand {
-  readonly demandId: string;
-  readonly assignedUserId: string;
-  readonly assignedBy: string;
-}
-
-// ── Domain Events ─────────────────────────────────────────────────────────────
-
-export type WorkDemandCreatedEvent = {
-  readonly type: "WORK_DEMAND_CREATED";
-  readonly payload: { readonly demandId: string; readonly workspaceId: string };
-};
-
-export type WorkDemandAssignedEvent = {
-  readonly type: "WORK_DEMAND_ASSIGNED";
-  readonly payload: {
-    readonly demandId: string;
-    readonly assignedUserId: string;
-    readonly assignedBy: string;
-  };
-};
-
-export type WorkDemandDomainEvent =
-  | WorkDemandCreatedEvent
-  | WorkDemandAssignedEvent;
-````
-
-## File: modules/workspace-scheduling/index.ts
-````typescript
-/**
- * Module: workspace-scheduling
- * Layer: module/barrel (public API)
- *
- * External modules MUST import from here ONLY.
- * Never import from domain/, application/, infrastructure/, or interfaces/
- * sub-paths directly.
- *
- * Boundary rule: keep exports minimal (Occam's Razor).
- */
-
-// ── Domain: entity types (read-only exports) ──────────────────────────────────
-export type {
-  WorkDemand,
-  DemandStatus,
-  DemandPriority,
-  CreateWorkDemandCommand,
-  AssignWorkDemandCommand,
-  WorkDemandDomainEvent,
-} from "./domain/types";
-
-export {
-  DEMAND_STATUSES,
-  DEMAND_STATUS_LABELS,
-  DEMAND_PRIORITIES,
-  DEMAND_PRIORITY_LABELS,
-} from "./domain/types";
-
-// ── API: schema types ─────────────────────────────────────────────────────────
-export type { CreateDemandInput, AssignMemberInput } from "./api/schema";
-
-// ── Interfaces: UI components ─────────────────────────────────────────────────
-export { WorkspaceSchedulingTab } from "./interfaces/WorkspaceSchedulingTab";
-export { AccountSchedulingView } from "./interfaces/AccountSchedulingView";
-export type { AccountMember } from "./interfaces/AccountSchedulingView";
-
-// ── Interfaces: server actions ────────────────────────────────────────────────
-export { submitWorkDemand, assignWorkDemand } from "./interfaces/_actions/work-demand.actions";
-
-// ── Interfaces: queries ───────────────────────────────────────────────────────
-export { getWorkspaceDemands, getAccountDemands } from "./interfaces/queries/work-demand.queries";
-````
-
-## File: modules/workspace-scheduling/infrastructure/firebase/FirebaseDemandRepository.ts
-````typescript
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  serverTimestamp,
-  setDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type { WorkDemand } from "../../domain/types";
-import type { IDemandRepository } from "../../domain/repository";
-
-const DEMANDS_COLLECTION = "workspacePlannerDemands";
-
-function toWorkDemand(id: string, data: Record<string, unknown>): WorkDemand {
-  const status = data.status;
-  const priority = data.priority;
-
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    requesterId: typeof data.requesterId === "string" ? data.requesterId : "",
-    title: typeof data.title === "string" ? data.title : "",
-    description: typeof data.description === "string" ? data.description : "",
-    status:
-      status === "draft" || status === "open" || status === "in_progress" || status === "completed"
-        ? status
-        : "draft",
-    priority: priority === "low" || priority === "medium" || priority === "high" ? priority : "medium",
-    scheduledAt: typeof data.scheduledAt === "string" ? data.scheduledAt : "",
-    assignedUserId: typeof data.assignedUserId === "string" ? data.assignedUserId : undefined,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseDemandRepository implements IDemandRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
-  private get collectionRef() {
-    return collection(this.db, DEMANDS_COLLECTION);
-  }
-
-  async listByWorkspace(workspaceId: string): Promise<WorkDemand[]> {
-    const snaps = await getDocs(
-      query(this.collectionRef, where("workspaceId", "==", workspaceId)),
-    );
-    return snaps.docs
-      .map((item) => toWorkDemand(item.id, item.data() as Record<string, unknown>))
-      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
-  }
-
-  async listByAccount(accountId: string): Promise<WorkDemand[]> {
-    const snaps = await getDocs(
-      query(this.collectionRef, where("accountId", "==", accountId)),
-    );
-    return snaps.docs
-      .map((item) => toWorkDemand(item.id, item.data() as Record<string, unknown>))
-      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
-  }
-
-  async save(demand: WorkDemand): Promise<void> {
-    const demandRef = doc(this.db, DEMANDS_COLLECTION, demand.id);
-    const existing = await getDoc(demandRef);
-    if (existing.exists()) {
-      await this.update(demand);
-      return;
-    }
-
-    await setDoc(demandRef, {
-      workspaceId: demand.workspaceId,
-      accountId: demand.accountId,
-      requesterId: demand.requesterId,
-      title: demand.title,
-      description: demand.description,
-      status: demand.status,
-      priority: demand.priority,
-      scheduledAt: demand.scheduledAt,
-      assignedUserId: demand.assignedUserId ?? null,
-      createdAtISO: demand.createdAtISO,
-      updatedAtISO: demand.updatedAtISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async update(demand: WorkDemand): Promise<void> {
-    await setDoc(doc(this.db, DEMANDS_COLLECTION, demand.id), {
-      workspaceId: demand.workspaceId,
-      accountId: demand.accountId,
-      requesterId: demand.requesterId,
-      title: demand.title,
-      description: demand.description,
-      status: demand.status,
-      priority: demand.priority,
-      scheduledAt: demand.scheduledAt,
-      assignedUserId: demand.assignedUserId ?? null,
-      updatedAtISO: demand.updatedAtISO,
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
-  }
-
-  async findById(id: string): Promise<WorkDemand | null> {
-    const snap = await getDoc(doc(this.db, DEMANDS_COLLECTION, id));
-    if (!snap.exists()) return null;
-    return toWorkDemand(snap.id, snap.data() as Record<string, unknown>);
-  }
-}
-````
-
-## File: modules/workspace-scheduling/infrastructure/mock-demand-repository.ts
-````typescript
-/**
- * Module: workspace-scheduling
- * Layer: infrastructure/mock
- * Purpose: In-memory mock implementation of IDemandRepository.
- *
- * This mock demonstrates the architectural boundary without requiring
- * a live Firebase connection. Swap with FirebaseDemandRepository
- * when persisting to Firestore.
- */
-
-import type { WorkDemand } from "../domain/types";
-import type { IDemandRepository } from "../domain/repository";
-
-const store: WorkDemand[] = [];
-
-export class MockDemandRepository implements IDemandRepository {
-  async listByWorkspace(workspaceId: string): Promise<WorkDemand[]> {
-    return store.filter((d) => d.workspaceId === workspaceId);
-  }
-
-  async listByAccount(accountId: string): Promise<WorkDemand[]> {
-    return store.filter((d) => d.accountId === accountId);
-  }
-
-  async save(demand: WorkDemand): Promise<void> {
-    const existing = store.findIndex((d) => d.id === demand.id);
-    if (existing !== -1) {
-      store[existing] = demand;
-    } else {
-      store.push(demand);
-    }
-  }
-
-  async update(demand: WorkDemand): Promise<void> {
-    const idx = store.findIndex((d) => d.id === demand.id);
-    if (idx !== -1) {
-      store[idx] = demand;
-    }
-  }
-
-  async findById(id: string): Promise<WorkDemand | null> {
-    return store.find((d) => d.id === id) ?? null;
-  }
-}
-````
-
-## File: modules/workspace-scheduling/interfaces/_actions/work-demand.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: workspace-scheduling
- * Layer: interfaces/_actions
- * Purpose: Server Actions — the authorised write surface for the UI.
- *
- * UI MUST call these actions for all mutations.
- * They validate input, invoke use cases, and return CommandResult.
- */
-
-import type { CommandResult } from "@shared-types";
-import { commandFailureFrom } from "@shared-types";
-
-import { CreateDemandSchema, AssignMemberSchema } from "../../api/schema";
-import type { CreateDemandInput, AssignMemberInput } from "../../api/schema";
-import {
-  SubmitWorkDemandUseCase,
-  AssignWorkDemandUseCase,
-} from "../../application/work-demand.use-cases";
-import { FirebaseDemandRepository } from "../../infrastructure/firebase/FirebaseDemandRepository";
-
-function makeRepo() {
-  return new FirebaseDemandRepository();
-}
-
-export async function submitWorkDemand(raw: CreateDemandInput): Promise<CommandResult> {
-  const parsed = CreateDemandSchema.safeParse(raw);
-  if (!parsed.success) {
-    return commandFailureFrom("VALIDATION_FAILED", parsed.error.issues[0]?.message ?? "Validation failed");
-  }
-  try {
-    return await new SubmitWorkDemandUseCase(makeRepo()).execute(parsed.data);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORK_DEMAND_ACTION_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function assignWorkDemand(raw: AssignMemberInput): Promise<CommandResult> {
-  const parsed = AssignMemberSchema.safeParse(raw);
-  if (!parsed.success) {
-    return commandFailureFrom("VALIDATION_FAILED", parsed.error.issues[0]?.message ?? "Validation failed");
-  }
-  try {
-    return await new AssignWorkDemandUseCase(makeRepo()).execute(parsed.data);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORK_DEMAND_ACTION_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-````
-
-## File: modules/workspace-scheduling/interfaces/AccountSchedulingView.tsx
-````typescript
-"use client";
-
-/**
- * Module: workspace-scheduling
- * Layer: interfaces
- * Purpose: Account (manager) view — overview of all workspace demands.
- *
- * Occam's Razor: grouped card view by workspace.
- * Manager can assign a member to any demand from this panel.
- */
-
-import { useCallback, useEffect, useState } from "react";
-
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { Users } from "lucide-react";
-
-import type { WorkDemand } from "../domain/types";
-import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../domain/types";
-import { assignWorkDemand } from "./_actions/work-demand.actions";
-import { getAccountDemands } from "./queries/work-demand.queries";
-
-// ── Sub-types ─────────────────────────────────────────────────────────────────
-
-export interface AccountMember {
-  id: string;
-  name: string;
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const PRIORITY_DOT: Record<WorkDemand["priority"], string> = {
-  low: "bg-green-400",
-  medium: "bg-amber-400",
-  high: "bg-red-500",
-};
-
-const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "outline" | "destructive"> = {
-  draft: "outline",
-  open: "secondary",
-  in_progress: "default",
-  completed: "default",
-};
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-interface AccountSchedulingViewProps {
-  readonly accountId: string;
-  /** Current actor (manager) ID used as assignedBy. */
-  readonly currentUserId: string;
-  /** List of account-level members available for assignment. */
-  readonly availableMembers?: AccountMember[];
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function AccountSchedulingView({
-  accountId,
-  currentUserId,
-  availableMembers = [],
-}: AccountSchedulingViewProps) {
-  const [demands, setDemands] = useState<WorkDemand[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [pendingAssign, setPendingAssign] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const loadDemands = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const data = await getAccountDemands(accountId);
-      setDemands(data);
-      setLoadState("loaded");
-    } catch {
-      setLoadState("error");
-    }
-  }, [accountId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      if (!cancelled) await loadDemands();
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadDemands]);
-
-  async function handleAssign(demandId: string, userId: string) {
-    setPendingAssign(demandId);
-    setActionError(null);
-    try {
-      const result = await assignWorkDemand({
-        demandId,
-        userId,
-        assignedBy: currentUserId,
-      });
-      if (!result.success) {
-        setActionError(result.error.message);
-        return;
-      }
-      await loadDemands();
-    } finally {
-      setPendingAssign(null);
-    }
-  }
-
-  // Group demands by workspaceId for columnar layout
-  const byWorkspace = demands.reduce<Record<string, WorkDemand[]>>((acc, d) => {
-    if (!acc[d.workspaceId]) acc[d.workspaceId] = [];
-    acc[d.workspaceId].push(d);
-    return acc;
-  }, {});
-
-  const workspaceEntries = Object.entries(byWorkspace);
-
-  return (
-    <div className="space-y-6">
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
-        <Users className="h-5 w-5 text-primary" />
-        <div>
-          <h2 className="text-lg font-semibold">工作需求總覽</h2>
-          <p className="text-sm text-muted-foreground">
-            顯示名下所有 Workspace 提出的需求，可在此指派成員。
-          </p>
-        </div>
-      </div>
-
-      {actionError && (
-        <p role="alert" className="text-sm text-destructive">
-          {actionError}
-        </p>
-      )}
-
-      {loadState === "loading" && (
-        <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
-          載入中…
-        </div>
-      )}
-
-      {loadState === "error" && (
-        <p className="text-sm text-destructive">載入失敗，請重新整理。</p>
-      )}
-
-      {loadState === "loaded" && demands.length === 0 && (
-        <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          目前名下所有 Workspace 均無工作需求。
-        </div>
-      )}
-
-      {/* ── Per-workspace columns ──────────────────────────────────────── */}
-      {loadState === "loaded" && workspaceEntries.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {workspaceEntries.map(([wsId, wsDemands]) => (
-            <Card key={wsId} className="flex flex-col">
-              <CardHeader className="bg-muted/40 pb-3">
-                <CardTitle className="text-sm font-semibold truncate">
-                  Workspace: <span className="font-mono text-xs">{wsId.slice(0, 8)}…</span>
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  {wsDemands.length} 筆需求
-                </p>
-              </CardHeader>
-              <CardContent className="flex-1 space-y-3 p-4">
-                {wsDemands.map((demand) => (
-                  <div
-                    key={demand.id}
-                    className="rounded-md border border-border/60 bg-background p-3 shadow-sm"
-                  >
-                    {/* Row 1: title + priority dot */}
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-medium leading-snug flex-1 min-w-0 truncate">
-                        {demand.title}
-                      </p>
-                      <span
-                        title={DEMAND_PRIORITY_LABELS[demand.priority]}
-                        className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${PRIORITY_DOT[demand.priority]}`}
-                      />
-                    </div>
-
-                    {/* Row 2: status + date */}
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <Badge variant={STATUS_VARIANT[demand.status]} className="text-[10px]">
-                        {DEMAND_STATUS_LABELS[demand.status]}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {demand.scheduledAt}
-                      </span>
-                    </div>
-
-                    {/* Row 3: assign member */}
-                    {availableMembers.length > 0 && (
-                      <div className="mt-2.5">
-                        <p className="mb-1 text-[10px] text-muted-foreground">指派給</p>
-                        <Select
-                          value={demand.assignedUserId ?? ""}
-                          onValueChange={(userId) => {
-                            if (userId) void handleAssign(demand.id, userId);
-                          }}
-                          disabled={pendingAssign === demand.id}
-                        >
-                          <SelectTrigger className="h-7 text-xs">
-                            <SelectValue placeholder="選擇成員…" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableMembers.map((member) => (
-                              <SelectItem key={member.id} value={member.id}>
-                                {member.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    {availableMembers.length === 0 && demand.assignedUserId && (
-                      <p className="mt-1.5 text-xs text-muted-foreground">
-                        已指派：{demand.assignedUserId}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* ── Refresh button ─────────────────────────────────────────────── */}
-      {loadState === "loaded" && (
-        <div className="flex justify-end">
-          <Button variant="ghost" size="sm" onClick={loadDemands}>
-            重新整理
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/workspace-scheduling/interfaces/components/CalendarWidget.tsx
-````typescript
-"use client";
-
-/**
- * Module: workspace-scheduling
- * Layer: interfaces/components
- * Purpose: Lightweight month-view calendar widget.
- *
- * Inspired by Postiz's Calendar/Launch scheduling view.
- * Uses date-fns + CSS Grid — no heavy third-party calendar library.
- *
- * Occam's Razor: month view only, demand dots on due dates,
- * click-to-create interaction.
- */
-
-import { useMemo, useState } from "react";
-
-import {
-  addMonths,
-  eachDayOfInterval,
-  endOfMonth,
-  format,
-  getDay,
-  isSameMonth,
-  isToday,
-  startOfMonth,
-  subMonths,
-} from "@lib-date-fns";
-import { Button } from "@ui-shadcn/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-
-import type { WorkDemand } from "../../domain/types";
-import { DEMAND_STATUS_LABELS } from "../../domain/types";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface CalendarWidgetProps {
-  demands: WorkDemand[];
-  /** Called when the user clicks an empty day cell to schedule a new demand. */
-  onDayClick?: (date: Date) => void;
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const DAY_HEADERS = ["日", "一", "二", "三", "四", "五", "六"] as const;
-
-const STATUS_DOT_CLASSES: Record<WorkDemand["status"], string> = {
-  draft: "bg-muted-foreground",
-  open: "bg-blue-500",
-  in_progress: "bg-amber-500",
-  completed: "bg-green-500",
-};
-
-function CalendarDayCell({
-  day,
-  isCurrentMonth,
-  dayDemands,
-  onDayClick,
-}: {
-  day: Date;
-  isCurrentMonth: boolean;
-  dayDemands: WorkDemand[];
-  onDayClick?: (date: Date) => void;
-}) {
-  const today = isToday(day);
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={format(day, "yyyy-MM-dd")}
-      onClick={() => onDayClick?.(day)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") onDayClick?.(day);
-      }}
-      className={[
-        "relative min-h-[72px] rounded-lg border p-1.5 text-sm transition-colors",
-        isCurrentMonth
-          ? "border-border/50 bg-card hover:bg-accent/40 cursor-pointer"
-          : "border-transparent bg-muted/20 text-muted-foreground cursor-default",
-        today ? "ring-2 ring-primary ring-offset-1" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      {/* Day number */}
-      <span
-        className={[
-          "flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium",
-          today ? "bg-primary text-primary-foreground" : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
-      >
-        {format(day, "d")}
-      </span>
-
-      {/* Demand dots / chips */}
-      <div className="mt-1 space-y-0.5">
-        {dayDemands.slice(0, 3).map((d) => (
-          <div
-            key={d.id}
-            title={`${d.title} (${DEMAND_STATUS_LABELS[d.status]})`}
-            className="flex items-center gap-1 truncate"
-          >
-            <span
-              className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT_CLASSES[d.status]}`}
-            />
-            <span className="truncate text-[10px] leading-none text-foreground/80">
-              {d.title}
-            </span>
-          </div>
-        ))}
-        {dayDemands.length > 3 && (
-          <span className="text-[10px] text-muted-foreground">
-            +{dayDemands.length - 3} more
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── CalendarWidget ────────────────────────────────────────────────────────────
-
-export function CalendarWidget({ demands, onDayClick }: CalendarWidgetProps) {
-  const [currentMonth, setCurrentMonth] = useState<Date>(startOfMonth(new Date()));
-
-  // All days in the current month
-  const monthDays = useMemo(
-    () =>
-      eachDayOfInterval({
-        start: startOfMonth(currentMonth),
-        end: endOfMonth(currentMonth),
-      }),
-    [currentMonth],
-  );
-
-  // Leading empty cells to align the first day to the correct weekday column
-  const leadingBlanks = useMemo(() => getDay(startOfMonth(currentMonth)), [currentMonth]);
-
-  // Build demand-by-date lookup for O(1) access
-  const demandsByDate = useMemo(() => {
-    const map = new Map<string, WorkDemand[]>();
-    for (const d of demands) {
-      const key = d.scheduledAt.slice(0, 10); // "YYYY-MM-DD"
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(d);
-    }
-    return map;
-  }, [demands]);
-
-  function getDayDemands(day: Date): WorkDemand[] {
-    return demandsByDate.get(format(day, "yyyy-MM-dd")) ?? [];
-  }
-
-  // Build legend for the status colours
-  const legendEntries: { status: WorkDemand["status"]; label: string }[] = [
-    { status: "open", label: DEMAND_STATUS_LABELS.open },
-    { status: "in_progress", label: DEMAND_STATUS_LABELS.in_progress },
-    { status: "completed", label: DEMAND_STATUS_LABELS.completed },
-    { status: "draft", label: DEMAND_STATUS_LABELS.draft },
-  ];
-
-  return (
-    <div className="space-y-4">
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold">
-          {format(currentMonth, "yyyy 年 M 月")}
-        </h2>
-        <div className="flex gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="上個月"
-            onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentMonth(startOfMonth(new Date()))}
-          >
-            今天
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="下個月"
-            onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Status legend ──────────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-3">
-        {legendEntries.map(({ status, label }) => (
-          <div key={status} className="flex items-center gap-1.5">
-            <span
-              className={`h-2 w-2 rounded-full ${STATUS_DOT_CLASSES[status]}`}
-            />
-            <span className="text-xs text-muted-foreground">{label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Calendar grid ──────────────────────────────────────────────── */}
-      <div className="grid grid-cols-7 gap-1">
-        {/* Weekday headers */}
-        {DAY_HEADERS.map((h) => (
-          <div
-            key={h}
-            className="pb-1 text-center text-xs font-medium text-muted-foreground"
-          >
-            {h}
-          </div>
-        ))}
-
-        {/* Leading blank cells */}
-        {Array.from({ length: leadingBlanks }).map((_, i) => (
-          <div key={`blank-${i}`} />
-        ))}
-
-        {/* Day cells */}
-        {monthDays.map((day) => (
-          <CalendarDayCell
-            key={day.toISOString()}
-            day={day}
-            isCurrentMonth={isSameMonth(day, currentMonth)}
-            dayDemands={getDayDemands(day)}
-            onDayClick={isSameMonth(day, currentMonth) ? onDayClick : undefined}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/workspace-scheduling/interfaces/components/CreateDemandForm.tsx
-````typescript
-"use client";
-
-/**
- * Module: workspace-scheduling
- * Layer: interfaces/components
- * Purpose: Quick-capture form for creating a new WorkDemand.
- *
- * Inspired by Postiz's "Schedule Post" dialog — focused, minimal,
- * opens when the user clicks a calendar day or "New Demand" button.
- */
-
-import { useState } from "react";
-
-import { format } from "@lib-date-fns";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import { DEMAND_PRIORITY_LABELS } from "../../domain/types";
-import type { DemandPriority } from "../../domain/types";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface CreateDemandFormValues {
-  title: string;
-  description: string;
-  priority: DemandPriority;
-  scheduledAt: string; // "YYYY-MM-DD"
-}
-
-interface CreateDemandFormProps {
-  open: boolean;
-  /** Pre-fill the scheduled date (e.g. from a calendar day click). */
-  initialDate?: Date;
-  onClose: () => void;
-  onSubmit: (values: CreateDemandFormValues) => Promise<void>;
-}
-
-// ── Form ──────────────────────────────────────────────────────────────────────
-
-export function CreateDemandForm({
-  open,
-  initialDate,
-  onClose,
-  onSubmit,
-}: CreateDemandFormProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState<DemandPriority>("medium");
-  const [scheduledAt, setScheduledAt] = useState(
-    initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  // Re-sync date when the prop changes (e.g. user clicks a different day)
-  const handleOpen = (isOpen: boolean) => {
-    if (isOpen && initialDate) {
-      setScheduledAt(format(initialDate, "yyyy-MM-dd"));
-    }
-    if (!isOpen) handleClose();
-  };
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setPriority("medium");
-    setScheduledAt(initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"));
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) {
-      setError("請輸入需求標題。");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      await onSubmit({ title: t, description: description.trim(), priority, scheduledAt });
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "提交失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>建立工作需求</DialogTitle>
-          <DialogDescription>
-            填寫需求詳情後送出，Account 管理員將收到通知並指派成員。
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Title */}
-          <div className="space-y-1.5">
-            <Label htmlFor="demand-title">標題 *</Label>
-            <Input
-              id="demand-title"
-              placeholder="需要完成什麼工作？"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-
-          {/* Description */}
-          <div className="space-y-1.5">
-            <Label htmlFor="demand-description">描述（選填）</Label>
-            <Textarea
-              id="demand-description"
-              placeholder="詳細說明需求背景或驗收條件…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-
-          {/* Priority + Date row */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="demand-priority">優先級</Label>
-              <Select
-                value={priority}
-                onValueChange={(v) => setPriority(v as DemandPriority)}
-                disabled={submitting}
-              >
-                <SelectTrigger id="demand-priority">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(["low", "medium", "high"] as const).map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {DEMAND_PRIORITY_LABELS[p]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="demand-date">排程日期 *</Label>
-              <Input
-                id="demand-date"
-                type="date"
-                value={scheduledAt}
-                onChange={(e) => setScheduledAt(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-          </div>
-
-          {/* Error message */}
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
-              取消
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "提交中…" : "建立需求"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/workspace-scheduling/interfaces/queries/work-demand.queries.ts
-````typescript
-"use server";
-
-/**
- * Module: workspace-scheduling
- * Layer: interfaces/queries
- * Purpose: Read-side query helpers for WorkDemand.
- *
- * These are plain async functions callable from Server Components,
- * server actions, or wrapped in client hooks.
- */
-
-import type { WorkDemand } from "../../domain/types";
-import {
-  ListWorkspaceDemandsUseCase,
-  ListAccountDemandsUseCase,
-} from "../../application/work-demand.use-cases";
-import { FirebaseDemandRepository } from "../../infrastructure/firebase/FirebaseDemandRepository";
-
-function makeRepo() {
-  return new FirebaseDemandRepository();
-}
-
-export async function getWorkspaceDemands(workspaceId: string): Promise<WorkDemand[]> {
-  return new ListWorkspaceDemandsUseCase(makeRepo()).execute(workspaceId);
-}
-
-export async function getAccountDemands(accountId: string): Promise<WorkDemand[]> {
-  return new ListAccountDemandsUseCase(makeRepo()).execute(accountId);
-}
-````
-
-## File: modules/workspace-scheduling/README.md
-````markdown
-# workspace-scheduling — 工作區排程上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-scheduling/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-scheduling` 讓知識與流程成果進一步進入時間與容量管理，將工作需求落入日曆、截止與排程視角。它支援團隊把抽象工作轉成可安排的協作負載。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 需求排程 | 建立與管理 WorkDemand 的狀態生命週期 |
-| 時間視圖 | 提供日曆、截止與安排視角 |
-| 容量協調 | 讓工作需求能與流程與工作區情境一起被安排 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace-flow` 可作為排程需求來源。
-- `workspace` 提供排程歸屬與成員範圍。
-
-## 核心聚合 / 核心概念
-
-- **`WorkDemand`**
-- **`ScheduleWindow`**
-- **`CapacityAllocation`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/workspace-scheduling/repositories.md
-````markdown
-# workspace-scheduling — Repositories
-
-> **Canonical bounded context:** `workspace-scheduling`
-> **模組路徑:** `modules/workspace-scheduling/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-scheduling` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- 目前沒有對應檔案。
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseDemandRepository.ts`
-- `infrastructure/mock-demand-repository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/workspace-scheduling/repositories.md`
-- `../../../modules/workspace-scheduling/aggregates.md`
-````
-
-## File: modules/workspace-scheduling/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — workspace-scheduling
-
-> **範圍：** 僅限 `modules/workspace-scheduling/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 工作需求 | WorkDemand | 一個已排程或待排程的工作請求，含標題、截止日期與優先級 |
-| 需求狀態 | DemandStatus | WorkDemand 的生命週期狀態：`draft \| open \| in_progress \| completed` |
-| 需求優先級 | DemandPriority | 工作緊急程度：`low \| medium \| high` |
-| 日曆控件 | CalendarWidget | 顯示工作需求排程的日曆 UI 元件 |
-| 帳戶排程視圖 | AccountSchedulingView | 跨工作區的帳戶級別排程總覽頁面 |
-
-## 狀態標籤（顯示文字）
-
-| 狀態 | 中文標籤 |
-|------|---------|
-| `draft` | 草稿 |
-| `open` | 待處理 |
-| `in_progress` | 進行中 |
-| `completed` | 已完成 |
-| `low` | 低 |
-| `medium` | 中 |
-| `high` | 高 |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `WorkDemand` | `Demand`, `Request`, `Ticket` |
-| `DemandStatus` | `Status`, `WorkStatus` |
-````
-
 ## File: modules/workspace/application/dtos/AGENT.md
 ````markdown
 # application/dtos — Application DTOs（應用層資料傳輸物件）
@@ -51754,462 +49650,9 @@ export interface WorkspaceRepository {
 
 ````
 
-## File: modules/workspace/subdomains/feed/api/index.ts
-````typescript
-export { WorkspaceFeedFacade, workspaceFeedFacade } from "./workspace-feed.facade";
-export type {
-  CreateWorkspaceFeedPostParams,
-  ReplyWorkspaceFeedPostParams,
-  RepostWorkspaceFeedPostParams,
-  WorkspaceFeedInteractionParams,
-} from "./workspace-feed.facade";
-
-export type {
-  WorkspaceFeedPost,
-  WorkspaceFeedPostType,
-} from "../domain/entities/workspace-feed-post.entity";
-export {
-  WORKSPACE_FEED_POST_TYPES,
-} from "../domain/entities/workspace-feed-post.entity";
-
-export { WorkspaceFeedWorkspaceView } from "../interfaces/components/WorkspaceFeedWorkspaceView";
-export { WorkspaceFeedAccountView } from "../interfaces/components/WorkspaceFeedAccountView";
-````
-
-## File: modules/workspace/subdomains/feed/api/workspace-feed.facade.ts
-````typescript
-import type { WorkspaceFeedPost } from "../domain/entities/workspace-feed-post.entity";
-import type {
-  WorkspaceFeedInteractionRepository,
-  WorkspaceFeedPostRepository,
-} from "../domain/repositories/workspace-feed.repositories";
-import {
-  BookmarkWorkspaceFeedPostUseCase,
-  CreateWorkspaceFeedPostUseCase,
-  GetWorkspaceFeedPostUseCase,
-  LikeWorkspaceFeedPostUseCase,
-  ListAccountWorkspaceFeedUseCase,
-  ListWorkspaceFeedUseCase,
-  ReplyWorkspaceFeedPostUseCase,
-  RepostWorkspaceFeedPostUseCase,
-  ShareWorkspaceFeedPostUseCase,
-  ViewWorkspaceFeedPostUseCase,
-} from "../application/use-cases/workspace-feed.use-cases";
-import {
-  FirebaseWorkspaceFeedInteractionRepository,
-  FirebaseWorkspaceFeedPostRepository,
-} from "../infrastructure";
-
-export interface CreateWorkspaceFeedPostParams {
-  accountId: string;
-  workspaceId: string;
-  authorAccountId: string;
-  content: string;
-}
-
-export interface ReplyWorkspaceFeedPostParams {
-  accountId: string;
-  workspaceId: string;
-  parentPostId: string;
-  authorAccountId: string;
-  content: string;
-}
-
-export interface RepostWorkspaceFeedPostParams {
-  accountId: string;
-  workspaceId: string;
-  sourcePostId: string;
-  actorAccountId: string;
-  comment?: string;
-}
-
-export interface WorkspaceFeedInteractionParams {
-  accountId: string;
-  postId: string;
-  actorAccountId: string;
-}
-
-export class WorkspaceFeedFacade {
-  private readonly postRepo: WorkspaceFeedPostRepository;
-  private readonly interactionRepo: WorkspaceFeedInteractionRepository;
-
-  constructor(
-    postRepo: WorkspaceFeedPostRepository = new FirebaseWorkspaceFeedPostRepository(),
-    interactionRepo: WorkspaceFeedInteractionRepository = new FirebaseWorkspaceFeedInteractionRepository(),
-  ) {
-    this.postRepo = postRepo;
-    this.interactionRepo = interactionRepo;
-  }
-
-  async createPost(params: CreateWorkspaceFeedPostParams): Promise<string | null> {
-    const result = await new CreateWorkspaceFeedPostUseCase(this.postRepo).execute(params);
-    return result.success ? result.aggregateId : null;
-  }
-
-  async reply(params: ReplyWorkspaceFeedPostParams): Promise<string | null> {
-    const result = await new ReplyWorkspaceFeedPostUseCase(this.postRepo).execute(params);
-    return result.success ? result.aggregateId : null;
-  }
-
-  async repost(params: RepostWorkspaceFeedPostParams): Promise<string | null> {
-    const result = await new RepostWorkspaceFeedPostUseCase(this.postRepo).execute(params);
-    return result.success ? result.aggregateId : null;
-  }
-
-  async like(params: WorkspaceFeedInteractionParams): Promise<boolean> {
-    const result = await new LikeWorkspaceFeedPostUseCase(this.postRepo, this.interactionRepo).execute(params);
-    return result.success;
-  }
-
-  async view(params: WorkspaceFeedInteractionParams): Promise<boolean> {
-    const result = await new ViewWorkspaceFeedPostUseCase(this.postRepo, this.interactionRepo).execute(params);
-    return result.success;
-  }
-
-  async bookmark(params: WorkspaceFeedInteractionParams): Promise<boolean> {
-    const result = await new BookmarkWorkspaceFeedPostUseCase(this.postRepo, this.interactionRepo).execute(params);
-    return result.success;
-  }
-
-  async share(params: WorkspaceFeedInteractionParams): Promise<boolean> {
-    const result = await new ShareWorkspaceFeedPostUseCase(this.postRepo, this.interactionRepo).execute(params);
-    return result.success;
-  }
-
-  async getPost(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
-    return new GetWorkspaceFeedPostUseCase(this.postRepo).execute(accountId, postId);
-  }
-
-  async getWorkspaceFeed(
-    accountId: string,
-    workspaceId: string,
-    maxRows = 50,
-  ): Promise<WorkspaceFeedPost[]> {
-    return new ListWorkspaceFeedUseCase(this.postRepo).execute({
-      accountId,
-      workspaceId,
-      limit: maxRows,
-    });
-  }
-
-  async getAccountFeed(accountId: string, maxRows = 50): Promise<WorkspaceFeedPost[]> {
-    return new ListAccountWorkspaceFeedUseCase(this.postRepo).execute({
-      accountId,
-      limit: maxRows,
-    });
-  }
-}
-
-export const workspaceFeedFacade = new WorkspaceFeedFacade();
-````
-
 ## File: modules/workspace/subdomains/feed/application/.gitkeep
 ````
 
-````
-
-## File: modules/workspace/subdomains/feed/application/dto/workspace-feed.dto.ts
-````typescript
-import { z } from "@lib-zod";
-
-const AccountScopeSchema = z.object({
-  accountId: z.string().min(1),
-});
-
-const WorkspaceScopeSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1),
-});
-
-export const FeedLimitSchema = z.number().int().min(1).max(200).default(50);
-
-export const CreateWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
-  authorAccountId: z.string().min(1),
-  content: z.string().trim().min(1).max(5000),
-});
-
-export type CreateWorkspaceFeedPostDto = z.infer<typeof CreateWorkspaceFeedPostSchema>;
-
-export const ReplyWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
-  parentPostId: z.string().min(1),
-  authorAccountId: z.string().min(1),
-  content: z.string().trim().min(1).max(5000),
-});
-
-export type ReplyWorkspaceFeedPostDto = z.infer<typeof ReplyWorkspaceFeedPostSchema>;
-
-export const RepostWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
-  sourcePostId: z.string().min(1),
-  actorAccountId: z.string().min(1),
-  comment: z.string().trim().max(1000).optional(),
-});
-
-export type RepostWorkspaceFeedPostDto = z.infer<typeof RepostWorkspaceFeedPostSchema>;
-
-export const FeedInteractionSchema = AccountScopeSchema.extend({
-  postId: z.string().min(1),
-  actorAccountId: z.string().min(1),
-});
-
-export type FeedInteractionDto = z.infer<typeof FeedInteractionSchema>;
-
-export const ListWorkspaceFeedSchema = WorkspaceScopeSchema.extend({
-  limit: FeedLimitSchema.optional(),
-});
-
-export type ListWorkspaceFeedDto = z.infer<typeof ListWorkspaceFeedSchema>;
-
-export const ListAccountFeedSchema = AccountScopeSchema.extend({
-  limit: FeedLimitSchema.optional(),
-});
-
-export type ListAccountFeedDto = z.infer<typeof ListAccountFeedSchema>;
-````
-
-## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed-interaction.use-cases.ts
-````typescript
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type {
-  WorkspaceFeedInteractionRepository,
-  WorkspaceFeedPostRepository,
-} from "../../domain/repositories/workspace-feed.repositories";
-import { FeedInteractionSchema } from "../dto/workspace-feed.dto";
-
-export class LikeWorkspaceFeedPostUseCase {
-  constructor(
-    private readonly postRepo: WorkspaceFeedPostRepository,
-    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
-  ) {}
-
-  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
-    const parsed = FeedInteractionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
-    if (!post) {
-      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
-    }
-
-    const liked = await this.interactionRepo.like(
-      parsed.data.accountId,
-      parsed.data.postId,
-      parsed.data.actorAccountId,
-    );
-    if (liked) {
-      await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { likeDelta: 1 });
-    }
-
-    return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-
-export class BookmarkWorkspaceFeedPostUseCase {
-  constructor(
-    private readonly postRepo: WorkspaceFeedPostRepository,
-    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
-  ) {}
-
-  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
-    const parsed = FeedInteractionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
-    if (!post) {
-      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
-    }
-
-    const bookmarked = await this.interactionRepo.bookmark(
-      parsed.data.accountId,
-      parsed.data.postId,
-      parsed.data.actorAccountId,
-    );
-    if (bookmarked) {
-      await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { bookmarkDelta: 1 });
-    }
-
-    return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-
-export class ViewWorkspaceFeedPostUseCase {
-  constructor(
-    private readonly postRepo: WorkspaceFeedPostRepository,
-    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
-  ) {}
-
-  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
-    const parsed = FeedInteractionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
-    if (!post) {
-      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
-    }
-
-    await this.interactionRepo.view(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
-    await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { viewDelta: 1 });
-    return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-
-export class ShareWorkspaceFeedPostUseCase {
-  constructor(
-    private readonly postRepo: WorkspaceFeedPostRepository,
-    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
-  ) {}
-
-  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
-    const parsed = FeedInteractionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
-    if (!post) {
-      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
-    }
-
-    await this.interactionRepo.share(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
-    await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { shareDelta: 1 });
-    return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-````
-
-## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed-post.use-cases.ts
-````typescript
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
-import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
-import {
-  CreateWorkspaceFeedPostSchema,
-  type CreateWorkspaceFeedPostDto,
-  ListAccountFeedSchema,
-  type ListAccountFeedDto,
-  ListWorkspaceFeedSchema,
-  type ListWorkspaceFeedDto,
-  ReplyWorkspaceFeedPostSchema,
-  type ReplyWorkspaceFeedPostDto,
-  RepostWorkspaceFeedPostSchema,
-  type RepostWorkspaceFeedPostDto,
-} from "../dto/workspace-feed.dto";
-
-export class CreateWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = CreateWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.repo.createPost(parsed.data);
-    return commandSuccess(post.id, Date.now());
-  }
-}
-
-export class ReplyWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = ReplyWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const parent = await this.repo.findById(parsed.data.accountId, parsed.data.parentPostId);
-    if (!parent) {
-      return commandFailureFrom("WORKSPACE_FEED_PARENT_NOT_FOUND", "Parent post not found.");
-    }
-    if (parent.workspaceId !== parsed.data.workspaceId) {
-      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Parent post is in another workspace.");
-    }
-
-    const reply = await this.repo.createReply(parsed.data);
-    return commandSuccess(reply.id, Date.now());
-  }
-}
-
-export class RepostWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = RepostWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const source = await this.repo.findById(parsed.data.accountId, parsed.data.sourcePostId);
-    if (!source) {
-      return commandFailureFrom("WORKSPACE_FEED_SOURCE_NOT_FOUND", "Source post not found.");
-    }
-    if (source.workspaceId !== parsed.data.workspaceId) {
-      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Source post is in another workspace.");
-    }
-
-    const repost = await this.repo.createRepost(parsed.data);
-    if (!repost) {
-      return commandFailureFrom("WORKSPACE_FEED_REPOST_FAILED", "Failed to create repost.");
-    }
-
-    return commandSuccess(repost.id, Date.now());
-  }
-}
-
-export class GetWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
-    if (!accountId.trim() || !postId.trim()) return null;
-    return this.repo.findById(accountId, postId);
-  }
-}
-
-export class ListWorkspaceFeedUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ListWorkspaceFeedDto): Promise<WorkspaceFeedPost[]> {
-    const parsed = ListWorkspaceFeedSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByWorkspaceId(parsed.data.accountId, parsed.data.workspaceId, parsed.data.limit ?? 50);
-  }
-}
-
-export class ListAccountWorkspaceFeedUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ListAccountFeedDto): Promise<WorkspaceFeedPost[]> {
-    const parsed = ListAccountFeedSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByAccountId(parsed.data.accountId, parsed.data.limit ?? 50);
-  }
-}
-````
-
-## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed.use-cases.ts
-````typescript
-export {
-  CreateWorkspaceFeedPostUseCase,
-  ReplyWorkspaceFeedPostUseCase,
-  RepostWorkspaceFeedPostUseCase,
-  GetWorkspaceFeedPostUseCase,
-  ListWorkspaceFeedUseCase,
-  ListAccountWorkspaceFeedUseCase,
-} from "./workspace-feed-post.use-cases";
-
-export {
-  LikeWorkspaceFeedPostUseCase,
-  BookmarkWorkspaceFeedPostUseCase,
-  ViewWorkspaceFeedPostUseCase,
-  ShareWorkspaceFeedPostUseCase,
-} from "./workspace-feed-interaction.use-cases";
 ````
 
 ## File: modules/workspace/subdomains/feed/domain/.gitkeep
@@ -52217,1111 +49660,14 @@ export {
 
 ````
 
-## File: modules/workspace/subdomains/feed/domain/entities/workspace-feed-post.entity.ts
-````typescript
-export const WORKSPACE_FEED_POST_TYPES = ["post", "reply", "repost"] as const;
-export type WorkspaceFeedPostType = (typeof WORKSPACE_FEED_POST_TYPES)[number];
-
-export interface WorkspaceFeedPost {
-  id: string;
-  accountId: string;
-  workspaceId: string;
-  authorAccountId: string;
-  type: WorkspaceFeedPostType;
-  content: string;
-  replyToPostId: string | null;
-  repostOfPostId: string | null;
-  likeCount: number;
-  replyCount: number;
-  repostCount: number;
-  viewCount: number;
-  bookmarkCount: number;
-  shareCount: number;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-
-export interface CreateWorkspaceFeedPostInput {
-  accountId: string;
-  workspaceId: string;
-  authorAccountId: string;
-  content: string;
-}
-
-export interface CreateWorkspaceFeedReplyInput {
-  accountId: string;
-  workspaceId: string;
-  parentPostId: string;
-  authorAccountId: string;
-  content: string;
-}
-
-export interface CreateWorkspaceFeedRepostInput {
-  accountId: string;
-  workspaceId: string;
-  sourcePostId: string;
-  actorAccountId: string;
-  comment?: string;
-}
-
-export interface WorkspaceFeedCounterPatch {
-  likeDelta?: number;
-  replyDelta?: number;
-  repostDelta?: number;
-  viewDelta?: number;
-  bookmarkDelta?: number;
-  shareDelta?: number;
-}
-````
-
-## File: modules/workspace/subdomains/feed/domain/events/workspace-feed.events.ts
-````typescript
-export const WORKSPACE_FEED_EVENT_TYPES = [
-  "WorkspaceFeedPostCreated",
-  "WorkspaceFeedReplyCreated",
-  "WorkspaceFeedRepostCreated",
-  "WorkspaceFeedPostLiked",
-  "WorkspaceFeedPostViewed",
-  "WorkspaceFeedPostBookmarked",
-  "WorkspaceFeedPostShared",
-] as const;
-
-export type WorkspaceFeedEventType = (typeof WORKSPACE_FEED_EVENT_TYPES)[number];
-
-interface WorkspaceFeedBaseEvent {
-  type: WorkspaceFeedEventType;
-  accountId: string;
-  workspaceId: string;
-  postId: string;
-  actorAccountId: string;
-  occurredAtISO: string;
-}
-
-export interface WorkspaceFeedPostCreatedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostCreated";
-}
-
-export interface WorkspaceFeedReplyCreatedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedReplyCreated";
-  parentPostId: string;
-}
-
-export interface WorkspaceFeedRepostCreatedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedRepostCreated";
-  sourcePostId: string;
-}
-
-export interface WorkspaceFeedPostLikedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostLiked";
-}
-
-export interface WorkspaceFeedPostViewedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostViewed";
-}
-
-export interface WorkspaceFeedPostBookmarkedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostBookmarked";
-}
-
-export interface WorkspaceFeedPostSharedEvent extends WorkspaceFeedBaseEvent {
-  type: "WorkspaceFeedPostShared";
-}
-
-export type WorkspaceFeedDomainEvent =
-  | WorkspaceFeedPostCreatedEvent
-  | WorkspaceFeedReplyCreatedEvent
-  | WorkspaceFeedRepostCreatedEvent
-  | WorkspaceFeedPostLikedEvent
-  | WorkspaceFeedPostViewedEvent
-  | WorkspaceFeedPostBookmarkedEvent
-  | WorkspaceFeedPostSharedEvent;
-````
-
-## File: modules/workspace/subdomains/feed/domain/index.ts
-````typescript
-export type {
-  WorkspaceFeedPost,
-  WorkspaceFeedPostType,
-  CreateWorkspaceFeedPostInput,
-  CreateWorkspaceFeedReplyInput,
-  CreateWorkspaceFeedRepostInput,
-  WorkspaceFeedCounterPatch,
-} from "./entities/workspace-feed-post.entity";
-
-export { WORKSPACE_FEED_POST_TYPES } from "./entities/workspace-feed-post.entity";
-
-export type {
-  WorkspaceFeedDomainEvent,
-  WorkspaceFeedPostCreatedEvent,
-  WorkspaceFeedReplyCreatedEvent,
-  WorkspaceFeedRepostCreatedEvent,
-  WorkspaceFeedPostLikedEvent,
-  WorkspaceFeedPostViewedEvent,
-  WorkspaceFeedPostBookmarkedEvent,
-  WorkspaceFeedPostSharedEvent,
-} from "./events/workspace-feed.events";
-
-export { WORKSPACE_FEED_EVENT_TYPES } from "./events/workspace-feed.events";
-
-export type {
-  WorkspaceFeedPostRepository,
-  WorkspaceFeedInteractionRepository,
-} from "./repositories/workspace-feed.repositories";
-````
-
-## File: modules/workspace/subdomains/feed/domain/repositories/workspace-feed.repositories.ts
-````typescript
-import type {
-  CreateWorkspaceFeedPostInput,
-  CreateWorkspaceFeedReplyInput,
-  CreateWorkspaceFeedRepostInput,
-  WorkspaceFeedCounterPatch,
-  WorkspaceFeedPost,
-} from "../entities/workspace-feed-post.entity";
-
-export interface WorkspaceFeedPostRepository {
-  createPost(input: CreateWorkspaceFeedPostInput): Promise<WorkspaceFeedPost>;
-  createReply(input: CreateWorkspaceFeedReplyInput): Promise<WorkspaceFeedPost>;
-  createRepost(input: CreateWorkspaceFeedRepostInput): Promise<WorkspaceFeedPost | null>;
-  patchCounters(accountId: string, postId: string, patch: WorkspaceFeedCounterPatch): Promise<void>;
-  findById(accountId: string, postId: string): Promise<WorkspaceFeedPost | null>;
-  listByWorkspaceId(accountId: string, workspaceId: string, limit: number): Promise<WorkspaceFeedPost[]>;
-  listByAccountId(accountId: string, limit: number): Promise<WorkspaceFeedPost[]>;
-}
-
-export interface WorkspaceFeedInteractionRepository {
-  like(accountId: string, postId: string, actorAccountId: string): Promise<boolean>;
-  bookmark(accountId: string, postId: string, actorAccountId: string): Promise<boolean>;
-  view(accountId: string, postId: string, actorAccountId: string): Promise<void>;
-  share(accountId: string, postId: string, actorAccountId: string): Promise<void>;
-}
-````
-
 ## File: modules/workspace/subdomains/feed/infrastructure/.gitkeep
 ````
 
 ````
 
-## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository.ts
-````typescript
-import {
-  collection,
-  doc,
-  getDoc,
-  getFirestore,
-  serverTimestamp,
-  setDoc,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-
-import type { WorkspaceFeedInteractionRepository } from "../../domain/repositories/workspace-feed.repositories";
-
-type FirestoreDb = ReturnType<typeof getFirestore>;
-
-function postDoc(db: FirestoreDb, accountId: string, postId: string) {
-  return doc(db, "accounts", accountId, "workspaceFeedPosts", postId);
-}
-
-function likesDoc(db: FirestoreDb, accountId: string, postId: string, actorAccountId: string) {
-  return doc(postDoc(db, accountId, postId), "likes", actorAccountId);
-}
-
-function bookmarksDoc(db: FirestoreDb, accountId: string, postId: string, actorAccountId: string) {
-  return doc(postDoc(db, accountId, postId), "bookmarks", actorAccountId);
-}
-
-function viewsCol(db: FirestoreDb, accountId: string, postId: string) {
-  return collection(postDoc(db, accountId, postId), "views");
-}
-
-function sharesCol(db: FirestoreDb, accountId: string, postId: string) {
-  return collection(postDoc(db, accountId, postId), "shares");
-}
-
-export class FirebaseWorkspaceFeedInteractionRepository implements WorkspaceFeedInteractionRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async like(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
-    const ref = likesDoc(this.db, accountId, postId, actorAccountId);
-    const snap = await getDoc(ref);
-    if (snap.exists()) return false;
-
-    await setDoc(ref, {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-    return true;
-  }
-
-  async bookmark(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
-    const ref = bookmarksDoc(this.db, accountId, postId, actorAccountId);
-    const snap = await getDoc(ref);
-    if (snap.exists()) return false;
-
-    await setDoc(ref, {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-    return true;
-  }
-
-  async view(accountId: string, postId: string, actorAccountId: string): Promise<void> {
-    await setDoc(doc(viewsCol(this.db, accountId, postId), generateId()), {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-  }
-
-  async share(accountId: string, postId: string, actorAccountId: string): Promise<void> {
-    await setDoc(doc(sharesCol(this.db, accountId, postId), generateId()), {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-  }
-}
-````
-
-## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedPostRepository.ts
-````typescript
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  increment,
-  limit,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-
-import type {
-  CreateWorkspaceFeedPostInput,
-  CreateWorkspaceFeedReplyInput,
-  CreateWorkspaceFeedRepostInput,
-  WorkspaceFeedCounterPatch,
-  WorkspaceFeedPost,
-} from "../../domain/entities/workspace-feed-post.entity";
-import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
-
-type FirestoreDb = ReturnType<typeof getFirestore>;
-
-function postsCol(db: FirestoreDb, accountId: string) {
-  return collection(db, "accounts", accountId, "workspaceFeedPosts");
-}
-
-function postDoc(db: FirestoreDb, accountId: string, postId: string) {
-  return doc(db, "accounts", accountId, "workspaceFeedPosts", postId);
-}
-
-function repostMapDoc(db: FirestoreDb, accountId: string, actorAccountId: string, sourcePostId: string) {
-  return doc(db, "accounts", accountId, "workspaceFeedReposts", `${actorAccountId}__${sourcePostId}`);
-}
-
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function asNumber(value: unknown): number {
-  return typeof value === "number" ? value : 0;
-}
-
-function toWorkspaceFeedPost(id: string, data: Record<string, unknown>): WorkspaceFeedPost {
-  const type = asString(data.type, "post");
-  return {
-    id,
-    accountId: asString(data.accountId),
-    workspaceId: asString(data.workspaceId),
-    authorAccountId: asString(data.authorAccountId),
-    type: type === "reply" || type === "repost" ? type : "post",
-    content: asString(data.content),
-    replyToPostId: typeof data.replyToPostId === "string" ? data.replyToPostId : null,
-    repostOfPostId: typeof data.repostOfPostId === "string" ? data.repostOfPostId : null,
-    likeCount: asNumber(data.likeCount),
-    replyCount: asNumber(data.replyCount),
-    repostCount: asNumber(data.repostCount),
-    viewCount: asNumber(data.viewCount),
-    bookmarkCount: asNumber(data.bookmarkCount),
-    shareCount: asNumber(data.shareCount),
-    createdAtISO: asString(data.createdAtISO),
-    updatedAtISO: asString(data.updatedAtISO),
-  };
-}
-
-function createBasePostData(
-  accountId: string,
-  workspaceId: string,
-  authorAccountId: string,
-  content: string,
-  type: "post" | "reply" | "repost",
-): Record<string, unknown> {
-  const nowISO = new Date().toISOString();
-  return {
-    accountId,
-    workspaceId,
-    authorAccountId,
-    type,
-    content,
-    likeCount: 0,
-    replyCount: 0,
-    repostCount: 0,
-    viewCount: 0,
-    bookmarkCount: 0,
-    shareCount: 0,
-    createdAtISO: nowISO,
-    updatedAtISO: nowISO,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  };
-}
-
-export class FirebaseWorkspaceFeedPostRepository implements WorkspaceFeedPostRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async createPost(input: CreateWorkspaceFeedPostInput): Promise<WorkspaceFeedPost> {
-    const id = generateId();
-    const data = createBasePostData(
-      input.accountId,
-      input.workspaceId,
-      input.authorAccountId,
-      input.content,
-      "post",
-    );
-    await setDoc(postDoc(this.db, input.accountId, id), data);
-    return toWorkspaceFeedPost(id, data);
-  }
-
-  async createReply(input: CreateWorkspaceFeedReplyInput): Promise<WorkspaceFeedPost> {
-    const id = generateId();
-    const data: Record<string, unknown> = {
-      ...createBasePostData(
-        input.accountId,
-        input.workspaceId,
-        input.authorAccountId,
-        input.content,
-        "reply",
-      ),
-      replyToPostId: input.parentPostId,
-      repostOfPostId: null,
-    };
-
-    await setDoc(postDoc(this.db, input.accountId, id), data);
-    await this.patchCounters(input.accountId, input.parentPostId, { replyDelta: 1 });
-    return toWorkspaceFeedPost(id, data);
-  }
-
-  async createRepost(input: CreateWorkspaceFeedRepostInput): Promise<WorkspaceFeedPost | null> {
-    const mapRef = repostMapDoc(this.db, input.accountId, input.actorAccountId, input.sourcePostId);
-    const existingMap = await getDoc(mapRef);
-    if (existingMap.exists()) {
-      const repostPostId = asString(existingMap.data().repostPostId);
-      if (!repostPostId) return null;
-      return this.findById(input.accountId, repostPostId);
-    }
-
-    const source = await this.findById(input.accountId, input.sourcePostId);
-    if (!source) return null;
-
-    const id = generateId();
-    const content = input.comment?.trim() || source.content;
-    const data: Record<string, unknown> = {
-      ...createBasePostData(
-        input.accountId,
-        input.workspaceId,
-        input.actorAccountId,
-        content,
-        "repost",
-      ),
-      replyToPostId: null,
-      repostOfPostId: input.sourcePostId,
-    };
-
-    await setDoc(postDoc(this.db, input.accountId, id), data);
-    await setDoc(mapRef, {
-      accountId: input.accountId,
-      workspaceId: input.workspaceId,
-      sourcePostId: input.sourcePostId,
-      actorAccountId: input.actorAccountId,
-      repostPostId: id,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-    await this.patchCounters(input.accountId, input.sourcePostId, { repostDelta: 1 });
-    return toWorkspaceFeedPost(id, data);
-  }
-
-  async patchCounters(accountId: string, postId: string, patch: WorkspaceFeedCounterPatch): Promise<void> {
-    const updates: Record<string, unknown> = {
-      updatedAtISO: new Date().toISOString(),
-      updatedAt: serverTimestamp(),
-    };
-    if (patch.likeDelta) updates.likeCount = increment(patch.likeDelta);
-    if (patch.replyDelta) updates.replyCount = increment(patch.replyDelta);
-    if (patch.repostDelta) updates.repostCount = increment(patch.repostDelta);
-    if (patch.viewDelta) updates.viewCount = increment(patch.viewDelta);
-    if (patch.bookmarkDelta) updates.bookmarkCount = increment(patch.bookmarkDelta);
-    if (patch.shareDelta) updates.shareCount = increment(patch.shareDelta);
-    await updateDoc(postDoc(this.db, accountId, postId), updates);
-  }
-
-  async findById(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
-    const snap = await getDoc(postDoc(this.db, accountId, postId));
-    if (!snap.exists()) return null;
-    return toWorkspaceFeedPost(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByWorkspaceId(accountId: string, workspaceId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
-    const snaps = await getDocs(
-      query(
-        postsCol(this.db, accountId),
-        where("workspaceId", "==", workspaceId),
-        orderBy("createdAtISO", "desc"),
-        limit(maxRows),
-      ),
-    );
-    return snaps.docs.map((row) => toWorkspaceFeedPost(row.id, row.data() as Record<string, unknown>));
-  }
-
-  async listByAccountId(accountId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
-    const snaps = await getDocs(
-      query(postsCol(this.db, accountId), orderBy("createdAtISO", "desc"), limit(maxRows)),
-    );
-    return snaps.docs.map((row) => toWorkspaceFeedPost(row.id, row.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/workspace/subdomains/feed/infrastructure/index.ts
-````typescript
-export { FirebaseWorkspaceFeedPostRepository } from "./firebase/FirebaseWorkspaceFeedPostRepository";
-export { FirebaseWorkspaceFeedInteractionRepository } from "./firebase/FirebaseWorkspaceFeedInteractionRepository";
-````
-
-## File: modules/workspace/subdomains/feed/interfaces/_actions/workspace-feed.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-
-import type {
-  CreateWorkspaceFeedPostDto,
-  FeedInteractionDto,
-  ReplyWorkspaceFeedPostDto,
-  RepostWorkspaceFeedPostDto,
-} from "../../application/dto/workspace-feed.dto";
-import {
-  BookmarkWorkspaceFeedPostUseCase,
-  CreateWorkspaceFeedPostUseCase,
-  LikeWorkspaceFeedPostUseCase,
-  ReplyWorkspaceFeedPostUseCase,
-  RepostWorkspaceFeedPostUseCase,
-  ShareWorkspaceFeedPostUseCase,
-  ViewWorkspaceFeedPostUseCase,
-} from "../../application/use-cases/workspace-feed.use-cases";
-import {
-  FirebaseWorkspaceFeedInteractionRepository,
-  FirebaseWorkspaceFeedPostRepository,
-} from "../../infrastructure";
-
-function makePostRepo() {
-  return new FirebaseWorkspaceFeedPostRepository();
-}
-
-function makeInteractionRepo() {
-  return new FirebaseWorkspaceFeedInteractionRepository();
-}
-
-export async function createWorkspaceFeedPost(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
-  try {
-    return await new CreateWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_CREATE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function replyWorkspaceFeedPost(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
-  try {
-    return await new ReplyWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_REPLY_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function repostWorkspaceFeedPost(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
-  try {
-    return await new RepostWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_REPOST_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function likeWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
-  try {
-    return await new LikeWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_LIKE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function viewWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
-  try {
-    return await new ViewWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_VIEW_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function bookmarkWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
-  try {
-    return await new BookmarkWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_BOOKMARK_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function shareWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
-  try {
-    return await new ShareWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_SHARE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-````
-
 ## File: modules/workspace/subdomains/feed/interfaces/.gitkeep
 ````
 
-````
-
-## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedAccountView.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { Eye, Heart, MessageCircle, Repeat2, Share2, Star } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { Button } from "@ui-shadcn/ui/button";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
-import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
-
-interface WorkspaceFeedAccountViewProps {
-  readonly accountId: string;
-}
-
-export function WorkspaceFeedAccountView({ accountId }: WorkspaceFeedAccountViewProps) {
-  const { state: appState } = useApp();
-  const actorId = appState.activeAccount?.id ?? accountId;
-
-  const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
-  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
-  const [activeReplyPostId, setActiveReplyPostId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [actingPostId, setActingPostId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const refreshFeed = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const rows = await workspaceFeedFacade.getAccountFeed(accountId, 80);
-      setPosts(rows);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "載入 account feed 失敗");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accountId]);
-
-  useEffect(() => {
-    void refreshFeed();
-  }, [refreshFeed]);
-
-  async function handleAction(post: WorkspaceFeedPost, action: "like" | "view" | "bookmark" | "share" | "repost") {
-    setActingPostId(post.id);
-    setError(null);
-    try {
-      if (action === "like") {
-        await workspaceFeedFacade.like({ accountId, postId: post.id, actorAccountId: actorId });
-      }
-      if (action === "view") {
-        await workspaceFeedFacade.view({ accountId, postId: post.id, actorAccountId: actorId });
-      }
-      if (action === "bookmark") {
-        await workspaceFeedFacade.bookmark({ accountId, postId: post.id, actorAccountId: actorId });
-      }
-      if (action === "share") {
-        await workspaceFeedFacade.share({ accountId, postId: post.id, actorAccountId: actorId });
-      }
-      if (action === "repost") {
-        await workspaceFeedFacade.repost({
-          accountId,
-          workspaceId: post.workspaceId,
-          sourcePostId: post.id,
-          actorAccountId: actorId,
-        });
-      }
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "互動失敗");
-    } finally {
-      setActingPostId(null);
-    }
-  }
-
-  async function handleReply(post: WorkspaceFeedPost) {
-    const content = replyDrafts[post.id]?.trim() ?? "";
-    if (!content) return;
-
-    setActingPostId(post.id);
-    setError(null);
-    try {
-      await workspaceFeedFacade.reply({
-        accountId,
-        workspaceId: post.workspaceId,
-        parentPostId: post.id,
-        authorAccountId: actorId,
-        content,
-      });
-      setReplyDrafts((prev) => ({ ...prev, [post.id]: "" }));
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "回覆失敗");
-    } finally {
-      setActingPostId(null);
-    }
-  }
-
-  return (
-    <>
-      {error && (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
-      )}
-
-      <div className="space-y-3">
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">載入 account feed 中...</p>
-        ) : posts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">目前沒有任何 workspace 貼文。</p>
-        ) : (
-          posts.map((post) => (
-            <article key={post.id} className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {post.type.toUpperCase()} · workspace {post.workspaceId} · {new Date(post.createdAtISO).toLocaleString()}
-                </p>
-                <p className="text-xs text-muted-foreground">by {post.authorAccountId}</p>
-              </div>
-
-              <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant={activeReplyPostId === post.id ? "default" : "outline"}
-                  onClick={() => setActiveReplyPostId((current) => (current === post.id ? null : post.id))}
-                >
-                  <MessageCircle className="mr-1 h-4 w-4" />
-                  Reply {post.replyCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "repost")} disabled={actingPostId === post.id}>
-                  <Repeat2 className="mr-1 h-4 w-4" />
-                  Repost {post.repostCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "like")} disabled={actingPostId === post.id}>
-                  <Heart className="mr-1 h-4 w-4" />
-                  Like {post.likeCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "view")} disabled={actingPostId === post.id}>
-                  <Eye className="mr-1 h-4 w-4" />
-                  View {post.viewCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "bookmark")} disabled={actingPostId === post.id}>
-                  <Star className="mr-1 h-4 w-4" />
-                  bookmark {post.bookmarkCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "share")} disabled={actingPostId === post.id}>
-                  <Share2 className="mr-1 h-4 w-4" />
-                  share {post.shareCount}
-                </Button>
-              </div>
-
-              {activeReplyPostId === post.id && (
-                <div className="space-y-2 rounded-xl border border-border/40 p-3">
-                  <Textarea
-                    value={replyDrafts[post.id] ?? ""}
-                    onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
-                    placeholder="回覆這則貼文..."
-                    rows={2}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" type="button" variant="ghost" onClick={() => setActiveReplyPostId(null)}>
-                      取消
-                    </Button>
-                    <Button
-                      size="sm"
-                      type="button"
-                      onClick={() => void handleReply(post)}
-                      disabled={actingPostId === post.id || !(replyDrafts[post.id] ?? "").trim()}
-                    >
-                      回覆
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </article>
-          ))
-        )}
-      </div>
-    </>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedWorkspaceView.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Eye, Heart, MessageCircle, Repeat2, Send, Share2, Star } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { Avatar, AvatarFallback, AvatarImage } from "@ui-shadcn/ui/avatar";
-import { Button } from "@ui-shadcn/ui/button";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
-import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
-
-interface WorkspaceFeedWorkspaceViewProps {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly workspaceName: string;
-}
-
-export function WorkspaceFeedWorkspaceView({
-  accountId,
-  workspaceId,
-  workspaceName,
-}: WorkspaceFeedWorkspaceViewProps) {
-  const { state: appState } = useApp();
-  const actor = appState.activeAccount;
-  const actorId = actor?.id ?? accountId;
-
-  const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
-  const [composer, setComposer] = useState("");
-  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
-  const [activeReplyPostId, setActiveReplyPostId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [actingPostId, setActingPostId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const actorName = actor?.name ?? "未知";
-  const actorAvatar = "photoURL" in (actor ?? {}) ? (actor as { photoURL?: string }).photoURL : undefined;
-  const actorInitial = actorName.charAt(0).toUpperCase();
-
-  const canPublish = useMemo(() => composer.trim().length > 0, [composer]);
-
-  const refreshFeed = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const rows = await workspaceFeedFacade.getWorkspaceFeed(accountId, workspaceId, 50);
-      setPosts(rows);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "載入 feed 失敗");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => {
-    void refreshFeed();
-  }, [refreshFeed]);
-
-  async function handlePublish() {
-    if (!canPublish || isPublishing) return;
-    setIsPublishing(true);
-    setError(null);
-    try {
-      const createdId = await workspaceFeedFacade.createPost({
-        accountId,
-        workspaceId,
-        authorAccountId: actorId,
-        content: composer.trim(),
-      });
-      if (!createdId) {
-        setError("建立貼文失敗");
-        return;
-      }
-      setComposer("");
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "建立貼文失敗");
-    } finally {
-      setIsPublishing(false);
-    }
-  }
-
-  async function handleAction(postId: string, action: "like" | "view" | "bookmark" | "share" | "repost") {
-    setActingPostId(postId);
-    setError(null);
-    try {
-      if (action === "like") {
-        await workspaceFeedFacade.like({ accountId, postId, actorAccountId: actorId });
-      }
-      if (action === "view") {
-        await workspaceFeedFacade.view({ accountId, postId, actorAccountId: actorId });
-      }
-      if (action === "bookmark") {
-        await workspaceFeedFacade.bookmark({ accountId, postId, actorAccountId: actorId });
-      }
-      if (action === "share") {
-        await workspaceFeedFacade.share({ accountId, postId, actorAccountId: actorId });
-      }
-      if (action === "repost") {
-        const current = posts.find((row) => row.id === postId);
-        if (!current) return;
-        await workspaceFeedFacade.repost({
-          accountId,
-          workspaceId: current.workspaceId,
-          sourcePostId: postId,
-          actorAccountId: actorId,
-        });
-      }
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "互動失敗");
-    } finally {
-      setActingPostId(null);
-    }
-  }
-
-  async function handleReply(postId: string) {
-    const text = replyDrafts[postId]?.trim() ?? "";
-    if (!text) return;
-    setActingPostId(postId);
-    setError(null);
-    try {
-      const current = posts.find((row) => row.id === postId);
-      if (!current) return;
-      await workspaceFeedFacade.reply({
-        accountId,
-        workspaceId: current.workspaceId,
-        parentPostId: postId,
-        authorAccountId: actorId,
-        content: text,
-      });
-      setReplyDrafts((prev) => ({ ...prev, [postId]: "" }));
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "回覆失敗");
-    } finally {
-      setActingPostId(null);
-    }
-  }
-
-  return (
-    <section className="mx-auto max-w-3xl space-y-6 rounded-3xl border border-border/60 bg-card/50 p-6">
-      <header className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-12 w-12 shrink-0">
-            <AvatarImage src={actorAvatar} alt={actorName} />
-            <AvatarFallback className="text-sm font-bold">{actorInitial}</AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="text-sm font-semibold">{workspaceName} Feed</p>
-            <p className="text-xs text-muted-foreground">workspaceId: {workspaceId}</p>
-          </div>
-        </div>
-        <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-          live
-        </div>
-      </header>
-
-      <div className="space-y-3 rounded-2xl border border-border/60 bg-background/80 p-4">
-        <Textarea
-          value={composer}
-          onChange={(event) => setComposer(event.target.value)}
-          placeholder="發佈你的想法到 workspace feed..."
-          rows={4}
-        />
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">actor: {actorName} / account: {accountId}</p>
-          <Button type="button" onClick={handlePublish} disabled={!canPublish || isPublishing}>
-            <Send className="mr-2 h-4 w-4" />
-            {isPublishing ? "送出中..." : "發佈"}
-          </Button>
-        </div>
-      </div>
-
-      {error && (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
-      )}
-
-      <div className="space-y-3">
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">載入 feed 中...</p>
-        ) : posts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">目前還沒有貼文，發佈第一則吧。</p>
-        ) : (
-          posts.map((post) => (
-            <article key={post.id} className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {post.type.toUpperCase()} · {post.workspaceId} · {new Date(post.createdAtISO).toLocaleString()}
-                </p>
-                <p className="text-xs text-muted-foreground">by {post.authorAccountId}</p>
-              </div>
-              <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant={activeReplyPostId === post.id ? "default" : "outline"}
-                  onClick={() => setActiveReplyPostId((current) => (current === post.id ? null : post.id))}
-                >
-                  <MessageCircle className="mr-1 h-4 w-4" />
-                  Reply {post.replyCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "repost")} disabled={actingPostId === post.id}>
-                  <Repeat2 className="mr-1 h-4 w-4" />
-                  Repost {post.repostCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "like")} disabled={actingPostId === post.id}>
-                  <Heart className="mr-1 h-4 w-4" />
-                  Like {post.likeCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "view")} disabled={actingPostId === post.id}>
-                  <Eye className="mr-1 h-4 w-4" />
-                  View {post.viewCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "bookmark")} disabled={actingPostId === post.id}>
-                  <Star className="mr-1 h-4 w-4" />
-                  bookmark {post.bookmarkCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "share")} disabled={actingPostId === post.id}>
-                  <Share2 className="mr-1 h-4 w-4" />
-                  share {post.shareCount}
-                </Button>
-              </div>
-
-              {activeReplyPostId === post.id && (
-                <div className="space-y-2 rounded-xl border border-border/40 p-3">
-                  <Textarea
-                    value={replyDrafts[post.id] ?? ""}
-                    onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
-                    placeholder="回覆這則貼文..."
-                    rows={2}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" type="button" variant="ghost" onClick={() => setActiveReplyPostId(null)}>
-                      取消
-                    </Button>
-                    <Button
-                      size="sm"
-                      type="button"
-                      onClick={() => void handleReply(post.id)}
-                      disabled={actingPostId === post.id || !(replyDrafts[post.id] ?? "").trim()}
-                    >
-                      回覆
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </article>
-          ))
-        )}
-      </div>
-    </section>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/feed/interfaces/queries/workspace-feed.queries.ts
-````typescript
-import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
-import {
-  GetWorkspaceFeedPostUseCase,
-  ListAccountWorkspaceFeedUseCase,
-  ListWorkspaceFeedUseCase,
-} from "../../application/use-cases/workspace-feed.use-cases";
-import { FirebaseWorkspaceFeedPostRepository } from "../../infrastructure";
-
-export async function getWorkspaceFeedPost(
-  accountId: string,
-  postId: string,
-): Promise<WorkspaceFeedPost | null> {
-  return new GetWorkspaceFeedPostUseCase(new FirebaseWorkspaceFeedPostRepository()).execute(
-    accountId,
-    postId,
-  );
-}
-
-export async function getWorkspaceFeed(
-  accountId: string,
-  workspaceId: string,
-  limit = 50,
-): Promise<WorkspaceFeedPost[]> {
-  return new ListWorkspaceFeedUseCase(new FirebaseWorkspaceFeedPostRepository()).execute({
-    accountId,
-    workspaceId,
-    limit,
-  });
-}
-
-export async function getAccountWorkspaceFeed(accountId: string, limit = 50): Promise<WorkspaceFeedPost[]> {
-  return new ListAccountWorkspaceFeedUseCase(new FirebaseWorkspaceFeedPostRepository()).execute({
-    accountId,
-    limit,
-  });
-}
 ````
 
 ## File: modules/workspace/subdomains/feed/ports/.gitkeep
@@ -67134,6 +63480,133 @@ export default function OrganizationAuditPage() {
 }
 ````
 
+## File: app/(shell)/organization/daily/page.tsx
+````typescript
+"use client";
+
+import { useApp } from "@/app/providers/app-provider";
+import { WorkspaceFeedAccountView } from "@/modules/workspace/api";
+import { isOrganizationAccount } from "../_utils";
+
+export default function OrganizationDailyPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="mx-auto max-w-4xl space-y-6">
+      <header className="rounded-3xl border border-border/60 bg-card/50 p-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold">Account Workspace Feed</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              聚合名下所有 workspace 的 feed，並提供 Reply / Repost / Like / View / Bookmark / Share 互動。
+            </p>
+          </div>
+          <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+            live
+          </div>
+        </div>
+      </header>
+
+      <WorkspaceFeedAccountView accountId={activeOrganizationId} />
+    </section>
+  );
+}
+````
+
+## File: app/(shell)/organization/schedule/page.tsx
+````typescript
+"use client";
+
+import { useApp } from "@/app/providers/app-provider";
+import { AccountSchedulingView } from "@/modules/workspace/api";
+import { isOrganizationAccount } from "../_utils";
+
+export default function OrganizationSchedulePage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+
+  const activeOrganizationId = isOrganizationAccount(activeAccount)
+    ? activeAccount.id
+    : null;
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-6 px-4 py-6">
+      <header className="space-y-1">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">
+          Account Scheduling
+        </p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          工作需求總覽
+        </h1>
+      </header>
+
+      <AccountSchedulingView
+        accountId={activeOrganizationId}
+        currentUserId={activeOrganizationId}
+      />
+    </section>
+  );
+}
+````
+
+## File: app/(shell)/workspace-feed/page.tsx
+````typescript
+"use client";
+
+/**
+ * Route: /workspace-feed
+ * Purpose: Workspace activity feed — shows posts, reactions, and replies for the
+ *          currently active workspace.
+ */
+
+import { useApp } from "@/app/providers/app-provider";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
+
+export default function WorkspaceFeedPage() {
+  const { state } = useApp();
+  const accountId = state.activeAccount?.id ?? "";
+  const workspaceId = state.activeWorkspaceId ?? "";
+  const workspaceName = "工作區";
+
+  if (!accountId || !workspaceId) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        請先選擇工作區
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-6">
+      <h1 className="mb-4 text-xl font-semibold">動態牆</h1>
+      <WorkspaceFeedWorkspaceView
+        accountId={accountId}
+        workspaceId={workspaceId}
+        workspaceName={workspaceName}
+      />
+    </div>
+  );
+}
+````
+
 ## File: docs/architecture-overview.md
 ````markdown
 # Architecture Overview
@@ -67851,6 +64324,486 @@ When adding or changing docs:
 
 If a question is broad, inspect summaries and README indexes before opening detailed files.
 If multiple files appear to overlap, identify the canonical file and treat others as supporting context.
+````
+
+## File: modules/knowledge/subdomains/ai/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/ai/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/ai/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/ai/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/ai/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/ai/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/analytics/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/analytics/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/analytics/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/analytics/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/analytics/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/analytics/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/authoring/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/authoring/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/authoring/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/authoring/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/authoring/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/authoring/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/automation/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/automation/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/automation/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/automation/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/automation/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/automation/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/base/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/base/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/base/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/base/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/base/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/base/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/collaboration/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/collaboration/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/collaboration/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/collaboration/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/collaboration/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/collaboration/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/core/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/core/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/core/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/core/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/core/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/core/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/database/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/database/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/database/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/database/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/database/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/database/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/integration/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/integration/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/integration/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/integration/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/integration/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/integration/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/media/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/media/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/media/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/media/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/media/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/media/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/portability/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/portability/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/portability/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/portability/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/portability/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/portability/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/query/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/query/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/query/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/query/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/query/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/query/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/search/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/search/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/search/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/search/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/search/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/search/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/source/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/source/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/source/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/source/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/source/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/source/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/template/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/template/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/template/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/template/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/template/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/template/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/versioning/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/versioning/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/versioning/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/versioning/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/versioning/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/versioning/README.md
+````markdown
+
 ````
 
 ## File: modules/notebooklm/AGENT.md
@@ -68603,6 +65556,1794 @@ export { answerRagQuery, generateNotebookResponse } from "./_actions/notebook.ac
 | `NotebookResponse` | `AIResponse`, `LLMOutput` |
 ````
 
+## File: modules/platform/application/commands/ActivateSubscriptionAgreementCommand.ts
+````typescript
+/**
+ * ActivateSubscriptionAgreementCommand
+ *
+ * Command: ActivateSubscriptionAgreement
+ * Purpose: Activates, renews, or suspends a subscription agreement.
+ *
+ * Typical payload fields:
+ *   contextId, subscriptionAgreementId, planCode
+ *
+ * Handled by:  ActivateSubscriptionAgreementService
+ * Output ports: SubscriptionAgreementRepository, PlatformContextRepository, DomainEventPublisher
+ *
+ * Result: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * @see docs/application-services.md — Command-oriented Services
+ */
+
+// TODO: implement ActivateSubscriptionAgreementCommand command payload type
+````
+
+## File: modules/platform/application/commands/ApplyConfigurationProfileCommand.ts
+````typescript
+/**
+ * ApplyConfigurationProfileCommand
+ *
+ * Command: ApplyConfigurationProfile
+ * Purpose: Applies a configuration profile and updates capability toggles.
+ *
+ * Typical payload fields:
+ *   contextId, profileRef
+ *
+ * Handled by:  ApplyConfigurationProfileService
+ * Output ports: PlatformContextRepository, ConfigurationProfileStore, DomainEventPublisher
+ *
+ * Result: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * @see docs/application-services.md — Command-oriented Services
+ */
+
+// TODO: implement ApplyConfigurationProfileCommand command payload type
+````
+
+## File: modules/platform/application/commands/EmitObservabilitySignalCommand.ts
+````typescript
+/**
+ * EmitObservabilitySignalCommand
+ *
+ * Command: EmitObservabilitySignal
+ * Purpose: Emits metrics / trace / alert signals.
+ *
+ * Typical payload fields:
+ *   contextId, signalName, signalLevel, sourceRef
+ *
+ * Handled by:  EmitObservabilitySignalService
+ * Output ports: ObservabilitySink, AuditSignalStore
+ *
+ * Result: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * @see docs/application-services.md — Command-oriented Services
+ */
+
+// TODO: implement EmitObservabilitySignalCommand command payload type
+````
+
+## File: modules/platform/application/commands/FireWorkflowTriggerCommand.ts
+````typescript
+/**
+ * FireWorkflowTriggerCommand
+ *
+ * Command: FireWorkflowTrigger
+ * Purpose: Emits a workflow trigger and delegates execution to downstream adapter.
+ *
+ * Typical payload fields:
+ *   contextId, triggerKey, triggeredBy
+ *
+ * Handled by:  FireWorkflowTriggerService
+ * Output ports: WorkflowPolicyRepository, WorkflowDispatcherPort, DomainEventPublisher
+ *
+ * Result: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * @see docs/application-services.md — Command-oriented Services
+ */
+
+// TODO: implement FireWorkflowTriggerCommand command payload type
+````
+
+## File: modules/platform/application/commands/PublishPolicyCatalogCommand.ts
+````typescript
+/**
+ * PublishPolicyCatalogCommand
+ *
+ * Command: PublishPolicyCatalog
+ * Purpose: Publishes a new PolicyCatalog revision.
+ *
+ * Typical payload fields:
+ *   contextId, revision
+ *
+ * Handled by:  PublishPolicyCatalogService
+ * Output ports: PolicyCatalogRepository, DomainEventPublisher
+ *
+ * Result: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * @see docs/application-services.md — Command-oriented Services
+ */
+
+// TODO: implement PublishPolicyCatalogCommand command payload type
+````
+
+## File: modules/platform/application/commands/RecordAuditSignalCommand.ts
+````typescript
+/**
+ * RecordAuditSignalCommand
+ *
+ * Command: RecordAuditSignal
+ * Purpose: Writes a decision or behavior as an immutable audit signal.
+ *
+ * Typical payload fields:
+ *   contextId, signalType, severity
+ *
+ * Handled by:  RecordAuditSignalService
+ * Output ports: AuditSignalStore, DomainEventPublisher
+ *
+ * Result: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * @see docs/application-services.md — Command-oriented Services
+ */
+
+// TODO: implement RecordAuditSignalCommand command payload type
+````
+
+## File: modules/platform/application/commands/RegisterIntegrationContractCommand.ts
+````typescript
+/**
+ * RegisterIntegrationContractCommand
+ *
+ * Command: RegisterIntegrationContract
+ * Purpose: Creates or updates an external integration contract.
+ *
+ * Typical payload fields:
+ *   contextId, integrationContractId, endpointRef, protocol
+ *
+ * Handled by:  RegisterIntegrationContractService
+ * Output ports: IntegrationContractRepository, SecretReferenceResolver, DomainEventPublisher
+ *
+ * Result: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * @see docs/application-services.md — Command-oriented Services
+ */
+
+// TODO: implement RegisterIntegrationContractCommand command payload type
+````
+
+## File: modules/platform/application/commands/RegisterPlatformContextCommand.ts
+````typescript
+/**
+ * RegisterPlatformContextCommand
+ *
+ * Command: RegisterPlatformContext
+ * Purpose: CreatesPlatformContext or re-activates a platform scope.
+ *
+ * Typical payload fields:
+ *   contextId, subjectScope
+ *
+ * Handled by:  RegisterPlatformContextService
+ * Output ports: PlatformContextRepository, SubscriptionAgreementRepository, DomainEventPublisher
+ *
+ * Result: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * @see docs/application-services.md — Command-oriented Services
+ */
+
+// TODO: implement RegisterPlatformContextCommand command payload type
+````
+
+## File: modules/platform/application/commands/RequestNotificationDispatchCommand.ts
+````typescript
+/**
+ * RequestNotificationDispatchCommand
+ *
+ * Command: RequestNotificationDispatch
+ * Purpose: Creates a notification dispatch request.
+ *
+ * Typical payload fields:
+ *   contextId, channel, recipientRef, templateKey
+ *
+ * Handled by:  RequestNotificationDispatchService
+ * Output ports: NotificationGateway, PolicyCatalogRepository, AuditSignalStore
+ *
+ * Result: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * @see docs/application-services.md — Command-oriented Services
+ */
+
+// TODO: implement RequestNotificationDispatchCommand command payload type
+````
+
+## File: modules/platform/application/handlers/ActivateSubscriptionAgreementHandler.ts
+````typescript
+/**
+ * ActivateSubscriptionAgreementHandler — Use Case Handler
+ *
+ * Implements: PlatformCommandPort
+ * Use case:   ActivateSubscriptionAgreement
+ *
+ * Orchestration steps:
+ *   1. Load SubscriptionAgreement aggregate
+ *   2. Call CapabilityEntitlementPolicy domain service to verify plan constraints
+ *   3. Activate agreement; update PlatformContext capability set
+ *   4. Persist both aggregates
+ *   5. Publish SubscriptionAgreementActivatedEvent
+ *   6. Return PlatformCommandResult
+ *
+ * Output ports used:
+ *   SubscriptionAgreementRepository, PlatformContextRepository, DomainEventPublisher
+ *
+ * Returns: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * Rules:
+ *   - All persistence and side effects go through output ports
+ *   - Domain events are published after successful persistence
+ *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
+ *
+ * @see docs/application-services.md
+ * @see ports/input/index.ts — PlatformCommandPort
+ */
+
+// TODO: implement ActivateSubscriptionAgreementHandler use case handler class
+````
+
+## File: modules/platform/application/handlers/ApplyConfigurationProfileHandler.ts
+````typescript
+/**
+ * ApplyConfigurationProfileHandler — Use Case Handler
+ *
+ * Implements: PlatformCommandPort
+ * Use case:   ApplyConfigurationProfile
+ *
+ * Orchestration steps:
+ *   1. Load ConfigurationProfile via ConfigurationProfileStore
+ *   2. Load PlatformContext aggregate via PlatformContextRepository
+ *   3. Call domain service ConfigurationCompositionService
+ *   4. Apply changes via PlatformContext.applyProfile()
+ *   5. Persist and publish ConfigProfileAppliedEvent
+ *   6. Return PlatformCommandResult
+ *
+ * Output ports used:
+ *   PlatformContextRepository, ConfigurationProfileStore, DomainEventPublisher
+ *
+ * Returns: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * Rules:
+ *   - All persistence and side effects go through output ports
+ *   - Domain events are published after successful persistence
+ *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
+ *
+ * @see docs/application-services.md
+ * @see ports/input/index.ts — PlatformCommandPort
+ */
+
+// TODO: implement ApplyConfigurationProfileHandler use case handler class
+````
+
+## File: modules/platform/application/handlers/EmitObservabilitySignalHandler.ts
+````typescript
+/**
+ * EmitObservabilitySignalHandler — Use Case Handler
+ *
+ * Implements: PlatformCommandPort
+ * Use case:   EmitObservabilitySignal
+ *
+ * Orchestration steps:
+ *   1. Correlate signal via ObservabilityCorrelationService domain service
+ *   2. Emit via ObservabilitySink
+ *   3. Optionally write to AuditSignalStore if classification requires it
+ *   4. Return PlatformCommandResult
+ *
+ * Output ports used:
+ *   ObservabilitySink, AuditSignalStore
+ *
+ * Returns: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * Rules:
+ *   - All persistence and side effects go through output ports
+ *   - Domain events are published after successful persistence
+ *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
+ *
+ * @see docs/application-services.md
+ * @see ports/input/index.ts — PlatformCommandPort
+ */
+
+// TODO: implement EmitObservabilitySignalHandler use case handler class
+````
+
+## File: modules/platform/application/handlers/FireWorkflowTriggerHandler.ts
+````typescript
+/**
+ * FireWorkflowTriggerHandler — Use Case Handler
+ *
+ * Implements: PlatformCommandPort
+ * Use case:   FireWorkflowTrigger
+ *
+ * Orchestration steps:
+ *   1. Load WorkflowPolicy via WorkflowPolicyRepository
+ *   2. Evaluate WorkflowDispatchPolicy domain service
+ *   3. If allowed, dispatch via WorkflowDispatcherPort
+ *   4. Publish WorkflowTriggerFiredEvent
+ *   5. Return PlatformCommandResult
+ *
+ * Output ports used:
+ *   WorkflowPolicyRepository, WorkflowDispatcherPort, DomainEventPublisher
+ *
+ * Returns: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * Rules:
+ *   - All persistence and side effects go through output ports
+ *   - Domain events are published after successful persistence
+ *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
+ *
+ * @see docs/application-services.md
+ * @see ports/input/index.ts — PlatformCommandPort
+ */
+
+// TODO: implement FireWorkflowTriggerHandler use case handler class
+````
+
+## File: modules/platform/application/handlers/GetPlatformContextViewHandler.ts
+````typescript
+/**
+ * GetPlatformContextViewHandler — Use Case Handler
+ *
+ * Implements: PlatformQueryPort
+ * Use case:   GetPlatformContextView
+ *
+ * Orchestration steps:
+ *   1. Query PlatformContextViewRepository
+ *   2. Return PlatformContextView read model
+ *
+ * Output ports used:
+ *   PlatformContextViewRepository
+ *
+ * Returns: query projection / read model (never adapter-native type)
+ *
+ * Rules:
+ *   - All persistence and side effects go through output ports
+ *   - Domain events are published after successful persistence
+ *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
+ *
+ * @see docs/application-services.md
+ * @see ports/input/index.ts — PlatformQueryPort
+ */
+
+// TODO: implement GetPlatformContextViewHandler use case handler class
+````
+
+## File: modules/platform/application/handlers/GetPolicyCatalogViewHandler.ts
+````typescript
+/**
+ * GetPolicyCatalogViewHandler — Use Case Handler
+ *
+ * Implements: PlatformQueryPort
+ * Use case:   GetPolicyCatalogView
+ *
+ * Orchestration steps:
+ *   1. Query PolicyCatalogViewRepository
+ *   2. Return PolicyCatalogView read model
+ *
+ * Output ports used:
+ *   PolicyCatalogViewRepository
+ *
+ * Returns: query projection / read model (never adapter-native type)
+ *
+ * Rules:
+ *   - All persistence and side effects go through output ports
+ *   - Domain events are published after successful persistence
+ *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
+ *
+ * @see docs/application-services.md
+ * @see ports/input/index.ts — PlatformQueryPort
+ */
+
+// TODO: implement GetPolicyCatalogViewHandler use case handler class
+````
+
+## File: modules/platform/application/handlers/GetSubscriptionEntitlementsHandler.ts
+````typescript
+/**
+ * GetSubscriptionEntitlementsHandler — Use Case Handler
+ *
+ * Implements: PlatformQueryPort
+ * Use case:   GetSubscriptionEntitlements
+ *
+ * Orchestration steps:
+ *   1. Query SubscriptionAgreementRepository
+ *   2. Query UsageMeterRepository for current usage
+ *   3. Return SubscriptionEntitlementsView read model
+ *
+ * Output ports used:
+ *   SubscriptionAgreementRepository, UsageMeterRepository
+ *
+ * Returns: query projection / read model (never adapter-native type)
+ *
+ * Rules:
+ *   - All persistence and side effects go through output ports
+ *   - Domain events are published after successful persistence
+ *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
+ *
+ * @see docs/application-services.md
+ * @see ports/input/index.ts — PlatformQueryPort
+ */
+
+// TODO: implement GetSubscriptionEntitlementsHandler use case handler class
+````
+
+## File: modules/platform/application/handlers/GetWorkflowPolicyViewHandler.ts
+````typescript
+/**
+ * GetWorkflowPolicyViewHandler — Use Case Handler
+ *
+ * Implements: PlatformQueryPort
+ * Use case:   GetWorkflowPolicyView
+ *
+ * Orchestration steps:
+ *   1. Query WorkflowPolicyRepository for trigger key
+ *   2. Cross-reference with PolicyCatalogViewRepository
+ *   3. Return WorkflowPolicyView read model
+ *
+ * Output ports used:
+ *   WorkflowPolicyRepository, PolicyCatalogViewRepository
+ *
+ * Returns: query projection / read model (never adapter-native type)
+ *
+ * Rules:
+ *   - All persistence and side effects go through output ports
+ *   - Domain events are published after successful persistence
+ *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
+ *
+ * @see docs/application-services.md
+ * @see ports/input/index.ts — PlatformQueryPort
+ */
+
+// TODO: implement GetWorkflowPolicyViewHandler use case handler class
+````
+
+## File: modules/platform/application/handlers/ListEnabledCapabilitiesHandler.ts
+````typescript
+/**
+ * ListEnabledCapabilitiesHandler — Use Case Handler
+ *
+ * Implements: PlatformQueryPort
+ * Use case:   ListEnabledCapabilities
+ *
+ * Orchestration steps:
+ *   1. Query PlatformContextViewRepository for current capability set
+ *   2. Cross-check with SubscriptionAgreementRepository entitlements
+ *   3. Return capability key list
+ *
+ * Output ports used:
+ *   PlatformContextViewRepository, SubscriptionAgreementRepository
+ *
+ * Returns: query projection / read model (never adapter-native type)
+ *
+ * Rules:
+ *   - All persistence and side effects go through output ports
+ *   - Domain events are published after successful persistence
+ *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
+ *
+ * @see docs/application-services.md
+ * @see ports/input/index.ts — PlatformQueryPort
+ */
+
+// TODO: implement ListEnabledCapabilitiesHandler use case handler class
+````
+
+## File: modules/platform/application/handlers/PublishPolicyCatalogHandler.ts
+````typescript
+/**
+ * PublishPolicyCatalogHandler — Use Case Handler
+ *
+ * Implements: PlatformCommandPort
+ * Use case:   PublishPolicyCatalog
+ *
+ * Orchestration steps:
+ *   1. Load PolicyCatalog aggregate via PolicyCatalogRepository
+ *   2. Call aggregate.publishRevision() method
+ *   3. Persist via PolicyCatalogRepository
+ *   4. Publish PolicyCatalogPublishedEvent via DomainEventPublisher
+ *   5. Return PlatformCommandResult
+ *
+ * Output ports used:
+ *   PolicyCatalogRepository, DomainEventPublisher
+ *
+ * Returns: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * Rules:
+ *   - All persistence and side effects go through output ports
+ *   - Domain events are published after successful persistence
+ *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
+ *
+ * @see docs/application-services.md
+ * @see ports/input/index.ts — PlatformCommandPort
+ */
+
+// TODO: implement PublishPolicyCatalogHandler use case handler class
+````
+
+## File: modules/platform/application/handlers/RecordAuditSignalHandler.ts
+````typescript
+/**
+ * RecordAuditSignalHandler — Use Case Handler
+ *
+ * Implements: PlatformCommandPort
+ * Use case:   RecordAuditSignal
+ *
+ * Orchestration steps:
+ *   1. Classify signal via AuditClassificationService domain service
+ *   2. Write immutable record via AuditSignalStore
+ *   3. Publish AuditSignalRecordedEvent via DomainEventPublisher
+ *   4. Return PlatformCommandResult
+ *
+ * Output ports used:
+ *   AuditSignalStore, DomainEventPublisher
+ *
+ * Returns: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * Rules:
+ *   - All persistence and side effects go through output ports
+ *   - Domain events are published after successful persistence
+ *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
+ *
+ * @see docs/application-services.md
+ * @see ports/input/index.ts — PlatformCommandPort
+ */
+
+// TODO: implement RecordAuditSignalHandler use case handler class
+````
+
+## File: modules/platform/application/handlers/RegisterIntegrationContractHandler.ts
+````typescript
+/**
+ * RegisterIntegrationContractHandler — Use Case Handler
+ *
+ * Implements: PlatformCommandPort
+ * Use case:   RegisterIntegrationContract
+ *
+ * Orchestration steps:
+ *   1. Resolve secret reference via SecretReferenceResolver
+ *   2. Validate compatibility via IntegrationCompatibilityService
+ *   3. Create or update IntegrationContract aggregate
+ *   4. Persist via IntegrationContractRepository
+ *   5. Publish IntegrationContractRegisteredEvent
+ *   6. Return PlatformCommandResult
+ *
+ * Output ports used:
+ *   IntegrationContractRepository, SecretReferenceResolver, DomainEventPublisher
+ *
+ * Returns: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * Rules:
+ *   - All persistence and side effects go through output ports
+ *   - Domain events are published after successful persistence
+ *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
+ *
+ * @see docs/application-services.md
+ * @see ports/input/index.ts — PlatformCommandPort
+ */
+
+// TODO: implement RegisterIntegrationContractHandler use case handler class
+````
+
+## File: modules/platform/application/handlers/RegisterPlatformContextHandler.ts
+````typescript
+/**
+ * RegisterPlatformContextHandler — Use Case Handler
+ *
+ * Implements: PlatformCommandPort
+ * Use case:   RegisterPlatformContext
+ *
+ * Orchestration steps:
+ *   1. Validate input (driving adapter responsibility)
+ *   2. Load or create PlatformContext aggregate via PlatformContextRepository
+ *   3. Call aggregate.register() method
+ *   4. Persist via PlatformContextRepository
+ *   5. Publish PlatformContextRegisteredEvent via DomainEventPublisher
+ *   6. Return PlatformCommandResult
+ *
+ * Output ports used:
+ *   PlatformContextRepository, SubscriptionAgreementRepository, DomainEventPublisher
+ *
+ * Returns: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * Rules:
+ *   - All persistence and side effects go through output ports
+ *   - Domain events are published after successful persistence
+ *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
+ *
+ * @see docs/application-services.md
+ * @see ports/input/index.ts — PlatformCommandPort
+ */
+
+// TODO: implement RegisterPlatformContextHandler use case handler class
+````
+
+## File: modules/platform/application/handlers/RequestNotificationDispatchHandler.ts
+````typescript
+/**
+ * RequestNotificationDispatchHandler — Use Case Handler
+ *
+ * Implements: PlatformCommandPort
+ * Use case:   RequestNotificationDispatch
+ *
+ * Orchestration steps:
+ *   1. Load PolicyCatalog via PolicyCatalogRepository
+ *   2. Evaluate NotificationRoutingPolicy domain service
+ *   3. Dispatch via NotificationGateway
+ *   4. Record audit signal via AuditSignalStore
+ *   5. Return PlatformCommandResult
+ *
+ * Output ports used:
+ *   NotificationGateway, PolicyCatalogRepository, AuditSignalStore
+ *
+ * Returns: PlatformCommandResult (ok, code, message, metadata)
+ *
+ * Rules:
+ *   - All persistence and side effects go through output ports
+ *   - Domain events are published after successful persistence
+ *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
+ *
+ * @see docs/application-services.md
+ * @see ports/input/index.ts — PlatformCommandPort
+ */
+
+// TODO: implement RequestNotificationDispatchHandler use case handler class
+````
+
+## File: modules/platform/application/queries/GetPlatformContextViewQuery.ts
+````typescript
+/**
+ * GetPlatformContextViewQuery
+ *
+ * Query: GetPlatformContextView
+ * Purpose: Returns a read-only summary of a platform scope.
+ *
+ * Input fields:
+ *   contextId
+ *
+ * Handled by:  GetPlatformContextViewService
+ * Query ports: PlatformContextViewRepository
+ *
+ * Result: read-only projection / view model (never adapter-native type)
+ *
+ * @see docs/application-services.md — Query-oriented Services
+ */
+
+// TODO: implement GetPlatformContextViewQuery query input type
+````
+
+## File: modules/platform/application/queries/GetPolicyCatalogViewQuery.ts
+````typescript
+/**
+ * GetPolicyCatalogViewQuery
+ *
+ * Query: GetPolicyCatalogView
+ * Purpose: Returns the active policy version and rule summary.
+ *
+ * Input fields:
+ *   contextId
+ *
+ * Handled by:  GetPolicyCatalogViewService
+ * Query ports: PolicyCatalogViewRepository
+ *
+ * Result: read-only projection / view model (never adapter-native type)
+ *
+ * @see docs/application-services.md — Query-oriented Services
+ */
+
+// TODO: implement GetPolicyCatalogViewQuery query input type
+````
+
+## File: modules/platform/application/queries/GetSubscriptionEntitlementsQuery.ts
+````typescript
+/**
+ * GetSubscriptionEntitlementsQuery
+ *
+ * Query: GetSubscriptionEntitlements
+ * Purpose: Returns plan entitlements and usage limits.
+ *
+ * Input fields:
+ *   contextId
+ *
+ * Handled by:  GetSubscriptionEntitlementsService
+ * Query ports: SubscriptionAgreementRepository, UsageMeterRepository
+ *
+ * Result: read-only projection / view model (never adapter-native type)
+ *
+ * @see docs/application-services.md — Query-oriented Services
+ */
+
+// TODO: implement GetSubscriptionEntitlementsQuery query input type
+````
+
+## File: modules/platform/application/queries/GetWorkflowPolicyViewQuery.ts
+````typescript
+/**
+ * GetWorkflowPolicyViewQuery
+ *
+ * Query: GetWorkflowPolicyView
+ * Purpose: Returns the workflow policy corresponding to a trigger key.
+ *
+ * Input fields:
+ *   contextId, triggerKey
+ *
+ * Handled by:  GetWorkflowPolicyViewService
+ * Query ports: WorkflowPolicyRepository, PolicyCatalogViewRepository
+ *
+ * Result: read-only projection / view model (never adapter-native type)
+ *
+ * @see docs/application-services.md — Query-oriented Services
+ */
+
+// TODO: implement GetWorkflowPolicyViewQuery query input type
+````
+
+## File: modules/platform/application/queries/ListEnabledCapabilitiesQuery.ts
+````typescript
+/**
+ * ListEnabledCapabilitiesQuery
+ *
+ * Query: ListEnabledCapabilities
+ * Purpose: Lists all currently active capabilities for a platform scope.
+ *
+ * Input fields:
+ *   contextId
+ *
+ * Handled by:  ListEnabledCapabilitiesService
+ * Query ports: PlatformContextViewRepository, SubscriptionAgreementRepository
+ *
+ * Result: read-only projection / view model (never adapter-native type)
+ *
+ * @see docs/application-services.md — Query-oriented Services
+ */
+
+// TODO: implement ListEnabledCapabilitiesQuery query input type
+````
+
+## File: modules/platform/domain/aggregates/IntegrationContract.ts
+````typescript
+/**
+ * IntegrationContract — Aggregate Root
+ *
+ * Manages the endpoint, communication protocol, authentication reference, and
+ * delivery policy required when the platform interacts with an external system.
+ * Defines the business-facing integration language but does not execute external calls directly.
+ *
+ * Key attributes:
+ *   integrationContractId — IntegrationContractId
+ *   contextId             — PlatformContextId (owning platform scope)
+ *   endpointRef           — EndpointRef (external endpoint reference)
+ *   protocol              — IntegrationProtocol (http | webhook | queue | topic | file)
+ *   authenticationRef     — SecretReference (authentication reference)
+ *   subscribedSignals     — SignalSubscription[] (signals the external system needs)
+ *   deliveryPolicy        — DeliveryPolicy (retry / timeout / idempotency strategy)
+ *   contractState         — ContractState (draft | active | paused | revoked)
+ *
+ * Invariants:
+ *   - An active contract must have endpoint and authentication reference
+ *   - Async delivery must define a retry/timeout policy
+ *   - Subscribed signals must correspond to events in the platform published language
+ *
+ * Emits:
+ *   integration.contract_registered
+ *   integration.delivery_failed
+ *
+ * @see docs/aggregates.md — 聚合根：IntegrationContract
+ * @see docs/domain-events.md
+ */
+
+// TODO: implement IntegrationContract aggregate root class
+````
+
+## File: modules/platform/domain/aggregates/PlatformContext.ts
+````typescript
+/**
+ * PlatformContext — Aggregate Root
+ *
+ * Platform-scope capability enablement and governance baseline.
+ * Answers: "Which capabilities are allowed in this platform scope,
+ * and under what policies and configuration does it operate?"
+ *
+ * Key attributes:
+ *   contextId                — PlatformContextId
+ *   subjectScope             — SubjectScope (actor/account/organization boundary)
+ *   capabilities             — PlatformCapability[] (registered capability set)
+ *   policyCatalogId          — PolicyCatalogId (active policy set reference)
+ *   configurationProfileRef  — ConfigurationProfileRef (active configuration profile)
+ *   subscriptionAgreementId  — SubscriptionAgreementId (active subscription agreement)
+ *   lifecycleState           — PlatformLifecycleState (draft | active | suspended | retired)
+ *
+ * Invariants:
+ *   - An active context must reference a valid SubscriptionAgreement
+ *   - A capability may only be enabled when entitlement permits
+ *   - A suspended or retired context must not issue new workflow or integration delivery commands
+ *
+ * Lifecycle:
+ *   1. Driving adapter translates external request into command
+ *   2. Application service loads this aggregate via PlatformContextRepository
+ *   3. Aggregate executes command method and enforces invariants
+ *   4. Application service persists new state
+ *   5. Application service pulls and publishes domain events after successful persistence
+ *
+ * Emits:
+ *   platform.context_registered
+ *   platform.capability_enabled
+ *   platform.capability_disabled
+ *   config.profile_applied
+ *
+ * @see docs/aggregates.md — 聚合根：PlatformContext
+ * @see docs/domain-events.md — 發出事件
+ */
+
+// TODO: implement PlatformContext aggregate root class
+````
+
+## File: modules/platform/domain/aggregates/PolicyCatalog.ts
+````typescript
+/**
+ * PolicyCatalog — Aggregate Root
+ *
+ * Owns the versioned set of policies used to evaluate permissions, notifications,
+ * workflows, and audit rules within a platform scope.
+ * It is the domain's single source of truth for governance semantics —
+ * not an adapter configuration container.
+ *
+ * Key attributes:
+ *   policyCatalogId   — PolicyCatalogId
+ *   contextId         — PlatformContextId (owning platform scope)
+ *   permissionRules   — PolicyRule[] (access-control and authorization rules)
+ *   workflowRules     — PolicyRule[] (trigger conditions and step rules)
+ *   notificationRules — PolicyRule[] (notification routing and suppression rules)
+ *   auditRules        — PolicyRule[] (decisions and behaviors that must be recorded)
+ *   revision          — number (monotonically incrementing version number)
+ *
+ * Invariants:
+ *   - Only one active catalog revision per contextId at any time
+ *   - Every rule must have explicit subject, condition, and effect
+ *   - Permission, workflow, notification, and audit rules must not create indeterminate conflicts
+ *
+ * Emits:
+ *   policy.catalog_published
+ *
+ * @see docs/aggregates.md — 聚合根：PolicyCatalog
+ * @see docs/domain-events.md
+ */
+
+// TODO: implement PolicyCatalog aggregate root class
+````
+
+## File: modules/platform/domain/aggregates/SubscriptionAgreement.ts
+````typescript
+/**
+ * SubscriptionAgreement — Aggregate Root
+ *
+ * Represents the plan, entitlements, and constraints currently in effect
+ * for a platform scope. It is the commercial boundary for capability
+ * enablement and usage governance.
+ *
+ * Key attributes:
+ *   subscriptionAgreementId — SubscriptionAgreementId
+ *   contextId               — PlatformContextId (owning platform scope)
+ *   planCode                — PlanCode (plan identifier)
+ *   entitlements            — Entitlement[] (usable capabilities and quotas)
+ *   usageLimits             — UsageLimit[] (quantitative limits)
+ *   billingState            — BillingState (pending | active | delinquent | expired | cancelled)
+ *   validPeriod             — EffectivePeriod (validity interval)
+ *
+ * Invariants:
+ *   - Entitlements may only be derived from planCode; they must not deviate from plan definition
+ *   - An expired or cancelled agreement must not activate new capabilities
+ *   - When usage limits are exceeded the platform must return an explicit governance result,
+ *     not silently fail
+ *
+ * Emits:
+ *   subscription.agreement_activated
+ *
+ * @see docs/aggregates.md — 聚合根：SubscriptionAgreement
+ * @see docs/domain-events.md
+ */
+
+// TODO: implement SubscriptionAgreement aggregate root class
+````
+
+## File: modules/platform/domain/events/AnalyticsEventRecordedEvent.ts
+````typescript
+/**
+ * AnalyticsEventRecordedEvent
+ *
+ * Event type: "analytics.event_recorded"
+ * Owner:      application layer (analytics)
+ *
+ * When emitted:
+ *   An analytics event was recorded and aggregated.
+ *
+ * Core payload fields:
+ *   eventName, metricRef, subjectRef
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: ANALYTICS_EVENT_RECORDED_EVENT_TYPE
+ */
+
+// TODO: implement AnalyticsEventRecordedEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/AuditSignalRecordedEvent.ts
+````typescript
+/**
+ * AuditSignalRecordedEvent
+ *
+ * Event type: "audit.signal_recorded"
+ * Owner:      application layer (audit-log)
+ *
+ * When emitted:
+ *   An immutable audit signal was written.
+ *
+ * Core payload fields:
+ *   signalType, severity, subjectRef
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: AUDIT_SIGNAL_RECORDED_EVENT_TYPE
+ */
+
+// TODO: implement AuditSignalRecordedEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/BackgroundJobEnqueuedEvent.ts
+````typescript
+/**
+ * BackgroundJobEnqueuedEvent
+ *
+ * Event type: "background-job.enqueued"
+ * Owner:      application layer (background-job)
+ *
+ * When emitted:
+ *   A background job was submitted to the queue.
+ *
+ * Core payload fields:
+ *   jobId, jobType, scheduleAt
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: BACKGROUND_JOB_ENQUEUED_EVENT_TYPE
+ */
+
+// TODO: implement BackgroundJobEnqueuedEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/CompliancePolicyVerifiedEvent.ts
+````typescript
+/**
+ * CompliancePolicyVerifiedEvent
+ *
+ * Event type: "compliance.policy_verified"
+ * Owner:      application layer (compliance)
+ *
+ * When emitted:
+ *   A compliance policy check passed or was updated.
+ *
+ * Core payload fields:
+ *   policyRef, verificationResult, effectivePeriod
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: COMPLIANCE_POLICY_VERIFIED_EVENT_TYPE
+ */
+
+// TODO: implement CompliancePolicyVerifiedEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/ConfigProfileAppliedEvent.ts
+````typescript
+/**
+ * ConfigProfileAppliedEvent
+ *
+ * Event type: "config.profile_applied"
+ * Owner:      PlatformContext (orchestration)
+ *
+ * When emitted:
+ *   A configuration profile was successfully applied.
+ *
+ * Core payload fields:
+ *   configurationProfileRef, changedKeys
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: CONFIG_PROFILE_APPLIED_EVENT_TYPE
+ */
+
+// TODO: implement ConfigProfileAppliedEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/ContentAssetPublishedEvent.ts
+````typescript
+/**
+ * ContentAssetPublishedEvent
+ *
+ * Event type: "content.asset_published"
+ * Owner:      application layer (content)
+ *
+ * When emitted:
+ *   A content asset entered published state.
+ *
+ * Core payload fields:
+ *   assetId, publicationState, publishedAt
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: CONTENT_ASSET_PUBLISHED_EVENT_TYPE
+ */
+
+// TODO: implement ContentAssetPublishedEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/IntegrationContractRegisteredEvent.ts
+````typescript
+/**
+ * IntegrationContractRegisteredEvent
+ *
+ * Event type: "integration.contract_registered"
+ * Owner:      IntegrationContract
+ *
+ * When emitted:
+ *   An integration contract became active or was updated.
+ *
+ * Core payload fields:
+ *   integrationContractId, protocol, endpointRef
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: INTEGRATION_CONTRACT_REGISTERED_EVENT_TYPE
+ */
+
+// TODO: implement IntegrationContractRegisteredEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/IntegrationDeliveryFailedEvent.ts
+````typescript
+/**
+ * IntegrationDeliveryFailedEvent
+ *
+ * Event type: "integration.delivery_failed"
+ * Owner:      IntegrationContract
+ *
+ * When emitted:
+ *   An external delivery attempt failed.
+ *
+ * Core payload fields:
+ *   integrationContractId, deliveryAttempt, failureCode
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: INTEGRATION_DELIVERY_FAILED_EVENT_TYPE
+ */
+
+// TODO: implement IntegrationDeliveryFailedEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/NotificationDispatchRequestedEvent.ts
+````typescript
+/**
+ * NotificationDispatchRequestedEvent
+ *
+ * Event type: "notification.dispatch_requested"
+ * Owner:      application layer (notification)
+ *
+ * When emitted:
+ *   A notification dispatch request was created.
+ *
+ * Core payload fields:
+ *   channel, recipientRef, templateKey
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: NOTIFICATION_DISPATCH_REQUESTED_EVENT_TYPE
+ */
+
+// TODO: implement NotificationDispatchRequestedEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/ObservabilitySignalEmittedEvent.ts
+````typescript
+/**
+ * ObservabilitySignalEmittedEvent
+ *
+ * Event type: "observability.signal_emitted"
+ * Owner:      application layer (observability)
+ *
+ * When emitted:
+ *   A metric, trace, or alert signal was emitted.
+ *
+ * Core payload fields:
+ *   signalName, signalLevel, sourceRef
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: OBSERVABILITY_SIGNAL_EMITTED_EVENT_TYPE
+ */
+
+// TODO: implement ObservabilitySignalEmittedEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/OnboardingFlowCompletedEvent.ts
+````typescript
+/**
+ * OnboardingFlowCompletedEvent
+ *
+ * Event type: "onboarding.flow_completed"
+ * Owner:      application layer (onboarding)
+ *
+ * When emitted:
+ *   A new subject completed the primary onboarding flow.
+ *
+ * Core payload fields:
+ *   onboardingId, subjectRef, completedSteps
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: ONBOARDING_FLOW_COMPLETED_EVENT_TYPE
+ */
+
+// TODO: implement OnboardingFlowCompletedEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/PermissionDecisionRecordedEvent.ts
+````typescript
+/**
+ * PermissionDecisionRecordedEvent
+ *
+ * Event type: "permission.decision_recorded"
+ * Owner:      application layer (permission service)
+ *
+ * When emitted:
+ *   A traceable authorization decision was completed.
+ *
+ * Core payload fields:
+ *   decision, subjectRef, resourceRef
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: PERMISSION_DECISION_RECORDED_EVENT_TYPE
+ */
+
+// TODO: implement PermissionDecisionRecordedEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/PlatformCapabilityDisabledEvent.ts
+````typescript
+/**
+ * PlatformCapabilityDisabledEvent
+ *
+ * Event type: "platform.capability_disabled"
+ * Owner:      PlatformContext
+ *
+ * When emitted:
+ *   A capability was disabled in a platform scope.
+ *
+ * Core payload fields:
+ *   capabilityKey, reason
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: PLATFORM_CAPABILITY_DISABLED_EVENT_TYPE
+ */
+
+// TODO: implement PlatformCapabilityDisabledEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/PlatformCapabilityEnabledEvent.ts
+````typescript
+/**
+ * PlatformCapabilityEnabledEvent
+ *
+ * Event type: "platform.capability_enabled"
+ * Owner:      PlatformContext
+ *
+ * When emitted:
+ *   A capability was enabled in a platform scope.
+ *
+ * Core payload fields:
+ *   capabilityKey, entitlementRef
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: PLATFORM_CAPABILITY_ENABLED_EVENT_TYPE
+ */
+
+// TODO: implement PlatformCapabilityEnabledEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/PlatformContextRegisteredEvent.ts
+````typescript
+/**
+ * PlatformContextRegisteredEvent
+ *
+ * Event type: "platform.context_registered"
+ * Owner:      PlatformContext
+ *
+ * When emitted:
+ *   Platform scope creation is complete.
+ *
+ * Core payload fields:
+ *   subjectScope, lifecycleState
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: PLATFORM_CONTEXT_REGISTERED_EVENT_TYPE
+ */
+
+// TODO: implement PlatformContextRegisteredEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/PolicyCatalogPublishedEvent.ts
+````typescript
+/**
+ * PolicyCatalogPublishedEvent
+ *
+ * Event type: "policy.catalog_published"
+ * Owner:      PolicyCatalog
+ *
+ * When emitted:
+ *   A new policy revision has taken effect.
+ *
+ * Core payload fields:
+ *   policyCatalogId, revision
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: POLICY_CATALOG_PUBLISHED_EVENT_TYPE
+ */
+
+// TODO: implement PolicyCatalogPublishedEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/ReferralRewardRecordedEvent.ts
+````typescript
+/**
+ * ReferralRewardRecordedEvent
+ *
+ * Event type: "referral.reward_recorded"
+ * Owner:      application layer (referral)
+ *
+ * When emitted:
+ *   A referral reward was calculated and recorded.
+ *
+ * Core payload fields:
+ *   referralId, rewardType, rewardAmount
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: REFERRAL_REWARD_RECORDED_EVENT_TYPE
+ */
+
+// TODO: implement ReferralRewardRecordedEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/SearchQueryExecutedEvent.ts
+````typescript
+/**
+ * SearchQueryExecutedEvent
+ *
+ * Event type: "search.query_executed"
+ * Owner:      application layer (search)
+ *
+ * When emitted:
+ *   A search query was completed and produced results.
+ *
+ * Core payload fields:
+ *   queryId, queryText, resultCount
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: SEARCH_QUERY_EXECUTED_EVENT_TYPE
+ */
+
+// TODO: implement SearchQueryExecutedEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/SubscriptionAgreementActivatedEvent.ts
+````typescript
+/**
+ * SubscriptionAgreementActivatedEvent
+ *
+ * Event type: "subscription.agreement_activated"
+ * Owner:      SubscriptionAgreement
+ *
+ * When emitted:
+ *   A subscription agreement entered active state.
+ *
+ * Core payload fields:
+ *   subscriptionAgreementId, planCode, validUntil
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: SUBSCRIPTION_AGREEMENT_ACTIVATED_EVENT_TYPE
+ */
+
+// TODO: implement SubscriptionAgreementActivatedEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/SupportTicketOpenedEvent.ts
+````typescript
+/**
+ * SupportTicketOpenedEvent
+ *
+ * Event type: "support.ticket_opened"
+ * Owner:      application layer (support)
+ *
+ * When emitted:
+ *   A support ticket was created.
+ *
+ * Core payload fields:
+ *   ticketId, priority, requesterRef
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: SUPPORT_TICKET_OPENED_EVENT_TYPE
+ */
+
+// TODO: implement SupportTicketOpenedEvent payload type and factory function
+````
+
+## File: modules/platform/domain/events/WorkflowTriggerFiredEvent.ts
+````typescript
+/**
+ * WorkflowTriggerFiredEvent
+ *
+ * Event type: "workflow.trigger_fired"
+ * Owner:      application layer (workflow)
+ *
+ * When emitted:
+ *   A workflow trigger was successfully emitted.
+ *
+ * Core payload fields:
+ *   triggerKey, triggeredBy, triggeredAt
+ *
+ * Envelope fields (standard for all platform events):
+ *   type, aggregateType, aggregateId, contextId,
+ *   occurredAt (ISO 8601), version, correlationId, causationId, actorId, payload
+ *
+ * @see docs/domain-events.md — 發出事件
+ * @see domain/events/index.ts — event type constant: WORKFLOW_TRIGGER_FIRED_EVENT_TYPE
+ */
+
+// TODO: implement WorkflowTriggerFiredEvent payload type and factory function
+````
+
+## File: modules/platform/domain/services/AuditClassificationService.ts
+````typescript
+/**
+ * AuditClassificationService — Domain Service
+ *
+ * Determines what kind of audit record a given behavior or decision requires,
+ * and at what severity/retention level.
+ *
+ * Inputs:  AuditSignal, PolicyCatalog
+ * Returns: AuditClassification
+ *
+ * @see docs/domain-services.md — Domain Services 清單
+ * @see docs/ubiquitous-language.md — 稽核分類
+ */
+
+// TODO: implement AuditClassificationService domain service
+````
+
+## File: modules/platform/domain/services/CapabilityEntitlementPolicy.ts
+````typescript
+/**
+ * CapabilityEntitlementPolicy — Domain Service
+ *
+ * Evaluates whether a platform capability can be activated given the
+ * current SubscriptionAgreement entitlements.
+ *
+ * Inputs:  PlatformCapability, SubscriptionAgreement
+ * Returns: DeliveryAllowance | PlanConstraint (never a loose boolean)
+ *
+ * Cross-aggregate rule: spans PlatformContext and SubscriptionAgreement.
+ * Stateless — all inputs supplied by application service via output ports.
+ *
+ * @see docs/domain-services.md — Domain Services 清單
+ */
+
+// TODO: implement CapabilityEntitlementPolicy domain service
+````
+
+## File: modules/platform/domain/services/ConfigurationCompositionService.ts
+````typescript
+/**
+ * ConfigurationCompositionService — Domain Service
+ *
+ * Assembles a single effective configuration view from multiple layers:
+ * ConfigurationProfile, PolicyCatalog, and SubscriptionAgreement constraints.
+ *
+ * Inputs:  ConfigurationProfile, PolicyCatalog, SubscriptionAgreement
+ * Returns: effective configuration view (domain-typed, not adapter-typed)
+ *
+ * @see docs/domain-services.md — Domain Services 清單
+ */
+
+// TODO: implement ConfigurationCompositionService domain service
+````
+
+## File: modules/platform/domain/services/IntegrationCompatibilityService.ts
+````typescript
+/**
+ * IntegrationCompatibilityService — Domain Service
+ *
+ * Validates whether an IntegrationContract is compatible with
+ * the current policy, subscription plan, and protocol constraints.
+ *
+ * Inputs:  IntegrationContract, SubscriptionAgreement, PolicyCatalog
+ * Returns: DeliveryAllowance
+ *
+ * @see docs/domain-services.md — Domain Services 清單
+ */
+
+// TODO: implement IntegrationCompatibilityService domain service
+````
+
+## File: modules/platform/domain/services/NotificationRoutingPolicy.ts
+````typescript
+/**
+ * NotificationRoutingPolicy — Domain Service
+ *
+ * Decides which channel a notification should travel through,
+ * and whether it should be suppressed based on policy and subject preferences.
+ *
+ * Inputs:  NotificationDispatch, PolicyCatalog, SubjectPreference
+ * Returns: NotificationRoute | suppression decision
+ *
+ * @see docs/domain-services.md — Domain Services 清單
+ * @see docs/ubiquitous-language.md — 通知路由
+ */
+
+// TODO: implement NotificationRoutingPolicy domain service
+````
+
+## File: modules/platform/domain/services/ObservabilityCorrelationService.ts
+````typescript
+/**
+ * ObservabilityCorrelationService — Domain Service
+ *
+ * Correlates signals from workflow, integration, notification, and audit
+ * into a traceable chain using CorrelationContext.
+ *
+ * Inputs:  ObservabilitySignal, CorrelationContext
+ * Returns: correlated signal (domain-typed)
+ *
+ * @see docs/domain-services.md — Domain Services 清單
+ * @see docs/ubiquitous-language.md — 關聯上下文
+ */
+
+// TODO: implement ObservabilityCorrelationService domain service
+````
+
+## File: modules/platform/domain/services/PermissionResolutionService.ts
+````typescript
+/**
+ * PermissionResolutionService — Domain Service
+ *
+ * Resolves a PermissionDecision based on subject scope, active policy catalog,
+ * and resource descriptor.
+ *
+ * Inputs:  SubjectScope, PolicyCatalog, ResourceDescriptor
+ * Returns: PermissionDecision (allow | deny | conditional_allow | escalate)
+ *
+ * Cross-aggregate rule: spans SubjectScope and PolicyCatalog.
+ * Errors describe governance semantics: entitlement_denied, policy_conflict.
+ *
+ * @see docs/domain-services.md — Domain Services 清單
+ * @see docs/ubiquitous-language.md — 權限決策
+ */
+
+// TODO: implement PermissionResolutionService domain service
+````
+
+## File: modules/platform/domain/services/WorkflowDispatchPolicy.ts
+````typescript
+/**
+ * WorkflowDispatchPolicy — Domain Service
+ *
+ * Determines whether a workflow trigger should be allowed, delayed,
+ * suppressed, or escalated given current policy and permission state.
+ *
+ * Inputs:  WorkflowTrigger, PolicyCatalog, PermissionDecision
+ * Returns: dispatch decision (domain-typed decision object)
+ *
+ * @see docs/domain-services.md — Domain Services 清單
+ * @see docs/ubiquitous-language.md — 工作流觸發器
+ */
+
+// TODO: implement WorkflowDispatchPolicy domain service
+````
+
+## File: modules/platform/domain/value-objects/AuditClassification.ts
+````typescript
+/**
+ * AuditClassification — Value Object / Decision Object
+ *
+ * Determines what kind of audit trail a given behavior or decision requires.
+ * Contains: severity level, retention requirement, and classification category.
+ *
+ * Used by: AuditClassificationService, audit-log subdomain
+ * @see docs/aggregates.md — 主要值物件
+ * @see docs/domain-services.md — 主要 Decision Objects
+ */
+
+// TODO: implement AuditClassification value object
+````
+
+## File: modules/platform/domain/value-objects/ConfigurationProfileRef.ts
+````typescript
+/**
+ * ConfigurationProfileRef — Value Object
+ *
+ * A stable reference to an active configuration profile.
+ * Does not contain profile data; only the reference identifier.
+ *
+ * Used by: PlatformContext aggregate
+ * @see docs/aggregates.md — 主要值物件
+ */
+
+// TODO: implement ConfigurationProfileRef value object
+````
+
+## File: modules/platform/domain/value-objects/DeliveryAllowance.ts
+````typescript
+/**
+ * DeliveryAllowance — Value Object / Decision Object
+ *
+ * Expresses whether an integration or notification delivery is permitted
+ * under current conditions (plan, policy, quota, contract state).
+ * Contains: allowed flag, reason code, and relevant constraint reference.
+ *
+ * Used by: IntegrationCompatibilityService, notification routing
+ * @see docs/aggregates.md — 主要值物件
+ * @see docs/domain-services.md — 主要 Decision Objects
+ */
+
+// TODO: implement DeliveryAllowance value object
+````
+
+## File: modules/platform/domain/value-objects/DeliveryPolicy.ts
+````typescript
+/**
+ * DeliveryPolicy — Value Object
+ *
+ * Combined delivery configuration:
+ *   timeout    — maximum wait before giving up
+ *   retries    — maximum retry count and backoff strategy
+ *   idempotency — idempotency key derivation strategy
+ *
+ * Used by: IntegrationContract aggregate, NotificationDispatch
+ * @see docs/aggregates.md — 主要值物件
+ */
+
+// TODO: implement DeliveryPolicy value object
+````
+
+## File: modules/platform/domain/value-objects/Entitlement.ts
+````typescript
+/**
+ * Entitlement — Value Object
+ *
+ * Describes which capability and usage quota a plan allows.
+ * Entitlements are derived from planCode; they must not deviate from plan definition.
+ *
+ * Used by: SubscriptionAgreement aggregate
+ * @see docs/aggregates.md — 主要值物件
+ */
+
+// TODO: implement Entitlement value object
+````
+
+## File: modules/platform/domain/value-objects/NotificationRoute.ts
+````typescript
+/**
+ * NotificationRoute — Value Object
+ *
+ * The channel and recipient language for a notification.
+ * Contains: channel type (email | SMS | push | chat), recipient reference,
+ * and locale/template selection.
+ *
+ * Used by: notification subdomain, domain services
+ * @see docs/aggregates.md — 主要值物件
+ */
+
+// TODO: implement NotificationRoute value object
+````
+
+## File: modules/platform/domain/value-objects/ObservabilitySignal.ts
+````typescript
+/**
+ * ObservabilitySignal — Value Object
+ *
+ * Unified wrapper for metrics, traces, and alert signals in the platform domain language.
+ * Contains: signal name, level, source reference, and additional dimensions.
+ *
+ * Used by: observability subdomain, domain services
+ * @see docs/aggregates.md — 主要值物件
+ */
+
+// TODO: implement ObservabilitySignal value object
+````
+
+## File: modules/platform/domain/value-objects/PermissionDecision.ts
+````typescript
+/**
+ * PermissionDecision — Value Object / Decision Object
+ *
+ * The outcome of a permission evaluation.
+ * Possible outcomes: allow | deny | conditional_allow | escalate
+ *
+ * A PermissionDecision is always explicit — never a loose boolean.
+ *
+ * Used by: PermissionResolutionService, access-control subdomain
+ * @see docs/aggregates.md — 主要值物件
+ * @see docs/domain-services.md — 主要 Decision Objects
+ */
+
+// TODO: implement PermissionDecision value object / discriminated union
+````
+
+## File: modules/platform/domain/value-objects/PlanConstraint.ts
+````typescript
+/**
+ * PlanConstraint — Value Object / Decision Object
+ *
+ * Expresses the limitation a subscription plan places on a capability, workflow, or delivery.
+ * Contains: constraint type, threshold, and enforcement mode (soft | hard).
+ *
+ * Used by: CapabilityEntitlementPolicy, subscription subdomain
+ * @see docs/aggregates.md — 主要值物件
+ * @see docs/domain-services.md — 主要 Decision Objects
+ */
+
+// TODO: implement PlanConstraint value object
+````
+
+## File: modules/platform/domain/value-objects/PlatformCapability.ts
+````typescript
+/**
+ * PlatformCapability — Value Object
+ *
+ * An activatable, deactivatable, rate-limitable capability constrained by entitlement.
+ * Contains: capability name, status, corresponding entitlement reference, and lifecycle state.
+ *
+ * Used by: PlatformContext aggregate
+ * @see docs/aggregates.md — 主要值物件
+ */
+
+// TODO: implement PlatformCapability value object (type / interface / branded type)
+````
+
+## File: modules/platform/domain/value-objects/PolicyRule.ts
+````typescript
+/**
+ * PolicyRule — Value Object
+ *
+ * Expresses a single governance rule with:
+ *   subject   — who the rule applies to
+ *   condition — under what circumstances
+ *   effect    — allow | deny | require
+ *   priority  — evaluation precedence
+ *
+ * Used by: PolicyCatalog aggregate, domain services
+ * @see docs/aggregates.md — 主要值物件
+ */
+
+// TODO: implement PolicyRule value object
+````
+
+## File: modules/platform/domain/value-objects/SignalSubscription.ts
+````typescript
+/**
+ * SignalSubscription — Value Object
+ *
+ * The set of platform events an external system needs to receive
+ * through an IntegrationContract. Each subscription maps an event type
+ * to a delivery configuration.
+ *
+ * Used by: IntegrationContract aggregate
+ * @see docs/aggregates.md — 主要值物件
+ */
+
+// TODO: implement SignalSubscription value object
+````
+
+## File: modules/platform/domain/value-objects/SubjectScope.ts
+````typescript
+/**
+ * SubjectScope — Value Object
+ *
+ * Governance boundary for actor, account, and organization subjects.
+ * Expresses which principals are within a given platform context scope.
+ *
+ * Used by: PlatformContext aggregate, domain services
+ * @see docs/aggregates.md — 主要值物件
+ */
+
+// TODO: implement SubjectScope value object
+````
+
+## File: modules/platform/domain/value-objects/UsageLimit.ts
+````typescript
+/**
+ * UsageLimit — Value Object
+ *
+ * Defines a quantitative limit on usage and the enforcement strategy when exceeded.
+ * Contains: limit dimension (e.g., API calls / month), threshold, and over-limit policy.
+ *
+ * Used by: SubscriptionAgreement aggregate
+ * @see docs/aggregates.md — 主要值物件
+ */
+
+// TODO: implement UsageLimit value object
+````
+
 ## File: modules/platform/events/contracts/.gitkeep
 ````
 
@@ -68723,32 +67464,12 @@ export const PLATFORM_EVENT_ROUTING_FUNCTIONS = [
 export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTIONS)[number];
 ````
 
-## File: modules/platform/infrastructure/cache/.gitkeep
-````
-
-````
-
-## File: modules/platform/infrastructure/db/.gitkeep
-````
-
-````
-
 ## File: modules/platform/infrastructure/email/.gitkeep
 ````
 
 ````
 
-## File: modules/platform/infrastructure/messaging/.gitkeep
-````
-
-````
-
 ## File: modules/platform/infrastructure/monitoring/.gitkeep
-````
-
-````
-
-## File: modules/platform/infrastructure/storage/.gitkeep
 ````
 
 ````
@@ -68776,6 +67497,162 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
 ## File: modules/platform/shared/value-objects/.gitkeep
 ````
 
+````
+
+## File: modules/platform/shared/value-objects/BillingState.ts
+````typescript
+/**
+ * BillingState — State Value Object
+ *
+ * Billing state of a SubscriptionAgreement aggregate.
+ *
+ * Values: pending | active | delinquent | expired | cancelled
+ *
+ * @see docs/aggregates.md — 主要識別值與狀態值
+ */
+
+// TODO: implement BillingState type
+````
+
+## File: modules/platform/shared/value-objects/ContractState.ts
+````typescript
+/**
+ * ContractState — State Value Object
+ *
+ * Lifecycle state of an IntegrationContract aggregate.
+ *
+ * Values: draft | active | paused | revoked
+ *
+ * @see docs/aggregates.md — 主要識別值與狀態值
+ */
+
+// TODO: implement ContractState type
+````
+
+## File: modules/platform/shared/value-objects/EffectivePeriod.ts
+````typescript
+/**
+ * EffectivePeriod — Value Object
+ *
+ * Validity interval for a subscription agreement, configuration profile,
+ * or policy rule.
+ *
+ * Contains:
+ *   startsAt — ISO 8601 datetime string (inclusive)
+ *   endsAt   — ISO 8601 datetime string (exclusive, optional for open-ended periods)
+ *
+ * @see docs/aggregates.md — 主要識別值與狀態值
+ */
+
+// TODO: implement EffectivePeriod value object and createEffectivePeriod factory
+````
+
+## File: modules/platform/shared/value-objects/EndpointRef.ts
+````typescript
+/**
+ * EndpointRef — Reference Value Object
+ *
+ * A stable reference to an external endpoint (URL, queue name, topic ARN, etc.).
+ * Does not contain the actual endpoint value; points to a resolved configuration.
+ *
+ * Used by: IntegrationContract aggregate
+ * @see docs/aggregates.md — 主要識別值與狀態值
+ */
+
+// TODO: implement EndpointRef value object
+````
+
+## File: modules/platform/shared/value-objects/IntegrationContractId.ts
+````typescript
+/**
+ * IntegrationContractId — Identifier Value Object
+ *
+ * Branded string UUID identifying an IntegrationContract aggregate.
+ *
+ * @see docs/aggregates.md — 主要識別值與狀態值
+ */
+
+// TODO: implement IntegrationContractId branded type and createIntegrationContractId factory
+````
+
+## File: modules/platform/shared/value-objects/PlatformContextId.ts
+````typescript
+/**
+ * PlatformContextId — Identifier Value Object
+ *
+ * Branded string UUID identifying a PlatformContext aggregate root.
+ *
+ * Usage: PlatformContext.contextId, cross-aggregate references
+ * @see docs/aggregates.md — 主要識別值與狀態值
+ */
+
+// TODO: implement PlatformContextId branded type and createPlatformContextId factory
+````
+
+## File: modules/platform/shared/value-objects/PlatformLifecycleState.ts
+````typescript
+/**
+ * PlatformLifecycleState — State Value Object
+ *
+ * Lifecycle state of a PlatformContext aggregate.
+ *
+ * Values: draft | active | suspended | retired
+ *
+ * Transition rules:
+ *   draft -> active     (context is fully configured and subscription is activated)
+ *   active -> suspended (governance action or payment failure)
+ *   suspended -> active (issue resolved)
+ *   active | suspended -> retired (permanent decommission)
+ *
+ * @see docs/aggregates.md — 主要識別值與狀態值
+ */
+
+// TODO: implement PlatformLifecycleState type and transition guard
+````
+
+## File: modules/platform/shared/value-objects/PolicyCatalogId.ts
+````typescript
+/**
+ * PolicyCatalogId — Identifier Value Object
+ *
+ * Branded string UUID identifying a PolicyCatalog aggregate.
+ *
+ * @see docs/aggregates.md — 主要識別值與狀態值
+ */
+
+// TODO: implement PolicyCatalogId branded type and createPolicyCatalogId factory
+````
+
+## File: modules/platform/shared/value-objects/SecretReference.ts
+````typescript
+/**
+ * SecretReference — Reference Value Object
+ *
+ * A stable, opaque reference to a secret, credential, or token stored
+ * in an external secret manager. Resolved at runtime by SecretReferenceResolver output port.
+ *
+ * Contains: secretId, vault/provider hint
+ * Does NOT contain: the actual secret value
+ *
+ * Used by: IntegrationContract aggregate
+ * @see docs/aggregates.md — 主要識別值與狀態值
+ * @see docs/repositories.md — SecretReferenceResolver
+ */
+
+// TODO: implement SecretReference value object
+````
+
+## File: modules/platform/shared/value-objects/SubscriptionAgreementId.ts
+````typescript
+/**
+ * SubscriptionAgreementId — Identifier Value Object
+ *
+ * Branded string UUID identifying a SubscriptionAgreement aggregate.
+ *
+ * @see docs/aggregates.md — 主要識別值與狀態值
+ */
+
+// TODO: implement SubscriptionAgreementId branded type and createSubscriptionAgreementId factory
 ````
 
 ## File: modules/platform/subdomains/access-control/adapters/.gitkeep
@@ -71048,253 +69925,6 @@ export function OrganizationWorkspacesScreen({ accountId }: OrganizationWorkspac
 }
 ````
 
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useMemo, useState } from "react";
-
-import {
-  Card,
-  CardContent,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { WorkspaceAuditTab } from "@/modules/workspace/api";
-import { WorkspaceFilesTab } from "@/modules/source/api";
-import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
-import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
-import { useApp } from "@/app/providers/app-provider";
-
-import {
-  createSettingsDraft,
-  type WorkspaceSettingsDraft,
-} from "../../state/workspace-settings";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
-import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
-import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
-import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
-
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-  readonly initialOverviewPanel?: string;
-}
-
-export function WorkspaceDetailScreen({
-  workspaceId,
-  accountId,
-  accountsHydrated,
-  initialTab,
-  initialOverviewPanel,
-}: WorkspaceDetailScreenProps) {
-  const { state: appState, dispatch } = useApp();
-  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
-    workspaceId,
-    accountId,
-    accountsHydrated,
-  );
-  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
-  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
-
-  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
-    workspace,
-    accountId,
-    onSaved: (updated) => {
-      setWorkspace(updated);
-      setSettingsDraft(createSettingsDraft(updated));
-      setIsEditWorkspaceOpen(false);
-    },
-  });
-
-  const personnelEntries = useMemo(() => {
-    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
-  }, [workspace]);
-
-  const addressLines = useMemo(() => {
-    return workspace ? getWorkspaceAddressLines(workspace) : [];
-  }, [workspace]);
-
-  function renderTabContent(tab: WorkspaceTabValue) {
-    if (!workspace) return null;
-
-    switch (tab) {
-      case "Overview":
-        return (
-          <WorkspaceOverviewTab
-            workspace={workspace}
-            activeWorkspaceId={appState.activeWorkspaceId}
-            personnelEntries={personnelEntries}
-            addressLines={addressLines}
-            showSettingsPanel={initialOverviewPanel === "settings"}
-            onEditClick={() => {
-              setSettingsDraft(createSettingsDraft(workspace));
-              clearSaveError();
-              setIsEditWorkspaceOpen(true);
-            }}
-            onSetActiveWorkspace={() =>
-              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
-            }
-          />
-        );
-      case "Members":
-        return <WorkspaceMembersTab workspace={workspace} />;
-      case "Daily":
-        return <WorkspaceDailyTab workspace={workspace} />;
-      case "Files":
-        return <WorkspaceFilesTab workspace={workspace} />;
-      case "Schedule":
-        return (
-          <WorkspaceSchedulingTab
-            workspace={workspace}
-            accountId={accountId ?? workspace.accountId}
-            currentUserId={accountId ?? "anonymous"}
-          />
-        );
-      case "Audit":
-        return <WorkspaceAuditTab workspaceId={workspace.id} />;
-      case "Tasks":
-        return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
-      case "Feed":
-        return (
-          <WorkspaceFeedWorkspaceView
-            accountId={accountId ?? workspace.accountId}
-            workspaceId={workspace.id}
-            workspaceName={workspace.name}
-          />
-        );
-      default:
-        return null;
-    }
-  }
-
-  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
-    ? initialTab
-    : "Overview";
-
-  return (
-    <div className="space-y-6">
-      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
-        ← 返回 Workspace Hub
-      </Link>
-
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          正在同步帳號內容…
-        </div>
-      )}
-
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            Loading workspace detail…
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入工作區資料，請返回清單後重試。
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "loaded" && !workspace && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            找不到此工作區。
-          </CardContent>
-        </Card>
-      )}
-
-      {workspace && (
-        <div className="space-y-6">
-          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
-          <nav
-            aria-label="Workspace tab navigation"
-            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
-          >
-            <div className="flex min-w-max items-center gap-0.5">
-              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
-                const tabs = getWorkspaceTabsByGroup(group);
-                const links = tabs.map((tab) => {
-                  const isActive = resolvedTab === tab;
-                  return (
-                    <Link
-                      key={tab}
-                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
-                      aria-current={isActive ? "page" : undefined}
-                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {getWorkspaceTabLabel(tab)}
-                    </Link>
-                  );
-                });
-                if (groupIndex > 0) {
-                  return [
-                    <div
-                      key={`sep-${group}`}
-                      aria-hidden="true"
-                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
-                    />,
-                    ...links,
-                  ];
-                }
-                return links;
-              })}
-            </div>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
-          </div>
-          {renderTabContent(resolvedTab)}
-        </div>
-      )}
-
-      <WorkspaceSettingsDialog
-        open={isEditWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsEditWorkspaceOpen(open);
-          if (!open) {
-            clearSaveError();
-            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
-          }
-        }}
-        settingsDraft={settingsDraft}
-        setSettingsDraft={setSettingsDraft}
-        isSaving={isSavingWorkspace}
-        saveError={saveError}
-        onSubmit={(event) => void handleSave(event, settingsDraft)}
-      />
-    </div>
-  );
-}
-````
-
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
 ````typescript
 "use client";
@@ -71571,28 +70201,6 @@ export function WorkspaceHubScreen({
         onSubmit={handleCreateWorkspace}
       />
     </div>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceDailyTab.tsx
-````typescript
-"use client";
-
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
-
-interface WorkspaceDailyTabProps {
-  readonly workspace: WorkspaceEntity;
-}
-
-export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
-  return (
-    <WorkspaceFeedWorkspaceView
-      accountId={workspace.accountId}
-      workspaceId={workspace.id}
-      workspaceName={workspace.name}
-    />
   );
 }
 ````
@@ -73183,6 +71791,2860 @@ export async function getOrganizationAuditLogs(
   }
 
   return listOrganizationAuditLogsUseCase.execute(normalizedWorkspaceIds, maxCount);
+}
+````
+
+## File: modules/workspace/subdomains/feed/api/workspace-feed.facade.ts
+````typescript
+import type { WorkspaceFeedPost } from "../domain/entities/workspace-feed-post.entity";
+import type {
+  WorkspaceFeedInteractionRepository,
+  WorkspaceFeedPostRepository,
+} from "../domain/repositories/workspace-feed.repositories";
+import {
+  BookmarkWorkspaceFeedPostUseCase,
+  CreateWorkspaceFeedPostUseCase,
+  GetWorkspaceFeedPostUseCase,
+  LikeWorkspaceFeedPostUseCase,
+  ListAccountWorkspaceFeedUseCase,
+  ListWorkspaceFeedUseCase,
+  ReplyWorkspaceFeedPostUseCase,
+  RepostWorkspaceFeedPostUseCase,
+  ShareWorkspaceFeedPostUseCase,
+  ViewWorkspaceFeedPostUseCase,
+} from "../application/use-cases/workspace-feed.use-cases";
+import {
+  FirebaseWorkspaceFeedInteractionRepository,
+  FirebaseWorkspaceFeedPostRepository,
+} from "../infrastructure";
+
+export interface CreateWorkspaceFeedPostParams {
+  accountId: string;
+  workspaceId: string;
+  authorAccountId: string;
+  content: string;
+}
+
+export interface ReplyWorkspaceFeedPostParams {
+  accountId: string;
+  workspaceId: string;
+  parentPostId: string;
+  authorAccountId: string;
+  content: string;
+}
+
+export interface RepostWorkspaceFeedPostParams {
+  accountId: string;
+  workspaceId: string;
+  sourcePostId: string;
+  actorAccountId: string;
+  comment?: string;
+}
+
+export interface WorkspaceFeedInteractionParams {
+  accountId: string;
+  postId: string;
+  actorAccountId: string;
+}
+
+export class WorkspaceFeedFacade {
+  private readonly postRepo: WorkspaceFeedPostRepository;
+  private readonly interactionRepo: WorkspaceFeedInteractionRepository;
+
+  constructor(
+    postRepo: WorkspaceFeedPostRepository = new FirebaseWorkspaceFeedPostRepository(),
+    interactionRepo: WorkspaceFeedInteractionRepository = new FirebaseWorkspaceFeedInteractionRepository(),
+  ) {
+    this.postRepo = postRepo;
+    this.interactionRepo = interactionRepo;
+  }
+
+  async createPost(params: CreateWorkspaceFeedPostParams): Promise<string | null> {
+    const result = await new CreateWorkspaceFeedPostUseCase(this.postRepo).execute(params);
+    return result.success ? result.aggregateId : null;
+  }
+
+  async reply(params: ReplyWorkspaceFeedPostParams): Promise<string | null> {
+    const result = await new ReplyWorkspaceFeedPostUseCase(this.postRepo).execute(params);
+    return result.success ? result.aggregateId : null;
+  }
+
+  async repost(params: RepostWorkspaceFeedPostParams): Promise<string | null> {
+    const result = await new RepostWorkspaceFeedPostUseCase(this.postRepo).execute(params);
+    return result.success ? result.aggregateId : null;
+  }
+
+  async like(params: WorkspaceFeedInteractionParams): Promise<boolean> {
+    const result = await new LikeWorkspaceFeedPostUseCase(this.postRepo, this.interactionRepo).execute(params);
+    return result.success;
+  }
+
+  async view(params: WorkspaceFeedInteractionParams): Promise<boolean> {
+    const result = await new ViewWorkspaceFeedPostUseCase(this.postRepo, this.interactionRepo).execute(params);
+    return result.success;
+  }
+
+  async bookmark(params: WorkspaceFeedInteractionParams): Promise<boolean> {
+    const result = await new BookmarkWorkspaceFeedPostUseCase(this.postRepo, this.interactionRepo).execute(params);
+    return result.success;
+  }
+
+  async share(params: WorkspaceFeedInteractionParams): Promise<boolean> {
+    const result = await new ShareWorkspaceFeedPostUseCase(this.postRepo, this.interactionRepo).execute(params);
+    return result.success;
+  }
+
+  async getPost(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
+    return new GetWorkspaceFeedPostUseCase(this.postRepo).execute(accountId, postId);
+  }
+
+  async getWorkspaceFeed(
+    accountId: string,
+    workspaceId: string,
+    maxRows = 50,
+  ): Promise<WorkspaceFeedPost[]> {
+    return new ListWorkspaceFeedUseCase(this.postRepo).execute({
+      accountId,
+      workspaceId,
+      limit: maxRows,
+    });
+  }
+
+  async getAccountFeed(accountId: string, maxRows = 50): Promise<WorkspaceFeedPost[]> {
+    return new ListAccountWorkspaceFeedUseCase(this.postRepo).execute({
+      accountId,
+      limit: maxRows,
+    });
+  }
+}
+
+export const workspaceFeedFacade = new WorkspaceFeedFacade();
+````
+
+## File: modules/workspace/subdomains/feed/application/dto/workspace-feed.dto.ts
+````typescript
+import { z } from "@lib-zod";
+
+const AccountScopeSchema = z.object({
+  accountId: z.string().min(1),
+});
+
+const WorkspaceScopeSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1),
+});
+
+export const FeedLimitSchema = z.number().int().min(1).max(200).default(50);
+
+export const CreateWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
+  authorAccountId: z.string().min(1),
+  content: z.string().trim().min(1).max(5000),
+});
+
+export type CreateWorkspaceFeedPostDto = z.infer<typeof CreateWorkspaceFeedPostSchema>;
+
+export const ReplyWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
+  parentPostId: z.string().min(1),
+  authorAccountId: z.string().min(1),
+  content: z.string().trim().min(1).max(5000),
+});
+
+export type ReplyWorkspaceFeedPostDto = z.infer<typeof ReplyWorkspaceFeedPostSchema>;
+
+export const RepostWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
+  sourcePostId: z.string().min(1),
+  actorAccountId: z.string().min(1),
+  comment: z.string().trim().max(1000).optional(),
+});
+
+export type RepostWorkspaceFeedPostDto = z.infer<typeof RepostWorkspaceFeedPostSchema>;
+
+export const FeedInteractionSchema = AccountScopeSchema.extend({
+  postId: z.string().min(1),
+  actorAccountId: z.string().min(1),
+});
+
+export type FeedInteractionDto = z.infer<typeof FeedInteractionSchema>;
+
+export const ListWorkspaceFeedSchema = WorkspaceScopeSchema.extend({
+  limit: FeedLimitSchema.optional(),
+});
+
+export type ListWorkspaceFeedDto = z.infer<typeof ListWorkspaceFeedSchema>;
+
+export const ListAccountFeedSchema = AccountScopeSchema.extend({
+  limit: FeedLimitSchema.optional(),
+});
+
+export type ListAccountFeedDto = z.infer<typeof ListAccountFeedSchema>;
+````
+
+## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed-interaction.use-cases.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type {
+  WorkspaceFeedInteractionRepository,
+  WorkspaceFeedPostRepository,
+} from "../../domain/repositories/workspace-feed.repositories";
+import { FeedInteractionSchema } from "../dto/workspace-feed.dto";
+
+export class LikeWorkspaceFeedPostUseCase {
+  constructor(
+    private readonly postRepo: WorkspaceFeedPostRepository,
+    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
+  ) {}
+
+  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
+    const parsed = FeedInteractionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
+    if (!post) {
+      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
+    }
+
+    const liked = await this.interactionRepo.like(
+      parsed.data.accountId,
+      parsed.data.postId,
+      parsed.data.actorAccountId,
+    );
+    if (liked) {
+      await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { likeDelta: 1 });
+    }
+
+    return commandSuccess(parsed.data.postId, Date.now());
+  }
+}
+
+export class BookmarkWorkspaceFeedPostUseCase {
+  constructor(
+    private readonly postRepo: WorkspaceFeedPostRepository,
+    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
+  ) {}
+
+  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
+    const parsed = FeedInteractionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
+    if (!post) {
+      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
+    }
+
+    const bookmarked = await this.interactionRepo.bookmark(
+      parsed.data.accountId,
+      parsed.data.postId,
+      parsed.data.actorAccountId,
+    );
+    if (bookmarked) {
+      await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { bookmarkDelta: 1 });
+    }
+
+    return commandSuccess(parsed.data.postId, Date.now());
+  }
+}
+
+export class ViewWorkspaceFeedPostUseCase {
+  constructor(
+    private readonly postRepo: WorkspaceFeedPostRepository,
+    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
+  ) {}
+
+  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
+    const parsed = FeedInteractionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
+    if (!post) {
+      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
+    }
+
+    await this.interactionRepo.view(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
+    await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { viewDelta: 1 });
+    return commandSuccess(parsed.data.postId, Date.now());
+  }
+}
+
+export class ShareWorkspaceFeedPostUseCase {
+  constructor(
+    private readonly postRepo: WorkspaceFeedPostRepository,
+    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
+  ) {}
+
+  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
+    const parsed = FeedInteractionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
+    if (!post) {
+      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
+    }
+
+    await this.interactionRepo.share(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
+    await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { shareDelta: 1 });
+    return commandSuccess(parsed.data.postId, Date.now());
+  }
+}
+````
+
+## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed-post.use-cases.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
+import {
+  CreateWorkspaceFeedPostSchema,
+  type CreateWorkspaceFeedPostDto,
+  ListAccountFeedSchema,
+  type ListAccountFeedDto,
+  ListWorkspaceFeedSchema,
+  type ListWorkspaceFeedDto,
+  ReplyWorkspaceFeedPostSchema,
+  type ReplyWorkspaceFeedPostDto,
+  RepostWorkspaceFeedPostSchema,
+  type RepostWorkspaceFeedPostDto,
+} from "../dto/workspace-feed.dto";
+
+export class CreateWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = CreateWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.repo.createPost(parsed.data);
+    return commandSuccess(post.id, Date.now());
+  }
+}
+
+export class ReplyWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = ReplyWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const parent = await this.repo.findById(parsed.data.accountId, parsed.data.parentPostId);
+    if (!parent) {
+      return commandFailureFrom("WORKSPACE_FEED_PARENT_NOT_FOUND", "Parent post not found.");
+    }
+    if (parent.workspaceId !== parsed.data.workspaceId) {
+      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Parent post is in another workspace.");
+    }
+
+    const reply = await this.repo.createReply(parsed.data);
+    return commandSuccess(reply.id, Date.now());
+  }
+}
+
+export class RepostWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = RepostWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const source = await this.repo.findById(parsed.data.accountId, parsed.data.sourcePostId);
+    if (!source) {
+      return commandFailureFrom("WORKSPACE_FEED_SOURCE_NOT_FOUND", "Source post not found.");
+    }
+    if (source.workspaceId !== parsed.data.workspaceId) {
+      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Source post is in another workspace.");
+    }
+
+    const repost = await this.repo.createRepost(parsed.data);
+    if (!repost) {
+      return commandFailureFrom("WORKSPACE_FEED_REPOST_FAILED", "Failed to create repost.");
+    }
+
+    return commandSuccess(repost.id, Date.now());
+  }
+}
+
+export class GetWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
+    if (!accountId.trim() || !postId.trim()) return null;
+    return this.repo.findById(accountId, postId);
+  }
+}
+
+export class ListWorkspaceFeedUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ListWorkspaceFeedDto): Promise<WorkspaceFeedPost[]> {
+    const parsed = ListWorkspaceFeedSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByWorkspaceId(parsed.data.accountId, parsed.data.workspaceId, parsed.data.limit ?? 50);
+  }
+}
+
+export class ListAccountWorkspaceFeedUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ListAccountFeedDto): Promise<WorkspaceFeedPost[]> {
+    const parsed = ListAccountFeedSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByAccountId(parsed.data.accountId, parsed.data.limit ?? 50);
+  }
+}
+````
+
+## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed.use-cases.ts
+````typescript
+export {
+  CreateWorkspaceFeedPostUseCase,
+  ReplyWorkspaceFeedPostUseCase,
+  RepostWorkspaceFeedPostUseCase,
+  GetWorkspaceFeedPostUseCase,
+  ListWorkspaceFeedUseCase,
+  ListAccountWorkspaceFeedUseCase,
+} from "./workspace-feed-post.use-cases";
+
+export {
+  LikeWorkspaceFeedPostUseCase,
+  BookmarkWorkspaceFeedPostUseCase,
+  ViewWorkspaceFeedPostUseCase,
+  ShareWorkspaceFeedPostUseCase,
+} from "./workspace-feed-interaction.use-cases";
+````
+
+## File: modules/workspace/subdomains/feed/domain/entities/workspace-feed-post.entity.ts
+````typescript
+export const WORKSPACE_FEED_POST_TYPES = ["post", "reply", "repost"] as const;
+export type WorkspaceFeedPostType = (typeof WORKSPACE_FEED_POST_TYPES)[number];
+
+export interface WorkspaceFeedPost {
+  id: string;
+  accountId: string;
+  workspaceId: string;
+  authorAccountId: string;
+  type: WorkspaceFeedPostType;
+  content: string;
+  replyToPostId: string | null;
+  repostOfPostId: string | null;
+  likeCount: number;
+  replyCount: number;
+  repostCount: number;
+  viewCount: number;
+  bookmarkCount: number;
+  shareCount: number;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+
+export interface CreateWorkspaceFeedPostInput {
+  accountId: string;
+  workspaceId: string;
+  authorAccountId: string;
+  content: string;
+}
+
+export interface CreateWorkspaceFeedReplyInput {
+  accountId: string;
+  workspaceId: string;
+  parentPostId: string;
+  authorAccountId: string;
+  content: string;
+}
+
+export interface CreateWorkspaceFeedRepostInput {
+  accountId: string;
+  workspaceId: string;
+  sourcePostId: string;
+  actorAccountId: string;
+  comment?: string;
+}
+
+export interface WorkspaceFeedCounterPatch {
+  likeDelta?: number;
+  replyDelta?: number;
+  repostDelta?: number;
+  viewDelta?: number;
+  bookmarkDelta?: number;
+  shareDelta?: number;
+}
+````
+
+## File: modules/workspace/subdomains/feed/domain/events/workspace-feed.events.ts
+````typescript
+export const WORKSPACE_FEED_EVENT_TYPES = [
+  "WorkspaceFeedPostCreated",
+  "WorkspaceFeedReplyCreated",
+  "WorkspaceFeedRepostCreated",
+  "WorkspaceFeedPostLiked",
+  "WorkspaceFeedPostViewed",
+  "WorkspaceFeedPostBookmarked",
+  "WorkspaceFeedPostShared",
+] as const;
+
+export type WorkspaceFeedEventType = (typeof WORKSPACE_FEED_EVENT_TYPES)[number];
+
+interface WorkspaceFeedBaseEvent {
+  type: WorkspaceFeedEventType;
+  accountId: string;
+  workspaceId: string;
+  postId: string;
+  actorAccountId: string;
+  occurredAtISO: string;
+}
+
+export interface WorkspaceFeedPostCreatedEvent extends WorkspaceFeedBaseEvent {
+  type: "WorkspaceFeedPostCreated";
+}
+
+export interface WorkspaceFeedReplyCreatedEvent extends WorkspaceFeedBaseEvent {
+  type: "WorkspaceFeedReplyCreated";
+  parentPostId: string;
+}
+
+export interface WorkspaceFeedRepostCreatedEvent extends WorkspaceFeedBaseEvent {
+  type: "WorkspaceFeedRepostCreated";
+  sourcePostId: string;
+}
+
+export interface WorkspaceFeedPostLikedEvent extends WorkspaceFeedBaseEvent {
+  type: "WorkspaceFeedPostLiked";
+}
+
+export interface WorkspaceFeedPostViewedEvent extends WorkspaceFeedBaseEvent {
+  type: "WorkspaceFeedPostViewed";
+}
+
+export interface WorkspaceFeedPostBookmarkedEvent extends WorkspaceFeedBaseEvent {
+  type: "WorkspaceFeedPostBookmarked";
+}
+
+export interface WorkspaceFeedPostSharedEvent extends WorkspaceFeedBaseEvent {
+  type: "WorkspaceFeedPostShared";
+}
+
+export type WorkspaceFeedDomainEvent =
+  | WorkspaceFeedPostCreatedEvent
+  | WorkspaceFeedReplyCreatedEvent
+  | WorkspaceFeedRepostCreatedEvent
+  | WorkspaceFeedPostLikedEvent
+  | WorkspaceFeedPostViewedEvent
+  | WorkspaceFeedPostBookmarkedEvent
+  | WorkspaceFeedPostSharedEvent;
+````
+
+## File: modules/workspace/subdomains/feed/domain/index.ts
+````typescript
+export type {
+  WorkspaceFeedPost,
+  WorkspaceFeedPostType,
+  CreateWorkspaceFeedPostInput,
+  CreateWorkspaceFeedReplyInput,
+  CreateWorkspaceFeedRepostInput,
+  WorkspaceFeedCounterPatch,
+} from "./entities/workspace-feed-post.entity";
+
+export { WORKSPACE_FEED_POST_TYPES } from "./entities/workspace-feed-post.entity";
+
+export type {
+  WorkspaceFeedDomainEvent,
+  WorkspaceFeedPostCreatedEvent,
+  WorkspaceFeedReplyCreatedEvent,
+  WorkspaceFeedRepostCreatedEvent,
+  WorkspaceFeedPostLikedEvent,
+  WorkspaceFeedPostViewedEvent,
+  WorkspaceFeedPostBookmarkedEvent,
+  WorkspaceFeedPostSharedEvent,
+} from "./events/workspace-feed.events";
+
+export { WORKSPACE_FEED_EVENT_TYPES } from "./events/workspace-feed.events";
+
+export type {
+  WorkspaceFeedPostRepository,
+  WorkspaceFeedInteractionRepository,
+} from "./repositories/workspace-feed.repositories";
+````
+
+## File: modules/workspace/subdomains/feed/domain/repositories/workspace-feed.repositories.ts
+````typescript
+import type {
+  CreateWorkspaceFeedPostInput,
+  CreateWorkspaceFeedReplyInput,
+  CreateWorkspaceFeedRepostInput,
+  WorkspaceFeedCounterPatch,
+  WorkspaceFeedPost,
+} from "../entities/workspace-feed-post.entity";
+
+export interface WorkspaceFeedPostRepository {
+  createPost(input: CreateWorkspaceFeedPostInput): Promise<WorkspaceFeedPost>;
+  createReply(input: CreateWorkspaceFeedReplyInput): Promise<WorkspaceFeedPost>;
+  createRepost(input: CreateWorkspaceFeedRepostInput): Promise<WorkspaceFeedPost | null>;
+  patchCounters(accountId: string, postId: string, patch: WorkspaceFeedCounterPatch): Promise<void>;
+  findById(accountId: string, postId: string): Promise<WorkspaceFeedPost | null>;
+  listByWorkspaceId(accountId: string, workspaceId: string, limit: number): Promise<WorkspaceFeedPost[]>;
+  listByAccountId(accountId: string, limit: number): Promise<WorkspaceFeedPost[]>;
+}
+
+export interface WorkspaceFeedInteractionRepository {
+  like(accountId: string, postId: string, actorAccountId: string): Promise<boolean>;
+  bookmark(accountId: string, postId: string, actorAccountId: string): Promise<boolean>;
+  view(accountId: string, postId: string, actorAccountId: string): Promise<void>;
+  share(accountId: string, postId: string, actorAccountId: string): Promise<void>;
+}
+````
+
+## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository.ts
+````typescript
+import {
+  collection,
+  doc,
+  getDoc,
+  getFirestore,
+  serverTimestamp,
+  setDoc,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+
+import type { WorkspaceFeedInteractionRepository } from "../../domain/repositories/workspace-feed.repositories";
+
+type FirestoreDb = ReturnType<typeof getFirestore>;
+
+function postDoc(db: FirestoreDb, accountId: string, postId: string) {
+  return doc(db, "accounts", accountId, "workspaceFeedPosts", postId);
+}
+
+function likesDoc(db: FirestoreDb, accountId: string, postId: string, actorAccountId: string) {
+  return doc(postDoc(db, accountId, postId), "likes", actorAccountId);
+}
+
+function bookmarksDoc(db: FirestoreDb, accountId: string, postId: string, actorAccountId: string) {
+  return doc(postDoc(db, accountId, postId), "bookmarks", actorAccountId);
+}
+
+function viewsCol(db: FirestoreDb, accountId: string, postId: string) {
+  return collection(postDoc(db, accountId, postId), "views");
+}
+
+function sharesCol(db: FirestoreDb, accountId: string, postId: string) {
+  return collection(postDoc(db, accountId, postId), "shares");
+}
+
+export class FirebaseWorkspaceFeedInteractionRepository implements WorkspaceFeedInteractionRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async like(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
+    const ref = likesDoc(this.db, accountId, postId, actorAccountId);
+    const snap = await getDoc(ref);
+    if (snap.exists()) return false;
+
+    await setDoc(ref, {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+      createdAt: serverTimestamp(),
+    });
+    return true;
+  }
+
+  async bookmark(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
+    const ref = bookmarksDoc(this.db, accountId, postId, actorAccountId);
+    const snap = await getDoc(ref);
+    if (snap.exists()) return false;
+
+    await setDoc(ref, {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+      createdAt: serverTimestamp(),
+    });
+    return true;
+  }
+
+  async view(accountId: string, postId: string, actorAccountId: string): Promise<void> {
+    await setDoc(doc(viewsCol(this.db, accountId, postId), generateId()), {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+      createdAt: serverTimestamp(),
+    });
+  }
+
+  async share(accountId: string, postId: string, actorAccountId: string): Promise<void> {
+    await setDoc(doc(sharesCol(this.db, accountId, postId), generateId()), {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+      createdAt: serverTimestamp(),
+    });
+  }
+}
+````
+
+## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedPostRepository.ts
+````typescript
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  increment,
+  limit,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+
+import type {
+  CreateWorkspaceFeedPostInput,
+  CreateWorkspaceFeedReplyInput,
+  CreateWorkspaceFeedRepostInput,
+  WorkspaceFeedCounterPatch,
+  WorkspaceFeedPost,
+} from "../../domain/entities/workspace-feed-post.entity";
+import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
+
+type FirestoreDb = ReturnType<typeof getFirestore>;
+
+function postsCol(db: FirestoreDb, accountId: string) {
+  return collection(db, "accounts", accountId, "workspaceFeedPosts");
+}
+
+function postDoc(db: FirestoreDb, accountId: string, postId: string) {
+  return doc(db, "accounts", accountId, "workspaceFeedPosts", postId);
+}
+
+function repostMapDoc(db: FirestoreDb, accountId: string, actorAccountId: string, sourcePostId: string) {
+  return doc(db, "accounts", accountId, "workspaceFeedReposts", `${actorAccountId}__${sourcePostId}`);
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asNumber(value: unknown): number {
+  return typeof value === "number" ? value : 0;
+}
+
+function toWorkspaceFeedPost(id: string, data: Record<string, unknown>): WorkspaceFeedPost {
+  const type = asString(data.type, "post");
+  return {
+    id,
+    accountId: asString(data.accountId),
+    workspaceId: asString(data.workspaceId),
+    authorAccountId: asString(data.authorAccountId),
+    type: type === "reply" || type === "repost" ? type : "post",
+    content: asString(data.content),
+    replyToPostId: typeof data.replyToPostId === "string" ? data.replyToPostId : null,
+    repostOfPostId: typeof data.repostOfPostId === "string" ? data.repostOfPostId : null,
+    likeCount: asNumber(data.likeCount),
+    replyCount: asNumber(data.replyCount),
+    repostCount: asNumber(data.repostCount),
+    viewCount: asNumber(data.viewCount),
+    bookmarkCount: asNumber(data.bookmarkCount),
+    shareCount: asNumber(data.shareCount),
+    createdAtISO: asString(data.createdAtISO),
+    updatedAtISO: asString(data.updatedAtISO),
+  };
+}
+
+function createBasePostData(
+  accountId: string,
+  workspaceId: string,
+  authorAccountId: string,
+  content: string,
+  type: "post" | "reply" | "repost",
+): Record<string, unknown> {
+  const nowISO = new Date().toISOString();
+  return {
+    accountId,
+    workspaceId,
+    authorAccountId,
+    type,
+    content,
+    likeCount: 0,
+    replyCount: 0,
+    repostCount: 0,
+    viewCount: 0,
+    bookmarkCount: 0,
+    shareCount: 0,
+    createdAtISO: nowISO,
+    updatedAtISO: nowISO,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+}
+
+export class FirebaseWorkspaceFeedPostRepository implements WorkspaceFeedPostRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async createPost(input: CreateWorkspaceFeedPostInput): Promise<WorkspaceFeedPost> {
+    const id = generateId();
+    const data = createBasePostData(
+      input.accountId,
+      input.workspaceId,
+      input.authorAccountId,
+      input.content,
+      "post",
+    );
+    await setDoc(postDoc(this.db, input.accountId, id), data);
+    return toWorkspaceFeedPost(id, data);
+  }
+
+  async createReply(input: CreateWorkspaceFeedReplyInput): Promise<WorkspaceFeedPost> {
+    const id = generateId();
+    const data: Record<string, unknown> = {
+      ...createBasePostData(
+        input.accountId,
+        input.workspaceId,
+        input.authorAccountId,
+        input.content,
+        "reply",
+      ),
+      replyToPostId: input.parentPostId,
+      repostOfPostId: null,
+    };
+
+    await setDoc(postDoc(this.db, input.accountId, id), data);
+    await this.patchCounters(input.accountId, input.parentPostId, { replyDelta: 1 });
+    return toWorkspaceFeedPost(id, data);
+  }
+
+  async createRepost(input: CreateWorkspaceFeedRepostInput): Promise<WorkspaceFeedPost | null> {
+    const mapRef = repostMapDoc(this.db, input.accountId, input.actorAccountId, input.sourcePostId);
+    const existingMap = await getDoc(mapRef);
+    if (existingMap.exists()) {
+      const repostPostId = asString(existingMap.data().repostPostId);
+      if (!repostPostId) return null;
+      return this.findById(input.accountId, repostPostId);
+    }
+
+    const source = await this.findById(input.accountId, input.sourcePostId);
+    if (!source) return null;
+
+    const id = generateId();
+    const content = input.comment?.trim() || source.content;
+    const data: Record<string, unknown> = {
+      ...createBasePostData(
+        input.accountId,
+        input.workspaceId,
+        input.actorAccountId,
+        content,
+        "repost",
+      ),
+      replyToPostId: null,
+      repostOfPostId: input.sourcePostId,
+    };
+
+    await setDoc(postDoc(this.db, input.accountId, id), data);
+    await setDoc(mapRef, {
+      accountId: input.accountId,
+      workspaceId: input.workspaceId,
+      sourcePostId: input.sourcePostId,
+      actorAccountId: input.actorAccountId,
+      repostPostId: id,
+      createdAtISO: new Date().toISOString(),
+      createdAt: serverTimestamp(),
+    });
+    await this.patchCounters(input.accountId, input.sourcePostId, { repostDelta: 1 });
+    return toWorkspaceFeedPost(id, data);
+  }
+
+  async patchCounters(accountId: string, postId: string, patch: WorkspaceFeedCounterPatch): Promise<void> {
+    const updates: Record<string, unknown> = {
+      updatedAtISO: new Date().toISOString(),
+      updatedAt: serverTimestamp(),
+    };
+    if (patch.likeDelta) updates.likeCount = increment(patch.likeDelta);
+    if (patch.replyDelta) updates.replyCount = increment(patch.replyDelta);
+    if (patch.repostDelta) updates.repostCount = increment(patch.repostDelta);
+    if (patch.viewDelta) updates.viewCount = increment(patch.viewDelta);
+    if (patch.bookmarkDelta) updates.bookmarkCount = increment(patch.bookmarkDelta);
+    if (patch.shareDelta) updates.shareCount = increment(patch.shareDelta);
+    await updateDoc(postDoc(this.db, accountId, postId), updates);
+  }
+
+  async findById(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
+    const snap = await getDoc(postDoc(this.db, accountId, postId));
+    if (!snap.exists()) return null;
+    return toWorkspaceFeedPost(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
+    const snaps = await getDocs(
+      query(
+        postsCol(this.db, accountId),
+        where("workspaceId", "==", workspaceId),
+        orderBy("createdAtISO", "desc"),
+        limit(maxRows),
+      ),
+    );
+    return snaps.docs.map((row) => toWorkspaceFeedPost(row.id, row.data() as Record<string, unknown>));
+  }
+
+  async listByAccountId(accountId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
+    const snaps = await getDocs(
+      query(postsCol(this.db, accountId), orderBy("createdAtISO", "desc"), limit(maxRows)),
+    );
+    return snaps.docs.map((row) => toWorkspaceFeedPost(row.id, row.data() as Record<string, unknown>));
+  }
+}
+````
+
+## File: modules/workspace/subdomains/feed/infrastructure/index.ts
+````typescript
+export { FirebaseWorkspaceFeedPostRepository } from "./firebase/FirebaseWorkspaceFeedPostRepository";
+export { FirebaseWorkspaceFeedInteractionRepository } from "./firebase/FirebaseWorkspaceFeedInteractionRepository";
+````
+
+## File: modules/workspace/subdomains/feed/interfaces/_actions/workspace-feed.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+
+import type {
+  CreateWorkspaceFeedPostDto,
+  FeedInteractionDto,
+  ReplyWorkspaceFeedPostDto,
+  RepostWorkspaceFeedPostDto,
+} from "../../application/dto/workspace-feed.dto";
+import {
+  BookmarkWorkspaceFeedPostUseCase,
+  CreateWorkspaceFeedPostUseCase,
+  LikeWorkspaceFeedPostUseCase,
+  ReplyWorkspaceFeedPostUseCase,
+  RepostWorkspaceFeedPostUseCase,
+  ShareWorkspaceFeedPostUseCase,
+  ViewWorkspaceFeedPostUseCase,
+} from "../../application/use-cases/workspace-feed.use-cases";
+import {
+  FirebaseWorkspaceFeedInteractionRepository,
+  FirebaseWorkspaceFeedPostRepository,
+} from "../../infrastructure";
+
+function makePostRepo() {
+  return new FirebaseWorkspaceFeedPostRepository();
+}
+
+function makeInteractionRepo() {
+  return new FirebaseWorkspaceFeedInteractionRepository();
+}
+
+export async function createWorkspaceFeedPost(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
+  try {
+    return await new CreateWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_CREATE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function replyWorkspaceFeedPost(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
+  try {
+    return await new ReplyWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_REPLY_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function repostWorkspaceFeedPost(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
+  try {
+    return await new RepostWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_REPOST_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function likeWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
+  try {
+    return await new LikeWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_LIKE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function viewWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
+  try {
+    return await new ViewWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_VIEW_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function bookmarkWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
+  try {
+    return await new BookmarkWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_BOOKMARK_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function shareWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
+  try {
+    return await new ShareWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_SHARE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+````
+
+## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedAccountView.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Eye, Heart, MessageCircle, Repeat2, Share2, Star } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
+import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+
+interface WorkspaceFeedAccountViewProps {
+  readonly accountId: string;
+}
+
+export function WorkspaceFeedAccountView({ accountId }: WorkspaceFeedAccountViewProps) {
+  const { state: appState } = useApp();
+  const actorId = appState.activeAccount?.id ?? accountId;
+
+  const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [activeReplyPostId, setActiveReplyPostId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [actingPostId, setActingPostId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refreshFeed = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const rows = await workspaceFeedFacade.getAccountFeed(accountId, 80);
+      setPosts(rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "載入 account feed 失敗");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [accountId]);
+
+  useEffect(() => {
+    void refreshFeed();
+  }, [refreshFeed]);
+
+  async function handleAction(post: WorkspaceFeedPost, action: "like" | "view" | "bookmark" | "share" | "repost") {
+    setActingPostId(post.id);
+    setError(null);
+    try {
+      if (action === "like") {
+        await workspaceFeedFacade.like({ accountId, postId: post.id, actorAccountId: actorId });
+      }
+      if (action === "view") {
+        await workspaceFeedFacade.view({ accountId, postId: post.id, actorAccountId: actorId });
+      }
+      if (action === "bookmark") {
+        await workspaceFeedFacade.bookmark({ accountId, postId: post.id, actorAccountId: actorId });
+      }
+      if (action === "share") {
+        await workspaceFeedFacade.share({ accountId, postId: post.id, actorAccountId: actorId });
+      }
+      if (action === "repost") {
+        await workspaceFeedFacade.repost({
+          accountId,
+          workspaceId: post.workspaceId,
+          sourcePostId: post.id,
+          actorAccountId: actorId,
+        });
+      }
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "互動失敗");
+    } finally {
+      setActingPostId(null);
+    }
+  }
+
+  async function handleReply(post: WorkspaceFeedPost) {
+    const content = replyDrafts[post.id]?.trim() ?? "";
+    if (!content) return;
+
+    setActingPostId(post.id);
+    setError(null);
+    try {
+      await workspaceFeedFacade.reply({
+        accountId,
+        workspaceId: post.workspaceId,
+        parentPostId: post.id,
+        authorAccountId: actorId,
+        content,
+      });
+      setReplyDrafts((prev) => ({ ...prev, [post.id]: "" }));
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "回覆失敗");
+    } finally {
+      setActingPostId(null);
+    }
+  }
+
+  return (
+    <>
+      {error && (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
+      )}
+
+      <div className="space-y-3">
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">載入 account feed 中...</p>
+        ) : posts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">目前沒有任何 workspace 貼文。</p>
+        ) : (
+          posts.map((post) => (
+            <article key={post.id} className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {post.type.toUpperCase()} · workspace {post.workspaceId} · {new Date(post.createdAtISO).toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground">by {post.authorAccountId}</p>
+              </div>
+
+              <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={activeReplyPostId === post.id ? "default" : "outline"}
+                  onClick={() => setActiveReplyPostId((current) => (current === post.id ? null : post.id))}
+                >
+                  <MessageCircle className="mr-1 h-4 w-4" />
+                  Reply {post.replyCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "repost")} disabled={actingPostId === post.id}>
+                  <Repeat2 className="mr-1 h-4 w-4" />
+                  Repost {post.repostCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "like")} disabled={actingPostId === post.id}>
+                  <Heart className="mr-1 h-4 w-4" />
+                  Like {post.likeCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "view")} disabled={actingPostId === post.id}>
+                  <Eye className="mr-1 h-4 w-4" />
+                  View {post.viewCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "bookmark")} disabled={actingPostId === post.id}>
+                  <Star className="mr-1 h-4 w-4" />
+                  bookmark {post.bookmarkCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "share")} disabled={actingPostId === post.id}>
+                  <Share2 className="mr-1 h-4 w-4" />
+                  share {post.shareCount}
+                </Button>
+              </div>
+
+              {activeReplyPostId === post.id && (
+                <div className="space-y-2 rounded-xl border border-border/40 p-3">
+                  <Textarea
+                    value={replyDrafts[post.id] ?? ""}
+                    onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
+                    placeholder="回覆這則貼文..."
+                    rows={2}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" type="button" variant="ghost" onClick={() => setActiveReplyPostId(null)}>
+                      取消
+                    </Button>
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={() => void handleReply(post)}
+                      disabled={actingPostId === post.id || !(replyDrafts[post.id] ?? "").trim()}
+                    >
+                      回覆
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </article>
+          ))
+        )}
+      </div>
+    </>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedWorkspaceView.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Eye, Heart, MessageCircle, Repeat2, Send, Share2, Star } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { Avatar, AvatarFallback, AvatarImage } from "@ui-shadcn/ui/avatar";
+import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
+import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+
+interface WorkspaceFeedWorkspaceViewProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly workspaceName: string;
+}
+
+export function WorkspaceFeedWorkspaceView({
+  accountId,
+  workspaceId,
+  workspaceName,
+}: WorkspaceFeedWorkspaceViewProps) {
+  const { state: appState } = useApp();
+  const actor = appState.activeAccount;
+  const actorId = actor?.id ?? accountId;
+
+  const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
+  const [composer, setComposer] = useState("");
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [activeReplyPostId, setActiveReplyPostId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [actingPostId, setActingPostId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const actorName = actor?.name ?? "未知";
+  const actorAvatar = "photoURL" in (actor ?? {}) ? (actor as { photoURL?: string }).photoURL : undefined;
+  const actorInitial = actorName.charAt(0).toUpperCase();
+
+  const canPublish = useMemo(() => composer.trim().length > 0, [composer]);
+
+  const refreshFeed = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const rows = await workspaceFeedFacade.getWorkspaceFeed(accountId, workspaceId, 50);
+      setPosts(rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "載入 feed 失敗");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [accountId, workspaceId]);
+
+  useEffect(() => {
+    void refreshFeed();
+  }, [refreshFeed]);
+
+  async function handlePublish() {
+    if (!canPublish || isPublishing) return;
+    setIsPublishing(true);
+    setError(null);
+    try {
+      const createdId = await workspaceFeedFacade.createPost({
+        accountId,
+        workspaceId,
+        authorAccountId: actorId,
+        content: composer.trim(),
+      });
+      if (!createdId) {
+        setError("建立貼文失敗");
+        return;
+      }
+      setComposer("");
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立貼文失敗");
+    } finally {
+      setIsPublishing(false);
+    }
+  }
+
+  async function handleAction(postId: string, action: "like" | "view" | "bookmark" | "share" | "repost") {
+    setActingPostId(postId);
+    setError(null);
+    try {
+      if (action === "like") {
+        await workspaceFeedFacade.like({ accountId, postId, actorAccountId: actorId });
+      }
+      if (action === "view") {
+        await workspaceFeedFacade.view({ accountId, postId, actorAccountId: actorId });
+      }
+      if (action === "bookmark") {
+        await workspaceFeedFacade.bookmark({ accountId, postId, actorAccountId: actorId });
+      }
+      if (action === "share") {
+        await workspaceFeedFacade.share({ accountId, postId, actorAccountId: actorId });
+      }
+      if (action === "repost") {
+        const current = posts.find((row) => row.id === postId);
+        if (!current) return;
+        await workspaceFeedFacade.repost({
+          accountId,
+          workspaceId: current.workspaceId,
+          sourcePostId: postId,
+          actorAccountId: actorId,
+        });
+      }
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "互動失敗");
+    } finally {
+      setActingPostId(null);
+    }
+  }
+
+  async function handleReply(postId: string) {
+    const text = replyDrafts[postId]?.trim() ?? "";
+    if (!text) return;
+    setActingPostId(postId);
+    setError(null);
+    try {
+      const current = posts.find((row) => row.id === postId);
+      if (!current) return;
+      await workspaceFeedFacade.reply({
+        accountId,
+        workspaceId: current.workspaceId,
+        parentPostId: postId,
+        authorAccountId: actorId,
+        content: text,
+      });
+      setReplyDrafts((prev) => ({ ...prev, [postId]: "" }));
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "回覆失敗");
+    } finally {
+      setActingPostId(null);
+    }
+  }
+
+  return (
+    <section className="mx-auto max-w-3xl space-y-6 rounded-3xl border border-border/60 bg-card/50 p-6">
+      <header className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-12 w-12 shrink-0">
+            <AvatarImage src={actorAvatar} alt={actorName} />
+            <AvatarFallback className="text-sm font-bold">{actorInitial}</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="text-sm font-semibold">{workspaceName} Feed</p>
+            <p className="text-xs text-muted-foreground">workspaceId: {workspaceId}</p>
+          </div>
+        </div>
+        <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+          live
+        </div>
+      </header>
+
+      <div className="space-y-3 rounded-2xl border border-border/60 bg-background/80 p-4">
+        <Textarea
+          value={composer}
+          onChange={(event) => setComposer(event.target.value)}
+          placeholder="發佈你的想法到 workspace feed..."
+          rows={4}
+        />
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">actor: {actorName} / account: {accountId}</p>
+          <Button type="button" onClick={handlePublish} disabled={!canPublish || isPublishing}>
+            <Send className="mr-2 h-4 w-4" />
+            {isPublishing ? "送出中..." : "發佈"}
+          </Button>
+        </div>
+      </div>
+
+      {error && (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
+      )}
+
+      <div className="space-y-3">
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">載入 feed 中...</p>
+        ) : posts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">目前還沒有貼文，發佈第一則吧。</p>
+        ) : (
+          posts.map((post) => (
+            <article key={post.id} className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {post.type.toUpperCase()} · {post.workspaceId} · {new Date(post.createdAtISO).toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground">by {post.authorAccountId}</p>
+              </div>
+              <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={activeReplyPostId === post.id ? "default" : "outline"}
+                  onClick={() => setActiveReplyPostId((current) => (current === post.id ? null : post.id))}
+                >
+                  <MessageCircle className="mr-1 h-4 w-4" />
+                  Reply {post.replyCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "repost")} disabled={actingPostId === post.id}>
+                  <Repeat2 className="mr-1 h-4 w-4" />
+                  Repost {post.repostCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "like")} disabled={actingPostId === post.id}>
+                  <Heart className="mr-1 h-4 w-4" />
+                  Like {post.likeCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "view")} disabled={actingPostId === post.id}>
+                  <Eye className="mr-1 h-4 w-4" />
+                  View {post.viewCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "bookmark")} disabled={actingPostId === post.id}>
+                  <Star className="mr-1 h-4 w-4" />
+                  bookmark {post.bookmarkCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "share")} disabled={actingPostId === post.id}>
+                  <Share2 className="mr-1 h-4 w-4" />
+                  share {post.shareCount}
+                </Button>
+              </div>
+
+              {activeReplyPostId === post.id && (
+                <div className="space-y-2 rounded-xl border border-border/40 p-3">
+                  <Textarea
+                    value={replyDrafts[post.id] ?? ""}
+                    onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
+                    placeholder="回覆這則貼文..."
+                    rows={2}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" type="button" variant="ghost" onClick={() => setActiveReplyPostId(null)}>
+                      取消
+                    </Button>
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={() => void handleReply(post.id)}
+                      disabled={actingPostId === post.id || !(replyDrafts[post.id] ?? "").trim()}
+                    >
+                      回覆
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </article>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/feed/interfaces/queries/workspace-feed.queries.ts
+````typescript
+import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+import {
+  GetWorkspaceFeedPostUseCase,
+  ListAccountWorkspaceFeedUseCase,
+  ListWorkspaceFeedUseCase,
+} from "../../application/use-cases/workspace-feed.use-cases";
+import { FirebaseWorkspaceFeedPostRepository } from "../../infrastructure";
+
+export async function getWorkspaceFeedPost(
+  accountId: string,
+  postId: string,
+): Promise<WorkspaceFeedPost | null> {
+  return new GetWorkspaceFeedPostUseCase(new FirebaseWorkspaceFeedPostRepository()).execute(
+    accountId,
+    postId,
+  );
+}
+
+export async function getWorkspaceFeed(
+  accountId: string,
+  workspaceId: string,
+  limit = 50,
+): Promise<WorkspaceFeedPost[]> {
+  return new ListWorkspaceFeedUseCase(new FirebaseWorkspaceFeedPostRepository()).execute({
+    accountId,
+    workspaceId,
+    limit,
+  });
+}
+
+export async function getAccountWorkspaceFeed(accountId: string, limit = 50): Promise<WorkspaceFeedPost[]> {
+  return new ListAccountWorkspaceFeedUseCase(new FirebaseWorkspaceFeedPostRepository()).execute({
+    accountId,
+    limit,
+  });
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/api/index.ts
+````typescript
+/**
+ * Module: workspace/subdomains/scheduling
+ * Layer: api/barrel
+ * Purpose: Public anti-corruption layer for scheduling subdomain.
+ */
+
+export {
+  CreateDemandSchema,
+  AssignMemberSchema,
+} from "./schema";
+
+export type {
+  CreateDemandInput,
+  AssignMemberInput,
+} from "./schema";
+
+export type {
+  WorkDemand,
+  DemandStatus,
+  DemandPriority,
+  CreateWorkDemandCommand,
+  AssignWorkDemandCommand,
+  WorkDemandDomainEvent,
+} from "../domain/types";
+
+export {
+  DEMAND_STATUSES,
+  DEMAND_STATUS_LABELS,
+  DEMAND_PRIORITIES,
+  DEMAND_PRIORITY_LABELS,
+} from "../domain/types";
+
+export type { AccountMember } from "../interfaces/AccountSchedulingView";
+export { WorkspaceSchedulingTab } from "../interfaces/WorkspaceSchedulingTab";
+export { AccountSchedulingView } from "../interfaces/AccountSchedulingView";
+
+export { submitWorkDemand, assignWorkDemand } from "../interfaces/_actions/work-demand.actions";
+export { getWorkspaceDemands, getAccountDemands } from "../interfaces/queries/work-demand.queries";
+````
+
+## File: modules/workspace/subdomains/scheduling/api/schema.ts
+````typescript
+/**
+ * Module: workspace/subdomains/scheduling
+ * Layer: api/schema
+ * Purpose: Zod validation schemas for WorkDemand commands.
+ */
+
+import { z } from "@lib-zod";
+
+export const CreateDemandSchema = z.object({
+  workspaceId: z.string().min(1, "workspaceId is required"),
+  accountId: z.string().min(1, "accountId is required"),
+  requesterId: z.string().min(1, "requesterId is required"),
+  title: z.string().min(2, "標題至少需要 2 個字"),
+  description: z.string().optional().default(""),
+  priority: z.enum(["low", "medium", "high"]).default("medium"),
+  scheduledAt: z.string().min(1, "請選擇排程日期"),
+});
+
+export type CreateDemandInput = z.infer<typeof CreateDemandSchema>;
+
+export const AssignMemberSchema = z.object({
+  demandId: z.string().min(1, "demandId is required"),
+  userId: z.string().min(1, "userId is required"),
+  assignedBy: z.string().min(1, "assignedBy is required"),
+});
+
+export type AssignMemberInput = z.infer<typeof AssignMemberSchema>;
+````
+
+## File: modules/workspace/subdomains/scheduling/application/work-demand.use-cases.ts
+````typescript
+/**
+ * Module: workspace/subdomains/scheduling
+ * Layer: application/use-cases
+ * Purpose: Application services — orchestrate domain logic.
+ */
+
+import type { CommandResult } from "@shared-types";
+import { commandFailureFrom, commandSuccess } from "@shared-types";
+
+import type { WorkDemand } from "../domain/types";
+import type { IDemandRepository } from "../domain/repository";
+import type { CreateDemandInput, AssignMemberInput } from "../api/schema";
+
+export class SubmitWorkDemandUseCase {
+  constructor(private readonly repo: IDemandRepository) {}
+
+  async execute(input: CreateDemandInput): Promise<CommandResult> {
+    try {
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const demand: WorkDemand = {
+        id,
+        workspaceId: input.workspaceId,
+        accountId: input.accountId,
+        requesterId: input.requesterId,
+        title: input.title,
+        description: input.description,
+        priority: input.priority,
+        scheduledAt: input.scheduledAt,
+        status: "open",
+        createdAtISO: now,
+        updatedAtISO: now,
+      };
+      await this.repo.save(demand);
+      return commandSuccess(id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORK_DEMAND_SUBMIT_FAILED",
+        err instanceof Error ? err.message : "Failed to submit work demand",
+      );
+    }
+  }
+}
+
+export class AssignWorkDemandUseCase {
+  constructor(private readonly repo: IDemandRepository) {}
+
+  async execute(input: AssignMemberInput): Promise<CommandResult> {
+    try {
+      const demand = await this.repo.findById(input.demandId);
+      if (!demand) {
+        return commandFailureFrom("DEMAND_NOT_FOUND", `Demand ${input.demandId} not found`);
+      }
+      const updated: WorkDemand = {
+        ...demand,
+        assignedUserId: input.userId,
+        status: "in_progress",
+        updatedAtISO: new Date().toISOString(),
+      };
+      await this.repo.update(updated);
+      return commandSuccess(input.demandId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORK_DEMAND_ASSIGN_FAILED",
+        err instanceof Error ? err.message : "Failed to assign work demand",
+      );
+    }
+  }
+}
+
+export class ListWorkspaceDemandsUseCase {
+  constructor(private readonly repo: IDemandRepository) {}
+
+  async execute(workspaceId: string): Promise<WorkDemand[]> {
+    return this.repo.listByWorkspace(workspaceId);
+  }
+}
+
+export class ListAccountDemandsUseCase {
+  constructor(private readonly repo: IDemandRepository) {}
+
+  async execute(accountId: string): Promise<WorkDemand[]> {
+    return this.repo.listByAccount(accountId);
+  }
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/domain/repository.ts
+````typescript
+/**
+ * Module: workspace/subdomains/scheduling
+ * Layer: domain/repository
+ * Purpose: IDemandRepository port — implemented by infrastructure adapters.
+ */
+
+import type { WorkDemand } from "./types";
+
+export interface IDemandRepository {
+  listByWorkspace(workspaceId: string): Promise<WorkDemand[]>;
+  listByAccount(accountId: string): Promise<WorkDemand[]>;
+  save(demand: WorkDemand): Promise<void>;
+  update(demand: WorkDemand): Promise<void>;
+  findById(id: string): Promise<WorkDemand | null>;
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/domain/types.ts
+````typescript
+/**
+ * Module: workspace/subdomains/scheduling
+ * Layer: domain
+ * Purpose: Core WorkDemand entity and value types.
+ */
+
+export type DemandStatus = "draft" | "open" | "in_progress" | "completed";
+
+export const DEMAND_STATUSES: readonly DemandStatus[] = [
+  "draft",
+  "open",
+  "in_progress",
+  "completed",
+] as const;
+
+export const DEMAND_STATUS_LABELS: Record<DemandStatus, string> = {
+  draft: "草稿",
+  open: "待處理",
+  in_progress: "進行中",
+  completed: "已完成",
+};
+
+export type DemandPriority = "low" | "medium" | "high";
+
+export const DEMAND_PRIORITIES: readonly DemandPriority[] = [
+  "low",
+  "medium",
+  "high",
+] as const;
+
+export const DEMAND_PRIORITY_LABELS: Record<DemandPriority, string> = {
+  low: "低",
+  medium: "中",
+  high: "高",
+};
+
+export interface WorkDemand {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly requesterId: string;
+  readonly title: string;
+  readonly description: string;
+  readonly status: DemandStatus;
+  readonly priority: DemandPriority;
+  readonly scheduledAt: string;
+  readonly assignedUserId?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+export interface CreateWorkDemandCommand {
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly requesterId: string;
+  readonly title: string;
+  readonly description: string;
+  readonly priority: DemandPriority;
+  readonly scheduledAt: string;
+}
+
+export interface AssignWorkDemandCommand {
+  readonly demandId: string;
+  readonly assignedUserId: string;
+  readonly assignedBy: string;
+}
+
+export type WorkDemandCreatedEvent = {
+  readonly type: "WORK_DEMAND_CREATED";
+  readonly payload: { readonly demandId: string; readonly workspaceId: string };
+};
+
+export type WorkDemandAssignedEvent = {
+  readonly type: "WORK_DEMAND_ASSIGNED";
+  readonly payload: {
+    readonly demandId: string;
+    readonly assignedUserId: string;
+    readonly assignedBy: string;
+  };
+};
+
+export type WorkDemandDomainEvent =
+  | WorkDemandCreatedEvent
+  | WorkDemandAssignedEvent;
+````
+
+## File: modules/workspace/subdomains/scheduling/infrastructure/firebase/FirebaseDemandRepository.ts
+````typescript
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  query,
+  serverTimestamp,
+  setDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+
+import type { WorkDemand } from "../../domain/types";
+import type { IDemandRepository } from "../../domain/repository";
+
+const DEMANDS_COLLECTION = "workspacePlannerDemands";
+
+function toWorkDemand(id: string, data: Record<string, unknown>): WorkDemand {
+  const status = data.status;
+  const priority = data.priority;
+
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    requesterId: typeof data.requesterId === "string" ? data.requesterId : "",
+    title: typeof data.title === "string" ? data.title : "",
+    description: typeof data.description === "string" ? data.description : "",
+    status:
+      status === "draft" || status === "open" || status === "in_progress" || status === "completed"
+        ? status
+        : "draft",
+    priority: priority === "low" || priority === "medium" || priority === "high" ? priority : "medium",
+    scheduledAt: typeof data.scheduledAt === "string" ? data.scheduledAt : "",
+    assignedUserId: typeof data.assignedUserId === "string" ? data.assignedUserId : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseDemandRepository implements IDemandRepository {
+  private readonly db = getFirestore(firebaseClientApp);
+
+  private get collectionRef() {
+    return collection(this.db, DEMANDS_COLLECTION);
+  }
+
+  async listByWorkspace(workspaceId: string): Promise<WorkDemand[]> {
+    const snaps = await getDocs(
+      query(this.collectionRef, where("workspaceId", "==", workspaceId)),
+    );
+    return snaps.docs
+      .map((item) => toWorkDemand(item.id, item.data() as Record<string, unknown>))
+      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
+  }
+
+  async listByAccount(accountId: string): Promise<WorkDemand[]> {
+    const snaps = await getDocs(
+      query(this.collectionRef, where("accountId", "==", accountId)),
+    );
+    return snaps.docs
+      .map((item) => toWorkDemand(item.id, item.data() as Record<string, unknown>))
+      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
+  }
+
+  async save(demand: WorkDemand): Promise<void> {
+    const demandRef = doc(this.db, DEMANDS_COLLECTION, demand.id);
+    const existing = await getDoc(demandRef);
+    if (existing.exists()) {
+      await this.update(demand);
+      return;
+    }
+
+    await setDoc(demandRef, {
+      workspaceId: demand.workspaceId,
+      accountId: demand.accountId,
+      requesterId: demand.requesterId,
+      title: demand.title,
+      description: demand.description,
+      status: demand.status,
+      priority: demand.priority,
+      scheduledAt: demand.scheduledAt,
+      assignedUserId: demand.assignedUserId ?? null,
+      createdAtISO: demand.createdAtISO,
+      updatedAtISO: demand.updatedAtISO,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async update(demand: WorkDemand): Promise<void> {
+    await setDoc(doc(this.db, DEMANDS_COLLECTION, demand.id), {
+      workspaceId: demand.workspaceId,
+      accountId: demand.accountId,
+      requesterId: demand.requesterId,
+      title: demand.title,
+      description: demand.description,
+      status: demand.status,
+      priority: demand.priority,
+      scheduledAt: demand.scheduledAt,
+      assignedUserId: demand.assignedUserId ?? null,
+      updatedAtISO: demand.updatedAtISO,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  }
+
+  async findById(id: string): Promise<WorkDemand | null> {
+    const snap = await getDoc(doc(this.db, DEMANDS_COLLECTION, id));
+    if (!snap.exists()) return null;
+    return toWorkDemand(snap.id, snap.data() as Record<string, unknown>);
+  }
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/infrastructure/mock-demand-repository.ts
+````typescript
+import type { WorkDemand } from "../domain/types";
+import type { IDemandRepository } from "../domain/repository";
+
+const store: WorkDemand[] = [];
+
+export class MockDemandRepository implements IDemandRepository {
+  async listByWorkspace(workspaceId: string): Promise<WorkDemand[]> {
+    return store.filter((d) => d.workspaceId === workspaceId);
+  }
+
+  async listByAccount(accountId: string): Promise<WorkDemand[]> {
+    return store.filter((d) => d.accountId === accountId);
+  }
+
+  async save(demand: WorkDemand): Promise<void> {
+    const existing = store.findIndex((d) => d.id === demand.id);
+    if (existing !== -1) {
+      store[existing] = demand;
+    } else {
+      store.push(demand);
+    }
+  }
+
+  async update(demand: WorkDemand): Promise<void> {
+    const idx = store.findIndex((d) => d.id === demand.id);
+    if (idx !== -1) {
+      store[idx] = demand;
+    }
+  }
+
+  async findById(id: string): Promise<WorkDemand | null> {
+    return store.find((d) => d.id === id) ?? null;
+  }
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/_actions/work-demand.actions.ts
+````typescript
+"use server";
+
+import type { CommandResult } from "@shared-types";
+import { commandFailureFrom } from "@shared-types";
+
+import { CreateDemandSchema, AssignMemberSchema } from "../../api/schema";
+import type { CreateDemandInput, AssignMemberInput } from "../../api/schema";
+import {
+  SubmitWorkDemandUseCase,
+  AssignWorkDemandUseCase,
+} from "../../application/work-demand.use-cases";
+import { FirebaseDemandRepository } from "../../infrastructure/firebase/FirebaseDemandRepository";
+
+function makeRepo() {
+  return new FirebaseDemandRepository();
+}
+
+export async function submitWorkDemand(raw: CreateDemandInput): Promise<CommandResult> {
+  const parsed = CreateDemandSchema.safeParse(raw);
+  if (!parsed.success) {
+    return commandFailureFrom("VALIDATION_FAILED", parsed.error.issues[0]?.message ?? "Validation failed");
+  }
+  try {
+    return await new SubmitWorkDemandUseCase(makeRepo()).execute(parsed.data);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORK_DEMAND_ACTION_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function assignWorkDemand(raw: AssignMemberInput): Promise<CommandResult> {
+  const parsed = AssignMemberSchema.safeParse(raw);
+  if (!parsed.success) {
+    return commandFailureFrom("VALIDATION_FAILED", parsed.error.issues[0]?.message ?? "Validation failed");
+  }
+  try {
+    return await new AssignWorkDemandUseCase(makeRepo()).execute(parsed.data);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORK_DEMAND_ACTION_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/AccountSchedulingView.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { Users } from "lucide-react";
+
+import type { WorkDemand } from "../domain/types";
+import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../domain/types";
+import { assignWorkDemand } from "./_actions/work-demand.actions";
+import { getAccountDemands } from "./queries/work-demand.queries";
+
+export interface AccountMember {
+  id: string;
+  name: string;
+}
+
+const PRIORITY_DOT: Record<WorkDemand["priority"], string> = {
+  low: "bg-green-400",
+  medium: "bg-amber-400",
+  high: "bg-red-500",
+};
+
+const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "outline" | "destructive"> = {
+  draft: "outline",
+  open: "secondary",
+  in_progress: "default",
+  completed: "default",
+};
+
+interface AccountSchedulingViewProps {
+  readonly accountId: string;
+  readonly currentUserId: string;
+  readonly availableMembers?: AccountMember[];
+}
+
+export function AccountSchedulingView({
+  accountId,
+  currentUserId,
+  availableMembers = [],
+}: AccountSchedulingViewProps) {
+  const [demands, setDemands] = useState<WorkDemand[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [pendingAssign, setPendingAssign] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadDemands = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const data = await getAccountDemands(accountId);
+      setDemands(data);
+      setLoadState("loaded");
+    } catch {
+      setLoadState("error");
+    }
+  }, [accountId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!cancelled) await loadDemands();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadDemands]);
+
+  async function handleAssign(demandId: string, userId: string) {
+    setPendingAssign(demandId);
+    setActionError(null);
+    try {
+      const result = await assignWorkDemand({
+        demandId,
+        userId,
+        assignedBy: currentUserId,
+      });
+      if (!result.success) {
+        setActionError(result.error.message);
+        return;
+      }
+      await loadDemands();
+    } finally {
+      setPendingAssign(null);
+    }
+  }
+
+  const byWorkspace = demands.reduce<Record<string, WorkDemand[]>>((acc, d) => {
+    if (!acc[d.workspaceId]) acc[d.workspaceId] = [];
+    acc[d.workspaceId].push(d);
+    return acc;
+  }, {});
+
+  const workspaceEntries = Object.entries(byWorkspace);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <Users className="h-5 w-5 text-primary" />
+        <div>
+          <h2 className="text-lg font-semibold">工作需求總覽</h2>
+          <p className="text-sm text-muted-foreground">
+            顯示名下所有 Workspace 提出的需求，可在此指派成員。
+          </p>
+        </div>
+      </div>
+
+      {actionError && (
+        <p role="alert" className="text-sm text-destructive">
+          {actionError}
+        </p>
+      )}
+
+      {loadState === "loading" && (
+        <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
+          載入中…
+        </div>
+      )}
+
+      {loadState === "error" && (
+        <p className="text-sm text-destructive">載入失敗，請重新整理。</p>
+      )}
+
+      {loadState === "loaded" && demands.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+          目前名下所有 Workspace 均無工作需求。
+        </div>
+      )}
+
+      {loadState === "loaded" && workspaceEntries.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {workspaceEntries.map(([wsId, wsDemands]) => (
+            <Card key={wsId} className="flex flex-col">
+              <CardHeader className="bg-muted/40 pb-3">
+                <CardTitle className="text-sm font-semibold truncate">
+                  Workspace: <span className="font-mono text-xs">{wsId.slice(0, 8)}…</span>
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  {wsDemands.length} 筆需求
+                </p>
+              </CardHeader>
+              <CardContent className="flex-1 space-y-3 p-4">
+                {wsDemands.map((demand) => (
+                  <div
+                    key={demand.id}
+                    className="rounded-md border border-border/60 bg-background p-3 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-medium leading-snug flex-1 min-w-0 truncate">
+                        {demand.title}
+                      </p>
+                      <span
+                        title={DEMAND_PRIORITY_LABELS[demand.priority]}
+                        className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${PRIORITY_DOT[demand.priority]}`}
+                      />
+                    </div>
+
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <Badge variant={STATUS_VARIANT[demand.status]} className="text-[10px]">
+                        {DEMAND_STATUS_LABELS[demand.status]}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {demand.scheduledAt}
+                      </span>
+                    </div>
+
+                    {availableMembers.length > 0 && (
+                      <div className="mt-2.5">
+                        <p className="mb-1 text-[10px] text-muted-foreground">指派給</p>
+                        <Select
+                          value={demand.assignedUserId ?? ""}
+                          onValueChange={(userId) => {
+                            if (userId) void handleAssign(demand.id, userId);
+                          }}
+                          disabled={pendingAssign === demand.id}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue placeholder="選擇成員…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableMembers.map((member) => (
+                              <SelectItem key={member.id} value={member.id}>
+                                {member.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {availableMembers.length === 0 && demand.assignedUserId && (
+                      <p className="mt-1.5 text-xs text-muted-foreground">
+                        已指派：{demand.assignedUserId}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {loadState === "loaded" && (
+        <div className="flex justify-end">
+          <Button variant="ghost" size="sm" onClick={loadDemands}>
+            重新整理
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/components/CalendarWidget.tsx
+````typescript
+"use client";
+
+import { useMemo, useState } from "react";
+
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  format,
+  getDay,
+  isSameMonth,
+  isToday,
+  startOfMonth,
+  subMonths,
+} from "@lib-date-fns";
+import { Button } from "@ui-shadcn/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+import type { WorkDemand } from "../../domain/types";
+import { DEMAND_STATUS_LABELS } from "../../domain/types";
+
+interface CalendarWidgetProps {
+  demands: WorkDemand[];
+  onDayClick?: (date: Date) => void;
+}
+
+const DAY_HEADERS = ["日", "一", "二", "三", "四", "五", "六"] as const;
+
+const STATUS_DOT_CLASSES: Record<WorkDemand["status"], string> = {
+  draft: "bg-muted-foreground",
+  open: "bg-blue-500",
+  in_progress: "bg-amber-500",
+  completed: "bg-green-500",
+};
+
+function CalendarDayCell({
+  day,
+  isCurrentMonth,
+  dayDemands,
+  onDayClick,
+}: {
+  day: Date;
+  isCurrentMonth: boolean;
+  dayDemands: WorkDemand[];
+  onDayClick?: (date: Date) => void;
+}) {
+  const today = isToday(day);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={format(day, "yyyy-MM-dd")}
+      onClick={() => onDayClick?.(day)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onDayClick?.(day);
+      }}
+      className={[
+        "relative min-h-[72px] rounded-lg border p-1.5 text-sm transition-colors",
+        isCurrentMonth
+          ? "border-border/50 bg-card hover:bg-accent/40 cursor-pointer"
+          : "border-transparent bg-muted/20 text-muted-foreground cursor-default",
+        today ? "ring-2 ring-primary ring-offset-1" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <span
+        className={[
+          "flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium",
+          today ? "bg-primary text-primary-foreground" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {format(day, "d")}
+      </span>
+
+      <div className="mt-1 space-y-0.5">
+        {dayDemands.slice(0, 3).map((d) => (
+          <div
+            key={d.id}
+            title={`${d.title} (${DEMAND_STATUS_LABELS[d.status]})`}
+            className="flex items-center gap-1 truncate"
+          >
+            <span
+              className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT_CLASSES[d.status]}`}
+            />
+            <span className="truncate text-[10px] leading-none text-foreground/80">
+              {d.title}
+            </span>
+          </div>
+        ))}
+        {dayDemands.length > 3 && (
+          <span className="text-[10px] text-muted-foreground">
+            +{dayDemands.length - 3} more
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function CalendarWidget({ demands, onDayClick }: CalendarWidgetProps) {
+  const [currentMonth, setCurrentMonth] = useState<Date>(startOfMonth(new Date()));
+
+  const monthDays = useMemo(
+    () =>
+      eachDayOfInterval({
+        start: startOfMonth(currentMonth),
+        end: endOfMonth(currentMonth),
+      }),
+    [currentMonth],
+  );
+
+  const leadingBlanks = useMemo(() => getDay(startOfMonth(currentMonth)), [currentMonth]);
+
+  const demandsByDate = useMemo(() => {
+    const map = new Map<string, WorkDemand[]>();
+    for (const d of demands) {
+      const key = d.scheduledAt.slice(0, 10);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(d);
+    }
+    return map;
+  }, [demands]);
+
+  function getDayDemands(day: Date): WorkDemand[] {
+    return demandsByDate.get(format(day, "yyyy-MM-dd")) ?? [];
+  }
+
+  const legendEntries: { status: WorkDemand["status"]; label: string }[] = [
+    { status: "open", label: DEMAND_STATUS_LABELS.open },
+    { status: "in_progress", label: DEMAND_STATUS_LABELS.in_progress },
+    { status: "completed", label: DEMAND_STATUS_LABELS.completed },
+    { status: "draft", label: DEMAND_STATUS_LABELS.draft },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold">
+          {format(currentMonth, "yyyy 年 M 月")}
+        </h2>
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="上個月"
+            onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCurrentMonth(startOfMonth(new Date()))}
+          >
+            今天
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="下個月"
+            onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        {legendEntries.map(({ status, label }) => (
+          <div key={status} className="flex items-center gap-1.5">
+            <span
+              className={`h-2 w-2 rounded-full ${STATUS_DOT_CLASSES[status]}`}
+            />
+            <span className="text-xs text-muted-foreground">{label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {DAY_HEADERS.map((h) => (
+          <div
+            key={h}
+            className="pb-1 text-center text-xs font-medium text-muted-foreground"
+          >
+            {h}
+          </div>
+        ))}
+
+        {Array.from({ length: leadingBlanks }).map((_, i) => (
+          <div key={`blank-${i}`} />
+        ))}
+
+        {monthDays.map((day) => (
+          <CalendarDayCell
+            key={day.toISOString()}
+            day={day}
+            isCurrentMonth={isSameMonth(day, currentMonth)}
+            dayDemands={getDayDemands(day)}
+            onDayClick={isSameMonth(day, currentMonth) ? onDayClick : undefined}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/components/CreateDemandForm.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { format } from "@lib-date-fns";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import { DEMAND_PRIORITY_LABELS } from "../../domain/types";
+import type { DemandPriority } from "../../domain/types";
+
+export interface CreateDemandFormValues {
+  title: string;
+  description: string;
+  priority: DemandPriority;
+  scheduledAt: string;
+}
+
+interface CreateDemandFormProps {
+  open: boolean;
+  initialDate?: Date;
+  onClose: () => void;
+  onSubmit: (values: CreateDemandFormValues) => Promise<void>;
+}
+
+export function CreateDemandForm({
+  open,
+  initialDate,
+  onClose,
+  onSubmit,
+}: CreateDemandFormProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState<DemandPriority>("medium");
+  const [scheduledAt, setScheduledAt] = useState(
+    initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleOpen = (isOpen: boolean) => {
+    if (isOpen && initialDate) {
+      setScheduledAt(format(initialDate, "yyyy-MM-dd"));
+    }
+    if (!isOpen) handleClose();
+  };
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setPriority("medium");
+    setScheduledAt(initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"));
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) {
+      setError("請輸入需求標題。");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onSubmit({ title: t, description: description.trim(), priority, scheduledAt });
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "提交失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>建立工作需求</DialogTitle>
+          <DialogDescription>
+            填寫需求詳情後送出，Account 管理員將收到通知並指派成員。
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="demand-title">標題 *</Label>
+            <Input
+              id="demand-title"
+              placeholder="需要完成什麼工作？"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+              autoFocus
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="demand-description">描述（選填）</Label>
+            <Textarea
+              id="demand-description"
+              placeholder="詳細說明需求背景或驗收條件…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="demand-priority">優先級</Label>
+              <Select
+                value={priority}
+                onValueChange={(v) => setPriority(v as DemandPriority)}
+                disabled={submitting}
+              >
+                <SelectTrigger id="demand-priority">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(["low", "medium", "high"] as const).map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {DEMAND_PRIORITY_LABELS[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="demand-date">排程日期 *</Label>
+              <Input
+                id="demand-date"
+                type="date"
+                value={scheduledAt}
+                onChange={(e) => setScheduledAt(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
+              取消
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "提交中…" : "建立需求"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/queries/work-demand.queries.ts
+````typescript
+"use server";
+
+import type { WorkDemand } from "../../domain/types";
+import {
+  ListWorkspaceDemandsUseCase,
+  ListAccountDemandsUseCase,
+} from "../../application/work-demand.use-cases";
+import { FirebaseDemandRepository } from "../../infrastructure/firebase/FirebaseDemandRepository";
+
+function makeRepo() {
+  return new FirebaseDemandRepository();
+}
+
+export async function getWorkspaceDemands(workspaceId: string): Promise<WorkDemand[]> {
+  return new ListWorkspaceDemandsUseCase(makeRepo()).execute(workspaceId);
+}
+
+export async function getAccountDemands(accountId: string): Promise<WorkDemand[]> {
+  return new ListAccountDemandsUseCase(makeRepo()).execute(accountId);
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/WorkspaceSchedulingTab.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Plus } from "lucide-react";
+
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+import type { WorkDemand } from "../domain/types";
+import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../domain/types";
+import { submitWorkDemand } from "./_actions/work-demand.actions";
+import { getWorkspaceDemands } from "./queries/work-demand.queries";
+import { CalendarWidget } from "./components/CalendarWidget";
+import { CreateDemandForm } from "./components/CreateDemandForm";
+import type { CreateDemandFormValues } from "./components/CreateDemandForm";
+
+const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "outline" | "destructive"> = {
+  draft: "outline",
+  open: "secondary",
+  in_progress: "default",
+  completed: "default",
+};
+
+const PRIORITY_CLASS: Record<WorkDemand["priority"], string> = {
+  low: "text-muted-foreground",
+  medium: "text-amber-600",
+  high: "text-red-600",
+};
+
+interface WorkspaceSchedulingTabProps {
+  readonly workspace: WorkspaceEntity;
+  readonly accountId: string;
+  readonly currentUserId: string;
+}
+
+export function WorkspaceSchedulingTab({
+  workspace,
+  accountId,
+  currentUserId,
+}: WorkspaceSchedulingTabProps) {
+  const [demands, setDemands] = useState<WorkDemand[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [formOpen, setFormOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadDemands = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const data = await getWorkspaceDemands(workspace.id);
+      setDemands(data);
+      setLoadState("loaded");
+    } catch {
+      setLoadState("error");
+    }
+  }, [workspace.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!cancelled) await loadDemands();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadDemands]);
+
+  function handleDayClick(date: Date) {
+    setSelectedDate(date);
+    setFormOpen(true);
+  }
+
+  function handleNewDemand() {
+    setSelectedDate(undefined);
+    setFormOpen(true);
+  }
+
+  async function handleSubmit(values: CreateDemandFormValues) {
+    setActionError(null);
+    const result = await submitWorkDemand({
+      workspaceId: workspace.id,
+      accountId,
+      requesterId: currentUserId,
+      title: values.title,
+      description: values.description,
+      priority: values.priority,
+      scheduledAt: values.scheduledAt,
+    });
+    if (!result.success) {
+      throw new Error(result.error.message);
+    }
+    await loadDemands();
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">{workspace.name} — 工作規劃</h2>
+          <p className="text-sm text-muted-foreground">
+            點擊日期或「新增需求」快速建立工作需求。
+          </p>
+        </div>
+        <Button size="sm" onClick={handleNewDemand}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          新增需求
+        </Button>
+      </div>
+
+      {actionError && (
+        <p role="alert" className="text-sm text-destructive">
+          {actionError}
+        </p>
+      )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">排程日曆</CardTitle>
+          <CardDescription className="text-xs">
+            點擊日期快速排程新需求
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadState === "loading" ? (
+            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+              載入中…
+            </div>
+          ) : (
+            <CalendarWidget demands={demands} onDayClick={handleDayClick} />
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          需求列表 ({demands.length})
+        </h3>
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">載入失敗，請重新整理。</p>
+        )}
+
+        {loadState === "loaded" && demands.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            目前尚無需求。點擊日曆日期或「新增需求」開始排程。
+          </div>
+        )}
+
+        {demands.map((demand) => (
+          <div
+            key={demand.id}
+            className="flex items-start justify-between rounded-lg border border-border/60 bg-card px-4 py-3"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium text-sm">{demand.title}</p>
+              {demand.description && (
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {demand.description}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                排程日期：{demand.scheduledAt}
+              </p>
+            </div>
+            <div className="ml-4 flex shrink-0 flex-col items-end gap-1.5">
+              <Badge variant={STATUS_VARIANT[demand.status]}>
+                {DEMAND_STATUS_LABELS[demand.status]}
+              </Badge>
+              <span className={`text-xs font-medium ${PRIORITY_CLASS[demand.priority]}`}>
+                {DEMAND_PRIORITY_LABELS[demand.priority]}優先
+              </span>
+              {demand.assignedUserId && (
+                <span className="text-xs text-muted-foreground">已指派</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <CreateDemandForm
+        open={formOpen}
+        initialDate={selectedDate}
+        onClose={() => setFormOpen(false)}
+        onSubmit={handleSubmit}
+      />
+    </div>
+  );
 }
 ````
 
@@ -77640,228 +79102,6 @@ export async function getWorkspaceRagDocuments(
 }
 ````
 
-## File: modules/workspace-scheduling/interfaces/WorkspaceSchedulingTab.tsx
-````typescript
-"use client";
-
-/**
- * Module: workspace-scheduling
- * Layer: interfaces
- * Purpose: Workspace (tenant) view — submit demands, view own schedule.
- *
- * Occam's Razor: calendar + quick-capture form only.
- * No complex state machines — useState + server actions.
- */
-
-import { useCallback, useEffect, useState } from "react";
-
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Plus } from "lucide-react";
-
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-
-import type { WorkDemand } from "../domain/types";
-import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../domain/types";
-import { submitWorkDemand } from "./_actions/work-demand.actions";
-import { getWorkspaceDemands } from "./queries/work-demand.queries";
-import { CalendarWidget } from "./components/CalendarWidget";
-import { CreateDemandForm } from "./components/CreateDemandForm";
-import type { CreateDemandFormValues } from "./components/CreateDemandForm";
-
-// ── Status badge variant ──────────────────────────────────────────────────────
-
-const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "outline" | "destructive"> = {
-  draft: "outline",
-  open: "secondary",
-  in_progress: "default",
-  completed: "default",
-};
-
-const PRIORITY_CLASS: Record<WorkDemand["priority"], string> = {
-  low: "text-muted-foreground",
-  medium: "text-amber-600",
-  high: "text-red-600",
-};
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-interface WorkspaceSchedulingTabProps {
-  readonly workspace: WorkspaceEntity;
-  /** Account ID for scoping demands. */
-  readonly accountId: string;
-  /** ID of the current user (requesterId). */
-  readonly currentUserId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function WorkspaceSchedulingTab({
-  workspace,
-  accountId,
-  currentUserId,
-}: WorkspaceSchedulingTabProps) {
-  const [demands, setDemands] = useState<WorkDemand[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [formOpen, setFormOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const loadDemands = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const data = await getWorkspaceDemands(workspace.id);
-      setDemands(data);
-      setLoadState("loaded");
-    } catch {
-      setLoadState("error");
-    }
-  }, [workspace.id]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      if (!cancelled) await loadDemands();
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadDemands]);
-
-  function handleDayClick(date: Date) {
-    setSelectedDate(date);
-    setFormOpen(true);
-  }
-
-  function handleNewDemand() {
-    setSelectedDate(undefined);
-    setFormOpen(true);
-  }
-
-  async function handleSubmit(values: CreateDemandFormValues) {
-    setActionError(null);
-    const result = await submitWorkDemand({
-      workspaceId: workspace.id,
-      accountId,
-      requesterId: currentUserId,
-      title: values.title,
-      description: values.description,
-      priority: values.priority,
-      scheduledAt: values.scheduledAt,
-    });
-    if (!result.success) {
-      throw new Error(result.error.message);
-    }
-    await loadDemands();
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">{workspace.name} — 工作規劃</h2>
-          <p className="text-sm text-muted-foreground">
-            點擊日期或「新增需求」快速建立工作需求。
-          </p>
-        </div>
-        <Button size="sm" onClick={handleNewDemand}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          新增需求
-        </Button>
-      </div>
-
-      {actionError && (
-        <p role="alert" className="text-sm text-destructive">
-          {actionError}
-        </p>
-      )}
-
-      {/* ── Calendar ───────────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">排程日曆</CardTitle>
-          <CardDescription className="text-xs">
-            點擊日期快速排程新需求
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loadState === "loading" ? (
-            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-              載入中…
-            </div>
-          ) : (
-            <CalendarWidget demands={demands} onDayClick={handleDayClick} />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── Demand list ────────────────────────────────────────────────── */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          需求列表 ({demands.length})
-        </h3>
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">載入失敗，請重新整理。</p>
-        )}
-
-        {loadState === "loaded" && demands.length === 0 && (
-          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            目前尚無需求。點擊日曆日期或「新增需求」開始排程。
-          </div>
-        )}
-
-        {demands.map((demand) => (
-          <div
-            key={demand.id}
-            className="flex items-start justify-between rounded-lg border border-border/60 bg-card px-4 py-3"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium text-sm">{demand.title}</p>
-              {demand.description && (
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {demand.description}
-                </p>
-              )}
-              <p className="mt-1 text-xs text-muted-foreground">
-                排程日期：{demand.scheduledAt}
-              </p>
-            </div>
-            <div className="ml-4 flex shrink-0 flex-col items-end gap-1.5">
-              <Badge variant={STATUS_VARIANT[demand.status]}>
-                {DEMAND_STATUS_LABELS[demand.status]}
-              </Badge>
-              <span className={`text-xs font-medium ${PRIORITY_CLASS[demand.priority]}`}>
-                {DEMAND_PRIORITY_LABELS[demand.priority]}優先
-              </span>
-              {demand.assignedUserId && (
-                <span className="text-xs text-muted-foreground">已指派</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Create form dialog ─────────────────────────────────────────── */}
-      <CreateDemandForm
-        open={formOpen}
-        initialDate={selectedDate}
-        onClose={() => setFormOpen(false)}
-        onSubmit={handleSubmit}
-      />
-    </div>
-  );
-}
-````
-
 ## File: modules/workspace/application-services.md
 ````markdown
 # Application Services — workspace
@@ -77989,6 +79229,28 @@ export * from "./contracts";
 export * from "./facades";
 ````
 
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceDailyTab.tsx
+````typescript
+"use client";
+
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
+
+interface WorkspaceDailyTabProps {
+  readonly workspace: WorkspaceEntity;
+}
+
+export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
+  return (
+    <WorkspaceFeedWorkspaceView
+      accountId={workspace.accountId}
+      workspaceId={workspace.id}
+      workspaceName={workspace.name}
+    />
+  );
+}
+````
+
 ## File: modules/workspace/repositories.md
 ````markdown
 # Repositories and Ports — workspace
@@ -78090,6 +79352,44 @@ This subdomain owns workspace-centered audit read/query capabilities and UI audi
 ### Integration rule
 
 - Parent workspace public API (`@/modules/workspace/api`) is the preferred cross-module entry.
+````
+
+## File: modules/workspace/subdomains/feed/api/index.ts
+````typescript
+export { WorkspaceFeedFacade, workspaceFeedFacade } from "./workspace-feed.facade";
+export type {
+  CreateWorkspaceFeedPostParams,
+  ReplyWorkspaceFeedPostParams,
+  RepostWorkspaceFeedPostParams,
+  WorkspaceFeedInteractionParams,
+} from "./workspace-feed.facade";
+
+export type {
+  WorkspaceFeedPost,
+  WorkspaceFeedPostType,
+} from "../domain/entities/workspace-feed-post.entity";
+export {
+  WORKSPACE_FEED_POST_TYPES,
+} from "../domain/entities/workspace-feed-post.entity";
+
+export {
+  getAccountWorkspaceFeed,
+  getWorkspaceFeed,
+  getWorkspaceFeedPost,
+} from "../interfaces/queries/workspace-feed.queries";
+
+export {
+  bookmarkWorkspaceFeedPost,
+  createWorkspaceFeedPost,
+  likeWorkspaceFeedPost,
+  replyWorkspaceFeedPost,
+  repostWorkspaceFeedPost,
+  shareWorkspaceFeedPost,
+  viewWorkspaceFeedPost,
+} from "../interfaces/_actions/workspace-feed.actions";
+
+export { WorkspaceFeedWorkspaceView } from "../interfaces/components/WorkspaceFeedWorkspaceView";
+export { WorkspaceFeedAccountView } from "../interfaces/components/WorkspaceFeedAccountView";
 ````
 
 ## File: .github/instructions/architecture-mddd.instructions.md
@@ -78793,71 +80093,6 @@ Based on `/sairyss/domain-driven-hexagon`:
 - [domain-events.md](./domain-events.md)
 ````
 
-## File: modules/workspace/api/facade.ts
-````typescript
-/**
- * workspace api/facade.ts
- *
- * Canonical public behavior surface for the workspace bounded context.
- * Cross-module and app-layer consumers invoke commands and queries from here.
- *
- * Internal source: interfaces/api/facades/
- */
-
-export {
-  getWorkspacesForAccount,
-  subscribeToWorkspacesForAccount,
-  getWorkspaceById,
-  getWorkspaceByIdForAccount,
-  buildWikiContentTree,
-  authorizeWorkspaceTeam,
-  createWorkspace,
-  createWorkspaceLocation,
-  createWorkspaceWithCapabilities,
-  deleteWorkspace,
-  grantIndividualWorkspaceAccess,
-  mountCapabilities,
-  updateWorkspaceSettings,
-} from "../interfaces/api/facades/workspace.facade";
-
-export {
-  getWorkspaceMembers,
-} from "../interfaces/api/facades/workspace-member.facade";
-
-export {
-  getOrganizationAuditLogs,
-  getWorkspaceAuditLogs,
-} from "../subdomains/audit/api";
-
-export {
-  workspaceFeedFacade,
-  WorkspaceFeedFacade,
-} from "../subdomains/feed/api";
-
-export type {
-  CreateWorkspaceFeedPostParams,
-  ReplyWorkspaceFeedPostParams,
-  RepostWorkspaceFeedPostParams,
-  WorkspaceFeedInteractionParams,
-} from "../subdomains/feed/api";
-
-export {
-  getAccountWorkspaceFeed,
-  getWorkspaceFeed,
-  getWorkspaceFeedPost,
-} from "../subdomains/feed/interfaces/queries/workspace-feed.queries";
-
-export {
-  bookmarkWorkspaceFeedPost,
-  createWorkspaceFeedPost,
-  likeWorkspaceFeedPost,
-  replyWorkspaceFeedPost,
-  repostWorkspaceFeedPost,
-  shareWorkspaceFeedPost,
-  viewWorkspaceFeedPost,
-} from "../subdomains/feed/interfaces/_actions/workspace-feed.actions";
-````
-
 ## File: modules/workspace/api/index.ts
 ````typescript
 /**
@@ -78880,107 +80115,6 @@ export {
 export * from "./contracts";
 export * from "./facade";
 export * from "./ui";
-````
-
-## File: modules/workspace/api/ui.ts
-````typescript
-/**
- * workspace api/ui.ts
- *
- * Canonical public web UI surface for the workspace bounded context.
- * App-layer consumers that need workspace UI components, hooks, and
- * navigation utilities should import from here.
- *
- * Internal source: interfaces/web/
- */
-
-// ── Screen components ────────────────────────────────────────────────────────
-
-export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
-export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
-export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
-export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
-
-// ── Card components ──────────────────────────────────────────────────────────
-
-export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
-
-// ── Tab components ───────────────────────────────────────────────────────────
-
-export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
-
-// ── Layout components ────────────────────────────────────────────────────────
-
-export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
-
-// ── Rail components ──────────────────────────────────────────────────────────
-
-export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
-
-// ── Navigation ────────────────────────────────────────────────────────────────
-
-export type {
-  WorkspaceTabDevStatus,
-  WorkspaceTabGroup,
-  WorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
-
-export {
-  WORKSPACE_TAB_GROUPS,
-  WORKSPACE_TAB_META,
-  WORKSPACE_TAB_VALUES,
-  getWorkspaceTabLabel,
-  getWorkspaceTabMeta,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
-
-export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
-export {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "../interfaces/web/navigation/workspace-nav-items";
-
-// ── Quick-access navigation ───────────────────────────────────────────────────
-
-export type {
-  WorkspaceQuickAccessItem,
-  WorkspaceQuickAccessMatcherOptions,
-} from "../interfaces/web/components/navigation/workspace-quick-access";
-
-export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
-
-// ── State helpers ─────────────────────────────────────────────────────────────
-
-export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
-
-// ── Map utilities ─────────────────────────────────────────────────────────────
-
-export {
-  resolveWorkspaceFromMap,
-  toWorkspaceMap,
-} from "../interfaces/web/utils/workspace-map";
-
-// ── Hooks ─────────────────────────────────────────────────────────────────────
-
-export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
-export {
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  getWorkspaceIdFromPath,
-  useRecentWorkspaces,
-} from "../interfaces/web/hooks/useRecentWorkspaces";
-
-export {
-  AuditStream,
-  WorkspaceAuditTab,
-} from "../subdomains/audit/api";
-
-export {
-  WorkspaceFeedAccountView,
-  WorkspaceFeedWorkspaceView,
-} from "../subdomains/feed/api";
 ````
 
 ## File: modules/workspace/bounded-context.md
@@ -79031,6 +80165,253 @@ Ports remain the seam between core and adapters.
 ## Read model note
 
 `WorkspaceMemberView` and `Wiki*Node` types are query projections, not aggregate ownership.
+````
+
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+import {
+  Card,
+  CardContent,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { WorkspaceAuditTab } from "@/modules/workspace/api";
+import { WorkspaceFilesTab } from "@/modules/source/api";
+import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
+import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
+import { useApp } from "@/app/providers/app-provider";
+
+import {
+  createSettingsDraft,
+  type WorkspaceSettingsDraft,
+} from "../../state/workspace-settings";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../../view-models/workspace-supporting-records";
+import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
+import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
+import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
+import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+  readonly initialOverviewPanel?: string;
+}
+
+export function WorkspaceDetailScreen({
+  workspaceId,
+  accountId,
+  accountsHydrated,
+  initialTab,
+  initialOverviewPanel,
+}: WorkspaceDetailScreenProps) {
+  const { state: appState, dispatch } = useApp();
+  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
+    workspaceId,
+    accountId,
+    accountsHydrated,
+  );
+  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
+
+  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
+    workspace,
+    accountId,
+    onSaved: (updated) => {
+      setWorkspace(updated);
+      setSettingsDraft(createSettingsDraft(updated));
+      setIsEditWorkspaceOpen(false);
+    },
+  });
+
+  const personnelEntries = useMemo(() => {
+    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
+  }, [workspace]);
+
+  const addressLines = useMemo(() => {
+    return workspace ? getWorkspaceAddressLines(workspace) : [];
+  }, [workspace]);
+
+  function renderTabContent(tab: WorkspaceTabValue) {
+    if (!workspace) return null;
+
+    switch (tab) {
+      case "Overview":
+        return (
+          <WorkspaceOverviewTab
+            workspace={workspace}
+            activeWorkspaceId={appState.activeWorkspaceId}
+            personnelEntries={personnelEntries}
+            addressLines={addressLines}
+            showSettingsPanel={initialOverviewPanel === "settings"}
+            onEditClick={() => {
+              setSettingsDraft(createSettingsDraft(workspace));
+              clearSaveError();
+              setIsEditWorkspaceOpen(true);
+            }}
+            onSetActiveWorkspace={() =>
+              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
+            }
+          />
+        );
+      case "Members":
+        return <WorkspaceMembersTab workspace={workspace} />;
+      case "Daily":
+        return <WorkspaceDailyTab workspace={workspace} />;
+      case "Files":
+        return <WorkspaceFilesTab workspace={workspace} />;
+      case "Schedule":
+        return (
+          <WorkspaceSchedulingTab
+            workspace={workspace}
+            accountId={accountId ?? workspace.accountId}
+            currentUserId={accountId ?? "anonymous"}
+          />
+        );
+      case "Audit":
+        return <WorkspaceAuditTab workspaceId={workspace.id} />;
+      case "Tasks":
+        return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
+      case "Feed":
+        return (
+          <WorkspaceFeedWorkspaceView
+            accountId={accountId ?? workspace.accountId}
+            workspaceId={workspace.id}
+            workspaceName={workspace.name}
+          />
+        );
+      default:
+        return null;
+    }
+  }
+
+  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
+    ? initialTab
+    : "Overview";
+
+  return (
+    <div className="space-y-6">
+      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
+        ← 返回 Workspace Hub
+      </Link>
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          正在同步帳號內容…
+        </div>
+      )}
+
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            Loading workspace detail…
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入工作區資料，請返回清單後重試。
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "loaded" && !workspace && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            找不到此工作區。
+          </CardContent>
+        </Card>
+      )}
+
+      {workspace && (
+        <div className="space-y-6">
+          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+          <nav
+            aria-label="Workspace tab navigation"
+            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
+          >
+            <div className="flex min-w-max items-center gap-0.5">
+              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
+                const tabs = getWorkspaceTabsByGroup(group);
+                const links = tabs.map((tab) => {
+                  const isActive = resolvedTab === tab;
+                  return (
+                    <Link
+                      key={tab}
+                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {getWorkspaceTabLabel(tab)}
+                    </Link>
+                  );
+                });
+                if (groupIndex > 0) {
+                  return [
+                    <div
+                      key={`sep-${group}`}
+                      aria-hidden="true"
+                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
+                    />,
+                    ...links,
+                  ];
+                }
+                return links;
+              })}
+            </div>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
+          </div>
+          {renderTabContent(resolvedTab)}
+        </div>
+      )}
+
+      <WorkspaceSettingsDialog
+        open={isEditWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsEditWorkspaceOpen(open);
+          if (!open) {
+            clearSaveError();
+            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
+          }
+        }}
+        settingsDraft={settingsDraft}
+        setSettingsDraft={setSettingsDraft}
+        isSaving={isSavingWorkspace}
+        saveError={saveError}
+        onSubmit={(event) => void handleSave(event, settingsDraft)}
+      />
+    </div>
+  );
+}
 ````
 
 ## File: modules/workspace/README.md
@@ -79917,101 +81298,6 @@ platform 事件推薦使用：
 <!-- Purpose: Subdomain scaffold overview for platform 'access-control'. -->
 ````
 
-## File: modules/workspace/api/contracts.ts
-````typescript
-/**
- * workspace api/contracts.ts
- *
- * Canonical public type surface for the workspace bounded context.
- * Cross-module and app-layer consumers should import types from here.
- *
- * Internal source: interfaces/api/contracts/
- */
-
-export type {
-  Address,
-  AddressInput,
-  Capability,
-  CapabilitySpec,
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceEntity,
-  WorkspaceGrant,
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-  WorkspaceLocation,
-  WorkspaceName,
-  WorkspaceNameInput,
-  WorkspacePersonnel,
-  WorkspacePersonnelCustomRole,
-  WorkspaceVisibility,
-  WorkspaceVisibilityInput,
-} from "../domain/aggregates/Workspace";
-
-export type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberAccessSource,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../domain/entities/WorkspaceMemberView";
-
-export type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiAccountType,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-  WikiWorkspaceRef,
-} from "../domain/entities/WikiContentTree";
-
-export {
-  WORKSPACE_LIFECYCLE_STATES,
-  WORKSPACE_VISIBILITIES,
-  createAddress,
-  createWorkspaceLifecycleState,
-  createWorkspaceName,
-  createWorkspaceVisibility,
-  formatAddress,
-  isTerminalWorkspaceLifecycleState,
-  isWorkspaceVisible,
-  workspaceNameEquals,
-} from "../domain/value-objects";
-
-export type {
-  WorkspaceCreatedEvent,
-  WorkspaceDomainEvent,
-  WorkspaceLifecycleTransitionedEvent,
-  WorkspaceVisibilityChangedEvent,
-} from "../domain/events/workspace.events";
-
-export {
-  WORKSPACE_CREATED_EVENT_TYPE,
-  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
-  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
-  createWorkspaceCreatedEvent,
-  createWorkspaceLifecycleTransitionedEvent,
-  createWorkspaceVisibilityChangedEvent,
-} from "../domain/events/workspace.events";
-
-export type {
-  AuditAction,
-  AuditLog,
-  AuditLogEntity,
-  AuditLogSource,
-  AuditSeverity,
-  ChangeRecord,
-} from "../subdomains/audit/api";
-
-export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../subdomains/audit/api";
-
-export type {
-  WorkspaceFeedPost,
-  WorkspaceFeedPostType,
-} from "../subdomains/feed/api";
-
-export { WORKSPACE_FEED_POST_TYPES } from "../subdomains/feed/api";
-````
-
 ## File: modules/platform/docs/context-map.md
 ````markdown
 # Context Map — platform
@@ -80300,6 +81586,113 @@ analytics -> observability
 若無法同時滿足這三件事，預設不允許新增子域。
 ````
 
+## File: modules/workspace/api/ui.ts
+````typescript
+/**
+ * workspace api/ui.ts
+ *
+ * Canonical public web UI surface for the workspace bounded context.
+ * App-layer consumers that need workspace UI components, hooks, and
+ * navigation utilities should import from here.
+ *
+ * Internal source: interfaces/web/
+ */
+
+// ── Screen components ────────────────────────────────────────────────────────
+
+export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
+export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
+
+// ── Card components ──────────────────────────────────────────────────────────
+
+export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
+
+// ── Tab components ───────────────────────────────────────────────────────────
+
+export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
+
+// ── Layout components ────────────────────────────────────────────────────────
+
+export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
+
+// ── Rail components ──────────────────────────────────────────────────────────
+
+export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+export type {
+  WorkspaceTabDevStatus,
+  WorkspaceTabGroup,
+  WorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export {
+  WORKSPACE_TAB_GROUPS,
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_VALUES,
+  getWorkspaceTabLabel,
+  getWorkspaceTabMeta,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
+export {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "../interfaces/web/navigation/workspace-nav-items";
+
+// ── Quick-access navigation ───────────────────────────────────────────────────
+
+export type {
+  WorkspaceQuickAccessItem,
+  WorkspaceQuickAccessMatcherOptions,
+} from "../interfaces/web/components/navigation/workspace-quick-access";
+
+export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
+
+// ── State helpers ─────────────────────────────────────────────────────────────
+
+export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
+
+// ── Map utilities ─────────────────────────────────────────────────────────────
+
+export {
+  resolveWorkspaceFromMap,
+  toWorkspaceMap,
+} from "../interfaces/web/utils/workspace-map";
+
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+
+export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
+export {
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  getWorkspaceIdFromPath,
+  useRecentWorkspaces,
+} from "../interfaces/web/hooks/useRecentWorkspaces";
+
+export {
+  AuditStream,
+  WorkspaceAuditTab,
+} from "../subdomains/audit/api";
+
+export {
+  WorkspaceFeedAccountView,
+  WorkspaceFeedWorkspaceView,
+} from "../subdomains/feed/api";
+
+export type { AccountMember } from "../subdomains/scheduling/api";
+export {
+  AccountSchedulingView,
+  WorkspaceSchedulingTab,
+} from "../subdomains/scheduling/api";
+````
+
 ## File: next-env.d.ts
 ````typescript
 /// <reference types="next" />
@@ -80308,6 +81701,188 @@ import "./.next/dev/types/routes.d.ts";
 
 // NOTE: This file should not be edited
 // see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+````
+
+## File: modules/workspace/api/contracts.ts
+````typescript
+/**
+ * workspace api/contracts.ts
+ *
+ * Canonical public type surface for the workspace bounded context.
+ * Cross-module and app-layer consumers should import types from here.
+ *
+ * Internal source: interfaces/api/contracts/
+ */
+
+export type {
+  Address,
+  AddressInput,
+  Capability,
+  CapabilitySpec,
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceEntity,
+  WorkspaceGrant,
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+  WorkspaceLocation,
+  WorkspaceName,
+  WorkspaceNameInput,
+  WorkspacePersonnel,
+  WorkspacePersonnelCustomRole,
+  WorkspaceVisibility,
+  WorkspaceVisibilityInput,
+} from "../domain/aggregates/Workspace";
+
+export type {
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberAccessSource,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../domain/entities/WorkspaceMemberView";
+
+export type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiAccountType,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+  WikiWorkspaceRef,
+} from "../domain/entities/WikiContentTree";
+
+export {
+  WORKSPACE_LIFECYCLE_STATES,
+  WORKSPACE_VISIBILITIES,
+  createAddress,
+  createWorkspaceLifecycleState,
+  createWorkspaceName,
+  createWorkspaceVisibility,
+  formatAddress,
+  isTerminalWorkspaceLifecycleState,
+  isWorkspaceVisible,
+  workspaceNameEquals,
+} from "../domain/value-objects";
+
+export type {
+  WorkspaceCreatedEvent,
+  WorkspaceDomainEvent,
+  WorkspaceLifecycleTransitionedEvent,
+  WorkspaceVisibilityChangedEvent,
+} from "../domain/events/workspace.events";
+
+export {
+  WORKSPACE_CREATED_EVENT_TYPE,
+  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
+  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
+  createWorkspaceCreatedEvent,
+  createWorkspaceLifecycleTransitionedEvent,
+  createWorkspaceVisibilityChangedEvent,
+} from "../domain/events/workspace.events";
+
+export type {
+  AuditAction,
+  AuditLog,
+  AuditLogEntity,
+  AuditLogSource,
+  AuditSeverity,
+  ChangeRecord,
+} from "../subdomains/audit/api";
+
+export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../subdomains/audit/api";
+
+export type {
+  WorkspaceFeedPost,
+  WorkspaceFeedPostType,
+} from "../subdomains/feed/api";
+
+export { WORKSPACE_FEED_POST_TYPES } from "../subdomains/feed/api";
+
+export type {
+  AssignWorkDemandCommand,
+  CreateWorkDemandCommand,
+  DemandPriority,
+  DemandStatus,
+  WorkDemand,
+  WorkDemandDomainEvent,
+} from "../subdomains/scheduling/api";
+
+export {
+  DEMAND_PRIORITIES,
+  DEMAND_PRIORITY_LABELS,
+  DEMAND_STATUSES,
+  DEMAND_STATUS_LABELS,
+} from "../subdomains/scheduling/api";
+````
+
+## File: modules/workspace/api/facade.ts
+````typescript
+/**
+ * workspace api/facade.ts
+ *
+ * Canonical public behavior surface for the workspace bounded context.
+ * Cross-module and app-layer consumers invoke commands and queries from here.
+ *
+ * Internal source: interfaces/api/facades/
+ */
+
+export {
+  getWorkspacesForAccount,
+  subscribeToWorkspacesForAccount,
+  getWorkspaceById,
+  getWorkspaceByIdForAccount,
+  buildWikiContentTree,
+  authorizeWorkspaceTeam,
+  createWorkspace,
+  createWorkspaceLocation,
+  createWorkspaceWithCapabilities,
+  deleteWorkspace,
+  grantIndividualWorkspaceAccess,
+  mountCapabilities,
+  updateWorkspaceSettings,
+} from "../interfaces/api/facades/workspace.facade";
+
+export {
+  getWorkspaceMembers,
+} from "../interfaces/api/facades/workspace-member.facade";
+
+export {
+  getOrganizationAuditLogs,
+  getWorkspaceAuditLogs,
+} from "../subdomains/audit/api";
+
+export {
+  workspaceFeedFacade,
+  WorkspaceFeedFacade,
+  getAccountWorkspaceFeed,
+  getWorkspaceFeed,
+  getWorkspaceFeedPost,
+  bookmarkWorkspaceFeedPost,
+  createWorkspaceFeedPost,
+  likeWorkspaceFeedPost,
+  replyWorkspaceFeedPost,
+  repostWorkspaceFeedPost,
+  shareWorkspaceFeedPost,
+  viewWorkspaceFeedPost,
+} from "../subdomains/feed/api";
+
+export type {
+  CreateWorkspaceFeedPostParams,
+  ReplyWorkspaceFeedPostParams,
+  RepostWorkspaceFeedPostParams,
+  WorkspaceFeedInteractionParams,
+} from "../subdomains/feed/api";
+
+export {
+  assignWorkDemand,
+  getAccountDemands,
+  getWorkspaceDemands,
+  submitWorkDemand,
+} from "../subdomains/scheduling/api";
+
+export type {
+  AssignMemberInput,
+  CreateDemandInput,
+} from "../subdomains/scheduling/api";
 ````
 
 ## File: modules/platform/AGENT.md
