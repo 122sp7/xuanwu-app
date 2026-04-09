@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, ShieldCheck } from "lucide-react";
 
 import { useAuth } from "@/app/providers/auth-provider";
-import { createClientAuthUseCases } from "@/modules/platform/subdomains/identity";
+import { createClientAuthUseCases } from "@/modules/platform/api";
 import { createClientAccountUseCases } from "@/modules/platform/subdomains/account";
 import {
   createDevDemoUser,

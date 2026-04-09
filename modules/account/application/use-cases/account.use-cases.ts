@@ -6,7 +6,7 @@
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { AccountRepository } from "../../domain/repositories/AccountRepository";
 import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
-import { identityApi } from "@/modules/platform/subdomains/identity";
+import { identityApi } from "@/modules/platform/api";
 
 // ─── Create Account ───────────────────────────────────────────────────────────
 
