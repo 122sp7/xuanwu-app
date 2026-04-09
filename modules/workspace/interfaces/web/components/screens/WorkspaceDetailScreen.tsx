@@ -11,7 +11,7 @@ import { Badge } from "@ui-shadcn/ui/badge";
 import { WorkspaceAuditTab } from "@/modules/workspace/api";
 import { WorkspaceFilesTab } from "@/modules/source/api";
 import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
-import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
+import { WorkspaceFlowTab } from "@/modules/workspace/api";
 import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
 import { useApp } from "@/app/providers/app-provider";
 

@@ -65,3 +65,20 @@ export type {
   AssignMemberInput,
   CreateDemandInput,
 } from "../subdomains/scheduling/api";
+
+export {
+  WorkspaceFlowFacade,
+  WorkspaceFlowTaskFacade,
+  WorkspaceFlowIssueFacade,
+  WorkspaceFlowInvoiceFacade,
+  getWorkspaceFlowTasks,
+  getWorkspaceFlowTask,
+  getWorkspaceFlowIssues,
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowInvoiceItems,
+  createKnowledgeToWorkflowListener,
+} from "../subdomains/workflow/api";
+
+export type {
+  KnowledgePageApprovedHandler,
+} from "../subdomains/workflow/api";

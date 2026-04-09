@@ -101,3 +101,5 @@ export {
   AccountSchedulingView,
   WorkspaceSchedulingTab,
 } from "../subdomains/scheduling/api";
+
+export { WorkspaceFlowTab } from "../subdomains/workflow/api";
