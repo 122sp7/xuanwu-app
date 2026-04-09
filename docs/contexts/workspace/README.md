@@ -43,23 +43,18 @@
 ## Upstream / Downstream
 
 - **Upstream:**
-  - `account` → workspace — owner identity context (Customer/Supplier)
-  - `organization` → workspace — org ownership and member/team read translation (Customer/Supplier)
+  - `platform` → workspace — owner identity and account context (Published Language / Customer-Supplier)
+  - `platform` → workspace — organization membership and member/team read translation (Published Language)
 
 - **Downstream (conformist consumers scoped by `workspaceId`):**
-  - `knowledge`
-  - `knowledge-base`
-  - `source`
-  - `notebook`
-  - `workspace-flow`
-  - `workspace-scheduling`
-  - `workspace-feed`
-  - `workspace-audit`
+  - `notion` (all knowledge content subdomains)
+  - `notebooklm` (AI conversation and synthesis)
+  - workspace subdomains: `audit`, `feed`, `scheduling`, `workflow`
 
 - **Relationship types:**
-  - `account → workspace`: Customer/Supplier
-  - `organization → workspace`: Customer/Supplier
-  - `workspace → downstream contexts`: Published Language (workspaceId scope + domain events)
+  - `platform → workspace`: Published Language / Conformist
+  - `workspace → notion`: Published Language (workspaceId scope + domain events)
+  - `workspace → notebooklm`: Published Language (workspaceId scope)
 
 ## Context Rules
 
