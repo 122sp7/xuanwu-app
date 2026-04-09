@@ -39,11 +39,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-369 files | 16,776 lines
+363 files | 16,589 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 369 | 16,776 |
+| Markdown | 363 | 16,589 |
 
 **Largest files:**
 - `docs/guides/explanation/architecture.md` (942 lines)

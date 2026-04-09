@@ -1548,43 +1548,6 @@ Any of the following require a context7 lookup before proceeding:
 - Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
 ````
 
-## File: .github/instructions/app/app-router-parallel-routes.instructions.md
-````markdown
----
-name: 'App Router Parallel Routes'
-description: 'Rules for app/ route slices and parallel-route UI blocks that compose module APIs without importing module internals.'
-applyTo: 'app/**/*.{ts,tsx}'
----
-
-# App Router Parallel Routes
-
-Use this instruction for work in `app/`.
-
-## Composition Rules
-
-- Treat each route slice or parallel-route block as one feature area: dashboard surface, sidebar tool, modal, or chat console.
-- Keep data flow one-way from module API -> route composition -> local UI state.
-- Import module behavior through `@/modules/<target>/api` only.
-- Keep route files focused on composition, loading states, and rendering.
-
-## Guardrails
-
-- Do not import `domain/`, `application/`, or `infrastructure/` from any module.
-- Do not move business rules into `app/`.
-- Keep slot-local state isolated; do not hide coupling through shared mutable module state.
-- Prefer Server Components by default; add `use client` only where interactivity requires it.
-
-## Validation
-
-- Run the app-level commands from `agents/commands.md` that match the touched files.
-- If routing or public API usage changes, update affected docs or prompt/instruction references in the same change.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill app-router-parallel-routes
-#use skill next-devtools-mcp
-#use skill vercel-react-best-practices
-````
-
 ## File: .github/instructions/architecture-api-boundary.instructions.md
 ````markdown
 ---
@@ -1618,86 +1581,6 @@ applyTo: '{app,modules,packages,providers,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 
 - Use `eslint.config.mjs` restricted-import and boundary rules as the enforcement source.
 - Re-check changed imports for `@/modules/` to confirm API-only access.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/instructions/architecture-mddd.instructions.md
-````markdown
----
-description: 'MDDD architecture rules for layer ownership and dependency direction.'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
----
-
-# Architecture MDDD
-
-## Layer Direction
-
-- `interfaces -> application -> domain <- infrastructure`
-- Keep `domain/` framework-free.
-
-## Layer Constraints
-
-- `domain/` must not import Firebase SDK, React, HTTP clients, or runtime-specific adapters.
-- `application/` orchestrates use cases and coordinates domain abstractions.
-- `infrastructure/` implements domain ports and repository interfaces.
-- `interfaces/` handles UI, route handlers, API transport, and server action wiring.
-
-## Layer Ownership
-
-- `domain/`: entities, value objects, domain services, repository interfaces.
-- `application/`: use cases and DTO orchestration.
-- `infrastructure/`: adapters and external implementations.
-- `interfaces/`: UI, transport, and action wiring.
-- `api/`: only public cross-module boundary.
-
-## Dependency Guardrails
-
-- Keep module dependency flow acyclic unless an explicit event contract documents the exception.
-- Do not reverse dependency direction for convenience during refactors.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/instructions/architecture-modules.instructions.md
-````markdown
----
-description: 'Module structure, naming, and refactor workflow rules for bounded contexts.'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
----
-
-# Architecture Modules
-
-## Required Shape
-
-- `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`.
-
-## Naming
-
-- Module folder: kebab-case bounded context.
-- Use case file: `verb-noun.use-case.ts`.
-- Repository interface: `PascalCaseRepository`.
-- Repository implementation: `TechnologyPascalCaseRepository`.
-- Public facade type: `PascalCaseFacade`; instance: `camelCaseFacade`.
-- Domain event discriminant: `module-name.action`.
-
-## Refactor Checklist
-
-1. Confirm ownership.
-2. Map API consumers.
-3. Preserve boundaries during split/merge/delete.
-4. Update docs and imports in the same change.
-5. Migrate public API and event contracts before removing old paths.
-
-## Module Lifecycle Notes
-
-- New module: establish `api/` contract immediately and document inventory updates.
-- Split/merge: map source-to-target ownership and classify internal vs public surfaces.
-- Delete: remove consumers first, then delete module, then update docs and dependency references.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill modules-mddd-api-surface
@@ -1739,62 +1622,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill modules-mddd-api-surface
 #use skill xuanwu-mddd-boundaries
 #use skill next-devtools-mcp
-````
-
-## File: .github/instructions/bounded-context-rules.instructions.md
-````markdown
----
-description: '限界上下文邊界與模組依賴方向規範，遵循 Vaughn Vernon IDDD 戰略設計原則。'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
----
-
-# 限界上下文規則 (Bounded Context Rules)
-
-## 核心原則
-
-每個 `modules/<context>/` 是一個**獨立的限界上下文**，擁有自己的通用語言與領域模型。同一術語在不同限界上下文中可能有不同含義，須以各自的模型為準。
-
-## 邊界規則
-
-1. **跨模組存取**只能透過目標模組的 `api/` 公開合約進行。嚴禁直接匯入其他模組的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 內部程式碼。
-2. **限界上下文間的通訊**只能透過以下方式：
-   - 發布與訂閱**領域事件** (Domain Events)
-   - 呼叫目標模組的 `api/` 公開 Facade 或合約
-3. **基礎設施直接呼叫**（如 Firebase Admin、Upstash）必須封裝在各自模組的 `infrastructure/` 層，不得跨模組共用。
-
-## 依賴方向
-
-```
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `domain/` 必須保持框架無關（不能匯入 Firebase SDK、React、HTTP 客戶端等）。
-- `infrastructure/` 實作 `domain/` 定義的 Repository 介面，只向下依賴。
-- `application/` 協調 Use Cases，只依賴 `domain/` 的抽象。
-- `interfaces/` 處理 UI、路由處理器、API 傳輸與 Server Action 接線。
-
-## 上下文地圖 (Context Map)
-
-完整模組地圖請查閱：**[`docs/ddd/bounded-contexts.md`](../../docs/ddd/bounded-contexts.md)**
-
-> 模組清單不在此複製。模組職責變更時，必須更新上述文件，而非此處。
-
-## 防腐層 (Anti-Corruption Layer)
-
-- 整合外部系統（Firebase、Genkit、Upstash）時，必須在 `infrastructure/` 層建立適配器。
-- 防止外部概念與命名污染領域模型的類別與介面。
-- 在適配器中負責翻譯外部模型與領域模型之間的概念差異。
-
-## 禁止模式
-
-- ❌ `import { X } from '@/modules/other-context/domain/...'`
-- ❌ `import { X } from '@/modules/other-context/application/...'`
-- ❌ `import { X } from '@/modules/other-context/infrastructure/...'`
-- ✅ `import { X } from '@/modules/other-context/api'`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
 ````
 
 ## File: .github/instructions/branching-strategy.instructions.md
@@ -2346,138 +2173,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-typescript-workbench
 ````
 
-## File: .github/instructions/modules/modules-api-surface.instructions.md
-````markdown
----
-name: 'Modules API Surface'
-description: 'Rules for modules/*/api files so cross-domain access stays API-only through contracts and facades.'
-applyTo: 'modules/**/api/**/*.ts'
----
-
-# Modules API Surface
-
-Use this instruction for `modules/*/api` files.
-
-## Required Shape
-
-- Keep `contracts.ts` for DTOs, request types, response types, and stable public contracts.
-- Keep `facade.ts` for outward use-case entry points that the app layer or other modules can call.
-- Export the minimum stable surface needed by consumers.
-
-## Guardrails
-
-- Do not instantiate infrastructure adapters directly in `api/`.
-- Do not expose private domain entities or repository implementations unless a public contract explicitly requires a translated type.
-- Do not reach into other modules except through their own `api/` boundaries.
-
-## Validation
-
-- Re-check every new export and downstream import path.
-- Run validation from `agents/commands.md` when API signatures or import surfaces change.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-#use skill xuanwu-development-contracts
-````
-
-## File: .github/instructions/modules/modules-index-entry.instructions.md
-````markdown
----
-name: 'Modules Index Entry'
-description: 'Rules for modules/*/index.ts files so they remain aggregate exports without embedded business logic.'
-applyTo: 'modules/**/index.ts'
----
-
-# Modules Index Entry
-
-Use this instruction for module root `index.ts` files.
-
-## Rules
-
-- `index.ts` is an aggregate export only.
-- Re-export stable public members from `api/` or other intentionally public entry points.
-- Keep the file free of orchestration, conditionals, adapter wiring, and business logic.
-
-## Guardrails
-
-- Do not implement use cases, facades, or stateful helpers here.
-- Do not expose private infrastructure or domain internals through convenience exports.
-
-## Validation
-
-- Verify that app-layer or cross-module imports still resolve through the intended public surface.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-````
-
-## File: .github/instructions/modules/modules-infrastructure-adapters.instructions.md
-````markdown
----
-name: 'Modules Infrastructure Adapters'
-description: 'Rules for modules/*/infrastructure files so external resources stay in adapters with downward-only dependencies.'
-applyTo: 'modules/**/infrastructure/**/*.{ts,tsx,js,jsx}'
----
-
-# Modules Infrastructure Adapters
-
-Use this instruction for `modules/*/infrastructure` files.
-
-## Rules
-
-- Keep Firebase, storage, HTTP, queue, and third-party adapters here.
-- Infrastructure may depend on `domain/` contracts and entities needed to implement ports.
-- Keep adapter wiring explicit and local to infrastructure.
-
-## Guardrails
-
-- Do not depend on `application/`, `api/`, or `interfaces/`.
-- Do not place domain decision logic here.
-- Do not let app-layer concerns leak into adapter code.
-
-## Validation
-
-- Re-check dependency direction after import changes.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/instructions/modules/modules-interfaces-api-consumption.instructions.md
-````markdown
----
-name: 'Modules Interfaces API Consumption'
-description: 'Rules for modules/*/interfaces files so UI, hooks, and external interfaces consume module behavior only through api/.'
-applyTo: 'modules/**/interfaces/**/*.{ts,tsx,js,jsx}'
----
-
-# Modules Interfaces API Consumption
-
-Use this instruction for `modules/*/interfaces` files.
-
-## Rules
-
-- Put UI components, hooks, route-facing adapters, and interface DTOs here.
-- Consume module behavior through the module's own `api/` surface.
-- Keep local view state or interaction state inside the interface layer.
-
-## Guardrails
-
-- Do not import the same module's `domain/` or `application/` directly.
-- Do not import another module's internals.
-- Do not place external resource adapters here.
-
-## Validation
-
-- Re-check imports for accidental reach-through before finishing.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-````
-
 ## File: .github/instructions/nextjs-app-router.instructions.md
 ````markdown
 ---
@@ -2950,49 +2645,6 @@ Map ownership, boundaries, and risks before coding.
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill modules-mddd-api-surface
 #use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/prompts/app/create-parallel-route-slice.prompt.md
-````markdown
----
-name: 'create-parallel-route-slice'
-description: 'Create or refactor an app/ route slice or parallel-route block that composes module APIs without importing module internals.'
-agent: 'App Router Composer'
-argument-hint: 'Provide the route path, UI block role, allowed module APIs, and whether the slice should be server or client.'
----
-
-# Create Parallel Route Slice
-
-## Mission
-
-Create or refactor a route slice in `app/` that composes one feature block and keeps the module boundary API-only.
-
-## Inputs
-
-- Route path: `${input:routePath:app/(shell)/dashboard}`
-- Block role: `${input:blockRole:dashboard panel | sidebar tool | modal | chat console}`
-- Allowed module APIs: `${input:moduleApis:@/modules/workspace/api}`
-- Rendering mode: `${input:renderMode:server | client}`
-
-## Workflow
-
-1. Keep the slice focused on one UI responsibility.
-2. Consume module data through public APIs only.
-3. Keep local UI state isolated to this slice or its local components.
-4. Avoid embedding business logic in the route layer.
-5. Run the minimum validation needed for the touched files.
-
-## Output
-
-- Files created or changed
-- Module APIs consumed
-- Validation run
-- Any remaining route-state or boundary risks
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill app-router-parallel-routes
-#use skill next-devtools-mcp
-#use skill vercel-react-best-practices
 ````
 
 ## File: .github/prompts/chunk-docs.prompt.md
@@ -70359,6 +70011,143 @@ export default defineConfig({
 });
 ````
 
+## File: .github/instructions/architecture-mddd.instructions.md
+````markdown
+---
+description: 'MDDD architecture rules for layer ownership and dependency direction.'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Architecture MDDD
+
+## Layer Direction
+
+- `interfaces -> application -> domain <- infrastructure`
+- Keep `domain/` framework-free.
+
+## Layer Constraints
+
+- `domain/` must not import Firebase SDK, React, HTTP clients, or runtime-specific adapters.
+- `application/` orchestrates use cases and coordinates domain abstractions.
+- `infrastructure/` implements domain ports and repository interfaces.
+- `interfaces/` handles UI, route handlers, API transport, and server action wiring.
+
+## Layer Ownership
+
+- `domain/`: entities, value objects, domain services, repository interfaces.
+- `application/`: use cases and DTO orchestration.
+- `infrastructure/`: adapters and external implementations.
+- `interfaces/`: UI, transport, and action wiring.
+- Module root public entry (`index.ts`, typically re-exporting `interfaces/api`): only public cross-module boundary.
+
+## Dependency Guardrails
+
+- Keep module dependency flow acyclic unless an explicit event contract documents the exception.
+- Do not reverse dependency direction for convenience during refactors.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+````
+
+## File: .github/instructions/architecture-modules.instructions.md
+````markdown
+---
+description: 'Module structure, naming, and refactor workflow rules for bounded contexts.'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Architecture Modules
+
+## Required Shape
+
+- `domain/`, `application/`, `ports/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`.
+- Public boundary should be exposed by the module root `index.ts` (for example re-exporting from `interfaces/api`).
+
+## Naming
+
+- Module folder: kebab-case bounded context.
+- Use case file: `verb-noun.use-case.ts`.
+- Repository interface: `PascalCaseRepository`.
+- Repository implementation: `TechnologyPascalCaseRepository`.
+- Public facade type: `PascalCaseFacade`; instance: `camelCaseFacade`.
+- Domain event discriminant: `module-name.action`.
+
+## Refactor Checklist
+
+1. Confirm ownership.
+2. Map API consumers.
+3. Preserve boundaries during split/merge/delete.
+4. Update docs and imports in the same change.
+5. Migrate public API and event contracts before removing old paths.
+
+## Module Lifecycle Notes
+
+- New module: establish a public contract immediately (via `index.ts` and `interfaces/api`) and document inventory updates.
+- Split/merge: map source-to-target ownership and classify internal vs public surfaces.
+- Delete: remove consumers first, then delete module, then update docs and dependency references.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+````
+
+## File: .github/instructions/bounded-context-rules.instructions.md
+````markdown
+---
+description: '限界上下文邊界與模組依賴方向規範，遵循 Vaughn Vernon IDDD 戰略設計原則。'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# 限界上下文規則 (Bounded Context Rules)
+
+## 核心原則
+
+每個 `modules/<context>/` 是一個**獨立的限界上下文**，擁有自己的通用語言與領域模型。同一術語在不同限界上下文中可能有不同含義，須以各自的模型為準。
+
+## 邊界規則
+
+1. **跨模組存取**只能透過目標模組的公開邊界（`modules/<context>/index.ts`，或其明確公開的 API 入口）進行。嚴禁直接匯入其他模組的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 內部程式碼。
+2. **限界上下文間的通訊**只能透過以下方式：
+   - 發布與訂閱**領域事件** (Domain Events)
+   - 呼叫目標模組公開邊界的 Facade 或合約
+3. **基礎設施直接呼叫**（如 Firebase Admin、Upstash）必須封裝在各自模組的 `infrastructure/` 層，不得跨模組共用。
+
+## 依賴方向
+
+```
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `domain/` 必須保持框架無關（不能匯入 Firebase SDK、React、HTTP 客戶端等）。
+- `infrastructure/` 實作 `domain/` 定義的 Repository 介面，只向下依賴。
+- `application/` 協調 Use Cases，只依賴 `domain/` 的抽象。
+- `interfaces/` 處理 UI、路由處理器、API 傳輸與 Server Action 接線。
+
+## 上下文地圖 (Context Map)
+
+完整模組地圖請查閱：**[`docs/ddd/bounded-contexts.md`](../../docs/ddd/bounded-contexts.md)**
+
+> 模組清單不在此複製。模組職責變更時，必須更新上述文件，而非此處。
+
+## 防腐層 (Anti-Corruption Layer)
+
+- 整合外部系統（Firebase、Genkit、Upstash）時，必須在 `infrastructure/` 層建立適配器。
+- 防止外部概念與命名污染領域模型的類別與介面。
+- 在適配器中負責翻譯外部模型與領域模型之間的概念差異。
+
+## 禁止模式
+
+- ❌ `import { X } from '@/modules/other-context/domain/...'`
+- ❌ `import { X } from '@/modules/other-context/application/...'`
+- ❌ `import { X } from '@/modules/other-context/infrastructure/...'`
+- ✅ `import { X } from '@/modules/other-context'`
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+````
+
 ## File: app/(shell)/organization/audit/page.tsx
 ````typescript
 "use client";
@@ -82899,6 +82688,15 @@ export function SimpleNavLinks({
 }
 ````
 
+## File: app/(shell)/_components/use-recent-workspaces.ts
+````typescript
+export {
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  getWorkspaceIdFromPath,
+  useRecentWorkspaces,
+} from "@/modules/workspace/interfaces/web";
+````
+
 ## File: app/(shell)/ai-chat/page.tsx
 ````typescript
 "use client";
@@ -84713,15 +84511,6 @@ export function CreateWorkspaceDialogRail({
     />
   );
 }
-````
-
-## File: app/(shell)/_components/use-recent-workspaces.ts
-````typescript
-export {
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  getWorkspaceIdFromPath,
-  useRecentWorkspaces,
-} from "@/modules/workspace/interfaces/web";
 ````
 
 ## File: app/(shell)/_components/workspace-sidebar-section.tsx
