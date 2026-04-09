@@ -1,7 +1,7 @@
 /**
  * Module: notion/subdomains/authoring
  * Layer: application/use-cases
- * Purpose: Article lifecycle use cases — create, update, archive, delete.
+ * Purpose: Article lifecycle use cases ??create, update, archive, delete.
  */
 
 import type { z } from "@lib-zod";
@@ -56,7 +56,7 @@ export class UpdateArticleUseCase {
       tags: parsed.data.tags,
     });
     await this.repo.save(article.getSnapshot());
-    return commandSuccess(article.id);
+    return commandSuccess(article.id, article.getSnapshot().version);
   }
 }
 
@@ -73,7 +73,7 @@ export class ArchiveArticleUseCase {
     const article = Article.reconstitute(snapshot);
     article.archive();
     await this.repo.save(article.getSnapshot());
-    return commandSuccess(article.id);
+    return commandSuccess(article.id, article.getSnapshot().version);
   }
 }
 
@@ -86,6 +86,6 @@ export class DeleteArticleUseCase {
       return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
     }
     await this.repo.delete(parsed.data.accountId, parsed.data.id);
-    return commandSuccess(parsed.data.id);
+    return commandSuccess(parsed.data.id, 0);
   }
 }
