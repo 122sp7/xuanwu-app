@@ -277,8 +277,6 @@ import { cn } from "@/shared/utils";
 
 ## 九、過渡期已知問題（Transitional Issues）
 
-> 本節記錄當前代碼庫與理想 DDD 結構之間的**已知差距**，供開發者在修改相關模組前參考。修正計畫詳見 [`adr/ADR-002-ubiquitous-language-bounded-context-remediation.md`](./adr/ADR-002-ubiquitous-language-bounded-context-remediation.md)。
-
 | 問題 | 影響模組 | 當前狀態 | 目標狀態 | 優先級 |
 |------|---------|---------|---------|--------|
 | `knowledge/domain/entities/graph-node.ts`、`link.ts` 標記 `@deprecated` | `knowledge` | 檔案存在但僅作歷史 graph terminology bridge | 移除 deprecated bridge，確認無殘留 import | P1 |
