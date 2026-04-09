@@ -38,14 +38,6 @@
 				"MDB_MCP_CONNECTION_STRING": "${input:MDB_MCP_CONNECTION_STRING}"
 			}
 		},
-		"mcp-run-python": {
-			"type": "stdio",
-			"command": "uvx",
-			"args": [
-				"mcp-run-python",
-				"stdio"
-			]
-		},
 		"supabase-mcp": {
 			"type": "stdio",
 			"command": "npx",
