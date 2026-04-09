@@ -27,6 +27,14 @@ workspace 子域聚焦這些問題：
 
 Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 bounded context 內部或邊界上的實作 / 協作概念。
 
+同理，以下結構也不是 subdomain 本體，而是 `modules/workspace/` 這個 bounded context 的落地方式：
+
+- `domain/`
+- `application/`
+- `ports/input/`、`ports/output/`
+- `interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- `infrastructure/`
+
 換句話說，workspace 子域提供的是必要的結構性能力，而不是核心競爭優勢。
 
 ## Selected Strategic View
@@ -46,6 +54,7 @@ Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 
 - Firestore、event bus 等 external systems
 - Browser UI、Server Actions、job triggers 等 drivers
 - repository ports、adapters 等 hexagonal 結構元件
+- `ports/input/`、`ports/output/`、`application/services/`、`domain/services/` 等 folder / layer 名稱
 - `WorkspaceMemberView`、`Wiki*Node` 這類 read models / projections
 
 ## Investment Posture

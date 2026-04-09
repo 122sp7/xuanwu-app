@@ -4,6 +4,8 @@
 > **模組路徑:** `modules/workspace/`  
 > **定位:** 協作範圍、生命週期與工作區公開邊界
 
+> **文件優先原則：** 先用本文件與 companion docs 定義目標結構，再用文件去壓代碼收斂。
+
 ## Strategic Role
 
 `workspace` 是 Xuanwu 的協作容器 bounded context。它提供工作區作為協作範圍的 identity、生命週期與可見性語言，讓知識、來源、工作流、稽核、動態與排程等上下文可以用同一個 `workspaceId` 對齊範圍。
@@ -28,8 +30,39 @@
 |---|---|
 | Workspace 容器生命週期 | 建立工作區、更新設定、管理 `preparatory | active | stopped` 狀態 |
 | 協作範圍語言 | 提供 `workspaceId`、`WorkspaceVisibility` 與工作區範圍識別語言 |
-| 工作區公開邊界 | 透過 `api/` 暴露穩定查詢、命令入口與 UI composition surface |
+| 工作區公開邊界 | 透過 `interfaces/api/` 暴露穩定查詢、命令入口與 UI composition surface |
 | Read-side Projections | 組合工作區成員檢視與工作區導覽節點等查詢模型 |
+
+## 標準資料夾結構
+
+```txt
+modules/workspace/
+├── domain/                     ← 核心業務邏輯
+│   ├── aggregates/             ← 聚合根
+│   ├── entities/               ← Entity / Value Object
+│   ├── value-objects/
+│   ├── events/                 ← Domain Events
+│   ├── factories/              ← Domain Factories
+│   └── services/               ← Domain Services（純業務邏輯）
+│
+├── application/                ← Use Case 層
+│   ├── dtos/                   ← Input / Output DTO
+│   ├── services/               ← Application Services（協調 Use Case 流程）
+│   └── use-cases/              ← 單一 Use Case（呼叫 Domain Services + Output Ports）
+│
+├── ports/                      ← Hexagonal Ports
+│   ├── input/                  ← Driving Ports（供 UI / API / CLI 呼叫）
+│   └── output/                 ← Driven Ports（Repository / External Service 抽象）
+│
+├── infrastructure/             ← Adapters / Output Port 實作
+│   ├── events/                 ← Event Dispatcher / PubSub 實作
+│   └── firebase/               ← Firestore / Storage / Genkit Adapter
+│
+└── interfaces/                 ← Driving Adapters（外部入口）
+	├── api/                    ← Next.js Route Handler → Input Port
+	├── cli/                    ← CLI / Cron Job → Input Port
+	└── web/                    ← shadcn UI Components + Hooks → Input Port
+```
 
 ## 不屬於此 Context 的責任
 
@@ -45,24 +78,84 @@
 | Aggregate Root | `Workspace` |
 | Supporting Domain Objects | `WorkspaceLocation`、`Capability`、`WorkspaceGrant`、`WorkspacePersonnel` |
 | Read Projections | `WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode` |
-| Drivers | Browser UI、Server Actions、其他 bounded context 經由 `api/` 的呼叫者 |
-| Driven Ports | `WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository` |
-| Driving Adapters | `interfaces/_actions/`、`interfaces/queries/`、UI composition |
-| Driven Adapters | Firebase repositories 與事件整合 adapters |
+| Drivers | Browser UI、Route Handler、CLI / Cron、其他 bounded context 經由 `interfaces/api/` 的呼叫者 |
+| Driving Adapters | `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` |
+| Driving Ports | `ports/input/` |
+| Application Layer | `application/use-cases/`、`application/services/`、`application/dtos/` |
+| Driven Ports | `ports/output/` |
+| Driven Adapters | `infrastructure/firebase/`、`infrastructure/events/` |
 | Write-side Port | `WorkspaceRepository` |
 | Read-side Ports | `WorkspaceQueryRepository`、`WikiWorkspaceRepository` |
-| Domain Services | 目前沒有獨立 service；規則仍以 aggregate / application orchestration 為主 |
+| Domain Services | `domain/services/`，承載不自然屬於 aggregate 的純規則 |
 | Domain Events | `WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged` 為目標契約 |
 
 ## Hexagonal View
 
 | 六邊形位置 | workspace 對位 |
 |---|---|
-| Domain Model Core | `domain/` 下的 aggregate、entity、value object、domain event language |
-| Application Ring | `application/` use cases 與 orchestration |
-| Driving Adapters | `interfaces/`、Server Actions、queries、UI composition |
-| Driven Ports | `domain/repositories/` 等內核對外介面 |
-| Driven Adapters | `infrastructure/` 的 Firebase 等外部整合 |
+| Domain Model Core | `domain/` 下的 aggregates、entities、value-objects、events、factories、services |
+| Application Ring | `application/use-cases/`、`application/services/`、`application/dtos/` |
+| Driving Adapters | `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` |
+| Driving Ports | `ports/input/` |
+| Driven Ports | `ports/output/` |
+| Driven Adapters | `infrastructure/events/`、`infrastructure/firebase/` |
+
+## Dependency Diagram
+
+```mermaid
+flowchart TD
+	%% ------------------- Interfaces / Driving Adapters -------------------
+	subgraph Interfaces["interfaces/ - Driving Adapters"]
+		API["api/ (Next.js Route Handler)"]
+		CLI["cli/ (CLI / Cron Job)"]
+		Web["web/ (shadcn UI Components + Hooks)"]
+	end
+
+	%% ------------------- Ports -------------------
+	InputPorts["ports/input - Driving Port Interfaces"]
+	OutputPorts["ports/output - Driven Port Interfaces"]
+
+	%% ------------------- Application -------------------
+	subgraph Application["application/ - Use Case Layer"]
+		UseCases["use-cases/"]
+		AppServices["services/"]
+		DTOs["dtos/"]
+	end
+
+	%% ------------------- Domain -------------------
+	subgraph Domain["domain/ - Core Business Logic"]
+		Aggregates["aggregates/"]
+		Entities["entities/"]
+		ValueObjects["value-objects/"]
+		DomainServices["services/"]
+		Events["events/"]
+		Factories["factories/"]
+	end
+
+	%% ------------------- Infrastructure -------------------
+	subgraph Infrastructure["infrastructure/ - Output Port Adapters"]
+		InfraEvents["events/"]
+		FirebaseAdapter["firebase/ (Firestore / Storage / Genkit)"]
+	end
+
+	API -->|calls| InputPorts
+	CLI -->|calls| InputPorts
+	Web -->|calls| InputPorts
+
+	InputPorts -->|invokes| UseCases
+	UseCases -->|calls| AppServices
+	AppServices -->|uses| DomainServices
+	DomainServices -->|manipulates| Aggregates & Entities & ValueObjects
+	UseCases -->|calls| OutputPorts
+	OutputPorts -->|implemented by| Infrastructure
+```
+
+### 說明
+
+1. Interfaces -> Input Ports -> Use Cases -> Application Services -> Domain Services -> Domain Models：驅動流程完全向內。
+2. Use Cases -> Output Ports -> Infrastructure：外部資源由 Output Port 抽象，Infrastructure 實作。
+3. Domain Services / Domain Models 不依賴 Application 或 Infrastructure。
+4. `web/`、`api/`、`cli/` 只做外部驅動與 DTO 轉換，不直接做 domain 決策。
 
 `context-map.md` 描述的是 bounded context 在整體 domain 裡的外部關係；六邊形描述的是這個 bounded context 內部的結構。兩者不可混用。
 
@@ -88,7 +181,8 @@
 
 - 目前程式中仍有一些 supporting records 與 read projections 混置於 `domain/entities/`；本文件定義的是收斂方向
 - `WorkspaceMemberView` 與 `WikiContentTree` 型別不得再被描述成 aggregate 或 value object
-- `index.ts` 的目標是薄入口；跨模組 consumer 應優先依賴 `@/modules/workspace/api`
+- 這份 README 以 `interfaces/api/`、`ports/input/`、`ports/output/` 為文件基線，後續代碼應向此結構收斂
+- `WorkspaceMemberView` 與 `WikiContentTree` 型別不得再被描述成 aggregate 或 value object
 
 ## 詳細文件
 

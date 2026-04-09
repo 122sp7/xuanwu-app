@@ -6,7 +6,7 @@
 
 從 strategic design 角度看，這些事件是 `workspace` bounded context 對整體 Xuanwu domain 其他 bounded context 公開的 published language。
 
-從六邊形架構角度看，事件型別與工廠屬於內核語言；event bus / event store 與實際發布機制屬於外層 adapter 協作。
+從六邊形架構角度看，事件型別與工廠屬於內核語言；`ports/output/WorkspaceDomainEventPublisher` 是發布抽象，event bus / event store 與實際發布機制屬於 `infrastructure/events/` adapter 協作。
 
 ## Event-Driven Architecture Position
 
@@ -16,10 +16,28 @@
 
 ## Ports, Adapters, Drivers, and Projections
 
-- Drivers 先透過 command-side paths 觸發狀態改變，再由 application / adapter 協調發布事件
-- 若未來抽出 event publisher abstraction，該 abstraction 是 port；實際 bus / store connector 是 adapter
+- Drivers 先透過 `interfaces/* -> ports/input -> application/use-cases` 觸發狀態改變，再由 application / adapter 協調發布事件
+- `WorkspaceDomainEventPublisher` 是 output port；實際 bus / store connector 是 adapter
 - 下游 bounded context 或本地 query-side flow 可以用事件更新 projection / read model
 - 但 domain event 本身不是 projection；它是發布語言，不是讀取結果
+
+## Event Publishing Path
+
+```txt
+interfaces/*
+	-> ports/input
+	-> application/use-cases
+	-> domain/aggregates + domain/services
+	-> ports/output/WorkspaceDomainEventPublisher
+	-> infrastructure/events/*
+```
+
+### 說明
+
+1. Event 由 domain language 定義。
+2. 發布動作由 application layer 在持久化成功後觸發。
+3. 發布介面放在 `ports/output/`。
+4. 實際 dispatcher / bus / store connector 放在 `infrastructure/events/`。
 
 ## Event Base Contract
 
@@ -55,7 +73,8 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 - 先成功持久化 aggregate，再發布事件
 - 事件 payload 只包含下游所需的最小資訊
 - 不把 React state、router path、UI label 放進事件語言
-- application layer / interface adapter 可以組裝 event publisher，但事件物件本身屬於 domain language
+- application layer 可以組裝 event publisher，但事件物件本身屬於 domain language
+- `infrastructure/events/` 只做 adapter 實作，不寫 domain 規則
 
 ## 明確排除的事件
 
@@ -68,7 +87,7 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 ## 目前落地策略
 
 - 第一批事件以 `WorkspaceCreatedEvent`、`WorkspaceLifecycleTransitionedEvent`、`WorkspaceVisibilityChangedEvent` 為主
-- event publishing 依賴 `modules/shared/api` 的 `PublishDomainEventUseCase` 與 event store / event bus adapters
+- event publishing 透過 `ports/output/WorkspaceDomainEventPublisher` 接到 event store / event bus adapters
 - 在事件完全接線前，文件仍以此處為 canonical published language
 
 ## 明確不是目前策略的內容

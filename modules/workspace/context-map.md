@@ -20,6 +20,7 @@
 - Browser UI / Next.js 頁面與 Server Actions：它們是 drivers
 - Firestore、event bus 等技術系統：它們是 external systems，由 adapters 整合
 - Query projections / read models：它們是讀取結果，不是獨立 bounded context
+- `ports/input/`、`ports/output/`、`application/`、`domain/`、`interfaces/`、`infrastructure/` 等 folder 是 bounded context 的內部實作切面，不是 context map 上的節點
 
 ## Upstream Contexts
 
@@ -76,11 +77,23 @@
 
 | 類型 | Surface |
 |---|---|
-| 同步 API | `modules/workspace/api` |
+| 同步 API | `modules/workspace/interfaces/api` |
 | Published Language | `workspaceId`、`WorkspaceLifecycleState`、`WorkspaceVisibility` 等 aggregate / value object 語言 |
 | 非同步事件（目標） | `workspace.created`、`workspace.lifecycle_transitioned`、`workspace.visibility_changed` 等 domain event 訊息物件 |
 
 每一個對外 surface 都可視為一個 hexagon-to-hexagon integration point：不是 page 組裝，不是 repository 內部細節，而是 bounded context 對其他 bounded context 的協作面。
+
+## 內部結構不是 Context Map
+
+以下是 `workspace` bounded context 內部用來實作邊界的切面，但它們不是 context map 本身：
+
+- `interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- `ports/input/`、`ports/output/`
+- `application/use-cases/`、`application/services/`、`application/dtos/`
+- `domain/aggregates/`、`domain/entities/`、`domain/value-objects/`、`domain/services/`、`domain/events/`、`domain/factories/`
+- `infrastructure/events/`、`infrastructure/firebase/`
+
+這些 folder 與箭頭描述的是六邊形依賴方向；context map 描述的是 bounded context 與 bounded context 之間的關係。
 
 ## Read Models in Collaboration
 
@@ -91,7 +104,7 @@
 
 - `WorkspaceDetailScreen` 組合 `WorkspaceFlowTab`、`WorkspaceSchedulingTab`、`WorkspaceAuditTab` 是 UI composition，不是 strategic context map
 - `WikiContentTree` 導覽節點是 query model，不是 context-to-context contract 的替代物
-- `domain/`、`application/`、`interfaces/`、`infrastructure/` 的分工屬於六邊形架構內部切面，不是 context map 本身
+- `domain/`、`application/`、`ports/`、`interfaces/`、`infrastructure/` 的分工屬於六邊形架構內部切面，不是 context map 本身
 
 ## IDDD 整合模式總結
 
