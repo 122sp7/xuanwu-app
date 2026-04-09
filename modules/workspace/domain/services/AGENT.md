@@ -42,6 +42,9 @@
 ## 依賴方向
 
 ```
+application/use-cases → domain/services
+application/services → domain/services
+domain/services → domain/aggregates（型別或規則參照，如有需要）
 domain/services → domain/entities
 domain/services → domain/value-objects
 domain/services → domain/events（只取型別）

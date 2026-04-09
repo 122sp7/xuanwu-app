@@ -4,11 +4,10 @@
 
 ---
 
-## 現況：目前為空
+## 現況：可薄、可空，但位置必須保留
 
-workspace 的 driving port 即為 application layer 的 **use case 類別本身**。
-外部呼叫者（UI、Server Action、其他 BC）直接透過 `api/facade.ts` 進入，
-不需要額外定義 input interface。
+workspace 目前可能仍有部分 entrypoint 直接薄封裝到 use case，
+但 **input contract 的正式位置仍定義在這裡**。
 
 > 此目錄作為結構佔位，代表「我們知道 input port 的概念位置在哪裡」。
 
@@ -20,7 +19,7 @@ workspace 的 driving port 即為 application layer 的 **use case 類別本身*
 |------|---------|
 | Inbound event handler interface | 當外部 BC 需要透過明確 interface 訂閱 workspace 事件時 |
 | Command bus interface | 當引入 CQRS command bus，需要顯式 command handler contract 時 |
-| Driving Adapter contract | 當 UI / external trigger 需要對 usecase 有針對性的版本化 interface 時 |
+| Driving Adapter contract | 當 UI / external trigger 需要對 use case 有針對性的版本化 interface 時 |
 
 ## ❌ 禁止放入
 
@@ -35,6 +34,9 @@ workspace 的 driving port 即為 application layer 的 **use case 類別本身*
 ## 依賴方向
 
 ```
-ports/input  →  domain/（只取型別，如有需要）
-interfaces/  →  implements ports/input（如有顯式 driving adapter contract）
+interfaces/api|cli|web → ports/input
+ports/input → application/use-cases
+ports/input → application/dtos（型別引用，如有需要）
 ```
+
+`ports/input` **不可**依賴 `infrastructure/`，也不應承擔業務規則或流程協調。

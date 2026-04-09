@@ -25,7 +25,7 @@ Aggregate Root 是 write-side 的一致性邊界。
 | 純實體（Entity，無 invariant 責任） | 放 `domain/entities/` |
 | Value Object（無 identity，equality by value） | 放 `domain/value-objects/` |
 | Read model / projection（查詢用途） | 放 `interfaces/` 或 `application/dtos/` |
-| Repository interface | 放 `domain/repositories/` |
+| Repository / Event Publisher 介面 | 放 `ports/output/` |
 | Framework import（Firebase、React 等） | Aggregate 必須 framework-free |
 
 ---
@@ -55,6 +55,7 @@ PascalCase.test.ts → 對應的單元測試
 
 ```
 domain/aggregates → domain/value-objects
+domain/aggregates → domain/entities
 domain/aggregates → domain/events（發出事件型別）
 domain/aggregates → domain/services（呼叫 domain service，如有需要）
 ```
