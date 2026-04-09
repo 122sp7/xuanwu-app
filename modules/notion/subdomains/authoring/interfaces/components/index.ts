@@ -1,3 +1,3 @@
 // TODO: export ArticleEditorView, ArticleListView, CategoryTreeView
 
-export {};
+export { ArticleDialog } from "./ArticleDialog";
