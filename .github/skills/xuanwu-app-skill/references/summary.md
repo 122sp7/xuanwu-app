@@ -38,13 +38,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1538 files | 80,032 lines
+1488 files | 75,244 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 668 | 31,353 |
-| Markdown | 363 | 16,589 |
-| No Extension | 233 | 317 |
+| TypeScript | 667 | 31,301 |
+| Markdown | 322 | 12,352 |
+| No Extension | 226 | 310 |
 | TypeScript (TSX) | 185 | 25,414 |
 | Python | 61 | 3,823 |
 | MERMAID | 10 | 583 |
@@ -52,16 +52,16 @@ This skill contains the following reference files:
 | Text | 3 | 116 |
 | RULES | 2 | 18 |
 | JavaScript (ESM) | 2 | 167 |
-| Other | 3 | 753 |
+| Other | 2 | 261 |
 
 **Largest files:**
-- `docs/guides/explanation/architecture.md` (942 lines)
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
 - `app/(shell)/_components/dashboard-sidebar.tsx` (554 lines)
-- `scripts/init-framework.sh` (492 lines)
 - `app/(shell)/dev-tools/page.tsx` (475 lines)
 - `firestore.indexes.json` (437 lines)
 - `modules/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts` (389 lines)
-- `docs/guides/how-to/ui-ux/component-patterns.md` (362 lines)
 - `app/(shell)/_components/app-rail.tsx` (360 lines)
 - `packages/ui-shadcn/ui/chart.tsx` (356 lines)
+- `app/(shell)/ai-chat/page.tsx` (337 lines)
+- `modules/knowledge/infrastructure/firebase/FirebaseKnowledgePageRepository.ts` (332 lines)
+- `app/(shell)/layout.tsx` (321 lines)
