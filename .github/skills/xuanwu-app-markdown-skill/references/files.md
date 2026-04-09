@@ -14009,6 +14009,66 @@ knowledge ─── knowledge.page_promoted ───► knowledge-base
 | knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |
 ````
 
+## File: modules/knowledge/subdomains/knowledge-ai/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-authoring/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-automation/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-base/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-collaboration/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-core/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-database/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-integration/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-query/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-search/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-source/README.md
+````markdown
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-versioning/README.md
+````markdown
+
+````
+
 ## File: modules/knowledge/ubiquitous-language.md
 ````markdown
 # Ubiquitous Language — knowledge
@@ -14086,6 +14146,116 @@ knowledge ─── knowledge.page_promoted ───► knowledge-base
 
 > `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
 > `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
+````
+
+## File: modules/platform/AGENT.md
+````markdown
+
+````
+
+## File: modules/platform/aggregates.md
+````markdown
+
+````
+
+## File: modules/platform/application-services.md
+````markdown
+
+````
+
+## File: modules/platform/bounded-context.md
+````markdown
+
+````
+
+## File: modules/platform/context-map.md
+````markdown
+
+````
+
+## File: modules/platform/domain-events.md
+````markdown
+
+````
+
+## File: modules/platform/domain-services.md
+````markdown
+
+````
+
+## File: modules/platform/README.md
+````markdown
+
+````
+
+## File: modules/platform/repositories.md
+````markdown
+
+````
+
+## File: modules/platform/subdomains.md
+````markdown
+
+````
+
+## File: modules/platform/subdomains/account/README.md
+````markdown
+
+````
+
+## File: modules/platform/subdomains/audit/README.md
+````markdown
+
+````
+
+## File: modules/platform/subdomains/config/README.md
+````markdown
+
+````
+
+## File: modules/platform/subdomains/identity/README.md
+````markdown
+
+````
+
+## File: modules/platform/subdomains/integration/README.md
+````markdown
+
+````
+
+## File: modules/platform/subdomains/notification/README.md
+````markdown
+
+````
+
+## File: modules/platform/subdomains/observability/README.md
+````markdown
+
+````
+
+## File: modules/platform/subdomains/organization/README.md
+````markdown
+
+````
+
+## File: modules/platform/subdomains/permission/README.md
+````markdown
+
+````
+
+## File: modules/platform/subdomains/subscription/README.md
+````markdown
+
+````
+
+## File: modules/platform/subdomains/workflow/README.md
+````markdown
+
+````
+
+## File: modules/platform/ubiquitous-language.md
+````markdown
+
 ````
 
 ## File: modules/workspace/application/use-cases/AGENT.md
@@ -14461,6 +14631,26 @@ infrastructure/firebase
 ```
 
 `infrastructure/firebase` **不可**反向讓 Firebase 細節滲透進 `domain/`。
+````
+
+## File: modules/workspace/subdomains/audit/README.md
+````markdown
+
+````
+
+## File: modules/workspace/subdomains/feed/README.md
+````markdown
+
+````
+
+## File: modules/workspace/subdomains/scheduling/README.md
+````markdown
+
+````
+
+## File: modules/workspace/subdomains/workflow/README.md
+````markdown
+
 ````
 
 ## File: modules/knowledge/aggregates.md

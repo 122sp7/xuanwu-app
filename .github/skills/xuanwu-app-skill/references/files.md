@@ -6061,6 +6061,127 @@ export function RagBadge({ status, error }: { status?: string; error?: string })
 }
 ````
 
+## File: app/(shell)/dev-tools/dev-tools-helpers.ts
+````typescript
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface ParseResult {
+  doc_id: string;
+  status: "processing" | "completed" | "error";
+  page_count?: number;
+  json_gcs_uri?: string;
+  error_message?: string;
+}
+
+export interface DocRecord {
+  id: string;
+  status: "processing" | "completed" | "error" | string;
+  filename: string;
+  gcs_uri: string;
+  uploaded_at: Date | null;
+  page_count?: number;
+  json_gcs_uri?: string;
+  error_message?: string;
+  rag_status?: string;
+  rag_chunk_count?: number;
+  rag_vector_count?: number;
+  rag_raw_chars?: number;
+  rag_normalized_chars?: number;
+  rag_normalization_version?: string;
+  rag_language_hint?: string;
+  rag_error?: string;
+}
+
+export type UploadStatus = "idle" | "uploading" | "waiting" | "done" | "error";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+export const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+export const WATCH_PATH = "uploads/";
+export const ACCEPTED_MIME: Record<string, string> = {
+  pdf: "application/pdf",
+  tif: "image/tiff",
+  tiff: "image/tiff",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+};
+export const ACCEPTED_EXTS = ".pdf, .tif / .tiff, .png, .jpg / .jpeg";
+
+// ── Data-mapping helpers ──────────────────────────────────────────────────────
+
+export function formatDateTime(value: Date | null): string {
+  if (!value) return "—";
+  return value.toLocaleString("zh-TW", { hour12: false });
+}
+
+function deriveJsonUri(gcsUri: string): string {
+  if (!gcsUri.startsWith("gs://")) return "";
+  const withoutPrefix = gcsUri.slice(5);
+  const firstSlash = withoutPrefix.indexOf("/");
+  if (firstSlash < 0) return "";
+
+  const bucket = withoutPrefix.slice(0, firstSlash);
+  const objectPath = withoutPrefix.slice(firstSlash + 1);
+  if (!objectPath.startsWith("uploads/")) return "";
+
+  const relativePath = objectPath.slice("uploads/".length);
+  const dotIndex = relativePath.lastIndexOf(".");
+  const stem = dotIndex > -1 ? relativePath.slice(0, dotIndex) : relativePath;
+  return `gs://${bucket}/files/${stem}.json`;
+}
+
+export function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+export function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+export function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" ? value : undefined;
+}
+
+function asDate(value: unknown): Date | null {
+  if (value instanceof Date) return value;
+  if (value && typeof value === "object" && "toDate" in value) {
+    if (typeof (value as { toDate?: unknown }).toDate === "function") {
+      const converted = (value as { toDate: () => unknown }).toDate();
+      return converted instanceof Date ? converted : null;
+    }
+  }
+  return null;
+}
+
+export function mapSnapshotDoc(doc: { id: string; data: () => unknown }): DocRecord {
+  const data = asRecord(doc.data());
+  const source = asRecord(data.source);
+  const parsed = asRecord(data.parsed);
+  const rag = asRecord(data.rag);
+  const err = asRecord(data.error);
+
+  return {
+    id: doc.id,
+    status: asString(data.status, "unknown"),
+    filename: asString(source.filename, doc.id),
+    gcs_uri: asString(source.gcs_uri),
+    uploaded_at: asDate(source.uploaded_at),
+    page_count: asNumber(parsed.page_count),
+    json_gcs_uri: asString(parsed.json_gcs_uri, deriveJsonUri(asString(source.gcs_uri))),
+    error_message: asString(err.message) || undefined,
+    rag_status: asString(rag.status) || undefined,
+    rag_chunk_count: asNumber(rag.chunk_count),
+    rag_vector_count: asNumber(rag.vector_count),
+    rag_raw_chars: asNumber(rag.raw_chars),
+    rag_normalized_chars: asNumber(rag.normalized_chars),
+    rag_normalization_version: asString(rag.normalization_version) || undefined,
+    rag_language_hint: asString(rag.language_hint) || undefined,
+    rag_error: asString(rag.error) || undefined,
+  };
+}
+````
+
 ## File: app/(shell)/dev-tools/dev-tools-parsed-docs-section.tsx
 ````typescript
 "use client";
@@ -6183,6 +6304,485 @@ export function DevToolsParsedDocsSection({
         </div>
       )}
     </section>
+  );
+}
+````
+
+## File: app/(shell)/dev-tools/page.tsx
+````typescript
+"use client";
+
+/**
+ * Module: dev-tools page — /dev-tools
+ * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
+ * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
+ * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
+ *   Doc-list state and operations → useDevToolsDocList hook.
+ *   Parsed-docs table → DevToolsParsedDocsSection component.
+ */
+
+import { useRef, useState, useEffect } from "react";
+import {
+  FlaskConical,
+  FileUp,
+  AlertCircle,
+  FileText,
+  Trash2,
+  Code2,
+  ExternalLink,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  UPLOAD_BUCKET,
+  WATCH_PATH,
+  ACCEPTED_MIME,
+  ACCEPTED_EXTS,
+  asRecord,
+  asString,
+  asNumber,
+  type ParseResult,
+  type UploadStatus,
+} from "./dev-tools-helpers";
+import { StatusBadge, RagBadge } from "./dev-tools-badges";
+import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
+import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
+
+// ── Page component ─────────────────────────────────────────────────────────
+
+export default function DevToolsPage() {
+  const { state: appState } = useApp();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+  const activeWorkspaceId = appState.activeWorkspaceId ?? "";
+
+  // ── Upload state ──────────────────────────────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<UploadStatus>("idle");
+  const [result, setResult] = useState<ParseResult | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [logs, setLogs] = useState<string[]>([]);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
+
+  // ── Doc list + operations (extracted hook) ────────────────────────────────
+  const {
+    allDocs,
+    selectedDocId,
+    selectedDoc,
+    jsonContent,
+    jsonLoading,
+    deletingId,
+    reindexingId,
+    handleViewOriginal,
+    handleViewJson,
+    handleDeleteDoc,
+    handleManualProcess,
+    closeJsonPreview,
+    formatNormalizationRatio,
+  } = useDevToolsDocList(activeAccountId);
+
+  // Cleanup upload subscription on unmount
+  useEffect(() => {
+    return () => { if (unsubscribeRef.current) unsubscribeRef.current(); };
+  }, []);
+
+  function appendLog(msg: string) {
+    setLogs((prev) => [
+      ...prev,
+      `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`,
+    ]);
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    setResult(null);
+    setErrorMsg(null);
+    setStatus("idle");
+    setLogs([]);
+    if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
+  }
+
+  function buildUuidUploadPath(accountId: string, file: File) {
+    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
+    const docId = crypto.randomUUID();
+    return { uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`, docId };
+  }
+
+  function watchDocument(docId: string) {
+    if (!activeAccountId) {
+      appendLog("❌ 缺少 active account，無法監聽文件狀態");
+      return;
+    }
+    try {
+      const db = getFirebaseFirestore();
+      const docRef = firestoreApi.doc(db, "accounts", activeAccountId, "documents", docId);
+      if (unsubscribeRef.current) unsubscribeRef.current();
+      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {
+        if (!snapshot.exists()) { appendLog("等待 Firestore 初始化…"); return; }
+        const data = asRecord(snapshot.data());
+        const docStatus = asString(data.status, "unknown");
+        appendLog(`Firestore update: status=${docStatus}`);
+        if (docStatus === "completed") {
+          const parsed = asRecord(data.parsed);
+          const r: ParseResult = {
+            doc_id: docId,
+            status: "completed",
+            page_count: asNumber(parsed.page_count) ?? 0,
+            json_gcs_uri: asString(parsed.json_gcs_uri),
+          };
+          setResult(r);
+          setStatus("done");
+          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
+          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+        } else if (docStatus === "error") {
+          const error = asRecord(data.error);
+          const msg = asString(error.message, "未知錯誤");
+          setErrorMsg(msg);
+          setStatus("error");
+          appendLog(`❌ 錯誤：${msg}`);
+          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+        }
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appendLog(`❌ 監聽失敗：${msg}`);
+      setErrorMsg(msg);
+      setStatus("error");
+    }
+  }
+
+  async function handleUploadAndParse() {
+    if (!selectedFile) return;
+    if (!activeAccountId) {
+      setErrorMsg("缺少 active account，無法上傳與解析");
+      setStatus("error");
+      return;
+    }
+    setStatus("uploading");
+    setResult(null);
+    setErrorMsg(null);
+    appendLog("📤 上傳檔案到 Cloud Storage…");
+    try {
+      // Step 1: Upload to GCS
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);
+      const fileRef = storageApi.ref(storage, uploadPath);
+      const snap = await storageApi.uploadBytes(fileRef, selectedFile, {
+        contentType: ACCEPTED_MIME[selectedFile.name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream",
+        customMetadata: {
+          account_id: activeAccountId,
+          workspace_id: activeWorkspaceId,
+          filename: selectedFile.name,
+        },
+      });
+      appendLog(`✅ 上傳完成：${snap.ref.fullPath}`);
+      // Step 2: Watch Firestore for status updates
+      setStatus("waiting");
+      appendLog("⏳ 等待 parse_document 處理…");
+      watchDocument(docId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setErrorMsg(msg);
+      setStatus("error");
+      appendLog(`❌ 上傳失敗：${msg}`);
+    }
+  }
+
+  function reset() {
+    if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+    setSelectedFile(null);
+    setResult(null);
+    setErrorMsg(null);
+    setStatus("idle");
+    setLogs([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  const isLoading = status === "uploading" || status === "waiting";
+  const parsedDocs = allDocs.filter((doc) => doc.status === "completed");
+  const ragReadyCount = allDocs.filter((doc) => doc.rag_status === "ready").length;
+  const ragErrorCount = allDocs.filter((doc) => doc.rag_status === "error").length;
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-8">
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
+          <FlaskConical className="size-5 text-amber-500" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Dev Tools</h1>
+          <p className="text-xs text-muted-foreground">
+            py_fn · parse_document · Document AI · Firestore 實時監聽
+          </p>
+        </div>
+      </div>
+
+      {/* ── Stats ──────────────────────────────────────────────────── */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">全部文件</p>
+          <p className="text-lg font-semibold tracking-tight">{allDocs.length}</p>
+        </div>
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+          <p className="text-[11px] text-emerald-700">解析完成</p>
+          <p className="text-lg font-semibold tracking-tight text-emerald-700">{parsedDocs.length}</p>
+        </div>
+        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+          <p className="text-[11px] text-blue-700">RAG Ready</p>
+          <p className="text-lg font-semibold tracking-tight text-blue-700">{ragReadyCount}</p>
+        </div>
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
+          <p className="text-[11px] text-destructive">RAG Error</p>
+          <p className="text-lg font-semibold tracking-tight text-destructive">{ragErrorCount}</p>
+        </div>
+      </section>
+
+      {/* ── File picker ────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          1. 選擇檔案
+        </h2>
+        <label
+          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 transition
+            ${selectedFile ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
+        >
+          <FileUp className="size-8 text-muted-foreground" />
+          <div className="text-center">
+            <p className="text-sm font-medium">
+              {selectedFile ? selectedFile.name : "點擊或拖曳上傳"}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={Object.keys(ACCEPTED_MIME).join(",")}
+            className="sr-only"
+            onChange={handleFileChange}
+          />
+        </label>
+      </section>
+
+      {/* ── Actions ────────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          2. 執行上傳 &amp; 解析
+        </h2>
+        <div className="flex gap-3">
+          <Button onClick={handleUploadAndParse} disabled={!selectedFile || isLoading} className="gap-2">
+            {isLoading ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />}
+            {status === "uploading" ? "上傳中…" : status === "waiting" ? "等待中…" : "開始"}
+          </Button>
+          <Button variant="outline" onClick={reset} disabled={isLoading}>
+            重置
+          </Button>
+        </div>
+      </section>
+
+      {/* ── Result ─────────────────────────────────────────────────── */}
+      {(status === "done" || status === "error") && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            3. 結果
+          </h2>
+          {status === "done" && result && (
+            <div className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
+              <div className="flex items-center gap-2 text-emerald-600">
+                <CheckCircle2 className="size-4 shrink-0" />
+                <span className="text-sm font-medium">解析成功</span>
+              </div>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <dt className="text-muted-foreground">doc_id</dt>
+                <dd className="font-mono text-xs">{result.doc_id}</dd>
+                <dt className="text-muted-foreground">page_count</dt>
+                <dd className="font-bold">{result.page_count}</dd>
+                <dt className="text-muted-foreground">JSON 位置</dt>
+                <dd className="font-mono text-xs break-all">{result.json_gcs_uri || "—"}</dd>
+              </dl>
+            </div>
+          )}
+          {status === "error" && (
+            <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+              <XCircle className="mt-0.5 size-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+        </section>
+      )}
+
+      {status === "waiting" && (
+        <section className="space-y-3">
+          <div className="flex items-start gap-2 rounded-xl border border-blue-300/30 bg-blue-500/5 p-4 text-sm text-blue-600">
+            <AlertCircle className="mt-0.5 size-4 shrink-0 animate-pulse" />
+            <div>
+              <p className="font-medium">處理中…</p>
+              <p className="mt-1 text-xs opacity-75">Document AI 正在解析檔案，請稍候</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── All uploaded docs table ─────────────────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <FileText className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            已上傳檔案（{allDocs.length}）
+          </h2>
+        </div>
+        {allDocs.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+            尚無上傳記錄
+          </p>
+        ) : (
+          <div className="space-y-0 overflow-hidden rounded-xl border border-border/60">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead>
+                  <tr className="border-b border-border/60 bg-muted/40">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allDocs.map((doc, i) => (
+                    <tr
+                      key={doc.id}
+                      className={`border-b border-border/40 last:border-0 transition-colors ${
+                        selectedDocId === doc.id
+                          ? "bg-primary/8 ring-1 ring-inset ring-primary/20"
+                          : i % 2 === 0 ? "bg-background" : "bg-muted/20"
+                      }`}
+                    >
+                      <td className="px-4 py-2.5 font-mono text-xs max-w-[180px] truncate" title={doc.filename}>
+                        {doc.filename}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <StatusBadge status={doc.status} errorMessage={doc.error_message} />
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <RagBadge status={doc.rag_status} error={doc.rag_error} />
+                      </td>
+                      <td className="px-4 py-2.5 text-xs">
+                        {doc.page_count != null ? doc.page_count : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                        {formatDateTime(doc.uploaded_at)}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => { void handleViewOriginal(doc); }}
+                            disabled={!doc.gcs_uri}
+                            title="查看原始檔案"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
+                          >
+                            <ExternalLink className="size-3.5" />
+                          </button>
+                          <button
+                            onClick={() => { void handleViewJson(doc); }}
+                            disabled={doc.status !== "completed" || !doc.json_gcs_uri}
+                            title="查看 JSON 解析結果"
+                            className={`inline-flex size-7 items-center justify-center rounded-md transition hover:bg-muted disabled:opacity-30 ${
+                              selectedDocId === doc.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            <Code2 className="size-3.5" />
+                          </button>
+                          <button
+                            onClick={() => { void handleDeleteDoc(doc); }}
+                            disabled={deletingId === doc.id}
+                            title="刪除"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                          >
+                            {deletingId === doc.id
+                              ? <Loader2 className="size-3.5 animate-spin" />
+                              : <Trash2 className="size-3.5" />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* JSON preview panel */}
+            {selectedDocId && (
+              <div className="border-t border-border/60 bg-[#0d1117]">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
+                  <div className="flex items-center gap-2 text-xs text-green-400">
+                    <Code2 className="size-3.5" />
+                    <span className="font-mono">
+                      {selectedDoc?.filename ?? selectedDocId} — JSON
+                    </span>
+                  </div>
+                  <button
+                    onClick={closeJsonPreview}
+                    className="text-white/30 hover:text-white/70 transition text-xs"
+                  >
+                    ✕ 關閉
+                  </button>
+                </div>
+                {selectedDoc?.rag_status === "error" && (
+                  <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs text-destructive">
+                    RAG 失敗：{selectedDoc.rag_error || "未知錯誤"}
+                  </div>
+                )}
+                <div className="max-h-80 overflow-y-auto p-4">
+                  {jsonLoading ? (
+                    <div className="flex items-center gap-2 text-green-400/60 text-xs">
+                      <Loader2 className="size-3.5 animate-spin" /> 載入中…
+                    </div>
+                  ) : (
+                    <pre className="font-mono text-xs leading-relaxed text-green-400 whitespace-pre-wrap break-words">
+                      {jsonContent}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ── Parsed docs table (extracted component) ─────────────────── */}
+      <DevToolsParsedDocsSection
+        parsedDocs={parsedDocs}
+        reindexingId={reindexingId}
+        onViewJson={(doc) => { void handleViewJson(doc); }}
+        onManualProcess={(doc) => { void handleManualProcess(doc, appendLog); }}
+        formatNormalizationRatio={formatNormalizationRatio}
+      />
+
+      {/* ── Console log ────────────────────────────────────────────── */}
+      {logs.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            Console
+          </h2>
+          <div className="max-h-48 overflow-y-auto rounded-xl bg-[#0d1117] p-4">
+            {logs.map((line, i) => (
+              <p key={i} className="font-mono text-xs leading-relaxed text-green-400">
+                {line}
+              </p>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
   );
 }
 ````
@@ -37695,6 +38295,99 @@ export async function renameSourceDocument(
 }
 ````
 
+## File: modules/source/interfaces/components/file-processing-dialog.utils.ts
+````typescript
+"use client";
+
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+
+export type TaskStatus = "idle" | "running" | "success" | "error" | "skipped";
+
+export interface TaskResult {
+  readonly status: TaskStatus;
+  readonly detail: string;
+}
+
+export interface ExecutionSummary {
+  readonly pageCount: number;
+  readonly jsonGcsUri: string;
+  readonly pageHref: string;
+  readonly parse: TaskResult;
+  readonly rag: TaskResult;
+  readonly page: TaskResult;
+}
+
+export function createIdleSummary(): ExecutionSummary {
+  return {
+    pageCount: 0,
+    jsonGcsUri: "",
+    pageHref: "",
+    parse: { status: "idle", detail: "尚未開始解析" },
+    rag: { status: "idle", detail: "尚未決定是否建立 RAG 索引" },
+    page: { status: "idle", detail: "尚未決定是否建立 Knowledge Page" },
+  };
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+export function readCallableData(value: unknown): Record<string, unknown> {
+  return asRecord(value);
+}
+
+export async function waitForParsedDocument(accountId: string, docId: string): Promise<{
+  pageCount: number;
+  jsonGcsUri: string;
+}> {
+  const db = getFirebaseFirestore();
+
+  return new Promise((resolve, reject) => {
+    const docRef = firestoreApi.doc(db, "accounts", accountId, "documents", docId);
+    const unsubscribe = firestoreApi.onSnapshot(docRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        return;
+      }
+
+      const data = asRecord(snapshot.data());
+      const status = asString(data.status, "unknown");
+
+      if (status === "completed") {
+        const parsed = asRecord(data.parsed);
+        unsubscribe();
+        resolve({
+          pageCount: asNumber(parsed.page_count, 0),
+          jsonGcsUri: asString(parsed.json_gcs_uri),
+        });
+        return;
+      }
+
+      if (status === "error") {
+        const error = asRecord(data.error);
+        unsubscribe();
+        reject(new Error(asString(error.message, "文件解析失敗")));
+      }
+    });
+  });
+}
+
+export function readString(value: unknown, fallback = ""): string {
+  return asString(value, fallback);
+}
+
+export function readNumber(value: unknown, fallback = 0): number {
+  return asNumber(value, fallback);
+}
+````
+
 ## File: modules/source/interfaces/components/LibrariesView.tsx
 ````typescript
 "use client";
@@ -61889,6 +62582,194 @@ __all__ = [
 ]
 ````
 
+## File: py_fn/src/interface/handlers/parse_document.py
+````python
+"""
+HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import time
+
+from firebase_functions import https_fn
+
+from application.services.document_pipeline import get_document_pipeline
+from application.use_cases.rag_ingestion import ingest_document_for_rag
+from interface.handlers._https_helpers import _parse_gs_uri
+
+logger = logging.getLogger(__name__)
+
+
+def handle_parse_document(req: https_fn.CallableRequest) -> dict:
+    """
+    HTTPS Callable：主動觸發單一文件的 Document AI 解析。
+
+    輸入 GCS URI，Document AI 直接從 Cloud Storage 讀取並解析。
+    Firestore 會記錄完整的 lifecycle（processing → completed/error）。
+    """
+    runtime = get_document_pipeline()
+    data: dict = req.data or {}
+    account_id = str(data.get("account_id", "")).strip()
+    workspace_id = str(data.get("workspace_id", "")).strip()
+    if not account_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "account_id 為必填欄位",
+        )
+    if not workspace_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "workspace_id 為必填欄位",
+        )
+
+    gcs_uri: str = data.get("gcs_uri", "").strip()
+    if not gcs_uri or not gcs_uri.startswith("gs://"):
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "gcs_uri 為必填欄位（格式：gs://bucket/path）",
+        )
+
+    run_rag = bool(data.get("run_rag", True))
+
+    # 解析 GCS URI 得到儲存檔名，並允許呼叫端覆蓋 doc_id。
+    path_part = gcs_uri.split("gs://", 1)[1]  # "bucket/path/to/file.pdf"
+    storage_filename = os.path.basename(path_part)     # "file.pdf"
+    default_doc_id, ext = os.path.splitext(storage_filename)   # "file", ".pdf"
+    doc_id = str(data.get("doc_id", "")).strip() or default_doc_id
+    filename = (
+        str(data.get("filename", "")).strip()
+        or str(data.get("original_filename", "")).strip()
+        or str(data.get("display_name", "")).strip()
+        or storage_filename
+    )
+
+    # 推測 MIME 類型
+    mime_type = data.get("mime_type", "").strip()
+    if not mime_type:
+        _mime_map = {
+            ".pdf": "application/pdf",
+            ".tiff": "image/tiff",
+            ".tif": "image/tiff",
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+        }
+        mime_type = _mime_map.get(ext.lower())
+        if mime_type is None:
+            raise https_fn.HttpsError(
+                https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+                f"無法判斷 MIME 類型，請手動指定（副檔名：{ext}）",
+            )
+
+    size_bytes = data.get("size_bytes", 0)
+    logger.info("parse_document callable: %s → doc_id=%s", gcs_uri, doc_id)
+
+    # ── 初始化 Firestore document ───────────────────────────────────────────
+    try:
+        runtime.init_document(
+            doc_id=doc_id,
+            gcs_uri=gcs_uri,
+            filename=filename,
+            size_bytes=int(size_bytes),
+            mime_type=mime_type,
+            account_id=account_id,
+            workspace_id=workspace_id,
+        )
+    except Exception as exc:
+        logger.exception("Failed to init document %s: %s", doc_id, exc)
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INTERNAL,
+            "Failed to initialize document",
+        ) from exc
+
+    # 解析 gs://bucket/path，取得 bucket 與 object_path
+    bucket_name, object_path = path_part.split("/", 1)
+
+    # ── 同步解析（保持函數活躍直到完成） ─────────────────────────────────────
+    start_time = time.time()
+    try:
+        parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
+        extraction_ms = int((time.time() - start_time) * 1000)
+
+        # 解析結果全文寫回 GCS JSON（與 uploads 目錄結構對應）
+        json_object_path = runtime.parsed_json_path(object_path)
+        json_gcs_uri = runtime.upload_json(
+            bucket_name=bucket_name,
+            object_path=json_object_path,
+            data={
+                "doc_id": doc_id,
+                "account_id": account_id,
+                "workspace_id": workspace_id,
+                "source_gcs_uri": gcs_uri,
+                "filename": filename,
+                "display_name": filename,
+                "original_filename": filename,
+                "page_count": parsed.page_count,
+                "extraction_ms": extraction_ms,
+                "text": parsed.text,
+            },
+        )
+
+        runtime.update_parsed(
+            doc_id=doc_id,
+            json_gcs_uri=json_gcs_uri,
+            page_count=parsed.page_count,
+            extraction_ms=extraction_ms,
+            account_id=account_id,
+        )
+
+        # Step 5/6: RAG ingestion（可由呼叫端明確關閉，支援人工決策式流程）
+        if run_rag:
+            try:
+                rag = ingest_document_for_rag(
+                    doc_id=doc_id,
+                    filename=filename,
+                    source_gcs_uri=gcs_uri,
+                    json_gcs_uri=json_gcs_uri,
+                    text=parsed.text,
+                    page_count=parsed.page_count,
+                    account_id=account_id,
+                    workspace_id=workspace_id,
+                )
+                runtime.mark_rag_ready(
+                    doc_id=doc_id,
+                    chunk_count=rag.chunk_count,
+                    vector_count=rag.vector_count,
+                    embedding_model=rag.embedding_model,
+                    embedding_dimensions=rag.embedding_dimensions,
+                    raw_chars=rag.raw_chars,
+                    normalized_chars=rag.normalized_chars,
+                    normalization_version=rag.normalization_version,
+                    language_hint=rag.language_hint,
+                    account_id=account_id,
+                )
+            except Exception as rag_exc:
+                logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)
+                runtime.record_rag_error(doc_id, str(rag_exc)[:200], account_id=account_id)
+
+        logger.info(
+            "✓ parse_document done: doc_id=%s (%d pages, %d ms, run_rag=%s) → %s",
+            doc_id,
+            parsed.page_count,
+            extraction_ms,
+            run_rag,
+            json_gcs_uri,
+        )
+    except Exception as exc:
+        logger.exception("parse_document failed for %s: %s", doc_id, exc)
+        runtime.record_error(doc_id, str(exc)[:200], account_id=account_id)
+
+    # 立即回覆（無論成功或失敗，Firestore 狀態已更新）
+    return {
+        "account_scope": account_id,
+        "doc_id": doc_id,
+        "status": "processing",  # 前端應監聽 Firestore 的實際狀態
+    }
+````
+
 ## File: py_fn/src/interface/handlers/rag_query_handler.py
 ````python
 """
@@ -62560,6 +63441,122 @@ def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstance
     assert get_rag_query_gateway_from_shim() is get_rag_query_gateway()
     assert get_rag_ingestion_gateway_from_shim() is get_rag_ingestion_gateway()
     assert get_document_pipeline_gateway_from_shim() is get_document_pipeline_gateway()
+````
+
+## File: py_fn/tests/test_parse_document_handler.py
+````python
+from __future__ import annotations
+
+from types import SimpleNamespace
+
+from interface.handlers.parse_document import handle_parse_document
+
+
+class _FakeParsedDocument:
+    def __init__(self, page_count: int = 3, text: str = "parsed content") -> None:
+        self.page_count = page_count
+        self.text = text
+
+
+class _FakeRuntime:
+    def __init__(self) -> None:
+        self.init_kwargs: dict | None = None
+        self.update_kwargs: dict | None = None
+        self.mark_rag_ready_kwargs: dict | None = None
+
+    def init_document(self, **kwargs) -> None:
+        self.init_kwargs = kwargs
+
+    def process_document_gcs(self, *, gcs_uri: str, mime_type: str) -> _FakeParsedDocument:
+        return _FakeParsedDocument()
+
+    def parsed_json_path(self, upload_object_path: str) -> str:
+        return f"files/{upload_object_path}.json"
+
+    def upload_json(self, *, bucket_name: str, object_path: str, data: dict) -> str:
+        return f"gs://{bucket_name}/{object_path}"
+
+    def update_parsed(self, **kwargs) -> None:
+        self.update_kwargs = kwargs
+
+    def mark_rag_ready(self, **kwargs) -> None:
+        self.mark_rag_ready_kwargs = kwargs
+
+    def record_error(self, doc_id: str, message: str, account_id: str) -> None:
+        raise AssertionError(f"record_error should not be called: {doc_id} {message} {account_id}")
+
+    def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None:
+        raise AssertionError(f"record_rag_error should not be called: {doc_id} {message} {account_id}")
+
+
+class _FakeRagResult:
+    chunk_count = 2
+    vector_count = 2
+    embedding_model = "text-embedding-3-small"
+    embedding_dimensions = 1024
+    raw_chars = 24
+    normalized_chars = 20
+    normalization_version = "v2"
+    language_hint = "en"
+
+
+def test_handleParseDocument_WithExplicitDocIdAndRunRagFalse_UsesProvidedDocId(monkeypatch) -> None:
+    runtime = _FakeRuntime()
+
+    monkeypatch.setattr("interface.handlers.parse_document.get_document_pipeline", lambda: runtime)
+
+    def _unexpected_rag(**kwargs):
+        raise AssertionError(f"ingest_document_for_rag should not be called: {kwargs}")
+
+    monkeypatch.setattr("interface.handlers.parse_document.ingest_document_for_rag", _unexpected_rag)
+
+    response = handle_parse_document(
+        SimpleNamespace(
+            data={
+                "account_id": "account-1",
+                "workspace_id": "workspace-1",
+                "doc_id": "source-file-123",
+                "gcs_uri": "gs://bucket/organizations/org/workspaces/workspace-1/files/source-file-123/report.pdf",
+                "filename": "report.pdf",
+                "mime_type": "application/pdf",
+                "run_rag": False,
+            }
+        )
+    )
+
+    assert response["doc_id"] == "source-file-123"
+    assert runtime.init_kwargs is not None
+    assert runtime.init_kwargs["doc_id"] == "source-file-123"
+    assert runtime.update_kwargs is not None
+    assert runtime.mark_rag_ready_kwargs is None
+
+
+def test_handleParseDocument_WithoutDocId_KeepsDefaultRagBehavior(monkeypatch) -> None:
+    runtime = _FakeRuntime()
+
+    monkeypatch.setattr("interface.handlers.parse_document.get_document_pipeline", lambda: runtime)
+    monkeypatch.setattr(
+        "interface.handlers.parse_document.ingest_document_for_rag",
+        lambda **kwargs: _FakeRagResult(),
+    )
+
+    response = handle_parse_document(
+        SimpleNamespace(
+            data={
+                "account_id": "account-1",
+                "workspace_id": "workspace-1",
+                "gcs_uri": "gs://bucket/uploads/account-1/report.pdf",
+                "filename": "report.pdf",
+                "mime_type": "application/pdf",
+            }
+        )
+    )
+
+    assert response["doc_id"] == "report"
+    assert runtime.init_kwargs is not None
+    assert runtime.init_kwargs["doc_id"] == "report"
+    assert runtime.mark_rag_ready_kwargs is not None
+    assert runtime.mark_rag_ready_kwargs["chunk_count"] == 2
 ````
 
 ## File: README.md
@@ -63610,606 +64607,6 @@ Any of the following require a context7 lookup before proceeding:
 - Do not introduce new terms if an equivalent glossary term already exists.
 - When multiple names exist, normalize to the glossary term before implementation.
 - Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
-````
-
-## File: app/(shell)/dev-tools/dev-tools-helpers.ts
-````typescript
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface ParseResult {
-  doc_id: string;
-  status: "processing" | "completed" | "error";
-  page_count?: number;
-  json_gcs_uri?: string;
-  error_message?: string;
-}
-
-export interface DocRecord {
-  id: string;
-  status: "processing" | "completed" | "error" | string;
-  filename: string;
-  gcs_uri: string;
-  uploaded_at: Date | null;
-  page_count?: number;
-  json_gcs_uri?: string;
-  error_message?: string;
-  rag_status?: string;
-  rag_chunk_count?: number;
-  rag_vector_count?: number;
-  rag_raw_chars?: number;
-  rag_normalized_chars?: number;
-  rag_normalization_version?: string;
-  rag_language_hint?: string;
-  rag_error?: string;
-}
-
-export type UploadStatus = "idle" | "uploading" | "waiting" | "done" | "error";
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-export const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
-export const WATCH_PATH = "uploads/";
-export const ACCEPTED_MIME: Record<string, string> = {
-  pdf: "application/pdf",
-  tif: "image/tiff",
-  tiff: "image/tiff",
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-};
-export const ACCEPTED_EXTS = ".pdf, .tif / .tiff, .png, .jpg / .jpeg";
-
-// ── Data-mapping helpers ──────────────────────────────────────────────────────
-
-export function formatDateTime(value: Date | null): string {
-  if (!value) return "—";
-  return value.toLocaleString("zh-TW", { hour12: false });
-}
-
-function deriveJsonUri(gcsUri: string): string {
-  if (!gcsUri.startsWith("gs://")) return "";
-  const withoutPrefix = gcsUri.slice(5);
-  const firstSlash = withoutPrefix.indexOf("/");
-  if (firstSlash < 0) return "";
-
-  const bucket = withoutPrefix.slice(0, firstSlash);
-  const objectPath = withoutPrefix.slice(firstSlash + 1);
-  if (!objectPath.startsWith("uploads/")) return "";
-
-  const relativePath = objectPath.slice("uploads/".length);
-  const dotIndex = relativePath.lastIndexOf(".");
-  const stem = dotIndex > -1 ? relativePath.slice(0, dotIndex) : relativePath;
-  return `gs://${bucket}/files/${stem}.json`;
-}
-
-export function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-export function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-export function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" ? value : undefined;
-}
-
-function asDate(value: unknown): Date | null {
-  if (value instanceof Date) return value;
-  if (value && typeof value === "object" && "toDate" in value) {
-    if (typeof (value as { toDate?: unknown }).toDate === "function") {
-      const converted = (value as { toDate: () => unknown }).toDate();
-      return converted instanceof Date ? converted : null;
-    }
-  }
-  return null;
-}
-
-export function mapSnapshotDoc(doc: { id: string; data: () => unknown }): DocRecord {
-  const data = asRecord(doc.data());
-  const source = asRecord(data.source);
-  const parsed = asRecord(data.parsed);
-  const rag = asRecord(data.rag);
-  const err = asRecord(data.error);
-
-  return {
-    id: doc.id,
-    status: asString(data.status, "unknown"),
-    filename: asString(source.filename, doc.id),
-    gcs_uri: asString(source.gcs_uri),
-    uploaded_at: asDate(source.uploaded_at),
-    page_count: asNumber(parsed.page_count),
-    json_gcs_uri: asString(parsed.json_gcs_uri, deriveJsonUri(asString(source.gcs_uri))),
-    error_message: asString(err.message) || undefined,
-    rag_status: asString(rag.status) || undefined,
-    rag_chunk_count: asNumber(rag.chunk_count),
-    rag_vector_count: asNumber(rag.vector_count),
-    rag_raw_chars: asNumber(rag.raw_chars),
-    rag_normalized_chars: asNumber(rag.normalized_chars),
-    rag_normalization_version: asString(rag.normalization_version) || undefined,
-    rag_language_hint: asString(rag.language_hint) || undefined,
-    rag_error: asString(rag.error) || undefined,
-  };
-}
-````
-
-## File: app/(shell)/dev-tools/page.tsx
-````typescript
-"use client";
-
-/**
- * Module: dev-tools page — /dev-tools
- * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
- * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
- * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
- *   Doc-list state and operations → useDevToolsDocList hook.
- *   Parsed-docs table → DevToolsParsedDocsSection component.
- */
-
-import { useRef, useState, useEffect } from "react";
-import {
-  FlaskConical,
-  FileUp,
-  AlertCircle,
-  FileText,
-  Trash2,
-  Code2,
-  ExternalLink,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  UPLOAD_BUCKET,
-  WATCH_PATH,
-  ACCEPTED_MIME,
-  ACCEPTED_EXTS,
-  asRecord,
-  asString,
-  asNumber,
-  type ParseResult,
-  type UploadStatus,
-} from "./dev-tools-helpers";
-import { StatusBadge, RagBadge } from "./dev-tools-badges";
-import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
-import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
-
-// ── Page component ─────────────────────────────────────────────────────────
-
-export default function DevToolsPage() {
-  const { state: appState } = useApp();
-  const activeAccountId = appState.activeAccount?.id ?? "";
-  const activeWorkspaceId = appState.activeWorkspaceId ?? "";
-
-  // ── Upload state ──────────────────────────────────────────────────────────
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<UploadStatus>("idle");
-  const [result, setResult] = useState<ParseResult | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [logs, setLogs] = useState<string[]>([]);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
-
-  // ── Doc list + operations (extracted hook) ────────────────────────────────
-  const {
-    allDocs,
-    selectedDocId,
-    selectedDoc,
-    jsonContent,
-    jsonLoading,
-    deletingId,
-    reindexingId,
-    handleViewOriginal,
-    handleViewJson,
-    handleDeleteDoc,
-    handleManualProcess,
-    closeJsonPreview,
-    formatNormalizationRatio,
-  } = useDevToolsDocList(activeAccountId);
-
-  // Cleanup upload subscription on unmount
-  useEffect(() => {
-    return () => { if (unsubscribeRef.current) unsubscribeRef.current(); };
-  }, []);
-
-  function appendLog(msg: string) {
-    setLogs((prev) => [
-      ...prev,
-      `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`,
-    ]);
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null;
-    setSelectedFile(file);
-    setResult(null);
-    setErrorMsg(null);
-    setStatus("idle");
-    setLogs([]);
-    if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
-  }
-
-  function buildUuidUploadPath(accountId: string, file: File) {
-    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
-    const docId = crypto.randomUUID();
-    return { uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`, docId };
-  }
-
-  function watchDocument(docId: string) {
-    if (!activeAccountId) {
-      appendLog("❌ 缺少 active account，無法監聽文件狀態");
-      return;
-    }
-    try {
-      const db = getFirebaseFirestore();
-      const docRef = firestoreApi.doc(db, "accounts", activeAccountId, "documents", docId);
-      if (unsubscribeRef.current) unsubscribeRef.current();
-      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {
-        if (!snapshot.exists()) { appendLog("等待 Firestore 初始化…"); return; }
-        const data = asRecord(snapshot.data());
-        const docStatus = asString(data.status, "unknown");
-        appendLog(`Firestore update: status=${docStatus}`);
-        if (docStatus === "completed") {
-          const parsed = asRecord(data.parsed);
-          const r: ParseResult = {
-            doc_id: docId,
-            status: "completed",
-            page_count: asNumber(parsed.page_count) ?? 0,
-            json_gcs_uri: asString(parsed.json_gcs_uri),
-          };
-          setResult(r);
-          setStatus("done");
-          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
-          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-        } else if (docStatus === "error") {
-          const error = asRecord(data.error);
-          const msg = asString(error.message, "未知錯誤");
-          setErrorMsg(msg);
-          setStatus("error");
-          appendLog(`❌ 錯誤：${msg}`);
-          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-        }
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      appendLog(`❌ 監聽失敗：${msg}`);
-      setErrorMsg(msg);
-      setStatus("error");
-    }
-  }
-
-  async function handleUploadAndParse() {
-    if (!selectedFile) return;
-    if (!activeAccountId) {
-      setErrorMsg("缺少 active account，無法上傳與解析");
-      setStatus("error");
-      return;
-    }
-    setStatus("uploading");
-    setResult(null);
-    setErrorMsg(null);
-    appendLog("📤 上傳檔案到 Cloud Storage…");
-    try {
-      // Step 1: Upload to GCS
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);
-      const fileRef = storageApi.ref(storage, uploadPath);
-      const snap = await storageApi.uploadBytes(fileRef, selectedFile, {
-        contentType: ACCEPTED_MIME[selectedFile.name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream",
-        customMetadata: {
-          account_id: activeAccountId,
-          workspace_id: activeWorkspaceId,
-          filename: selectedFile.name,
-        },
-      });
-      appendLog(`✅ 上傳完成：${snap.ref.fullPath}`);
-      // Step 2: Watch Firestore for status updates
-      setStatus("waiting");
-      appendLog("⏳ 等待 parse_document 處理…");
-      watchDocument(docId);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setErrorMsg(msg);
-      setStatus("error");
-      appendLog(`❌ 上傳失敗：${msg}`);
-    }
-  }
-
-  function reset() {
-    if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-    setSelectedFile(null);
-    setResult(null);
-    setErrorMsg(null);
-    setStatus("idle");
-    setLogs([]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
-
-  const isLoading = status === "uploading" || status === "waiting";
-  const parsedDocs = allDocs.filter((doc) => doc.status === "completed");
-  const ragReadyCount = allDocs.filter((doc) => doc.rag_status === "ready").length;
-  const ragErrorCount = allDocs.filter((doc) => doc.rag_status === "error").length;
-
-  return (
-    <div className="mx-auto max-w-2xl space-y-8">
-      {/* ── Header ─────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
-          <FlaskConical className="size-5 text-amber-500" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Dev Tools</h1>
-          <p className="text-xs text-muted-foreground">
-            py_fn · parse_document · Document AI · Firestore 實時監聽
-          </p>
-        </div>
-      </div>
-
-      {/* ── Stats ──────────────────────────────────────────────────── */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
-          <p className="text-[11px] text-muted-foreground">全部文件</p>
-          <p className="text-lg font-semibold tracking-tight">{allDocs.length}</p>
-        </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
-          <p className="text-[11px] text-emerald-700">解析完成</p>
-          <p className="text-lg font-semibold tracking-tight text-emerald-700">{parsedDocs.length}</p>
-        </div>
-        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2">
-          <p className="text-[11px] text-blue-700">RAG Ready</p>
-          <p className="text-lg font-semibold tracking-tight text-blue-700">{ragReadyCount}</p>
-        </div>
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
-          <p className="text-[11px] text-destructive">RAG Error</p>
-          <p className="text-lg font-semibold tracking-tight text-destructive">{ragErrorCount}</p>
-        </div>
-      </section>
-
-      {/* ── File picker ────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          1. 選擇檔案
-        </h2>
-        <label
-          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 transition
-            ${selectedFile ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
-        >
-          <FileUp className="size-8 text-muted-foreground" />
-          <div className="text-center">
-            <p className="text-sm font-medium">
-              {selectedFile ? selectedFile.name : "點擊或拖曳上傳"}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={Object.keys(ACCEPTED_MIME).join(",")}
-            className="sr-only"
-            onChange={handleFileChange}
-          />
-        </label>
-      </section>
-
-      {/* ── Actions ────────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          2. 執行上傳 &amp; 解析
-        </h2>
-        <div className="flex gap-3">
-          <Button onClick={handleUploadAndParse} disabled={!selectedFile || isLoading} className="gap-2">
-            {isLoading ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />}
-            {status === "uploading" ? "上傳中…" : status === "waiting" ? "等待中…" : "開始"}
-          </Button>
-          <Button variant="outline" onClick={reset} disabled={isLoading}>
-            重置
-          </Button>
-        </div>
-      </section>
-
-      {/* ── Result ─────────────────────────────────────────────────── */}
-      {(status === "done" || status === "error") && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            3. 結果
-          </h2>
-          {status === "done" && result && (
-            <div className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
-              <div className="flex items-center gap-2 text-emerald-600">
-                <CheckCircle2 className="size-4 shrink-0" />
-                <span className="text-sm font-medium">解析成功</span>
-              </div>
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <dt className="text-muted-foreground">doc_id</dt>
-                <dd className="font-mono text-xs">{result.doc_id}</dd>
-                <dt className="text-muted-foreground">page_count</dt>
-                <dd className="font-bold">{result.page_count}</dd>
-                <dt className="text-muted-foreground">JSON 位置</dt>
-                <dd className="font-mono text-xs break-all">{result.json_gcs_uri || "—"}</dd>
-              </dl>
-            </div>
-          )}
-          {status === "error" && (
-            <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              <XCircle className="mt-0.5 size-4 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-        </section>
-      )}
-
-      {status === "waiting" && (
-        <section className="space-y-3">
-          <div className="flex items-start gap-2 rounded-xl border border-blue-300/30 bg-blue-500/5 p-4 text-sm text-blue-600">
-            <AlertCircle className="mt-0.5 size-4 shrink-0 animate-pulse" />
-            <div>
-              <p className="font-medium">處理中…</p>
-              <p className="mt-1 text-xs opacity-75">Document AI 正在解析檔案，請稍候</p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── All uploaded docs table ─────────────────────────────────── */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <FileText className="size-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            已上傳檔案（{allDocs.length}）
-          </h2>
-        </div>
-        {allDocs.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-            尚無上傳記錄
-          </p>
-        ) : (
-          <div className="space-y-0 overflow-hidden rounded-xl border border-border/60">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead>
-                  <tr className="border-b border-border/60 bg-muted/40">
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allDocs.map((doc, i) => (
-                    <tr
-                      key={doc.id}
-                      className={`border-b border-border/40 last:border-0 transition-colors ${
-                        selectedDocId === doc.id
-                          ? "bg-primary/8 ring-1 ring-inset ring-primary/20"
-                          : i % 2 === 0 ? "bg-background" : "bg-muted/20"
-                      }`}
-                    >
-                      <td className="px-4 py-2.5 font-mono text-xs max-w-[180px] truncate" title={doc.filename}>
-                        {doc.filename}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <StatusBadge status={doc.status} errorMessage={doc.error_message} />
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <RagBadge status={doc.rag_status} error={doc.rag_error} />
-                      </td>
-                      <td className="px-4 py-2.5 text-xs">
-                        {doc.page_count != null ? doc.page_count : "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                        {formatDateTime(doc.uploaded_at)}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => { void handleViewOriginal(doc); }}
-                            disabled={!doc.gcs_uri}
-                            title="查看原始檔案"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
-                          >
-                            <ExternalLink className="size-3.5" />
-                          </button>
-                          <button
-                            onClick={() => { void handleViewJson(doc); }}
-                            disabled={doc.status !== "completed" || !doc.json_gcs_uri}
-                            title="查看 JSON 解析結果"
-                            className={`inline-flex size-7 items-center justify-center rounded-md transition hover:bg-muted disabled:opacity-30 ${
-                              selectedDocId === doc.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            <Code2 className="size-3.5" />
-                          </button>
-                          <button
-                            onClick={() => { void handleDeleteDoc(doc); }}
-                            disabled={deletingId === doc.id}
-                            title="刪除"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
-                          >
-                            {deletingId === doc.id
-                              ? <Loader2 className="size-3.5 animate-spin" />
-                              : <Trash2 className="size-3.5" />}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* JSON preview panel */}
-            {selectedDocId && (
-              <div className="border-t border-border/60 bg-[#0d1117]">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
-                  <div className="flex items-center gap-2 text-xs text-green-400">
-                    <Code2 className="size-3.5" />
-                    <span className="font-mono">
-                      {selectedDoc?.filename ?? selectedDocId} — JSON
-                    </span>
-                  </div>
-                  <button
-                    onClick={closeJsonPreview}
-                    className="text-white/30 hover:text-white/70 transition text-xs"
-                  >
-                    ✕ 關閉
-                  </button>
-                </div>
-                {selectedDoc?.rag_status === "error" && (
-                  <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs text-destructive">
-                    RAG 失敗：{selectedDoc.rag_error || "未知錯誤"}
-                  </div>
-                )}
-                <div className="max-h-80 overflow-y-auto p-4">
-                  {jsonLoading ? (
-                    <div className="flex items-center gap-2 text-green-400/60 text-xs">
-                      <Loader2 className="size-3.5 animate-spin" /> 載入中…
-                    </div>
-                  ) : (
-                    <pre className="font-mono text-xs leading-relaxed text-green-400 whitespace-pre-wrap break-words">
-                      {jsonContent}
-                    </pre>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* ── Parsed docs table (extracted component) ─────────────────── */}
-      <DevToolsParsedDocsSection
-        parsedDocs={parsedDocs}
-        reindexingId={reindexingId}
-        onViewJson={(doc) => { void handleViewJson(doc); }}
-        onManualProcess={(doc) => { void handleManualProcess(doc, appendLog); }}
-        formatNormalizationRatio={formatNormalizationRatio}
-      />
-
-      {/* ── Console log ────────────────────────────────────────────── */}
-      {logs.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Console
-          </h2>
-          <div className="max-h-48 overflow-y-auto rounded-xl bg-[#0d1117] p-4">
-            {logs.map((line, i) => (
-              <p key={i} className="font-mono text-xs leading-relaxed text-green-400">
-                {line}
-              </p>
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
-  );
-}
 ````
 
 ## File: app/(shell)/organization/audit/page.tsx
@@ -66488,6 +66885,11 @@ knowledge ─── knowledge.page_promoted ───► knowledge-base
 | knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |
 ````
 
+## File: modules/knowledge/docs/.gitkeep
+````
+
+````
+
 ## File: modules/knowledge/domain/entities/knowledge-page.entity.ts
 ````typescript
 /**
@@ -67281,6 +67683,16 @@ export async function getKnowledgeCollections(
 
 ````
 
+## File: modules/knowledge/subdomains/knowledge-ai/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-ai/README.md
+````markdown
+
+````
+
 ## File: modules/knowledge/subdomains/knowledge-authoring/application/.gitkeep
 ````
 
@@ -67298,6 +67710,16 @@ export async function getKnowledgeCollections(
 
 ## File: modules/knowledge/subdomains/knowledge-authoring/interfaces/.gitkeep
 ````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-authoring/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-authoring/README.md
+````markdown
 
 ````
 
@@ -67321,6 +67743,16 @@ export async function getKnowledgeCollections(
 
 ````
 
+## File: modules/knowledge/subdomains/knowledge-automation/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-automation/README.md
+````markdown
+
+````
+
 ## File: modules/knowledge/subdomains/knowledge-base/application/.gitkeep
 ````
 
@@ -67338,6 +67770,16 @@ export async function getKnowledgeCollections(
 
 ## File: modules/knowledge/subdomains/knowledge-base/interfaces/.gitkeep
 ````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-base/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-base/README.md
+````markdown
 
 ````
 
@@ -67361,6 +67803,16 @@ export async function getKnowledgeCollections(
 
 ````
 
+## File: modules/knowledge/subdomains/knowledge-collaboration/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-collaboration/README.md
+````markdown
+
+````
+
 ## File: modules/knowledge/subdomains/knowledge-core/application/.gitkeep
 ````
 
@@ -67378,6 +67830,16 @@ export async function getKnowledgeCollections(
 
 ## File: modules/knowledge/subdomains/knowledge-core/interfaces/.gitkeep
 ````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-core/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-core/README.md
+````markdown
 
 ````
 
@@ -67401,6 +67863,16 @@ export async function getKnowledgeCollections(
 
 ````
 
+## File: modules/knowledge/subdomains/knowledge-database/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-database/README.md
+````markdown
+
+````
+
 ## File: modules/knowledge/subdomains/knowledge-integration/application/.gitkeep
 ````
 
@@ -67418,6 +67890,16 @@ export async function getKnowledgeCollections(
 
 ## File: modules/knowledge/subdomains/knowledge-integration/interfaces/.gitkeep
 ````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-integration/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-integration/README.md
+````markdown
 
 ````
 
@@ -67441,6 +67923,16 @@ export async function getKnowledgeCollections(
 
 ````
 
+## File: modules/knowledge/subdomains/knowledge-query/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-query/README.md
+````markdown
+
+````
+
 ## File: modules/knowledge/subdomains/knowledge-search/application/.gitkeep
 ````
 
@@ -67458,6 +67950,16 @@ export async function getKnowledgeCollections(
 
 ## File: modules/knowledge/subdomains/knowledge-search/interfaces/.gitkeep
 ````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-search/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-search/README.md
+````markdown
 
 ````
 
@@ -67481,6 +67983,16 @@ export async function getKnowledgeCollections(
 
 ````
 
+## File: modules/knowledge/subdomains/knowledge-source/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-source/README.md
+````markdown
+
+````
+
 ## File: modules/knowledge/subdomains/knowledge-versioning/application/.gitkeep
 ````
 
@@ -67498,6 +68010,16 @@ export async function getKnowledgeCollections(
 
 ## File: modules/knowledge/subdomains/knowledge-versioning/interfaces/.gitkeep
 ````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-versioning/ports/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-versioning/README.md
+````markdown
 
 ````
 
@@ -67654,28 +68176,133 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 }
 ````
 
-## File: modules/platform/application/.gitkeep
+## File: modules/platform/adapters/cli/.gitkeep
 ````
 
 ````
 
-## File: modules/platform/domain/.gitkeep
+## File: modules/platform/adapters/external/.gitkeep
 ````
 
 ````
 
-## File: modules/platform/infrastructure/.gitkeep
+## File: modules/platform/adapters/persistence/.gitkeep
 ````
 
 ````
 
-## File: modules/platform/interfaces/.gitkeep
+## File: modules/platform/adapters/web/.gitkeep
 ````
 
 ````
 
-## File: modules/platform/ports/.gitkeep
+## File: modules/platform/AGENT.md
+````markdown
+
 ````
+
+## File: modules/platform/aggregates.md
+````markdown
+
+````
+
+## File: modules/platform/application-services.md
+````markdown
+
+````
+
+## File: modules/platform/application/commands/.gitkeep
+````
+
+````
+
+## File: modules/platform/application/handlers/.gitkeep
+````
+
+````
+
+## File: modules/platform/application/queries/.gitkeep
+````
+
+````
+
+## File: modules/platform/bounded-context.md
+````markdown
+
+````
+
+## File: modules/platform/context-map.md
+````markdown
+
+````
+
+## File: modules/platform/docs/.gitkeep
+````
+
+````
+
+## File: modules/platform/domain-events.md
+````markdown
+
+````
+
+## File: modules/platform/domain-services.md
+````markdown
+
+````
+
+## File: modules/platform/domain/aggregates/.gitkeep
+````
+
+````
+
+## File: modules/platform/domain/entities/.gitkeep
+````
+
+````
+
+## File: modules/platform/domain/events/.gitkeep
+````
+
+````
+
+## File: modules/platform/domain/factories/.gitkeep
+````
+
+````
+
+## File: modules/platform/domain/services/.gitkeep
+````
+
+````
+
+## File: modules/platform/domain/value-objects/.gitkeep
+````
+
+````
+
+## File: modules/platform/ports/input/.gitkeep
+````
+
+````
+
+## File: modules/platform/ports/output/.gitkeep
+````
+
+````
+
+## File: modules/platform/README.md
+````markdown
+
+````
+
+## File: modules/platform/repositories.md
+````markdown
+
+````
+
+## File: modules/platform/subdomains.md
+````markdown
 
 ````
 
@@ -67689,13 +68316,8 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 
 ````
 
-## File: modules/platform/subdomains/account/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/account/interfaces/.gitkeep
-````
+## File: modules/platform/subdomains/account/README.md
+````markdown
 
 ````
 
@@ -67709,13 +68331,8 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 
 ````
 
-## File: modules/platform/subdomains/audit/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/audit/interfaces/.gitkeep
-````
+## File: modules/platform/subdomains/audit/README.md
+````markdown
 
 ````
 
@@ -67729,13 +68346,8 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 
 ````
 
-## File: modules/platform/subdomains/config/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/config/interfaces/.gitkeep
-````
+## File: modules/platform/subdomains/config/README.md
+````markdown
 
 ````
 
@@ -67749,13 +68361,8 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 
 ````
 
-## File: modules/platform/subdomains/identity/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/identity/interfaces/.gitkeep
-````
+## File: modules/platform/subdomains/identity/README.md
+````markdown
 
 ````
 
@@ -67769,13 +68376,8 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 
 ````
 
-## File: modules/platform/subdomains/integration/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/integration/interfaces/.gitkeep
-````
+## File: modules/platform/subdomains/integration/README.md
+````markdown
 
 ````
 
@@ -67789,13 +68391,8 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 
 ````
 
-## File: modules/platform/subdomains/notification/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/notification/interfaces/.gitkeep
-````
+## File: modules/platform/subdomains/notification/README.md
+````markdown
 
 ````
 
@@ -67809,13 +68406,8 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 
 ````
 
-## File: modules/platform/subdomains/observability/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/observability/interfaces/.gitkeep
-````
+## File: modules/platform/subdomains/observability/README.md
+````markdown
 
 ````
 
@@ -67829,13 +68421,8 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 
 ````
 
-## File: modules/platform/subdomains/organization/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/organization/interfaces/.gitkeep
-````
+## File: modules/platform/subdomains/organization/README.md
+````markdown
 
 ````
 
@@ -67849,13 +68436,8 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 
 ````
 
-## File: modules/platform/subdomains/permission/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/permission/interfaces/.gitkeep
-````
+## File: modules/platform/subdomains/permission/README.md
+````markdown
 
 ````
 
@@ -67869,13 +68451,8 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 
 ````
 
-## File: modules/platform/subdomains/subscription/infrastructure/.gitkeep
-````
-
-````
-
-## File: modules/platform/subdomains/subscription/interfaces/.gitkeep
-````
+## File: modules/platform/subdomains/subscription/README.md
+````markdown
 
 ````
 
@@ -67889,13 +68466,13 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 
 ````
 
-## File: modules/platform/subdomains/workflow/infrastructure/.gitkeep
-````
+## File: modules/platform/subdomains/workflow/README.md
+````markdown
 
 ````
 
-## File: modules/platform/subdomains/workflow/interfaces/.gitkeep
-````
+## File: modules/platform/ubiquitous-language.md
+````markdown
 
 ````
 
@@ -69270,6 +69847,11 @@ export {
   ListWorkspacesForAccountUseCase,
   SubscribeToWorkspacesForAccountUseCase,
 } from "./workspace-query.use-cases";
+````
+
+## File: modules/workspace/docs/.gitkeep
+````
+
 ````
 
 ## File: modules/workspace/domain/aggregates/Workspace.test.ts
@@ -71205,6 +71787,16 @@ export interface WorkspaceDomainEventPublisher {
 
 ````
 
+## File: modules/workspace/subdomains/audit/ports/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/audit/README.md
+````markdown
+
+````
+
 ## File: modules/workspace/subdomains/feed/application/.gitkeep
 ````
 
@@ -71222,6 +71814,16 @@ export interface WorkspaceDomainEventPublisher {
 
 ## File: modules/workspace/subdomains/feed/interfaces/.gitkeep
 ````
+
+````
+
+## File: modules/workspace/subdomains/feed/ports/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/feed/README.md
+````markdown
 
 ````
 
@@ -71245,6 +71847,16 @@ export interface WorkspaceDomainEventPublisher {
 
 ````
 
+## File: modules/workspace/subdomains/scheduling/ports/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/scheduling/README.md
+````markdown
+
+````
+
 ## File: modules/workspace/subdomains/workflow/application/.gitkeep
 ````
 
@@ -71265,308 +71877,14 @@ export interface WorkspaceDomainEventPublisher {
 
 ````
 
-## File: py_fn/src/interface/handlers/parse_document.py
-````python
-"""
-HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
-"""
-
-from __future__ import annotations
-
-import logging
-import os
-import time
-
-from firebase_functions import https_fn
-
-from application.services.document_pipeline import get_document_pipeline
-from application.use_cases.rag_ingestion import ingest_document_for_rag
-from interface.handlers._https_helpers import _parse_gs_uri
-
-logger = logging.getLogger(__name__)
-
-
-def handle_parse_document(req: https_fn.CallableRequest) -> dict:
-    """
-    HTTPS Callable：主動觸發單一文件的 Document AI 解析。
-
-    輸入 GCS URI，Document AI 直接從 Cloud Storage 讀取並解析。
-    Firestore 會記錄完整的 lifecycle（processing → completed/error）。
-    """
-    runtime = get_document_pipeline()
-    data: dict = req.data or {}
-    account_id = str(data.get("account_id", "")).strip()
-    workspace_id = str(data.get("workspace_id", "")).strip()
-    if not account_id:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "account_id 為必填欄位",
-        )
-    if not workspace_id:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "workspace_id 為必填欄位",
-        )
-
-    gcs_uri: str = data.get("gcs_uri", "").strip()
-    if not gcs_uri or not gcs_uri.startswith("gs://"):
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "gcs_uri 為必填欄位（格式：gs://bucket/path）",
-        )
-
-    run_rag = bool(data.get("run_rag", True))
-
-    # 解析 GCS URI 得到儲存檔名，並允許呼叫端覆蓋 doc_id。
-    path_part = gcs_uri.split("gs://", 1)[1]  # "bucket/path/to/file.pdf"
-    storage_filename = os.path.basename(path_part)     # "file.pdf"
-    default_doc_id, ext = os.path.splitext(storage_filename)   # "file", ".pdf"
-    doc_id = str(data.get("doc_id", "")).strip() or default_doc_id
-    filename = (
-        str(data.get("filename", "")).strip()
-        or str(data.get("original_filename", "")).strip()
-        or str(data.get("display_name", "")).strip()
-        or storage_filename
-    )
-
-    # 推測 MIME 類型
-    mime_type = data.get("mime_type", "").strip()
-    if not mime_type:
-        _mime_map = {
-            ".pdf": "application/pdf",
-            ".tiff": "image/tiff",
-            ".tif": "image/tiff",
-            ".png": "image/png",
-            ".jpg": "image/jpeg",
-            ".jpeg": "image/jpeg",
-        }
-        mime_type = _mime_map.get(ext.lower())
-        if mime_type is None:
-            raise https_fn.HttpsError(
-                https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-                f"無法判斷 MIME 類型，請手動指定（副檔名：{ext}）",
-            )
-
-    size_bytes = data.get("size_bytes", 0)
-    logger.info("parse_document callable: %s → doc_id=%s", gcs_uri, doc_id)
-
-    # ── 初始化 Firestore document ───────────────────────────────────────────
-    try:
-        runtime.init_document(
-            doc_id=doc_id,
-            gcs_uri=gcs_uri,
-            filename=filename,
-            size_bytes=int(size_bytes),
-            mime_type=mime_type,
-            account_id=account_id,
-            workspace_id=workspace_id,
-        )
-    except Exception as exc:
-        logger.exception("Failed to init document %s: %s", doc_id, exc)
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INTERNAL,
-            "Failed to initialize document",
-        ) from exc
-
-    # 解析 gs://bucket/path，取得 bucket 與 object_path
-    bucket_name, object_path = path_part.split("/", 1)
-
-    # ── 同步解析（保持函數活躍直到完成） ─────────────────────────────────────
-    start_time = time.time()
-    try:
-        parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
-        extraction_ms = int((time.time() - start_time) * 1000)
-
-        # 解析結果全文寫回 GCS JSON（與 uploads 目錄結構對應）
-        json_object_path = runtime.parsed_json_path(object_path)
-        json_gcs_uri = runtime.upload_json(
-            bucket_name=bucket_name,
-            object_path=json_object_path,
-            data={
-                "doc_id": doc_id,
-                "account_id": account_id,
-                "workspace_id": workspace_id,
-                "source_gcs_uri": gcs_uri,
-                "filename": filename,
-                "display_name": filename,
-                "original_filename": filename,
-                "page_count": parsed.page_count,
-                "extraction_ms": extraction_ms,
-                "text": parsed.text,
-            },
-        )
-
-        runtime.update_parsed(
-            doc_id=doc_id,
-            json_gcs_uri=json_gcs_uri,
-            page_count=parsed.page_count,
-            extraction_ms=extraction_ms,
-            account_id=account_id,
-        )
-
-        # Step 5/6: RAG ingestion（可由呼叫端明確關閉，支援人工決策式流程）
-        if run_rag:
-            try:
-                rag = ingest_document_for_rag(
-                    doc_id=doc_id,
-                    filename=filename,
-                    source_gcs_uri=gcs_uri,
-                    json_gcs_uri=json_gcs_uri,
-                    text=parsed.text,
-                    page_count=parsed.page_count,
-                    account_id=account_id,
-                    workspace_id=workspace_id,
-                )
-                runtime.mark_rag_ready(
-                    doc_id=doc_id,
-                    chunk_count=rag.chunk_count,
-                    vector_count=rag.vector_count,
-                    embedding_model=rag.embedding_model,
-                    embedding_dimensions=rag.embedding_dimensions,
-                    raw_chars=rag.raw_chars,
-                    normalized_chars=rag.normalized_chars,
-                    normalization_version=rag.normalization_version,
-                    language_hint=rag.language_hint,
-                    account_id=account_id,
-                )
-            except Exception as rag_exc:
-                logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)
-                runtime.record_rag_error(doc_id, str(rag_exc)[:200], account_id=account_id)
-
-        logger.info(
-            "✓ parse_document done: doc_id=%s (%d pages, %d ms, run_rag=%s) → %s",
-            doc_id,
-            parsed.page_count,
-            extraction_ms,
-            run_rag,
-            json_gcs_uri,
-        )
-    except Exception as exc:
-        logger.exception("parse_document failed for %s: %s", doc_id, exc)
-        runtime.record_error(doc_id, str(exc)[:200], account_id=account_id)
-
-    # 立即回覆（無論成功或失敗，Firestore 狀態已更新）
-    return {
-        "account_scope": account_id,
-        "doc_id": doc_id,
-        "status": "processing",  # 前端應監聽 Firestore 的實際狀態
-    }
+## File: modules/workspace/subdomains/workflow/ports/.gitkeep
 ````
 
-## File: py_fn/tests/test_parse_document_handler.py
-````python
-from __future__ import annotations
+````
 
-from types import SimpleNamespace
+## File: modules/workspace/subdomains/workflow/README.md
+````markdown
 
-from interface.handlers.parse_document import handle_parse_document
-
-
-class _FakeParsedDocument:
-    def __init__(self, page_count: int = 3, text: str = "parsed content") -> None:
-        self.page_count = page_count
-        self.text = text
-
-
-class _FakeRuntime:
-    def __init__(self) -> None:
-        self.init_kwargs: dict | None = None
-        self.update_kwargs: dict | None = None
-        self.mark_rag_ready_kwargs: dict | None = None
-
-    def init_document(self, **kwargs) -> None:
-        self.init_kwargs = kwargs
-
-    def process_document_gcs(self, *, gcs_uri: str, mime_type: str) -> _FakeParsedDocument:
-        return _FakeParsedDocument()
-
-    def parsed_json_path(self, upload_object_path: str) -> str:
-        return f"files/{upload_object_path}.json"
-
-    def upload_json(self, *, bucket_name: str, object_path: str, data: dict) -> str:
-        return f"gs://{bucket_name}/{object_path}"
-
-    def update_parsed(self, **kwargs) -> None:
-        self.update_kwargs = kwargs
-
-    def mark_rag_ready(self, **kwargs) -> None:
-        self.mark_rag_ready_kwargs = kwargs
-
-    def record_error(self, doc_id: str, message: str, account_id: str) -> None:
-        raise AssertionError(f"record_error should not be called: {doc_id} {message} {account_id}")
-
-    def record_rag_error(self, doc_id: str, message: str, account_id: str) -> None:
-        raise AssertionError(f"record_rag_error should not be called: {doc_id} {message} {account_id}")
-
-
-class _FakeRagResult:
-    chunk_count = 2
-    vector_count = 2
-    embedding_model = "text-embedding-3-small"
-    embedding_dimensions = 1024
-    raw_chars = 24
-    normalized_chars = 20
-    normalization_version = "v2"
-    language_hint = "en"
-
-
-def test_handleParseDocument_WithExplicitDocIdAndRunRagFalse_UsesProvidedDocId(monkeypatch) -> None:
-    runtime = _FakeRuntime()
-
-    monkeypatch.setattr("interface.handlers.parse_document.get_document_pipeline", lambda: runtime)
-
-    def _unexpected_rag(**kwargs):
-        raise AssertionError(f"ingest_document_for_rag should not be called: {kwargs}")
-
-    monkeypatch.setattr("interface.handlers.parse_document.ingest_document_for_rag", _unexpected_rag)
-
-    response = handle_parse_document(
-        SimpleNamespace(
-            data={
-                "account_id": "account-1",
-                "workspace_id": "workspace-1",
-                "doc_id": "source-file-123",
-                "gcs_uri": "gs://bucket/organizations/org/workspaces/workspace-1/files/source-file-123/report.pdf",
-                "filename": "report.pdf",
-                "mime_type": "application/pdf",
-                "run_rag": False,
-            }
-        )
-    )
-
-    assert response["doc_id"] == "source-file-123"
-    assert runtime.init_kwargs is not None
-    assert runtime.init_kwargs["doc_id"] == "source-file-123"
-    assert runtime.update_kwargs is not None
-    assert runtime.mark_rag_ready_kwargs is None
-
-
-def test_handleParseDocument_WithoutDocId_KeepsDefaultRagBehavior(monkeypatch) -> None:
-    runtime = _FakeRuntime()
-
-    monkeypatch.setattr("interface.handlers.parse_document.get_document_pipeline", lambda: runtime)
-    monkeypatch.setattr(
-        "interface.handlers.parse_document.ingest_document_for_rag",
-        lambda **kwargs: _FakeRagResult(),
-    )
-
-    response = handle_parse_document(
-        SimpleNamespace(
-            data={
-                "account_id": "account-1",
-                "workspace_id": "workspace-1",
-                "gcs_uri": "gs://bucket/uploads/account-1/report.pdf",
-                "filename": "report.pdf",
-                "mime_type": "application/pdf",
-            }
-        )
-    )
-
-    assert response["doc_id"] == "report"
-    assert runtime.init_kwargs is not None
-    assert runtime.init_kwargs["doc_id"] == "report"
-    assert runtime.mark_rag_ready_kwargs is not None
-    assert runtime.mark_rag_ready_kwargs["chunk_count"] == 2
 ````
 
 ## File: scripts/demo-flow.ts
@@ -72451,6 +72769,237 @@ Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
 | `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
 ````
 
+## File: modules/knowledge/interfaces/components/RichTextEditor.tsx
+````typescript
+"use client";
+
+/**
+ * Module: knowledge
+ * Layer: interfaces/components
+ * Purpose: RichTextEditor — Tiptap-powered full-page rich text editor with
+ *          Firebase persistence via PageEditorView's existing server actions.
+ */
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import { StarterKit } from "@tiptap/starter-kit";
+import { Placeholder } from "@tiptap/extension-placeholder";
+import { Underline } from "@tiptap/extension-underline";
+import { Link } from "@tiptap/extension-link";
+import { Typography } from "@tiptap/extension-typography";
+import { Color } from "@tiptap/extension-color";
+import { Loader2 } from "lucide-react";
+
+import { getKnowledgeBlocks } from "../queries/knowledge.queries";
+import { addKnowledgeBlock, updateKnowledgeBlock } from "../_actions/knowledge.actions";
+import type { BlockContent } from "../../domain/value-objects/block-content";
+import { richTextToPlainText } from "../../domain/value-objects/block-content";
+import { CalloutBlock } from "./extensions/callout-block.extension";
+import { ToggleBlock } from "./extensions/toggle-block.extension";
+import { TableOfContentsNode } from "./extensions/table-of-contents-node.extension";
+import { SyncedBlock } from "./extensions/synced-block.extension";
+import { EditorToolbar } from "./editor-toolbar";
+
+const DEBOUNCE_MS = 800;
+const TIPTAP_PROPERTY_KEY = "tiptapJson";
+
+interface TiptapJsonNode {
+  readonly type?: string;
+  readonly text?: string;
+  readonly attrs?: { readonly level?: number };
+  readonly content?: ReadonlyArray<TiptapJsonNode>;
+}
+
+interface RichTextEditorProps {
+  accountId: string;
+  pageId: string;
+  onDocumentChange?: (json: object) => void;
+}
+
+export function RichTextEditor({ accountId, pageId, onDocumentChange }: RichTextEditorProps) {
+  const [loading, setLoading] = useState(true);
+  const blockIdRef = useRef<string | null | undefined>(undefined);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestJsonRef = useRef<object | null>(null);
+  const isSavingRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ heading: { levels: [1, 2, 3] }, codeBlock: false }),
+      Placeholder.configure({ placeholder: "開始輸入，或按 / 選擇區塊類型…", emptyEditorClass: "is-editor-empty" }),
+      Underline,
+      Link.configure({ openOnClick: false, autolink: true, HTMLAttributes: { class: "text-primary underline" } }),
+      Typography,
+      Color,
+      CalloutBlock,
+      ToggleBlock,
+      TableOfContentsNode,
+      SyncedBlock,
+    ],
+    editable: true,
+    immediatelyRender: false,
+    onUpdate({ editor }) {
+      const json = editor.getJSON();
+      latestJsonRef.current = json;
+      onDocumentChange?.(json);
+      scheduleSave();
+    },
+  });
+
+  useEffect(() => {
+    mountedRef.current = true;
+    if (!accountId || !pageId || !editor) { setLoading(false); return; }
+    setLoading(true);
+
+    void (async () => {
+      try {
+        const blocks = await getKnowledgeBlocks(accountId, pageId);
+        const tiptapBlock = blocks.find((b) => b.content.properties?.[TIPTAP_PROPERTY_KEY] != null);
+
+        if (tiptapBlock) {
+          blockIdRef.current = tiptapBlock.id;
+          const json = tiptapBlock.content.properties![TIPTAP_PROPERTY_KEY] as object;
+          const fallbackHtml = buildHtmlFromTiptapJson(json as TiptapJsonNode);
+          if (mountedRef.current) {
+            editor.commands.setContent(json, { emitUpdate: false });
+            if (!editor.getText().trim() && fallbackHtml) {
+              editor.commands.setContent(fallbackHtml, { emitUpdate: false });
+            }
+          }
+        } else if (blocks.length > 0) {
+          const legacyHtml = blocks.map((b) => {
+            switch (b.content.type) {
+              case "heading-1": return `<h1>${escapeHtml(richTextToPlainText(b.content.richText))}</h1>`;
+              case "heading-2": return `<h2>${escapeHtml(richTextToPlainText(b.content.richText))}</h2>`;
+              case "heading-3": return `<h3>${escapeHtml(richTextToPlainText(b.content.richText))}</h3>`;
+              case "quote": return `<blockquote><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></blockquote>`;
+              case "bullet-list": return `<ul><li><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></li></ul>`;
+              case "numbered-list": return `<ol><li><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></li></ol>`;
+              case "code": return `<pre><code>${escapeHtml(richTextToPlainText(b.content.richText))}</code></pre>`;
+              case "divider": return "<hr />";
+              default: return `<p>${escapeHtml(richTextToPlainText(b.content.richText))}</p>`;
+            }
+          }).join("");
+          if (mountedRef.current) editor.commands.setContent(legacyHtml, { emitUpdate: false });
+        } else {
+          const result = await addKnowledgeBlock({ accountId, pageId, content: buildBlockContent(editor.getJSON()), index: 0 });
+          if (result.success) blockIdRef.current = result.aggregateId;
+        }
+      } catch {
+        // Silently ignore; editor is still usable, just unsaved.
+      } finally {
+        if (mountedRef.current) setLoading(false);
+      }
+    })();
+
+    return () => { mountedRef.current = false; };
+  }, [accountId, editor, pageId]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      editor?.destroy();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const scheduleSave = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => { void persistNow(); }, DEBOUNCE_MS);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const persistNow = useCallback(async () => {
+    const json = latestJsonRef.current;
+    if (!json || isSavingRef.current) return;
+    isSavingRef.current = true;
+    try {
+      if (blockIdRef.current == null) {
+        const result = await addKnowledgeBlock({ accountId, pageId, content: buildBlockContent(json), index: 0 });
+        if (result.success) blockIdRef.current = result.aggregateId;
+      } else {
+        await updateKnowledgeBlock({ accountId, blockId: blockIdRef.current, content: buildBlockContent(json) });
+      }
+    } finally {
+      isSavingRef.current = false;
+    }
+  }, [accountId, pageId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-sm text-muted-foreground">載入內容中…</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-[400px] flex-col rounded-xl border border-border/60 bg-card">
+      {editor && <EditorToolbar editor={editor} />}
+      <EditorContent
+        editor={editor}
+        className="tiptap-editor flex-1 cursor-text px-6 py-4 text-sm text-foreground"
+      />
+    </div>
+  );
+}
+
+function buildBlockContent(tiptapJson: object): BlockContent {
+  return { type: "text", richText: [], properties: { [TIPTAP_PROPERTY_KEY]: tiptapJson } };
+}
+
+function extractTextFromTiptapNode(node: TiptapJsonNode | undefined): string {
+  if (!node) return "";
+  if (node.type === "text") {
+    return node.text ?? "";
+  }
+
+  return (node.content ?? []).map((child) => extractTextFromTiptapNode(child)).join("");
+}
+
+function buildHtmlFromTiptapJson(node: TiptapJsonNode | undefined): string {
+  if (!node) return "";
+
+  if (node.type === "doc") {
+    return (node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("");
+  }
+
+  if (node.type === "heading") {
+    const level = node.attrs?.level;
+    const normalizedLevel = level && level >= 1 && level <= 3 ? level : 2;
+    return `<h${normalizedLevel}>${escapeHtml(extractTextFromTiptapNode(node))}</h${normalizedLevel}>`;
+  }
+
+  if (node.type === "paragraph") {
+    const text = extractTextFromTiptapNode(node);
+    return text ? `<p>${escapeHtml(text)}</p>` : "<p></p>";
+  }
+
+  if (node.type === "bulletList") {
+    return `<ul>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</ul>`;
+  }
+
+  if (node.type === "orderedList") {
+    return `<ol>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</ol>`;
+  }
+
+  if (node.type === "listItem") {
+    return `<li>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</li>`;
+  }
+
+  if (node.type === "text") {
+    return escapeHtml(node.text ?? "");
+  }
+
+  return (node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("");
+}
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+````
+
 ## File: modules/knowledge/README.md
 ````markdown
 # knowledge — 知識內容上下文
@@ -72501,6 +73050,278 @@ Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
 | [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
 | [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/source/interfaces/_actions/file-processing.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+
+import { addKnowledgeBlock, createKnowledgePage } from "@/modules/knowledge/api";
+import { buildDraftDocumentRepresentation } from "./file-processing-draft";
+
+const TIPTAP_PROPERTY_KEY = "tiptapJson";
+
+interface CreateKnowledgeDraftFromSourceDocumentInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+  readonly filename: string;
+  readonly sourceGcsUri: string;
+  readonly jsonGcsUri: string;
+  readonly pageCount: number;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function trimFileExtension(filename: string): string {
+  const trimmed = filename.trim();
+  const extensionIndex = trimmed.lastIndexOf(".");
+  if (extensionIndex <= 0) {
+    return trimmed;
+  }
+
+  return trimmed.slice(0, extensionIndex);
+}
+
+async function loadParsedDocumentText(jsonGcsUri: string): Promise<string> {
+  if (!jsonGcsUri) {
+    return "";
+  }
+
+  const storage = getFirebaseStorage();
+  const jsonRef = storageApi.ref(storage, jsonGcsUri);
+  const url = await storageApi.getDownloadURL(jsonRef);
+  const response = await fetch(url, { cache: "no-store" });
+
+  if (!response.ok) {
+    throw new Error(`無法讀取解析 JSON (${response.status})`);
+  }
+
+  const payload = asRecord(await response.json());
+  return asString(payload.text);
+}
+
+export async function createKnowledgeDraftFromSourceDocument(
+  input: CreateKnowledgeDraftFromSourceDocumentInput,
+): Promise<CommandResult> {
+  if (!input.accountId.trim() || !input.workspaceId.trim() || !input.createdByUserId.trim()) {
+    return commandFailureFrom(
+      "SOURCE_KNOWLEDGE_DRAFT_INVALID_SCOPE",
+      "accountId、workspaceId、createdByUserId 為必填。",
+    );
+  }
+
+  if (!input.filename.trim() || !input.sourceGcsUri.trim() || !input.jsonGcsUri.trim()) {
+    return commandFailureFrom(
+      "SOURCE_KNOWLEDGE_DRAFT_INVALID_SOURCE",
+      "filename、sourceGcsUri、jsonGcsUri 為必填。",
+    );
+  }
+
+  try {
+    const parsedText = await loadParsedDocumentText(input.jsonGcsUri);
+    const draftDocument = buildDraftDocumentRepresentation({
+      filename: input.filename,
+      sourceGcsUri: input.sourceGcsUri,
+      jsonGcsUri: input.jsonGcsUri,
+      pageCount: input.pageCount,
+      parsedText,
+    });
+    const pageResult = await createKnowledgePage({
+      accountId: input.accountId,
+      workspaceId: input.workspaceId,
+      title: draftDocument.title || `${trimFileExtension(input.filename)}｜匯入草稿`,
+      parentPageId: null,
+      createdByUserId: input.createdByUserId,
+    });
+
+    if (!pageResult.success) {
+      return pageResult;
+    }
+
+    const blockResult = await addKnowledgeBlock({
+      accountId: input.accountId,
+      pageId: pageResult.aggregateId,
+      index: 0,
+      content: {
+        type: "text",
+        richText: [{ type: "text", plainText: draftDocument.plainText }],
+        properties: {
+          [TIPTAP_PROPERTY_KEY]: draftDocument.tiptapDocument,
+        },
+      },
+    });
+
+    if (!blockResult.success) {
+      return blockResult;
+    }
+
+    return commandSuccess(pageResult.aggregateId, blockResult.version);
+  } catch (error) {
+    return commandFailureFrom(
+      "SOURCE_KNOWLEDGE_DRAFT_CREATE_FAILED",
+      error instanceof Error ? error.message : "建立 Knowledge Page Draft 失敗。",
+    );
+  }
+}
+````
+
+## File: modules/source/interfaces/components/file-processing-dialog.parts.tsx
+````typescript
+"use client";
+
+import { CheckCircle2, FileText, Loader2, XCircle } from "lucide-react";
+
+import { cn } from "@ui-shadcn";
+import { Badge } from "@ui-shadcn/ui/badge";
+import type { TaskResult } from "./file-processing-dialog.utils";
+
+function formatFileSize(sizeBytes: number): string | null {
+  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) return null;
+
+  const units = ["B", "KB", "MB", "GB", "TB"] as const;
+  let value = sizeBytes;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${new Intl.NumberFormat("zh-TW", {
+    maximumFractionDigits: value >= 10 || unitIndex === 0 ? 0 : 1,
+  }).format(value)} ${units[unitIndex]}`;
+}
+
+export function FileProcessingPathValue({
+  value,
+}: {
+  readonly value: string;
+}) {
+  return (
+    <div className="overflow-hidden rounded-xl border border-border/50 bg-background/80">
+      <div className="overflow-x-auto overscroll-x-contain px-3 py-2">
+        <p
+          className="min-w-max font-mono text-[11px] leading-5 text-muted-foreground"
+          translate="no"
+        >
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function FileProcessingSourceCard({
+  filename,
+  mimeType,
+  gcsUri,
+  sizeBytes,
+}: {
+  readonly filename: string;
+  readonly mimeType: string;
+  readonly gcsUri: string;
+  readonly sizeBytes: number;
+}) {
+  const fileSizeLabel = formatFileSize(sizeBytes);
+
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm sm:p-5">
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="rounded-2xl bg-primary/10 p-2.5 text-primary">
+          <FileText className="size-4" aria-hidden="true" />
+        </div>
+        <div className="min-w-0 flex-1 space-y-3">
+          <div className="space-y-2">
+            <p className="text-sm font-semibold text-foreground sm:text-base" translate="no">
+              {filename}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="font-normal" translate="no">
+                {mimeType || "application/octet-stream"}
+              </Badge>
+              {fileSizeLabel ? <Badge variant="secondary">{fileSizeLabel}</Badge> : null}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              Source URI
+            </p>
+            <FileProcessingPathValue value={gcsUri} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function FileProcessingResultRow({
+  label,
+  result,
+}: {
+  readonly label: string;
+  readonly result: TaskResult;
+}) {
+  const meta = {
+    running: {
+      badgeLabel: "處理中",
+      badgeVariant: "secondary" as const,
+      icon: <Loader2 className="size-4 animate-spin" aria-hidden="true" />,
+      iconClassName: "bg-muted text-muted-foreground",
+    },
+    success: {
+      badgeLabel: "完成",
+      badgeVariant: "outline" as const,
+      icon: <CheckCircle2 className="size-4" aria-hidden="true" />,
+      iconClassName: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40",
+    },
+    error: {
+      badgeLabel: "失敗",
+      badgeVariant: "outline" as const,
+      icon: <XCircle className="size-4" aria-hidden="true" />,
+      iconClassName: "bg-destructive/10 text-destructive",
+    },
+    skipped: {
+      badgeLabel: "略過",
+      badgeVariant: "outline" as const,
+      icon: <FileText className="size-4" aria-hidden="true" />,
+      iconClassName: "bg-muted text-muted-foreground",
+    },
+    idle: {
+      badgeLabel: "待命",
+      badgeVariant: "secondary" as const,
+      icon: <FileText className="size-4" aria-hidden="true" />,
+      iconClassName: "bg-muted text-muted-foreground",
+    },
+  }[result.status];
+
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm sm:gap-4 sm:p-5">
+      <div className={cn("mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full", meta.iconClassName)}>
+        {meta.icon}
+      </div>
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-medium text-foreground sm:text-base">{label}</p>
+          <Badge variant={meta.badgeVariant}>{meta.badgeLabel}</Badge>
+        </div>
+        <p className="break-words text-xs leading-5 text-muted-foreground sm:text-sm">
+          {result.detail}
+        </p>
+      </div>
+    </div>
+  );
+}
 ````
 
 ## File: modules/source/interfaces/components/file-processing-dialog.surface.tsx
@@ -72604,96 +73425,286 @@ export function FileProcessingDialogSurface({
 }
 ````
 
-## File: modules/source/interfaces/components/file-processing-dialog.utils.ts
+## File: modules/source/interfaces/components/WorkspaceFilesTab.tsx
 ````typescript
 "use client";
 
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
-export type TaskStatus = "idle" | "running" | "success" | "error" | "skipped";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
+import { getWorkspaceFiles } from "../queries/file.queries";
+import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
+import { uploadCompleteFile, uploadInitFile } from "../_actions/file.actions";
+import { FileProcessingDialog } from "./FileProcessingDialog";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { getFirebaseStorage } from "@integration-firebase";
 
-export interface TaskResult {
-  readonly status: TaskStatus;
-  readonly detail: string;
+interface WorkspaceFilesTabProps {
+  readonly workspace: WorkspaceEntity;
 }
 
-export interface ExecutionSummary {
-  readonly pageCount: number;
-  readonly jsonGcsUri: string;
-  readonly pageHref: string;
-  readonly parse: TaskResult;
-  readonly rag: TaskResult;
-  readonly page: TaskResult;
+interface PendingUploadProcessing {
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
 }
 
-export function createIdleSummary(): ExecutionSummary {
-  return {
-    pageCount: 0,
-    jsonGcsUri: "",
-    pageHref: "",
-    parse: { status: "idle", detail: "尚未開始解析" },
-    rag: { status: "idle", detail: "尚未決定是否建立 RAG 索引" },
-    page: { status: "idle", detail: "尚未決定是否建立 Knowledge Page" },
-  };
-}
+export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
+  const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [pendingUploadProcessing, setPendingUploadProcessing] = useState<PendingUploadProcessing | null>(null);
 
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
+  const reloadFiles = useCallback(async () => {
+    setLoadState("loading");
 
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
+    try {
+      const nextAssets = await getWorkspaceFiles(workspace);
+      setAssets(nextAssets);
+      setLoadState("loaded");
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          "[WorkspaceFilesTab] Failed to load file metadata:",
+          error instanceof Error ? error.message : "unknown error",
+        );
+      }
 
-function asNumber(value: unknown, fallback = 0): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
+      setAssets([]);
+      setLoadState("error");
+    }
+  }, [workspace]);
 
-export function readCallableData(value: unknown): Record<string, unknown> {
-  return asRecord(value);
-}
+  useEffect(() => {
+    let cancelled = false;
 
-export async function waitForParsedDocument(accountId: string, docId: string): Promise<{
-  pageCount: number;
-  jsonGcsUri: string;
-}> {
-  const db = getFirebaseFirestore();
+    async function loadFiles() {
+      await reloadFiles();
+      if (cancelled) {
+        return;
+      }
+    }
 
-  return new Promise((resolve, reject) => {
-    const docRef = firestoreApi.doc(db, "accounts", accountId, "documents", docId);
-    const unsubscribe = firestoreApi.onSnapshot(docRef, (snapshot) => {
-      if (!snapshot.exists()) {
+    void loadFiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadFiles]);
+
+  async function handleUploadFile(file: File) {
+    const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
+    setUploadState("uploading");
+    setUploadMessage(null);
+
+    try {
+      const initResult = await uploadInitFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      });
+
+      if (!initResult.ok) {
+        setUploadState("error");
+        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);
         return;
       }
 
-      const data = asRecord(snapshot.data());
-      const status = asString(data.status, "unknown");
+      const storage = getFirebaseStorage();
+      const storageRef = ref(storage, initResult.data.uploadPath);
+      await uploadBytes(storageRef, file, {
+        contentType: file.type || "application/octet-stream",
+      });
+      await getDownloadURL(storageRef);
 
-      if (status === "completed") {
-        const parsed = asRecord(data.parsed);
-        unsubscribe();
-        resolve({
-          pageCount: asNumber(parsed.page_count, 0),
-          jsonGcsUri: asString(parsed.json_gcs_uri),
-        });
+      const completeResult = await uploadCompleteFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileId: initResult.data.fileId,
+        versionId: initResult.data.versionId,
+      });
+
+      if (!completeResult.ok) {
+        setUploadState("error");
+        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);
         return;
       }
 
-      if (status === "error") {
-        const error = asRecord(data.error);
-        unsubscribe();
-        reject(new Error(asString(error.message, "文件解析失敗")));
+      setUploadState("success");
+      setUploadMessage(
+        `Uploaded ${file.name}; 接下來可由使用者決定是否解析、建立 RAG，或保留為單純檔案。`,
+      );
+      setPendingUploadProcessing({
+        sourceFileId: initResult.data.fileId,
+        filename: file.name,
+        gcsUri: `gs://${storageRef.bucket}/${storageRef.fullPath}`,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      });
+
+      await reloadFiles();
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceFilesTab] Upload flow failed:", error);
       }
-    });
-  });
-}
+      setUploadState("error");
+      setUploadMessage(
+        error instanceof Error
+          ? `Storage upload failed: ${error.message}`
+          : "Storage upload failed unexpectedly.",
+      );
+    }
+  }
 
-export function readString(value: unknown, fallback = ""): string {
-  return asString(value, fallback);
-}
+  const availableCount = useMemo(
+    () => assets.filter((asset) => asset.status === "active").length,
+    [assets],
+  );
 
-export function readNumber(value: unknown, fallback = 0): number {
-  return asNumber(value, fallback);
+  return (
+    <Card className="border border-border/50">
+      <CardHeader>
+        <CardTitle>Files</CardTitle>
+        <CardDescription>
+          盤點目前已註冊或可立即導出的工作區資產，並提供 upload → storage → firestore 的完整流程入口。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="workspace-file-upload" className="text-sm font-semibold text-foreground">
+                Upload file
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                This triggers upload-init, uploads binary to Storage, then writes completion + RAG registration to Firestore.
+              </p>
+            </div>
+            <Input
+              id="workspace-file-upload"
+              type="file"
+              className="max-w-xs"
+              disabled={uploadState === "uploading"}
+              onChange={(event) => {
+                const nextFile = event.target.files?.[0];
+                if (!nextFile) {
+                  return;
+                }
+
+                void handleUploadFile(nextFile);
+                event.currentTarget.value = "";
+              }}
+            />
+          </div>
+          {uploadMessage && (
+            <p
+              className={`mt-3 text-xs ${
+                uploadState === "error" ? "text-destructive" : "text-emerald-600"
+              }`}
+            >
+              {uploadMessage}
+            </p>
+          )}
+          {uploadState === "uploading" && (
+            <p className="mt-3 text-xs text-muted-foreground">Uploading and persisting metadata…</p>
+          )}
+        </div>
+
+        {loadState === "loading" && (
+          <p className="text-sm text-muted-foreground">Loading file metadata…</p>
+        )}
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">
+            無法載入已持久化的檔案資料，請稍後再試。
+          </p>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Registered assets</p>
+            <p className="mt-1 text-xl font-semibold">{assets.length}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Directly available</p>
+            <p className="mt-1 text-xl font-semibold">{availableCount}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Derived manifests</p>
+            <p className="mt-1 text-xl font-semibold">{assets.length - availableCount}</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {loadState === "loaded" && assets.length === 0 && (
+            <div className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
+              尚未有持久化的檔案紀錄，後續 upload-init 流程會先在此建立 metadata。
+            </div>
+          )}
+
+          {assets.map((asset) => (
+            <div key={asset.id} className="rounded-xl border border-border/40 px-4 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground">{asset.name}</p>
+                    <Badge variant={asset.status === "active" ? "secondary" : "outline"}>
+                      {asset.status}
+                    </Badge>
+                    <Badge variant="outline">{asset.kind}</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{asset.detail}</p>
+                </div>
+                <div className="text-xs text-muted-foreground sm:text-right">
+                  <p>Source: {asset.source}</p>
+                  {asset.href && (
+                    <Button asChild variant="link" className="mt-1 inline-flex h-auto p-0 text-xs">
+                      <a href={asset.href} target="_blank" rel="noreferrer">
+                        Open asset
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+
+      {pendingUploadProcessing && (
+        <FileProcessingDialog
+          open
+          onClose={() => setPendingUploadProcessing(null)}
+          accountId={workspace.accountId}
+          workspaceId={workspace.id}
+          sourceFileId={pendingUploadProcessing.sourceFileId}
+          filename={pendingUploadProcessing.filename}
+          gcsUri={pendingUploadProcessing.gcsUri}
+          mimeType={pendingUploadProcessing.mimeType}
+          sizeBytes={pendingUploadProcessing.sizeBytes}
+        />
+      )}
+    </Card>
+  );
 }
 ````
 
@@ -75178,417 +76189,33 @@ export function PageTreeView({
 }
 ````
 
-## File: modules/knowledge/interfaces/components/RichTextEditor.tsx
+## File: modules/source/interfaces/components/FileProcessingDialog.tsx
 ````typescript
 "use client";
 
-/**
- * Module: knowledge
- * Layer: interfaces/components
- * Purpose: RichTextEditor — Tiptap-powered full-page rich text editor with
- *          Firebase persistence via PageEditorView's existing server actions.
- */
+import { useState } from "react";
+import Link from "next/link";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
-import { StarterKit } from "@tiptap/starter-kit";
-import { Placeholder } from "@tiptap/extension-placeholder";
-import { Underline } from "@tiptap/extension-underline";
-import { Link } from "@tiptap/extension-link";
-import { Typography } from "@tiptap/extension-typography";
-import { Color } from "@tiptap/extension-color";
-import { Loader2 } from "lucide-react";
-
-import { getKnowledgeBlocks } from "../queries/knowledge.queries";
-import { addKnowledgeBlock, updateKnowledgeBlock } from "../_actions/knowledge.actions";
-import type { BlockContent } from "../../domain/value-objects/block-content";
-import { richTextToPlainText } from "../../domain/value-objects/block-content";
-import { CalloutBlock } from "./extensions/callout-block.extension";
-import { ToggleBlock } from "./extensions/toggle-block.extension";
-import { TableOfContentsNode } from "./extensions/table-of-contents-node.extension";
-import { SyncedBlock } from "./extensions/synced-block.extension";
-import { EditorToolbar } from "./editor-toolbar";
-
-const DEBOUNCE_MS = 800;
-const TIPTAP_PROPERTY_KEY = "tiptapJson";
-
-interface TiptapJsonNode {
-  readonly type?: string;
-  readonly text?: string;
-  readonly attrs?: { readonly level?: number };
-  readonly content?: ReadonlyArray<TiptapJsonNode>;
-}
-
-interface RichTextEditorProps {
-  accountId: string;
-  pageId: string;
-  onDocumentChange?: (json: object) => void;
-}
-
-export function RichTextEditor({ accountId, pageId, onDocumentChange }: RichTextEditorProps) {
-  const [loading, setLoading] = useState(true);
-  const blockIdRef = useRef<string | null | undefined>(undefined);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latestJsonRef = useRef<object | null>(null);
-  const isSavingRef = useRef(false);
-  const mountedRef = useRef(true);
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] }, codeBlock: false }),
-      Placeholder.configure({ placeholder: "開始輸入，或按 / 選擇區塊類型…", emptyEditorClass: "is-editor-empty" }),
-      Underline,
-      Link.configure({ openOnClick: false, autolink: true, HTMLAttributes: { class: "text-primary underline" } }),
-      Typography,
-      Color,
-      CalloutBlock,
-      ToggleBlock,
-      TableOfContentsNode,
-      SyncedBlock,
-    ],
-    editable: true,
-    immediatelyRender: false,
-    onUpdate({ editor }) {
-      const json = editor.getJSON();
-      latestJsonRef.current = json;
-      onDocumentChange?.(json);
-      scheduleSave();
-    },
-  });
-
-  useEffect(() => {
-    mountedRef.current = true;
-    if (!accountId || !pageId || !editor) { setLoading(false); return; }
-    setLoading(true);
-
-    void (async () => {
-      try {
-        const blocks = await getKnowledgeBlocks(accountId, pageId);
-        const tiptapBlock = blocks.find((b) => b.content.properties?.[TIPTAP_PROPERTY_KEY] != null);
-
-        if (tiptapBlock) {
-          blockIdRef.current = tiptapBlock.id;
-          const json = tiptapBlock.content.properties![TIPTAP_PROPERTY_KEY] as object;
-          const fallbackHtml = buildHtmlFromTiptapJson(json as TiptapJsonNode);
-          if (mountedRef.current) {
-            editor.commands.setContent(json, { emitUpdate: false });
-            if (!editor.getText().trim() && fallbackHtml) {
-              editor.commands.setContent(fallbackHtml, { emitUpdate: false });
-            }
-          }
-        } else if (blocks.length > 0) {
-          const legacyHtml = blocks.map((b) => {
-            switch (b.content.type) {
-              case "heading-1": return `<h1>${escapeHtml(richTextToPlainText(b.content.richText))}</h1>`;
-              case "heading-2": return `<h2>${escapeHtml(richTextToPlainText(b.content.richText))}</h2>`;
-              case "heading-3": return `<h3>${escapeHtml(richTextToPlainText(b.content.richText))}</h3>`;
-              case "quote": return `<blockquote><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></blockquote>`;
-              case "bullet-list": return `<ul><li><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></li></ul>`;
-              case "numbered-list": return `<ol><li><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></li></ol>`;
-              case "code": return `<pre><code>${escapeHtml(richTextToPlainText(b.content.richText))}</code></pre>`;
-              case "divider": return "<hr />";
-              default: return `<p>${escapeHtml(richTextToPlainText(b.content.richText))}</p>`;
-            }
-          }).join("");
-          if (mountedRef.current) editor.commands.setContent(legacyHtml, { emitUpdate: false });
-        } else {
-          const result = await addKnowledgeBlock({ accountId, pageId, content: buildBlockContent(editor.getJSON()), index: 0 });
-          if (result.success) blockIdRef.current = result.aggregateId;
-        }
-      } catch {
-        // Silently ignore; editor is still usable, just unsaved.
-      } finally {
-        if (mountedRef.current) setLoading(false);
-      }
-    })();
-
-    return () => { mountedRef.current = false; };
-  }, [accountId, editor, pageId]);
-
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      editor?.destroy();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const scheduleSave = useCallback(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => { void persistNow(); }, DEBOUNCE_MS);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const persistNow = useCallback(async () => {
-    const json = latestJsonRef.current;
-    if (!json || isSavingRef.current) return;
-    isSavingRef.current = true;
-    try {
-      if (blockIdRef.current == null) {
-        const result = await addKnowledgeBlock({ accountId, pageId, content: buildBlockContent(json), index: 0 });
-        if (result.success) blockIdRef.current = result.aggregateId;
-      } else {
-        await updateKnowledgeBlock({ accountId, blockId: blockIdRef.current, content: buildBlockContent(json) });
-      }
-    } finally {
-      isSavingRef.current = false;
-    }
-  }, [accountId, pageId]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="size-4 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">載入內容中…</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex min-h-[400px] flex-col rounded-xl border border-border/60 bg-card">
-      {editor && <EditorToolbar editor={editor} />}
-      <EditorContent
-        editor={editor}
-        className="tiptap-editor flex-1 cursor-text px-6 py-4 text-sm text-foreground"
-      />
-    </div>
-  );
-}
-
-function buildBlockContent(tiptapJson: object): BlockContent {
-  return { type: "text", richText: [], properties: { [TIPTAP_PROPERTY_KEY]: tiptapJson } };
-}
-
-function extractTextFromTiptapNode(node: TiptapJsonNode | undefined): string {
-  if (!node) return "";
-  if (node.type === "text") {
-    return node.text ?? "";
-  }
-
-  return (node.content ?? []).map((child) => extractTextFromTiptapNode(child)).join("");
-}
-
-function buildHtmlFromTiptapJson(node: TiptapJsonNode | undefined): string {
-  if (!node) return "";
-
-  if (node.type === "doc") {
-    return (node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("");
-  }
-
-  if (node.type === "heading") {
-    const level = node.attrs?.level;
-    const normalizedLevel = level && level >= 1 && level <= 3 ? level : 2;
-    return `<h${normalizedLevel}>${escapeHtml(extractTextFromTiptapNode(node))}</h${normalizedLevel}>`;
-  }
-
-  if (node.type === "paragraph") {
-    const text = extractTextFromTiptapNode(node);
-    return text ? `<p>${escapeHtml(text)}</p>` : "<p></p>";
-  }
-
-  if (node.type === "bulletList") {
-    return `<ul>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</ul>`;
-  }
-
-  if (node.type === "orderedList") {
-    return `<ol>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</ol>`;
-  }
-
-  if (node.type === "listItem") {
-    return `<li>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</li>`;
-  }
-
-  if (node.type === "text") {
-    return escapeHtml(node.text ?? "");
-  }
-
-  return (node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("");
-}
-
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-}
-````
-
-## File: modules/source/interfaces/components/file-processing-dialog.parts.tsx
-````typescript
-"use client";
-
-import { CheckCircle2, FileText, Loader2, XCircle } from "lucide-react";
-
-import { cn } from "@ui-shadcn";
-import { Badge } from "@ui-shadcn/ui/badge";
-import type { TaskResult } from "./file-processing-dialog.utils";
-
-function formatFileSize(sizeBytes: number): string | null {
-  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) return null;
-
-  const units = ["B", "KB", "MB", "GB", "TB"] as const;
-  let value = sizeBytes;
-  let unitIndex = 0;
-
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${new Intl.NumberFormat("zh-TW", {
-    maximumFractionDigits: value >= 10 || unitIndex === 0 ? 0 : 1,
-  }).format(value)} ${units[unitIndex]}`;
-}
-
-export function FileProcessingPathValue({
-  value,
-}: {
-  readonly value: string;
-}) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-border/50 bg-background/80">
-      <div className="overflow-x-auto overscroll-x-contain px-3 py-2">
-        <p
-          className="min-w-max font-mono text-[11px] leading-5 text-muted-foreground"
-          translate="no"
-        >
-          {value}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-export function FileProcessingSourceCard({
-  filename,
-  mimeType,
-  gcsUri,
-  sizeBytes,
-}: {
-  readonly filename: string;
-  readonly mimeType: string;
-  readonly gcsUri: string;
-  readonly sizeBytes: number;
-}) {
-  const fileSizeLabel = formatFileSize(sizeBytes);
-
-  return (
-    <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm sm:p-5">
-      <div className="flex items-start gap-3 sm:gap-4">
-        <div className="rounded-2xl bg-primary/10 p-2.5 text-primary">
-          <FileText className="size-4" aria-hidden="true" />
-        </div>
-        <div className="min-w-0 flex-1 space-y-3">
-          <div className="space-y-2">
-            <p className="text-sm font-semibold text-foreground sm:text-base" translate="no">
-              {filename}
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="font-normal" translate="no">
-                {mimeType || "application/octet-stream"}
-              </Badge>
-              {fileSizeLabel ? <Badge variant="secondary">{fileSizeLabel}</Badge> : null}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              Source URI
-            </p>
-            <FileProcessingPathValue value={gcsUri} />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function FileProcessingResultRow({
-  label,
-  result,
-}: {
-  readonly label: string;
-  readonly result: TaskResult;
-}) {
-  const meta = {
-    running: {
-      badgeLabel: "處理中",
-      badgeVariant: "secondary" as const,
-      icon: <Loader2 className="size-4 animate-spin" aria-hidden="true" />,
-      iconClassName: "bg-muted text-muted-foreground",
-    },
-    success: {
-      badgeLabel: "完成",
-      badgeVariant: "outline" as const,
-      icon: <CheckCircle2 className="size-4" aria-hidden="true" />,
-      iconClassName: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40",
-    },
-    error: {
-      badgeLabel: "失敗",
-      badgeVariant: "outline" as const,
-      icon: <XCircle className="size-4" aria-hidden="true" />,
-      iconClassName: "bg-destructive/10 text-destructive",
-    },
-    skipped: {
-      badgeLabel: "略過",
-      badgeVariant: "outline" as const,
-      icon: <FileText className="size-4" aria-hidden="true" />,
-      iconClassName: "bg-muted text-muted-foreground",
-    },
-    idle: {
-      badgeLabel: "待命",
-      badgeVariant: "secondary" as const,
-      icon: <FileText className="size-4" aria-hidden="true" />,
-      iconClassName: "bg-muted text-muted-foreground",
-    },
-  }[result.status];
-
-  return (
-    <div className="flex items-start gap-3 rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm sm:gap-4 sm:p-5">
-      <div className={cn("mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full", meta.iconClassName)}>
-        {meta.icon}
-      </div>
-      <div className="min-w-0 flex-1 space-y-1.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm font-medium text-foreground sm:text-base">{label}</p>
-          <Badge variant={meta.badgeVariant}>{meta.badgeLabel}</Badge>
-        </div>
-        <p className="break-words text-xs leading-5 text-muted-foreground sm:text-sm">
-          {result.detail}
-        </p>
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/source/interfaces/components/WorkspaceFilesTab.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
-import { getWorkspaceFiles } from "../queries/file.queries";
-import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
-import { uploadCompleteFile, uploadInitFile } from "../_actions/file.actions";
-import { FileProcessingDialog } from "./FileProcessingDialog";
-import { Badge } from "@ui-shadcn/ui/badge";
+import { useAuth } from "@/app/providers/auth-provider";
+import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
 import { Button } from "@ui-shadcn/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { getFirebaseStorage } from "@integration-firebase";
+  createIdleSummary,
+  readCallableData,
+  readNumber,
+  readString,
+  type ExecutionSummary,
+  waitForParsedDocument,
+} from "./file-processing-dialog.utils";
+import { createKnowledgeDraftFromSourceDocument } from "../_actions/file-processing.actions";
+import { FileProcessingDialogBody } from "./file-processing-dialog.body";
+import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
 
-interface WorkspaceFilesTabProps {
-  readonly workspace: WorkspaceEntity;
-}
-
-interface PendingUploadProcessing {
+interface FileProcessingDialogProps {
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly accountId: string;
+  readonly workspaceId: string;
   readonly sourceFileId: string;
   readonly filename: string;
   readonly gcsUri: string;
@@ -75596,247 +76223,241 @@ interface PendingUploadProcessing {
   readonly sizeBytes: number;
 }
 
-export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
-  const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
-  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
-  const [pendingUploadProcessing, setPendingUploadProcessing] = useState<PendingUploadProcessing | null>(null);
+type DialogStep = "decide" | "select" | "executing" | "done";
 
-  const reloadFiles = useCallback(async () => {
-    setLoadState("loading");
+export function FileProcessingDialog({
+  open,
+  onClose,
+  accountId,
+  workspaceId,
+  sourceFileId,
+  filename,
+  gcsUri,
+  mimeType,
+  sizeBytes,
+}: FileProcessingDialogProps) {
+  const { state: { user } } = useAuth();
+  const [step, setStep] = useState<DialogStep>("decide");
+  const [shouldRunRag, setShouldRunRag] = useState(true);
+  const [shouldCreatePage, setShouldCreatePage] = useState(false);
+  const [summary, setSummary] = useState<ExecutionSummary>(createIdleSummary);
 
-    try {
-      const nextAssets = await getWorkspaceFiles(workspace);
-      setAssets(nextAssets);
-      setLoadState("loaded");
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn(
-          "[WorkspaceFilesTab] Failed to load file metadata:",
-          error instanceof Error ? error.message : "unknown error",
-        );
-      }
+  const canDismiss = step !== "executing";
 
-      setAssets([]);
-      setLoadState("error");
-    }
-  }, [workspace]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadFiles() {
-      await reloadFiles();
-      if (cancelled) {
-        return;
-      }
-    }
-
-    void loadFiles();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadFiles]);
-
-  async function handleUploadFile(file: File) {
-    const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
-    setUploadState("uploading");
-    setUploadMessage(null);
-
-    try {
-      const initResult = await uploadInitFile({
-        workspaceId: workspace.id,
-        organizationId,
-        actorAccountId: workspace.accountId,
-        fileName: file.name,
-        mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
-      });
-
-      if (!initResult.ok) {
-        setUploadState("error");
-        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);
-        return;
-      }
-
-      const storage = getFirebaseStorage();
-      const storageRef = ref(storage, initResult.data.uploadPath);
-      await uploadBytes(storageRef, file, {
-        contentType: file.type || "application/octet-stream",
-      });
-      await getDownloadURL(storageRef);
-
-      const completeResult = await uploadCompleteFile({
-        workspaceId: workspace.id,
-        organizationId,
-        actorAccountId: workspace.accountId,
-        fileId: initResult.data.fileId,
-        versionId: initResult.data.versionId,
-      });
-
-      if (!completeResult.ok) {
-        setUploadState("error");
-        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);
-        return;
-      }
-
-      setUploadState("success");
-      setUploadMessage(
-        `Uploaded ${file.name}; 接下來可由使用者決定是否解析、建立 RAG，或保留為單純檔案。`,
-      );
-      setPendingUploadProcessing({
-        sourceFileId: initResult.data.fileId,
-        filename: file.name,
-        gcsUri: `gs://${storageRef.bucket}/${storageRef.fullPath}`,
-        mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
-      });
-
-      await reloadFiles();
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceFilesTab] Upload flow failed:", error);
-      }
-      setUploadState("error");
-      setUploadMessage(
-        error instanceof Error
-          ? `Storage upload failed: ${error.message}`
-          : "Storage upload failed unexpectedly.",
-      );
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen && canDismiss) {
+      onClose();
     }
   }
 
-  const availableCount = useMemo(
-    () => assets.filter((asset) => asset.status === "active").length,
-    [assets],
+  async function handleExecute() {
+    setStep("executing");
+    setSummary({
+      ...createIdleSummary(),
+      parse: { status: "running", detail: "正在呼叫 Document AI 解析文件" },
+      rag: shouldRunRag
+        ? { status: "idle", detail: "等待文件解析完成後建立索引" }
+        : { status: "skipped", detail: "使用者未勾選 RAG 索引" },
+      page: shouldCreatePage
+        ? { status: "idle", detail: "等待文件解析完成後建立單頁草稿" }
+        : { status: "skipped", detail: "使用者未勾選 Knowledge Page" },
+    });
+
+    try {
+      const functions = getFirebaseFunctions("asia-southeast1");
+      const parseDocument = functionsApi.httpsCallable(functions, "parse_document");
+
+      const parseResponse = await parseDocument({
+        account_id: accountId,
+        workspace_id: workspaceId,
+        doc_id: sourceFileId,
+        gcs_uri: gcsUri,
+        filename,
+        mime_type: mimeType || "application/octet-stream",
+        size_bytes: sizeBytes,
+        run_rag: false,
+      });
+
+      const parseData = readCallableData(parseResponse.data);
+      const docId = readString(parseData.doc_id, sourceFileId);
+
+      setSummary((current) => ({
+        ...current,
+        parse: { status: "running", detail: "解析工作已送出，正在等待文件狀態完成" },
+      }));
+
+      const parsedDocument = await waitForParsedDocument(accountId, docId);
+
+      setSummary((current) => ({
+        ...current,
+        pageCount: parsedDocument.pageCount,
+        jsonGcsUri: parsedDocument.jsonGcsUri,
+        parse: {
+          status: "success",
+          detail: `解析完成，共 ${parsedDocument.pageCount} 頁。`,
+        },
+      }));
+
+      if (shouldCreatePage) {
+        setSummary((current) => ({
+          ...current,
+          page: { status: "running", detail: "正在建立可編輯的 Knowledge Page 草稿" },
+        }));
+
+        try {
+          if (!user?.id) {
+            throw new Error("缺少登入使用者，無法建立 Knowledge Page 草稿");
+          }
+
+          const draftPage = await createKnowledgeDraftFromSourceDocument({
+            accountId,
+            workspaceId,
+            createdByUserId: user.id,
+            filename,
+            sourceGcsUri: gcsUri,
+            jsonGcsUri: parsedDocument.jsonGcsUri,
+            pageCount: parsedDocument.pageCount,
+          });
+
+          if (!draftPage.success) {
+            throw new Error(draftPage.error.message || "建立 Knowledge Page 失敗");
+          }
+
+          setSummary((current) => ({
+            ...current,
+            pageHref: `/knowledge/pages/${draftPage.aggregateId}`,
+            page: {
+              status: "success",
+              detail: "已建立單頁 Draft，可直接進頁面補內容、調整結構，後續再迭代切頁策略。",
+            },
+          }));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "建立 Knowledge Page 失敗";
+          setSummary((current) => ({
+            ...current,
+            page: { status: "error", detail: message },
+          }));
+        }
+      }
+
+      if (shouldRunRag) {
+        setSummary((current) => ({
+          ...current,
+          rag: { status: "running", detail: "正在建立可檢索的 RAG 索引" },
+        }));
+
+        try {
+          const runRagIndex = functionsApi.httpsCallable(functions, "rag_reindex_document");
+          const ragResponse = await runRagIndex({
+            account_id: accountId,
+            workspace_id: workspaceId,
+            doc_id: docId,
+            json_gcs_uri: parsedDocument.jsonGcsUri,
+            source_gcs_uri: gcsUri,
+            filename,
+            page_count: parsedDocument.pageCount,
+          });
+          const ragResult = readCallableData(ragResponse.data);
+
+          setSummary((current) => ({
+            ...current,
+            rag: {
+              status: "success",
+              detail: `索引完成，${readNumber(ragResult.chunk_count, 0)} 個 chunks / ${readNumber(ragResult.vector_count, 0)} 個 vectors。`,
+            },
+          }));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "RAG 索引失敗";
+          setSummary((current) => ({
+            ...current,
+            rag: { status: "error", detail: message },
+          }));
+        }
+      }
+
+      setStep("done");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "文件處理失敗";
+
+      setSummary((current) => {
+        if (current.parse.status === "running") {
+          return {
+            ...current,
+            parse: { status: "error", detail: message },
+          };
+        }
+
+        return {
+          ...current,
+          rag: { status: "error", detail: message },
+        };
+      });
+
+      setStep("done");
+    }
+  }
+
+  const canContinue = shouldRunRag || shouldCreatePage;
+
+  const footerActions = (
+    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+      {step === "decide" && (
+        <>
+          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
+            保留檔案即可
+          </Button>
+          <Button onClick={() => setStep("select")} className="w-full sm:w-auto">
+            我要決定後續處理
+          </Button>
+        </>
+      )}
+
+      {step === "select" && (
+        <>
+          <Button variant="outline" onClick={() => setStep("decide")} className="w-full sm:w-auto">
+            上一步
+          </Button>
+          <Button onClick={() => { void handleExecute(); }} disabled={!canContinue} className="w-full sm:w-auto">
+            開始處理
+          </Button>
+        </>
+      )}
+
+      {step === "done" && (
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          {summary.pageHref && summary.page.status === "success" ? (
+            <Button asChild size="sm" variant="outline" className="w-full sm:w-auto">
+              <Link href={summary.pageHref}>前往 Draft Page</Link>
+            </Button>
+          ) : (
+            <div className="hidden sm:block" />
+          )}
+          <Button onClick={onClose} className="w-full sm:w-auto">完成</Button>
+        </div>
+      )}
+    </div>
   );
 
   return (
-    <Card className="border border-border/50">
-      <CardHeader>
-        <CardTitle>Files</CardTitle>
-        <CardDescription>
-          盤點目前已註冊或可立即導出的工作區資產，並提供 upload → storage → firestore 的完整流程入口。
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="rounded-xl border border-border/40 px-4 py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="space-y-1">
-              <Label htmlFor="workspace-file-upload" className="text-sm font-semibold text-foreground">
-                Upload file
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                This triggers upload-init, uploads binary to Storage, then writes completion + RAG registration to Firestore.
-              </p>
-            </div>
-            <Input
-              id="workspace-file-upload"
-              type="file"
-              className="max-w-xs"
-              disabled={uploadState === "uploading"}
-              onChange={(event) => {
-                const nextFile = event.target.files?.[0];
-                if (!nextFile) {
-                  return;
-                }
-
-                void handleUploadFile(nextFile);
-                event.currentTarget.value = "";
-              }}
-            />
-          </div>
-          {uploadMessage && (
-            <p
-              className={`mt-3 text-xs ${
-                uploadState === "error" ? "text-destructive" : "text-emerald-600"
-              }`}
-            >
-              {uploadMessage}
-            </p>
-          )}
-          {uploadState === "uploading" && (
-            <p className="mt-3 text-xs text-muted-foreground">Uploading and persisting metadata…</p>
-          )}
-        </div>
-
-        {loadState === "loading" && (
-          <p className="text-sm text-muted-foreground">Loading file metadata…</p>
-        )}
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">
-            無法載入已持久化的檔案資料，請稍後再試。
-          </p>
-        )}
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Registered assets</p>
-            <p className="mt-1 text-xl font-semibold">{assets.length}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Directly available</p>
-            <p className="mt-1 text-xl font-semibold">{availableCount}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Derived manifests</p>
-            <p className="mt-1 text-xl font-semibold">{assets.length - availableCount}</p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {loadState === "loaded" && assets.length === 0 && (
-            <div className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
-              尚未有持久化的檔案紀錄，後續 upload-init 流程會先在此建立 metadata。
-            </div>
-          )}
-
-          {assets.map((asset) => (
-            <div key={asset.id} className="rounded-xl border border-border/40 px-4 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-foreground">{asset.name}</p>
-                    <Badge variant={asset.status === "active" ? "secondary" : "outline"}>
-                      {asset.status}
-                    </Badge>
-                    <Badge variant="outline">{asset.kind}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{asset.detail}</p>
-                </div>
-                <div className="text-xs text-muted-foreground sm:text-right">
-                  <p>Source: {asset.source}</p>
-                  {asset.href && (
-                    <Button asChild variant="link" className="mt-1 inline-flex h-auto p-0 text-xs">
-                      <a href={asset.href} target="_blank" rel="noreferrer">
-                        Open asset
-                      </a>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-
-      {pendingUploadProcessing && (
-        <FileProcessingDialog
-          open
-          onClose={() => setPendingUploadProcessing(null)}
-          accountId={workspace.accountId}
-          workspaceId={workspace.id}
-          sourceFileId={pendingUploadProcessing.sourceFileId}
-          filename={pendingUploadProcessing.filename}
-          gcsUri={pendingUploadProcessing.gcsUri}
-          mimeType={pendingUploadProcessing.mimeType}
-          sizeBytes={pendingUploadProcessing.sizeBytes}
-        />
-      )}
-    </Card>
+    <FileProcessingDialogSurface
+      open={open}
+      canDismiss={canDismiss}
+      onOpenChange={handleOpenChange}
+      footer={step !== "executing" ? footerActions : null}
+    >
+      <FileProcessingDialogBody
+        step={step}
+        filename={filename}
+        mimeType={mimeType}
+        gcsUri={gcsUri}
+        sizeBytes={sizeBytes}
+        shouldRunRag={shouldRunRag}
+        shouldCreatePage={shouldCreatePage}
+        onShouldRunRagChange={setShouldRunRag}
+        onShouldCreatePageChange={setShouldCreatePage}
+        summary={summary}
+      />
+    </FileProcessingDialogSurface>
   );
 }
 ````
@@ -78109,129 +78730,6 @@ describe("knowledge-page.use-cases", () => {
 });
 ````
 
-## File: modules/source/interfaces/_actions/file-processing.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-
-import { addKnowledgeBlock, createKnowledgePage } from "@/modules/knowledge/api";
-import { buildDraftDocumentRepresentation } from "./file-processing-draft";
-
-const TIPTAP_PROPERTY_KEY = "tiptapJson";
-
-interface CreateKnowledgeDraftFromSourceDocumentInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly createdByUserId: string;
-  readonly filename: string;
-  readonly sourceGcsUri: string;
-  readonly jsonGcsUri: string;
-  readonly pageCount: number;
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function trimFileExtension(filename: string): string {
-  const trimmed = filename.trim();
-  const extensionIndex = trimmed.lastIndexOf(".");
-  if (extensionIndex <= 0) {
-    return trimmed;
-  }
-
-  return trimmed.slice(0, extensionIndex);
-}
-
-async function loadParsedDocumentText(jsonGcsUri: string): Promise<string> {
-  if (!jsonGcsUri) {
-    return "";
-  }
-
-  const storage = getFirebaseStorage();
-  const jsonRef = storageApi.ref(storage, jsonGcsUri);
-  const url = await storageApi.getDownloadURL(jsonRef);
-  const response = await fetch(url, { cache: "no-store" });
-
-  if (!response.ok) {
-    throw new Error(`無法讀取解析 JSON (${response.status})`);
-  }
-
-  const payload = asRecord(await response.json());
-  return asString(payload.text);
-}
-
-export async function createKnowledgeDraftFromSourceDocument(
-  input: CreateKnowledgeDraftFromSourceDocumentInput,
-): Promise<CommandResult> {
-  if (!input.accountId.trim() || !input.workspaceId.trim() || !input.createdByUserId.trim()) {
-    return commandFailureFrom(
-      "SOURCE_KNOWLEDGE_DRAFT_INVALID_SCOPE",
-      "accountId、workspaceId、createdByUserId 為必填。",
-    );
-  }
-
-  if (!input.filename.trim() || !input.sourceGcsUri.trim() || !input.jsonGcsUri.trim()) {
-    return commandFailureFrom(
-      "SOURCE_KNOWLEDGE_DRAFT_INVALID_SOURCE",
-      "filename、sourceGcsUri、jsonGcsUri 為必填。",
-    );
-  }
-
-  try {
-    const parsedText = await loadParsedDocumentText(input.jsonGcsUri);
-    const draftDocument = buildDraftDocumentRepresentation({
-      filename: input.filename,
-      sourceGcsUri: input.sourceGcsUri,
-      jsonGcsUri: input.jsonGcsUri,
-      pageCount: input.pageCount,
-      parsedText,
-    });
-    const pageResult = await createKnowledgePage({
-      accountId: input.accountId,
-      workspaceId: input.workspaceId,
-      title: draftDocument.title || `${trimFileExtension(input.filename)}｜匯入草稿`,
-      parentPageId: null,
-      createdByUserId: input.createdByUserId,
-    });
-
-    if (!pageResult.success) {
-      return pageResult;
-    }
-
-    const blockResult = await addKnowledgeBlock({
-      accountId: input.accountId,
-      pageId: pageResult.aggregateId,
-      index: 0,
-      content: {
-        type: "text",
-        richText: [{ type: "text", plainText: draftDocument.plainText }],
-        properties: {
-          [TIPTAP_PROPERTY_KEY]: draftDocument.tiptapDocument,
-        },
-      },
-    });
-
-    if (!blockResult.success) {
-      return blockResult;
-    }
-
-    return commandSuccess(pageResult.aggregateId, blockResult.version);
-  } catch (error) {
-    return commandFailureFrom(
-      "SOURCE_KNOWLEDGE_DRAFT_CREATE_FAILED",
-      error instanceof Error ? error.message : "建立 Knowledge Page Draft 失敗。",
-    );
-  }
-}
-````
-
 ## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
 ````typescript
 import type {
@@ -80050,6 +80548,159 @@ Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 
 - [context-map.md](./context-map.md) — 與其他 bounded contexts 的關係
 ````
 
+## File: app/(shell)/_components/nav-preferences-data.ts
+````typescript
+/**
+ * nav-preferences-data.ts
+ * Owns: NavPreferences type, nav-item catalogs, default values,
+ *   validation helpers, and localStorage read/write utilities.
+ * Constraints: No React imports. No UI imports. Pure data / serialization.
+ */
+
+import {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "@/modules/workspace/api";
+
+// Re-export so existing consumers of this file (customize-navigation-dialog
+// via nav-preferences-data) keep working during the transition.
+export { WORKSPACE_NAV_ITEMS, normalizeWorkspaceOrder };
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+export interface NavPreferences {
+  /** IDs of personal nav items that are pinned */
+  pinnedPersonal: string[];
+  /** IDs of workspace org-management items that are pinned */
+  pinnedWorkspace: string[];
+  /** Whether to show a limited number of workspaces */
+  showLimitedWorkspaces: boolean;
+  /** Max number of workspaces to show (when showLimitedWorkspaces = true) */
+  maxWorkspaces: number;
+  /** Explicit display order of workspace items for sidebar and customize dialog */
+  workspaceOrder: string[];
+}
+
+export interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+
+const STORAGE_KEY = "xuanwu:nav-preferences";
+
+// ── Personal nav items ─────────────────────────────────────────────────────
+
+export const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
+  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
+];
+
+// ── Workspace / org-management items ──────────────────────────────────────
+// WORKSPACE_NAV_ITEMS is owned by modules/workspace/api (workspace BC).
+// It is re-exported above for backward-compatible consumers of this file.
+
+export const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
+  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
+  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
+  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
+];
+
+export const DIALOG_TEXT = {
+  zh: {
+    title: "Customize navigation",
+    description:
+      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
+    sectionPersonal: "個人",
+    sectionWorkspace: "工作區",
+    sectionOrganization: "組織管理",
+    sectionDisplay: "顯示設定",
+    limitedLabel: "側欄僅顯示固定數量的最近工作區",
+    limitedInputLabel: "工作區數量",
+    done: "完成",
+    recentWorkspaces: "最近工作區",
+  },
+  en: {
+    title: "Customize navigation",
+    description:
+      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
+    sectionPersonal: "Personal",
+    sectionWorkspace: "Workspace",
+    sectionOrganization: "Organization",
+    sectionDisplay: "Display",
+    limitedLabel: "Show a limited number of recent workspaces in sidebar",
+    limitedInputLabel: "Number of workspaces",
+    done: "Done",
+    recentWorkspaces: "Recent workspaces",
+  },
+} as const;
+
+// ── Defaults + validation ──────────────────────────────────────────────────
+
+export const DEFAULT_PREFS: NavPreferences = {
+  pinnedPersonal: ["recent-workspaces"],
+  pinnedWorkspace: [
+    ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
+    ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
+  ],
+  showLimitedWorkspaces: true,
+  maxWorkspaces: 10,
+  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
+};
+
+const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
+const VALID_WORKSPACE_ITEM_IDS = new Set([
+  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
+  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
+]);
+// normalizeWorkspaceOrder is owned by modules/workspace/api (workspace BC).
+// It is re-exported above.
+
+function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
+  if (!Array.isArray(ids)) return fallback;
+  const normalized = ids
+    .filter((id): id is string => typeof id === "string")
+    .filter((id) => validSet.has(id));
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
+}
+
+// ── localStorage helpers ───────────────────────────────────────────────────
+
+export function readNavPreferences(): NavPreferences {
+  if (typeof window === "undefined") return DEFAULT_PREFS;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_PREFS;
+    const parsed = JSON.parse(raw) as Partial<NavPreferences>;
+    return {
+      pinnedPersonal: normalizePinnedIds(
+        parsed.pinnedPersonal,
+        VALID_PERSONAL_ITEM_IDS,
+        DEFAULT_PREFS.pinnedPersonal,
+      ),
+      pinnedWorkspace: normalizePinnedIds(
+        parsed.pinnedWorkspace,
+        VALID_WORKSPACE_ITEM_IDS,
+        DEFAULT_PREFS.pinnedWorkspace,
+      ),
+      showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
+      maxWorkspaces:
+        typeof parsed.maxWorkspaces === "number"
+          ? parsed.maxWorkspaces
+          : DEFAULT_PREFS.maxWorkspaces,
+      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
+    };
+  } catch {
+    return DEFAULT_PREFS;
+  }
+}
+
+export function writeNavPreferences(prefs: NavPreferences): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+}
+````
+
 ## File: app/(shell)/_components/use-recent-workspaces.ts
 ````typescript
 export {
@@ -80057,6 +80708,44 @@ export {
   getWorkspaceIdFromPath,
   useRecentWorkspaces,
 } from "@/modules/workspace/api";
+````
+
+## File: app/(shell)/_components/workspace-sidebar-section.tsx
+````typescript
+"use client";
+
+import { WorkspaceSidebarSection as ModuleWorkspaceSidebarSection } from "@/modules/workspace/api";
+
+import type { SidebarLocaleBundle } from "./use-sidebar-locale";
+import type { NavPreferences } from "./customize-navigation-dialog";
+import { sidebarItemClass } from "./sidebar-nav-data";
+
+// ── Tab link item shape ────────────────────────────────────────────────────────
+
+// ── Props ─────────────────────────────────────────────────────────────────────
+
+interface WorkspaceSidebarSectionProps {
+  workspacePathId: string;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function WorkspaceSidebarSection({
+  workspacePathId,
+  navPrefs,
+  localeBundle,
+}: WorkspaceSidebarSectionProps) {
+  return (
+    <ModuleWorkspaceSidebarSection
+      workspacePathId={workspacePathId}
+      navPrefs={navPrefs}
+      localeBundle={localeBundle}
+      getItemClassName={sidebarItemClass}
+    />
+  );
+}
 ````
 
 ## File: app/(shell)/ai-chat/page.tsx
@@ -80431,279 +81120,6 @@ export default function WorkspaceDetailPage() {
 }
 ````
 
-## File: modules/source/interfaces/components/FileProcessingDialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-import Link from "next/link";
-
-import { useAuth } from "@/app/providers/auth-provider";
-import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  createIdleSummary,
-  readCallableData,
-  readNumber,
-  readString,
-  type ExecutionSummary,
-  waitForParsedDocument,
-} from "./file-processing-dialog.utils";
-import { createKnowledgeDraftFromSourceDocument } from "../_actions/file-processing.actions";
-import { FileProcessingDialogBody } from "./file-processing-dialog.body";
-import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
-
-interface FileProcessingDialogProps {
-  readonly open: boolean;
-  readonly onClose: () => void;
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly sourceFileId: string;
-  readonly filename: string;
-  readonly gcsUri: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-}
-
-type DialogStep = "decide" | "select" | "executing" | "done";
-
-export function FileProcessingDialog({
-  open,
-  onClose,
-  accountId,
-  workspaceId,
-  sourceFileId,
-  filename,
-  gcsUri,
-  mimeType,
-  sizeBytes,
-}: FileProcessingDialogProps) {
-  const { state: { user } } = useAuth();
-  const [step, setStep] = useState<DialogStep>("decide");
-  const [shouldRunRag, setShouldRunRag] = useState(true);
-  const [shouldCreatePage, setShouldCreatePage] = useState(false);
-  const [summary, setSummary] = useState<ExecutionSummary>(createIdleSummary);
-
-  const canDismiss = step !== "executing";
-
-  function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen && canDismiss) {
-      onClose();
-    }
-  }
-
-  async function handleExecute() {
-    setStep("executing");
-    setSummary({
-      ...createIdleSummary(),
-      parse: { status: "running", detail: "正在呼叫 Document AI 解析文件" },
-      rag: shouldRunRag
-        ? { status: "idle", detail: "等待文件解析完成後建立索引" }
-        : { status: "skipped", detail: "使用者未勾選 RAG 索引" },
-      page: shouldCreatePage
-        ? { status: "idle", detail: "等待文件解析完成後建立單頁草稿" }
-        : { status: "skipped", detail: "使用者未勾選 Knowledge Page" },
-    });
-
-    try {
-      const functions = getFirebaseFunctions("asia-southeast1");
-      const parseDocument = functionsApi.httpsCallable(functions, "parse_document");
-
-      const parseResponse = await parseDocument({
-        account_id: accountId,
-        workspace_id: workspaceId,
-        doc_id: sourceFileId,
-        gcs_uri: gcsUri,
-        filename,
-        mime_type: mimeType || "application/octet-stream",
-        size_bytes: sizeBytes,
-        run_rag: false,
-      });
-
-      const parseData = readCallableData(parseResponse.data);
-      const docId = readString(parseData.doc_id, sourceFileId);
-
-      setSummary((current) => ({
-        ...current,
-        parse: { status: "running", detail: "解析工作已送出，正在等待文件狀態完成" },
-      }));
-
-      const parsedDocument = await waitForParsedDocument(accountId, docId);
-
-      setSummary((current) => ({
-        ...current,
-        pageCount: parsedDocument.pageCount,
-        jsonGcsUri: parsedDocument.jsonGcsUri,
-        parse: {
-          status: "success",
-          detail: `解析完成，共 ${parsedDocument.pageCount} 頁。`,
-        },
-      }));
-
-      if (shouldCreatePage) {
-        setSummary((current) => ({
-          ...current,
-          page: { status: "running", detail: "正在建立可編輯的 Knowledge Page 草稿" },
-        }));
-
-        try {
-          if (!user?.id) {
-            throw new Error("缺少登入使用者，無法建立 Knowledge Page 草稿");
-          }
-
-          const draftPage = await createKnowledgeDraftFromSourceDocument({
-            accountId,
-            workspaceId,
-            createdByUserId: user.id,
-            filename,
-            sourceGcsUri: gcsUri,
-            jsonGcsUri: parsedDocument.jsonGcsUri,
-            pageCount: parsedDocument.pageCount,
-          });
-
-          if (!draftPage.success) {
-            throw new Error(draftPage.error.message || "建立 Knowledge Page 失敗");
-          }
-
-          setSummary((current) => ({
-            ...current,
-            pageHref: `/knowledge/pages/${draftPage.aggregateId}`,
-            page: {
-              status: "success",
-              detail: "已建立單頁 Draft，可直接進頁面補內容、調整結構，後續再迭代切頁策略。",
-            },
-          }));
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "建立 Knowledge Page 失敗";
-          setSummary((current) => ({
-            ...current,
-            page: { status: "error", detail: message },
-          }));
-        }
-      }
-
-      if (shouldRunRag) {
-        setSummary((current) => ({
-          ...current,
-          rag: { status: "running", detail: "正在建立可檢索的 RAG 索引" },
-        }));
-
-        try {
-          const runRagIndex = functionsApi.httpsCallable(functions, "rag_reindex_document");
-          const ragResponse = await runRagIndex({
-            account_id: accountId,
-            workspace_id: workspaceId,
-            doc_id: docId,
-            json_gcs_uri: parsedDocument.jsonGcsUri,
-            source_gcs_uri: gcsUri,
-            filename,
-            page_count: parsedDocument.pageCount,
-          });
-          const ragResult = readCallableData(ragResponse.data);
-
-          setSummary((current) => ({
-            ...current,
-            rag: {
-              status: "success",
-              detail: `索引完成，${readNumber(ragResult.chunk_count, 0)} 個 chunks / ${readNumber(ragResult.vector_count, 0)} 個 vectors。`,
-            },
-          }));
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "RAG 索引失敗";
-          setSummary((current) => ({
-            ...current,
-            rag: { status: "error", detail: message },
-          }));
-        }
-      }
-
-      setStep("done");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "文件處理失敗";
-
-      setSummary((current) => {
-        if (current.parse.status === "running") {
-          return {
-            ...current,
-            parse: { status: "error", detail: message },
-          };
-        }
-
-        return {
-          ...current,
-          rag: { status: "error", detail: message },
-        };
-      });
-
-      setStep("done");
-    }
-  }
-
-  const canContinue = shouldRunRag || shouldCreatePage;
-
-  const footerActions = (
-    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
-      {step === "decide" && (
-        <>
-          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
-            保留檔案即可
-          </Button>
-          <Button onClick={() => setStep("select")} className="w-full sm:w-auto">
-            我要決定後續處理
-          </Button>
-        </>
-      )}
-
-      {step === "select" && (
-        <>
-          <Button variant="outline" onClick={() => setStep("decide")} className="w-full sm:w-auto">
-            上一步
-          </Button>
-          <Button onClick={() => { void handleExecute(); }} disabled={!canContinue} className="w-full sm:w-auto">
-            開始處理
-          </Button>
-        </>
-      )}
-
-      {step === "done" && (
-        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          {summary.pageHref && summary.page.status === "success" ? (
-            <Button asChild size="sm" variant="outline" className="w-full sm:w-auto">
-              <Link href={summary.pageHref}>前往 Draft Page</Link>
-            </Button>
-          ) : (
-            <div className="hidden sm:block" />
-          )}
-          <Button onClick={onClose} className="w-full sm:w-auto">完成</Button>
-        </div>
-      )}
-    </div>
-  );
-
-  return (
-    <FileProcessingDialogSurface
-      open={open}
-      canDismiss={canDismiss}
-      onOpenChange={handleOpenChange}
-      footer={step !== "executing" ? footerActions : null}
-    >
-      <FileProcessingDialogBody
-        step={step}
-        filename={filename}
-        mimeType={mimeType}
-        gcsUri={gcsUri}
-        sizeBytes={sizeBytes}
-        shouldRunRag={shouldRunRag}
-        shouldCreatePage={shouldCreatePage}
-        onShouldRunRagChange={setShouldRunRag}
-        onShouldCreatePageChange={setShouldCreatePage}
-        summary={summary}
-      />
-    </FileProcessingDialogSurface>
-  );
-}
-````
-
 ## File: modules/workspace/api/index.ts
 ````typescript
 /**
@@ -81042,159 +81458,6 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 - 只服務單一 page 的 tab composition helper
 ````
 
-## File: app/(shell)/_components/nav-preferences-data.ts
-````typescript
-/**
- * nav-preferences-data.ts
- * Owns: NavPreferences type, nav-item catalogs, default values,
- *   validation helpers, and localStorage read/write utilities.
- * Constraints: No React imports. No UI imports. Pure data / serialization.
- */
-
-import {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "@/modules/workspace/api";
-
-// Re-export so existing consumers of this file (customize-navigation-dialog
-// via nav-preferences-data) keep working during the transition.
-export { WORKSPACE_NAV_ITEMS, normalizeWorkspaceOrder };
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export interface NavPreferences {
-  /** IDs of personal nav items that are pinned */
-  pinnedPersonal: string[];
-  /** IDs of workspace org-management items that are pinned */
-  pinnedWorkspace: string[];
-  /** Whether to show a limited number of workspaces */
-  showLimitedWorkspaces: boolean;
-  /** Max number of workspaces to show (when showLimitedWorkspaces = true) */
-  maxWorkspaces: number;
-  /** Explicit display order of workspace items for sidebar and customize dialog */
-  workspaceOrder: string[];
-}
-
-export interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
-
-const STORAGE_KEY = "xuanwu:nav-preferences";
-
-// ── Personal nav items ─────────────────────────────────────────────────────
-
-export const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
-  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
-];
-
-// ── Workspace / org-management items ──────────────────────────────────────
-// WORKSPACE_NAV_ITEMS is owned by modules/workspace/api (workspace BC).
-// It is re-exported above for backward-compatible consumers of this file.
-
-export const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
-  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
-  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
-  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
-];
-
-export const DIALOG_TEXT = {
-  zh: {
-    title: "Customize navigation",
-    description:
-      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
-    sectionPersonal: "個人",
-    sectionWorkspace: "工作區",
-    sectionOrganization: "組織管理",
-    sectionDisplay: "顯示設定",
-    limitedLabel: "側欄僅顯示固定數量的最近工作區",
-    limitedInputLabel: "工作區數量",
-    done: "完成",
-    recentWorkspaces: "最近工作區",
-  },
-  en: {
-    title: "Customize navigation",
-    description:
-      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
-    sectionPersonal: "Personal",
-    sectionWorkspace: "Workspace",
-    sectionOrganization: "Organization",
-    sectionDisplay: "Display",
-    limitedLabel: "Show a limited number of recent workspaces in sidebar",
-    limitedInputLabel: "Number of workspaces",
-    done: "Done",
-    recentWorkspaces: "Recent workspaces",
-  },
-} as const;
-
-// ── Defaults + validation ──────────────────────────────────────────────────
-
-export const DEFAULT_PREFS: NavPreferences = {
-  pinnedPersonal: ["recent-workspaces"],
-  pinnedWorkspace: [
-    ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
-    ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
-  ],
-  showLimitedWorkspaces: true,
-  maxWorkspaces: 10,
-  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
-};
-
-const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
-const VALID_WORKSPACE_ITEM_IDS = new Set([
-  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
-  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
-]);
-// normalizeWorkspaceOrder is owned by modules/workspace/api (workspace BC).
-// It is re-exported above.
-
-function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
-  if (!Array.isArray(ids)) return fallback;
-  const normalized = ids
-    .filter((id): id is string => typeof id === "string")
-    .filter((id) => validSet.has(id));
-  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
-}
-
-// ── localStorage helpers ───────────────────────────────────────────────────
-
-export function readNavPreferences(): NavPreferences {
-  if (typeof window === "undefined") return DEFAULT_PREFS;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_PREFS;
-    const parsed = JSON.parse(raw) as Partial<NavPreferences>;
-    return {
-      pinnedPersonal: normalizePinnedIds(
-        parsed.pinnedPersonal,
-        VALID_PERSONAL_ITEM_IDS,
-        DEFAULT_PREFS.pinnedPersonal,
-      ),
-      pinnedWorkspace: normalizePinnedIds(
-        parsed.pinnedWorkspace,
-        VALID_WORKSPACE_ITEM_IDS,
-        DEFAULT_PREFS.pinnedWorkspace,
-      ),
-      showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
-      maxWorkspaces:
-        typeof parsed.maxWorkspaces === "number"
-          ? parsed.maxWorkspaces
-          : DEFAULT_PREFS.maxWorkspaces,
-      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
-    };
-  } catch {
-    return DEFAULT_PREFS;
-  }
-}
-
-export function writeNavPreferences(prefs: NavPreferences): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-}
-````
-
 ## File: app/(shell)/_components/sidebar-nav-data.tsx
 ````typescript
 import {
@@ -81346,44 +81609,6 @@ export function SimpleNavLinks({
         );
       })}
     </nav>
-  );
-}
-````
-
-## File: app/(shell)/_components/workspace-sidebar-section.tsx
-````typescript
-"use client";
-
-import { WorkspaceSidebarSection as ModuleWorkspaceSidebarSection } from "@/modules/workspace/api";
-
-import type { SidebarLocaleBundle } from "./use-sidebar-locale";
-import type { NavPreferences } from "./customize-navigation-dialog";
-import { sidebarItemClass } from "./sidebar-nav-data";
-
-// ── Tab link item shape ────────────────────────────────────────────────────────
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-interface WorkspaceSidebarSectionProps {
-  workspacePathId: string;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function WorkspaceSidebarSection({
-  workspacePathId,
-  navPrefs,
-  localeBundle,
-}: WorkspaceSidebarSectionProps) {
-  return (
-    <ModuleWorkspaceSidebarSection
-      workspacePathId={workspacePathId}
-      navPrefs={navPrefs}
-      localeBundle={localeBundle}
-      getItemClassName={sidebarItemClass}
-    />
   );
 }
 ````
@@ -82291,140 +82516,6 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 | Domain Event（領域事件） | 事件類別、訊息物件，作為對外發布的 domain language |
 ````
 
-## File: modules/workspace/aggregates.md
-````markdown
-# Aggregates — workspace
-
-本文件中的 Aggregate / Aggregate Root、Entity、Value Object 都以類別 / 物件來討論；它們是 workspace bounded context 的 write-side domain model，而不是 UI projection。
-
-從六邊形架構的角度看，這份文件描述的是 bounded context 核心的 domain model，不是外層 adapter，也不是整個 Xuanwu domain 的 context map。
-
-這裡列出的 aggregate、entity、value object 也是此 bounded context 通用語言的一部分；它們與 domain events 一起構成 `workspace` collaboration language，而不只是型別分類。
-
-Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain model 外圍。這份文件只在需要區分 read model / projection 時提及外層結構。
-
-## Domain Model Folder Contract
-
-| 目錄 | 角色 | 放什麼 |
-|---|---|---|
-| `domain/aggregates/` | Aggregate Root 主體 | write-side consistency boundary、aggregate commands、aggregate methods |
-| `domain/entities/` | supporting entities / 既有 domain objects | 具 identity 的 supporting objects、過渡期既有模型 |
-| `domain/value-objects/` | value equality 語意 | `WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address` |
-| `domain/services/` | 純業務規則 | 不自然屬於單一 aggregate 的規則 |
-| `domain/events/` | published domain language | 對外發布的事件語言 |
-
-文件與後續代碼應以這個結構為收斂方向。
-
-## Write-side Aggregate Root
-
-### `Workspace`
-
-`Workspace` 是此 bounded context 的 aggregate root。它代表一個協作範圍，並保護工作區生命週期、可見性與工作區範圍識別語言的一致性。
-
-在目標結構下，`Workspace` 應位於 `domain/aggregates/`。若某些既有程式仍暫放在 `domain/entities/`，應視為收斂中的過渡狀態，而不是新的建模準則。
-
-### 核心屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 工作區主鍵；建立後不可變更 |
-| `name` | `WorkspaceName` | 工作區名稱值對象 |
-| `accountId` | `string` | 擁有工作區的 account / organization |
-| `accountType` | `"user" \| "organization"` | 擁有者類型 |
-| `lifecycleState` | `WorkspaceLifecycleState` | `preparatory | active | stopped` |
-| `visibility` | `WorkspaceVisibility` | `visible | hidden` |
-| `createdAt` | `Timestamp` | 建立時間 |
-
-### 不變條件
-
-- `id`、`accountId`、`accountType` 在建立後不可變更
-- `lifecycleState` 的 canonical 語言是 `preparatory | active | stopped`
-- `visibility` 的 canonical 語言是 `visible | hidden`
-- 下游 context 只能在有效的 `workspaceId` 範圍內掛載資料與行為
-
-## Supporting Domain Objects Inside `Workspace`
-
-### Entities
-
-| 類型 | 說明 |
-|------|------|
-| `WorkspaceLocation` | 以 `locationId` 識別的工作區位置節點 |
-| `Capability` | 目前以 `id` 識別的工作區能力記錄；若治理規則成長，可再評估外拆 |
-| `WorkspacePersonnelCustomRole` | 以 `roleId` 識別的人員自訂角色記錄 |
-
-這些 supporting entities 應放在 `domain/entities/`，而不是回頭冒充 aggregate root。
-
-### Value Objects
-
-| 類型 | 說明 |
-|------|------|
-| `WorkspaceLifecycleState` | 工作區生命週期值 |
-| `WorkspaceVisibility` | 工作區可見性值 |
-| `WorkspaceName` | 工作區名稱值，負責 trim 與基本字串約束 |
-| `Address` | 地址值型資料 |
-| `WorkspaceGrant` | 工作區授權記錄；以內容而非獨立 aggregate identity 判斷語意 |
-| `WorkspacePersonnel` | 管理/監督/安全等角色參照集合 |
-| `CapabilitySpec` | 能力定義的值型描述 |
-
-這些型別應留在 `domain/value-objects/`，不應放進 `application/dtos/` 或 `interfaces/` 充當資料傳輸形狀。
-
-## Read-side Projections / Read Models（不是 Aggregate）
-
-| 類型 | 說明 |
-|------|------|
-| `WorkspaceMemberView` | 工作區成員查詢投影，組合 workspace 與 organization 的資料 |
-| `WorkspaceMemberAccessChannel` | 讀模型中的接入通道描述 |
-| `WikiAccountContentNode` | 帳戶導覽節點 |
-| `WikiWorkspaceContentNode` | 工作區導覽節點 |
-| `WikiContentItemNode` | 導覽項 read projection |
-
-`WorkspaceMemberView` 與 `Wiki*Node` 型別應放在 `application/dtos/` 下，作為 query-side projection，而不是 write-side aggregate、entity 或 value object。
-
-文件上必須清楚區分：
-
-- write-side truth：`domain/aggregates/`、`domain/entities/`、`domain/value-objects/`
-- read-side projection：供查詢與呈現使用的 `WorkspaceMemberView`、`Wiki*Node`
-
-這些 projection / read model 是為特定讀取需求與驅動器提供的查詢形狀：
-
-- 它們可由 query-side use case、repository adapter 或 ACL translation 組裝
-- 它們優先服務查詢與呈現，不優先服務 invariant 保護
-- 它們不是 ports，也不是 adapters；而是 adapters / query flows 產出的讀取模型
-
-## Strategic Reminder
-
-- `Workspace` aggregate root 屬於 `workspace` 這個 bounded context 的內部 tactical model
-- 它不等於整個 Xuanwu domain，也不等於 generic subdomain 的全部關係圖
-- Subdomain / Bounded Context 的外部關係應在 `README.md` 與 `context-map.md` 理解，不應把整體戰略關係塞回 aggregate 定義
-- 一個 subdomain 內可以有多個 bounded contexts；本文件只處理 `modules/workspace/` 這個 bounded context 的核心模型
-
-## Factory Boundary
-
-- Factory（工廠）在本 context 中是類別 / 函式，用來建立 aggregate、value object 或對 reconstitution 做集中驗證
-- `Workspace` 與 P1 value objects 應優先透過 factory / parser 建立，而不是由 interface adapter 任意拼接 raw object
-- Factory 不是 Repository，也不是 Domain Service；它的責任是安全建立模型，不是持久化或協調流程
-
-## 與 Application / Ports 的分工
-
-- Aggregate 保護 invariant，不協調長流程
-- Domain Service 補足不自然屬於單一 aggregate 的純規則
-- Application Service 協調多個 use case 或跨 aggregate 流程
-- Output Ports 負責外部能力抽象，不屬於 domain model 本體
-
-## What This File Does Not Own
-
-- Driver / 外部驅動器：例如 Browser UI、Server Actions、其他 bounded context 呼叫者
-- Adapter：例如 Firebase repository classes、Server Action wrappers、query wrappers
-- Port 定義本身：見 [repositories.md](./repositories.md)
-
-## Tactical Debt Notes
-
-- `Workspace` aggregate 目前仍承載 capabilities、grants、locations、personnel 等 supporting records；若之後規則持續成長，應再評估切分 ownership
-- P1 已正式落地於 `domain/value-objects/`：`WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
-- `WikiContentTree` 不是 write-side aggregate；它是為導覽組裝的 query model
-- `WorkspaceMember` 不是目前的 canonical write-side 名稱；查詢模型請使用 `WorkspaceMemberView`
-````
-
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
 ````typescript
 "use client";
@@ -82981,6 +83072,140 @@ export function DashboardSidebar({
     </div>
   );
 }
+````
+
+## File: modules/workspace/aggregates.md
+````markdown
+# Aggregates — workspace
+
+本文件中的 Aggregate / Aggregate Root、Entity、Value Object 都以類別 / 物件來討論；它們是 workspace bounded context 的 write-side domain model，而不是 UI projection。
+
+從六邊形架構的角度看，這份文件描述的是 bounded context 核心的 domain model，不是外層 adapter，也不是整個 Xuanwu domain 的 context map。
+
+這裡列出的 aggregate、entity、value object 也是此 bounded context 通用語言的一部分；它們與 domain events 一起構成 `workspace` collaboration language，而不只是型別分類。
+
+Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain model 外圍。這份文件只在需要區分 read model / projection 時提及外層結構。
+
+## Domain Model Folder Contract
+
+| 目錄 | 角色 | 放什麼 |
+|---|---|---|
+| `domain/aggregates/` | Aggregate Root 主體 | write-side consistency boundary、aggregate commands、aggregate methods |
+| `domain/entities/` | supporting entities / 既有 domain objects | 具 identity 的 supporting objects、過渡期既有模型 |
+| `domain/value-objects/` | value equality 語意 | `WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address` |
+| `domain/services/` | 純業務規則 | 不自然屬於單一 aggregate 的規則 |
+| `domain/events/` | published domain language | 對外發布的事件語言 |
+
+文件與後續代碼應以這個結構為收斂方向。
+
+## Write-side Aggregate Root
+
+### `Workspace`
+
+`Workspace` 是此 bounded context 的 aggregate root。它代表一個協作範圍，並保護工作區生命週期、可見性與工作區範圍識別語言的一致性。
+
+在目標結構下，`Workspace` 應位於 `domain/aggregates/`。若某些既有程式仍暫放在 `domain/entities/`，應視為收斂中的過渡狀態，而不是新的建模準則。
+
+### 核心屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 工作區主鍵；建立後不可變更 |
+| `name` | `WorkspaceName` | 工作區名稱值對象 |
+| `accountId` | `string` | 擁有工作區的 account / organization |
+| `accountType` | `"user" \| "organization"` | 擁有者類型 |
+| `lifecycleState` | `WorkspaceLifecycleState` | `preparatory | active | stopped` |
+| `visibility` | `WorkspaceVisibility` | `visible | hidden` |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+### 不變條件
+
+- `id`、`accountId`、`accountType` 在建立後不可變更
+- `lifecycleState` 的 canonical 語言是 `preparatory | active | stopped`
+- `visibility` 的 canonical 語言是 `visible | hidden`
+- 下游 context 只能在有效的 `workspaceId` 範圍內掛載資料與行為
+
+## Supporting Domain Objects Inside `Workspace`
+
+### Entities
+
+| 類型 | 說明 |
+|------|------|
+| `WorkspaceLocation` | 以 `locationId` 識別的工作區位置節點 |
+| `Capability` | 目前以 `id` 識別的工作區能力記錄；若治理規則成長，可再評估外拆 |
+| `WorkspacePersonnelCustomRole` | 以 `roleId` 識別的人員自訂角色記錄 |
+
+這些 supporting entities 應放在 `domain/entities/`，而不是回頭冒充 aggregate root。
+
+### Value Objects
+
+| 類型 | 說明 |
+|------|------|
+| `WorkspaceLifecycleState` | 工作區生命週期值 |
+| `WorkspaceVisibility` | 工作區可見性值 |
+| `WorkspaceName` | 工作區名稱值，負責 trim 與基本字串約束 |
+| `Address` | 地址值型資料 |
+| `WorkspaceGrant` | 工作區授權記錄；以內容而非獨立 aggregate identity 判斷語意 |
+| `WorkspacePersonnel` | 管理/監督/安全等角色參照集合 |
+| `CapabilitySpec` | 能力定義的值型描述 |
+
+這些型別應留在 `domain/value-objects/`，不應放進 `application/dtos/` 或 `interfaces/` 充當資料傳輸形狀。
+
+## Read-side Projections / Read Models（不是 Aggregate）
+
+| 類型 | 說明 |
+|------|------|
+| `WorkspaceMemberView` | 工作區成員查詢投影，組合 workspace 與 organization 的資料 |
+| `WorkspaceMemberAccessChannel` | 讀模型中的接入通道描述 |
+| `WikiAccountContentNode` | 帳戶導覽節點 |
+| `WikiWorkspaceContentNode` | 工作區導覽節點 |
+| `WikiContentItemNode` | 導覽項 read projection |
+
+`WorkspaceMemberView` 與 `Wiki*Node` 型別應放在 `application/dtos/` 下，作為 query-side projection，而不是 write-side aggregate、entity 或 value object。
+
+文件上必須清楚區分：
+
+- write-side truth：`domain/aggregates/`、`domain/entities/`、`domain/value-objects/`
+- read-side projection：供查詢與呈現使用的 `WorkspaceMemberView`、`Wiki*Node`
+
+這些 projection / read model 是為特定讀取需求與驅動器提供的查詢形狀：
+
+- 它們可由 query-side use case、repository adapter 或 ACL translation 組裝
+- 它們優先服務查詢與呈現，不優先服務 invariant 保護
+- 它們不是 ports，也不是 adapters；而是 adapters / query flows 產出的讀取模型
+
+## Strategic Reminder
+
+- `Workspace` aggregate root 屬於 `workspace` 這個 bounded context 的內部 tactical model
+- 它不等於整個 Xuanwu domain，也不等於 generic subdomain 的全部關係圖
+- Subdomain / Bounded Context 的外部關係應在 `README.md` 與 `context-map.md` 理解，不應把整體戰略關係塞回 aggregate 定義
+- 一個 subdomain 內可以有多個 bounded contexts；本文件只處理 `modules/workspace/` 這個 bounded context 的核心模型
+
+## Factory Boundary
+
+- Factory（工廠）在本 context 中是類別 / 函式，用來建立 aggregate、value object 或對 reconstitution 做集中驗證
+- `Workspace` 與 P1 value objects 應優先透過 factory / parser 建立，而不是由 interface adapter 任意拼接 raw object
+- Factory 不是 Repository，也不是 Domain Service；它的責任是安全建立模型，不是持久化或協調流程
+
+## 與 Application / Ports 的分工
+
+- Aggregate 保護 invariant，不協調長流程
+- Domain Service 補足不自然屬於單一 aggregate 的純規則
+- Application Service 協調多個 use case 或跨 aggregate 流程
+- Output Ports 負責外部能力抽象，不屬於 domain model 本體
+
+## What This File Does Not Own
+
+- Driver / 外部驅動器：例如 Browser UI、Server Actions、其他 bounded context 呼叫者
+- Adapter：例如 Firebase repository classes、Server Action wrappers、query wrappers
+- Port 定義本身：見 [repositories.md](./repositories.md)
+
+## Tactical Debt Notes
+
+- `Workspace` aggregate 目前仍承載 capabilities、grants、locations、personnel 等 supporting records；若之後規則持續成長，應再評估切分 ownership
+- P1 已正式落地於 `domain/value-objects/`：`WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
+- `WikiContentTree` 不是 write-side aggregate；它是為導覽組裝的 query model
+- `WorkspaceMember` 不是目前的 canonical write-side 名稱；查詢模型請使用 `WorkspaceMemberView`
 ````
 
 ## File: next-env.d.ts
