@@ -22,4 +22,3 @@
 
 | 編號 | 標題 | 狀態 | 日期 |
 |------|------|------|------|
-| ADR-001 | [knowledge ↔ workspace-flow Boundary](./ADR-001-knowledge-to-workflow-boundary.md) | Accepted | 2026-04-06 |

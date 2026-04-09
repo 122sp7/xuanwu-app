@@ -31,7 +31,6 @@
 | [`domain-implementation-target.md`](./domain-implementation-target.md) | 模組實現數量目標與 wiki 分解記錄 |
 | [`workspace-ui-gap-analysis.md`](./workspace-ui-gap-analysis.md) | Workspace UI 缺口分析：後端完整但 UI 缺失的功能清單 |
 | [`adr/`](./adr/) | 架構決策記錄（ADR） |
-| [`adr/ADR-001-knowledge-to-workflow-boundary.md`](./adr/ADR-001-knowledge-to-workflow-boundary.md) | **ADR-001**：knowledge ↔ workspace-flow 邊界與事件驅動整合（Buffer Zone / Materialization） |
 
 ## 閱讀路徑建議
 
@@ -41,10 +40,6 @@
 
 實作指引:
   domain-model.md → use-cases.md → repository-pattern.md
-
-AI 功能開發:
-  ai-domain.md → infrastructure-strategy.md → domain-events.md
-  → adr/ADR-001-knowledge-to-workflow-boundary.md  ← knowledge→workspace-flow 事件驅動設計
 
 架構合規:
   module-boundary.md → bounded-contexts.md

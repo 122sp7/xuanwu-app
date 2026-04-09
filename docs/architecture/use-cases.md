@@ -4,8 +4,7 @@
 
 本文件列出 Xuanwu App 所有有界上下文的 Use Cases，說明其職責、輸入/輸出契約，以及在 Application Layer 中的角色。
 
-> **相關文件：** [`domain-model.md`](./domain-model.md) · [`repository-pattern.md`](./repository-pattern.md) · [`adr/ADR-001-knowledge-to-workflow-boundary.md`](./adr/ADR-001-knowledge-to-workflow-boundary.md)
-
+> **相關文件：** [`domain-model.md`](./domain-model.md) · [`repository-pattern.md`](./repository-pattern.md) 
 ---
 
 ## 設計原則
