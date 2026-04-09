@@ -1,6 +1,6 @@
-# permission — platform subdomain
+# access-control — platform subdomain
 
-`permission` 是 platform blueprint 中負責授權政策與決策結果的子域。它把 `AccessPolicy`、主體資料與資源描述整合成 `PermissionDecision`，決定某個動作在當前條件下是否被允許。
+`access-control` 是 platform blueprint 中承載 `permission` 語言的子域資料夾。它把 `AccessPolicy`、主體資料與資源描述整合成 `PermissionDecision`，決定某個動作在當前條件下是否被允許。
 
 ## 核心責任
 
