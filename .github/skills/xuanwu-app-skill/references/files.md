@@ -27203,6 +27203,104 @@ npm run build
 | `OrganizationRepository` | `save()`, `findById()`, `findByMemberId()` |
 ````
 
+## File: modules/organization/api/index.ts
+````typescript
+/**
+ * organization 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 organization 模組內部實作。
+ */
+
+import { FirebaseOrganizationRepository } from "../infrastructure/firebase/FirebaseOrganizationRepository";
+
+// ─── DTOs ─────────────────────────────────────────────────────────────────────
+
+/** 組織成員 DTO — 供外部模組消費，不直接暴露 MemberReference 實體。 */
+export interface OrganizationMemberDTO {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  /** 成員線上狀態：active（上線）、away（暫離）、offline（離線）。 */
+  presence: "active" | "away" | "offline";
+  isExternal?: boolean;
+}
+
+/** 組織團隊 DTO — 供外部模組消費，不直接暴露 Team 實體。 */
+export interface OrganizationTeamDTO {
+  id: string;
+  name: string;
+  memberIds: string[];
+}
+
+// ─── 內部單例 ──────────────────────────────────────────────────────────────────
+
+const orgRepo = new FirebaseOrganizationRepository();
+
+// ─── 公開 API Facade ──────────────────────────────────────────────────────────
+
+export const organizationApi = {
+  /**
+   * 取得指定組織的所有成員清單。
+   */
+  async getMembers(organizationId: string): Promise<OrganizationMemberDTO[]> {
+    const members = await orgRepo.getMembers(organizationId);
+    return members.map((m) => ({
+      id: m.id,
+      name: m.name,
+      email: m.email,
+      role: m.role,
+      presence: m.presence,
+      isExternal: m.isExternal,
+    }));
+  },
+
+  /**
+   * 取得指定組織的所有團隊清單。
+   */
+  async getTeams(organizationId: string): Promise<OrganizationTeamDTO[]> {
+    const teams = await orgRepo.getTeams(organizationId);
+    return teams.map((t) => ({
+      id: t.id,
+      name: t.name,
+      memberIds: t.memberIds,
+    }));
+  },
+} as const;
+
+// ─── Server Actions ───────────────────────────────────────────────────────────
+
+export {
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+  createOrgPolicy,
+  updateOrgPolicy,
+  deleteOrgPolicy,
+} from "../interfaces/_actions/organization.actions";
+
+// ─── Query Functions ──────────────────────────────────────────────────────────
+
+export {
+  getOrganizationMembers,
+  subscribeToOrganizationMembers,
+  getOrganizationTeams,
+  subscribeToOrganizationTeams,
+  getPartnerInvites,
+  getOrgPolicies,
+} from "../interfaces/queries/organization.queries";
+````
+
 ## File: modules/organization/application-services.md
 ````markdown
 # organization — Application Services
@@ -27966,6 +28064,86 @@ export interface OrgPolicyRepository {
 }
 ````
 
+## File: modules/organization/index.ts
+````typescript
+/**
+ * organization module public API
+ */
+export type {
+  OrganizationEntity,
+  OrganizationRole,
+  Presence,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  ThemeConfig,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  OrgPolicy,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "./domain/entities/Organization";
+export type { OrganizationRepository, Unsubscribe } from "./domain/repositories/OrganizationRepository";
+// Use Cases
+export {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "./application/use-cases/organization.use-cases";
+export {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "./application/use-cases/organization-policy.use-cases";
+// Infrastructure
+export { FirebaseOrganizationRepository } from "./infrastructure/firebase/FirebaseOrganizationRepository";
+// Server Actions
+export {
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+  createOrgPolicy,
+  updateOrgPolicy,
+  deleteOrgPolicy,
+} from "./interfaces/_actions/organization.actions";
+// Read Queries
+export {
+  getOrganizationMembers,
+  subscribeToOrganizationMembers,
+  getOrganizationTeams,
+  subscribeToOrganizationTeams,
+  getPartnerInvites,
+  getOrgPolicies,
+} from "./interfaces/queries/organization.queries";
+````
+
 ## File: modules/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts
 ````typescript
 /**
@@ -28517,6 +28695,345 @@ export function toPartnerInvite(id: string, data: Record<string, unknown>): Part
     protocol: typeof data.protocol === "string" ? data.protocol : "",
   };
 }
+````
+
+## File: modules/organization/interfaces/_actions/organization-lifecycle.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Organization lifecycle server actions — create, update settings, delete.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "../../application/use-cases/organization.use-cases";
+import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
+import type {
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+} from "../../domain/entities/Organization";
+
+const orgRepo = new FirebaseOrganizationRepository();
+
+export async function createOrganization(
+  command: CreateOrganizationCommand,
+): Promise<CommandResult> {
+  try {
+    return await new CreateOrganizationUseCase(orgRepo).execute(command);
+  } catch (err) {
+    return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function createOrganizationWithTeam(
+  command: CreateOrganizationCommand,
+  teamName: string,
+  teamType: "internal" | "external" = "internal",
+): Promise<CommandResult> {
+  try {
+    return await new CreateOrganizationWithTeamUseCase(orgRepo).execute(command, teamName, teamType);
+  } catch (err) {
+    return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateOrganizationSettings(
+  command: UpdateOrganizationSettingsCommand,
+): Promise<CommandResult> {
+  try {
+    return await new UpdateOrganizationSettingsUseCase(orgRepo).execute(command);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteOrganizationUseCase(orgRepo).execute(organizationId);
+  } catch (err) {
+    return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/organization/interfaces/_actions/organization-member.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Organization member server actions — invite, recruit, dismiss, update role.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import type { InviteMemberInput } from "../../domain/entities/Organization";
+import {
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "../../application/use-cases/organization.use-cases";
+import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
+import type { UpdateMemberRoleInput } from "../../domain/entities/Organization";
+
+const orgRepo = new FirebaseOrganizationRepository();
+
+export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
+  try {
+    return await new InviteMemberUseCase(orgRepo).execute(input);
+  } catch (err) {
+    return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function recruitMember(
+  organizationId: string,
+  memberId: string,
+  name: string,
+  email: string,
+): Promise<CommandResult> {
+  try {
+    return await new RecruitMemberUseCase(orgRepo).execute(organizationId, memberId, name, email);
+  } catch (err) {
+    return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function dismissMember(
+  organizationId: string,
+  memberId: string,
+): Promise<CommandResult> {
+  try {
+    return await new RemoveMemberUseCase(orgRepo).execute(organizationId, memberId);
+  } catch (err) {
+    return commandFailureFrom("DISMISS_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
+  try {
+    return await new UpdateMemberRoleUseCase(orgRepo).execute(input);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/organization/interfaces/_actions/organization-partner.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Organization partner server actions — create group, invite, dismiss.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "../../application/use-cases/organization.use-cases";
+import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
+
+const orgRepo = new FirebaseOrganizationRepository();
+
+export async function createPartnerGroup(
+  organizationId: string,
+  groupName: string,
+): Promise<CommandResult> {
+  try {
+    return await new CreatePartnerGroupUseCase(orgRepo).execute(organizationId, groupName);
+  } catch (err) {
+    return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function sendPartnerInvite(
+  organizationId: string,
+  teamId: string,
+  email: string,
+): Promise<CommandResult> {
+  try {
+    return await new SendPartnerInviteUseCase(orgRepo).execute(organizationId, teamId, email);
+  } catch (err) {
+    return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function dismissPartnerMember(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+): Promise<CommandResult> {
+  try {
+    return await new DismissPartnerMemberUseCase(orgRepo).execute(organizationId, teamId, memberId);
+  } catch (err) {
+    return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/organization/interfaces/_actions/organization-policy.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Organization policy server actions — create, update, delete.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "../../application/use-cases/organization-policy.use-cases";
+import { FirebaseOrgPolicyRepository } from "../../infrastructure/firebase/FirebaseOrgPolicyRepository";
+import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
+
+const policyRepo = new FirebaseOrgPolicyRepository();
+
+export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
+  try {
+    return await new CreateOrgPolicyUseCase(policyRepo).execute(input);
+  } catch (err) {
+    return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateOrgPolicy(
+  policyId: string,
+  data: UpdateOrgPolicyInput,
+): Promise<CommandResult> {
+  try {
+    return await new UpdateOrgPolicyUseCase(policyRepo).execute(policyId, data);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteOrgPolicyUseCase(policyRepo).execute(policyId);
+  } catch (err) {
+    return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/organization/interfaces/_actions/organization-team.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Organization team server actions — create, delete, update members.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../../application/use-cases/organization.use-cases";
+import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
+import type { CreateTeamInput } from "../../domain/entities/Organization";
+
+const orgRepo = new FirebaseOrganizationRepository();
+
+export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
+  try {
+    return await new CreateTeamUseCase(orgRepo).execute(input);
+  } catch (err) {
+    return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteTeam(
+  organizationId: string,
+  teamId: string,
+): Promise<CommandResult> {
+  try {
+    return await new DeleteTeamUseCase(orgRepo).execute(organizationId, teamId);
+  } catch (err) {
+    return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateTeamMembers(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+  action: "add" | "remove",
+): Promise<CommandResult> {
+  try {
+    return await new UpdateTeamMembersUseCase(orgRepo).execute(organizationId, teamId, memberId, action);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/organization/interfaces/_actions/organization.actions.ts
+````typescript
+/**
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Re-export barrel for all organization Server Actions.
+ *          Implementations are split by subdomain for IDDD layer-purity.
+ *          Each sub-file carries its own "use server" directive; this barrel
+ *          must NOT repeat it — Turbopack cannot resolve re-exports from a
+ *          "use server" barrel that itself re-exports other "use server" files.
+ *  - organization-lifecycle.actions.ts (create, update settings, delete)
+ *  - organization-member.actions.ts    (invite, recruit, dismiss, update role)
+ *  - organization-team.actions.ts      (create, delete, update members)
+ *  - organization-partner.actions.ts   (create group, invite, dismiss)
+ *  - organization-policy.actions.ts    (create, update, delete policy)
+ */
+
+export {
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+} from "./organization-lifecycle.actions";
+
+export {
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+} from "./organization-member.actions";
+
+export {
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+} from "./organization-team.actions";
+
+export {
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+} from "./organization-partner.actions";
+
+export {
+  createOrgPolicy,
+  updateOrgPolicy,
+  deleteOrgPolicy,
+} from "./organization-policy.actions";
 ````
 
 ## File: modules/organization/interfaces/queries/organization.queries.ts
@@ -33193,6 +33710,270 @@ export class UploadInitFileUseCase {
 }
 ````
 
+## File: modules/source/application/use-cases/wiki-libraries.use-case.ts
+````typescript
+/**
+ * Module: source
+ * Layer: application/use-cases
+ * Purpose: Wiki-style library use-cases — create, add fields, add rows, list.
+ *          Direct-function API for the source module's wiki-facing library
+ *          management surface.
+ */
+
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+} from "@/modules/shared/api";
+
+import type {
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryInput,
+  CreateWikiLibraryRowInput,
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+} from "../../domain/entities/wiki-library.types";
+import type { WikiLibraryRepository } from "../../domain/repositories/WikiLibraryRepository";
+import {
+  generateId,
+  normalizeName,
+  normalizeFieldKey,
+  ensureUniqueLibrarySlug,
+  deriveSlugCandidate,
+} from "./wiki-library-use-case.helpers";
+
+const defaultEventPublisher = new PublishDomainEventUseCase(
+  new InMemoryEventStoreRepository(),
+  new NoopEventBusRepository(),
+);
+
+export async function listWikiLibraries(
+  accountId: string,
+  workspaceId: string | undefined,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibrary[]> {
+  if (!accountId) {
+    throw new Error("accountId is required");
+  }
+
+  const libraries = await libraryRepository.listByAccountId(accountId);
+  const activeLibraries = libraries.filter((library) => library.status === "active");
+  if (!workspaceId) {
+    return activeLibraries;
+  }
+  return activeLibraries.filter((library) => library.workspaceId === workspaceId);
+}
+
+export async function createWikiLibrary(
+  input: CreateWikiLibraryInput,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibrary> {
+  if (!input.accountId) {
+    throw new Error("accountId is required");
+  }
+
+  const name = normalizeName(input.name);
+  const libraries = await libraryRepository.listByAccountId(input.accountId);
+  const workspaceLibraries = libraries.filter((library) => (library.workspaceId ?? "") === (input.workspaceId ?? ""));
+
+  const slug = ensureUniqueLibrarySlug(deriveSlugCandidate(name), workspaceLibraries);
+  const now = new Date();
+  const library: WikiLibrary = {
+    id: generateId(),
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    name,
+    slug,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await libraryRepository.create(library);
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "source.library_created",
+    aggregateType: "asset-library",
+    aggregateId: library.id,
+    payload: {
+      accountId: library.accountId,
+      workspaceId: library.workspaceId,
+      slug: library.slug,
+    },
+  });
+
+  return library;
+}
+
+export async function addWikiLibraryField(
+  input: AddWikiLibraryFieldInput,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibraryField> {
+  const library = await libraryRepository.findById(input.accountId, input.libraryId);
+  if (!library) {
+    throw new Error("library not found");
+  }
+
+  const key = normalizeFieldKey(input.key);
+  const label = normalizeName(input.label);
+  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
+  if (fields.some((field) => field.key === key)) {
+    throw new Error(`field key "${key}" already exists`);
+  }
+
+  const field: WikiLibraryField = {
+    id: generateId(),
+    libraryId: input.libraryId,
+    key,
+    label,
+    type: input.type,
+    required: input.required ?? false,
+    options: input.options,
+    createdAt: new Date(),
+  };
+
+  await libraryRepository.createField(input.accountId, field);
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "source.library_field_added",
+    aggregateType: "asset-library",
+    aggregateId: input.libraryId,
+    payload: {
+      accountId: input.accountId,
+      fieldKey: field.key,
+      fieldType: field.type,
+    },
+  });
+
+  return field;
+}
+
+export async function createWikiLibraryRow(
+  input: CreateWikiLibraryRowInput,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibraryRow> {
+  const library = await libraryRepository.findById(input.accountId, input.libraryId);
+  if (!library) {
+    throw new Error("library not found");
+  }
+
+  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
+  const requiredFields = fields.filter((field) => field.required);
+  for (const field of requiredFields) {
+    if (!(field.key in input.values)) {
+      throw new Error(`missing required field: ${field.key}`);
+    }
+  }
+
+  const now = new Date();
+  const row: WikiLibraryRow = {
+    id: generateId(),
+    libraryId: input.libraryId,
+    values: input.values,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await libraryRepository.createRow(input.accountId, row);
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "source.library_row_created",
+    aggregateType: "asset-library",
+    aggregateId: input.libraryId,
+    payload: {
+      accountId: input.accountId,
+      rowId: row.id,
+      fields: Object.keys(row.values),
+    },
+  });
+
+  return row;
+}
+
+export interface WikiLibrarySnapshot {
+  library: WikiLibrary;
+  fields: WikiLibraryField[];
+  rows: WikiLibraryRow[];
+}
+
+export async function getWikiLibrarySnapshot(
+  accountId: string,
+  libraryId: string,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibrarySnapshot> {
+  const library = await libraryRepository.findById(accountId, libraryId);
+  if (!library) {
+    throw new Error("library not found");
+  }
+
+  const [fields, rows] = await Promise.all([
+    libraryRepository.listFields(accountId, libraryId),
+    libraryRepository.listRows(accountId, libraryId),
+  ]);
+
+  return { library, fields, rows };
+}
+````
+
+## File: modules/source/application/use-cases/wiki-library-use-case.helpers.ts
+````typescript
+/**
+ * Module: source
+ * Layer: application/use-cases
+ * Purpose: Private helper functions for wiki-library use cases.
+ *          Extracted to keep use-case files focused on business workflow only.
+ */
+
+import { deriveSlugCandidate, isValidSlug } from "@/modules/shared/api";
+import type { WikiLibrary } from "../../domain/entities/wiki-library.types";
+
+export function generateId(): string {
+  const randomUUID = globalThis.crypto?.randomUUID;
+  if (typeof randomUUID === "function") {
+    return randomUUID.call(globalThis.crypto);
+  }
+  return `wbl_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+}
+
+export function normalizeName(name: string): string {
+  const value = name.trim();
+  if (!value) {
+    throw new Error("library name is required");
+  }
+  return value.slice(0, 80);
+}
+
+export function normalizeFieldKey(key: string): string {
+  const normalized = key.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+  if (!normalized) {
+    throw new Error("field key is required");
+  }
+  return normalized.slice(0, 48);
+}
+
+export function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiLibrary[]): string {
+  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "library-node";
+  const existing = new Set(libraries.map((library) => library.slug));
+  if (!existing.has(normalizedBase)) {
+    return normalizedBase;
+  }
+
+  let index = 2;
+  while (index < 5000) {
+    const candidate = `${normalizedBase}-${index}`;
+    if (!existing.has(candidate) && isValidSlug(candidate)) {
+      return candidate;
+    }
+    index += 1;
+  }
+
+  throw new Error("cannot allocate a unique slug for this library name");
+}
+
+export { deriveSlugCandidate };
+````
+
 ## File: modules/source/context-map.md
 ````markdown
 # Context Map — source
@@ -37100,6 +37881,274 @@ export const ListAccountFeedSchema = AccountScopeSchema.extend({
 });
 
 export type ListAccountFeedDto = z.infer<typeof ListAccountFeedSchema>;
+````
+
+## File: modules/workspace-feed/application/use-cases/workspace-feed-interaction.use-cases.ts
+````typescript
+/**
+ * Module: workspace-feed
+ * Layer: application/use-cases
+ * Purpose: Feed interaction use cases — like, bookmark, view, share.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type {
+  WorkspaceFeedInteractionRepository,
+  WorkspaceFeedPostRepository,
+} from "../../domain/repositories/workspace-feed.repositories";
+import { FeedInteractionSchema } from "../dto/workspace-feed.dto";
+
+export class LikeWorkspaceFeedPostUseCase {
+  constructor(
+    private readonly postRepo: WorkspaceFeedPostRepository,
+    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
+  ) {}
+
+  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
+    const parsed = FeedInteractionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
+    if (!post) {
+      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
+    }
+
+    const liked = await this.interactionRepo.like(
+      parsed.data.accountId,
+      parsed.data.postId,
+      parsed.data.actorAccountId,
+    );
+    if (liked) {
+      await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { likeDelta: 1 });
+    }
+
+    return commandSuccess(parsed.data.postId, Date.now());
+  }
+}
+
+export class BookmarkWorkspaceFeedPostUseCase {
+  constructor(
+    private readonly postRepo: WorkspaceFeedPostRepository,
+    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
+  ) {}
+
+  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
+    const parsed = FeedInteractionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
+    if (!post) {
+      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
+    }
+
+    const bookmarked = await this.interactionRepo.bookmark(
+      parsed.data.accountId,
+      parsed.data.postId,
+      parsed.data.actorAccountId,
+    );
+    if (bookmarked) {
+      await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { bookmarkDelta: 1 });
+    }
+
+    return commandSuccess(parsed.data.postId, Date.now());
+  }
+}
+
+export class ViewWorkspaceFeedPostUseCase {
+  constructor(
+    private readonly postRepo: WorkspaceFeedPostRepository,
+    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
+  ) {}
+
+  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
+    const parsed = FeedInteractionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
+    if (!post) {
+      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
+    }
+
+    await this.interactionRepo.view(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
+    await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { viewDelta: 1 });
+    return commandSuccess(parsed.data.postId, Date.now());
+  }
+}
+
+export class ShareWorkspaceFeedPostUseCase {
+  constructor(
+    private readonly postRepo: WorkspaceFeedPostRepository,
+    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
+  ) {}
+
+  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
+    const parsed = FeedInteractionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
+    if (!post) {
+      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
+    }
+
+    await this.interactionRepo.share(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
+    await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { shareDelta: 1 });
+    return commandSuccess(parsed.data.postId, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-feed/application/use-cases/workspace-feed-post.use-cases.ts
+````typescript
+/**
+ * Module: workspace-feed
+ * Layer: application/use-cases
+ * Purpose: Post lifecycle use cases — create, reply, repost, get, list.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
+import {
+  CreateWorkspaceFeedPostSchema,
+  type CreateWorkspaceFeedPostDto,
+  ListAccountFeedSchema,
+  type ListAccountFeedDto,
+  ListWorkspaceFeedSchema,
+  type ListWorkspaceFeedDto,
+  ReplyWorkspaceFeedPostSchema,
+  type ReplyWorkspaceFeedPostDto,
+  RepostWorkspaceFeedPostSchema,
+  type RepostWorkspaceFeedPostDto,
+} from "../dto/workspace-feed.dto";
+
+export class CreateWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = CreateWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.repo.createPost(parsed.data);
+    return commandSuccess(post.id, Date.now());
+  }
+}
+
+export class ReplyWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = ReplyWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const parent = await this.repo.findById(parsed.data.accountId, parsed.data.parentPostId);
+    if (!parent) {
+      return commandFailureFrom("WORKSPACE_FEED_PARENT_NOT_FOUND", "Parent post not found.");
+    }
+    if (parent.workspaceId !== parsed.data.workspaceId) {
+      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Parent post is in another workspace.");
+    }
+
+    const reply = await this.repo.createReply(parsed.data);
+    return commandSuccess(reply.id, Date.now());
+  }
+}
+
+export class RepostWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = RepostWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const source = await this.repo.findById(parsed.data.accountId, parsed.data.sourcePostId);
+    if (!source) {
+      return commandFailureFrom("WORKSPACE_FEED_SOURCE_NOT_FOUND", "Source post not found.");
+    }
+    if (source.workspaceId !== parsed.data.workspaceId) {
+      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Source post is in another workspace.");
+    }
+
+    const repost = await this.repo.createRepost(parsed.data);
+    if (!repost) {
+      return commandFailureFrom("WORKSPACE_FEED_REPOST_FAILED", "Failed to create repost.");
+    }
+
+    return commandSuccess(repost.id, Date.now());
+  }
+}
+
+export class GetWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
+    if (!accountId.trim() || !postId.trim()) return null;
+    return this.repo.findById(accountId, postId);
+  }
+}
+
+export class ListWorkspaceFeedUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ListWorkspaceFeedDto): Promise<WorkspaceFeedPost[]> {
+    const parsed = ListWorkspaceFeedSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByWorkspaceId(parsed.data.accountId, parsed.data.workspaceId, parsed.data.limit ?? 50);
+  }
+}
+
+export class ListAccountWorkspaceFeedUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ListAccountFeedDto): Promise<WorkspaceFeedPost[]> {
+    const parsed = ListAccountFeedSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByAccountId(parsed.data.accountId, parsed.data.limit ?? 50);
+  }
+}
+````
+
+## File: modules/workspace-feed/application/use-cases/workspace-feed.use-cases.ts
+````typescript
+/**
+ * Module: workspace-feed
+ * Layer: application/use-cases
+ * Purpose: Re-export barrel for all workspace-feed use cases.
+ *          Split by subdomain for IDDD single-responsibility:
+ *  - workspace-feed-post.use-cases.ts        (create, reply, repost, get, list)
+ *  - workspace-feed-interaction.use-cases.ts  (like, bookmark, view, share)
+ */
+
+export {
+  CreateWorkspaceFeedPostUseCase,
+  ReplyWorkspaceFeedPostUseCase,
+  RepostWorkspaceFeedPostUseCase,
+  GetWorkspaceFeedPostUseCase,
+  ListWorkspaceFeedUseCase,
+  ListAccountWorkspaceFeedUseCase,
+} from "./workspace-feed-post.use-cases";
+
+export {
+  LikeWorkspaceFeedPostUseCase,
+  BookmarkWorkspaceFeedPostUseCase,
+  ViewWorkspaceFeedPostUseCase,
+  ShareWorkspaceFeedPostUseCase,
+} from "./workspace-feed-interaction.use-cases";
 ````
 
 ## File: modules/workspace-feed/context-map.md
@@ -42378,6 +43427,1094 @@ export class FirebaseTaskRepository implements TaskRepository {
     if (!updated.exists()) return null;
     return toTask(updated.id, updated.data() as Record<string, unknown>);
   }
+}
+````
+
+## File: modules/workspace-flow/interfaces/_actions/workspace-flow.actions.ts
+````typescript
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow.actions.ts
+ * @description Re-export barrel for all workspace-flow Server Actions.
+ *              Each sub-file carries its own "use server" directive; this barrel
+ *              must NOT repeat it — Turbopack cannot resolve re-exports from a
+ *              "use server" barrel that itself re-exports other "use server" files.
+ *  - workspace-flow-task.actions.ts    (create, update, assign, qa, approve, archive)
+ *  - workspace-flow-issue.actions.ts   (open, start, fix, retest, resolve, close)
+ *  - workspace-flow-invoice.actions.ts (create, add/update/remove item, submit, review, approve, reject, pay, close)
+ */
+
+export {
+  wfCreateTask,
+  wfUpdateTask,
+  wfAssignTask,
+  wfSubmitTaskToQa,
+  wfPassTaskQa,
+  wfApproveTaskAcceptance,
+  wfArchiveTask,
+} from "./workspace-flow-task.actions";
+
+export {
+  wfOpenIssue,
+  wfStartIssue,
+  wfFixIssue,
+  wfSubmitIssueRetest,
+  wfPassIssueRetest,
+  wfFailIssueRetest,
+  wfResolveIssue,
+  wfCloseIssue,
+} from "./workspace-flow-issue.actions";
+
+export {
+  wfCreateInvoice,
+  wfAddInvoiceItem,
+  wfUpdateInvoiceItem,
+  wfRemoveInvoiceItem,
+  wfSubmitInvoice,
+  wfReviewInvoice,
+  wfApproveInvoice,
+  wfRejectInvoice,
+  wfPayInvoice,
+  wfCloseInvoice,
+} from "./workspace-flow-invoice.actions";
+````
+
+## File: modules/workspace-flow/interfaces/components/AssignTaskDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+
+import { wfAssignTask } from "../_actions/workspace-flow.actions";
+
+export interface AssignTaskDialogProps {
+  open: boolean;
+  taskId: string;
+  onClose: () => void;
+  onDone: () => void;
+}
+
+export function AssignTaskDialog({ open, taskId, onClose, onDone }: AssignTaskDialogProps) {
+  const [assigneeId, setAssigneeId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setAssigneeId("");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const a = assigneeId.trim();
+    if (!a) { setError("請輸入指派人 ID。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfAssignTask(taskId, a);
+      if (!result.success) { setError(result.error.message ?? "指派失敗"); return; }
+      onDone();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "指派失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>指派任務</DialogTitle>
+          <DialogDescription>填入負責人 ID，任務將進入進行中。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="assignee-id">指派人 ID *</Label>
+            <Input
+              id="assignee-id"
+              placeholder="用戶 ID"
+              value={assigneeId}
+              onChange={(e) => setAssigneeId(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "指派中…" : "指派"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/CreateTaskDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import { wfCreateTask } from "../_actions/workspace-flow.actions";
+
+export interface CreateTaskDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+  workspaceId: string;
+}
+
+export function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: CreateTaskDialogProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [dueDateISO, setDueDateISO] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setAssigneeId("");
+    setDueDateISO("");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) { setError("請輸入任務標題。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfCreateTask({
+        workspaceId,
+        title: t,
+        description: description.trim() || undefined,
+        assigneeId: assigneeId.trim() || undefined,
+        dueDateISO: dueDateISO || undefined,
+      });
+      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
+      onCreated();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>建立任務</DialogTitle>
+          <DialogDescription>新增一個工作任務到此工作區。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="task-title">標題 *</Label>
+            <Input
+              id="task-title"
+              placeholder="任務名稱"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="task-description">描述（選填）</Label>
+            <Textarea
+              id="task-description"
+              placeholder="任務詳情或驗收條件…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="task-assignee">指派人 ID（選填）</Label>
+              <Input
+                id="task-assignee"
+                placeholder="用戶 ID"
+                value={assigneeId}
+                onChange={(e) => setAssigneeId(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="task-due">截止日期（選填）</Label>
+              <Input
+                id="task-due"
+                type="date"
+                value={dueDateISO}
+                onChange={(e) => setDueDateISO(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "建立任務"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/InvoiceRow.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { Invoice } from "../../domain/entities/Invoice";
+import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import {
+  wfApproveInvoice,
+  wfCloseInvoice,
+  wfPayInvoice,
+  wfRejectInvoice,
+  wfReviewInvoice,
+  wfSubmitInvoice,
+} from "../_actions/workspace-flow.actions";
+
+const INVOICE_STATUS_VARIANT: Record<
+  InvoiceStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  draft: "outline",
+  submitted: "secondary",
+  finance_review: "secondary",
+  approved: "default",
+  paid: "default",
+  closed: "outline",
+};
+
+const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
+  draft: "草稿",
+  submitted: "已提交",
+  finance_review: "財務審核",
+  approved: "已核准",
+  paid: "已付款",
+  closed: "已結清",
+};
+
+function formatShortDate(iso: string | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+function formatCurrency(amount: number): string {
+  try {
+    return new Intl.NumberFormat("zh-TW", {
+      style: "currency",
+      currency: "TWD",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `TWD ${amount}`;
+  }
+}
+
+export interface InvoiceRowProps {
+  invoice: Invoice;
+  onTransitioned: () => void;
+}
+
+export function InvoiceRow({ invoice, onTransitioned }: InvoiceRowProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderActions() {
+    switch (invoice.status) {
+      case "draft":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitInvoice(invoice.id))}>提交</Button>;
+      case "submitted":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfReviewInvoice(invoice.id))}>送審</Button>;
+      case "finance_review":
+        return (
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveInvoice(invoice.id))}>核准</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfRejectInvoice(invoice.id))}>退回</Button>
+          </div>
+        );
+      case "approved":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPayInvoice(invoice.id))}>付款</Button>;
+      case "paid":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseInvoice(invoice.id))}>結清</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border/40 px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">
+            #{invoice.id.slice(-8).toUpperCase()}
+          </p>
+          <p className="text-xs text-muted-foreground">建立：{formatShortDate(invoice.createdAtISO)}</p>
+          {invoice.paidAtISO && (
+            <p className="text-xs text-muted-foreground">付款：{formatShortDate(invoice.paidAtISO)}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <Badge variant={INVOICE_STATUS_VARIANT[invoice.status]}>
+            {INVOICE_STATUS_LABEL[invoice.status]}
+          </Badge>
+          <p className="text-sm font-semibold text-foreground">{formatCurrency(invoice.totalAmount)}</p>
+          {renderActions()}
+        </div>
+      </div>
+    </div>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/IssueRow.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { Issue } from "../../domain/entities/Issue";
+import type { IssueStage } from "../../domain/value-objects/IssueStage";
+import {
+  wfCloseIssue,
+  wfFailIssueRetest,
+  wfFixIssue,
+  wfPassIssueRetest,
+  wfStartIssue,
+  wfSubmitIssueRetest,
+} from "../_actions/workspace-flow.actions";
+
+export const ISSUE_STAGE_LABEL: Record<IssueStage, string> = {
+  task: "任務",
+  qa: "QA",
+  acceptance: "驗收",
+};
+
+const ISSUE_STATUS_VARIANT: Record<
+  Issue["status"],
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  open: "destructive",
+  investigating: "destructive",
+  fixing: "secondary",
+  retest: "secondary",
+  resolved: "default",
+  closed: "outline",
+};
+
+const ISSUE_STATUS_LABEL: Record<Issue["status"], string> = {
+  open: "開啟",
+  investigating: "調查中",
+  fixing: "修復中",
+  retest: "重測中",
+  resolved: "已解決",
+  closed: "已關閉",
+};
+
+export interface IssueRowProps {
+  issue: Issue;
+  onTransitioned: () => void;
+}
+
+export function IssueRow({ issue, onTransitioned }: IssueRowProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderActions() {
+    switch (issue.status) {
+      case "open":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfStartIssue(issue.id))}>開始調查</Button>;
+      case "investigating":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFixIssue(issue.id))}>開始修復</Button>;
+      case "fixing":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitIssueRetest(issue.id))}>送重測</Button>;
+      case "retest":
+        return (
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassIssueRetest(issue.id))}>通過</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFailIssueRetest(issue.id))}>失敗</Button>
+          </div>
+        );
+      case "resolved":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseIssue(issue.id))}>關閉</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-border/30 px-3 py-2.5 text-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-0.5 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant={ISSUE_STATUS_VARIANT[issue.status]} className="text-xs">
+              {ISSUE_STATUS_LABEL[issue.status]}
+            </Badge>
+            <Badge variant="outline" className="text-xs">{ISSUE_STAGE_LABEL[issue.stage]}</Badge>
+            <span className="font-medium text-foreground truncate">{issue.title}</span>
+          </div>
+          {issue.description && (
+            <p className="text-xs text-muted-foreground line-clamp-1">{issue.description}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="shrink-0">{renderActions()}</div>
+      </div>
+    </div>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/OpenIssueDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import type { IssueStage } from "../../domain/value-objects/IssueStage";
+import { wfOpenIssue } from "../_actions/workspace-flow.actions";
+import { ISSUE_STAGE_LABEL } from "./IssueRow";
+
+export interface OpenIssueDialogProps {
+  open: boolean;
+  taskId: string;
+  currentUserId: string;
+  onClose: () => void;
+  onCreated: () => void;
+}
+
+export function OpenIssueDialog({ open, taskId, currentUserId, onClose, onCreated }: OpenIssueDialogProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [stage, setStage] = useState<IssueStage>("task");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setStage("task");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) { setError("請輸入議題標題。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfOpenIssue({
+        taskId,
+        stage,
+        title: t,
+        description: description.trim() || undefined,
+        createdBy: currentUserId,
+      });
+      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
+      onCreated();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>開啟議題</DialogTitle>
+          <DialogDescription>記錄此任務發現的問題或異常。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="issue-title">標題 *</Label>
+            <Input
+              id="issue-title"
+              placeholder="問題簡述"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="issue-description">描述（選填）</Label>
+            <Textarea
+              id="issue-description"
+              placeholder="問題詳情、重現步驟…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>發生階段</Label>
+            <div className="flex gap-2">
+              {(["task", "qa", "acceptance"] as const).map((s) => (
+                <Button
+                  key={s}
+                  type="button"
+                  size="sm"
+                  variant={stage === s ? "default" : "outline"}
+                  onClick={() => setStage(s)}
+                  disabled={submitting}
+                >
+                  {ISSUE_STAGE_LABEL[s]}
+                </Button>
+              ))}
+            </div>
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "開啟議題"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/TaskRow.tsx
+````typescript
+"use client";
+
+import { useCallback, useState } from "react";
+
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { Issue } from "../../domain/entities/Issue";
+import type { Task } from "../../domain/entities/Task";
+import type { TaskStatus } from "../../domain/value-objects/TaskStatus";
+import {
+  wfApproveTaskAcceptance,
+  wfArchiveTask,
+  wfPassTaskQa,
+  wfSubmitTaskToQa,
+} from "../_actions/workspace-flow.actions";
+import { getWorkspaceFlowIssues } from "../queries/workspace-flow.queries";
+import { AssignTaskDialog } from "./AssignTaskDialog";
+import { IssueRow } from "./IssueRow";
+import { OpenIssueDialog } from "./OpenIssueDialog";
+
+const TASK_STATUS_VARIANT: Record<
+  TaskStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  draft: "outline",
+  in_progress: "secondary",
+  qa: "secondary",
+  acceptance: "default",
+  accepted: "default",
+  archived: "outline",
+};
+
+const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  draft: "草稿",
+  in_progress: "進行中",
+  qa: "QA 審查",
+  acceptance: "驗收中",
+  accepted: "已驗收",
+  archived: "已歸檔",
+};
+
+function formatShortDate(iso: string | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+export interface TaskRowProps {
+  task: Task;
+  currentUserId: string;
+  onTransitioned: () => void;
+}
+
+export function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [issuesExpanded, setIssuesExpanded] = useState(false);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [issuesLoaded, setIssuesLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadIssues = useCallback(async () => {
+    try {
+      const data = await getWorkspaceFlowIssues(task.id);
+      setIssues(data);
+      setIssuesLoaded(true);
+    } catch {
+      // non-fatal
+    }
+  }, [task.id]);
+
+  async function toggleIssues() {
+    if (!issuesExpanded && !issuesLoaded) {
+      await loadIssues();
+    }
+    setIssuesExpanded((v) => !v);
+  }
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderTaskAction() {
+    switch (task.status) {
+      case "draft":
+        return (
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => setAssignDialogOpen(true)}>
+            指派任務
+          </Button>
+        );
+      case "in_progress":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitTaskToQa(task.id))}>送 QA</Button>;
+      case "qa":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassTaskQa(task.id))}>QA 通過</Button>;
+      case "acceptance":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveTaskAcceptance(task.id))}>驗收通過</Button>;
+      case "accepted":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfArchiveTask(task.id))}>歸檔</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border/40 px-4 py-4 space-y-3">
+      {/* ── Task header ─────────────────────── */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">{task.title}</p>
+          {task.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
+          )}
+          {task.assigneeId && (
+            <p className="text-xs text-muted-foreground">指派：{task.assigneeId}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <Badge variant={TASK_STATUS_VARIANT[task.status]}>{TASK_STATUS_LABEL[task.status]}</Badge>
+          {task.dueDateISO && (
+            <p className="text-xs text-muted-foreground">截止：{formatShortDate(task.dueDateISO)}</p>
+          )}
+        </div>
+      </div>
+
+      {/* ── Action row ──────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2">
+        {renderTaskAction()}
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground"
+          onClick={() => setIssueDialogOpen(true)}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          開議題
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground ml-auto"
+          onClick={toggleIssues}
+        >
+          {issuesExpanded ? (
+            <ChevronDown className="mr-1 h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="mr-1 h-3.5 w-3.5" />
+          )}
+          議題{issuesLoaded ? ` (${issues.length})` : ""}
+        </Button>
+      </div>
+
+      {/* ── Issues sub-list ─────────────────── */}
+      {issuesExpanded && (
+        <div className="space-y-2 pl-1">
+          {issues.length === 0 ? (
+            <p className="text-xs text-muted-foreground">此任務目前無議題。</p>
+          ) : (
+            issues.map((issue) => (
+              <IssueRow
+                key={issue.id}
+                issue={issue}
+                onTransitioned={loadIssues}
+              />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ── Dialogs ─────────────────────────── */}
+      <AssignTaskDialog
+        open={assignDialogOpen}
+        taskId={task.id}
+        onClose={() => setAssignDialogOpen(false)}
+        onDone={onTransitioned}
+      />
+      <OpenIssueDialog
+        open={issueDialogOpen}
+        taskId={task.id}
+        currentUserId={currentUserId}
+        onClose={() => setIssueDialogOpen(false)}
+        onCreated={async () => {
+          await loadIssues();
+          if (!issuesExpanded) setIssuesExpanded(true);
+        }}
+      />
+    </div>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx
+````typescript
+"use client";
+
+/**
+ * @module workspace-flow/interfaces/components
+ * @file WorkspaceFlowTab.tsx
+ * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
+ *
+ * MVP interactive surface:
+ * - Create Task dialog
+ * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
+ * - Per-task expandable Issue sub-list with transition buttons
+ * - Open Issue dialog
+ * - Create Invoice button + Invoice lifecycle transitions
+ *
+ * @author workspace-flow
+ * @since 2026-03-27
+ */
+
+import { useCallback, useEffect, useState } from "react";
+
+import { Plus } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Separator } from "@ui-shadcn/ui/separator";
+
+import type { Invoice } from "../../domain/entities/Invoice";
+import type { Task } from "../../domain/entities/Task";
+import { wfCreateInvoice } from "../_actions/workspace-flow.actions";
+import {
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowTasks,
+} from "../queries/workspace-flow.queries";
+import { CreateTaskDialog } from "./CreateTaskDialog";
+import { InvoiceRow } from "./InvoiceRow";
+import { TaskRow } from "./TaskRow";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+type FlowSection = "tasks" | "invoices";
+
+interface WorkspaceFlowTabProps {
+  readonly workspaceId: string;
+  readonly currentUserId?: string;
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────────
+
+export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: WorkspaceFlowTabProps) {
+  const [section, setSection] = useState<FlowSection>("tasks");
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const [nextTasks, nextInvoices] = await Promise.all([
+        getWorkspaceFlowTasks(workspaceId),
+        getWorkspaceFlowInvoices(workspaceId),
+      ]);
+      setTasks(nextTasks);
+      setInvoices(nextInvoices);
+      setLoadState("loaded");
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceFlowTab] Failed to load flow data:", err);
+      }
+      setLoadState("error");
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  async function handleCreateInvoice() {
+    setCreatingInvoice(true);
+    setActionError(null);
+    try {
+      const result = await wfCreateInvoice(workspaceId);
+      if (!result.success) { setActionError(result.error.message ?? "建立發票失敗"); }
+      else { await loadData(); }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "建立發票失敗");
+    } finally {
+      setCreatingInvoice(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* ── Section switcher ─────────────────────────────────────────── */}
+      <div className="flex gap-2">
+        <Button
+          variant={section === "tasks" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("tasks")}
+        >
+          任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
+        </Button>
+        <Button
+          variant={section === "invoices" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("invoices")}
+        >
+          發票{loadState === "loaded" ? ` (${invoices.length})` : ""}
+        </Button>
+      </div>
+
+      {/* ── Loading state ─────────────────────────────────────────────── */}
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">載入中…</CardContent>
+        </Card>
+      )}
+
+      {/* ── Error state ───────────────────────────────────────────────── */}
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入資料，請重新整理頁面後再試。
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Tasks section ─────────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "tasks" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>任務</CardTitle>
+                <CardDescription>工作區所有任務與其進度狀態。</CardDescription>
+              </div>
+              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                建立任務
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {tasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前尚無任務，點擊右上角「建立任務」開始。</p>
+            ) : (
+              tasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  currentUserId={currentUserId}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Invoices section ──────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "invoices" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>發票</CardTitle>
+                <CardDescription>工作區帳務請款紀錄。</CardDescription>
+              </div>
+              <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                {creatingInvoice ? "建立中…" : "建立發票"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {actionError && (
+              <p role="alert" className="text-sm text-destructive">{actionError}</p>
+            )}
+            {invoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前尚無發票紀錄，點擊右上角「建立發票」開始。</p>
+            ) : (
+              <>
+                <Separator />
+                {invoices.map((invoice) => (
+                  <InvoiceRow
+                    key={invoice.id}
+                    invoice={invoice}
+                    onTransitioned={loadData}
+                  />
+                ))}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Create Task Dialog ─────────────────────────────────────────── */}
+      <CreateTaskDialog
+        open={createTaskOpen}
+        workspaceId={workspaceId}
+        onClose={() => setCreateTaskOpen(false)}
+        onCreated={loadData}
+      />
+    </div>
+  );
 }
 ````
 
@@ -53798,6 +55935,426 @@ def allow_rag_query_rate_limit(
     )
 ````
 
+## File: py_fn/src/application/use_cases/__init__.py
+````python
+"""Application use cases."""
+
+from application.dto import RagIngestionResult
+from application.use_cases.rag_query import execute_rag_query
+from application.use_cases.rag_ingestion import ingest_document_for_rag
+
+__all__ = [
+    "execute_rag_query",
+    "RagIngestionResult",
+    "ingest_document_for_rag",
+]
+````
+
+## File: py_fn/src/application/use_cases/rag_ingestion.py
+````python
+"""
+RAG pipeline — ingestion use case (clean → chunk → embed → upsert).
+"""
+
+from __future__ import annotations
+
+import logging
+from datetime import UTC, datetime
+from typing import Any
+
+from application.dto import RagIngestionResult
+from core.config import (
+    OPENAI_EMBEDDING_DIMENSIONS,
+    OPENAI_EMBEDDING_MODEL,
+    RAG_DOC_CACHE_TTL_SECONDS,
+    RAG_CHUNK_OVERLAP_CHARS,
+    RAG_CHUNK_SIZE_CHARS,
+    RAG_REDIS_PREFIX,
+    RAG_VECTOR_NAMESPACE,
+)
+from domain.repositories import RagIngestionGateway, get_rag_ingestion_gateway
+from domain.services.rag_ingestion_text import clean_text, chunk_text, detect_language_hint
+
+logger = logging.getLogger(__name__)
+
+
+def ingest_document_for_rag(
+    *,
+    doc_id: str,
+    filename: str,
+    source_gcs_uri: str,
+    json_gcs_uri: str,
+    text: str,
+    page_count: int,
+    account_id: str,
+    workspace_id: str,
+    taxonomy: str = "general",
+    gateway: RagIngestionGateway | None = None,
+) -> RagIngestionResult:
+    """Step 1~5: clean -> chunk -> metadata -> embed -> upsert vector。"""
+    gateway = gateway or get_rag_ingestion_gateway()
+
+    if not account_id:
+        raise ValueError("account_id is required")
+    if not workspace_id:
+        raise ValueError("workspace_id is required")
+
+    raw_chars = len(text or "")
+    normalized = clean_text(text or "")
+    normalized_chars = len(normalized)
+    normalization_version = "v2"
+    language_hint = detect_language_hint(normalized)
+
+    base_chunks = chunk_text(
+        normalized,
+        chunk_size=RAG_CHUNK_SIZE_CHARS,
+        overlap=RAG_CHUNK_OVERLAP_CHARS,
+    )
+    if not base_chunks:
+        return RagIngestionResult(
+            chunk_count=0,
+            vector_count=0,
+            embedding_model=OPENAI_EMBEDDING_MODEL,
+            embedding_dimensions=OPENAI_EMBEDDING_DIMENSIONS,
+            raw_chars=raw_chars,
+            normalized_chars=normalized_chars,
+            normalization_version=normalization_version,
+            language_hint=language_hint,
+        )
+
+    texts = [item["text"] for item in base_chunks]
+    vectors = gateway.embed_texts(texts, model=OPENAI_EMBEDDING_MODEL)
+
+    now_iso = datetime.now(UTC).isoformat()
+    payload: list[dict[str, Any]] = []
+
+    for i, (chunk, vec) in enumerate(zip(base_chunks, vectors)):
+        chunk_id = f"{doc_id}:{i:04d}"
+        payload.append(
+            {
+                "id": chunk_id,
+                "vector": vec,
+                "data": chunk["text"],
+                "metadata": {
+                    "vector_namespace": RAG_VECTOR_NAMESPACE,
+                    "doc_id": doc_id,
+                    "chunk_id": chunk_id,
+                    "chunk_index": i,
+                    "chunk_count": len(base_chunks),
+                    "filename": filename,
+                    "original_filename": filename,
+                    "display_name": filename,
+                    "source_gcs_uri": source_gcs_uri,
+                    "json_gcs_uri": json_gcs_uri,
+                    "account_id": account_id,
+                    "workspace_id": workspace_id,
+                    "taxonomy": taxonomy,
+                    "semantic_class": taxonomy,
+                    "processing_status": "ready",
+                    "page_count": page_count,
+                    "char_start": chunk["char_start"],
+                    "char_end": chunk["char_end"],
+                    "text": chunk["text"],
+                    "embedding_dimensions": OPENAI_EMBEDDING_DIMENSIONS,
+                    "raw_chars": raw_chars,
+                    "normalized_chars": normalized_chars,
+                    "normalization_version": normalization_version,
+                    "language_hint": language_hint,
+                    "indexed_at": now_iso,
+                    "ingestion_pipeline": "rag-v2",
+                },
+            }
+        )
+
+    gateway.upsert_vectors(payload, namespace=RAG_VECTOR_NAMESPACE)
+
+    # Best effort: keep Upstash Search in sync with vector chunks.
+    try:
+        search_docs = [
+            {
+                "id": item["id"],
+                "content": {
+                    "text": item["metadata"].get("text", ""),
+                    "filename": item["metadata"].get("filename", ""),
+                    "doc_id": item["metadata"].get("doc_id", ""),
+                    "taxonomy": item["metadata"].get("taxonomy", ""),
+                },
+                "metadata": item["metadata"],
+            }
+            for item in payload
+        ]
+        gateway.upsert_search_documents(search_docs)
+    except Exception as exc:
+        logger.warning("search index upsert skipped for %s: %s", doc_id, exc)
+
+    # 文件索引摘要寫入 Redis，方便後續檢視與治理。
+    try:
+        gateway.redis_set_json(
+            key=f"{RAG_REDIS_PREFIX}:doc:{doc_id}:latest",
+            value={
+                "doc_id": doc_id,
+                "filename": filename,
+                "chunk_count": len(base_chunks),
+                "vector_count": len(payload),
+                "account_id": account_id,
+                "embedding_model": OPENAI_EMBEDDING_MODEL,
+                "embedding_dimensions": OPENAI_EMBEDDING_DIMENSIONS,
+                "normalization_version": normalization_version,
+                "language_hint": language_hint,
+                "indexed_at": now_iso,
+            },
+            ttl_seconds=RAG_DOC_CACHE_TTL_SECONDS,
+        )
+    except Exception as exc:
+        logger.warning("redis doc summary write failed for %s: %s", doc_id, exc)
+
+    return RagIngestionResult(
+        chunk_count=len(base_chunks),
+        vector_count=len(payload),
+        embedding_model=OPENAI_EMBEDDING_MODEL,
+        embedding_dimensions=OPENAI_EMBEDDING_DIMENSIONS,
+        raw_chars=raw_chars,
+        normalized_chars=normalized_chars,
+        normalization_version=normalization_version,
+        language_hint=language_hint,
+    )
+````
+
+## File: py_fn/src/application/use_cases/rag_query.py
+````python
+"""
+RAG query — application use case orchestration.
+
+Delegates all domain filtering to domain.services.rag_result_filter.
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from core.config import RAG_QUERY_DEFAULT_MAX_AGE_DAYS, RAG_QUERY_TOP_K
+from domain.repositories import RagQueryGateway, get_rag_query_gateway
+from domain.services.rag_result_filter import (
+    extract_snippet,
+    match_account,
+    match_freshness,
+    match_ready_status,
+    match_taxonomy,
+    match_workspace,
+    normalize_metadata,
+    resolve_filename,
+)
+from domain.value_objects import RagCitation, RagQueryInput, RagQueryResult
+
+logger = logging.getLogger(__name__)
+
+
+def _process_hits(
+    hits: list[dict[str, Any]],
+    provider: str,
+    request: RagQueryInput,
+    seen_snippets: set[str],
+) -> tuple[list[str], list[RagCitation], int, int, int, int]:
+    """Filter and map raw retrieval hits into context snippets and citations.
+
+    Returns (contexts, citations, dropped_workspace, dropped_status,
+             dropped_freshness, dropped_taxonomy).
+    """
+    contexts: list[str] = []
+    citations: list[RagCitation] = []
+    dropped_workspace = dropped_status = dropped_freshness = dropped_taxonomy = 0
+
+    for hit in hits:
+        if not isinstance(hit, dict):
+            continue
+        metadata = normalize_metadata(hit.get("metadata"))
+        if not metadata:
+            continue
+        if not match_account(metadata, request.account_scope):
+            continue
+        if not match_workspace(metadata, request.workspace_scope):
+            dropped_workspace += 1
+            continue
+        if not match_ready_status(metadata, request.require_ready):
+            dropped_status += 1
+            continue
+        if not match_freshness(metadata, request.max_age_days):
+            dropped_freshness += 1
+            continue
+        if not match_taxonomy(metadata, request.taxonomy_filters):
+            dropped_taxonomy += 1
+            continue
+
+        snippet = extract_snippet(hit, metadata)
+        if not snippet or snippet in seen_snippets:
+            continue
+
+        seen_snippets.add(snippet)
+        contexts.append(snippet)
+        citations.append(
+            RagCitation(
+                provider=provider,
+                doc_id=metadata.get("doc_id"),
+                chunk_id=metadata.get("chunk_id"),
+                score=hit.get("score") if isinstance(hit, dict) else None,
+                filename=resolve_filename(metadata),
+                json_gcs_uri=metadata.get("json_gcs_uri"),
+                search_id=hit.get("id") if provider == "search" else None,
+                account_id=metadata.get("account_id") or "",
+                workspace_id=metadata.get("workspace_id") or metadata.get("space_id") or "",
+                taxonomy=metadata.get("taxonomy") or metadata.get("semantic_class") or "",
+                processing_status=metadata.get("processing_status") or metadata.get("status") or "",
+                indexed_at=metadata.get("indexed_at") or "",
+            )
+        )
+
+    return contexts, citations, dropped_workspace, dropped_status, dropped_freshness, dropped_taxonomy
+
+
+def execute_rag_query(
+    *,
+    query: str,
+    account_scope: str,
+    workspace_scope: str,
+    top_k: int | None,
+    taxonomy_filters: list[str] | tuple[str, ...] | None,
+    max_age_days: int | None,
+    require_ready: bool,
+    gateway: RagQueryGateway | None = None,
+) -> dict:
+    """Application use case for RAG query orchestration."""
+    gateway = gateway or get_rag_query_gateway()
+
+    request = RagQueryInput.from_raw(
+        query=query,
+        account_scope=account_scope,
+        workspace_scope=workspace_scope,
+        top_k=top_k,
+        taxonomy_filters=taxonomy_filters,
+        max_age_days=max_age_days,
+        require_ready=require_ready,
+        default_top_k=RAG_QUERY_TOP_K,
+        default_max_age_days=RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
+    )
+    if not request.has_query:
+        return {
+            "answer": "",
+            "citations": [],
+            "cache": "miss",
+            "vector_hits": 0,
+            "search_hits": 0,
+            "account_scope": request.account_scope,
+            "workspace_scope": request.workspace_scope,
+            "taxonomy_filters": list(request.taxonomy_filters),
+            "max_age_days": request.max_age_days,
+            "require_ready": request.require_ready,
+        }
+
+    cache_key = gateway.build_query_cache_key(
+        account_scope=request.account_scope,
+        query=(
+            f"workspace={request.workspace_scope};"
+            f"taxonomy={','.join(request.taxonomy_filters)};"
+            f"maxAge={request.max_age_days};"
+            f"ready={request.require_ready};"
+            f"q={request.query}"
+        ),
+        top_k=request.top_k,
+    )
+    try:
+        cached = gateway.get_query_cache(cache_key)
+        if cached and isinstance(cached.get("answer"), str):
+            return {
+                "answer": cached.get("answer", ""),
+                "citations": cached.get("citations", []),
+                "cache": "hit",
+                "vector_hits": int(cached.get("vector_hits") or 0),
+                "search_hits": int(cached.get("search_hits") or 0),
+                "account_scope": cached.get("account_scope") or request.account_scope,
+                "workspace_scope": cached.get("workspace_scope") or request.workspace_scope,
+            }
+    except Exception as exc:
+        logger.warning("redis query cache read failed: %s", exc)
+
+    retrieval_top_k = request.retrieval_top_k()
+    vector = gateway.to_query_vector(request.query)
+    vector_hits_raw = gateway.query_vector(vector, top_k=retrieval_top_k)
+    search_hits_raw = gateway.query_search(request.query, top_k=retrieval_top_k)
+
+    seen_snippets: set[str] = set()
+
+    vec_contexts, vec_citations, dw1, ds1, df1, dt1 = _process_hits(
+        vector_hits_raw, "vector", request, seen_snippets
+    )
+    srch_contexts, srch_citations, dw2, ds2, df2, dt2 = _process_hits(
+        search_hits_raw, "search", request, seen_snippets
+    )
+
+    contexts = vec_contexts + srch_contexts
+    citations = vec_citations + srch_citations
+    vector_hit_count = len(vec_citations)
+    search_hit_count = len(srch_citations)
+
+    context_block = "\n\n---\n\n".join(contexts[: request.top_k])
+    if not context_block:
+        return RagQueryResult(
+            answer="找不到足夠的相關內容。",
+            citations=(),
+            cache="miss",
+            vector_hits=len(vector_hits_raw),
+            search_hits=len(search_hits_raw),
+            account_scope=request.account_scope,
+            workspace_scope=request.workspace_scope,
+            taxonomy_filters=request.taxonomy_filters,
+            max_age_days=request.max_age_days,
+            require_ready=request.require_ready,
+            debug={
+                "vector_candidates": len(vector_hits_raw),
+                "search_candidates": len(search_hits_raw),
+                "retrieval_top_k": retrieval_top_k,
+                "workspace_scope": request.workspace_scope,
+                "taxonomy_filters": list(request.taxonomy_filters),
+                "max_age_days": request.max_age_days,
+                "require_ready": request.require_ready,
+                "dropped_by_workspace": dw1 + dw2,
+                "dropped_by_status": ds1 + ds2,
+                "dropped_by_freshness": df1 + df2,
+                "dropped_by_taxonomy": dt1 + dt2,
+                "reason": "no-context-after-scope-or-text-filter",
+            },
+        ).to_dict()
+
+    answer = gateway.generate_answer(query=request.query, context_block=context_block)
+    result = RagQueryResult(
+        answer=answer,
+        citations=tuple(citations),
+        cache="miss",
+        vector_hits=vector_hit_count,
+        search_hits=search_hit_count,
+        account_scope=request.account_scope,
+        workspace_scope=request.workspace_scope,
+        taxonomy_filters=request.taxonomy_filters,
+        max_age_days=request.max_age_days,
+        require_ready=request.require_ready,
+    ).to_dict()
+
+    try:
+        gateway.save_query_cache(cache_key, result)
+    except Exception as exc:
+        logger.warning("redis query cache write failed: %s", exc)
+
+    gateway.publish_query_audit(
+        query=request.query,
+        top_k=request.top_k,
+        citation_count=len(citations),
+        vector_hits=vector_hit_count,
+        search_hits=search_hit_count,
+    )
+
+    return result
+````
+
 ## File: py_fn/src/core/__init__.py
 ````python
 """Core layer package."""
@@ -54119,9 +56676,284 @@ def get_document_pipeline_gateway() -> DocumentPipelineGateway:
     return _document_pipeline_gateway
 ````
 
+## File: py_fn/src/domain/services/__init__.py
+````python
+"""Domain services."""
+
+from domain.services.rag_result_filter import (
+    normalize_metadata,
+    match_account,
+    match_workspace,
+    match_ready_status,
+    match_freshness,
+    match_taxonomy,
+    extract_snippet,
+    extract_text_candidate,
+    resolve_filename,
+)
+from domain.services.rag_ingestion_text import (
+    clean_text,
+    chunk_text,
+    detect_language_hint,
+)
+
+__all__ = [
+    "normalize_metadata",
+    "match_account",
+    "match_workspace",
+    "match_ready_status",
+    "match_freshness",
+    "match_taxonomy",
+    "extract_snippet",
+    "extract_text_candidate",
+    "resolve_filename",
+    "clean_text",
+    "chunk_text",
+    "detect_language_hint",
+]
+````
+
 ## File: py_fn/src/domain/services/.gitkeep
 ````
 
+````
+
+## File: py_fn/src/domain/services/rag_ingestion_text.py
+````python
+"""
+Domain Service — RAG ingestion text processing.
+
+Pure business logic for text normalization, language detection, and
+chunking.  No infrastructure dependency.
+"""
+
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+def detect_language_hint(text: str) -> str:
+    """粗略語系判斷：cjk / latin / mixed。"""
+    cjk_count = len(re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]", text))
+    latin_count = len(re.findall(r"[A-Za-z]", text))
+    if cjk_count > latin_count * 1.2:
+        return "cjk"
+    if latin_count > cjk_count * 1.2:
+        return "latin"
+    return "mixed"
+
+
+def clean_text(raw_text: str) -> str:
+    """Step 1: Normalization v2，保留段落與可引用性。"""
+    text = raw_text.replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"[\u200b\u200c\u200d\ufeff]", "", text)
+    text = text.replace("\u3000", " ")
+    text = re.sub(r"[\t ]+", " ", text)
+    text = re.sub(r"\n[\t ]+", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def chunk_text(text: str, chunk_size: int, overlap: int) -> list[dict[str, Any]]:
+    """Step 2 + Step 3: 分塊並建立 chunk metadata。"""
+    if not text:
+        return []
+
+    if chunk_size <= 0:
+        chunk_size = 1200
+    if overlap < 0:
+        overlap = 0
+    if overlap >= chunk_size:
+        overlap = max(0, chunk_size // 4)
+
+    chunks: list[dict[str, Any]] = []
+    start = 0
+    text_len = len(text)
+
+    while start < text_len:
+        end = min(start + chunk_size, text_len)
+        content = text[start:end].strip()
+        if content:
+            chunks.append(
+                {
+                    "text": content,
+                    "char_start": start,
+                    "char_end": end,
+                }
+            )
+        if end >= text_len:
+            break
+        start = end - overlap
+
+    return chunks
+````
+
+## File: py_fn/src/domain/services/rag_result_filter.py
+````python
+"""
+Domain Service — RAG result filtering and snippet extraction.
+
+Pure business logic for matching and ranking retrieval hits against
+request scope constraints.  No infrastructure dependency.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+def normalize_metadata(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return {}
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            return {}
+    return {}
+
+
+def match_account(metadata: dict[str, Any], account_scope: str) -> bool:
+    candidates = (
+        metadata.get("account_id"),
+        metadata.get("accountId"),
+        metadata.get("account"),
+        metadata.get("account_scope"),
+    )
+    return any(str(value or "").strip() == account_scope for value in candidates)
+
+
+def match_workspace(metadata: dict[str, Any], workspace_scope: str) -> bool:
+    candidates = (
+        metadata.get("workspace_id"),
+        metadata.get("workspaceId"),
+        metadata.get("space_id"),
+        metadata.get("spaceId"),
+    )
+    return any(str(value or "").strip() == workspace_scope for value in candidates)
+
+
+def match_ready_status(metadata: dict[str, Any], require_ready: bool) -> bool:
+    if not require_ready:
+        return True
+    candidates = (
+        metadata.get("processing_status"),
+        metadata.get("rag_status"),
+        metadata.get("status"),
+    )
+    return any(str(value or "").strip().lower() == "ready" for value in candidates)
+
+
+def _parse_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return value.astimezone(UTC) if value.tzinfo else value.replace(tzinfo=UTC)
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        normalized = raw.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+        return parsed.astimezone(UTC) if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+    except Exception:
+        return None
+
+
+def match_freshness(metadata: dict[str, Any], max_age_days: int) -> bool:
+    if max_age_days <= 0:
+        return True
+
+    candidates = (
+        metadata.get("indexed_at"),
+        metadata.get("parsed_at"),
+        metadata.get("uploaded_at"),
+    )
+
+    timestamp = next(
+        (dt for dt in (_parse_datetime(value) for value in candidates) if dt is not None),
+        None,
+    )
+    if timestamp is None:
+        return False
+
+    cutoff = datetime.now(UTC) - timedelta(days=max_age_days)
+    return timestamp >= cutoff
+
+
+def match_taxonomy(metadata: dict[str, Any], taxonomy_filters: tuple[str, ...]) -> bool:
+    if not taxonomy_filters:
+        return True
+
+    normalized_filters = {item.lower() for item in taxonomy_filters if item}
+    if not normalized_filters:
+        return True
+
+    candidates = {
+        str(metadata.get("taxonomy") or "").strip().lower(),
+        str(metadata.get("semantic_class") or "").strip().lower(),
+        str(metadata.get("semantic_type") or "").strip().lower(),
+    }
+
+    tags = metadata.get("tags")
+    if isinstance(tags, list):
+        candidates.update(str(item or "").strip().lower() for item in tags)
+
+    candidates.discard("")
+    return bool(candidates.intersection(normalized_filters))
+
+
+def extract_text_candidate(value: Any) -> str:
+    if isinstance(value, str):
+        return value.strip()
+
+    if isinstance(value, dict):
+        for key in ("text", "content", "chunk_text"):
+            snippet = str(value.get(key) or "").strip()
+            if snippet:
+                return snippet
+
+    return ""
+
+
+def extract_snippet(hit: dict[str, Any], metadata: dict[str, Any]) -> str:
+    candidates = (
+        hit.get("data"),
+        metadata.get("text"),
+        metadata.get("chunk_text"),
+        metadata.get("content"),
+        hit.get("text"),
+        hit.get("content"),
+    )
+    for candidate in candidates:
+        snippet = extract_text_candidate(candidate)
+        if snippet:
+            return snippet
+    return ""
+
+
+def resolve_filename(metadata: dict[str, Any], fallback: str | None = None) -> str | None:
+    candidates = (
+        metadata.get("filename"),
+        metadata.get("display_name"),
+        metadata.get("original_filename"),
+        metadata.get("title"),
+        fallback,
+    )
+    for value in candidates:
+        name = str(value or "").strip()
+        if name:
+            return name
+    return None
 ````
 
 ## File: py_fn/src/domain/value_objects/__init__.py
@@ -54690,6 +57522,204 @@ def generate_answer(*, query: str, context_block: str) -> str:
 """Upstash integration (Vector / Redis / Search / QStash)."""
 ````
 
+## File: py_fn/src/infrastructure/external/upstash/_base.py
+````python
+"""
+Upstash 共用工具 — 錯誤類別與基礎輔助函數。
+供 vector_client / redis_client / search_client / qstash_client 共享使用。
+"""
+
+from __future__ import annotations
+
+import importlib
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class UpstashConfigError(RuntimeError):
+    """Upstash 配置缺失。"""
+
+
+class UpstashSdkError(RuntimeError):
+    """Upstash SDK 載入失敗。"""
+
+
+def _require(value: str, name: str) -> str:
+    if not value:
+        raise UpstashConfigError(f"{name} is not set")
+    return value
+
+
+def _import_module(module_name: str, install_hint: str):
+    try:
+        return importlib.import_module(module_name)
+    except ImportError as exc:
+        raise UpstashSdkError(f"Missing dependency: {install_hint}") from exc
+````
+
+## File: py_fn/src/infrastructure/external/upstash/clients.py
+````python
+"""
+Upstash clients — 向後相容的重新匯出桶。
+各功能已拆分至對應的聚焦模組：
+  - vector_client.py  (upsert_vectors, query_vectors)
+  - redis_client.py   (redis_get_json, redis_set_json, redis_fixed_window_allow)
+  - search_client.py  (upsert_search_documents, query_search_documents)
+  - qstash_client.py  (publish_qstash_json)
+  - _base.py          (UpstashConfigError, UpstashSdkError)
+
+此檔案保留所有原始公開符號以維持向後相容。
+"""
+
+from __future__ import annotations
+
+from infrastructure.external.upstash._base import (
+    UpstashConfigError,
+    UpstashSdkError,
+)
+from infrastructure.external.upstash.vector_client import (
+    get_vector_index,
+    upsert_vectors,
+    query_vectors,
+)
+from infrastructure.external.upstash.redis_client import (
+    get_redis_client,
+    redis_get_json,
+    redis_set_json,
+    redis_fixed_window_allow,
+)
+from infrastructure.external.upstash.search_client import (
+    get_search_index,
+    upsert_search_documents,
+    query_search_documents,
+)
+from infrastructure.external.upstash.qstash_client import (
+    get_qstash_client,
+    publish_qstash_json,
+)
+
+__all__ = [
+    "UpstashConfigError",
+    "UpstashSdkError",
+    "get_vector_index",
+    "upsert_vectors",
+    "query_vectors",
+    "get_redis_client",
+    "redis_get_json",
+    "redis_set_json",
+    "redis_fixed_window_allow",
+    "get_search_index",
+    "upsert_search_documents",
+    "query_search_documents",
+    "get_qstash_client",
+    "publish_qstash_json",
+]
+````
+
+## File: py_fn/src/infrastructure/external/upstash/qstash_client.py
+````python
+"""
+Upstash QStash 客戶端 — 非同步訊息投遞操作。
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from core.config import (
+    QSTASH_CURRENT_SIGNING_KEY,
+    QSTASH_NEXT_SIGNING_KEY,
+    QSTASH_TOKEN,
+    QSTASH_URL,
+)
+from infrastructure.external.upstash._base import UpstashSdkError, _require, _import_module
+
+_QSTASH_CLIENT: Any | None = None
+
+logger = logging.getLogger(__name__)
+
+
+def get_qstash_client() -> Any:
+    """取得 QStash 官方 SDK client（單例）。"""
+    global _QSTASH_CLIENT
+    if _QSTASH_CLIENT is None:
+        mod = _import_module("qstash", "pip install qstash")
+        client_cls = getattr(mod, "QStash", None)
+        if client_cls is None:
+            raise UpstashSdkError("qstash.QStash not found")
+
+        # 新舊 SDK 參數名稱兼容
+        kwargs: dict[str, Any] = {
+            "token": _require(QSTASH_TOKEN, "QSTASH_TOKEN"),
+        }
+        if QSTASH_URL:
+            kwargs["base_url"] = QSTASH_URL
+        if QSTASH_CURRENT_SIGNING_KEY:
+            kwargs["current_signing_key"] = QSTASH_CURRENT_SIGNING_KEY
+        if QSTASH_NEXT_SIGNING_KEY:
+            kwargs["next_signing_key"] = QSTASH_NEXT_SIGNING_KEY
+
+        try:
+            _QSTASH_CLIENT = client_cls(**kwargs)
+        except TypeError:
+            # 退回最小初始化方式
+            _QSTASH_CLIENT = client_cls(token=_require(QSTASH_TOKEN, "QSTASH_TOKEN"))
+
+    return _QSTASH_CLIENT
+
+
+def publish_qstash_json(url: str, body: dict[str, Any], delay: str | None = None) -> bool:
+    """透過 QStash 投遞 JSON 訊息（best effort）。"""
+    target_url = url.strip()
+    if not target_url:
+        return False
+
+    try:
+        client = get_qstash_client()
+    except Exception as exc:
+        logger.debug("publish_qstash_json skip: %s", exc)
+        return False
+
+    try:
+        kwargs: dict[str, Any] = {
+            "url": target_url,
+            "body": body,
+        }
+        if delay:
+            kwargs["delay"] = delay
+
+        publish_json = getattr(client, "publish_json", None)
+        if callable(publish_json):
+            publish_json(**kwargs)
+            return True
+
+        publish = getattr(client, "publish", None)
+        if callable(publish):
+            publish(**kwargs)
+            return True
+
+        return False
+    except TypeError:
+        try:
+            publish_json = getattr(client, "publish_json", None)
+            if callable(publish_json):
+                publish_json(target_url, body)
+                return True
+            publish = getattr(client, "publish", None)
+            if callable(publish):
+                publish(target_url, body)
+                return True
+            return False
+        except Exception:
+            logger.debug("publish_qstash_json fallback failed", exc_info=True)
+            return False
+    except Exception:
+        logger.debug("publish_qstash_json failed", exc_info=True)
+        return False
+````
+
 ## File: py_fn/src/infrastructure/external/upstash/rag_query.py
 ````python
 from __future__ import annotations
@@ -54710,6 +57740,474 @@ def query_vector(vector: list[float], top_k: int) -> list[dict]:
 
 def query_search(query: str, top_k: int) -> list[dict]:
     return query_search_documents(query, top_k=top_k)
+````
+
+## File: py_fn/src/infrastructure/external/upstash/redis_client.py
+````python
+"""
+Upstash Redis 客戶端 — JSON 讀寫與固定窗口限流操作。
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from typing import Any
+
+from core.config import UPSTASH_REDIS_REST_TOKEN, UPSTASH_REDIS_REST_URL
+from infrastructure.external.upstash._base import UpstashSdkError, _require, _import_module
+
+_REDIS_CLIENT: Any | None = None
+
+logger = logging.getLogger(__name__)
+
+
+def get_redis_client() -> Any:
+    """取得 Upstash Redis 官方 SDK client（單例）。"""
+    global _REDIS_CLIENT
+    if _REDIS_CLIENT is None:
+        mod = _import_module("upstash_redis", "pip install upstash-redis")
+        redis_cls = getattr(mod, "Redis", None)
+        if redis_cls is None:
+            raise UpstashSdkError("upstash_redis.Redis not found")
+        _REDIS_CLIENT = redis_cls(
+            url=_require(UPSTASH_REDIS_REST_URL, "UPSTASH_REDIS_REST_URL"),
+            token=_require(UPSTASH_REDIS_REST_TOKEN, "UPSTASH_REDIS_REST_TOKEN"),
+        )
+    return _REDIS_CLIENT
+
+
+def redis_get_json(key: str) -> dict[str, Any] | None:
+    """從 Upstash Redis 讀取 JSON 字串並反序列化。"""
+    client = get_redis_client()
+    raw = client.get(key)
+    if raw is None:
+        return None
+
+    if isinstance(raw, (bytes, bytearray)):
+        raw_text = raw.decode("utf-8", errors="ignore")
+    else:
+        raw_text = str(raw)
+
+    if not raw_text:
+        return None
+
+    try:
+        parsed = json.loads(raw_text)
+        return parsed if isinstance(parsed, dict) else None
+    except Exception:
+        logger.warning("redis_get_json: invalid json at key=%s", key)
+        return None
+
+
+def redis_set_json(key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None:
+    """將 dict 寫入 Upstash Redis；可選擇 TTL。"""
+    client = get_redis_client()
+    payload = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+    if ttl_seconds > 0:
+        try:
+            client.set(key, payload, ex=ttl_seconds)
+            return
+        except TypeError:
+            pass
+        except Exception:
+            logger.exception("redis_set_json set(ex=) failed: key=%s", key)
+            raise
+
+        try:
+            client.setex(key, ttl_seconds, payload)
+            return
+        except Exception:
+            logger.exception("redis_set_json setex failed: key=%s", key)
+            raise
+
+    client.set(key, payload)
+
+
+def redis_fixed_window_allow(
+    key: str,
+    max_requests: int,
+    window_seconds: int,
+) -> tuple[bool, int]:
+    """固定窗限流：回傳 (allowed, remaining)。"""
+    if max_requests <= 0 or window_seconds <= 0:
+        return True, max_requests
+
+    client = get_redis_client()
+    current = int(client.incr(key) or 0)
+    if current == 1:
+        client.expire(key, window_seconds)
+
+    allowed = current <= max_requests
+    remaining = max(0, max_requests - current)
+    return allowed, remaining
+````
+
+## File: py_fn/src/infrastructure/external/upstash/search_client.py
+````python
+"""
+Upstash Search 客戶端 — 全文搜尋 upsert / query 操作。
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from urllib import error as urlerror
+from urllib import request as urlrequest
+from typing import Any
+
+from core.config import (
+    UPSTASH_SEARCH_REST_TOKEN,
+    UPSTASH_SEARCH_REST_URL,
+    UPSTASH_SEARCH_INDEX,
+    UPSTASH_SEARCH_TIMEOUT_SECONDS,
+)
+from infrastructure.external.upstash._base import UpstashSdkError, _require, _import_module
+
+_SEARCH_INDEX: Any | None = None
+
+logger = logging.getLogger(__name__)
+
+
+def get_search_index() -> Any:
+    """取得 Upstash Search 官方 SDK index（單例）。"""
+    global _SEARCH_INDEX
+    if _SEARCH_INDEX is None:
+        mod = _import_module("upstash_search", "pip install upstash-search")
+        search_cls = getattr(mod, "Search", None)
+        if search_cls is None:
+            raise UpstashSdkError("upstash_search.Search not found")
+
+        index_name = UPSTASH_SEARCH_INDEX or "default"
+        client = search_cls(
+            url=_require(UPSTASH_SEARCH_REST_URL, "UPSTASH_SEARCH_REST_URL"),
+            token=_require(UPSTASH_SEARCH_REST_TOKEN, "UPSTASH_SEARCH_REST_TOKEN"),
+            allow_telemetry=False,
+        )
+        _SEARCH_INDEX = client.index(index_name)
+    return _SEARCH_INDEX
+
+
+def upsert_search_documents(documents: list[dict[str, Any]]) -> int:
+    """批次寫入 Upstash Search index（best effort，不拋出上層）。"""
+    if not UPSTASH_SEARCH_REST_URL or not UPSTASH_SEARCH_REST_TOKEN:
+        return 0
+
+    if not documents:
+        return 0
+
+    normalized: list[dict[str, Any]] = []
+    for item in documents:
+        if not isinstance(item, dict):
+            continue
+        doc_id = str(item.get("id") or "").strip()
+        if not doc_id:
+            continue
+
+        content = item.get("content") if isinstance(item.get("content"), dict) else {}
+        metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+        normalized.append({
+            "id": doc_id,
+            "content": content,
+            "metadata": metadata,
+        })
+
+    if not normalized:
+        return 0
+
+    try:
+        index = get_search_index()
+        try:
+            index.upsert(documents=normalized)
+        except TypeError:
+            index.upsert(normalized)
+        return len(normalized)
+    except Exception as exc:
+        logger.warning("upsert_search_documents failed: %s", exc)
+        return 0
+
+
+def query_search_documents(query: str, top_k: int) -> list[dict[str, Any]]:
+    """
+    以 Upstash Search REST 進行補充檢索（best effort）。
+
+    回傳格式統一為 list[dict]，單筆含 text / score / source 等欄位。
+    """
+    if not UPSTASH_SEARCH_REST_URL or not UPSTASH_SEARCH_REST_TOKEN:
+        return []
+
+    if not query.strip() or top_k <= 0:
+        return []
+
+    # Prefer official SDK first; fallback to REST probing for compatibility.
+    try:
+        index = get_search_index()
+        result = index.search(query=query, limit=top_k)
+        normalized: list[dict[str, Any]] = []
+
+        if isinstance(result, list):
+            items = result
+        elif isinstance(result, dict):
+            items = (
+                result.get("result")
+                or result.get("matches")
+                or result.get("hits")
+                or result.get("data")
+                or []
+            )
+        else:
+            items = getattr(result, "results", None) or getattr(result, "data", None) or []
+
+        if isinstance(items, list):
+            for item in items:
+                if not isinstance(item, dict):
+                    try:
+                        item = dict(item)
+                    except Exception:
+                        continue
+
+                metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+                content = item.get("content") if isinstance(item.get("content"), dict) else {}
+                text = str(
+                    item.get("text")
+                    or content.get("text")
+                    or content.get("content")
+                    or metadata.get("text")
+                    or item.get("content")
+                    or ""
+                ).strip()
+                if not text:
+                    continue
+
+                normalized.append(
+                    {
+                        "id": item.get("id"),
+                        "score": item.get("score"),
+                        "text": text,
+                        "metadata": metadata,
+                        "source": "upstash-search-sdk",
+                    }
+                )
+
+        if normalized:
+            return normalized
+    except Exception as exc:
+        logger.debug("query_search_documents sdk path failed, fallback to REST: %s", exc)
+
+    endpoint_base = UPSTASH_SEARCH_REST_URL.rstrip("/")
+    body_candidates = [
+        {"query": query, "topK": top_k},
+        {"query": query, "top_k": top_k},
+        {"q": query, "limit": top_k},
+    ]
+    path_candidates = ["/query", "/search"]
+
+    for path in path_candidates:
+        url = f"{endpoint_base}{path}"
+        for body in body_candidates:
+            raw = None
+            try:
+                req = urlrequest.Request(
+                    url=url,
+                    method="POST",
+                    headers={
+                        "Authorization": f"Bearer {UPSTASH_SEARCH_REST_TOKEN}",
+                        "Content-Type": "application/json",
+                    },
+                    data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+                )
+                with urlrequest.urlopen(req, timeout=UPSTASH_SEARCH_TIMEOUT_SECONDS) as resp:
+                    raw = resp.read().decode("utf-8", errors="ignore")
+            except urlerror.HTTPError as exc:
+                logger.debug("query_search_documents http error: %s %s", url, exc)
+                continue
+            except Exception as exc:
+                logger.debug("query_search_documents request failed: %s", exc)
+                continue
+
+            if not raw:
+                continue
+
+            try:
+                payload = json.loads(raw)
+            except Exception:
+                logger.debug("query_search_documents invalid json from %s", url)
+                continue
+
+            candidates = []
+            if isinstance(payload, dict):
+                candidates = (
+                    payload.get("result")
+                    or payload.get("matches")
+                    or payload.get("hits")
+                    or payload.get("data")
+                    or []
+                )
+            elif isinstance(payload, list):
+                candidates = payload
+
+            if not isinstance(candidates, list):
+                continue
+
+            normalized: list[dict[str, Any]] = []
+            for item in candidates:
+                if isinstance(item, dict):
+                    metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+                    text = str(
+                        item.get("text")
+                        or metadata.get("text")
+                        or item.get("content")
+                        or ""
+                    ).strip()
+                    if not text:
+                        continue
+                    normalized.append(
+                        {
+                            "id": item.get("id"),
+                            "score": item.get("score"),
+                            "text": text,
+                            "metadata": metadata,
+                            "source": "upstash-search",
+                        }
+                    )
+            if normalized:
+                return normalized
+
+    return []
+````
+
+## File: py_fn/src/infrastructure/external/upstash/vector_client.py
+````python
+"""
+Upstash Vector 客戶端 — 向量 upsert / query 操作。
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from core.config import UPSTASH_VECTOR_REST_TOKEN, UPSTASH_VECTOR_REST_URL
+from infrastructure.external.upstash._base import UpstashSdkError, _require, _import_module
+
+_VECTOR_INDEX: Any | None = None
+
+logger = logging.getLogger(__name__)
+
+
+def get_vector_index() -> Any:
+    """取得 Upstash Vector 官方 SDK Index 實例（單例）。"""
+    global _VECTOR_INDEX
+    if _VECTOR_INDEX is None:
+        mod = _import_module("upstash_vector", "pip install upstash-vector")
+        index_cls = getattr(mod, "Index", None)
+        if index_cls is None:
+            raise UpstashSdkError("upstash_vector.Index not found")
+        _VECTOR_INDEX = index_cls(
+            url=_require(UPSTASH_VECTOR_REST_URL, "UPSTASH_VECTOR_REST_URL"),
+            token=_require(UPSTASH_VECTOR_REST_TOKEN, "UPSTASH_VECTOR_REST_TOKEN"),
+        )
+    return _VECTOR_INDEX
+
+
+def _normalize_vector_item(item: Any) -> dict[str, Any]:
+    if isinstance(item, dict):
+        return item
+    try:
+        return {
+            "id": getattr(item, "id", None),
+            "score": getattr(item, "score", None),
+            "vector": getattr(item, "vector", None),
+            "metadata": getattr(item, "metadata", None),
+            "data": getattr(item, "data", None),
+        }
+    except Exception:
+        return {}
+
+
+def upsert_vectors(items: list[dict[str, Any]], namespace: str = "") -> Any:
+    """
+    批次 upsert 向量資料到 Upstash Vector。
+
+    items 每筆至少包含：
+      - id: str
+      - vector: list[float]
+      - metadata: dict[str, Any]
+    """
+    index = get_vector_index()
+    sdk_payload = [
+        {
+            "id": item["id"],
+            "vector": item["vector"],
+            "metadata": item.get("metadata", {}),
+            "data": item.get("data"),
+        }
+        for item in items
+    ]
+    tuples_payload = [
+        (item["id"], item["vector"], item.get("metadata", {}))
+        for item in items
+    ]
+
+    try:
+        return index.upsert(vectors=sdk_payload, namespace=namespace)
+    except TypeError:
+        try:
+            return index.upsert(sdk_payload, namespace=namespace)
+        except TypeError:
+            try:
+                return index.upsert(tuples_payload, namespace=namespace)
+            except TypeError:
+                return index.upsert(items, namespace=namespace)
+
+
+def query_vectors(
+    vector: list[float],
+    top_k: int,
+    include_metadata: bool = True,
+    include_data: bool = True,
+    namespace: str = "",
+    filter: str = "",
+) -> list[dict[str, Any]]:
+    """查詢 Upstash Vector，統一輸出為 list[dict]。"""
+    index = get_vector_index()
+
+    try:
+        result = index.query(
+            vector=vector,
+            top_k=top_k,
+            include_metadata=include_metadata,
+            include_data=include_data,
+            namespace=namespace,
+            filter=filter,
+        )
+    except TypeError:
+        try:
+            result = index.query(
+                vector,
+                top_k=top_k,
+                include_metadata=include_metadata,
+                include_data=include_data,
+                namespace=namespace,
+                filter=filter,
+            )
+        except TypeError:
+            result = index.query(vector=vector, top_k=top_k, namespace=namespace)
+
+    if isinstance(result, list):
+        return [_normalize_vector_item(item) for item in result]
+
+    if isinstance(result, dict):
+        candidates = result.get("result") or result.get("matches") or result.get("data") or []
+        if isinstance(candidates, list):
+            return [_normalize_vector_item(item) for item in candidates]
+
+    if hasattr(result, "data") and isinstance(result.data, list):
+        return [_normalize_vector_item(item) for item in result.data]
+
+    return []
 ````
 
 ## File: py_fn/src/infrastructure/logging/.gitkeep
@@ -55093,6 +58591,389 @@ __all__ = [
 	"handle_rag_query",
 	"handle_rag_reindex_document",
 ]
+````
+
+## File: py_fn/src/interface/handlers/_https_helpers.py
+````python
+"""
+HTTPS handler 共用工具 — 驗證、存取控制與輸入解析輔助函數。
+供 parse_document / rag_query / rag_reindex 共享使用。
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from firebase_functions import https_fn
+import firebase_admin.firestore as fb_firestore
+
+logger = logging.getLogger(__name__)
+
+
+def _extract_auth_uid(req: https_fn.CallableRequest) -> str:
+    auth = getattr(req, "auth", None)
+    if auth is None:
+        return ""
+    if isinstance(auth, dict):
+        return str(auth.get("uid", "")).strip()
+    uid = str(getattr(auth, "uid", "")).strip()
+    if uid:
+        return uid
+    token = getattr(auth, "token", None)
+    if isinstance(token, dict):
+        return str(token.get("uid", "")).strip()
+    return ""
+
+
+def _assert_account_access(uid: str, account_id: str) -> None:
+    if uid == account_id:
+        return
+
+    db = fb_firestore.client()
+    snap = db.collection("accounts").document(account_id).get()
+    if not snap.exists:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.PERMISSION_DENIED,
+            "account not found or inaccessible",
+        )
+
+    data = snap.to_dict() or {}
+    owner_id = str(data.get("ownerId", "")).strip()
+    member_ids = data.get("memberIds") if isinstance(data.get("memberIds"), list) else []
+    member_set = {str(item or "").strip() for item in member_ids}
+    if owner_id == uid or uid in member_set:
+        return
+
+    raise https_fn.HttpsError(
+        https_fn.FunctionsErrorCode.PERMISSION_DENIED,
+        "you do not have access to this account scope",
+    )
+
+
+def _assert_workspace_belongs_account(account_id: str, workspace_id: str) -> None:
+    db = fb_firestore.client()
+    snap = db.collection("workspaces").document(workspace_id).get()
+    if not snap.exists:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "workspace not found",
+        )
+
+    data = snap.to_dict() or {}
+    bound_account_id = str(data.get("accountId", "")).strip()
+    if bound_account_id != account_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.PERMISSION_DENIED,
+            "workspace does not belong to account scope",
+        )
+
+
+def _parse_taxonomy_filters(raw_value: Any) -> list[str]:
+    if not isinstance(raw_value, list):
+        return []
+    return [str(item or "").strip().lower() for item in raw_value if str(item or "").strip()]
+
+
+def _to_bool(raw_value: Any, default_value: bool) -> bool:
+    if isinstance(raw_value, bool):
+        return raw_value
+    raw = str(raw_value or "").strip().lower()
+    if not raw:
+        return default_value
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    return default_value
+
+
+def _parse_gs_uri(gs_uri: str) -> tuple[str, str]:
+    if not gs_uri.startswith("gs://"):
+        raise ValueError("gcs uri must start with gs://")
+    path_part = gs_uri.split("gs://", 1)[1]
+    if "/" not in path_part:
+        raise ValueError("gcs uri must include object path")
+    bucket_name, object_path = path_part.split("/", 1)
+    return bucket_name, object_path
+````
+
+## File: py_fn/src/interface/handlers/https.py
+````python
+"""
+HTTPS Callable 觸發器 — 向後相容的重新匯出桶。
+各 handler 已拆分至對應的聚焦模組：
+  - parse_document.py      (handle_parse_document)
+  - rag_query_handler.py   (handle_rag_query)
+  - rag_reindex_handler.py (handle_rag_reindex_document)
+  - _https_helpers.py      (共用驗證/解析工具)
+
+此檔案保留所有原始公開符號以維持向後相容。
+"""
+
+from __future__ import annotations
+
+from interface.handlers.parse_document import handle_parse_document
+from interface.handlers.rag_query_handler import handle_rag_query
+from interface.handlers.rag_reindex_handler import handle_rag_reindex_document
+
+__all__ = [
+    "handle_parse_document",
+    "handle_rag_query",
+    "handle_rag_reindex_document",
+]
+````
+
+## File: py_fn/src/interface/handlers/rag_query_handler.py
+````python
+"""
+HTTPS Callable — handle_rag_query：RAG 查詢（Step 7）。
+"""
+
+from __future__ import annotations
+
+import logging
+
+from firebase_functions import https_fn
+
+from application.services.document_pipeline import allow_rag_query_rate_limit
+from application.use_cases import execute_rag_query
+from core.config import (
+    RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
+    RAG_QUERY_REQUIRE_READY_STATUS,
+    RAG_QUERY_RATE_LIMIT_MAX,
+    RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
+)
+from interface.handlers._https_helpers import (
+    _assert_account_access,
+    _assert_workspace_belongs_account,
+    _extract_auth_uid,
+    _parse_taxonomy_filters,
+    _to_bool,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def handle_rag_query(req: https_fn.CallableRequest) -> dict:
+    """HTTPS Callable：RAG 查詢（Step 7）。"""
+    uid = _extract_auth_uid(req)
+    if not uid:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.UNAUTHENTICATED,
+            "需先登入才能執行 RAG 查詢",
+        )
+
+    data: dict = req.data or {}
+    query = str(data.get("query", "")).strip()
+    account_id = str(data.get("account_id", "")).strip()
+    workspace_id = str(data.get("workspace_id", "")).strip()
+    if not account_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "account_id 為必填欄位",
+        )
+    if not query:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "query 為必填欄位",
+        )
+    if not workspace_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "workspace_id 為必填欄位",
+        )
+
+    _assert_account_access(uid, account_id)
+    _assert_workspace_belongs_account(account_id, workspace_id)
+
+    top_k = data.get("top_k")
+    try:
+        top_k_int = int(top_k) if top_k is not None else None
+    except Exception:
+        top_k_int = None
+
+    try:
+        max_age_days = int(data.get("max_age_days")) if data.get("max_age_days") is not None else None
+    except Exception:
+        max_age_days = None
+
+    taxonomy_filters = _parse_taxonomy_filters(data.get("taxonomy_filters"))
+    require_ready = _to_bool(data.get("require_ready"), RAG_QUERY_REQUIRE_READY_STATUS)
+
+    try:
+        allowed, remaining = allow_rag_query_rate_limit(
+            account_id=account_id,
+            max_requests=RAG_QUERY_RATE_LIMIT_MAX,
+            window_seconds=RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
+        )
+    except Exception as exc:
+        logger.warning("rag_query rate-limit skipped: %s", exc)
+        allowed, remaining = True, -1
+
+    if not allowed:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.RESOURCE_EXHAUSTED,
+            "RAG query rate limit exceeded, please try again later.",
+        )
+
+    result = execute_rag_query(
+        query=query,
+        top_k=top_k_int,
+        account_scope=account_id,
+        workspace_scope=workspace_id,
+        taxonomy_filters=taxonomy_filters,
+        max_age_days=max_age_days or RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
+        require_ready=require_ready,
+    )
+    response = {
+        "answer": result.get("answer", ""),
+        "citations": result.get("citations", []),
+        "cache": result.get("cache", "miss"),
+        "vector_hits": result.get("vector_hits", 0),
+        "search_hits": result.get("search_hits", 0),
+        "account_scope": result.get("account_scope", account_id),
+        "workspace_scope": result.get("workspace_scope", workspace_id),
+        "taxonomy_filters": result.get("taxonomy_filters", taxonomy_filters),
+        "max_age_days": result.get("max_age_days", max_age_days or RAG_QUERY_DEFAULT_MAX_AGE_DAYS),
+        "require_ready": result.get("require_ready", require_ready),
+        "rate_limit_remaining": remaining,
+    }
+    if isinstance(result.get("debug"), dict):
+        response["debug"] = result["debug"]
+    return response
+````
+
+## File: py_fn/src/interface/handlers/rag_reindex_handler.py
+````python
+"""
+HTTPS Callable — handle_rag_reindex_document：手動觸發文件 RAG 重新索引。
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+
+from firebase_functions import https_fn
+
+from application.services.document_pipeline import get_document_pipeline
+from application.use_cases.rag_ingestion import ingest_document_for_rag
+from interface.handlers._https_helpers import _parse_gs_uri
+
+logger = logging.getLogger(__name__)
+
+
+def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
+    """HTTPS Callable：手動觸發單一文件的 Normalization + RAG ingestion。"""
+    runtime = get_document_pipeline()
+    data: dict = req.data or {}
+
+    account_id = str(data.get("account_id", "")).strip()
+    doc_id = str(data.get("doc_id", "")).strip()
+    json_gcs_uri = str(data.get("json_gcs_uri", "")).strip()
+    source_gcs_uri = str(data.get("source_gcs_uri", "")).strip()
+    workspace_id = str(data.get("workspace_id", "")).strip()
+    filename = (
+        str(data.get("filename", "")).strip()
+        or str(data.get("display_name", "")).strip()
+        or str(data.get("original_filename", "")).strip()
+        or doc_id
+    )
+
+    if not account_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "account_id 為必填欄位",
+        )
+    if not doc_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "doc_id 為必填欄位",
+        )
+    if not json_gcs_uri:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "json_gcs_uri 為必填欄位",
+        )
+
+    try:
+        page_count = int(data.get("page_count", 0) or 0)
+    except Exception:
+        page_count = 0
+
+    try:
+        bucket_name, object_path = _parse_gs_uri(json_gcs_uri)
+        json_bytes = runtime.download_bytes(bucket_name=bucket_name, object_path=object_path)
+        parsed_payload = json.loads(json_bytes.decode("utf-8")) if json_bytes else {}
+
+        text = str(parsed_payload.get("text", "")).strip()
+        if not text:
+            raise ValueError("json 內容缺少 text")
+
+        if not source_gcs_uri:
+            source_gcs_uri = str(parsed_payload.get("source_gcs_uri", "")).strip()
+        if not workspace_id:
+            workspace_id = str(parsed_payload.get("workspace_id", "")).strip()
+        if not workspace_id:
+            workspace_id = str((parsed_payload.get("metadata") or {}).get("space_id", "")).strip()
+        if not filename:
+            filename = (
+                str(parsed_payload.get("filename", "")).strip()
+                or str(parsed_payload.get("display_name", "")).strip()
+                or str(parsed_payload.get("original_filename", "")).strip()
+                or doc_id
+            )
+        if page_count <= 0:
+            page_count = int(parsed_payload.get("page_count", 0) or 0)
+        if not workspace_id:
+            raise https_fn.HttpsError(
+                https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+                "workspace_id 為必填欄位",
+            )
+
+        rag = ingest_document_for_rag(
+            doc_id=doc_id,
+            filename=filename,
+            source_gcs_uri=source_gcs_uri,
+            json_gcs_uri=json_gcs_uri,
+            text=text,
+            page_count=page_count,
+            account_id=account_id,
+            workspace_id=workspace_id,
+        )
+
+        runtime.mark_rag_ready(
+            doc_id=doc_id,
+            chunk_count=rag.chunk_count,
+            vector_count=rag.vector_count,
+            embedding_model=rag.embedding_model,
+            embedding_dimensions=rag.embedding_dimensions,
+            raw_chars=rag.raw_chars,
+            normalized_chars=rag.normalized_chars,
+            normalization_version=rag.normalization_version,
+            language_hint=rag.language_hint,
+            account_id=account_id,
+        )
+
+        return {
+            "account_scope": account_id,
+            "doc_id": doc_id,
+            "status": "ready",
+            "chunk_count": rag.chunk_count,
+            "vector_count": rag.vector_count,
+            "raw_chars": rag.raw_chars,
+            "normalized_chars": rag.normalized_chars,
+            "normalization_version": rag.normalization_version,
+            "language_hint": rag.language_hint,
+        }
+    except Exception as exc:
+        logger.exception("rag_reindex_document failed for %s: %s", doc_id, exc)
+        runtime.record_rag_error(doc_id, str(exc)[:200], account_id=account_id)
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INTERNAL,
+            f"rag_reindex_document 失敗：{str(exc)[:200]}",
+        ) from exc
 ````
 
 ## File: py_fn/src/interface/handlers/storage.py
@@ -62108,523 +65989,6 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 }
 ````
 
-## File: modules/organization/api/index.ts
-````typescript
-/**
- * organization 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 organization 模組內部實作。
- */
-
-import { FirebaseOrganizationRepository } from "../infrastructure/firebase/FirebaseOrganizationRepository";
-
-// ─── DTOs ─────────────────────────────────────────────────────────────────────
-
-/** 組織成員 DTO — 供外部模組消費，不直接暴露 MemberReference 實體。 */
-export interface OrganizationMemberDTO {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  /** 成員線上狀態：active（上線）、away（暫離）、offline（離線）。 */
-  presence: "active" | "away" | "offline";
-  isExternal?: boolean;
-}
-
-/** 組織團隊 DTO — 供外部模組消費，不直接暴露 Team 實體。 */
-export interface OrganizationTeamDTO {
-  id: string;
-  name: string;
-  memberIds: string[];
-}
-
-// ─── 內部單例 ──────────────────────────────────────────────────────────────────
-
-const orgRepo = new FirebaseOrganizationRepository();
-
-// ─── 公開 API Facade ──────────────────────────────────────────────────────────
-
-export const organizationApi = {
-  /**
-   * 取得指定組織的所有成員清單。
-   */
-  async getMembers(organizationId: string): Promise<OrganizationMemberDTO[]> {
-    const members = await orgRepo.getMembers(organizationId);
-    return members.map((m) => ({
-      id: m.id,
-      name: m.name,
-      email: m.email,
-      role: m.role,
-      presence: m.presence,
-      isExternal: m.isExternal,
-    }));
-  },
-
-  /**
-   * 取得指定組織的所有團隊清單。
-   */
-  async getTeams(organizationId: string): Promise<OrganizationTeamDTO[]> {
-    const teams = await orgRepo.getTeams(organizationId);
-    return teams.map((t) => ({
-      id: t.id,
-      name: t.name,
-      memberIds: t.memberIds,
-    }));
-  },
-} as const;
-
-// ─── Server Actions ───────────────────────────────────────────────────────────
-
-export {
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-  createOrgPolicy,
-  updateOrgPolicy,
-  deleteOrgPolicy,
-} from "../interfaces/_actions/organization.actions";
-
-// ─── Query Functions ──────────────────────────────────────────────────────────
-
-export {
-  getOrganizationMembers,
-  subscribeToOrganizationMembers,
-  getOrganizationTeams,
-  subscribeToOrganizationTeams,
-  getPartnerInvites,
-  getOrgPolicies,
-} from "../interfaces/queries/organization.queries";
-````
-
-## File: modules/organization/index.ts
-````typescript
-/**
- * organization module public API
- */
-export type {
-  OrganizationEntity,
-  OrganizationRole,
-  Presence,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  ThemeConfig,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  OrgPolicy,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "./domain/entities/Organization";
-export type { OrganizationRepository, Unsubscribe } from "./domain/repositories/OrganizationRepository";
-// Use Cases
-export {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "./application/use-cases/organization.use-cases";
-export {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "./application/use-cases/organization-policy.use-cases";
-// Infrastructure
-export { FirebaseOrganizationRepository } from "./infrastructure/firebase/FirebaseOrganizationRepository";
-// Server Actions
-export {
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-  createOrgPolicy,
-  updateOrgPolicy,
-  deleteOrgPolicy,
-} from "./interfaces/_actions/organization.actions";
-// Read Queries
-export {
-  getOrganizationMembers,
-  subscribeToOrganizationMembers,
-  getOrganizationTeams,
-  subscribeToOrganizationTeams,
-  getPartnerInvites,
-  getOrgPolicies,
-} from "./interfaces/queries/organization.queries";
-````
-
-## File: modules/organization/interfaces/_actions/organization-lifecycle.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: organization
- * Layer: interfaces/_actions
- * Purpose: Organization lifecycle server actions — create, update settings, delete.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-} from "../../application/use-cases/organization.use-cases";
-import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
-import type {
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-} from "../../domain/entities/Organization";
-
-const orgRepo = new FirebaseOrganizationRepository();
-
-export async function createOrganization(
-  command: CreateOrganizationCommand,
-): Promise<CommandResult> {
-  try {
-    return await new CreateOrganizationUseCase(orgRepo).execute(command);
-  } catch (err) {
-    return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function createOrganizationWithTeam(
-  command: CreateOrganizationCommand,
-  teamName: string,
-  teamType: "internal" | "external" = "internal",
-): Promise<CommandResult> {
-  try {
-    return await new CreateOrganizationWithTeamUseCase(orgRepo).execute(command, teamName, teamType);
-  } catch (err) {
-    return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateOrganizationSettings(
-  command: UpdateOrganizationSettingsCommand,
-): Promise<CommandResult> {
-  try {
-    return await new UpdateOrganizationSettingsUseCase(orgRepo).execute(command);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
-  try {
-    return await new DeleteOrganizationUseCase(orgRepo).execute(organizationId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/organization/interfaces/_actions/organization-member.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: organization
- * Layer: interfaces/_actions
- * Purpose: Organization member server actions — invite, recruit, dismiss, update role.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import type { InviteMemberInput } from "../../domain/entities/Organization";
-import {
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-} from "../../application/use-cases/organization.use-cases";
-import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
-import type { UpdateMemberRoleInput } from "../../domain/entities/Organization";
-
-const orgRepo = new FirebaseOrganizationRepository();
-
-export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
-  try {
-    return await new InviteMemberUseCase(orgRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function recruitMember(
-  organizationId: string,
-  memberId: string,
-  name: string,
-  email: string,
-): Promise<CommandResult> {
-  try {
-    return await new RecruitMemberUseCase(orgRepo).execute(organizationId, memberId, name, email);
-  } catch (err) {
-    return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function dismissMember(
-  organizationId: string,
-  memberId: string,
-): Promise<CommandResult> {
-  try {
-    return await new RemoveMemberUseCase(orgRepo).execute(organizationId, memberId);
-  } catch (err) {
-    return commandFailureFrom("DISMISS_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
-  try {
-    return await new UpdateMemberRoleUseCase(orgRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/organization/interfaces/_actions/organization-partner.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: organization
- * Layer: interfaces/_actions
- * Purpose: Organization partner server actions — create group, invite, dismiss.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../../application/use-cases/organization.use-cases";
-import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
-
-const orgRepo = new FirebaseOrganizationRepository();
-
-export async function createPartnerGroup(
-  organizationId: string,
-  groupName: string,
-): Promise<CommandResult> {
-  try {
-    return await new CreatePartnerGroupUseCase(orgRepo).execute(organizationId, groupName);
-  } catch (err) {
-    return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function sendPartnerInvite(
-  organizationId: string,
-  teamId: string,
-  email: string,
-): Promise<CommandResult> {
-  try {
-    return await new SendPartnerInviteUseCase(orgRepo).execute(organizationId, teamId, email);
-  } catch (err) {
-    return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function dismissPartnerMember(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-): Promise<CommandResult> {
-  try {
-    return await new DismissPartnerMemberUseCase(orgRepo).execute(organizationId, teamId, memberId);
-  } catch (err) {
-    return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/organization/interfaces/_actions/organization-policy.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: organization
- * Layer: interfaces/_actions
- * Purpose: Organization policy server actions — create, update, delete.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../../application/use-cases/organization-policy.use-cases";
-import { FirebaseOrgPolicyRepository } from "../../infrastructure/firebase/FirebaseOrgPolicyRepository";
-import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
-
-const policyRepo = new FirebaseOrgPolicyRepository();
-
-export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
-  try {
-    return await new CreateOrgPolicyUseCase(policyRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateOrgPolicy(
-  policyId: string,
-  data: UpdateOrgPolicyInput,
-): Promise<CommandResult> {
-  try {
-    return await new UpdateOrgPolicyUseCase(policyRepo).execute(policyId, data);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
-  try {
-    return await new DeleteOrgPolicyUseCase(policyRepo).execute(policyId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/organization/interfaces/_actions/organization-team.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: organization
- * Layer: interfaces/_actions
- * Purpose: Organization team server actions — create, delete, update members.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../../application/use-cases/organization.use-cases";
-import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
-import type { CreateTeamInput } from "../../domain/entities/Organization";
-
-const orgRepo = new FirebaseOrganizationRepository();
-
-export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
-  try {
-    return await new CreateTeamUseCase(orgRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteTeam(
-  organizationId: string,
-  teamId: string,
-): Promise<CommandResult> {
-  try {
-    return await new DeleteTeamUseCase(orgRepo).execute(organizationId, teamId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateTeamMembers(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-  action: "add" | "remove",
-): Promise<CommandResult> {
-  try {
-    return await new UpdateTeamMembersUseCase(orgRepo).execute(organizationId, teamId, memberId, action);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/organization/interfaces/_actions/organization.actions.ts
-````typescript
-/**
- * Module: organization
- * Layer: interfaces/_actions
- * Purpose: Re-export barrel for all organization Server Actions.
- *          Implementations are split by subdomain for IDDD layer-purity.
- *          Each sub-file carries its own "use server" directive; this barrel
- *          must NOT repeat it — Turbopack cannot resolve re-exports from a
- *          "use server" barrel that itself re-exports other "use server" files.
- *  - organization-lifecycle.actions.ts (create, update settings, delete)
- *  - organization-member.actions.ts    (invite, recruit, dismiss, update role)
- *  - organization-team.actions.ts      (create, delete, update members)
- *  - organization-partner.actions.ts   (create group, invite, dismiss)
- *  - organization-policy.actions.ts    (create, update, delete policy)
- */
-
-export {
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-} from "./organization-lifecycle.actions";
-
-export {
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-} from "./organization-member.actions";
-
-export {
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-} from "./organization-team.actions";
-
-export {
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-} from "./organization-partner.actions";
-
-export {
-  createOrgPolicy,
-  updateOrgPolicy,
-  deleteOrgPolicy,
-} from "./organization-policy.actions";
-````
-
 ## File: modules/search/api/server.ts
 ````typescript
 /**
@@ -62659,270 +66023,6 @@ export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase {
     new GenkitRagGenerationRepository(),
   );
 }
-````
-
-## File: modules/source/application/use-cases/wiki-libraries.use-case.ts
-````typescript
-/**
- * Module: source
- * Layer: application/use-cases
- * Purpose: Wiki-style library use-cases — create, add fields, add rows, list.
- *          Direct-function API for the source module's wiki-facing library
- *          management surface.
- */
-
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-} from "@/modules/shared/api";
-
-import type {
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryInput,
-  CreateWikiLibraryRowInput,
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-} from "../../domain/entities/wiki-library.types";
-import type { WikiLibraryRepository } from "../../domain/repositories/WikiLibraryRepository";
-import {
-  generateId,
-  normalizeName,
-  normalizeFieldKey,
-  ensureUniqueLibrarySlug,
-  deriveSlugCandidate,
-} from "./wiki-library-use-case.helpers";
-
-const defaultEventPublisher = new PublishDomainEventUseCase(
-  new InMemoryEventStoreRepository(),
-  new NoopEventBusRepository(),
-);
-
-export async function listWikiLibraries(
-  accountId: string,
-  workspaceId: string | undefined,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibrary[]> {
-  if (!accountId) {
-    throw new Error("accountId is required");
-  }
-
-  const libraries = await libraryRepository.listByAccountId(accountId);
-  const activeLibraries = libraries.filter((library) => library.status === "active");
-  if (!workspaceId) {
-    return activeLibraries;
-  }
-  return activeLibraries.filter((library) => library.workspaceId === workspaceId);
-}
-
-export async function createWikiLibrary(
-  input: CreateWikiLibraryInput,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibrary> {
-  if (!input.accountId) {
-    throw new Error("accountId is required");
-  }
-
-  const name = normalizeName(input.name);
-  const libraries = await libraryRepository.listByAccountId(input.accountId);
-  const workspaceLibraries = libraries.filter((library) => (library.workspaceId ?? "") === (input.workspaceId ?? ""));
-
-  const slug = ensureUniqueLibrarySlug(deriveSlugCandidate(name), workspaceLibraries);
-  const now = new Date();
-  const library: WikiLibrary = {
-    id: generateId(),
-    accountId: input.accountId,
-    workspaceId: input.workspaceId,
-    name,
-    slug,
-    status: "active",
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await libraryRepository.create(library);
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "source.library_created",
-    aggregateType: "asset-library",
-    aggregateId: library.id,
-    payload: {
-      accountId: library.accountId,
-      workspaceId: library.workspaceId,
-      slug: library.slug,
-    },
-  });
-
-  return library;
-}
-
-export async function addWikiLibraryField(
-  input: AddWikiLibraryFieldInput,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibraryField> {
-  const library = await libraryRepository.findById(input.accountId, input.libraryId);
-  if (!library) {
-    throw new Error("library not found");
-  }
-
-  const key = normalizeFieldKey(input.key);
-  const label = normalizeName(input.label);
-  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
-  if (fields.some((field) => field.key === key)) {
-    throw new Error(`field key "${key}" already exists`);
-  }
-
-  const field: WikiLibraryField = {
-    id: generateId(),
-    libraryId: input.libraryId,
-    key,
-    label,
-    type: input.type,
-    required: input.required ?? false,
-    options: input.options,
-    createdAt: new Date(),
-  };
-
-  await libraryRepository.createField(input.accountId, field);
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "source.library_field_added",
-    aggregateType: "asset-library",
-    aggregateId: input.libraryId,
-    payload: {
-      accountId: input.accountId,
-      fieldKey: field.key,
-      fieldType: field.type,
-    },
-  });
-
-  return field;
-}
-
-export async function createWikiLibraryRow(
-  input: CreateWikiLibraryRowInput,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibraryRow> {
-  const library = await libraryRepository.findById(input.accountId, input.libraryId);
-  if (!library) {
-    throw new Error("library not found");
-  }
-
-  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
-  const requiredFields = fields.filter((field) => field.required);
-  for (const field of requiredFields) {
-    if (!(field.key in input.values)) {
-      throw new Error(`missing required field: ${field.key}`);
-    }
-  }
-
-  const now = new Date();
-  const row: WikiLibraryRow = {
-    id: generateId(),
-    libraryId: input.libraryId,
-    values: input.values,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await libraryRepository.createRow(input.accountId, row);
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "source.library_row_created",
-    aggregateType: "asset-library",
-    aggregateId: input.libraryId,
-    payload: {
-      accountId: input.accountId,
-      rowId: row.id,
-      fields: Object.keys(row.values),
-    },
-  });
-
-  return row;
-}
-
-export interface WikiLibrarySnapshot {
-  library: WikiLibrary;
-  fields: WikiLibraryField[];
-  rows: WikiLibraryRow[];
-}
-
-export async function getWikiLibrarySnapshot(
-  accountId: string,
-  libraryId: string,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibrarySnapshot> {
-  const library = await libraryRepository.findById(accountId, libraryId);
-  if (!library) {
-    throw new Error("library not found");
-  }
-
-  const [fields, rows] = await Promise.all([
-    libraryRepository.listFields(accountId, libraryId),
-    libraryRepository.listRows(accountId, libraryId),
-  ]);
-
-  return { library, fields, rows };
-}
-````
-
-## File: modules/source/application/use-cases/wiki-library-use-case.helpers.ts
-````typescript
-/**
- * Module: source
- * Layer: application/use-cases
- * Purpose: Private helper functions for wiki-library use cases.
- *          Extracted to keep use-case files focused on business workflow only.
- */
-
-import { deriveSlugCandidate, isValidSlug } from "@/modules/shared/api";
-import type { WikiLibrary } from "../../domain/entities/wiki-library.types";
-
-export function generateId(): string {
-  const randomUUID = globalThis.crypto?.randomUUID;
-  if (typeof randomUUID === "function") {
-    return randomUUID.call(globalThis.crypto);
-  }
-  return `wbl_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
-}
-
-export function normalizeName(name: string): string {
-  const value = name.trim();
-  if (!value) {
-    throw new Error("library name is required");
-  }
-  return value.slice(0, 80);
-}
-
-export function normalizeFieldKey(key: string): string {
-  const normalized = key.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
-  if (!normalized) {
-    throw new Error("field key is required");
-  }
-  return normalized.slice(0, 48);
-}
-
-export function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiLibrary[]): string {
-  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "library-node";
-  const existing = new Set(libraries.map((library) => library.slug));
-  if (!existing.has(normalizedBase)) {
-    return normalizedBase;
-  }
-
-  let index = 2;
-  while (index < 5000) {
-    const candidate = `${normalizedBase}-${index}`;
-    if (!existing.has(candidate) && isValidSlug(candidate)) {
-      return candidate;
-    }
-    index += 1;
-  }
-
-  throw new Error("cannot allocate a unique slug for this library name");
-}
-
-export { deriveSlugCandidate };
 ````
 
 ## File: modules/source/interfaces/_actions/file-processing-draft.purchase-order.ts
@@ -63670,274 +66770,6 @@ export function FileProcessingDialogBody({
 }
 ````
 
-## File: modules/workspace-feed/application/use-cases/workspace-feed-interaction.use-cases.ts
-````typescript
-/**
- * Module: workspace-feed
- * Layer: application/use-cases
- * Purpose: Feed interaction use cases — like, bookmark, view, share.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type {
-  WorkspaceFeedInteractionRepository,
-  WorkspaceFeedPostRepository,
-} from "../../domain/repositories/workspace-feed.repositories";
-import { FeedInteractionSchema } from "../dto/workspace-feed.dto";
-
-export class LikeWorkspaceFeedPostUseCase {
-  constructor(
-    private readonly postRepo: WorkspaceFeedPostRepository,
-    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
-  ) {}
-
-  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
-    const parsed = FeedInteractionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
-    if (!post) {
-      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
-    }
-
-    const liked = await this.interactionRepo.like(
-      parsed.data.accountId,
-      parsed.data.postId,
-      parsed.data.actorAccountId,
-    );
-    if (liked) {
-      await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { likeDelta: 1 });
-    }
-
-    return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-
-export class BookmarkWorkspaceFeedPostUseCase {
-  constructor(
-    private readonly postRepo: WorkspaceFeedPostRepository,
-    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
-  ) {}
-
-  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
-    const parsed = FeedInteractionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
-    if (!post) {
-      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
-    }
-
-    const bookmarked = await this.interactionRepo.bookmark(
-      parsed.data.accountId,
-      parsed.data.postId,
-      parsed.data.actorAccountId,
-    );
-    if (bookmarked) {
-      await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { bookmarkDelta: 1 });
-    }
-
-    return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-
-export class ViewWorkspaceFeedPostUseCase {
-  constructor(
-    private readonly postRepo: WorkspaceFeedPostRepository,
-    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
-  ) {}
-
-  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
-    const parsed = FeedInteractionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
-    if (!post) {
-      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
-    }
-
-    await this.interactionRepo.view(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
-    await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { viewDelta: 1 });
-    return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-
-export class ShareWorkspaceFeedPostUseCase {
-  constructor(
-    private readonly postRepo: WorkspaceFeedPostRepository,
-    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
-  ) {}
-
-  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
-    const parsed = FeedInteractionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
-    if (!post) {
-      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
-    }
-
-    await this.interactionRepo.share(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
-    await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { shareDelta: 1 });
-    return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-feed/application/use-cases/workspace-feed-post.use-cases.ts
-````typescript
-/**
- * Module: workspace-feed
- * Layer: application/use-cases
- * Purpose: Post lifecycle use cases — create, reply, repost, get, list.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
-import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
-import {
-  CreateWorkspaceFeedPostSchema,
-  type CreateWorkspaceFeedPostDto,
-  ListAccountFeedSchema,
-  type ListAccountFeedDto,
-  ListWorkspaceFeedSchema,
-  type ListWorkspaceFeedDto,
-  ReplyWorkspaceFeedPostSchema,
-  type ReplyWorkspaceFeedPostDto,
-  RepostWorkspaceFeedPostSchema,
-  type RepostWorkspaceFeedPostDto,
-} from "../dto/workspace-feed.dto";
-
-export class CreateWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = CreateWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.repo.createPost(parsed.data);
-    return commandSuccess(post.id, Date.now());
-  }
-}
-
-export class ReplyWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = ReplyWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const parent = await this.repo.findById(parsed.data.accountId, parsed.data.parentPostId);
-    if (!parent) {
-      return commandFailureFrom("WORKSPACE_FEED_PARENT_NOT_FOUND", "Parent post not found.");
-    }
-    if (parent.workspaceId !== parsed.data.workspaceId) {
-      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Parent post is in another workspace.");
-    }
-
-    const reply = await this.repo.createReply(parsed.data);
-    return commandSuccess(reply.id, Date.now());
-  }
-}
-
-export class RepostWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = RepostWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const source = await this.repo.findById(parsed.data.accountId, parsed.data.sourcePostId);
-    if (!source) {
-      return commandFailureFrom("WORKSPACE_FEED_SOURCE_NOT_FOUND", "Source post not found.");
-    }
-    if (source.workspaceId !== parsed.data.workspaceId) {
-      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Source post is in another workspace.");
-    }
-
-    const repost = await this.repo.createRepost(parsed.data);
-    if (!repost) {
-      return commandFailureFrom("WORKSPACE_FEED_REPOST_FAILED", "Failed to create repost.");
-    }
-
-    return commandSuccess(repost.id, Date.now());
-  }
-}
-
-export class GetWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
-    if (!accountId.trim() || !postId.trim()) return null;
-    return this.repo.findById(accountId, postId);
-  }
-}
-
-export class ListWorkspaceFeedUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ListWorkspaceFeedDto): Promise<WorkspaceFeedPost[]> {
-    const parsed = ListWorkspaceFeedSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByWorkspaceId(parsed.data.accountId, parsed.data.workspaceId, parsed.data.limit ?? 50);
-  }
-}
-
-export class ListAccountWorkspaceFeedUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ListAccountFeedDto): Promise<WorkspaceFeedPost[]> {
-    const parsed = ListAccountFeedSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByAccountId(parsed.data.accountId, parsed.data.limit ?? 50);
-  }
-}
-````
-
-## File: modules/workspace-feed/application/use-cases/workspace-feed.use-cases.ts
-````typescript
-/**
- * Module: workspace-feed
- * Layer: application/use-cases
- * Purpose: Re-export barrel for all workspace-feed use cases.
- *          Split by subdomain for IDDD single-responsibility:
- *  - workspace-feed-post.use-cases.ts        (create, reply, repost, get, list)
- *  - workspace-feed-interaction.use-cases.ts  (like, bookmark, view, share)
- */
-
-export {
-  CreateWorkspaceFeedPostUseCase,
-  ReplyWorkspaceFeedPostUseCase,
-  RepostWorkspaceFeedPostUseCase,
-  GetWorkspaceFeedPostUseCase,
-  ListWorkspaceFeedUseCase,
-  ListAccountWorkspaceFeedUseCase,
-} from "./workspace-feed-post.use-cases";
-
-export {
-  LikeWorkspaceFeedPostUseCase,
-  BookmarkWorkspaceFeedPostUseCase,
-  ViewWorkspaceFeedPostUseCase,
-  ShareWorkspaceFeedPostUseCase,
-} from "./workspace-feed-interaction.use-cases";
-````
-
 ## File: modules/workspace-flow/api/index.ts
 ````typescript
 /**
@@ -64488,1091 +67320,278 @@ export class WorkspaceFlowFacade {
 }
 ````
 
-## File: modules/workspace-flow/interfaces/_actions/workspace-flow.actions.ts
+## File: modules/workspace-flow/interfaces/_actions/workspace-flow-invoice.actions.ts
 ````typescript
+"use server";
+
 /**
  * @module workspace-flow/interfaces/_actions
- * @file workspace-flow.actions.ts
- * @description Re-export barrel for all workspace-flow Server Actions.
- *              Each sub-file carries its own "use server" directive; this barrel
- *              must NOT repeat it — Turbopack cannot resolve re-exports from a
- *              "use server" barrel that itself re-exports other "use server" files.
- *  - workspace-flow-task.actions.ts    (create, update, assign, qa, approve, archive)
- *  - workspace-flow-issue.actions.ts   (open, start, fix, retest, resolve, close)
- *  - workspace-flow-invoice.actions.ts (create, add/update/remove item, submit, review, approve, reject, pay, close)
+ * @file workspace-flow-invoice.actions.ts
+ * @description Server Actions for workspace-flow Invoice write operations.
+ * Delegates exclusively to WorkspaceFlowFacade.
  */
 
-export {
-  wfCreateTask,
-  wfUpdateTask,
-  wfAssignTask,
-  wfSubmitTaskToQa,
-  wfPassTaskQa,
-  wfApproveTaskAcceptance,
-  wfArchiveTask,
-} from "./workspace-flow-task.actions";
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { WorkspaceFlowInvoiceFacade } from "../../api/workspace-flow-invoice.facade";
+import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
+import type { AddInvoiceItemDto } from "../../application/dto/add-invoice-item.dto";
+import type { UpdateInvoiceItemDto } from "../../application/dto/update-invoice-item.dto";
+import type { RemoveInvoiceItemDto } from "../../application/dto/remove-invoice-item.dto";
 
-export {
-  wfOpenIssue,
-  wfStartIssue,
-  wfFixIssue,
-  wfSubmitIssueRetest,
-  wfPassIssueRetest,
-  wfFailIssueRetest,
-  wfResolveIssue,
-  wfCloseIssue,
-} from "./workspace-flow-issue.actions";
-
-export {
-  wfCreateInvoice,
-  wfAddInvoiceItem,
-  wfUpdateInvoiceItem,
-  wfRemoveInvoiceItem,
-  wfSubmitInvoice,
-  wfReviewInvoice,
-  wfApproveInvoice,
-  wfRejectInvoice,
-  wfPayInvoice,
-  wfCloseInvoice,
-} from "./workspace-flow-invoice.actions";
-````
-
-## File: modules/workspace-flow/interfaces/components/AssignTaskDialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-
-import { wfAssignTask } from "../_actions/workspace-flow.actions";
-
-export interface AssignTaskDialogProps {
-  open: boolean;
-  taskId: string;
-  onClose: () => void;
-  onDone: () => void;
-}
-
-export function AssignTaskDialog({ open, taskId, onClose, onDone }: AssignTaskDialogProps) {
-  const [assigneeId, setAssigneeId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setAssigneeId("");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const a = assigneeId.trim();
-    if (!a) { setError("請輸入指派人 ID。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfAssignTask(taskId, a);
-      if (!result.success) { setError(result.error.message ?? "指派失敗"); return; }
-      onDone();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "指派失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>指派任務</DialogTitle>
-          <DialogDescription>填入負責人 ID，任務將進入進行中。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="assignee-id">指派人 ID *</Label>
-            <Input
-              id="assignee-id"
-              placeholder="用戶 ID"
-              value={assigneeId}
-              onChange={(e) => setAssigneeId(e.target.value)}
-              disabled={submitting}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "指派中…" : "指派"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+function makeFacade(): WorkspaceFlowInvoiceFacade {
+  return new WorkspaceFlowInvoiceFacade(
+    new FirebaseInvoiceRepository(),
   );
 }
-````
 
-## File: modules/workspace-flow/interfaces/components/CreateTaskDialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import { wfCreateTask } from "../_actions/workspace-flow.actions";
-
-export interface CreateTaskDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onCreated: () => void;
-  workspaceId: string;
-}
-
-export function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: CreateTaskDialogProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
-  const [dueDateISO, setDueDateISO] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setAssigneeId("");
-    setDueDateISO("");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) { setError("請輸入任務標題。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfCreateTask({
-        workspaceId,
-        title: t,
-        description: description.trim() || undefined,
-        assigneeId: assigneeId.trim() || undefined,
-        dueDateISO: dueDateISO || undefined,
-      });
-      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
-      onCreated();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>建立任務</DialogTitle>
-          <DialogDescription>新增一個工作任務到此工作區。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="task-title">標題 *</Label>
-            <Input
-              id="task-title"
-              placeholder="任務名稱"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="task-description">描述（選填）</Label>
-            <Textarea
-              id="task-description"
-              placeholder="任務詳情或驗收條件…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="task-assignee">指派人 ID（選填）</Label>
-              <Input
-                id="task-assignee"
-                placeholder="用戶 ID"
-                value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="task-due">截止日期（選填）</Label>
-              <Input
-                id="task-due"
-                type="date"
-                value={dueDateISO}
-                onChange={(e) => setDueDateISO(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "建立任務"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/InvoiceRow.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-
-import type { Invoice } from "../../domain/entities/Invoice";
-import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import {
-  wfApproveInvoice,
-  wfCloseInvoice,
-  wfPayInvoice,
-  wfRejectInvoice,
-  wfReviewInvoice,
-  wfSubmitInvoice,
-} from "../_actions/workspace-flow.actions";
-
-const INVOICE_STATUS_VARIANT: Record<
-  InvoiceStatus,
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  draft: "outline",
-  submitted: "secondary",
-  finance_review: "secondary",
-  approved: "default",
-  paid: "default",
-  closed: "outline",
-};
-
-const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
-  draft: "草稿",
-  submitted: "已提交",
-  finance_review: "財務審核",
-  approved: "已核准",
-  paid: "已付款",
-  closed: "已結清",
-};
-
-function formatShortDate(iso: string | undefined): string {
-  if (!iso) return "—";
+export async function wfCreateInvoice(workspaceId: string): Promise<CommandResult> {
   try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
+    return await makeFacade().createInvoice(workspaceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
 
-function formatCurrency(amount: number): string {
+export async function wfAddInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> {
   try {
-    return new Intl.NumberFormat("zh-TW", {
-      style: "currency",
-      currency: "TWD",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    return `TWD ${amount}`;
+    return await makeFacade().addInvoiceItem(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_ADD_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
 
-export interface InvoiceRowProps {
-  invoice: Invoice;
-  onTransitioned: () => void;
-}
-
-export function InvoiceRow({ invoice, onTransitioned }: InvoiceRowProps) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderActions() {
-    switch (invoice.status) {
-      case "draft":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitInvoice(invoice.id))}>提交</Button>;
-      case "submitted":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfReviewInvoice(invoice.id))}>送審</Button>;
-      case "finance_review":
-        return (
-          <div className="flex gap-1.5">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveInvoice(invoice.id))}>核准</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfRejectInvoice(invoice.id))}>退回</Button>
-          </div>
-        );
-      case "approved":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPayInvoice(invoice.id))}>付款</Button>;
-      case "paid":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseInvoice(invoice.id))}>結清</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-xl border border-border/40 px-4 py-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">
-            #{invoice.id.slice(-8).toUpperCase()}
-          </p>
-          <p className="text-xs text-muted-foreground">建立：{formatShortDate(invoice.createdAtISO)}</p>
-          {invoice.paidAtISO && (
-            <p className="text-xs text-muted-foreground">付款：{formatShortDate(invoice.paidAtISO)}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Badge variant={INVOICE_STATUS_VARIANT[invoice.status]}>
-            {INVOICE_STATUS_LABEL[invoice.status]}
-          </Badge>
-          <p className="text-sm font-semibold text-foreground">{formatCurrency(invoice.totalAmount)}</p>
-          {renderActions()}
-        </div>
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/IssueRow.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-
-import type { Issue } from "../../domain/entities/Issue";
-import type { IssueStage } from "../../domain/value-objects/IssueStage";
-import {
-  wfCloseIssue,
-  wfFailIssueRetest,
-  wfFixIssue,
-  wfPassIssueRetest,
-  wfStartIssue,
-  wfSubmitIssueRetest,
-} from "../_actions/workspace-flow.actions";
-
-export const ISSUE_STAGE_LABEL: Record<IssueStage, string> = {
-  task: "任務",
-  qa: "QA",
-  acceptance: "驗收",
-};
-
-const ISSUE_STATUS_VARIANT: Record<
-  Issue["status"],
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  open: "destructive",
-  investigating: "destructive",
-  fixing: "secondary",
-  retest: "secondary",
-  resolved: "default",
-  closed: "outline",
-};
-
-const ISSUE_STATUS_LABEL: Record<Issue["status"], string> = {
-  open: "開啟",
-  investigating: "調查中",
-  fixing: "修復中",
-  retest: "重測中",
-  resolved: "已解決",
-  closed: "已關閉",
-};
-
-export interface IssueRowProps {
-  issue: Issue;
-  onTransitioned: () => void;
-}
-
-export function IssueRow({ issue, onTransitioned }: IssueRowProps) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderActions() {
-    switch (issue.status) {
-      case "open":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfStartIssue(issue.id))}>開始調查</Button>;
-      case "investigating":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFixIssue(issue.id))}>開始修復</Button>;
-      case "fixing":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitIssueRetest(issue.id))}>送重測</Button>;
-      case "retest":
-        return (
-          <div className="flex gap-1.5">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassIssueRetest(issue.id))}>通過</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFailIssueRetest(issue.id))}>失敗</Button>
-          </div>
-        );
-      case "resolved":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseIssue(issue.id))}>關閉</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-lg border border-border/30 px-3 py-2.5 text-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div className="space-y-0.5 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <Badge variant={ISSUE_STATUS_VARIANT[issue.status]} className="text-xs">
-              {ISSUE_STATUS_LABEL[issue.status]}
-            </Badge>
-            <Badge variant="outline" className="text-xs">{ISSUE_STAGE_LABEL[issue.stage]}</Badge>
-            <span className="font-medium text-foreground truncate">{issue.title}</span>
-          </div>
-          {issue.description && (
-            <p className="text-xs text-muted-foreground line-clamp-1">{issue.description}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="shrink-0">{renderActions()}</div>
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/OpenIssueDialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import type { IssueStage } from "../../domain/value-objects/IssueStage";
-import { wfOpenIssue } from "../_actions/workspace-flow.actions";
-import { ISSUE_STAGE_LABEL } from "./IssueRow";
-
-export interface OpenIssueDialogProps {
-  open: boolean;
-  taskId: string;
-  currentUserId: string;
-  onClose: () => void;
-  onCreated: () => void;
-}
-
-export function OpenIssueDialog({ open, taskId, currentUserId, onClose, onCreated }: OpenIssueDialogProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [stage, setStage] = useState<IssueStage>("task");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setStage("task");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) { setError("請輸入議題標題。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfOpenIssue({
-        taskId,
-        stage,
-        title: t,
-        description: description.trim() || undefined,
-        createdBy: currentUserId,
-      });
-      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
-      onCreated();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>開啟議題</DialogTitle>
-          <DialogDescription>記錄此任務發現的問題或異常。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="issue-title">標題 *</Label>
-            <Input
-              id="issue-title"
-              placeholder="問題簡述"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="issue-description">描述（選填）</Label>
-            <Textarea
-              id="issue-description"
-              placeholder="問題詳情、重現步驟…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>發生階段</Label>
-            <div className="flex gap-2">
-              {(["task", "qa", "acceptance"] as const).map((s) => (
-                <Button
-                  key={s}
-                  type="button"
-                  size="sm"
-                  variant={stage === s ? "default" : "outline"}
-                  onClick={() => setStage(s)}
-                  disabled={submitting}
-                >
-                  {ISSUE_STAGE_LABEL[s]}
-                </Button>
-              ))}
-            </div>
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "開啟議題"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/TaskRow.tsx
-````typescript
-"use client";
-
-import { useCallback, useState } from "react";
-
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
-
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-
-import type { Issue } from "../../domain/entities/Issue";
-import type { Task } from "../../domain/entities/Task";
-import type { TaskStatus } from "../../domain/value-objects/TaskStatus";
-import {
-  wfApproveTaskAcceptance,
-  wfArchiveTask,
-  wfPassTaskQa,
-  wfSubmitTaskToQa,
-} from "../_actions/workspace-flow.actions";
-import { getWorkspaceFlowIssues } from "../queries/workspace-flow.queries";
-import { AssignTaskDialog } from "./AssignTaskDialog";
-import { IssueRow } from "./IssueRow";
-import { OpenIssueDialog } from "./OpenIssueDialog";
-
-const TASK_STATUS_VARIANT: Record<
-  TaskStatus,
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  draft: "outline",
-  in_progress: "secondary",
-  qa: "secondary",
-  acceptance: "default",
-  accepted: "default",
-  archived: "outline",
-};
-
-const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
-  draft: "草稿",
-  in_progress: "進行中",
-  qa: "QA 審查",
-  acceptance: "驗收中",
-  accepted: "已驗收",
-  archived: "已歸檔",
-};
-
-function formatShortDate(iso: string | undefined): string {
-  if (!iso) return "—";
+export async function wfUpdateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
   try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
+    return await makeFacade().updateInvoiceItem(invoiceItemId, dto);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_UPDATE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
 
-export interface TaskRowProps {
-  task: Task;
-  currentUserId: string;
-  onTransitioned: () => void;
+export async function wfRemoveInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().removeInvoiceItem(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_REMOVE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
 }
 
-export function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
-  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
-  const [issuesExpanded, setIssuesExpanded] = useState(false);
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [issuesLoaded, setIssuesLoaded] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadIssues = useCallback(async () => {
-    try {
-      const data = await getWorkspaceFlowIssues(task.id);
-      setIssues(data);
-      setIssuesLoaded(true);
-    } catch {
-      // non-fatal
-    }
-  }, [task.id]);
-
-  async function toggleIssues() {
-    if (!issuesExpanded && !issuesLoaded) {
-      await loadIssues();
-    }
-    setIssuesExpanded((v) => !v);
+export async function wfSubmitInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().submitInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
+}
 
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
+export async function wfReviewInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().reviewInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_REVIEW_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
+}
 
-  function renderTaskAction() {
-    switch (task.status) {
-      case "draft":
-        return (
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => setAssignDialogOpen(true)}>
-            指派任務
-          </Button>
-        );
-      case "in_progress":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitTaskToQa(task.id))}>送 QA</Button>;
-      case "qa":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassTaskQa(task.id))}>QA 通過</Button>;
-      case "acceptance":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveTaskAcceptance(task.id))}>驗收通過</Button>;
-      case "accepted":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfArchiveTask(task.id))}>歸檔</Button>;
-      default:
-        return null;
-    }
+export async function wfApproveInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().approveInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
+}
 
-  return (
-    <div className="rounded-xl border border-border/40 px-4 py-4 space-y-3">
-      {/* ── Task header ─────────────────────── */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">{task.title}</p>
-          {task.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
-          )}
-          {task.assigneeId && (
-            <p className="text-xs text-muted-foreground">指派：{task.assigneeId}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Badge variant={TASK_STATUS_VARIANT[task.status]}>{TASK_STATUS_LABEL[task.status]}</Badge>
-          {task.dueDateISO && (
-            <p className="text-xs text-muted-foreground">截止：{formatShortDate(task.dueDateISO)}</p>
-          )}
-        </div>
-      </div>
+export async function wfRejectInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().rejectInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_REJECT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
 
-      {/* ── Action row ──────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2">
-        {renderTaskAction()}
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-muted-foreground"
-          onClick={() => setIssueDialogOpen(true)}
-        >
-          <Plus className="mr-1 h-3.5 w-3.5" />
-          開議題
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-muted-foreground ml-auto"
-          onClick={toggleIssues}
-        >
-          {issuesExpanded ? (
-            <ChevronDown className="mr-1 h-3.5 w-3.5" />
-          ) : (
-            <ChevronRight className="mr-1 h-3.5 w-3.5" />
-          )}
-          議題{issuesLoaded ? ` (${issues.length})` : ""}
-        </Button>
-      </div>
+export async function wfPayInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().payInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_PAY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
 
-      {/* ── Issues sub-list ─────────────────── */}
-      {issuesExpanded && (
-        <div className="space-y-2 pl-1">
-          {issues.length === 0 ? (
-            <p className="text-xs text-muted-foreground">此任務目前無議題。</p>
-          ) : (
-            issues.map((issue) => (
-              <IssueRow
-                key={issue.id}
-                issue={issue}
-                onTransitioned={loadIssues}
-              />
-            ))
-          )}
-        </div>
-      )}
-
-      {/* ── Dialogs ─────────────────────────── */}
-      <AssignTaskDialog
-        open={assignDialogOpen}
-        taskId={task.id}
-        onClose={() => setAssignDialogOpen(false)}
-        onDone={onTransitioned}
-      />
-      <OpenIssueDialog
-        open={issueDialogOpen}
-        taskId={task.id}
-        currentUserId={currentUserId}
-        onClose={() => setIssueDialogOpen(false)}
-        onCreated={async () => {
-          await loadIssues();
-          if (!issuesExpanded) setIssuesExpanded(true);
-        }}
-      />
-    </div>
-  );
+export async function wfCloseInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().closeInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
 }
 ````
 
-## File: modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx
+## File: modules/workspace-flow/interfaces/_actions/workspace-flow-issue.actions.ts
 ````typescript
-"use client";
+"use server";
 
 /**
- * @module workspace-flow/interfaces/components
- * @file WorkspaceFlowTab.tsx
- * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
- *
- * MVP interactive surface:
- * - Create Task dialog
- * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
- * - Per-task expandable Issue sub-list with transition buttons
- * - Open Issue dialog
- * - Create Invoice button + Invoice lifecycle transitions
- *
- * @author workspace-flow
- * @since 2026-03-27
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow-issue.actions.ts
+ * @description Server Actions for workspace-flow Issue write operations.
+ * Delegates exclusively to WorkspaceFlowFacade.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { WorkspaceFlowIssueFacade } from "../../api/workspace-flow-issue.facade";
+import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
+import type { OpenIssueDto } from "../../application/dto/open-issue.dto";
+import type { ResolveIssueDto } from "../../application/dto/resolve-issue.dto";
 
-import { Plus } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Separator } from "@ui-shadcn/ui/separator";
-
-import type { Invoice } from "../../domain/entities/Invoice";
-import type { Task } from "../../domain/entities/Task";
-import { wfCreateInvoice } from "../_actions/workspace-flow.actions";
-import {
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowTasks,
-} from "../queries/workspace-flow.queries";
-import { CreateTaskDialog } from "./CreateTaskDialog";
-import { InvoiceRow } from "./InvoiceRow";
-import { TaskRow } from "./TaskRow";
-
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-type FlowSection = "tasks" | "invoices";
-
-interface WorkspaceFlowTabProps {
-  readonly workspaceId: string;
-  readonly currentUserId?: string;
+function makeFacade(): WorkspaceFlowIssueFacade {
+  return new WorkspaceFlowIssueFacade(
+    new FirebaseIssueRepository(),
+  );
 }
 
-// ── Main Component ─────────────────────────────────────────────────────────────
-
-export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: WorkspaceFlowTabProps) {
-  const [section, setSection] = useState<FlowSection>("tasks");
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [createTaskOpen, setCreateTaskOpen] = useState(false);
-  const [creatingInvoice, setCreatingInvoice] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const loadData = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const [nextTasks, nextInvoices] = await Promise.all([
-        getWorkspaceFlowTasks(workspaceId),
-        getWorkspaceFlowInvoices(workspaceId),
-      ]);
-      setTasks(nextTasks);
-      setInvoices(nextInvoices);
-      setLoadState("loaded");
-    } catch (err) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceFlowTab] Failed to load flow data:", err);
-      }
-      setLoadState("error");
-    }
-  }, [workspaceId]);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
-
-  async function handleCreateInvoice() {
-    setCreatingInvoice(true);
-    setActionError(null);
-    try {
-      const result = await wfCreateInvoice(workspaceId);
-      if (!result.success) { setActionError(result.error.message ?? "建立發票失敗"); }
-      else { await loadData(); }
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "建立發票失敗");
-    } finally {
-      setCreatingInvoice(false);
-    }
+export async function wfOpenIssue(dto: OpenIssueDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().openIssue(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_OPEN_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
+}
 
-  return (
-    <div className="space-y-4">
-      {/* ── Section switcher ─────────────────────────────────────────── */}
-      <div className="flex gap-2">
-        <Button
-          variant={section === "tasks" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("tasks")}
-        >
-          任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
-        </Button>
-        <Button
-          variant={section === "invoices" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("invoices")}
-        >
-          發票{loadState === "loaded" ? ` (${invoices.length})` : ""}
-        </Button>
-      </div>
+export async function wfStartIssue(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().startIssue(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_START_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
 
-      {/* ── Loading state ─────────────────────────────────────────────── */}
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">載入中…</CardContent>
-        </Card>
-      )}
+export async function wfFixIssue(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().fixIssue(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_FIX_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
 
-      {/* ── Error state ───────────────────────────────────────────────── */}
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入資料，請重新整理頁面後再試。
-          </CardContent>
-        </Card>
-      )}
+export async function wfSubmitIssueRetest(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().submitIssueRetest(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RETEST_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
 
-      {/* ── Tasks section ─────────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "tasks" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>任務</CardTitle>
-                <CardDescription>工作區所有任務與其進度狀態。</CardDescription>
-              </div>
-              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                建立任務
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {tasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前尚無任務，點擊右上角「建立任務」開始。</p>
-            ) : (
-              tasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  currentUserId={currentUserId}
-                  onTransitioned={loadData}
-                />
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
+export async function wfPassIssueRetest(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().passIssueRetest(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RETEST_PASS_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
 
-      {/* ── Invoices section ──────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "invoices" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>發票</CardTitle>
-                <CardDescription>工作區帳務請款紀錄。</CardDescription>
-              </div>
-              <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                {creatingInvoice ? "建立中…" : "建立發票"}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {actionError && (
-              <p role="alert" className="text-sm text-destructive">{actionError}</p>
-            )}
-            {invoices.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前尚無發票紀錄，點擊右上角「建立發票」開始。</p>
-            ) : (
-              <>
-                <Separator />
-                {invoices.map((invoice) => (
-                  <InvoiceRow
-                    key={invoice.id}
-                    invoice={invoice}
-                    onTransitioned={loadData}
-                  />
-                ))}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
+export async function wfFailIssueRetest(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().failIssueRetest(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RETEST_FAIL_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
 
-      {/* ── Create Task Dialog ─────────────────────────────────────────── */}
-      <CreateTaskDialog
-        open={createTaskOpen}
-        workspaceId={workspaceId}
-        onClose={() => setCreateTaskOpen(false)}
-        onCreated={loadData}
-      />
-    </div>
+export async function wfResolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().resolveIssue(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfCloseIssue(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().closeIssue(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/workspace-flow/interfaces/_actions/workspace-flow-task.actions.ts
+````typescript
+"use server";
+
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow-task.actions.ts
+ * @description Server Actions for workspace-flow Task write operations.
+ * Delegates exclusively to WorkspaceFlowFacade.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { WorkspaceFlowTaskFacade } from "../../api/workspace-flow-task.facade";
+import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
+import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
+import type { CreateTaskDto } from "../../application/dto/create-task.dto";
+import type { UpdateTaskDto } from "../../application/dto/update-task.dto";
+
+function makeFacade(): WorkspaceFlowTaskFacade {
+  return new WorkspaceFlowTaskFacade(
+    new FirebaseTaskRepository(),
+    new FirebaseIssueRepository(),
   );
+}
+
+export async function wfCreateTask(dto: CreateTaskDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().createTask(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfUpdateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().updateTask(taskId, dto);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfAssignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().assignTask(taskId, assigneeId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_ASSIGN_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfSubmitTaskToQa(taskId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().submitTaskToQa(taskId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_SUBMIT_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfPassTaskQa(taskId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().passTaskQa(taskId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_PASS_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfApproveTaskAcceptance(taskId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().approveTaskAcceptance(taskId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfArchiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().archiveTask(taskId, invoiceStatus);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
 }
 ````
 
@@ -66131,6 +68150,41 @@ export class GetWorkspaceByIdForAccountUseCase {
     );
   }
 }
+````
+
+## File: modules/workspace/application/use-cases/workspace.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Re-export barrel for all workspace use cases.
+ *          Split by subdomain for IDDD single-responsibility:
+ *  - workspace-lifecycle.use-cases.ts  (create, update, delete)
+ *  - workspace-capabilities.use-cases.ts (mount capabilities)
+ *  - workspace-access.use-cases.ts      (team grants, individual grants, locations)
+ */
+
+export {
+  CreateWorkspaceUseCase,
+  CreateWorkspaceWithCapabilitiesUseCase,
+  UpdateWorkspaceSettingsUseCase,
+  DeleteWorkspaceUseCase,
+} from "./workspace-lifecycle.use-cases";
+
+export { MountCapabilitiesUseCase } from "./workspace-capabilities.use-cases";
+
+export {
+  GrantTeamAccessUseCase,
+  GrantIndividualAccessUseCase,
+  CreateWorkspaceLocationUseCase,
+} from "./workspace-access.use-cases";
+
+export {
+  GetWorkspaceByIdForAccountUseCase,
+  GetWorkspaceByIdUseCase,
+  ListWorkspacesForAccountUseCase,
+  SubscribeToWorkspacesForAccountUseCase,
+} from "./workspace-query.use-cases";
 ````
 
 ## File: modules/workspace/domain/aggregates/Workspace.test.ts
@@ -67174,34 +69228,6 @@ export {
 } from "../../../domain/events/workspace.events";
 ````
 
-## File: modules/workspace/interfaces/api/facades/workspace-member.facade.ts
-````typescript
-export { getWorkspaceMembers } from "../queries/workspace-member.query";
-````
-
-## File: modules/workspace/interfaces/api/facades/workspace.facade.ts
-````typescript
-export {
-  getWorkspaceById,
-  getWorkspaceByIdForAccount,
-  getWorkspacesForAccount,
-  subscribeToWorkspacesForAccount,
-} from "../queries/workspace.query";
-
-export { buildWikiContentTree } from "../queries/wiki-content-tree.query";
-
-export {
-  authorizeWorkspaceTeam,
-  createWorkspace,
-  createWorkspaceLocation,
-  createWorkspaceWithCapabilities,
-  deleteWorkspace,
-  grantIndividualWorkspaceAccess,
-  mountCapabilities,
-  updateWorkspaceSettings,
-} from "../actions/workspace.command";
-````
-
 ## File: modules/workspace/interfaces/api/runtime/index.ts
 ````typescript
 export * from "./workspace-runtime";
@@ -68081,1628 +70107,17 @@ export interface WorkspaceDomainEventPublisher {
 }
 ````
 
-## File: py_fn/src/application/use_cases/__init__.py
-````python
-"""Application use cases."""
-
-from application.dto import RagIngestionResult
-from application.use_cases.rag_query import execute_rag_query
-from application.use_cases.rag_ingestion import ingest_document_for_rag
-
-__all__ = [
-    "execute_rag_query",
-    "RagIngestionResult",
-    "ingest_document_for_rag",
-]
-````
-
-## File: py_fn/src/application/use_cases/rag_ingestion.py
+## File: py_fn/src/interface/handlers/parse_document.py
 ````python
 """
-RAG pipeline — ingestion use case (clean → chunk → embed → upsert).
+HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
 """
 
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime
-from typing import Any
-
-from application.dto import RagIngestionResult
-from core.config import (
-    OPENAI_EMBEDDING_DIMENSIONS,
-    OPENAI_EMBEDDING_MODEL,
-    RAG_DOC_CACHE_TTL_SECONDS,
-    RAG_CHUNK_OVERLAP_CHARS,
-    RAG_CHUNK_SIZE_CHARS,
-    RAG_REDIS_PREFIX,
-    RAG_VECTOR_NAMESPACE,
-)
-from domain.repositories import RagIngestionGateway, get_rag_ingestion_gateway
-from domain.services.rag_ingestion_text import clean_text, chunk_text, detect_language_hint
-
-logger = logging.getLogger(__name__)
-
-
-def ingest_document_for_rag(
-    *,
-    doc_id: str,
-    filename: str,
-    source_gcs_uri: str,
-    json_gcs_uri: str,
-    text: str,
-    page_count: int,
-    account_id: str,
-    workspace_id: str,
-    taxonomy: str = "general",
-    gateway: RagIngestionGateway | None = None,
-) -> RagIngestionResult:
-    """Step 1~5: clean -> chunk -> metadata -> embed -> upsert vector。"""
-    gateway = gateway or get_rag_ingestion_gateway()
-
-    if not account_id:
-        raise ValueError("account_id is required")
-    if not workspace_id:
-        raise ValueError("workspace_id is required")
-
-    raw_chars = len(text or "")
-    normalized = clean_text(text or "")
-    normalized_chars = len(normalized)
-    normalization_version = "v2"
-    language_hint = detect_language_hint(normalized)
-
-    base_chunks = chunk_text(
-        normalized,
-        chunk_size=RAG_CHUNK_SIZE_CHARS,
-        overlap=RAG_CHUNK_OVERLAP_CHARS,
-    )
-    if not base_chunks:
-        return RagIngestionResult(
-            chunk_count=0,
-            vector_count=0,
-            embedding_model=OPENAI_EMBEDDING_MODEL,
-            embedding_dimensions=OPENAI_EMBEDDING_DIMENSIONS,
-            raw_chars=raw_chars,
-            normalized_chars=normalized_chars,
-            normalization_version=normalization_version,
-            language_hint=language_hint,
-        )
-
-    texts = [item["text"] for item in base_chunks]
-    vectors = gateway.embed_texts(texts, model=OPENAI_EMBEDDING_MODEL)
-
-    now_iso = datetime.now(UTC).isoformat()
-    payload: list[dict[str, Any]] = []
-
-    for i, (chunk, vec) in enumerate(zip(base_chunks, vectors)):
-        chunk_id = f"{doc_id}:{i:04d}"
-        payload.append(
-            {
-                "id": chunk_id,
-                "vector": vec,
-                "data": chunk["text"],
-                "metadata": {
-                    "vector_namespace": RAG_VECTOR_NAMESPACE,
-                    "doc_id": doc_id,
-                    "chunk_id": chunk_id,
-                    "chunk_index": i,
-                    "chunk_count": len(base_chunks),
-                    "filename": filename,
-                    "original_filename": filename,
-                    "display_name": filename,
-                    "source_gcs_uri": source_gcs_uri,
-                    "json_gcs_uri": json_gcs_uri,
-                    "account_id": account_id,
-                    "workspace_id": workspace_id,
-                    "taxonomy": taxonomy,
-                    "semantic_class": taxonomy,
-                    "processing_status": "ready",
-                    "page_count": page_count,
-                    "char_start": chunk["char_start"],
-                    "char_end": chunk["char_end"],
-                    "text": chunk["text"],
-                    "embedding_dimensions": OPENAI_EMBEDDING_DIMENSIONS,
-                    "raw_chars": raw_chars,
-                    "normalized_chars": normalized_chars,
-                    "normalization_version": normalization_version,
-                    "language_hint": language_hint,
-                    "indexed_at": now_iso,
-                    "ingestion_pipeline": "rag-v2",
-                },
-            }
-        )
-
-    gateway.upsert_vectors(payload, namespace=RAG_VECTOR_NAMESPACE)
-
-    # Best effort: keep Upstash Search in sync with vector chunks.
-    try:
-        search_docs = [
-            {
-                "id": item["id"],
-                "content": {
-                    "text": item["metadata"].get("text", ""),
-                    "filename": item["metadata"].get("filename", ""),
-                    "doc_id": item["metadata"].get("doc_id", ""),
-                    "taxonomy": item["metadata"].get("taxonomy", ""),
-                },
-                "metadata": item["metadata"],
-            }
-            for item in payload
-        ]
-        gateway.upsert_search_documents(search_docs)
-    except Exception as exc:
-        logger.warning("search index upsert skipped for %s: %s", doc_id, exc)
-
-    # 文件索引摘要寫入 Redis，方便後續檢視與治理。
-    try:
-        gateway.redis_set_json(
-            key=f"{RAG_REDIS_PREFIX}:doc:{doc_id}:latest",
-            value={
-                "doc_id": doc_id,
-                "filename": filename,
-                "chunk_count": len(base_chunks),
-                "vector_count": len(payload),
-                "account_id": account_id,
-                "embedding_model": OPENAI_EMBEDDING_MODEL,
-                "embedding_dimensions": OPENAI_EMBEDDING_DIMENSIONS,
-                "normalization_version": normalization_version,
-                "language_hint": language_hint,
-                "indexed_at": now_iso,
-            },
-            ttl_seconds=RAG_DOC_CACHE_TTL_SECONDS,
-        )
-    except Exception as exc:
-        logger.warning("redis doc summary write failed for %s: %s", doc_id, exc)
-
-    return RagIngestionResult(
-        chunk_count=len(base_chunks),
-        vector_count=len(payload),
-        embedding_model=OPENAI_EMBEDDING_MODEL,
-        embedding_dimensions=OPENAI_EMBEDDING_DIMENSIONS,
-        raw_chars=raw_chars,
-        normalized_chars=normalized_chars,
-        normalization_version=normalization_version,
-        language_hint=language_hint,
-    )
-````
-
-## File: py_fn/src/application/use_cases/rag_query.py
-````python
-"""
-RAG query — application use case orchestration.
-
-Delegates all domain filtering to domain.services.rag_result_filter.
-"""
-
-from __future__ import annotations
-
-import logging
-from typing import Any
-
-from core.config import RAG_QUERY_DEFAULT_MAX_AGE_DAYS, RAG_QUERY_TOP_K
-from domain.repositories import RagQueryGateway, get_rag_query_gateway
-from domain.services.rag_result_filter import (
-    extract_snippet,
-    match_account,
-    match_freshness,
-    match_ready_status,
-    match_taxonomy,
-    match_workspace,
-    normalize_metadata,
-    resolve_filename,
-)
-from domain.value_objects import RagCitation, RagQueryInput, RagQueryResult
-
-logger = logging.getLogger(__name__)
-
-
-def _process_hits(
-    hits: list[dict[str, Any]],
-    provider: str,
-    request: RagQueryInput,
-    seen_snippets: set[str],
-) -> tuple[list[str], list[RagCitation], int, int, int, int]:
-    """Filter and map raw retrieval hits into context snippets and citations.
-
-    Returns (contexts, citations, dropped_workspace, dropped_status,
-             dropped_freshness, dropped_taxonomy).
-    """
-    contexts: list[str] = []
-    citations: list[RagCitation] = []
-    dropped_workspace = dropped_status = dropped_freshness = dropped_taxonomy = 0
-
-    for hit in hits:
-        if not isinstance(hit, dict):
-            continue
-        metadata = normalize_metadata(hit.get("metadata"))
-        if not metadata:
-            continue
-        if not match_account(metadata, request.account_scope):
-            continue
-        if not match_workspace(metadata, request.workspace_scope):
-            dropped_workspace += 1
-            continue
-        if not match_ready_status(metadata, request.require_ready):
-            dropped_status += 1
-            continue
-        if not match_freshness(metadata, request.max_age_days):
-            dropped_freshness += 1
-            continue
-        if not match_taxonomy(metadata, request.taxonomy_filters):
-            dropped_taxonomy += 1
-            continue
-
-        snippet = extract_snippet(hit, metadata)
-        if not snippet or snippet in seen_snippets:
-            continue
-
-        seen_snippets.add(snippet)
-        contexts.append(snippet)
-        citations.append(
-            RagCitation(
-                provider=provider,
-                doc_id=metadata.get("doc_id"),
-                chunk_id=metadata.get("chunk_id"),
-                score=hit.get("score") if isinstance(hit, dict) else None,
-                filename=resolve_filename(metadata),
-                json_gcs_uri=metadata.get("json_gcs_uri"),
-                search_id=hit.get("id") if provider == "search" else None,
-                account_id=metadata.get("account_id") or "",
-                workspace_id=metadata.get("workspace_id") or metadata.get("space_id") or "",
-                taxonomy=metadata.get("taxonomy") or metadata.get("semantic_class") or "",
-                processing_status=metadata.get("processing_status") or metadata.get("status") or "",
-                indexed_at=metadata.get("indexed_at") or "",
-            )
-        )
-
-    return contexts, citations, dropped_workspace, dropped_status, dropped_freshness, dropped_taxonomy
-
-
-def execute_rag_query(
-    *,
-    query: str,
-    account_scope: str,
-    workspace_scope: str,
-    top_k: int | None,
-    taxonomy_filters: list[str] | tuple[str, ...] | None,
-    max_age_days: int | None,
-    require_ready: bool,
-    gateway: RagQueryGateway | None = None,
-) -> dict:
-    """Application use case for RAG query orchestration."""
-    gateway = gateway or get_rag_query_gateway()
-
-    request = RagQueryInput.from_raw(
-        query=query,
-        account_scope=account_scope,
-        workspace_scope=workspace_scope,
-        top_k=top_k,
-        taxonomy_filters=taxonomy_filters,
-        max_age_days=max_age_days,
-        require_ready=require_ready,
-        default_top_k=RAG_QUERY_TOP_K,
-        default_max_age_days=RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
-    )
-    if not request.has_query:
-        return {
-            "answer": "",
-            "citations": [],
-            "cache": "miss",
-            "vector_hits": 0,
-            "search_hits": 0,
-            "account_scope": request.account_scope,
-            "workspace_scope": request.workspace_scope,
-            "taxonomy_filters": list(request.taxonomy_filters),
-            "max_age_days": request.max_age_days,
-            "require_ready": request.require_ready,
-        }
-
-    cache_key = gateway.build_query_cache_key(
-        account_scope=request.account_scope,
-        query=(
-            f"workspace={request.workspace_scope};"
-            f"taxonomy={','.join(request.taxonomy_filters)};"
-            f"maxAge={request.max_age_days};"
-            f"ready={request.require_ready};"
-            f"q={request.query}"
-        ),
-        top_k=request.top_k,
-    )
-    try:
-        cached = gateway.get_query_cache(cache_key)
-        if cached and isinstance(cached.get("answer"), str):
-            return {
-                "answer": cached.get("answer", ""),
-                "citations": cached.get("citations", []),
-                "cache": "hit",
-                "vector_hits": int(cached.get("vector_hits") or 0),
-                "search_hits": int(cached.get("search_hits") or 0),
-                "account_scope": cached.get("account_scope") or request.account_scope,
-                "workspace_scope": cached.get("workspace_scope") or request.workspace_scope,
-            }
-    except Exception as exc:
-        logger.warning("redis query cache read failed: %s", exc)
-
-    retrieval_top_k = request.retrieval_top_k()
-    vector = gateway.to_query_vector(request.query)
-    vector_hits_raw = gateway.query_vector(vector, top_k=retrieval_top_k)
-    search_hits_raw = gateway.query_search(request.query, top_k=retrieval_top_k)
-
-    seen_snippets: set[str] = set()
-
-    vec_contexts, vec_citations, dw1, ds1, df1, dt1 = _process_hits(
-        vector_hits_raw, "vector", request, seen_snippets
-    )
-    srch_contexts, srch_citations, dw2, ds2, df2, dt2 = _process_hits(
-        search_hits_raw, "search", request, seen_snippets
-    )
-
-    contexts = vec_contexts + srch_contexts
-    citations = vec_citations + srch_citations
-    vector_hit_count = len(vec_citations)
-    search_hit_count = len(srch_citations)
-
-    context_block = "\n\n---\n\n".join(contexts[: request.top_k])
-    if not context_block:
-        return RagQueryResult(
-            answer="找不到足夠的相關內容。",
-            citations=(),
-            cache="miss",
-            vector_hits=len(vector_hits_raw),
-            search_hits=len(search_hits_raw),
-            account_scope=request.account_scope,
-            workspace_scope=request.workspace_scope,
-            taxonomy_filters=request.taxonomy_filters,
-            max_age_days=request.max_age_days,
-            require_ready=request.require_ready,
-            debug={
-                "vector_candidates": len(vector_hits_raw),
-                "search_candidates": len(search_hits_raw),
-                "retrieval_top_k": retrieval_top_k,
-                "workspace_scope": request.workspace_scope,
-                "taxonomy_filters": list(request.taxonomy_filters),
-                "max_age_days": request.max_age_days,
-                "require_ready": request.require_ready,
-                "dropped_by_workspace": dw1 + dw2,
-                "dropped_by_status": ds1 + ds2,
-                "dropped_by_freshness": df1 + df2,
-                "dropped_by_taxonomy": dt1 + dt2,
-                "reason": "no-context-after-scope-or-text-filter",
-            },
-        ).to_dict()
-
-    answer = gateway.generate_answer(query=request.query, context_block=context_block)
-    result = RagQueryResult(
-        answer=answer,
-        citations=tuple(citations),
-        cache="miss",
-        vector_hits=vector_hit_count,
-        search_hits=search_hit_count,
-        account_scope=request.account_scope,
-        workspace_scope=request.workspace_scope,
-        taxonomy_filters=request.taxonomy_filters,
-        max_age_days=request.max_age_days,
-        require_ready=request.require_ready,
-    ).to_dict()
-
-    try:
-        gateway.save_query_cache(cache_key, result)
-    except Exception as exc:
-        logger.warning("redis query cache write failed: %s", exc)
-
-    gateway.publish_query_audit(
-        query=request.query,
-        top_k=request.top_k,
-        citation_count=len(citations),
-        vector_hits=vector_hit_count,
-        search_hits=search_hit_count,
-    )
-
-    return result
-````
-
-## File: py_fn/src/domain/services/__init__.py
-````python
-"""Domain services."""
-
-from domain.services.rag_result_filter import (
-    normalize_metadata,
-    match_account,
-    match_workspace,
-    match_ready_status,
-    match_freshness,
-    match_taxonomy,
-    extract_snippet,
-    extract_text_candidate,
-    resolve_filename,
-)
-from domain.services.rag_ingestion_text import (
-    clean_text,
-    chunk_text,
-    detect_language_hint,
-)
-
-__all__ = [
-    "normalize_metadata",
-    "match_account",
-    "match_workspace",
-    "match_ready_status",
-    "match_freshness",
-    "match_taxonomy",
-    "extract_snippet",
-    "extract_text_candidate",
-    "resolve_filename",
-    "clean_text",
-    "chunk_text",
-    "detect_language_hint",
-]
-````
-
-## File: py_fn/src/domain/services/rag_ingestion_text.py
-````python
-"""
-Domain Service — RAG ingestion text processing.
-
-Pure business logic for text normalization, language detection, and
-chunking.  No infrastructure dependency.
-"""
-
-from __future__ import annotations
-
-import re
-from typing import Any
-
-
-def detect_language_hint(text: str) -> str:
-    """粗略語系判斷：cjk / latin / mixed。"""
-    cjk_count = len(re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]", text))
-    latin_count = len(re.findall(r"[A-Za-z]", text))
-    if cjk_count > latin_count * 1.2:
-        return "cjk"
-    if latin_count > cjk_count * 1.2:
-        return "latin"
-    return "mixed"
-
-
-def clean_text(raw_text: str) -> str:
-    """Step 1: Normalization v2，保留段落與可引用性。"""
-    text = raw_text.replace("\r\n", "\n").replace("\r", "\n")
-    text = re.sub(r"[\u200b\u200c\u200d\ufeff]", "", text)
-    text = text.replace("\u3000", " ")
-    text = re.sub(r"[\t ]+", " ", text)
-    text = re.sub(r"\n[\t ]+", "\n", text)
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    return text.strip()
-
-
-def chunk_text(text: str, chunk_size: int, overlap: int) -> list[dict[str, Any]]:
-    """Step 2 + Step 3: 分塊並建立 chunk metadata。"""
-    if not text:
-        return []
-
-    if chunk_size <= 0:
-        chunk_size = 1200
-    if overlap < 0:
-        overlap = 0
-    if overlap >= chunk_size:
-        overlap = max(0, chunk_size // 4)
-
-    chunks: list[dict[str, Any]] = []
-    start = 0
-    text_len = len(text)
-
-    while start < text_len:
-        end = min(start + chunk_size, text_len)
-        content = text[start:end].strip()
-        if content:
-            chunks.append(
-                {
-                    "text": content,
-                    "char_start": start,
-                    "char_end": end,
-                }
-            )
-        if end >= text_len:
-            break
-        start = end - overlap
-
-    return chunks
-````
-
-## File: py_fn/src/domain/services/rag_result_filter.py
-````python
-"""
-Domain Service — RAG result filtering and snippet extraction.
-
-Pure business logic for matching and ranking retrieval hits against
-request scope constraints.  No infrastructure dependency.
-"""
-
-from __future__ import annotations
-
-import json
-import logging
-from datetime import UTC, datetime, timedelta
-from typing import Any
-
-logger = logging.getLogger(__name__)
-
-
-def normalize_metadata(value: Any) -> dict[str, Any]:
-    if isinstance(value, dict):
-        return value
-    if isinstance(value, str):
-        raw = value.strip()
-        if not raw:
-            return {}
-        try:
-            parsed = json.loads(raw)
-            if isinstance(parsed, dict):
-                return parsed
-        except Exception:
-            return {}
-    return {}
-
-
-def match_account(metadata: dict[str, Any], account_scope: str) -> bool:
-    candidates = (
-        metadata.get("account_id"),
-        metadata.get("accountId"),
-        metadata.get("account"),
-        metadata.get("account_scope"),
-    )
-    return any(str(value or "").strip() == account_scope for value in candidates)
-
-
-def match_workspace(metadata: dict[str, Any], workspace_scope: str) -> bool:
-    candidates = (
-        metadata.get("workspace_id"),
-        metadata.get("workspaceId"),
-        metadata.get("space_id"),
-        metadata.get("spaceId"),
-    )
-    return any(str(value or "").strip() == workspace_scope for value in candidates)
-
-
-def match_ready_status(metadata: dict[str, Any], require_ready: bool) -> bool:
-    if not require_ready:
-        return True
-    candidates = (
-        metadata.get("processing_status"),
-        metadata.get("rag_status"),
-        metadata.get("status"),
-    )
-    return any(str(value or "").strip().lower() == "ready" for value in candidates)
-
-
-def _parse_datetime(value: Any) -> datetime | None:
-    if isinstance(value, datetime):
-        return value.astimezone(UTC) if value.tzinfo else value.replace(tzinfo=UTC)
-    raw = str(value or "").strip()
-    if not raw:
-        return None
-    try:
-        normalized = raw.replace("Z", "+00:00")
-        parsed = datetime.fromisoformat(normalized)
-        return parsed.astimezone(UTC) if parsed.tzinfo else parsed.replace(tzinfo=UTC)
-    except Exception:
-        return None
-
-
-def match_freshness(metadata: dict[str, Any], max_age_days: int) -> bool:
-    if max_age_days <= 0:
-        return True
-
-    candidates = (
-        metadata.get("indexed_at"),
-        metadata.get("parsed_at"),
-        metadata.get("uploaded_at"),
-    )
-
-    timestamp = next(
-        (dt for dt in (_parse_datetime(value) for value in candidates) if dt is not None),
-        None,
-    )
-    if timestamp is None:
-        return False
-
-    cutoff = datetime.now(UTC) - timedelta(days=max_age_days)
-    return timestamp >= cutoff
-
-
-def match_taxonomy(metadata: dict[str, Any], taxonomy_filters: tuple[str, ...]) -> bool:
-    if not taxonomy_filters:
-        return True
-
-    normalized_filters = {item.lower() for item in taxonomy_filters if item}
-    if not normalized_filters:
-        return True
-
-    candidates = {
-        str(metadata.get("taxonomy") or "").strip().lower(),
-        str(metadata.get("semantic_class") or "").strip().lower(),
-        str(metadata.get("semantic_type") or "").strip().lower(),
-    }
-
-    tags = metadata.get("tags")
-    if isinstance(tags, list):
-        candidates.update(str(item or "").strip().lower() for item in tags)
-
-    candidates.discard("")
-    return bool(candidates.intersection(normalized_filters))
-
-
-def extract_text_candidate(value: Any) -> str:
-    if isinstance(value, str):
-        return value.strip()
-
-    if isinstance(value, dict):
-        for key in ("text", "content", "chunk_text"):
-            snippet = str(value.get(key) or "").strip()
-            if snippet:
-                return snippet
-
-    return ""
-
-
-def extract_snippet(hit: dict[str, Any], metadata: dict[str, Any]) -> str:
-    candidates = (
-        hit.get("data"),
-        metadata.get("text"),
-        metadata.get("chunk_text"),
-        metadata.get("content"),
-        hit.get("text"),
-        hit.get("content"),
-    )
-    for candidate in candidates:
-        snippet = extract_text_candidate(candidate)
-        if snippet:
-            return snippet
-    return ""
-
-
-def resolve_filename(metadata: dict[str, Any], fallback: str | None = None) -> str | None:
-    candidates = (
-        metadata.get("filename"),
-        metadata.get("display_name"),
-        metadata.get("original_filename"),
-        metadata.get("title"),
-        fallback,
-    )
-    for value in candidates:
-        name = str(value or "").strip()
-        if name:
-            return name
-    return None
-````
-
-## File: py_fn/src/infrastructure/external/upstash/_base.py
-````python
-"""
-Upstash 共用工具 — 錯誤類別與基礎輔助函數。
-供 vector_client / redis_client / search_client / qstash_client 共享使用。
-"""
-
-from __future__ import annotations
-
-import importlib
-import logging
-
-logger = logging.getLogger(__name__)
-
-
-class UpstashConfigError(RuntimeError):
-    """Upstash 配置缺失。"""
-
-
-class UpstashSdkError(RuntimeError):
-    """Upstash SDK 載入失敗。"""
-
-
-def _require(value: str, name: str) -> str:
-    if not value:
-        raise UpstashConfigError(f"{name} is not set")
-    return value
-
-
-def _import_module(module_name: str, install_hint: str):
-    try:
-        return importlib.import_module(module_name)
-    except ImportError as exc:
-        raise UpstashSdkError(f"Missing dependency: {install_hint}") from exc
-````
-
-## File: py_fn/src/infrastructure/external/upstash/clients.py
-````python
-"""
-Upstash clients — 向後相容的重新匯出桶。
-各功能已拆分至對應的聚焦模組：
-  - vector_client.py  (upsert_vectors, query_vectors)
-  - redis_client.py   (redis_get_json, redis_set_json, redis_fixed_window_allow)
-  - search_client.py  (upsert_search_documents, query_search_documents)
-  - qstash_client.py  (publish_qstash_json)
-  - _base.py          (UpstashConfigError, UpstashSdkError)
-
-此檔案保留所有原始公開符號以維持向後相容。
-"""
-
-from __future__ import annotations
-
-from infrastructure.external.upstash._base import (
-    UpstashConfigError,
-    UpstashSdkError,
-)
-from infrastructure.external.upstash.vector_client import (
-    get_vector_index,
-    upsert_vectors,
-    query_vectors,
-)
-from infrastructure.external.upstash.redis_client import (
-    get_redis_client,
-    redis_get_json,
-    redis_set_json,
-    redis_fixed_window_allow,
-)
-from infrastructure.external.upstash.search_client import (
-    get_search_index,
-    upsert_search_documents,
-    query_search_documents,
-)
-from infrastructure.external.upstash.qstash_client import (
-    get_qstash_client,
-    publish_qstash_json,
-)
-
-__all__ = [
-    "UpstashConfigError",
-    "UpstashSdkError",
-    "get_vector_index",
-    "upsert_vectors",
-    "query_vectors",
-    "get_redis_client",
-    "redis_get_json",
-    "redis_set_json",
-    "redis_fixed_window_allow",
-    "get_search_index",
-    "upsert_search_documents",
-    "query_search_documents",
-    "get_qstash_client",
-    "publish_qstash_json",
-]
-````
-
-## File: py_fn/src/infrastructure/external/upstash/qstash_client.py
-````python
-"""
-Upstash QStash 客戶端 — 非同步訊息投遞操作。
-"""
-
-from __future__ import annotations
-
-import logging
-from typing import Any
-
-from core.config import (
-    QSTASH_CURRENT_SIGNING_KEY,
-    QSTASH_NEXT_SIGNING_KEY,
-    QSTASH_TOKEN,
-    QSTASH_URL,
-)
-from infrastructure.external.upstash._base import UpstashSdkError, _require, _import_module
-
-_QSTASH_CLIENT: Any | None = None
-
-logger = logging.getLogger(__name__)
-
-
-def get_qstash_client() -> Any:
-    """取得 QStash 官方 SDK client（單例）。"""
-    global _QSTASH_CLIENT
-    if _QSTASH_CLIENT is None:
-        mod = _import_module("qstash", "pip install qstash")
-        client_cls = getattr(mod, "QStash", None)
-        if client_cls is None:
-            raise UpstashSdkError("qstash.QStash not found")
-
-        # 新舊 SDK 參數名稱兼容
-        kwargs: dict[str, Any] = {
-            "token": _require(QSTASH_TOKEN, "QSTASH_TOKEN"),
-        }
-        if QSTASH_URL:
-            kwargs["base_url"] = QSTASH_URL
-        if QSTASH_CURRENT_SIGNING_KEY:
-            kwargs["current_signing_key"] = QSTASH_CURRENT_SIGNING_KEY
-        if QSTASH_NEXT_SIGNING_KEY:
-            kwargs["next_signing_key"] = QSTASH_NEXT_SIGNING_KEY
-
-        try:
-            _QSTASH_CLIENT = client_cls(**kwargs)
-        except TypeError:
-            # 退回最小初始化方式
-            _QSTASH_CLIENT = client_cls(token=_require(QSTASH_TOKEN, "QSTASH_TOKEN"))
-
-    return _QSTASH_CLIENT
-
-
-def publish_qstash_json(url: str, body: dict[str, Any], delay: str | None = None) -> bool:
-    """透過 QStash 投遞 JSON 訊息（best effort）。"""
-    target_url = url.strip()
-    if not target_url:
-        return False
-
-    try:
-        client = get_qstash_client()
-    except Exception as exc:
-        logger.debug("publish_qstash_json skip: %s", exc)
-        return False
-
-    try:
-        kwargs: dict[str, Any] = {
-            "url": target_url,
-            "body": body,
-        }
-        if delay:
-            kwargs["delay"] = delay
-
-        publish_json = getattr(client, "publish_json", None)
-        if callable(publish_json):
-            publish_json(**kwargs)
-            return True
-
-        publish = getattr(client, "publish", None)
-        if callable(publish):
-            publish(**kwargs)
-            return True
-
-        return False
-    except TypeError:
-        try:
-            publish_json = getattr(client, "publish_json", None)
-            if callable(publish_json):
-                publish_json(target_url, body)
-                return True
-            publish = getattr(client, "publish", None)
-            if callable(publish):
-                publish(target_url, body)
-                return True
-            return False
-        except Exception:
-            logger.debug("publish_qstash_json fallback failed", exc_info=True)
-            return False
-    except Exception:
-        logger.debug("publish_qstash_json failed", exc_info=True)
-        return False
-````
-
-## File: py_fn/src/infrastructure/external/upstash/redis_client.py
-````python
-"""
-Upstash Redis 客戶端 — JSON 讀寫與固定窗口限流操作。
-"""
-
-from __future__ import annotations
-
-import json
-import logging
-from typing import Any
-
-from core.config import UPSTASH_REDIS_REST_TOKEN, UPSTASH_REDIS_REST_URL
-from infrastructure.external.upstash._base import UpstashSdkError, _require, _import_module
-
-_REDIS_CLIENT: Any | None = None
-
-logger = logging.getLogger(__name__)
-
-
-def get_redis_client() -> Any:
-    """取得 Upstash Redis 官方 SDK client（單例）。"""
-    global _REDIS_CLIENT
-    if _REDIS_CLIENT is None:
-        mod = _import_module("upstash_redis", "pip install upstash-redis")
-        redis_cls = getattr(mod, "Redis", None)
-        if redis_cls is None:
-            raise UpstashSdkError("upstash_redis.Redis not found")
-        _REDIS_CLIENT = redis_cls(
-            url=_require(UPSTASH_REDIS_REST_URL, "UPSTASH_REDIS_REST_URL"),
-            token=_require(UPSTASH_REDIS_REST_TOKEN, "UPSTASH_REDIS_REST_TOKEN"),
-        )
-    return _REDIS_CLIENT
-
-
-def redis_get_json(key: str) -> dict[str, Any] | None:
-    """從 Upstash Redis 讀取 JSON 字串並反序列化。"""
-    client = get_redis_client()
-    raw = client.get(key)
-    if raw is None:
-        return None
-
-    if isinstance(raw, (bytes, bytearray)):
-        raw_text = raw.decode("utf-8", errors="ignore")
-    else:
-        raw_text = str(raw)
-
-    if not raw_text:
-        return None
-
-    try:
-        parsed = json.loads(raw_text)
-        return parsed if isinstance(parsed, dict) else None
-    except Exception:
-        logger.warning("redis_get_json: invalid json at key=%s", key)
-        return None
-
-
-def redis_set_json(key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None:
-    """將 dict 寫入 Upstash Redis；可選擇 TTL。"""
-    client = get_redis_client()
-    payload = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-
-    if ttl_seconds > 0:
-        try:
-            client.set(key, payload, ex=ttl_seconds)
-            return
-        except TypeError:
-            pass
-        except Exception:
-            logger.exception("redis_set_json set(ex=) failed: key=%s", key)
-            raise
-
-        try:
-            client.setex(key, ttl_seconds, payload)
-            return
-        except Exception:
-            logger.exception("redis_set_json setex failed: key=%s", key)
-            raise
-
-    client.set(key, payload)
-
-
-def redis_fixed_window_allow(
-    key: str,
-    max_requests: int,
-    window_seconds: int,
-) -> tuple[bool, int]:
-    """固定窗限流：回傳 (allowed, remaining)。"""
-    if max_requests <= 0 or window_seconds <= 0:
-        return True, max_requests
-
-    client = get_redis_client()
-    current = int(client.incr(key) or 0)
-    if current == 1:
-        client.expire(key, window_seconds)
-
-    allowed = current <= max_requests
-    remaining = max(0, max_requests - current)
-    return allowed, remaining
-````
-
-## File: py_fn/src/infrastructure/external/upstash/search_client.py
-````python
-"""
-Upstash Search 客戶端 — 全文搜尋 upsert / query 操作。
-"""
-
-from __future__ import annotations
-
-import json
-import logging
-from urllib import error as urlerror
-from urllib import request as urlrequest
-from typing import Any
-
-from core.config import (
-    UPSTASH_SEARCH_REST_TOKEN,
-    UPSTASH_SEARCH_REST_URL,
-    UPSTASH_SEARCH_INDEX,
-    UPSTASH_SEARCH_TIMEOUT_SECONDS,
-)
-from infrastructure.external.upstash._base import UpstashSdkError, _require, _import_module
-
-_SEARCH_INDEX: Any | None = None
-
-logger = logging.getLogger(__name__)
-
-
-def get_search_index() -> Any:
-    """取得 Upstash Search 官方 SDK index（單例）。"""
-    global _SEARCH_INDEX
-    if _SEARCH_INDEX is None:
-        mod = _import_module("upstash_search", "pip install upstash-search")
-        search_cls = getattr(mod, "Search", None)
-        if search_cls is None:
-            raise UpstashSdkError("upstash_search.Search not found")
-
-        index_name = UPSTASH_SEARCH_INDEX or "default"
-        client = search_cls(
-            url=_require(UPSTASH_SEARCH_REST_URL, "UPSTASH_SEARCH_REST_URL"),
-            token=_require(UPSTASH_SEARCH_REST_TOKEN, "UPSTASH_SEARCH_REST_TOKEN"),
-            allow_telemetry=False,
-        )
-        _SEARCH_INDEX = client.index(index_name)
-    return _SEARCH_INDEX
-
-
-def upsert_search_documents(documents: list[dict[str, Any]]) -> int:
-    """批次寫入 Upstash Search index（best effort，不拋出上層）。"""
-    if not UPSTASH_SEARCH_REST_URL or not UPSTASH_SEARCH_REST_TOKEN:
-        return 0
-
-    if not documents:
-        return 0
-
-    normalized: list[dict[str, Any]] = []
-    for item in documents:
-        if not isinstance(item, dict):
-            continue
-        doc_id = str(item.get("id") or "").strip()
-        if not doc_id:
-            continue
-
-        content = item.get("content") if isinstance(item.get("content"), dict) else {}
-        metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
-        normalized.append({
-            "id": doc_id,
-            "content": content,
-            "metadata": metadata,
-        })
-
-    if not normalized:
-        return 0
-
-    try:
-        index = get_search_index()
-        try:
-            index.upsert(documents=normalized)
-        except TypeError:
-            index.upsert(normalized)
-        return len(normalized)
-    except Exception as exc:
-        logger.warning("upsert_search_documents failed: %s", exc)
-        return 0
-
-
-def query_search_documents(query: str, top_k: int) -> list[dict[str, Any]]:
-    """
-    以 Upstash Search REST 進行補充檢索（best effort）。
-
-    回傳格式統一為 list[dict]，單筆含 text / score / source 等欄位。
-    """
-    if not UPSTASH_SEARCH_REST_URL or not UPSTASH_SEARCH_REST_TOKEN:
-        return []
-
-    if not query.strip() or top_k <= 0:
-        return []
-
-    # Prefer official SDK first; fallback to REST probing for compatibility.
-    try:
-        index = get_search_index()
-        result = index.search(query=query, limit=top_k)
-        normalized: list[dict[str, Any]] = []
-
-        if isinstance(result, list):
-            items = result
-        elif isinstance(result, dict):
-            items = (
-                result.get("result")
-                or result.get("matches")
-                or result.get("hits")
-                or result.get("data")
-                or []
-            )
-        else:
-            items = getattr(result, "results", None) or getattr(result, "data", None) or []
-
-        if isinstance(items, list):
-            for item in items:
-                if not isinstance(item, dict):
-                    try:
-                        item = dict(item)
-                    except Exception:
-                        continue
-
-                metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
-                content = item.get("content") if isinstance(item.get("content"), dict) else {}
-                text = str(
-                    item.get("text")
-                    or content.get("text")
-                    or content.get("content")
-                    or metadata.get("text")
-                    or item.get("content")
-                    or ""
-                ).strip()
-                if not text:
-                    continue
-
-                normalized.append(
-                    {
-                        "id": item.get("id"),
-                        "score": item.get("score"),
-                        "text": text,
-                        "metadata": metadata,
-                        "source": "upstash-search-sdk",
-                    }
-                )
-
-        if normalized:
-            return normalized
-    except Exception as exc:
-        logger.debug("query_search_documents sdk path failed, fallback to REST: %s", exc)
-
-    endpoint_base = UPSTASH_SEARCH_REST_URL.rstrip("/")
-    body_candidates = [
-        {"query": query, "topK": top_k},
-        {"query": query, "top_k": top_k},
-        {"q": query, "limit": top_k},
-    ]
-    path_candidates = ["/query", "/search"]
-
-    for path in path_candidates:
-        url = f"{endpoint_base}{path}"
-        for body in body_candidates:
-            raw = None
-            try:
-                req = urlrequest.Request(
-                    url=url,
-                    method="POST",
-                    headers={
-                        "Authorization": f"Bearer {UPSTASH_SEARCH_REST_TOKEN}",
-                        "Content-Type": "application/json",
-                    },
-                    data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
-                )
-                with urlrequest.urlopen(req, timeout=UPSTASH_SEARCH_TIMEOUT_SECONDS) as resp:
-                    raw = resp.read().decode("utf-8", errors="ignore")
-            except urlerror.HTTPError as exc:
-                logger.debug("query_search_documents http error: %s %s", url, exc)
-                continue
-            except Exception as exc:
-                logger.debug("query_search_documents request failed: %s", exc)
-                continue
-
-            if not raw:
-                continue
-
-            try:
-                payload = json.loads(raw)
-            except Exception:
-                logger.debug("query_search_documents invalid json from %s", url)
-                continue
-
-            candidates = []
-            if isinstance(payload, dict):
-                candidates = (
-                    payload.get("result")
-                    or payload.get("matches")
-                    or payload.get("hits")
-                    or payload.get("data")
-                    or []
-                )
-            elif isinstance(payload, list):
-                candidates = payload
-
-            if not isinstance(candidates, list):
-                continue
-
-            normalized: list[dict[str, Any]] = []
-            for item in candidates:
-                if isinstance(item, dict):
-                    metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
-                    text = str(
-                        item.get("text")
-                        or metadata.get("text")
-                        or item.get("content")
-                        or ""
-                    ).strip()
-                    if not text:
-                        continue
-                    normalized.append(
-                        {
-                            "id": item.get("id"),
-                            "score": item.get("score"),
-                            "text": text,
-                            "metadata": metadata,
-                            "source": "upstash-search",
-                        }
-                    )
-            if normalized:
-                return normalized
-
-    return []
-````
-
-## File: py_fn/src/infrastructure/external/upstash/vector_client.py
-````python
-"""
-Upstash Vector 客戶端 — 向量 upsert / query 操作。
-"""
-
-from __future__ import annotations
-
-import logging
-from typing import Any
-
-from core.config import UPSTASH_VECTOR_REST_TOKEN, UPSTASH_VECTOR_REST_URL
-from infrastructure.external.upstash._base import UpstashSdkError, _require, _import_module
-
-_VECTOR_INDEX: Any | None = None
-
-logger = logging.getLogger(__name__)
-
-
-def get_vector_index() -> Any:
-    """取得 Upstash Vector 官方 SDK Index 實例（單例）。"""
-    global _VECTOR_INDEX
-    if _VECTOR_INDEX is None:
-        mod = _import_module("upstash_vector", "pip install upstash-vector")
-        index_cls = getattr(mod, "Index", None)
-        if index_cls is None:
-            raise UpstashSdkError("upstash_vector.Index not found")
-        _VECTOR_INDEX = index_cls(
-            url=_require(UPSTASH_VECTOR_REST_URL, "UPSTASH_VECTOR_REST_URL"),
-            token=_require(UPSTASH_VECTOR_REST_TOKEN, "UPSTASH_VECTOR_REST_TOKEN"),
-        )
-    return _VECTOR_INDEX
-
-
-def _normalize_vector_item(item: Any) -> dict[str, Any]:
-    if isinstance(item, dict):
-        return item
-    try:
-        return {
-            "id": getattr(item, "id", None),
-            "score": getattr(item, "score", None),
-            "vector": getattr(item, "vector", None),
-            "metadata": getattr(item, "metadata", None),
-            "data": getattr(item, "data", None),
-        }
-    except Exception:
-        return {}
-
-
-def upsert_vectors(items: list[dict[str, Any]], namespace: str = "") -> Any:
-    """
-    批次 upsert 向量資料到 Upstash Vector。
-
-    items 每筆至少包含：
-      - id: str
-      - vector: list[float]
-      - metadata: dict[str, Any]
-    """
-    index = get_vector_index()
-    sdk_payload = [
-        {
-            "id": item["id"],
-            "vector": item["vector"],
-            "metadata": item.get("metadata", {}),
-            "data": item.get("data"),
-        }
-        for item in items
-    ]
-    tuples_payload = [
-        (item["id"], item["vector"], item.get("metadata", {}))
-        for item in items
-    ]
-
-    try:
-        return index.upsert(vectors=sdk_payload, namespace=namespace)
-    except TypeError:
-        try:
-            return index.upsert(sdk_payload, namespace=namespace)
-        except TypeError:
-            try:
-                return index.upsert(tuples_payload, namespace=namespace)
-            except TypeError:
-                return index.upsert(items, namespace=namespace)
-
-
-def query_vectors(
-    vector: list[float],
-    top_k: int,
-    include_metadata: bool = True,
-    include_data: bool = True,
-    namespace: str = "",
-    filter: str = "",
-) -> list[dict[str, Any]]:
-    """查詢 Upstash Vector，統一輸出為 list[dict]。"""
-    index = get_vector_index()
-
-    try:
-        result = index.query(
-            vector=vector,
-            top_k=top_k,
-            include_metadata=include_metadata,
-            include_data=include_data,
-            namespace=namespace,
-            filter=filter,
-        )
-    except TypeError:
-        try:
-            result = index.query(
-                vector,
-                top_k=top_k,
-                include_metadata=include_metadata,
-                include_data=include_data,
-                namespace=namespace,
-                filter=filter,
-            )
-        except TypeError:
-            result = index.query(vector=vector, top_k=top_k, namespace=namespace)
-
-    if isinstance(result, list):
-        return [_normalize_vector_item(item) for item in result]
-
-    if isinstance(result, dict):
-        candidates = result.get("result") or result.get("matches") or result.get("data") or []
-        if isinstance(candidates, list):
-            return [_normalize_vector_item(item) for item in candidates]
-
-    if hasattr(result, "data") and isinstance(result.data, list):
-        return [_normalize_vector_item(item) for item in result.data]
-
-    return []
-````
-
-## File: py_fn/src/interface/handlers/_https_helpers.py
-````python
-"""
-HTTPS handler 共用工具 — 驗證、存取控制與輸入解析輔助函數。
-供 parse_document / rag_query / rag_reindex 共享使用。
-"""
-
-from __future__ import annotations
-
-import logging
-from typing import Any
-
-from firebase_functions import https_fn
-import firebase_admin.firestore as fb_firestore
-
-logger = logging.getLogger(__name__)
-
-
-def _extract_auth_uid(req: https_fn.CallableRequest) -> str:
-    auth = getattr(req, "auth", None)
-    if auth is None:
-        return ""
-    if isinstance(auth, dict):
-        return str(auth.get("uid", "")).strip()
-    uid = str(getattr(auth, "uid", "")).strip()
-    if uid:
-        return uid
-    token = getattr(auth, "token", None)
-    if isinstance(token, dict):
-        return str(token.get("uid", "")).strip()
-    return ""
-
-
-def _assert_account_access(uid: str, account_id: str) -> None:
-    if uid == account_id:
-        return
-
-    db = fb_firestore.client()
-    snap = db.collection("accounts").document(account_id).get()
-    if not snap.exists:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.PERMISSION_DENIED,
-            "account not found or inaccessible",
-        )
-
-    data = snap.to_dict() or {}
-    owner_id = str(data.get("ownerId", "")).strip()
-    member_ids = data.get("memberIds") if isinstance(data.get("memberIds"), list) else []
-    member_set = {str(item or "").strip() for item in member_ids}
-    if owner_id == uid or uid in member_set:
-        return
-
-    raise https_fn.HttpsError(
-        https_fn.FunctionsErrorCode.PERMISSION_DENIED,
-        "you do not have access to this account scope",
-    )
-
-
-def _assert_workspace_belongs_account(account_id: str, workspace_id: str) -> None:
-    db = fb_firestore.client()
-    snap = db.collection("workspaces").document(workspace_id).get()
-    if not snap.exists:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "workspace not found",
-        )
-
-    data = snap.to_dict() or {}
-    bound_account_id = str(data.get("accountId", "")).strip()
-    if bound_account_id != account_id:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.PERMISSION_DENIED,
-            "workspace does not belong to account scope",
-        )
-
-
-def _parse_taxonomy_filters(raw_value: Any) -> list[str]:
-    if not isinstance(raw_value, list):
-        return []
-    return [str(item or "").strip().lower() for item in raw_value if str(item or "").strip()]
-
-
-def _to_bool(raw_value: Any, default_value: bool) -> bool:
-    if isinstance(raw_value, bool):
-        return raw_value
-    raw = str(raw_value or "").strip().lower()
-    if not raw:
-        return default_value
-    if raw in {"1", "true", "yes", "on"}:
-        return True
-    if raw in {"0", "false", "no", "off"}:
-        return False
-    return default_value
-
-
-def _parse_gs_uri(gs_uri: str) -> tuple[str, str]:
-    if not gs_uri.startswith("gs://"):
-        raise ValueError("gcs uri must start with gs://")
-    path_part = gs_uri.split("gs://", 1)[1]
-    if "/" not in path_part:
-        raise ValueError("gcs uri must include object path")
-    bucket_name, object_path = path_part.split("/", 1)
-    return bucket_name, object_path
-````
-
-## File: py_fn/src/interface/handlers/https.py
-````python
-"""
-HTTPS Callable 觸發器 — 向後相容的重新匯出桶。
-各 handler 已拆分至對應的聚焦模組：
-  - parse_document.py      (handle_parse_document)
-  - rag_query_handler.py   (handle_rag_query)
-  - rag_reindex_handler.py (handle_rag_reindex_document)
-  - _https_helpers.py      (共用驗證/解析工具)
-
-此檔案保留所有原始公開符號以維持向後相容。
-"""
-
-from __future__ import annotations
-
-from interface.handlers.parse_document import handle_parse_document
-from interface.handlers.rag_query_handler import handle_rag_query
-from interface.handlers.rag_reindex_handler import handle_rag_reindex_document
-
-__all__ = [
-    "handle_parse_document",
-    "handle_rag_query",
-    "handle_rag_reindex_document",
-]
-````
-
-## File: py_fn/src/interface/handlers/rag_query_handler.py
-````python
-"""
-HTTPS Callable — handle_rag_query：RAG 查詢（Step 7）。
-"""
-
-from __future__ import annotations
-
-import logging
-
-from firebase_functions import https_fn
-
-from application.services.document_pipeline import allow_rag_query_rate_limit
-from application.use_cases import execute_rag_query
-from core.config import (
-    RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
-    RAG_QUERY_REQUIRE_READY_STATUS,
-    RAG_QUERY_RATE_LIMIT_MAX,
-    RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
-)
-from interface.handlers._https_helpers import (
-    _assert_account_access,
-    _assert_workspace_belongs_account,
-    _extract_auth_uid,
-    _parse_taxonomy_filters,
-    _to_bool,
-)
-
-logger = logging.getLogger(__name__)
-
-
-def handle_rag_query(req: https_fn.CallableRequest) -> dict:
-    """HTTPS Callable：RAG 查詢（Step 7）。"""
-    uid = _extract_auth_uid(req)
-    if not uid:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.UNAUTHENTICATED,
-            "需先登入才能執行 RAG 查詢",
-        )
-
-    data: dict = req.data or {}
-    query = str(data.get("query", "")).strip()
-    account_id = str(data.get("account_id", "")).strip()
-    workspace_id = str(data.get("workspace_id", "")).strip()
-    if not account_id:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "account_id 為必填欄位",
-        )
-    if not query:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "query 為必填欄位",
-        )
-    if not workspace_id:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "workspace_id 為必填欄位",
-        )
-
-    _assert_account_access(uid, account_id)
-    _assert_workspace_belongs_account(account_id, workspace_id)
-
-    top_k = data.get("top_k")
-    try:
-        top_k_int = int(top_k) if top_k is not None else None
-    except Exception:
-        top_k_int = None
-
-    try:
-        max_age_days = int(data.get("max_age_days")) if data.get("max_age_days") is not None else None
-    except Exception:
-        max_age_days = None
-
-    taxonomy_filters = _parse_taxonomy_filters(data.get("taxonomy_filters"))
-    require_ready = _to_bool(data.get("require_ready"), RAG_QUERY_REQUIRE_READY_STATUS)
-
-    try:
-        allowed, remaining = allow_rag_query_rate_limit(
-            account_id=account_id,
-            max_requests=RAG_QUERY_RATE_LIMIT_MAX,
-            window_seconds=RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
-        )
-    except Exception as exc:
-        logger.warning("rag_query rate-limit skipped: %s", exc)
-        allowed, remaining = True, -1
-
-    if not allowed:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.RESOURCE_EXHAUSTED,
-            "RAG query rate limit exceeded, please try again later.",
-        )
-
-    result = execute_rag_query(
-        query=query,
-        top_k=top_k_int,
-        account_scope=account_id,
-        workspace_scope=workspace_id,
-        taxonomy_filters=taxonomy_filters,
-        max_age_days=max_age_days or RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
-        require_ready=require_ready,
-    )
-    response = {
-        "answer": result.get("answer", ""),
-        "citations": result.get("citations", []),
-        "cache": result.get("cache", "miss"),
-        "vector_hits": result.get("vector_hits", 0),
-        "search_hits": result.get("search_hits", 0),
-        "account_scope": result.get("account_scope", account_id),
-        "workspace_scope": result.get("workspace_scope", workspace_id),
-        "taxonomy_filters": result.get("taxonomy_filters", taxonomy_filters),
-        "max_age_days": result.get("max_age_days", max_age_days or RAG_QUERY_DEFAULT_MAX_AGE_DAYS),
-        "require_ready": result.get("require_ready", require_ready),
-        "rate_limit_remaining": remaining,
-    }
-    if isinstance(result.get("debug"), dict):
-        response["debug"] = result["debug"]
-    return response
-````
-
-## File: py_fn/src/interface/handlers/rag_reindex_handler.py
-````python
-"""
-HTTPS Callable — handle_rag_reindex_document：手動觸發文件 RAG 重新索引。
-"""
-
-from __future__ import annotations
-
-import json
-import logging
+import os
+import time
 
 from firebase_functions import https_fn
 
@@ -69713,116 +70128,171 @@ from interface.handlers._https_helpers import _parse_gs_uri
 logger = logging.getLogger(__name__)
 
 
-def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
-    """HTTPS Callable：手動觸發單一文件的 Normalization + RAG ingestion。"""
+def handle_parse_document(req: https_fn.CallableRequest) -> dict:
+    """
+    HTTPS Callable：主動觸發單一文件的 Document AI 解析。
+
+    輸入 GCS URI，Document AI 直接從 Cloud Storage 讀取並解析。
+    Firestore 會記錄完整的 lifecycle（processing → completed/error）。
+    """
     runtime = get_document_pipeline()
     data: dict = req.data or {}
-
     account_id = str(data.get("account_id", "")).strip()
-    doc_id = str(data.get("doc_id", "")).strip()
-    json_gcs_uri = str(data.get("json_gcs_uri", "")).strip()
-    source_gcs_uri = str(data.get("source_gcs_uri", "")).strip()
     workspace_id = str(data.get("workspace_id", "")).strip()
-    filename = (
-        str(data.get("filename", "")).strip()
-        or str(data.get("display_name", "")).strip()
-        or str(data.get("original_filename", "")).strip()
-        or doc_id
-    )
-
     if not account_id:
         raise https_fn.HttpsError(
             https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
             "account_id 為必填欄位",
         )
-    if not doc_id:
+    if not workspace_id:
         raise https_fn.HttpsError(
             https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "doc_id 為必填欄位",
+            "workspace_id 為必填欄位",
         )
-    if not json_gcs_uri:
+
+    gcs_uri: str = data.get("gcs_uri", "").strip()
+    if not gcs_uri or not gcs_uri.startswith("gs://"):
         raise https_fn.HttpsError(
             https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "json_gcs_uri 為必填欄位",
+            "gcs_uri 為必填欄位（格式：gs://bucket/path）",
         )
 
-    try:
-        page_count = int(data.get("page_count", 0) or 0)
-    except Exception:
-        page_count = 0
+    run_rag = bool(data.get("run_rag", True))
 
-    try:
-        bucket_name, object_path = _parse_gs_uri(json_gcs_uri)
-        json_bytes = runtime.download_bytes(bucket_name=bucket_name, object_path=object_path)
-        parsed_payload = json.loads(json_bytes.decode("utf-8")) if json_bytes else {}
+    # 解析 GCS URI 得到儲存檔名，並允許呼叫端覆蓋 doc_id。
+    path_part = gcs_uri.split("gs://", 1)[1]  # "bucket/path/to/file.pdf"
+    storage_filename = os.path.basename(path_part)     # "file.pdf"
+    default_doc_id, ext = os.path.splitext(storage_filename)   # "file", ".pdf"
+    doc_id = str(data.get("doc_id", "")).strip() or default_doc_id
+    filename = (
+        str(data.get("filename", "")).strip()
+        or str(data.get("original_filename", "")).strip()
+        or str(data.get("display_name", "")).strip()
+        or storage_filename
+    )
 
-        text = str(parsed_payload.get("text", "")).strip()
-        if not text:
-            raise ValueError("json 內容缺少 text")
-
-        if not source_gcs_uri:
-            source_gcs_uri = str(parsed_payload.get("source_gcs_uri", "")).strip()
-        if not workspace_id:
-            workspace_id = str(parsed_payload.get("workspace_id", "")).strip()
-        if not workspace_id:
-            workspace_id = str((parsed_payload.get("metadata") or {}).get("space_id", "")).strip()
-        if not filename:
-            filename = (
-                str(parsed_payload.get("filename", "")).strip()
-                or str(parsed_payload.get("display_name", "")).strip()
-                or str(parsed_payload.get("original_filename", "")).strip()
-                or doc_id
-            )
-        if page_count <= 0:
-            page_count = int(parsed_payload.get("page_count", 0) or 0)
-        if not workspace_id:
+    # 推測 MIME 類型
+    mime_type = data.get("mime_type", "").strip()
+    if not mime_type:
+        _mime_map = {
+            ".pdf": "application/pdf",
+            ".tiff": "image/tiff",
+            ".tif": "image/tiff",
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+        }
+        mime_type = _mime_map.get(ext.lower())
+        if mime_type is None:
             raise https_fn.HttpsError(
                 https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-                "workspace_id 為必填欄位",
+                f"無法判斷 MIME 類型，請手動指定（副檔名：{ext}）",
             )
 
-        rag = ingest_document_for_rag(
+    size_bytes = data.get("size_bytes", 0)
+    logger.info("parse_document callable: %s → doc_id=%s", gcs_uri, doc_id)
+
+    # ── 初始化 Firestore document ───────────────────────────────────────────
+    try:
+        runtime.init_document(
             doc_id=doc_id,
+            gcs_uri=gcs_uri,
             filename=filename,
-            source_gcs_uri=source_gcs_uri,
-            json_gcs_uri=json_gcs_uri,
-            text=text,
-            page_count=page_count,
+            size_bytes=int(size_bytes),
+            mime_type=mime_type,
             account_id=account_id,
             workspace_id=workspace_id,
         )
+    except Exception as exc:
+        logger.exception("Failed to init document %s: %s", doc_id, exc)
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INTERNAL,
+            "Failed to initialize document",
+        ) from exc
 
-        runtime.mark_rag_ready(
+    # 解析 gs://bucket/path，取得 bucket 與 object_path
+    bucket_name, object_path = path_part.split("/", 1)
+
+    # ── 同步解析（保持函數活躍直到完成） ─────────────────────────────────────
+    start_time = time.time()
+    try:
+        parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
+        extraction_ms = int((time.time() - start_time) * 1000)
+
+        # 解析結果全文寫回 GCS JSON（與 uploads 目錄結構對應）
+        json_object_path = runtime.parsed_json_path(object_path)
+        json_gcs_uri = runtime.upload_json(
+            bucket_name=bucket_name,
+            object_path=json_object_path,
+            data={
+                "doc_id": doc_id,
+                "account_id": account_id,
+                "workspace_id": workspace_id,
+                "source_gcs_uri": gcs_uri,
+                "filename": filename,
+                "display_name": filename,
+                "original_filename": filename,
+                "page_count": parsed.page_count,
+                "extraction_ms": extraction_ms,
+                "text": parsed.text,
+            },
+        )
+
+        runtime.update_parsed(
             doc_id=doc_id,
-            chunk_count=rag.chunk_count,
-            vector_count=rag.vector_count,
-            embedding_model=rag.embedding_model,
-            embedding_dimensions=rag.embedding_dimensions,
-            raw_chars=rag.raw_chars,
-            normalized_chars=rag.normalized_chars,
-            normalization_version=rag.normalization_version,
-            language_hint=rag.language_hint,
+            json_gcs_uri=json_gcs_uri,
+            page_count=parsed.page_count,
+            extraction_ms=extraction_ms,
             account_id=account_id,
         )
 
-        return {
-            "account_scope": account_id,
-            "doc_id": doc_id,
-            "status": "ready",
-            "chunk_count": rag.chunk_count,
-            "vector_count": rag.vector_count,
-            "raw_chars": rag.raw_chars,
-            "normalized_chars": rag.normalized_chars,
-            "normalization_version": rag.normalization_version,
-            "language_hint": rag.language_hint,
-        }
+        # Step 5/6: RAG ingestion（可由呼叫端明確關閉，支援人工決策式流程）
+        if run_rag:
+            try:
+                rag = ingest_document_for_rag(
+                    doc_id=doc_id,
+                    filename=filename,
+                    source_gcs_uri=gcs_uri,
+                    json_gcs_uri=json_gcs_uri,
+                    text=parsed.text,
+                    page_count=parsed.page_count,
+                    account_id=account_id,
+                    workspace_id=workspace_id,
+                )
+                runtime.mark_rag_ready(
+                    doc_id=doc_id,
+                    chunk_count=rag.chunk_count,
+                    vector_count=rag.vector_count,
+                    embedding_model=rag.embedding_model,
+                    embedding_dimensions=rag.embedding_dimensions,
+                    raw_chars=rag.raw_chars,
+                    normalized_chars=rag.normalized_chars,
+                    normalization_version=rag.normalization_version,
+                    language_hint=rag.language_hint,
+                    account_id=account_id,
+                )
+            except Exception as rag_exc:
+                logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)
+                runtime.record_rag_error(doc_id, str(rag_exc)[:200], account_id=account_id)
+
+        logger.info(
+            "✓ parse_document done: doc_id=%s (%d pages, %d ms, run_rag=%s) → %s",
+            doc_id,
+            parsed.page_count,
+            extraction_ms,
+            run_rag,
+            json_gcs_uri,
+        )
     except Exception as exc:
-        logger.exception("rag_reindex_document failed for %s: %s", doc_id, exc)
-        runtime.record_rag_error(doc_id, str(exc)[:200], account_id=account_id)
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INTERNAL,
-            f"rag_reindex_document 失敗：{str(exc)[:200]}",
-        ) from exc
+        logger.exception("parse_document failed for %s: %s", doc_id, exc)
+        runtime.record_error(doc_id, str(exc)[:200], account_id=account_id)
+
+    # 立即回覆（無論成功或失敗，Firestore 狀態已更新）
+    return {
+        "account_scope": account_id,
+        "doc_id": doc_id,
+        "status": "processing",  # 前端應監聽 Firestore 的實際狀態
+    }
 ````
 
 ## File: py_fn/tests/test_parse_document_handler.py
@@ -71225,281 +71695,6 @@ export async function getWorkspaceRagDocuments(
 }
 ````
 
-## File: modules/workspace-flow/interfaces/_actions/workspace-flow-invoice.actions.ts
-````typescript
-"use server";
-
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow-invoice.actions.ts
- * @description Server Actions for workspace-flow Invoice write operations.
- * Delegates exclusively to WorkspaceFlowFacade.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { WorkspaceFlowInvoiceFacade } from "../../api/workspace-flow-invoice.facade";
-import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
-import type { AddInvoiceItemDto } from "../../application/dto/add-invoice-item.dto";
-import type { UpdateInvoiceItemDto } from "../../application/dto/update-invoice-item.dto";
-import type { RemoveInvoiceItemDto } from "../../application/dto/remove-invoice-item.dto";
-
-function makeFacade(): WorkspaceFlowInvoiceFacade {
-  return new WorkspaceFlowInvoiceFacade(
-    new FirebaseInvoiceRepository(),
-  );
-}
-
-export async function wfCreateInvoice(workspaceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().createInvoice(workspaceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfAddInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().addInvoiceItem(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_ADD_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfUpdateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().updateInvoiceItem(invoiceItemId, dto);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_UPDATE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfRemoveInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().removeInvoiceItem(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_REMOVE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfSubmitInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().submitInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfReviewInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().reviewInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_REVIEW_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfApproveInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().approveInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfRejectInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().rejectInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_REJECT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfPayInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().payInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_PAY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfCloseInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().closeInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/workspace-flow/interfaces/_actions/workspace-flow-issue.actions.ts
-````typescript
-"use server";
-
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow-issue.actions.ts
- * @description Server Actions for workspace-flow Issue write operations.
- * Delegates exclusively to WorkspaceFlowFacade.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { WorkspaceFlowIssueFacade } from "../../api/workspace-flow-issue.facade";
-import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
-import type { OpenIssueDto } from "../../application/dto/open-issue.dto";
-import type { ResolveIssueDto } from "../../application/dto/resolve-issue.dto";
-
-function makeFacade(): WorkspaceFlowIssueFacade {
-  return new WorkspaceFlowIssueFacade(
-    new FirebaseIssueRepository(),
-  );
-}
-
-export async function wfOpenIssue(dto: OpenIssueDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().openIssue(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_OPEN_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfStartIssue(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().startIssue(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_START_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfFixIssue(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().fixIssue(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_FIX_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfSubmitIssueRetest(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().submitIssueRetest(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RETEST_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfPassIssueRetest(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().passIssueRetest(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RETEST_PASS_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfFailIssueRetest(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().failIssueRetest(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RETEST_FAIL_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfResolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().resolveIssue(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfCloseIssue(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().closeIssue(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/workspace-flow/interfaces/_actions/workspace-flow-task.actions.ts
-````typescript
-"use server";
-
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow-task.actions.ts
- * @description Server Actions for workspace-flow Task write operations.
- * Delegates exclusively to WorkspaceFlowFacade.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { WorkspaceFlowTaskFacade } from "../../api/workspace-flow-task.facade";
-import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
-import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
-import type { CreateTaskDto } from "../../application/dto/create-task.dto";
-import type { UpdateTaskDto } from "../../application/dto/update-task.dto";
-
-function makeFacade(): WorkspaceFlowTaskFacade {
-  return new WorkspaceFlowTaskFacade(
-    new FirebaseTaskRepository(),
-    new FirebaseIssueRepository(),
-  );
-}
-
-export async function wfCreateTask(dto: CreateTaskDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().createTask(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfUpdateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().updateTask(taskId, dto);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfAssignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().assignTask(taskId, assigneeId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_ASSIGN_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfSubmitTaskToQa(taskId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().submitTaskToQa(taskId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_SUBMIT_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfPassTaskQa(taskId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().passTaskQa(taskId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_PASS_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfApproveTaskAcceptance(taskId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().approveTaskAcceptance(taskId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfArchiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().archiveTask(taskId, invoiceStatus);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
 ## File: modules/workspace-scheduling/interfaces/WorkspaceSchedulingTab.tsx
 ````typescript
 "use client";
@@ -71722,24 +71917,6 @@ export function WorkspaceSchedulingTab({
 }
 ````
 
-## File: modules/workspace/api/contracts.ts
-````typescript
-/**
- * workspace public contracts boundary.
- */
-
-export * from "../interfaces/api/contracts";
-````
-
-## File: modules/workspace/api/facade.ts
-````typescript
-/**
- * workspace public behavior boundary.
- */
-
-export * from "../interfaces/api/facades";
-````
-
 ## File: modules/workspace/application/dtos/AGENT.md
 ````markdown
 # application/dtos — Application DTOs（應用層資料傳輸物件）
@@ -71903,41 +72080,6 @@ export class FetchWorkspaceMembersUseCase {
     return this.workspaceQueryRepo.getWorkspaceMembers(workspaceId);
   }
 }
-````
-
-## File: modules/workspace/application/use-cases/workspace.use-cases.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Re-export barrel for all workspace use cases.
- *          Split by subdomain for IDDD single-responsibility:
- *  - workspace-lifecycle.use-cases.ts  (create, update, delete)
- *  - workspace-capabilities.use-cases.ts (mount capabilities)
- *  - workspace-access.use-cases.ts      (team grants, individual grants, locations)
- */
-
-export {
-  CreateWorkspaceUseCase,
-  CreateWorkspaceWithCapabilitiesUseCase,
-  UpdateWorkspaceSettingsUseCase,
-  DeleteWorkspaceUseCase,
-} from "./workspace-lifecycle.use-cases";
-
-export { MountCapabilitiesUseCase } from "./workspace-capabilities.use-cases";
-
-export {
-  GrantTeamAccessUseCase,
-  GrantIndividualAccessUseCase,
-  CreateWorkspaceLocationUseCase,
-} from "./workspace-access.use-cases";
-
-export {
-  GetWorkspaceByIdForAccountUseCase,
-  GetWorkspaceByIdUseCase,
-  ListWorkspacesForAccountUseCase,
-  SubscribeToWorkspacesForAccountUseCase,
-} from "./workspace-query.use-cases";
 ````
 
 ## File: modules/workspace/domain/entities/WorkspaceProfile.ts
@@ -72233,16 +72375,69 @@ export * from "./workspace.facade";
 export * from "./workspace-member.facade";
 ````
 
-## File: modules/workspace/interfaces/api/index.ts
+## File: modules/workspace/interfaces/api/facades/workspace-member.facade.ts
 ````typescript
-/**
- * workspace 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 workspace 模組內部實作。
- */
+import type { WorkspaceMemberView } from "../contracts";
+import { getWorkspaceMembers as getWorkspaceMembersQuery } from "../queries/workspace-member.query";
 
-export * from "./contracts";
-export * from "./facades";
-export * from "./ui";
+export async function getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
+	return getWorkspaceMembersQuery(workspaceId);
+}
+````
+
+## File: modules/workspace/interfaces/api/facades/workspace.facade.ts
+````typescript
+import type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WorkspaceEntity,
+} from "../contracts";
+import {
+  getWorkspaceById as getWorkspaceByIdQuery,
+  getWorkspaceByIdForAccount as getWorkspaceByIdForAccountQuery,
+  getWorkspacesForAccount as getWorkspacesForAccountQuery,
+  subscribeToWorkspacesForAccount as subscribeToWorkspacesForAccountQuery,
+} from "../queries/workspace.query";
+import { buildWikiContentTree as buildWikiContentTreeQuery } from "../queries/wiki-content-tree.query";
+
+export async function getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]> {
+  return getWorkspacesForAccountQuery(accountId);
+}
+
+export function subscribeToWorkspacesForAccount(
+  accountId: string,
+  onUpdate: (workspaces: WorkspaceEntity[]) => void,
+) {
+  return subscribeToWorkspacesForAccountQuery(accountId, onUpdate);
+}
+
+export async function getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null> {
+  return getWorkspaceByIdQuery(workspaceId);
+}
+
+export async function getWorkspaceByIdForAccount(
+  accountId: string,
+  workspaceId: string,
+): Promise<WorkspaceEntity | null> {
+  return getWorkspaceByIdForAccountQuery(accountId, workspaceId);
+}
+
+export function buildWikiContentTree(
+  seeds: WikiAccountSeed[],
+): Promise<WikiAccountContentNode[]> {
+  return buildWikiContentTreeQuery(seeds);
+}
+
+export {
+  authorizeWorkspaceTeam,
+  createWorkspace,
+  createWorkspaceLocation,
+  createWorkspaceWithCapabilities,
+  deleteWorkspace,
+  grantIndividualWorkspaceAccess,
+  mountCapabilities,
+  updateWorkspaceSettings,
+} from "../actions/workspace.command";
 ````
 
 ## File: modules/workspace/interfaces/api/queries/wiki-content-tree.query.ts
@@ -73494,194 +73689,6 @@ export interface WorkspaceRepository {
 - `WorkspaceQueryRepository`
 - `WikiWorkspaceRepository`
 - `WorkspaceDomainEventPublisher`
-````
-
-## File: py_fn/src/interface/handlers/parse_document.py
-````python
-"""
-HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
-"""
-
-from __future__ import annotations
-
-import logging
-import os
-import time
-
-from firebase_functions import https_fn
-
-from application.services.document_pipeline import get_document_pipeline
-from application.use_cases.rag_ingestion import ingest_document_for_rag
-from interface.handlers._https_helpers import _parse_gs_uri
-
-logger = logging.getLogger(__name__)
-
-
-def handle_parse_document(req: https_fn.CallableRequest) -> dict:
-    """
-    HTTPS Callable：主動觸發單一文件的 Document AI 解析。
-
-    輸入 GCS URI，Document AI 直接從 Cloud Storage 讀取並解析。
-    Firestore 會記錄完整的 lifecycle（processing → completed/error）。
-    """
-    runtime = get_document_pipeline()
-    data: dict = req.data or {}
-    account_id = str(data.get("account_id", "")).strip()
-    workspace_id = str(data.get("workspace_id", "")).strip()
-    if not account_id:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "account_id 為必填欄位",
-        )
-    if not workspace_id:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "workspace_id 為必填欄位",
-        )
-
-    gcs_uri: str = data.get("gcs_uri", "").strip()
-    if not gcs_uri or not gcs_uri.startswith("gs://"):
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "gcs_uri 為必填欄位（格式：gs://bucket/path）",
-        )
-
-    run_rag = bool(data.get("run_rag", True))
-
-    # 解析 GCS URI 得到儲存檔名，並允許呼叫端覆蓋 doc_id。
-    path_part = gcs_uri.split("gs://", 1)[1]  # "bucket/path/to/file.pdf"
-    storage_filename = os.path.basename(path_part)     # "file.pdf"
-    default_doc_id, ext = os.path.splitext(storage_filename)   # "file", ".pdf"
-    doc_id = str(data.get("doc_id", "")).strip() or default_doc_id
-    filename = (
-        str(data.get("filename", "")).strip()
-        or str(data.get("original_filename", "")).strip()
-        or str(data.get("display_name", "")).strip()
-        or storage_filename
-    )
-
-    # 推測 MIME 類型
-    mime_type = data.get("mime_type", "").strip()
-    if not mime_type:
-        _mime_map = {
-            ".pdf": "application/pdf",
-            ".tiff": "image/tiff",
-            ".tif": "image/tiff",
-            ".png": "image/png",
-            ".jpg": "image/jpeg",
-            ".jpeg": "image/jpeg",
-        }
-        mime_type = _mime_map.get(ext.lower())
-        if mime_type is None:
-            raise https_fn.HttpsError(
-                https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-                f"無法判斷 MIME 類型，請手動指定（副檔名：{ext}）",
-            )
-
-    size_bytes = data.get("size_bytes", 0)
-    logger.info("parse_document callable: %s → doc_id=%s", gcs_uri, doc_id)
-
-    # ── 初始化 Firestore document ───────────────────────────────────────────
-    try:
-        runtime.init_document(
-            doc_id=doc_id,
-            gcs_uri=gcs_uri,
-            filename=filename,
-            size_bytes=int(size_bytes),
-            mime_type=mime_type,
-            account_id=account_id,
-            workspace_id=workspace_id,
-        )
-    except Exception as exc:
-        logger.exception("Failed to init document %s: %s", doc_id, exc)
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INTERNAL,
-            "Failed to initialize document",
-        ) from exc
-
-    # 解析 gs://bucket/path，取得 bucket 與 object_path
-    bucket_name, object_path = path_part.split("/", 1)
-
-    # ── 同步解析（保持函數活躍直到完成） ─────────────────────────────────────
-    start_time = time.time()
-    try:
-        parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
-        extraction_ms = int((time.time() - start_time) * 1000)
-
-        # 解析結果全文寫回 GCS JSON（與 uploads 目錄結構對應）
-        json_object_path = runtime.parsed_json_path(object_path)
-        json_gcs_uri = runtime.upload_json(
-            bucket_name=bucket_name,
-            object_path=json_object_path,
-            data={
-                "doc_id": doc_id,
-                "account_id": account_id,
-                "workspace_id": workspace_id,
-                "source_gcs_uri": gcs_uri,
-                "filename": filename,
-                "display_name": filename,
-                "original_filename": filename,
-                "page_count": parsed.page_count,
-                "extraction_ms": extraction_ms,
-                "text": parsed.text,
-            },
-        )
-
-        runtime.update_parsed(
-            doc_id=doc_id,
-            json_gcs_uri=json_gcs_uri,
-            page_count=parsed.page_count,
-            extraction_ms=extraction_ms,
-            account_id=account_id,
-        )
-
-        # Step 5/6: RAG ingestion（可由呼叫端明確關閉，支援人工決策式流程）
-        if run_rag:
-            try:
-                rag = ingest_document_for_rag(
-                    doc_id=doc_id,
-                    filename=filename,
-                    source_gcs_uri=gcs_uri,
-                    json_gcs_uri=json_gcs_uri,
-                    text=parsed.text,
-                    page_count=parsed.page_count,
-                    account_id=account_id,
-                    workspace_id=workspace_id,
-                )
-                runtime.mark_rag_ready(
-                    doc_id=doc_id,
-                    chunk_count=rag.chunk_count,
-                    vector_count=rag.vector_count,
-                    embedding_model=rag.embedding_model,
-                    embedding_dimensions=rag.embedding_dimensions,
-                    raw_chars=rag.raw_chars,
-                    normalized_chars=rag.normalized_chars,
-                    normalization_version=rag.normalization_version,
-                    language_hint=rag.language_hint,
-                    account_id=account_id,
-                )
-            except Exception as rag_exc:
-                logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)
-                runtime.record_rag_error(doc_id, str(rag_exc)[:200], account_id=account_id)
-
-        logger.info(
-            "✓ parse_document done: doc_id=%s (%d pages, %d ms, run_rag=%s) → %s",
-            doc_id,
-            parsed.page_count,
-            extraction_ms,
-            run_rag,
-            json_gcs_uri,
-        )
-    except Exception as exc:
-        logger.exception("parse_document failed for %s: %s", doc_id, exc)
-        runtime.record_error(doc_id, str(exc)[:200], account_id=account_id)
-
-    # 立即回覆（無論成功或失敗，Firestore 狀態已更新）
-    return {
-        "account_scope": account_id,
-        "doc_id": doc_id,
-        "status": "processing",  # 前端應監聽 Firestore 的實際狀態
-    }
 ````
 
 ## File: app/(shell)/dev-tools/page.tsx
@@ -75324,6 +75331,103 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
 }
 ````
 
+## File: modules/workspace/api/contracts.ts
+````typescript
+/**
+ * workspace public contracts boundary.
+ */
+
+export type {
+	Address,
+	AddressInput,
+	Capability,
+	CapabilitySpec,
+	CreateWorkspaceCommand,
+	UpdateWorkspaceSettingsCommand,
+	WorkspaceEntity,
+	WorkspaceGrant,
+	WorkspaceLifecycleState,
+	WorkspaceLifecycleStateInput,
+	WorkspaceLocation,
+	WorkspaceName,
+	WorkspaceNameInput,
+	WorkspacePersonnel,
+	WorkspacePersonnelCustomRole,
+	WorkspaceVisibility,
+	WorkspaceVisibilityInput,
+} from "../interfaces/api/contracts/workspace.contract";
+
+export {
+	WORKSPACE_LIFECYCLE_STATES,
+	WORKSPACE_VISIBILITIES,
+	createAddress,
+	createWorkspaceLifecycleState,
+	createWorkspaceName,
+	createWorkspaceVisibility,
+	formatAddress,
+	isTerminalWorkspaceLifecycleState,
+	isWorkspaceVisible,
+	workspaceNameEquals,
+} from "../interfaces/api/contracts/workspace.contract";
+
+export type {
+	WorkspaceCreatedEvent,
+	WorkspaceDomainEvent,
+	WorkspaceLifecycleTransitionedEvent,
+	WorkspaceVisibilityChangedEvent,
+} from "../interfaces/api/contracts/workspace.contract";
+
+export {
+	WORKSPACE_CREATED_EVENT_TYPE,
+	WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
+	WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
+	createWorkspaceCreatedEvent,
+	createWorkspaceLifecycleTransitionedEvent,
+	createWorkspaceVisibilityChangedEvent,
+} from "../interfaces/api/contracts/workspace.contract";
+
+export type {
+	WorkspaceMemberAccessChannel,
+	WorkspaceMemberAccessSource,
+	WorkspaceMemberPresence,
+	WorkspaceMemberView,
+} from "../interfaces/api/contracts/workspace-member.contract";
+
+export type {
+	WikiAccountContentNode,
+	WikiAccountSeed,
+	WikiAccountType,
+	WikiContentItemNode,
+	WikiWorkspaceContentNode,
+	WikiWorkspaceRef,
+} from "../interfaces/api/contracts/wiki-content.contract";
+````
+
+## File: modules/workspace/api/facade.ts
+````typescript
+/**
+ * workspace public behavior boundary.
+ */
+
+export {
+	buildWikiContentTree,
+	getWorkspaceById,
+	getWorkspaceByIdForAccount,
+	getWorkspacesForAccount,
+	subscribeToWorkspacesForAccount,
+	authorizeWorkspaceTeam,
+	createWorkspace,
+	createWorkspaceLocation,
+	createWorkspaceWithCapabilities,
+	deleteWorkspace,
+	grantIndividualWorkspaceAccess,
+	mountCapabilities,
+	updateWorkspaceSettings,
+} from "../interfaces/api/facades/workspace.facade";
+
+export { getWorkspaceMembers } from "../interfaces/api/facades/workspace-member.facade";
+````
+
 ## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
 ````typescript
 /**
@@ -75387,6 +75491,108 @@ export async function buildWikiContentTree(
     }
     return a.accountName.localeCompare(b.accountName, "zh-Hant");
   });
+}
+````
+
+## File: modules/workspace/application/use-cases/workspace-access.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Workspace access use cases — team grants, individual grants, locations.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceAccessRepository } from "../../ports/output/WorkspaceAccessRepository";
+import type { WorkspaceLocationRepository } from "../../ports/output/WorkspaceLocationRepository";
+import type { WorkspaceGrant, WorkspaceLocation } from "../../domain/aggregates/Workspace";
+
+// ─── Grant Team Access ────────────────────────────────────────────────────────
+
+export class GrantTeamAccessUseCase {
+  constructor(private readonly workspaceAccessRepo: WorkspaceAccessRepository) {}
+
+  async execute(workspaceId: string, teamId: string): Promise<CommandResult> {
+    try {
+      await this.workspaceAccessRepo.grantTeamAccess(workspaceId, teamId);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_TEAM_GRANT_FAILED",
+        err instanceof Error ? err.message : "Failed to grant team access",
+      );
+    }
+  }
+}
+
+// ─── Grant Individual Access ──────────────────────────────────────────────────
+
+export class GrantIndividualAccessUseCase {
+  constructor(private readonly workspaceAccessRepo: WorkspaceAccessRepository) {}
+
+  async execute(workspaceId: string, grant: WorkspaceGrant): Promise<CommandResult> {
+    try {
+      await this.workspaceAccessRepo.grantIndividualAccess(workspaceId, grant);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_GRANT_FAILED",
+        err instanceof Error ? err.message : "Failed to grant individual access",
+      );
+    }
+  }
+}
+
+// ─── Create Location ──────────────────────────────────────────────────────────
+
+export class CreateWorkspaceLocationUseCase {
+  constructor(private readonly workspaceLocationRepo: WorkspaceLocationRepository) {}
+
+  async execute(
+    workspaceId: string,
+    location: Omit<WorkspaceLocation, "locationId">,
+  ): Promise<CommandResult> {
+    try {
+      const locationId = await this.workspaceLocationRepo.createLocation(workspaceId, location);
+      return commandSuccess(locationId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_LOCATION_CREATE_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace location",
+      );
+    }
+  }
+}
+````
+
+## File: modules/workspace/application/use-cases/workspace-capabilities.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Workspace capabilities use case — mount feature flags.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceCapabilityRepository } from "../../ports/output/WorkspaceCapabilityRepository";
+import type { Capability } from "../../domain/aggregates/Workspace";
+
+// ─── Mount Capabilities ───────────────────────────────────────────────────────
+
+export class MountCapabilitiesUseCase {
+  constructor(private readonly capabilityRepo: WorkspaceCapabilityRepository) {}
+
+  async execute(workspaceId: string, capabilities: Capability[]): Promise<CommandResult> {
+    try {
+      await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CAPABILITIES_MOUNT_FAILED",
+        err instanceof Error ? err.message : "Failed to mount capabilities",
+      );
+    }
+  }
 }
 ````
 
@@ -75555,123 +75761,17 @@ export function createWorkspaceVisibilityChangedEvent(input: {
 }
 ````
 
-## File: modules/workspace/interfaces/api/AGENT.md
-````markdown
-# interfaces/api — API Driving Adapters
-
-`interfaces/api/` 是 workspace 的 **API adapter implementation layer**。它把外部同步需求整理成契約、query/action adapter、facade 與 runtime composition，但真正對外公開的 cross-module boundary 仍是 `modules/workspace/api/`。
-
-> 新增內容一律以 driving adapter 責任為準；不要把 use case 或 infrastructure 邏輯散落在 query/action 檔案裡。
-
----
-
-## 目錄結構
-
-```txt
-interfaces/api/
-	contracts/   -> public contracts split by concern
-	facades/     -> thin outward entrypoints grouped by concern
-	queries/     -> read adapters backed by WorkspaceQueryPort
-	actions/     -> write adapters backed by WorkspaceCommandPort
-	runtime/     -> adapter composition and session context
-	ui.ts        -> public web-composition re-export
-	index.ts     -> aggregate export for interfaces/api
-```
-
-## ✅ 屬於此處
-
-| 類型 | 範例 |
-|------|------|
-| Adapter contracts | `contracts/workspace.contract.ts` |
-| Thin outward facades | `facades/workspace.facade.ts` |
-| Read adapters | `queries/workspace.query.ts` |
-| Write adapters | `actions/workspace.command.ts` |
-| Runtime composition | `runtime/workspace-runtime.ts` |
-| Session context | `runtime/workspace-session-context.ts` |
-
----
-
-## ❌ 禁止放入
-
-| 禁止項目 | 原因 |
-|----------|------|
-| Domain rule / invariant / policy | 放 `domain/` |
-| Use case 內部流程本體 | 放 `application/use-cases/` |
-| Repository / Database / Genkit concrete call（除 `runtime/` 外） | 應透過 `ports/input/` / `ports/output/` 間接協作 |
-| React component / hooks | 放 `interfaces/web/` |
-
----
-
-## 依賴箭頭
-
-```txt
-interfaces/api/contracts
-	-> application/dtos | domain public types
-interfaces/api/{queries,actions,facades}
-	-> ports/input
-interfaces/api/runtime
-	-> application/services | infrastructure adapters
-```
-
-只有 `runtime/` 可以做 adapter composition；其餘 `interfaces/api` 檔案 **不可**直接依賴 `infrastructure/firebase/`、`infrastructure/events/`。
-````
-
-## File: modules/workspace/interfaces/api/ui.ts
+## File: modules/workspace/interfaces/api/index.ts
 ````typescript
 /**
- * workspace API UI surface.
+ * workspace interfaces/api aggregate export.
  *
- * Public interface-layer composition exports.
+ * Internal adapter grouping only. Cross-module and app-layer consumers must use
+ * modules/workspace/api instead of importing through interfaces/api.
  */
 
-export { WorkspaceDetailScreen } from "../web/components/screens/WorkspaceDetailScreen";
-export { WorkspaceDetailRouteScreen } from "../web/components/screens/WorkspaceDetailRouteScreen";
-export { WorkspaceHubScreen } from "../web/components/screens/WorkspaceHubScreen";
-export { WorkspaceMembersTab } from "../web/components/tabs/WorkspaceMembersTab";
-export { WorkspaceSidebarSection } from "../web/components/layout/WorkspaceSidebarSection";
-export { CreateWorkspaceDialogRail } from "../web/components/rails/CreateWorkspaceDialogRail";
-export { OrganizationWorkspacesScreen } from "../web/components/screens/OrganizationWorkspacesScreen";
-export { WorkspaceContextCard } from "../web/components/cards/WorkspaceContextCard";
-
-export {
-  WORKSPACE_TAB_GROUPS,
-  WORKSPACE_TAB_META,
-  WORKSPACE_TAB_VALUES,
-  getWorkspaceTabLabel,
-  getWorkspaceTabMeta,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "../web/workspace-tabs";
-
-export { getWorkspaceStorageKey, toWorkspaceMap, resolveWorkspaceFromMap } from "../web/workspace-session";
-
-export type { WorkspaceNavItem } from "../web/workspace-nav-items";
-export {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "../web/workspace-nav-items";
-
-export type {
-  WorkspaceQuickAccessItem,
-  WorkspaceQuickAccessMatcherOptions,
-} from "../web/workspace-quick-access";
-
-export { buildWorkspaceQuickAccessItems } from "../web/workspace-quick-access";
-
-export type {
-  WorkspaceTabDevStatus,
-  WorkspaceTabGroup,
-  WorkspaceTabValue,
-} from "../web/workspace-tabs";
-
-export { useWorkspaceHub } from "../web/hooks/useWorkspaceHub";
-export {
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  getWorkspaceIdFromPath,
-  useRecentWorkspaces,
-} from "../web/hooks/useRecentWorkspaces";
+export * from "./contracts";
+export * from "./facades";
 ````
 
 ## File: modules/workspace/interfaces/web/AGENT.md
@@ -78725,108 +78825,6 @@ export async function createKnowledgeDraftFromSourceDocument(
 }
 ````
 
-## File: modules/workspace/application/use-cases/workspace-access.use-cases.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Workspace access use cases — team grants, individual grants, locations.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceAccessRepository } from "../../ports/output/WorkspaceAccessRepository";
-import type { WorkspaceLocationRepository } from "../../ports/output/WorkspaceLocationRepository";
-import type { WorkspaceGrant, WorkspaceLocation } from "../../domain/aggregates/Workspace";
-
-// ─── Grant Team Access ────────────────────────────────────────────────────────
-
-export class GrantTeamAccessUseCase {
-  constructor(private readonly workspaceAccessRepo: WorkspaceAccessRepository) {}
-
-  async execute(workspaceId: string, teamId: string): Promise<CommandResult> {
-    try {
-      await this.workspaceAccessRepo.grantTeamAccess(workspaceId, teamId);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_TEAM_GRANT_FAILED",
-        err instanceof Error ? err.message : "Failed to grant team access",
-      );
-    }
-  }
-}
-
-// ─── Grant Individual Access ──────────────────────────────────────────────────
-
-export class GrantIndividualAccessUseCase {
-  constructor(private readonly workspaceAccessRepo: WorkspaceAccessRepository) {}
-
-  async execute(workspaceId: string, grant: WorkspaceGrant): Promise<CommandResult> {
-    try {
-      await this.workspaceAccessRepo.grantIndividualAccess(workspaceId, grant);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_GRANT_FAILED",
-        err instanceof Error ? err.message : "Failed to grant individual access",
-      );
-    }
-  }
-}
-
-// ─── Create Location ──────────────────────────────────────────────────────────
-
-export class CreateWorkspaceLocationUseCase {
-  constructor(private readonly workspaceLocationRepo: WorkspaceLocationRepository) {}
-
-  async execute(
-    workspaceId: string,
-    location: Omit<WorkspaceLocation, "locationId">,
-  ): Promise<CommandResult> {
-    try {
-      const locationId = await this.workspaceLocationRepo.createLocation(workspaceId, location);
-      return commandSuccess(locationId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_LOCATION_CREATE_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace location",
-      );
-    }
-  }
-}
-````
-
-## File: modules/workspace/application/use-cases/workspace-capabilities.use-cases.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Workspace capabilities use case — mount feature flags.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceCapabilityRepository } from "../../ports/output/WorkspaceCapabilityRepository";
-import type { Capability } from "../../domain/aggregates/Workspace";
-
-// ─── Mount Capabilities ───────────────────────────────────────────────────────
-
-export class MountCapabilitiesUseCase {
-  constructor(private readonly capabilityRepo: WorkspaceCapabilityRepository) {}
-
-  async execute(workspaceId: string, capabilities: Capability[]): Promise<CommandResult> {
-    try {
-      await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CAPABILITIES_MOUNT_FAILED",
-        err instanceof Error ? err.message : "Failed to mount capabilities",
-      );
-    }
-  }
-}
-````
-
 ## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
 ````typescript
 import type {
@@ -79285,6 +79283,66 @@ export class FirebaseWorkspaceRepository
     });
   }
 }
+````
+
+## File: modules/workspace/interfaces/api/AGENT.md
+````markdown
+# interfaces/api — API Driving Adapters
+
+`interfaces/api/` 是 workspace 的 **API adapter implementation layer**。它把外部同步需求整理成契約、query/action adapter、facade 與 runtime composition，但真正對外公開的 cross-module boundary 仍是 `modules/workspace/api/`。
+
+> 新增內容一律以 driving adapter 責任為準；不要把 use case 或 infrastructure 邏輯散落在 query/action 檔案裡。
+
+---
+
+## 目錄結構
+
+```txt
+interfaces/api/
+	contracts/   -> public contracts split by concern
+	facades/     -> explicit outward entrypoints grouped by concern
+	queries/     -> read adapters backed by WorkspaceQueryPort
+	actions/     -> write adapters backed by WorkspaceCommandPort
+	runtime/     -> adapter composition and session context
+	index.ts     -> aggregate export for interfaces/api
+```
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Adapter contracts | `contracts/workspace.contract.ts` |
+| Explicit outward facades | `facades/workspace.facade.ts` |
+| Read adapters | `queries/workspace.query.ts` |
+| Write adapters | `actions/workspace.command.ts` |
+| Runtime composition | `runtime/workspace-runtime.ts` |
+| Session context | `runtime/workspace-session-context.ts` |
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Domain rule / invariant / policy | 放 `domain/` |
+| Use case 內部流程本體 | 放 `application/use-cases/` |
+| Repository / Database / Genkit concrete call（除 `runtime/` 外） | 應透過 `ports/input/` / `ports/output/` 間接協作 |
+| React component / hooks | 放 `interfaces/web/` |
+
+---
+
+## 依賴箭頭
+
+```txt
+interfaces/api/contracts
+	-> application/dtos | domain public types
+interfaces/api/{queries,actions,facades}
+	-> ports/input
+interfaces/api/runtime
+	-> application/services | infrastructure adapters
+```
+
+只有 `runtime/` 可以做 adapter composition；其餘 `interfaces/api` 檔案 **不可**直接依賴 `infrastructure/firebase/`、`infrastructure/events/`。
 ````
 
 ## File: modules/workspace/ports/index.ts
@@ -80558,6 +80616,150 @@ interfaces/*
 - 應用層用語與 `aggregates.md`、`repositories.md`、`domain-events.md` 同步
 ````
 
+## File: modules/workspace/application/use-cases/workspace-lifecycle.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Workspace lifecycle use cases — create and delete.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceRepository } from "../../ports/output/WorkspaceRepository";
+import type { WorkspaceCapabilityRepository } from "../../ports/output/WorkspaceCapabilityRepository";
+import type {
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  Capability,
+} from "../../domain/aggregates/Workspace";
+import {
+  createWorkspaceAggregate,
+  reconstituteWorkspaceAggregate,
+  toWorkspaceSnapshot,
+} from "../../domain/factories/WorkspaceFactory";
+import type { Workspace } from "../../domain/aggregates/Workspace";
+
+function sanitizeWorkspaceSettingsCommand(
+  workspace: Workspace,
+  command: UpdateWorkspaceSettingsCommand,
+): UpdateWorkspaceSettingsCommand {
+  workspace.applySettings(command);
+
+  return {
+    workspaceId: command.workspaceId,
+    accountId: command.accountId,
+    name: command.name !== undefined ? workspace.name : undefined,
+    visibility: command.visibility !== undefined ? workspace.visibility : undefined,
+    lifecycleState:
+      command.lifecycleState !== undefined ? workspace.lifecycleState : undefined,
+    address: command.address !== undefined ? workspace.address : undefined,
+    personnel: command.personnel !== undefined ? workspace.personnel : undefined,
+  };
+}
+
+// ─── Create Workspace ─────────────────────────────────────────────────────────
+
+export class CreateWorkspaceUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
+    try {
+      const workspace = createWorkspaceAggregate(command);
+      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_CREATE_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace",
+      );
+    }
+  }
+}
+
+// ─── Create Workspace with Capabilities ──────────────────────────────────────
+
+export class CreateWorkspaceWithCapabilitiesUseCase {
+  constructor(
+    private readonly workspaceRepo: WorkspaceRepository,
+    private readonly capabilityRepo: WorkspaceCapabilityRepository,
+  ) {}
+
+  async execute(
+    command: CreateWorkspaceCommand,
+    capabilities: Capability[] = [],
+  ): Promise<CommandResult> {
+    try {
+      const workspace = createWorkspaceAggregate(command);
+      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
+      if (capabilities.length > 0) {
+        await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
+      }
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_CREATE_WITH_CAPABILITIES_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace with capabilities",
+      );
+    }
+  }
+}
+
+// ─── Update Settings ──────────────────────────────────────────────────────────
+
+export class UpdateWorkspaceSettingsUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
+    try {
+      const workspace = await this.workspaceRepo.findByIdForAccount(
+        command.accountId,
+        command.workspaceId,
+      );
+      if (!workspace) {
+        return commandFailureFrom(
+          "WORKSPACE_NOT_FOUND",
+          `Workspace ${command.workspaceId} not found`,
+        );
+      }
+      await this.workspaceRepo.updateSettings(
+        sanitizeWorkspaceSettingsCommand(
+          reconstituteWorkspaceAggregate(workspace),
+          command,
+        ),
+      );
+      return commandSuccess(command.workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_UPDATE_FAILED",
+        err instanceof Error ? err.message : "Failed to update workspace settings",
+      );
+    }
+  }
+}
+
+// ─── Delete Workspace ─────────────────────────────────────────────────────────
+
+export class DeleteWorkspaceUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(workspaceId: string): Promise<CommandResult> {
+    try {
+      const workspace = await this.workspaceRepo.findById(workspaceId);
+      if (!workspace) {
+        return commandFailureFrom("WORKSPACE_NOT_FOUND", `Workspace ${workspaceId} not found`);
+      }
+      await this.workspaceRepo.delete(workspaceId);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_DELETE_FAILED",
+        err instanceof Error ? err.message : "Failed to delete workspace",
+      );
+    }
+  }
+}
+````
+
 ## File: modules/workspace/context-map.md
 ````markdown
 # Context Map — workspace
@@ -81662,150 +81864,6 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 - `WorkspaceMember` 不是目前的 canonical write-side 名稱；查詢模型請使用 `WorkspaceMemberView`
 ````
 
-## File: modules/workspace/application/use-cases/workspace-lifecycle.use-cases.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Workspace lifecycle use cases — create and delete.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceRepository } from "../../ports/output/WorkspaceRepository";
-import type { WorkspaceCapabilityRepository } from "../../ports/output/WorkspaceCapabilityRepository";
-import type {
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  Capability,
-} from "../../domain/aggregates/Workspace";
-import {
-  createWorkspaceAggregate,
-  reconstituteWorkspaceAggregate,
-  toWorkspaceSnapshot,
-} from "../../domain/factories/WorkspaceFactory";
-import type { Workspace } from "../../domain/aggregates/Workspace";
-
-function sanitizeWorkspaceSettingsCommand(
-  workspace: Workspace,
-  command: UpdateWorkspaceSettingsCommand,
-): UpdateWorkspaceSettingsCommand {
-  workspace.applySettings(command);
-
-  return {
-    workspaceId: command.workspaceId,
-    accountId: command.accountId,
-    name: command.name !== undefined ? workspace.name : undefined,
-    visibility: command.visibility !== undefined ? workspace.visibility : undefined,
-    lifecycleState:
-      command.lifecycleState !== undefined ? workspace.lifecycleState : undefined,
-    address: command.address !== undefined ? workspace.address : undefined,
-    personnel: command.personnel !== undefined ? workspace.personnel : undefined,
-  };
-}
-
-// ─── Create Workspace ─────────────────────────────────────────────────────────
-
-export class CreateWorkspaceUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
-    try {
-      const workspace = createWorkspaceAggregate(command);
-      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace",
-      );
-    }
-  }
-}
-
-// ─── Create Workspace with Capabilities ──────────────────────────────────────
-
-export class CreateWorkspaceWithCapabilitiesUseCase {
-  constructor(
-    private readonly workspaceRepo: WorkspaceRepository,
-    private readonly capabilityRepo: WorkspaceCapabilityRepository,
-  ) {}
-
-  async execute(
-    command: CreateWorkspaceCommand,
-    capabilities: Capability[] = [],
-  ): Promise<CommandResult> {
-    try {
-      const workspace = createWorkspaceAggregate(command);
-      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
-      if (capabilities.length > 0) {
-        await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
-      }
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_WITH_CAPABILITIES_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace with capabilities",
-      );
-    }
-  }
-}
-
-// ─── Update Settings ──────────────────────────────────────────────────────────
-
-export class UpdateWorkspaceSettingsUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
-    try {
-      const workspace = await this.workspaceRepo.findByIdForAccount(
-        command.accountId,
-        command.workspaceId,
-      );
-      if (!workspace) {
-        return commandFailureFrom(
-          "WORKSPACE_NOT_FOUND",
-          `Workspace ${command.workspaceId} not found`,
-        );
-      }
-      await this.workspaceRepo.updateSettings(
-        sanitizeWorkspaceSettingsCommand(
-          reconstituteWorkspaceAggregate(workspace),
-          command,
-        ),
-      );
-      return commandSuccess(command.workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_UPDATE_FAILED",
-        err instanceof Error ? err.message : "Failed to update workspace settings",
-      );
-    }
-  }
-}
-
-// ─── Delete Workspace ─────────────────────────────────────────────────────────
-
-export class DeleteWorkspaceUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(workspaceId: string): Promise<CommandResult> {
-    try {
-      const workspace = await this.workspaceRepo.findById(workspaceId);
-      if (!workspace) {
-        return commandFailureFrom("WORKSPACE_NOT_FOUND", `Workspace ${workspaceId} not found`);
-      }
-      await this.workspaceRepo.delete(workspaceId);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_DELETE_FAILED",
-        err instanceof Error ? err.message : "Failed to delete workspace",
-      );
-    }
-  }
-}
-````
-
 ## File: next-env.d.ts
 ````typescript
 /// <reference types="next" />
@@ -82380,7 +82438,58 @@ export function DashboardSidebar({
  * workspace public UI/composition boundary.
  */
 
-export * from "../interfaces/api/ui";
+export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
+export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
+export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
+export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
+export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
+export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
+
+export {
+	WORKSPACE_TAB_GROUPS,
+	WORKSPACE_TAB_META,
+	WORKSPACE_TAB_VALUES,
+	getWorkspaceTabLabel,
+	getWorkspaceTabMeta,
+	getWorkspaceTabPrefId,
+	getWorkspaceTabStatus,
+	getWorkspaceTabsByGroup,
+	isWorkspaceTabValue,
+} from "../interfaces/web/workspace-tabs";
+
+export {
+	getWorkspaceStorageKey,
+	resolveWorkspaceFromMap,
+	toWorkspaceMap,
+} from "../interfaces/web/workspace-session";
+
+export type { WorkspaceNavItem } from "../interfaces/web/workspace-nav-items";
+export {
+	WORKSPACE_NAV_ITEMS,
+	normalizeWorkspaceOrder,
+} from "../interfaces/web/workspace-nav-items";
+
+export type {
+	WorkspaceQuickAccessItem,
+	WorkspaceQuickAccessMatcherOptions,
+} from "../interfaces/web/workspace-quick-access";
+
+export { buildWorkspaceQuickAccessItems } from "../interfaces/web/workspace-quick-access";
+
+export type {
+	WorkspaceTabDevStatus,
+	WorkspaceTabGroup,
+	WorkspaceTabValue,
+} from "../interfaces/web/workspace-tabs";
+
+export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
+export {
+	MAX_VISIBLE_RECENT_WORKSPACES,
+	getWorkspaceIdFromPath,
+	useRecentWorkspaces,
+} from "../interfaces/web/hooks/useRecentWorkspaces";
 ````
 
 ## File: modules/workspace/AGENT.md
@@ -82414,6 +82523,8 @@ export * from "../interfaces/api/ui";
 
 ```txt
 modules/workspace/
+├── api/                        ← Canonical public boundary（contracts / facade / ui）
+│
 ├── domain/                     ← 核心業務邏輯
 │   ├── aggregates/             ← 聚合根
 │   ├── entities/               ← Entity / Value Object
@@ -82563,7 +82674,7 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 
 ## 分層守衛
 
-- `api/index.ts`、`api/contracts.ts`、`api/facade.ts`、`api/ui.ts` 只能是薄入口；跨模組與 app composition consumer 應優先使用 `@/modules/workspace/api`
+- `api/index.ts`、`api/contracts.ts`、`api/facade.ts`、`api/ui.ts` 是 curated public surface；可以聚合公開符號，但不可回頭依賴 `app/` 或偷帶入 domain/application 決策
 - `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` 只做 driving adapter，不處理 domain 決策
 - `application/use-cases/` 處理單一 use case，不吞進純業務規則
 - `application/services/` 只負責流程，不替代 domain service

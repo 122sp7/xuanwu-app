@@ -39,11 +39,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-318 files | 15,515 lines
+318 files | 15,516 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 318 | 15,515 |
+| Markdown | 318 | 15,516 |
 
 **Largest files:**
 - `docs/guides/explanation/architecture.md` (942 lines)
@@ -51,7 +51,7 @@ This skill contains the following reference files:
 - `docs/guides/how-to/ui-ux/wireframes.md` (337 lines)
 - `py_fn/README.md` (265 lines)
 - `docs/guides/how-to/ui-ux/information-architecture.md` (244 lines)
-- `modules/workspace/AGENT.md` (236 lines)
+- `modules/workspace/AGENT.md` (238 lines)
 - `.github/agents/knowledge-base.md` (228 lines)
 - `docs/guides/how-to/ui-ux/ux-principles.md` (228 lines)
 - `.github/prompts/serena-ddd-refactor.prompt.md` (215 lines)

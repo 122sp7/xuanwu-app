@@ -15124,67 +15124,6 @@ domain/aggregates → domain/services（呼叫 domain service，如有需要）
 `domain/aggregates` **不可**依賴 `application/`、`infrastructure/`、`interfaces/`。
 ````
 
-## File: modules/workspace/interfaces/api/AGENT.md
-````markdown
-# interfaces/api — API Driving Adapters
-
-`interfaces/api/` 是 workspace 的 **API adapter implementation layer**。它把外部同步需求整理成契約、query/action adapter、facade 與 runtime composition，但真正對外公開的 cross-module boundary 仍是 `modules/workspace/api/`。
-
-> 新增內容一律以 driving adapter 責任為準；不要把 use case 或 infrastructure 邏輯散落在 query/action 檔案裡。
-
----
-
-## 目錄結構
-
-```txt
-interfaces/api/
-	contracts/   -> public contracts split by concern
-	facades/     -> thin outward entrypoints grouped by concern
-	queries/     -> read adapters backed by WorkspaceQueryPort
-	actions/     -> write adapters backed by WorkspaceCommandPort
-	runtime/     -> adapter composition and session context
-	ui.ts        -> public web-composition re-export
-	index.ts     -> aggregate export for interfaces/api
-```
-
-## ✅ 屬於此處
-
-| 類型 | 範例 |
-|------|------|
-| Adapter contracts | `contracts/workspace.contract.ts` |
-| Thin outward facades | `facades/workspace.facade.ts` |
-| Read adapters | `queries/workspace.query.ts` |
-| Write adapters | `actions/workspace.command.ts` |
-| Runtime composition | `runtime/workspace-runtime.ts` |
-| Session context | `runtime/workspace-session-context.ts` |
-
----
-
-## ❌ 禁止放入
-
-| 禁止項目 | 原因 |
-|----------|------|
-| Domain rule / invariant / policy | 放 `domain/` |
-| Use case 內部流程本體 | 放 `application/use-cases/` |
-| Repository / Database / Genkit concrete call（除 `runtime/` 外） | 應透過 `ports/input/` / `ports/output/` 間接協作 |
-| React component / hooks | 放 `interfaces/web/` |
-
----
-
-## 依賴箭頭
-
-```txt
-interfaces/api/contracts
-	-> application/dtos | domain public types
-interfaces/api/{queries,actions,facades}
-	-> ports/input
-interfaces/api/runtime
-	-> application/services | infrastructure adapters
-```
-
-只有 `runtime/` 可以做 adapter composition；其餘 `interfaces/api` 檔案 **不可**直接依賴 `infrastructure/firebase/`、`infrastructure/events/`。
-````
-
 ## File: modules/workspace/interfaces/web/AGENT.md
 ````markdown
 # interfaces/web — Web Driving Adapters
@@ -15251,6 +15190,66 @@ modules/workspace/api
 ```
 
 `interfaces/web` **不可**直接依賴 `infrastructure/*`、`application/*`、`domain/*`。
+````
+
+## File: modules/workspace/interfaces/api/AGENT.md
+````markdown
+# interfaces/api — API Driving Adapters
+
+`interfaces/api/` 是 workspace 的 **API adapter implementation layer**。它把外部同步需求整理成契約、query/action adapter、facade 與 runtime composition，但真正對外公開的 cross-module boundary 仍是 `modules/workspace/api/`。
+
+> 新增內容一律以 driving adapter 責任為準；不要把 use case 或 infrastructure 邏輯散落在 query/action 檔案裡。
+
+---
+
+## 目錄結構
+
+```txt
+interfaces/api/
+	contracts/   -> public contracts split by concern
+	facades/     -> explicit outward entrypoints grouped by concern
+	queries/     -> read adapters backed by WorkspaceQueryPort
+	actions/     -> write adapters backed by WorkspaceCommandPort
+	runtime/     -> adapter composition and session context
+	index.ts     -> aggregate export for interfaces/api
+```
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Adapter contracts | `contracts/workspace.contract.ts` |
+| Explicit outward facades | `facades/workspace.facade.ts` |
+| Read adapters | `queries/workspace.query.ts` |
+| Write adapters | `actions/workspace.command.ts` |
+| Runtime composition | `runtime/workspace-runtime.ts` |
+| Session context | `runtime/workspace-session-context.ts` |
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Domain rule / invariant / policy | 放 `domain/` |
+| Use case 內部流程本體 | 放 `application/use-cases/` |
+| Repository / Database / Genkit concrete call（除 `runtime/` 外） | 應透過 `ports/input/` / `ports/output/` 間接協作 |
+| React component / hooks | 放 `interfaces/web/` |
+
+---
+
+## 依賴箭頭
+
+```txt
+interfaces/api/contracts
+	-> application/dtos | domain public types
+interfaces/api/{queries,actions,facades}
+	-> ports/input
+interfaces/api/runtime
+	-> application/services | infrastructure adapters
+```
+
+只有 `runtime/` 可以做 adapter composition；其餘 `interfaces/api` 檔案 **不可**直接依賴 `infrastructure/firebase/`、`infrastructure/events/`。
 ````
 
 ## File: modules/workspace/subdomain.md
@@ -16578,6 +16577,8 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 
 ```txt
 modules/workspace/
+├── api/                        ← Canonical public boundary（contracts / facade / ui）
+│
 ├── domain/                     ← 核心業務邏輯
 │   ├── aggregates/             ← 聚合根
 │   ├── entities/               ← Entity / Value Object
@@ -16727,7 +16728,7 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 
 ## 分層守衛
 
-- `api/index.ts`、`api/contracts.ts`、`api/facade.ts`、`api/ui.ts` 只能是薄入口；跨模組與 app composition consumer 應優先使用 `@/modules/workspace/api`
+- `api/index.ts`、`api/contracts.ts`、`api/facade.ts`、`api/ui.ts` 是 curated public surface；可以聚合公開符號，但不可回頭依賴 `app/` 或偷帶入 domain/application 決策
 - `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` 只做 driving adapter，不處理 domain 決策
 - `application/use-cases/` 處理單一 use case，不吞進純業務規則
 - `application/services/` 只負責流程，不替代 domain service
