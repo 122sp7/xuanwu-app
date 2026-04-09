@@ -1,1 +1,5 @@
-﻿export type { LegacyNotificationApplicationPort } from "./legacy-notification-application.port";
+﻿export {
+  DispatchNotificationUseCase,
+  MarkNotificationReadUseCase,
+  MarkAllNotificationsReadUseCase,
+} from "./use-cases/notification.use-cases";
