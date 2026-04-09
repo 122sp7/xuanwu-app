@@ -1,4 +1,4 @@
-import type { AccountEntity } from "@/modules/platform/subdomains/account";
+import type { AccountEntity } from "@/modules/platform/api";
 import type { ActiveAccount } from "@/app/providers/app-context";
 
 export function isOrganizationAccount(

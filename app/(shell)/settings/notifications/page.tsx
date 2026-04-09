@@ -14,7 +14,7 @@ import {
   markNotificationRead,
   getNotificationsForRecipient,
   type NotificationEntity,
-} from "@/modules/platform/subdomains/notification";
+} from "@/modules/platform/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
@@ -89,9 +89,9 @@ export default function NotificationCenterPage() {
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Bell className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-xl font-semibold">通知中心</h1>
+          <h1 className="text-xl font-semibold">?�知中�?</h1>
           {unreadCount > 0 && (
-            <Badge variant="secondary" className="ml-1">{unreadCount} 未讀</Badge>
+            <Badge variant="secondary" className="ml-1">{unreadCount} ?��?</Badge>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -101,7 +101,7 @@ export default function NotificationCenterPage() {
             onClick={() => setFilter((f) => f === "all" ? "unread" : "all")}
             className="text-xs"
           >
-            {filter === "all" ? "只看未讀" : "顯示全部"}
+            {filter === "all" ? "?��??��?" : "顯示?�部"}
           </Button>
           <Button
             variant="outline"
@@ -111,7 +111,7 @@ export default function NotificationCenterPage() {
             className="text-xs gap-1"
           >
             <CheckCheck className="h-3.5 w-3.5" />
-            全部標為已讀
+            ?�部標為已�?
           </Button>
         </div>
       </div>
@@ -126,7 +126,7 @@ export default function NotificationCenterPage() {
       ) : displayed.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground">
           <Bell className="h-10 w-10 opacity-30" />
-          <p className="text-sm">{filter === "unread" ? "沒有未讀通知" : "目前沒有通知"}</p>
+          <p className="text-sm">{filter === "unread" ? "沒�??��??�知" : "?��?沒�??�知"}</p>
         </div>
       ) : (
         <ul className="divide-y divide-border rounded-lg border">
@@ -155,7 +155,7 @@ export default function NotificationCenterPage() {
                   size="icon-sm"
                   disabled={isPending}
                   onClick={() => handleMarkOne(n.id)}
-                  title="標為已讀"
+                  title="標為已�?"
                   className="shrink-0 text-muted-foreground hover:text-foreground"
                 >
                   <Trash2 className="h-3.5 w-3.5" />

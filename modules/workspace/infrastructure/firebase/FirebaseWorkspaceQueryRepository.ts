@@ -6,10 +6,11 @@ import type {
 import type { WorkspaceQueryRepository } from "../../ports/output/WorkspaceQueryRepository";
 import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
 import {
-  organizationApi,
-  type OrganizationMemberDTO,
-  type OrganizationTeamDTO,
-} from "@/modules/platform/subdomains/organization";
+  getOrganizationMembers,
+  getOrganizationTeams,
+  type MemberReference,
+  type Team,
+} from "@/modules/platform/api";
 import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
 import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
@@ -24,7 +25,7 @@ const personnelLabelEntries = Object.entries(personnelLabels) as Array<
   [keyof typeof personnelLabels, string]
 >;
 
-function toPresence(value: OrganizationMemberDTO["presence"] | undefined): WorkspaceMemberPresence {
+function toPresence(value: MemberReference["presence"] | undefined): WorkspaceMemberPresence {
   if (value === "active" || value === "away" || value === "offline") {
     return value;
   }
@@ -84,7 +85,7 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
     const mergeMember = (
       memberId: string,
       channel: WorkspaceMemberAccessChannel,
-      orgMember?: OrganizationMemberDTO,
+      orgMember?: MemberReference,
     ) => {
       const current = members.get(memberId) ?? createFallbackMember(memberId);
       const channelKey = [
@@ -114,16 +115,16 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
 
     if (workspace.accountType === "organization") {
       const [organizationMembers, teams] = await Promise.all([
-        organizationApi.getMembers(workspace.accountId),
-        organizationApi.getTeams(workspace.accountId),
+        getOrganizationMembers(workspace.accountId),
+        getOrganizationTeams(workspace.accountId),
       ]);
 
-      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
-      const teamMap = new Map(teams.map((team) => [team.id, team]));
+      const organizationMemberMap = new Map(organizationMembers.map((member: MemberReference) => [member.id, member]));
+      const teamMap = new Map(teams.map((team: Team) => [team.id, team]));
 
-      const mergeTeam = (team: OrganizationTeamDTO, role?: string, protocol?: string) => {
+      const mergeTeam = (team: Team, role?: string, protocol?: string) => {
         const label = team.name || team.id;
-        team.memberIds.forEach((memberId) => {
+        team.memberIds.forEach((memberId: string) => {
           mergeMember(
             memberId,
             {

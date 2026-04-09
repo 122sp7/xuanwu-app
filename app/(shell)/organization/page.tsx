@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import type { AccountEntity } from "@/modules/platform/subdomains/account";
+import type { AccountEntity } from "@/modules/platform/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 

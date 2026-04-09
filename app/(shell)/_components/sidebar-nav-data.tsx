@@ -11,7 +11,7 @@ import {
 import Link from "next/link";
 
 import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/platform/subdomains/account";
+import type { AccountEntity } from "@/modules/platform/api";
 import {
   type WorkspaceEntity,
 } from "@/modules/workspace/api";

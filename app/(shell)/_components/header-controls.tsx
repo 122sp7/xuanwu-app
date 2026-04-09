@@ -11,7 +11,7 @@ import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/app/providers/auth-provider";
-import { NotificationBell } from "@/modules/platform/subdomains/notification";
+import { NotificationBell } from "@/modules/platform/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { TranslationSwitcher } from "./translation-switcher";
 

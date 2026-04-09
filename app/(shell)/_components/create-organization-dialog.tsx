@@ -3,8 +3,8 @@
 import { type FormEvent, useState } from "react";
 
 import type { AuthUser } from "@/app/providers/auth-context";
-import type { AccountEntity } from "@/modules/platform/subdomains/account";
-import { createOrganization } from "@/modules/platform/subdomains/organization";
+import type { AccountEntity } from "@/modules/platform/api";
+import { createOrganization } from "@/modules/platform/api";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Dialog,
