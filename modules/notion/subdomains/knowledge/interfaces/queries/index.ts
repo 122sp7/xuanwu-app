@@ -17,7 +17,7 @@ import {
 import { ListContentBlocksUseCase } from "../../application/use-cases/ContentBlockUseCases";
 import {
   GetKnowledgeCollectionUseCase,
-  ListKnowledgeCollectionsByAccountUseCase,
+  ListKnowledgeCollectionsUseCase,
 } from "../../application/use-cases/KnowledgeCollectionUseCases";
 import type { KnowledgePageSnapshot } from "../../domain/aggregates/KnowledgePage";
 import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
@@ -28,18 +28,15 @@ const makeBlockRepo = () => new FirebaseContentBlockRepository();
 const makeCollRepo = () => new FirebaseKnowledgeCollectionRepository();
 
 export async function getKnowledgePage(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
-  const page = await new GetKnowledgePageUseCase(makePageRepo()).execute(accountId, pageId);
-  return page ? page.getSnapshot() : null;
+  return new GetKnowledgePageUseCase(makePageRepo()).execute(accountId, pageId);
 }
 
 export async function getKnowledgePages(accountId: string): Promise<KnowledgePageSnapshot[]> {
-  const pages = await new ListKnowledgePagesUseCase(makePageRepo()).execute(accountId);
-  return pages.map((p) => p.getSnapshot());
+  return new ListKnowledgePagesUseCase(makePageRepo()).execute(accountId);
 }
 
 export async function getKnowledgePagesByWorkspace(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
-  const pages = await new ListKnowledgePagesByWorkspaceUseCase(makePageRepo()).execute(accountId, workspaceId);
-  return pages.map((p) => p.getSnapshot());
+  return new ListKnowledgePagesByWorkspaceUseCase(makePageRepo()).execute(accountId, workspaceId);
 }
 
 export async function getKnowledgePageTree(accountId: string) {
@@ -51,16 +48,13 @@ export async function getKnowledgePageTreeByWorkspace(accountId: string, workspa
 }
 
 export async function getKnowledgeBlocks(accountId: string, pageId: string): Promise<ContentBlockSnapshot[]> {
-  const blocks = await new ListContentBlocksUseCase(makeBlockRepo()).execute(accountId, pageId);
-  return blocks.map((b) => b.getSnapshot());
+  return new ListContentBlocksUseCase(makeBlockRepo()).execute(accountId, pageId);
 }
 
 export async function getKnowledgeCollection(accountId: string, collectionId: string): Promise<KnowledgeCollectionSnapshot | null> {
-  const coll = await new GetKnowledgeCollectionUseCase(makeCollRepo()).execute(accountId, collectionId);
-  return coll ? coll.getSnapshot() : null;
+  return new GetKnowledgeCollectionUseCase(makeCollRepo()).execute(accountId, collectionId);
 }
 
 export async function getKnowledgeCollections(accountId: string): Promise<KnowledgeCollectionSnapshot[]> {
-  const colls = await new ListKnowledgeCollectionsByAccountUseCase(makeCollRepo()).execute(accountId);
-  return colls.map((c) => c.getSnapshot());
+  return new ListKnowledgeCollectionsUseCase(makeCollRepo()).execute(accountId);
 }

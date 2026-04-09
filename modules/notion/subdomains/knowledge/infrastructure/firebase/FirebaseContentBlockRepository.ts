@@ -45,6 +45,7 @@ function toSnapshot(id: string, d: Record<string, unknown>): ContentBlockSnapsho
     content: toBlockContent(d.content),
     order: typeof d.order === "number" ? d.order : 0,
     parentBlockId: typeof d.parentBlockId === "string" ? d.parentBlockId : null,
+    childBlockIds: Array.isArray(d.childBlockIds) ? (d.childBlockIds as string[]) : [],
     createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
     updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
   };
