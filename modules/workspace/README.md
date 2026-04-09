@@ -30,7 +30,7 @@
 |---|---|
 | Workspace 容器生命週期 | 建立工作區、更新設定、管理 `preparatory | active | stopped` 狀態 |
 | 協作範圍語言 | 提供 `workspaceId`、`WorkspaceVisibility` 與工作區範圍識別語言 |
-| 工作區公開邊界 | 透過 `interfaces/api/` 暴露穩定查詢、命令入口與 UI composition surface |
+| 工作區公開邊界 | 透過 `api/` 暴露穩定查詢、命令入口與 UI composition surface（`interfaces/api/` 為其同步 adapter implementation） |
 | Read-side Projections | 組合工作區成員檢視與工作區導覽節點等查詢模型 |
 
 ## 標準資料夾結構
@@ -78,7 +78,7 @@ modules/workspace/
 | Aggregate Root | `Workspace` |
 | Supporting Domain Objects | `WorkspaceLocation`、`Capability`、`WorkspaceGrant`、`WorkspacePersonnel` |
 | Read Projections | `WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode` |
-| Drivers | Browser UI、Route Handler、CLI / Cron、其他 bounded context 經由 `interfaces/api/` 的呼叫者 |
+| Drivers | Browser UI、Route Handler、CLI / Cron、其他 bounded context 經由 `api/` 的呼叫者 |
 | Driving Adapters | `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` |
 | Driving Ports | `ports/input/` |
 | Application Layer | `application/use-cases/`、`application/services/`、`application/dtos/` |

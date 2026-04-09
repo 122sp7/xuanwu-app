@@ -25,7 +25,7 @@
 
 workspace 以兩種主要方式與其他 bounded contexts 協作：
 
-1. 同步公開邊界：`interfaces/api/`
+1. 同步公開邊界：`api/`（由 `interfaces/api/` 實作）
 2. Published Language：`workspaceId`、生命週期／可見性語言與 domain events
 
 在本地執行路徑上，read models / projections 也是 bounded context 對 drivers 提供的重要讀取 surface，但它們不是對外 published language 的全部。
@@ -42,7 +42,7 @@ workspace 以兩種主要方式與其他 bounded contexts 協作：
 | `application/` | use-cases、application services、DTO orchestration |
 | `ports/input/` | driving port interfaces，承接外部驅動對 use case 的要求 |
 | `ports/output/` | driven port interfaces，抽象 repository / event publishing / external capabilities |
-| `interfaces/api/` | Next.js Route Handler 與模組公開同步入口 |
+| `api/` | 模組正式對外公開同步入口（由 `interfaces/api/` 實作） |
 | `interfaces/cli/` | CLI / Cron Job 等 driving adapter |
 | `interfaces/web/` | shadcn UI components + hooks 的 driving adapter |
 | `infrastructure/` | Firebase 與 events 等 output port adapters |
@@ -89,14 +89,14 @@ interfaces/web ─┘
 - Browser UI
 - Next.js Route Handlers
 - CLI / Cron Jobs
-- 其他 bounded context 經由 `interfaces/api/` 的呼叫者
+- 其他 bounded context 經由 `api/` 的呼叫者
 - 未來可能的 incoming event handlers / scheduled jobs
 
 ### Ports / 端口
 
 - `ports/input/` 是 driving port interfaces
 - `ports/output/` 是內核朝外的 driven ports
-- `interfaces/api/` 是對外穩定 collaboration surface，但不等於把所有內部 ports 直接公開
+- `api/` 是對外穩定 collaboration surface；`interfaces/api/` 是其 adapter implementation，不等於把所有內部 ports 直接公開
 
 ### Adapters / 適配器
 

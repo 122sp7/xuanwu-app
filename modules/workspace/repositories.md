@@ -99,7 +99,7 @@
 - repository / publisher 介面定義在 `ports/output/`
 - infrastructure adapters 實作在 `infrastructure/`
 - `application/` 只依賴 output ports，不依賴 adapter 類別
-- 跨模組或 app composition consumer 不直接 import repository implementation；一律透過 `interfaces/api/` 或對應 interface adapter 使用
+- 跨模組或 app composition consumer 不直接 import repository implementation；一律透過 `api/` 公開邊界或對應 interface adapter 使用
 
 ## Output Port 與 Infrastructure 的依賴圖
 

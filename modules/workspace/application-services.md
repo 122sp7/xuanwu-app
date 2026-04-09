@@ -49,7 +49,7 @@ interfaces/*
 
 ## Ports / Adapters / Drivers / Read Models
 
-- Driver / 外部驅動器：Browser UI、Route Handlers、CLI / Cron、其他 bounded context 對 `interfaces/api/` 的呼叫者，以及未來可能的事件 subscriber / job trigger
+- Driver / 外部驅動器：Browser UI、Route Handlers、CLI / Cron、其他 bounded context 對 `api/` 的呼叫者，以及未來可能的事件 subscriber / job trigger
 - Driving Adapters：`interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
 - Driving Ports：`ports/input/`
 - Driven Ports：`ports/output/`
@@ -68,7 +68,7 @@ interfaces/*
 
 - 這些 application services 只服務 `workspace` 這個 bounded context
 - 它們不代表整個 generic subdomain 的所有流程，更不應直接編排其他 bounded context 的內部實作
-- 若流程跨越多個 bounded context，應明確透過 `interfaces/api/`、published language 或更高層的 composition orchestration 協作
+- 若流程跨越多個 bounded context，應明確透過 `api/`、published language 或更高層的 composition orchestration 協作
 
 ## Event-Driven 與長流程定位
 
