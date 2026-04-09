@@ -4459,6 +4459,298 @@ See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructio
 ../.github/skills
 ````
 
+## File: app/(public)/page.tsx
+````typescript
+"use client";
+
+/**
+ * app/(public)/page.tsx
+ * Public landing page with top-right auth entry and inline auth panel.
+ * Uses identity module use cases directly on the client so Firebase auth state
+ * actually updates AuthProvider via onAuthStateChanged.
+ */
+
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
+
+import { useAuth } from "@/app/providers/auth-provider";
+import { createClientAuthUseCases } from "@/modules/identity/api";
+import { createClientAccountUseCases } from "@/modules/account/api";
+import {
+  createDevDemoUser,
+  isDevDemoCredential,
+  isLocalDevDemoAllowed,
+  writeDevDemoSession,
+} from "@/app/providers/dev-demo-auth";
+
+type Tab = "login" | "register";
+
+export default function PublicPage() {
+  const { state, dispatch } = useAuth();
+  const router = useRouter();
+
+  const [tab, setTab] = useState<Tab>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
+  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
+
+  const {
+    signInUseCase,
+    signInAnonymouslyUseCase,
+    registerUseCase,
+    sendPasswordResetEmailUseCase,
+    createUserAccountUseCase,
+  } =
+    useMemo(() => ({
+      ...createClientAuthUseCases(),
+      ...createClientAccountUseCases(),
+    }), []);
+
+  useEffect(() => {
+    if (state.status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [state.status, router]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
+        writeDevDemoSession(createDevDemoUser());
+        window.location.assign("/dashboard");
+        return;
+      }
+
+      const result =
+        tab === "login"
+          ? await signInUseCase.execute({ email, password })
+          : await registerUseCase.execute({ email, password, name });
+
+      if (!result.success) {
+        setError(result.error.message);
+        return;
+      }
+
+      if (tab === "register") {
+        const accountResult = await createUserAccountUseCase.execute(
+          result.aggregateId,
+          name,
+          email,
+        );
+        if (!accountResult.success) {
+          setError(accountResult.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleGuestAccess() {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await signInAnonymouslyUseCase.execute();
+      if (!result.success) {
+        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
+        // blocked in sandboxes), create a local guest session so the shell can be tested.
+        if (isLocalDevDemoAllowed()) {
+          const guestUser = createDevDemoUser();
+          writeDevDemoSession(guestUser);
+          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
+        } else {
+          setError(result.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handlePasswordReset() {
+    if (!email) {
+      setError("Enter your email address first.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await sendPasswordResetEmailUseCase.execute(email);
+      if (result.success) {
+        setResetSent(true);
+        setError(null);
+      } else {
+        setError(result.error.message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (state.status === "initializing") {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-background">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setResetSent(false);
+            setIsAuthPanelOpen((prev) => !prev);
+          }}
+          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+        >
+          {isAuthPanelOpen ? "Close" : "Sign In"}
+        </button>
+      </header>
+
+      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
+        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
+            Unified MDDD/Hexagonal workspace for identity, account, and organization modules.
+            Use the top-right sign in button to access your dashboard.
+          </p>
+        </div>
+
+        {isAuthPanelOpen && (
+          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
+            <div className="flex flex-col items-center pb-4 pt-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
+                <ShieldCheck className="h-7 w-7 text-primary/90" />
+              </div>
+            </div>
+
+            <div className="px-6">
+              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
+                {(["login", "register"] as Tab[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setTab(t);
+                      setError(null);
+                    }}
+                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
+                      tab === t
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t === "login" ? "Sign In" : "Register"}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                {tab === "register" && (
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
+                    <input
+                      id="register-name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your display name"
+                      required
+                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    autoComplete="email"
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
+                    {tab === "login" && (
+                      <button
+                        type="button"
+                        onClick={handlePasswordReset}
+                        className="text-xs text-primary/70 hover:text-primary"
+                      >
+                        {resetSent ? "Email sent!" : "Forgot password?"}
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    id="auth-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete={tab === "login" ? "current-password" : "new-password"}
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                {error && (
+                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : tab === "login" ? (
+                    "Enter Dimension"
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
+              </form>
+            </div>
+
+            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
+              <button
+                type="button"
+                onClick={handleGuestAccess}
+                disabled={isLoading}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+````
+
 ## File: app/(shell)/_components/account-switcher.tsx
 ````typescript
 "use client";
@@ -4729,6 +5021,145 @@ export function AppBreadcrumbs() {
         </span>
       ))}
     </nav>
+  );
+}
+````
+
+## File: app/(shell)/_components/create-organization-dialog.tsx
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+
+import type { AuthUser } from "@/app/providers/auth-context";
+import type { AccountEntity } from "@/modules/account/api";
+import { createOrganization } from "@/modules/organization/api";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+interface CreateOrganizationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: AuthUser | null;
+  onOrganizationCreated?: (account: AccountEntity) => void;
+  onNavigate: (href: string) => void;
+}
+
+export function CreateOrganizationDialog({
+  open,
+  onOpenChange,
+  user,
+  onOrganizationCreated,
+  onNavigate,
+}: CreateOrganizationDialogProps) {
+  const [orgName, setOrgName] = useState("");
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  function reset() {
+    setOrgName("");
+    setOrgError(null);
+    setIsCreating(false);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user) {
+      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+    const name = orgName.trim();
+    if (!name) {
+      setOrgError("請輸入組織名稱。");
+      return;
+    }
+    setIsCreating(true);
+    setOrgError(null);
+    const result = await createOrganization({
+      organizationName: name,
+      ownerId: user.id,
+      ownerName: user.name,
+      ownerEmail: user.email,
+    });
+    if (!result.success) {
+      setOrgError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+    const newAccount: AccountEntity = {
+      id: result.aggregateId,
+      name,
+      accountType: "organization",
+      ownerId: user.id,
+    };
+    onOrganizationCreated?.(newAccount);
+    reset();
+    onOpenChange(false);
+    onNavigate("/organization");
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        onOpenChange(isOpen);
+        if (!isOpen) reset();
+      }}
+    >
+      <DialogContent aria-describedby="rail-create-org-description">
+        <DialogHeader>
+          <DialogTitle>建立新組織</DialogTitle>
+          <DialogDescription id="rail-create-org-description">
+            輸入名稱後會直接建立組織並切換到新的組織內容。
+          </DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
+              組織名稱
+            </label>
+            <Input
+              id="rail-organization-name"
+              value={orgName}
+              onChange={(e) => {
+                setOrgName(e.target.value);
+                if (orgError) setOrgError(null);
+              }}
+              placeholder="例如：Gig Team"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+              disabled={isCreating}
+              maxLength={80}
+            />
+            {orgError && <p className="text-sm text-destructive">{orgError}</p>}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                reset();
+                onOpenChange(false);
+              }}
+              disabled={isCreating}
+            >
+              取消
+            </Button>
+            <Button type="submit" disabled={isCreating || !user}>
+              {isCreating ? "建立中…" : "直接建立"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 ````
@@ -5115,6 +5546,150 @@ export function KnowledgeSidebarSection({
 }
 ````
 
+## File: app/(shell)/_components/nav-check-row.tsx
+````typescript
+"use client";
+
+/**
+ * nav-check-row.tsx
+ * Owns: CheckRow (static) and WorkspaceCheckRow (drag-and-drop) row components
+ *   used inside the CustomizeNavigationDialog.
+ */
+
+import { GripVertical } from "lucide-react";
+import { useEffect, useRef } from "react";
+
+import {
+  attachClosestEdge,
+  combine,
+  draggable,
+  DropIndicator,
+  dropTargetForElements,
+  extractClosestEdge,
+  type Edge,
+} from "@lib-dragdrop";
+import { Checkbox } from "@ui-shadcn/ui/checkbox";
+import { Label } from "@ui-shadcn/ui/label";
+
+// ── CheckRow ───────────────────────────────────────────────────────────────
+
+interface CheckRowProps {
+  id: string;
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+}
+
+export function CheckRow({ id, label, checked, onToggle }: CheckRowProps) {
+  return (
+    <div className="flex items-center gap-3 rounded-md px-2 py-2 transition hover:bg-muted/50">
+      <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground/40 active:cursor-grabbing" />
+      <Checkbox
+        id={`nav-check-${id}`}
+        checked={checked}
+        onCheckedChange={onToggle}
+        className="shrink-0"
+      />
+      <Label
+        htmlFor={`nav-check-${id}`}
+        className="cursor-pointer select-none text-sm font-normal"
+      >
+        {label}
+      </Label>
+    </div>
+  );
+}
+
+// ── WorkspaceCheckRow ──────────────────────────────────────────────────────
+
+interface WorkspaceCheckRowProps {
+  id: string;
+  label: string;
+  checked: boolean;
+  activeDropEdge: Edge | null;
+  isDropTarget: boolean;
+  onToggle: () => void;
+  onDragOverItem: (targetId: string, edge: Edge | null) => void;
+  onDragLeaveItem: (targetId: string) => void;
+  onReorder: (sourceId: string, targetId: string, edge: Edge | null) => void;
+}
+
+export function WorkspaceCheckRow({
+  id,
+  label,
+  checked,
+  activeDropEdge,
+  isDropTarget,
+  onToggle,
+  onDragOverItem,
+  onDragLeaveItem,
+  onReorder,
+}: WorkspaceCheckRowProps) {
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    return combine(
+      draggable({
+        element,
+        getInitialData: () => ({ type: "workspace-nav-item", itemId: id }),
+      }),
+      dropTargetForElements({
+        element,
+        canDrop: ({ source }) =>
+          source.data.type === "workspace-nav-item" && source.data.itemId !== id,
+        getData: ({ input, element: dropElement }) =>
+          attachClosestEdge(
+            { type: "workspace-nav-item", itemId: id },
+            { input, element: dropElement, allowedEdges: ["top", "bottom"] },
+          ),
+        onDragEnter: ({ self }) => { onDragOverItem(id, extractClosestEdge(self.data)); },
+        onDrag: ({ self }) => { onDragOverItem(id, extractClosestEdge(self.data)); },
+        onDragLeave: () => { onDragLeaveItem(id); },
+        onDrop: ({ source, self }) => {
+          const sourceId =
+            typeof source.data.itemId === "string" ? source.data.itemId : null;
+          if (!sourceId || sourceId === id) {
+            onDragLeaveItem(id);
+            return;
+          }
+          onReorder(sourceId, id, extractClosestEdge(self.data));
+          onDragLeaveItem(id);
+        },
+      }),
+    );
+  }, [id, onDragLeaveItem, onDragOverItem, onReorder]);
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="flex items-center gap-3 rounded-md px-2 py-2 transition hover:bg-muted/50">
+        <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground/40 active:cursor-grabbing" />
+        <Checkbox
+          id={`nav-check-${id}`}
+          checked={checked}
+          onCheckedChange={onToggle}
+          className="shrink-0"
+        />
+        <Label
+          htmlFor={`nav-check-${id}`}
+          className="cursor-pointer select-none text-sm font-normal"
+        >
+          {label}
+        </Label>
+      </div>
+
+      {isDropTarget && activeDropEdge && (
+        <div className="pointer-events-none absolute inset-x-2">
+          <DropIndicator edge={activeDropEdge} />
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/_components/nav-user.tsx
 ````typescript
 "use client";
@@ -5294,6 +5869,58 @@ export function TranslationSwitcher() {
 }
 ````
 
+## File: app/(shell)/_components/use-sidebar-locale.ts
+````typescript
+"use client";
+
+import { useState, useEffect } from "react";
+
+export interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+
+/**
+ * Loads the sidebar locale bundle from the public localized-files directory.
+ * Returns null until the bundle is loaded or if loading fails (callers fall back to hardcoded labels).
+ */
+export function useSidebarLocale(): SidebarLocaleBundle | null {
+  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSidebarLocale() {
+      const isZhHant =
+        typeof navigator !== "undefined" &&
+        /^(zh-TW|zh-HK|zh-MO|zh-Hant)/i.test(navigator.language);
+      const localeFile = isZhHant ? "zh-TW.json" : "en.json";
+
+      try {
+        const response = await fetch(`/localized-files/${localeFile}`, { cache: "no-store" });
+        if (!response.ok) return;
+        const data = (await response.json()) as SidebarLocaleBundle;
+        if (!cancelled) {
+          setLocaleBundle(data);
+        }
+      } catch {
+        // Keep fallback labels when localization files are unavailable.
+      }
+    }
+
+    void loadSidebarLocale();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return localeBundle;
+}
+````
+
 ## File: app/(shell)/ai-chat/_actions.ts
 ````typescript
 "use server";
@@ -5320,6 +5947,45 @@ export { saveThread, loadThread };
 export type { Thread };
 ````
 
+## File: app/(shell)/ai-chat/ai-chat-helpers.ts
+````typescript
+import type { Thread } from "./_actions";
+
+// ── Domain types ──────────────────────────────────────────────────────────────
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
+// ── Storage key ───────────────────────────────────────────────────────────────
+
+export const STORAGE_KEY = (accountId: string, workspaceId: string) =>
+  `nb_thread_${accountId}_${workspaceId || "default"}`;
+
+// ── Pure helpers ──────────────────────────────────────────────────────────────
+
+export function buildContextPrompt(history: ChatMessage[]): string {
+  if (history.length === 0) return "";
+  const lines = history.map((m) => `[${m.role === "user" ? "User" : "Assistant"}]: ${m.content}`);
+  return `Previous conversation context (for reference):\n${lines.join("\n")}\n\nPlease continue the conversation, taking the above context into account.`;
+}
+
+export function generateMsgId() {
+  return `msg_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+}
+
+export function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: string): Thread {
+  return {
+    id,
+    messages: msgs.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: new Date().toISOString() })),
+    createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+}
+````
+
 ## File: app/(shell)/dashboard/page.tsx
 ````typescript
 /**
@@ -5330,6 +5996,402 @@ import { redirect } from "next/navigation";
 export default function DashboardPage() {
   redirect("/workspace");
 }
+````
+
+## File: app/(shell)/dev-tools/dev-tools-badges.tsx
+````typescript
+"use client";
+
+import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+
+export function StatusBadge({ status, errorMessage }: { status: string; errorMessage?: string }) {
+  if (status === "completed") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
+        <CheckCircle2 className="size-3" /> 完成
+      </span>
+    );
+  }
+  if (status === "processing") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
+        <Loader2 className="size-3 animate-spin" /> 處理中
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
+        title={errorMessage}
+      >
+        <XCircle className="size-3" /> 錯誤
+      </span>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">{status || "—"}</span>;
+}
+
+export function RagBadge({ status, error }: { status?: string; error?: string }) {
+  if (status === "ready") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
+        <CheckCircle2 className="size-3" /> RAG Ready
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
+        title={error}
+      >
+        <XCircle className="size-3" /> RAG Error
+      </span>
+    );
+  }
+  if (status) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
+        <Loader2 className="size-3 animate-spin" /> {status}
+      </span>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">—</span>;
+}
+````
+
+## File: app/(shell)/dev-tools/dev-tools-parsed-docs-section.tsx
+````typescript
+"use client";
+
+/**
+ * DevToolsParsedDocsSection.tsx
+ * Owns: the "已解析檔案" (completed-only) table section in the Dev Tools page.
+ * Receives all doc data and handlers as props; contains no state.
+ */
+
+import { CheckCircle2, FlaskConical, Loader2 } from "lucide-react";
+
+import { type DocRecord } from "./dev-tools-helpers";
+import { RagBadge } from "./dev-tools-badges";
+import { formatDateTime } from "./use-dev-tools-doc-list";
+
+interface DevToolsParsedDocsSectionProps {
+  parsedDocs: DocRecord[];
+  reindexingId: string | null;
+  onViewJson: (doc: DocRecord) => void;
+  onManualProcess: (doc: DocRecord) => void;
+  formatNormalizationRatio: (doc: DocRecord) => string;
+}
+
+export function DevToolsParsedDocsSection({
+  parsedDocs,
+  reindexingId,
+  onViewJson,
+  onManualProcess,
+  formatNormalizationRatio,
+}: DevToolsParsedDocsSectionProps) {
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center gap-2">
+        <CheckCircle2 className="size-4 text-emerald-600" />
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          已解析檔案（{parsedDocs.length}）
+        </h2>
+      </div>
+      {parsedDocs.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+          尚無解析完成檔案
+        </p>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-emerald-500/20">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1100px] text-sm">
+              <thead>
+                <tr className="border-b border-emerald-500/10 bg-emerald-500/5">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Chunks / Vectors</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Normalization</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">版本 / 語系</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">JSON</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">完成時間</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parsedDocs.map((doc, i) => (
+                  <tr
+                    key={`parsed-${doc.id}`}
+                    className={`border-b border-border/30 last:border-0 ${i % 2 === 0 ? "bg-background" : "bg-muted/20"}`}
+                  >
+                    <td className="px-4 py-2.5 font-mono text-xs max-w-[220px] truncate" title={doc.filename}>
+                      {doc.filename}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-medium">{doc.page_count ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-xs">
+                      <RagBadge status={doc.rag_status} error={doc.rag_error} />
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-mono">
+                      {(doc.rag_chunk_count ?? 0).toLocaleString()} /{" "}
+                      {(doc.rag_vector_count ?? 0).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-mono">
+                      {formatNormalizationRatio(doc)}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-mono">
+                      {(doc.rag_normalization_version || "—").toUpperCase()} /{" "}
+                      {(doc.rag_language_hint || "—").toUpperCase()}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs max-w-[320px]">
+                      {doc.json_gcs_uri ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => { onViewJson(doc); }}
+                            className="font-mono text-left truncate text-primary hover:underline"
+                            title={doc.json_gcs_uri}
+                          >
+                            {doc.json_gcs_uri}
+                          </button>
+                          <button
+                            onClick={() => { onManualProcess(doc); }}
+                            disabled={reindexingId === doc.id}
+                            title="手動整理（Normalization + RAG）"
+                            className="inline-flex h-6 items-center gap-1 rounded-md border border-border/60 px-2 text-[11px] text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                          >
+                            {reindexingId === doc.id ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <FlaskConical className="size-3" />
+                            )}
+                            手動整理
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                      {formatDateTime(doc.uploaded_at)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+````
+
+## File: app/(shell)/dev-tools/use-dev-tools-doc-list.ts
+````typescript
+"use client";
+
+/**
+ * useDevToolsDocList.ts
+ * Owns: Firestore subscription for the document list, JSON-preview state,
+ *   and all per-document async operations (view, delete, reindex).
+ */
+
+import { useEffect, useRef, useState } from "react";
+
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
+
+import {
+  UPLOAD_BUCKET,
+  mapSnapshotDoc,
+  formatDateTime,
+  type DocRecord,
+} from "./dev-tools-helpers";
+
+// ── Public state ───────────────────────────────────────────────────────────
+
+export interface DocListState {
+  allDocs: DocRecord[];
+  selectedDocId: string | null;
+  selectedDoc: DocRecord | undefined;
+  jsonContent: string | null;
+  jsonLoading: boolean;
+  deletingId: string | null;
+  reindexingId: string | null;
+}
+
+export interface DocListHandlers {
+  handleViewOriginal: (doc: DocRecord) => Promise<void>;
+  handleViewJson: (doc: DocRecord) => Promise<void>;
+  handleDeleteDoc: (doc: DocRecord) => Promise<void>;
+  handleManualProcess: (doc: DocRecord, appendLog: (msg: string) => void) => Promise<void>;
+  closeJsonPreview: () => void;
+  formatNormalizationRatio: (doc: DocRecord) => string;
+}
+
+// ── Hook ───────────────────────────────────────────────────────────────────
+
+export function useDevToolsDocList(activeAccountId: string): DocListState & DocListHandlers {
+  const [allDocs, setAllDocs] = useState<DocRecord[]>([]);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [jsonContent, setJsonContent] = useState<string | null>(null);
+  const [jsonLoading, setJsonLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [reindexingId, setReindexingId] = useState<string | null>(null);
+
+  const unsubscribeListRef = useRef<(() => void) | null>(null);
+
+  // Subscribe to all documents for this account
+  useEffect(() => {
+    if (!activeAccountId) {
+      setAllDocs([]);
+      return;
+    }
+    try {
+      const db = getFirebaseFirestore();
+      const colRef = firestoreApi.collection(db, "accounts", activeAccountId, "documents");
+      unsubscribeListRef.current = firestoreApi.onSnapshot(colRef, (snapshot) => {
+        const docs: DocRecord[] = snapshot.docs.map(mapSnapshotDoc);
+        docs.sort((a, b) => (b.uploaded_at?.getTime() ?? 0) - (a.uploaded_at?.getTime() ?? 0));
+        setAllDocs(docs);
+      });
+    } catch (_err) {}
+    return () => { unsubscribeListRef.current?.(); };
+  }, [activeAccountId]);
+
+  function closeJsonPreview() {
+    setSelectedDocId(null);
+    setJsonContent(null);
+  }
+
+  async function handleViewOriginal(doc: DocRecord) {
+    if (!doc.gcs_uri) return;
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const fileRef = storageApi.ref(storage, doc.gcs_uri);
+      const url = await storageApi.getDownloadURL(fileRef);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err: unknown) {
+      alert(`無法取得下載連結：${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  async function handleViewJson(doc: DocRecord) {
+    if (!doc.json_gcs_uri) return;
+    if (selectedDocId === doc.id && jsonContent !== null) {
+      closeJsonPreview();
+      return;
+    }
+    setSelectedDocId(doc.id);
+    setJsonContent(null);
+    setJsonLoading(true);
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const jsonRef = storageApi.ref(storage, doc.json_gcs_uri);
+      const url = await storageApi.getDownloadURL(jsonRef);
+      const res = await fetch(url);
+      const text = await res.text();
+      setJsonContent(text);
+    } catch (err: unknown) {
+      setJsonContent(`// 載入失敗：${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setJsonLoading(false);
+    }
+  }
+
+  async function handleDeleteDoc(doc: DocRecord) {
+    if (
+      !window.confirm(
+        `確定刪除「${doc.filename}」？\n此操作將同時刪除 Firestore 記錄與 GCS 檔案，無法復原。`,
+      )
+    )
+      return;
+    setDeletingId(doc.id);
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const db = getFirebaseFirestore();
+      if (doc.gcs_uri) {
+        try { await storageApi.deleteObject(storageApi.ref(storage, doc.gcs_uri)); } catch (_err) {}
+      }
+      if (doc.json_gcs_uri) {
+        try { await storageApi.deleteObject(storageApi.ref(storage, doc.json_gcs_uri)); } catch (_err) {}
+      }
+      if (!activeAccountId) throw new Error("缺少 active account");
+      await firestoreApi.deleteDoc(
+        firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id),
+      );
+      if (selectedDocId === doc.id) closeJsonPreview();
+    } catch (err: unknown) {
+      alert(`刪除失敗：${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleManualProcess(
+    doc: DocRecord,
+    appendLog: (msg: string) => void,
+  ) {
+    if (!doc.json_gcs_uri) return;
+    if (!activeAccountId) {
+      alert("缺少 active account，無法手動整理");
+      return;
+    }
+    setReindexingId(doc.id);
+    appendLog(`🧹 手動整理開始：${doc.id}`);
+    try {
+      const functions = getFirebaseFunctions("asia-southeast1");
+      const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
+      await callable({
+        account_id: activeAccountId,
+        doc_id: doc.id,
+        json_gcs_uri: doc.json_gcs_uri,
+        source_gcs_uri: doc.gcs_uri,
+        filename: doc.filename,
+        page_count: doc.page_count ?? 0,
+      });
+      appendLog(`✅ 手動整理完成：${doc.id}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appendLog(`❌ 手動整理失敗：${msg}`);
+      alert(`手動整理失敗：${msg}`);
+    } finally {
+      setReindexingId(null);
+    }
+  }
+
+  function formatNormalizationRatio(doc: DocRecord): string {
+    const raw = doc.rag_raw_chars ?? 0;
+    const normalized = doc.rag_normalized_chars ?? 0;
+    if (raw <= 0 || normalized <= 0) return "—";
+    const ratio = (normalized / raw) * 100;
+    return `${normalized.toLocaleString()} / ${raw.toLocaleString()} (${ratio.toFixed(1)}%)`;
+  }
+
+  const selectedDoc = selectedDocId ? allDocs.find((d) => d.id === selectedDocId) : undefined;
+
+  return {
+    allDocs,
+    selectedDocId,
+    selectedDoc,
+    jsonContent,
+    jsonLoading,
+    deletingId,
+    reindexingId,
+    handleViewOriginal,
+    handleViewJson,
+    handleDeleteDoc,
+    handleManualProcess,
+    closeJsonPreview,
+    formatNormalizationRatio,
+    // re-export for table columns
+  };
+}
+
+// Re-export for convenience in table components
+export { formatDateTime };
 ````
 
 ## File: app/(shell)/knowledge-base/articles/[articleId]/page.tsx
@@ -5630,12 +6692,438 @@ export default function ArticleDetailPage() {
 }
 ````
 
+## File: app/(shell)/knowledge-base/articles/articles-category-panel.tsx
+````typescript
+"use client";
+
+import { useMemo, useState } from "react";
+import { ChevronDown, ChevronRight, FolderOpen, Layers } from "lucide-react";
+
+import type { Category } from "@/modules/knowledge-base/api";
+
+// ── Category tree helpers ────────────────────────────────────────────────────
+
+export interface CategoryNode extends Category {
+  children: CategoryNode[];
+}
+
+export function buildCategoryTree(categories: Category[]): CategoryNode[] {
+  const map = new Map<string, CategoryNode>();
+  for (const cat of categories) {
+    map.set(cat.id, { ...cat, children: [] });
+  }
+  const roots: CategoryNode[] = [];
+  for (const node of map.values()) {
+    if (node.parentCategoryId) {
+      map.get(node.parentCategoryId)?.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+  return roots;
+}
+
+// ── Category tree panel ──────────────────────────────────────────────────────
+
+interface CategoryTreePanelProps {
+  categories: Category[];
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+}
+
+export function CategoryTreePanel({ categories, selectedId, onSelect }: CategoryTreePanelProps) {
+  const roots = useMemo(() => buildCategoryTree(categories), [categories]);
+
+  return (
+    <aside className="w-52 shrink-0 space-y-1">
+      <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        分類
+      </p>
+      <button
+        type="button"
+        onClick={() => onSelect(null)}
+        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
+          selectedId === null
+            ? "bg-primary/10 text-primary font-medium"
+            : "text-foreground hover:bg-muted"
+        }`}
+      >
+        <Layers className="size-3.5 shrink-0 text-muted-foreground" />
+        全部文章
+      </button>
+      {roots.map((node) => (
+        <CategoryNodeRow
+          key={node.id}
+          node={node}
+          selectedId={selectedId}
+          onSelect={onSelect}
+        />
+      ))}
+      {categories.length === 0 && (
+        <p className="px-2 text-xs text-muted-foreground/60">尚無分類</p>
+      )}
+    </aside>
+  );
+}
+
+interface CategoryNodeRowProps {
+  node: CategoryNode;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+}
+
+function CategoryNodeRow({ node, selectedId, onSelect }: CategoryNodeRowProps) {
+  const [expanded, setExpanded] = useState(true);
+  const hasChildren = node.children.length > 0;
+  const isSelected = selectedId === node.id;
+
+  return (
+    <div>
+      <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="p-0.5 text-muted-foreground opacity-0 transition hover:opacity-100"
+          style={{ visibility: hasChildren ? "visible" : "hidden" }}
+          aria-label={expanded ? "折疊" : "展開"}
+        >
+          {expanded ? (
+            <ChevronDown className="size-3" />
+          ) : (
+            <ChevronRight className="size-3" />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => onSelect(node.id)}
+          className={`flex flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors ${
+            isSelected
+              ? "bg-primary/10 text-primary font-medium"
+              : "text-foreground hover:bg-muted"
+          }`}
+        >
+          <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className="truncate">{node.name}</span>
+          {node.articleIds.length > 0 && (
+            <span className="ml-auto text-[10px] text-muted-foreground/60">
+              {node.articleIds.length}
+            </span>
+          )}
+        </button>
+      </div>
+      {hasChildren && expanded && (
+        <div className="ml-4 space-y-0.5 border-l border-border/40 pl-1">
+          {node.children.map((child) => (
+            <CategoryNodeRow
+              key={child.id}
+              node={child}
+              selectedId={selectedId}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/knowledge-base/articles/page.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { getArticles, getCategories, ArticleDialog } from "@/modules/knowledge-base/api";
+import type { Article, ArticleStatus, VerificationState, Category } from "@/modules/knowledge-base/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { CategoryTreePanel } from "./articles-category-panel";
+
+const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  draft: { label: "草稿", variant: "outline" },
+  published: { label: "已發佈", variant: "default" },
+  archived: { label: "已封存", variant: "secondary" },
+};
+
+const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
+  verified: { label: "已驗證", icon: BadgeCheck },
+  needs_review: { label: "待審查", icon: FileClock },
+  unverified: { label: "未驗證", icon: CircleDot },
+};
+
+// ── Main page ────────────────────────────────────────────────────────────────
+
+export default function KnowledgeBaseArticlesPage() {
+  const router = useRouter();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!accountId || !workspaceId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [arts, cats] = await Promise.all([
+        getArticles({ accountId, workspaceId }),
+        getCategories(accountId, workspaceId),
+      ]);
+      setArticles(arts);
+      setCategories(cats);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, workspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filteredArticles = useMemo(() => {
+    if (!selectedCategoryId) return articles;
+    const cat = categories.find((c) => c.id === selectedCategoryId);
+    if (!cat) return articles;
+    return articles.filter((a) => cat.articleIds.includes(a.id));
+  }, [articles, categories, selectedCategoryId]);
+
+  function handleSuccess(articleId?: string) {
+    if (articleId) {
+      router.push(`/knowledge-base/articles/${articleId}`);
+    } else {
+      load();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
+        <p className="text-sm text-muted-foreground">
+          組織知識庫的 SOP 文章、通用文件與驗證管治。
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push("/knowledge")}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!accountId || !workspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增文章
+        </Button>
+      </div>
+
+      <ArticleDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        categories={categories}
+        onSuccess={handleSuccess}
+      />
+
+      {!accountId || !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="flex gap-4">
+          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
+          <div className="grid flex-1 gap-3 sm:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-4">
+          <CategoryTreePanel
+            categories={categories}
+            selectedId={selectedCategoryId}
+            onSelect={setSelectedCategoryId}
+          />
+
+          <div className="flex-1">
+            {filteredArticles.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {filteredArticles.map((article) => {
+                  const status = STATUS_CONFIG[article.status];
+                  const veri = VERIFICATION_CONFIG[article.verificationState];
+                  const VeriIcon = veri.icon;
+                  return (
+                    <Card
+                      key={article.id}
+                      className="cursor-pointer hover:bg-muted/10 transition-colors"
+                      onClick={() => router.push(`/knowledge-base/articles/${article.id}`)}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
+                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <VeriIcon className="h-3 w-3" />
+                          <span>{veri.label}</span>
+                        </div>
+                        {article.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {article.tags.slice(0, 3).map((tag) => (
+                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground/70">
+                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/knowledge-base/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
 
 export default function KnowledgeBasePage() {
   redirect("/knowledge-base/articles");
+}
+````
+
+## File: app/(shell)/knowledge-database/databases/[databaseId]/database-add-field-dialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import type { FieldType } from "@/modules/knowledge-database/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@ui-shadcn/ui/select";
+
+export const FIELD_TYPES: { value: FieldType; label: string }[] = [
+  { value: "text", label: "文字" },
+  { value: "number", label: "數字" },
+  { value: "checkbox", label: "核取方塊" },
+  { value: "date", label: "日期" },
+  { value: "select", label: "單選" },
+  { value: "multi_select", label: "多選" },
+  { value: "url", label: "URL" },
+  { value: "email", label: "電子郵件" },
+];
+
+interface AddFieldDialogProps {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onAdd: (name: string, type: FieldType, required: boolean) => void;
+  isPending: boolean;
+}
+
+export function AddFieldDialog({ open, onOpenChange, onAdd, isPending }: AddFieldDialogProps) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState<FieldType>("text");
+  const [required, setRequired] = useState(false);
+
+  function reset() {
+    setName(""); setType("text"); setRequired(false);
+  }
+
+  function handleOpenChange(v: boolean) {
+    if (!v) reset();
+    onOpenChange(v);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onAdd(name.trim(), type, required);
+    reset();
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader><DialogTitle>新增欄位</DialogTitle></DialogHeader>
+        <form id="field-form" className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
+            <Label htmlFor="field-name">名稱 *</Label>
+            <Input id="field-name" value={name} onChange={(e) => setName(e.target.value)} disabled={isPending} placeholder="欄位名稱" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>類型</Label>
+            <Select value={type} onValueChange={(v) => setType(v as FieldType)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {FIELD_TYPES.map((ft) => (
+                  <SelectItem key={ft.value} value={ft.value}>{ft.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              id="field-required"
+              type="checkbox"
+              checked={required}
+              onChange={(e) => setRequired(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <Label htmlFor="field-required" className="cursor-pointer">必填欄位</Label>
+          </div>
+        </form>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>取消</Button>
+          <Button type="submit" form="field-form" disabled={isPending || !name.trim()}>新增</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 ````
 
@@ -5780,6 +7268,249 @@ export default function DatabaseFormsPage() {
           </div>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/knowledge-database/databases/[databaseId]/page.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Archive, FileText, PlusCircle, Table2, Kanban, List, Calendar, LayoutGrid, Zap } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import {
+  getDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  DatabaseTableView,
+  DatabaseBoardView,
+  DatabaseListView,
+  DatabaseCalendarView,
+  DatabaseGalleryView,
+  DatabaseAutomationView,
+} from "@/modules/knowledge-database/api";
+import type { Database, FieldType } from "@/modules/knowledge-database/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { AddFieldDialog } from "./database-add-field-dialog";
+
+export default function DatabaseDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const databaseId = params.databaseId as string;
+
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [database, setDatabase] = useState<Database | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [addFieldOpen, setAddFieldOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "board" | "list" | "calendar" | "gallery" | "automations">("table");
+  const [isPending, startTransition] = useTransition();
+
+  const load = useCallback(async () => {
+    if (!accountId || !databaseId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const db = await getDatabase(accountId, databaseId);
+      setDatabase(db);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, databaseId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handleAddField(name: string, type: FieldType, required: boolean) {
+    startTransition(async () => {
+      await addDatabaseField({
+        databaseId,
+        accountId,
+        field: { name, type, config: {}, required },
+      });
+      await load();
+    });
+  }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveDatabase(accountId, databaseId);
+      router.push("/knowledge-database/databases");
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!database) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Top bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
+        </Button>
+      </div>
+
+      {/* Page header */}
+      <header className="space-y-1 border-b border-border/60 pb-4">
+        <div className="flex items-center gap-2">
+          {database.icon && <span className="text-xl">{database.icon}</span>}
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{database.name}</h1>
+        </div>
+        {database.description && (
+          <p className="text-sm text-muted-foreground">{database.description}</p>
+        )}
+        <p className="text-xs text-muted-foreground/70">
+          {database.fields.length} 個欄位 · 更新於 {new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
+        </p>
+      </header>
+
+      {/* View switcher + actions */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center rounded-md border border-border/60 p-0.5">
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            title="表格視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Table2 className="h-3 w-3" /> 表格
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("board")}
+            title="看板視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "board" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Kanban className="h-3 w-3" /> 看板
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("list")}
+            title="清單視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <List className="h-3 w-3" /> 清單
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("calendar")}
+            title="日曆視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Calendar className="h-3 w-3" /> 日曆
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("gallery")}
+            title="圖庫視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "gallery" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <LayoutGrid className="h-3 w-3" /> 圖庫
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("automations")}
+            title="自動化規則"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "automations" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Zap className="h-3 w-3" /> 自動化
+          </button>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => router.push(`/knowledge-database/databases/${databaseId}/forms`)} disabled={isPending}>
+            <FileText className="mr-1.5 h-3.5 w-3.5" /> 表單
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
+            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
+            <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
+          </Button>
+        </div>
+      </div>
+
+      {/* View */}
+      {viewMode === "table" && (
+        <DatabaseTableView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "board" && (
+        <DatabaseBoardView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "list" && (
+        <DatabaseListView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "calendar" && (
+        <DatabaseCalendarView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "gallery" && (
+        <DatabaseGalleryView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "automations" && (
+        <DatabaseAutomationView
+          databaseId={databaseId}
+          accountId={accountId}
+          currentUserId={currentUserId}
+        />
+      )}
+
+      <AddFieldDialog
+        open={addFieldOpen}
+        onOpenChange={setAddFieldOpen}
+        onAdd={handleAddField}
+        isPending={isPending}
+      />
     </div>
   );
 }
@@ -5955,6 +7686,466 @@ export default function KnowledgeBlockEditorPage() {
       </header>
 
       <BlockEditorView />
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/knowledge/pages/[pageId]/knowledge-page-header-widgets.tsx
+````typescript
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Check, ImageIcon, Pencil, Smile } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@ui-shadcn/ui/popover";
+
+// ── Title editor ──────────────────────────────────────────────────────────────
+
+export interface TitleEditorProps {
+  initialTitle: string;
+  onSave: (title: string) => void;
+  isPending: boolean;
+}
+
+export function TitleEditor({ initialTitle, onSave, isPending }: TitleEditorProps) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(initialTitle);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { setValue(initialTitle); }, [initialTitle]);
+
+  function startEdit() {
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
+  function commit() {
+    setEditing(false);
+    const trimmed = value.trim();
+    if (trimmed && trimmed !== initialTitle) {
+      onSave(trimmed);
+    } else {
+      setValue(initialTitle);
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") { e.preventDefault(); commit(); }
+    if (e.key === "Escape") { setValue(initialTitle); setEditing(false); }
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2">
+        <Input
+          ref={inputRef}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={commit}
+          onKeyDown={handleKeyDown}
+          disabled={isPending}
+          className="h-auto border-0 bg-transparent px-0 text-2xl font-semibold tracking-tight shadow-none focus-visible:ring-0"
+        />
+        <button
+          type="button"
+          onClick={commit}
+          disabled={isPending}
+          className="rounded p-1 text-muted-foreground hover:text-foreground"
+          aria-label="儲存標題"
+        >
+          <Check className="size-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="group flex items-center gap-2">
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">{value}</h1>
+      <button
+        type="button"
+        onClick={startEdit}
+        disabled={isPending}
+        className="invisible rounded p-1 text-muted-foreground hover:text-foreground group-hover:visible"
+        aria-label="重新命名頁面"
+      >
+        <Pencil className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
+// ── Icon picker ───────────────────────────────────────────────────────────────
+
+const QUICK_EMOJIS = ["📄", "📝", "📚", "💡", "🎯", "🚀", "⭐", "🔑", "📌", "🗂️", "🏷️", "🔖", "📋", "🗒️", "📊", "🔍"];
+
+export interface IconPickerProps {
+  value?: string;
+  onChange: (icon: string) => void;
+  isPending: boolean;
+}
+
+export function IconPicker({ value, onChange, isPending }: IconPickerProps) {
+  const [open, setOpen] = useState(false);
+  const [custom, setCustom] = useState("");
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={isPending}
+          className="flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-muted/30 text-xl hover:bg-muted/60 transition"
+          title="設定頁面圖示"
+        >
+          {value ? value : <Smile className="h-5 w-5 text-muted-foreground" />}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-3">
+        <p className="mb-2 text-xs font-medium text-muted-foreground">選擇圖示</p>
+        <div className="mb-3 grid grid-cols-8 gap-1">
+          {QUICK_EMOJIS.map((e) => (
+            <button
+              key={e}
+              type="button"
+              onClick={() => { onChange(e); setOpen(false); }}
+              className="rounded p-1 text-lg hover:bg-muted transition"
+            >
+              {e}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Input
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+            placeholder="輸入 emoji 或文字"
+            className="h-7 text-xs"
+          />
+          <Button
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={!custom.trim()}
+            onClick={() => { onChange(custom.trim()); setCustom(""); setOpen(false); }}
+          >
+            套用
+          </Button>
+        </div>
+        {value && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2 h-7 w-full text-xs text-muted-foreground"
+            onClick={() => { onChange(""); setOpen(false); }}
+          >
+            移除圖示
+          </Button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ── Cover editor ──────────────────────────────────────────────────────────────
+
+export interface CoverEditorProps {
+  value?: string;
+  onChange: (url: string) => void;
+  isPending: boolean;
+}
+
+export function CoverEditor({ value, onChange, isPending }: CoverEditorProps) {
+  const [open, setOpen] = useState(false);
+  const [url, setUrl] = useState(value ?? "");
+
+  return (
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (v) setUrl(value ?? ""); }}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          disabled={isPending}
+          className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition"
+          title="設定封面圖片"
+        >
+          <ImageIcon className="h-3.5 w-3.5" />
+          {value ? "變更封面" : "新增封面"}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-3">
+        <p className="mb-2 text-xs font-medium text-muted-foreground">封面圖片 URL</p>
+        <div className="flex gap-2">
+          <Input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://..."
+            className="h-7 text-xs"
+          />
+          <Button
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => { onChange(url.trim()); setOpen(false); }}
+          >
+            套用
+          </Button>
+        </div>
+        {value && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2 h-7 w-full text-xs text-muted-foreground"
+            onClick={() => { onChange(""); setOpen(false); }}
+          >
+            移除封面
+          </Button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+}
+````
+
+## File: app/(shell)/knowledge/pages/[pageId]/page.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import {
+  getKnowledgePage,
+  renameKnowledgePage,
+  archiveKnowledgePage,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+  PageEditorView,
+} from "@/modules/knowledge/api";
+import type { KnowledgePage } from "@/modules/knowledge/api";
+import { CommentPanel } from "@/modules/knowledge-collaboration/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { TitleEditor, IconPicker, CoverEditor } from "./knowledge-page-header-widgets";
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+export default function KnowledgePageDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const pageId = params.pageId as string;
+
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+
+  const [page, setPage] = useState<KnowledgePage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [commentOpen, setCommentOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const load = useCallback(async () => {
+    if (!accountId || !pageId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const p = await getKnowledgePage(accountId, pageId);
+      setPage(p);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, pageId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function handleRename(title: string) {
+    startTransition(async () => {
+      const result = await renameKnowledgePage({ accountId, pageId, title });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, title } : prev);
+      }
+    });
+  }
+
+  function handleIconChange(iconUrl: string) {
+    startTransition(async () => {
+      const result = await updateKnowledgePageIcon({ accountId, pageId, iconUrl });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, iconUrl: iconUrl || undefined } : prev);
+      }
+    });
+  }
+
+  function handleCoverChange(coverUrl: string) {
+    startTransition(async () => {
+      const result = await updateKnowledgePageCover({ accountId, pageId, coverUrl });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, coverUrl: coverUrl || undefined } : prev);
+      }
+    });
+  }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveKnowledgePage({ accountId, pageId });
+      router.push("/knowledge/pages");
+    });
+  }
+
+  // ── Loading skeleton ────────────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-6 w-72" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  // ── Not found ───────────────────────────────────────────────────────────────
+
+  if (!page) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge/pages")}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" />
+          頁面列表
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到此頁面，可能已被封存或刪除。</p>
+      </div>
+    );
+  }
+
+  // ── Page view ───────────────────────────────────────────────────────────────
+
+  const updatedAt = page.updatedAtISO
+    ? new Date(page.updatedAtISO).toLocaleDateString("zh-TW", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
+
+  return (
+    <div className="space-y-0">
+      {/* Cover image */}
+      {page.coverUrl && (
+        <div
+          className="relative h-40 w-full overflow-hidden rounded-t-xl bg-muted"
+          style={{ backgroundImage: `url(${page.coverUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
+        />
+      )}
+
+      <div className="space-y-4 px-0 pt-4">
+        {/* Top bar */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge/pages")}>
+            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            頁面列表
+          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={commentOpen ? "default" : "outline"}
+              onClick={() => setCommentOpen((v) => !v)}
+            >
+              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+              留言
+            </Button>
+            {page.status === "active" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleArchive}
+                disabled={isPending}
+              >
+                <Archive className="mr-1.5 h-3.5 w-3.5" />
+                封存
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Page header */}
+        <header className="space-y-2 border-b border-border/60 pb-4">
+          {/* Icon row */}
+          <div className="flex items-end gap-3">
+            <IconPicker
+              value={page.iconUrl}
+              onChange={handleIconChange}
+              isPending={isPending}
+            />
+            <CoverEditor
+              value={page.coverUrl}
+              onChange={handleCoverChange}
+              isPending={isPending}
+            />
+          </div>
+          <TitleEditor
+            initialTitle={page.title}
+            onSave={handleRename}
+            isPending={isPending}
+          />
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {page.status === "archived" && (
+              <Badge variant="secondary">已封存</Badge>
+            )}
+            {page.approvalState === "approved" && (
+              <Badge variant="default">已審核</Badge>
+            )}
+            {page.verificationState === "verified" && (
+              <Badge variant="outline">已驗證</Badge>
+            )}
+            {page.verificationState === "needs_review" && (
+              <Badge variant="destructive">待審查</Badge>
+            )}
+            {updatedAt && <span>更新於 {updatedAt}</span>}
+          </div>
+        </header>
+
+        {/* Main content + optional comment side panel */}
+        <div className={`flex gap-4 ${commentOpen ? "items-start" : ""}`}>
+          {/* Block editor — connected to Firebase */}
+          <div className="min-w-0 flex-1">
+            {accountId ? (
+              <PageEditorView accountId={accountId} pageId={pageId} />
+            ) : (
+              <p className="text-sm text-muted-foreground">請先登入以載入內容。</p>
+            )}
+          </div>
+
+          {/* Comment panel — slides in from right */}
+          {commentOpen && accountId && (
+            <aside className="w-72 shrink-0 rounded-xl border border-border/60 bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-semibold">留言</span>
+                <button
+                  type="button"
+                  onClick={() => setCommentOpen(false)}
+                  className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  aria-label="關閉留言面板"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <CommentPanel
+                accountId={accountId}
+                workspaceId={appState.activeWorkspaceId ?? ""}
+                contentId={pageId}
+                contentType="page"
+                currentUserId={authState.user?.id ?? ""}
+              />
+            </aside>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -12634,6 +14825,68 @@ npm run build
 | `AccountPolicyRepository` | `save()`, `findByAccountId()` |
 ````
 
+## File: modules/account/api/index.ts
+````typescript
+/**
+ * account 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 account 模組內部實作。
+ */
+
+// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
+
+export type {
+  AccountEntity,
+  AccountType,
+  OrganizationRole,
+  Presence,
+  ThemeConfig,
+  Wallet,
+  ExpertiseBadge,
+} from "../domain/entities/Account";
+
+export type {
+  AccountPolicy,
+  PolicyRule,
+  PolicyEffect,
+} from "../domain/entities/AccountPolicy";
+
+// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
+
+export {
+  getUserProfile,
+  subscribeToUserProfile,
+  subscribeToAccountsForUser,
+  getAccountRole,
+  subscribeToAccountRoles,
+  getAccountPolicies,
+  getActiveAccountPolicies,
+} from "../interfaces/queries/account.queries";
+
+// ─── Use Cases (供 composition root / app layer 使用) ────────────────────────
+
+export { CreateUserAccountUseCase } from "../application/use-cases/account.use-cases";
+
+// ─── Infrastructure (供 composition root 使用) ───────────────────────────────
+
+export { FirebaseAccountRepository } from "../infrastructure/firebase/FirebaseAccountRepository";
+
+// ─── Client-side use-case factory (client-only — do NOT import in Server Components) ──
+
+import { FirebaseAccountRepository as _AccountRepo } from "../infrastructure/firebase/FirebaseAccountRepository";
+import { CreateUserAccountUseCase as _CreateAccount } from "../application/use-cases/account.use-cases";
+
+/**
+ * Creates a wired set of client-side account use cases for use in "use client" components.
+ * Keeps infrastructure wiring in the module boundary rather than in UI files.
+ */
+export function createClientAccountUseCases() {
+  const repo = new _AccountRepo();
+  return {
+    createUserAccountUseCase: new _CreateAccount(repo),
+  };
+}
+````
+
 ## File: modules/account/application-services.md
 ````markdown
 # account — Application Services
@@ -14996,6 +17249,93 @@ npm run build
 |------|---------|------|
 | `IdentityRepository` | `signIn()`, `signOut()`, `getCurrentIdentity()` | Firebase Auth 操作 |
 | `TokenRefreshRepository` | `listenToTokenRefresh()` | 監聽 token 刷新事件 |
+````
+
+## File: modules/identity/api/index.ts
+````typescript
+/**
+ * identity 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 identity 模組內部實作。
+ */
+
+import { FirebaseTokenRefreshRepository } from "../infrastructure/firebase/FirebaseTokenRefreshRepository";
+import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
+import type { TokenRefreshReason } from "../domain/entities/TokenRefreshSignal";
+
+// ─── DTO ──────────────────────────────────────────────────────────────────────
+
+/** 發送 Token Refresh 訊號所需的輸入參數。 */
+export interface EmitTokenRefreshSignalInput {
+  accountId: string;
+  reason: TokenRefreshReason;
+  traceId?: string;
+}
+
+// ─── 內部單例 ──────────────────────────────────────────────────────────────────
+
+const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
+const emitUseCase = new EmitTokenRefreshSignalUseCase(tokenRefreshRepo);
+
+// ─── 公開 API Facade ──────────────────────────────────────────────────────────
+
+export const identityApi = {
+  /**
+   * [S6] 發送 TOKEN_REFRESH_SIGNAL，通知前端重新整理 Custom Claims。
+   * 應在角色或政策變更後呼叫。
+   */
+  async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void> {
+    await emitUseCase.execute(input.accountId, input.reason, input.traceId);
+  },
+} as const;
+
+// ─── 公開 Use Cases & Infrastructure (供 composition root 使用) ──────────────
+
+export { FirebaseIdentityRepository } from "../infrastructure/firebase/FirebaseIdentityRepository";
+export {
+  SignInUseCase,
+  SignInAnonymouslyUseCase,
+  RegisterUseCase,
+  SendPasswordResetEmailUseCase,
+  SignOutUseCase,
+} from "../application/use-cases/identity.use-cases";
+
+// ─── Client-side use-case factory (client-only — do NOT import in Server Components) ──
+
+import { FirebaseIdentityRepository as _IdentityRepo } from "../infrastructure/firebase/FirebaseIdentityRepository";
+import {
+  SignInUseCase as _SignIn,
+  SignInAnonymouslyUseCase as _SignInAnon,
+  RegisterUseCase as _Register,
+  SendPasswordResetEmailUseCase as _ResetEmail,
+} from "../application/use-cases/identity.use-cases";
+
+/**
+ * Creates a wired set of client-side auth use cases for use in "use client" components.
+ * Keeps infrastructure wiring in the module boundary rather than in UI files.
+ */
+export function createClientAuthUseCases() {
+  const repo = new _IdentityRepo();
+  return {
+    signInUseCase: new _SignIn(repo),
+    signInAnonymouslyUseCase: new _SignInAnon(repo),
+    registerUseCase: new _Register(repo),
+    sendPasswordResetEmailUseCase: new _ResetEmail(repo),
+  };
+}
+
+// ─── Server Actions ───────────────────────────────────────────────────────────
+
+export {
+  signIn,
+  signInAnonymously,
+  register,
+  sendPasswordResetEmail,
+  signOut,
+} from "../interfaces/_actions/identity.actions";
+
+// ─── Client-only hook (import only from "use client" files) ──────────────────
+
+export { useTokenRefreshListener } from "../interfaces/hooks/useTokenRefreshListener";
 ````
 
 ## File: modules/identity/application-services.md
@@ -39686,6 +42026,105 @@ export type { PaginationDto, PagedResult } from "../application/dto/pagination.d
 export type { CommandResult } from "@shared-types";
 ````
 
+## File: modules/workspace-flow/api/index.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file index.ts
+ * @description Public cross-module boundary for workspace-flow.
+ *
+ * External consumers MUST import only from this path:
+ *   @/modules/workspace-flow/api
+ *
+ * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+// ── Facade (write + summary-read surface) ────────────────────────────────────
+
+// Composite facade (all three aggregates)
+export { WorkspaceFlowFacade } from "./workspace-flow.facade";
+
+// Focused facades (prefer these when only one aggregate is needed)
+export { WorkspaceFlowTaskFacade } from "./workspace-flow-task.facade";
+export { WorkspaceFlowIssueFacade } from "./workspace-flow-issue.facade";
+export { WorkspaceFlowInvoiceFacade } from "./workspace-flow-invoice.facade";
+
+// ── Public contracts ──────────────────────────────────────────────────────────
+
+export type {
+  // Entities
+  Task,
+  Issue,
+  Invoice,
+  InvoiceItem,
+  // Value objects
+  TaskStatus,
+  IssueStatus,
+  IssueStage,
+  InvoiceStatus,
+  // Summary projections
+  TaskSummary,
+  IssueSummary,
+  InvoiceSummary,
+  InvoiceItemSummary,
+  // CRUD / command DTOs
+  CreateTaskDto,
+  UpdateTaskDto,
+  OpenIssueDto,
+  ResolveIssueDto,
+  AddInvoiceItemDto,
+  UpdateInvoiceItemDto,
+  RemoveInvoiceItemDto,
+  // Query / pagination DTOs
+  TaskQueryDto,
+  IssueQueryDto,
+  InvoiceQueryDto,
+  PaginationDto,
+  PagedResult,
+  // Command result
+  CommandResult,
+} from "./contracts";
+
+export {
+  // Value object lists (enum arrays)
+  TASK_STATUSES,
+  ISSUE_STATUSES,
+  ISSUE_STAGES,
+  INVOICE_STATUSES,
+  // Summary projection helpers
+  toTaskSummary,
+  toIssueSummary,
+  toInvoiceSummary,
+  toInvoiceItemSummary,
+} from "./contracts";
+
+// ── Read queries (server-side) ────────────────────────────────────────────────
+
+export {
+  getWorkspaceFlowTasks,
+  getWorkspaceFlowTask,
+  getWorkspaceFlowIssues,
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowInvoiceItems,
+} from "../interfaces/queries/workspace-flow.queries";
+
+// ── UI components ─────────────────────────────────────────────────────────────
+
+export { WorkspaceFlowTab } from "../interfaces/components/WorkspaceFlowTab";
+
+// ── Event listeners (knowledge → workspace-flow integration) ─────────────────
+
+export {
+  createKnowledgeToWorkflowListener,
+} from "./listeners";
+
+export type {
+  KnowledgePageApprovedHandler,
+} from "./listeners";
+````
+
 ## File: modules/workspace-flow/api/listeners.ts
 ````typescript
 /**
@@ -39734,6 +42173,457 @@ export interface KnowledgePageApprovedHandler {
 }
 
 export type { KnowledgePageApprovedEvent };
+````
+
+## File: modules/workspace-flow/api/workspace-flow-invoice.facade.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file workspace-flow-invoice.facade.ts
+ * @description Focused facade for Invoice aggregate write and summary-read operations.
+ *
+ * Consumers that only need Invoice operations should use this class directly
+ * instead of the composite {@link WorkspaceFlowFacade}.
+ *
+ * @author workspace-flow
+ * @since 2026-04-06
+ */
+
+import type { InvoiceRepository } from "../domain/repositories/InvoiceRepository";
+
+import { CreateInvoiceUseCase } from "../application/use-cases/create-invoice.use-case";
+import { AddInvoiceItemUseCase } from "../application/use-cases/add-invoice-item.use-case";
+import { UpdateInvoiceItemUseCase } from "../application/use-cases/update-invoice-item.use-case";
+import { RemoveInvoiceItemUseCase } from "../application/use-cases/remove-invoice-item.use-case";
+import { SubmitInvoiceUseCase } from "../application/use-cases/submit-invoice.use-case";
+import { ReviewInvoiceUseCase } from "../application/use-cases/review-invoice.use-case";
+import { ApproveInvoiceUseCase } from "../application/use-cases/approve-invoice.use-case";
+import { RejectInvoiceUseCase } from "../application/use-cases/reject-invoice.use-case";
+import { PayInvoiceUseCase } from "../application/use-cases/pay-invoice.use-case";
+import { CloseInvoiceUseCase } from "../application/use-cases/close-invoice.use-case";
+
+import type { AddInvoiceItemDto } from "../application/dto/add-invoice-item.dto";
+import type { UpdateInvoiceItemDto } from "../application/dto/update-invoice-item.dto";
+import type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-item.dto";
+import type { InvoiceQueryDto } from "../application/dto/invoice-query.dto";
+import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
+
+import type { InvoiceSummary } from "../interfaces/contracts/workspace-flow.contract";
+import { toInvoiceSummary } from "../interfaces/contracts/workspace-flow.contract";
+
+import type { CommandResult } from "@shared-types";
+
+// ── Pagination helper ─────────────────────────────────────────────────────────
+
+function toPagedResult<T>(items: T[], pagination?: PaginationDto): PagedResult<T> {
+  const page = pagination?.page ?? 1;
+  const pageSize = pagination?.pageSize ?? (items.length || 20);
+  const start = (page - 1) * pageSize;
+  const paged = items.slice(start, start + pageSize);
+  return { items: paged, total: items.length, page, pageSize, hasMore: start + pageSize < items.length };
+}
+
+/**
+ * WorkspaceFlowInvoiceFacade
+ *
+ * Single entry point for all Invoice write and summary-read operations.
+ * Requires only InvoiceRepository — no cross-aggregate dependencies.
+ */
+export class WorkspaceFlowInvoiceFacade {
+  constructor(private readonly invoiceRepository: InvoiceRepository) {}
+
+  // ── Write operations ─────────────────────────────────────────────────────────
+
+  async createInvoice(workspaceId: string): Promise<CommandResult> {
+    return new CreateInvoiceUseCase(this.invoiceRepository).execute(workspaceId);
+  }
+
+  async addInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> {
+    return new AddInvoiceItemUseCase(this.invoiceRepository).execute(dto);
+  }
+
+  async updateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
+    return new UpdateInvoiceItemUseCase(this.invoiceRepository).execute(invoiceItemId, dto);
+  }
+
+  async removeInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {
+    return new RemoveInvoiceItemUseCase(this.invoiceRepository).execute(dto.invoiceId, dto.invoiceItemId);
+  }
+
+  async submitInvoice(invoiceId: string): Promise<CommandResult> {
+    return new SubmitInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
+  }
+
+  async reviewInvoice(invoiceId: string): Promise<CommandResult> {
+    return new ReviewInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
+  }
+
+  async approveInvoice(invoiceId: string): Promise<CommandResult> {
+    return new ApproveInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
+  }
+
+  async rejectInvoice(invoiceId: string): Promise<CommandResult> {
+    return new RejectInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
+  }
+
+  async payInvoice(invoiceId: string): Promise<CommandResult> {
+    return new PayInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
+  }
+
+  async closeInvoice(invoiceId: string): Promise<CommandResult> {
+    return new CloseInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
+  }
+
+  // ── Read operations ──────────────────────────────────────────────────────────
+
+  async listInvoices(query: InvoiceQueryDto, pagination?: PaginationDto): Promise<PagedResult<InvoiceSummary>> {
+    const all = await this.invoiceRepository.findByWorkspaceId(query.workspaceId);
+    const filtered = query.status ? all.filter((inv) => inv.status === query.status) : all;
+    return toPagedResult(filtered.map(toInvoiceSummary), pagination);
+  }
+
+  async getInvoiceSummary(invoiceId: string): Promise<InvoiceSummary | null> {
+    const invoice = await this.invoiceRepository.findById(invoiceId);
+    return invoice ? toInvoiceSummary(invoice) : null;
+  }
+}
+````
+
+## File: modules/workspace-flow/api/workspace-flow-issue.facade.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file workspace-flow-issue.facade.ts
+ * @description Focused facade for Issue aggregate write and summary-read operations.
+ *
+ * Consumers that only need Issue operations should use this class directly
+ * instead of the composite {@link WorkspaceFlowFacade}.
+ *
+ * @author workspace-flow
+ * @since 2026-04-06
+ */
+
+import type { IssueRepository } from "../domain/repositories/IssueRepository";
+
+import { OpenIssueUseCase } from "../application/use-cases/open-issue.use-case";
+import { StartIssueUseCase } from "../application/use-cases/start-issue.use-case";
+import { FixIssueUseCase } from "../application/use-cases/fix-issue.use-case";
+import { SubmitIssueRetestUseCase } from "../application/use-cases/submit-issue-retest.use-case";
+import { PassIssueRetestUseCase } from "../application/use-cases/pass-issue-retest.use-case";
+import { FailIssueRetestUseCase } from "../application/use-cases/fail-issue-retest.use-case";
+import { ResolveIssueUseCase } from "../application/use-cases/resolve-issue.use-case";
+import { CloseIssueUseCase } from "../application/use-cases/close-issue.use-case";
+
+import type { OpenIssueDto } from "../application/dto/open-issue.dto";
+import type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
+import type { IssueQueryDto } from "../application/dto/issue-query.dto";
+import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
+
+import type { IssueSummary } from "../interfaces/contracts/workspace-flow.contract";
+import { toIssueSummary } from "../interfaces/contracts/workspace-flow.contract";
+
+import type { CommandResult } from "@shared-types";
+
+// ── Pagination helper ─────────────────────────────────────────────────────────
+
+function toPagedResult<T>(items: T[], pagination?: PaginationDto): PagedResult<T> {
+  const page = pagination?.page ?? 1;
+  const pageSize = pagination?.pageSize ?? (items.length || 20);
+  const start = (page - 1) * pageSize;
+  const paged = items.slice(start, start + pageSize);
+  return { items: paged, total: items.length, page, pageSize, hasMore: start + pageSize < items.length };
+}
+
+/**
+ * WorkspaceFlowIssueFacade
+ *
+ * Single entry point for all Issue write and summary-read operations.
+ * Requires only IssueRepository — no cross-aggregate dependencies.
+ */
+export class WorkspaceFlowIssueFacade {
+  constructor(private readonly issueRepository: IssueRepository) {}
+
+  // ── Write operations ─────────────────────────────────────────────────────────
+
+  async openIssue(dto: OpenIssueDto): Promise<CommandResult> {
+    return new OpenIssueUseCase(this.issueRepository).execute(dto);
+  }
+
+  async startIssue(issueId: string): Promise<CommandResult> {
+    return new StartIssueUseCase(this.issueRepository).execute(issueId);
+  }
+
+  async fixIssue(issueId: string): Promise<CommandResult> {
+    return new FixIssueUseCase(this.issueRepository).execute(issueId);
+  }
+
+  async submitIssueRetest(issueId: string): Promise<CommandResult> {
+    return new SubmitIssueRetestUseCase(this.issueRepository).execute(issueId);
+  }
+
+  async passIssueRetest(issueId: string): Promise<CommandResult> {
+    return new PassIssueRetestUseCase(this.issueRepository).execute(issueId);
+  }
+
+  async failIssueRetest(issueId: string): Promise<CommandResult> {
+    return new FailIssueRetestUseCase(this.issueRepository).execute(issueId);
+  }
+
+  async resolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
+    return new ResolveIssueUseCase(this.issueRepository).execute(dto);
+  }
+
+  async closeIssue(issueId: string): Promise<CommandResult> {
+    return new CloseIssueUseCase(this.issueRepository).execute(issueId);
+  }
+
+  // ── Read operations ──────────────────────────────────────────────────────────
+
+  async listIssues(query: IssueQueryDto, pagination?: PaginationDto): Promise<PagedResult<IssueSummary>> {
+    const all = await this.issueRepository.findByTaskId(query.taskId);
+    const filtered = query.status ? all.filter((i) => i.status === query.status) : all;
+    return toPagedResult(filtered.map(toIssueSummary), pagination);
+  }
+
+  async getIssueSummary(issueId: string): Promise<IssueSummary | null> {
+    const issue = await this.issueRepository.findById(issueId);
+    return issue ? toIssueSummary(issue) : null;
+  }
+}
+````
+
+## File: modules/workspace-flow/api/workspace-flow-task.facade.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file workspace-flow-task.facade.ts
+ * @description Focused facade for Task aggregate write and summary-read operations.
+ *
+ * Consumers that only need Task operations should use this class directly
+ * instead of the composite {@link WorkspaceFlowFacade}.
+ *
+ * Note: `issueRepository` is required because `passTaskQa` and
+ * `approveTaskAcceptance` are cross-aggregate operations that create issues
+ * as a side-effect of task state transitions.
+ *
+ * @author workspace-flow
+ * @since 2026-04-06
+ */
+
+import type { TaskRepository } from "../domain/repositories/TaskRepository";
+import type { IssueRepository } from "../domain/repositories/IssueRepository";
+
+import { CreateTaskUseCase } from "../application/use-cases/create-task.use-case";
+import { UpdateTaskUseCase } from "../application/use-cases/update-task.use-case";
+import { AssignTaskUseCase } from "../application/use-cases/assign-task.use-case";
+import { SubmitTaskToQaUseCase } from "../application/use-cases/submit-task-to-qa.use-case";
+import { PassTaskQaUseCase } from "../application/use-cases/pass-task-qa.use-case";
+import { ApproveTaskAcceptanceUseCase } from "../application/use-cases/approve-task-acceptance.use-case";
+import { ArchiveTaskUseCase } from "../application/use-cases/archive-task.use-case";
+
+import type { CreateTaskDto } from "../application/dto/create-task.dto";
+import type { UpdateTaskDto } from "../application/dto/update-task.dto";
+import type { TaskQueryDto } from "../application/dto/task-query.dto";
+import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
+
+import type { TaskSummary } from "../interfaces/contracts/workspace-flow.contract";
+import { toTaskSummary } from "../interfaces/contracts/workspace-flow.contract";
+
+import type { CommandResult } from "@shared-types";
+
+// ── Pagination helper ─────────────────────────────────────────────────────────
+
+function toPagedResult<T>(items: T[], pagination?: PaginationDto): PagedResult<T> {
+  const page = pagination?.page ?? 1;
+  const pageSize = pagination?.pageSize ?? (items.length || 20);
+  const start = (page - 1) * pageSize;
+  const paged = items.slice(start, start + pageSize);
+  return { items: paged, total: items.length, page, pageSize, hasMore: start + pageSize < items.length };
+}
+
+/**
+ * WorkspaceFlowTaskFacade
+ *
+ * Single entry point for all Task write and summary-read operations.
+ * Requires both TaskRepository and IssueRepository because QA pass and
+ * acceptance approval are cross-aggregate transitions that produce issues.
+ */
+export class WorkspaceFlowTaskFacade {
+  constructor(
+    private readonly taskRepository: TaskRepository,
+    private readonly issueRepository: IssueRepository,
+  ) {}
+
+  // ── Write operations ─────────────────────────────────────────────────────────
+
+  async createTask(dto: CreateTaskDto): Promise<CommandResult> {
+    return new CreateTaskUseCase(this.taskRepository).execute(dto);
+  }
+
+  async updateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
+    return new UpdateTaskUseCase(this.taskRepository).execute(taskId, dto);
+  }
+
+  async assignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
+    return new AssignTaskUseCase(this.taskRepository).execute(taskId, assigneeId);
+  }
+
+  async submitTaskToQa(taskId: string): Promise<CommandResult> {
+    return new SubmitTaskToQaUseCase(this.taskRepository).execute(taskId);
+  }
+
+  /** Cross-aggregate: transitions task to qa_passed and creates a linked issue. */
+  async passTaskQa(taskId: string): Promise<CommandResult> {
+    return new PassTaskQaUseCase(this.taskRepository, this.issueRepository).execute(taskId);
+  }
+
+  /** Cross-aggregate: transitions task to accepted and closes the linked issue. */
+  async approveTaskAcceptance(taskId: string): Promise<CommandResult> {
+    return new ApproveTaskAcceptanceUseCase(this.taskRepository, this.issueRepository).execute(taskId);
+  }
+
+  async archiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
+    return new ArchiveTaskUseCase(this.taskRepository).execute(taskId, invoiceStatus);
+  }
+
+  // ── Read operations ──────────────────────────────────────────────────────────
+
+  async listTasks(query: TaskQueryDto, pagination?: PaginationDto): Promise<PagedResult<TaskSummary>> {
+    const all = await this.taskRepository.findByWorkspaceId(query.workspaceId);
+    const filtered = query.status ? all.filter((t) => t.status === query.status) : all;
+    const assigneeFiltered = query.assigneeId
+      ? filtered.filter((t) => t.assigneeId === query.assigneeId)
+      : filtered;
+    return toPagedResult(assigneeFiltered.map(toTaskSummary), pagination);
+  }
+
+  async getTaskSummary(taskId: string): Promise<TaskSummary | null> {
+    const task = await this.taskRepository.findById(taskId);
+    return task ? toTaskSummary(task) : null;
+  }
+}
+````
+
+## File: modules/workspace-flow/api/workspace-flow.facade.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file workspace-flow.facade.ts
+ * @description Composite facade aggregating Task, Issue, and Invoice operations.
+ *
+ * Delegates entirely to the three focused facades:
+ *   - {@link WorkspaceFlowTaskFacade}   — Task aggregate
+ *   - {@link WorkspaceFlowIssueFacade}  — Issue aggregate
+ *   - {@link WorkspaceFlowInvoiceFacade} — Invoice aggregate
+ *
+ * Prefer the focused facades when only one aggregate is needed.
+ * Use this composite facade only when all three aggregates must be
+ * available through a single construction point.
+ *
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+import type { TaskRepository } from "../domain/repositories/TaskRepository";
+import type { IssueRepository } from "../domain/repositories/IssueRepository";
+import type { InvoiceRepository } from "../domain/repositories/InvoiceRepository";
+
+import { WorkspaceFlowTaskFacade } from "./workspace-flow-task.facade";
+import { WorkspaceFlowIssueFacade } from "./workspace-flow-issue.facade";
+import { WorkspaceFlowInvoiceFacade } from "./workspace-flow-invoice.facade";
+
+import type { CreateTaskDto } from "../application/dto/create-task.dto";
+import type { UpdateTaskDto } from "../application/dto/update-task.dto";
+import type { OpenIssueDto } from "../application/dto/open-issue.dto";
+import type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
+import type { AddInvoiceItemDto } from "../application/dto/add-invoice-item.dto";
+import type { UpdateInvoiceItemDto } from "../application/dto/update-invoice-item.dto";
+import type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-item.dto";
+import type { TaskQueryDto } from "../application/dto/task-query.dto";
+import type { IssueQueryDto } from "../application/dto/issue-query.dto";
+import type { InvoiceQueryDto } from "../application/dto/invoice-query.dto";
+import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
+
+import type {
+  TaskSummary,
+  IssueSummary,
+  InvoiceSummary,
+} from "../interfaces/contracts/workspace-flow.contract";
+
+import type { CommandResult } from "@shared-types";
+
+/**
+ * WorkspaceFlowFacade
+ *
+ * Composite entry point for all workspace-flow write and read-summary operations.
+ * Delegates to {@link WorkspaceFlowTaskFacade}, {@link WorkspaceFlowIssueFacade},
+ * and {@link WorkspaceFlowInvoiceFacade}.
+ *
+ * @example
+ * ```ts
+ * const facade = new WorkspaceFlowFacade(
+ *   new FirebaseTaskRepository(),
+ *   new FirebaseIssueRepository(),
+ *   new FirebaseInvoiceRepository(),
+ * );
+ * await facade.createTask({ workspaceId, title: "My task" });
+ * ```
+ */
+export class WorkspaceFlowFacade {
+  private readonly taskFacade: WorkspaceFlowTaskFacade;
+  private readonly issueFacade: WorkspaceFlowIssueFacade;
+  private readonly invoiceFacade: WorkspaceFlowInvoiceFacade;
+
+  constructor(
+    taskRepository: TaskRepository,
+    issueRepository: IssueRepository,
+    invoiceRepository: InvoiceRepository,
+  ) {
+    this.taskFacade = new WorkspaceFlowTaskFacade(taskRepository, issueRepository);
+    this.issueFacade = new WorkspaceFlowIssueFacade(issueRepository);
+    this.invoiceFacade = new WorkspaceFlowInvoiceFacade(invoiceRepository);
+  }
+
+  // ── Task operations (delegated) ──────────────────────────────────────────────
+
+  createTask(dto: CreateTaskDto): Promise<CommandResult> { return this.taskFacade.createTask(dto); }
+  updateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> { return this.taskFacade.updateTask(taskId, dto); }
+  assignTask(taskId: string, assigneeId: string): Promise<CommandResult> { return this.taskFacade.assignTask(taskId, assigneeId); }
+  submitTaskToQa(taskId: string): Promise<CommandResult> { return this.taskFacade.submitTaskToQa(taskId); }
+  passTaskQa(taskId: string): Promise<CommandResult> { return this.taskFacade.passTaskQa(taskId); }
+  approveTaskAcceptance(taskId: string): Promise<CommandResult> { return this.taskFacade.approveTaskAcceptance(taskId); }
+  archiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> { return this.taskFacade.archiveTask(taskId, invoiceStatus); }
+  listTasks(query: TaskQueryDto, pagination?: PaginationDto): Promise<PagedResult<TaskSummary>> { return this.taskFacade.listTasks(query, pagination); }
+  getTaskSummary(taskId: string): Promise<TaskSummary | null> { return this.taskFacade.getTaskSummary(taskId); }
+
+  // ── Issue operations (delegated) ─────────────────────────────────────────────
+
+  openIssue(dto: OpenIssueDto): Promise<CommandResult> { return this.issueFacade.openIssue(dto); }
+  startIssue(issueId: string): Promise<CommandResult> { return this.issueFacade.startIssue(issueId); }
+  fixIssue(issueId: string): Promise<CommandResult> { return this.issueFacade.fixIssue(issueId); }
+  submitIssueRetest(issueId: string): Promise<CommandResult> { return this.issueFacade.submitIssueRetest(issueId); }
+  passIssueRetest(issueId: string): Promise<CommandResult> { return this.issueFacade.passIssueRetest(issueId); }
+  failIssueRetest(issueId: string): Promise<CommandResult> { return this.issueFacade.failIssueRetest(issueId); }
+  resolveIssue(dto: ResolveIssueDto): Promise<CommandResult> { return this.issueFacade.resolveIssue(dto); }
+  closeIssue(issueId: string): Promise<CommandResult> { return this.issueFacade.closeIssue(issueId); }
+  listIssues(query: IssueQueryDto, pagination?: PaginationDto): Promise<PagedResult<IssueSummary>> { return this.issueFacade.listIssues(query, pagination); }
+  getIssueSummary(issueId: string): Promise<IssueSummary | null> { return this.issueFacade.getIssueSummary(issueId); }
+
+  // ── Invoice operations (delegated) ───────────────────────────────────────────
+
+  createInvoice(workspaceId: string): Promise<CommandResult> { return this.invoiceFacade.createInvoice(workspaceId); }
+  addInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> { return this.invoiceFacade.addInvoiceItem(dto); }
+  updateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> { return this.invoiceFacade.updateInvoiceItem(invoiceItemId, dto); }
+  removeInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> { return this.invoiceFacade.removeInvoiceItem(dto); }
+  submitInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.submitInvoice(invoiceId); }
+  reviewInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.reviewInvoice(invoiceId); }
+  approveInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.approveInvoice(invoiceId); }
+  rejectInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.rejectInvoice(invoiceId); }
+  payInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.payInvoice(invoiceId); }
+  closeInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.closeInvoice(invoiceId); }
+  listInvoices(query: InvoiceQueryDto, pagination?: PaginationDto): Promise<PagedResult<InvoiceSummary>> { return this.invoiceFacade.listInvoices(query, pagination); }
+  getInvoiceSummary(invoiceId: string): Promise<InvoiceSummary | null> { return this.invoiceFacade.getInvoiceSummary(invoiceId); }
+}
 ````
 
 ## File: modules/workspace-flow/application-services.md
@@ -43426,6 +46316,281 @@ export class FirebaseTaskRepository implements TaskRepository {
     const updated = await getDoc(taskRef);
     if (!updated.exists()) return null;
     return toTask(updated.id, updated.data() as Record<string, unknown>);
+  }
+}
+````
+
+## File: modules/workspace-flow/interfaces/_actions/workspace-flow-invoice.actions.ts
+````typescript
+"use server";
+
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow-invoice.actions.ts
+ * @description Server Actions for workspace-flow Invoice write operations.
+ * Delegates exclusively to WorkspaceFlowFacade.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { WorkspaceFlowInvoiceFacade } from "../../api/workspace-flow-invoice.facade";
+import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
+import type { AddInvoiceItemDto } from "../../application/dto/add-invoice-item.dto";
+import type { UpdateInvoiceItemDto } from "../../application/dto/update-invoice-item.dto";
+import type { RemoveInvoiceItemDto } from "../../application/dto/remove-invoice-item.dto";
+
+function makeFacade(): WorkspaceFlowInvoiceFacade {
+  return new WorkspaceFlowInvoiceFacade(
+    new FirebaseInvoiceRepository(),
+  );
+}
+
+export async function wfCreateInvoice(workspaceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().createInvoice(workspaceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfAddInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().addInvoiceItem(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_ADD_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfUpdateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().updateInvoiceItem(invoiceItemId, dto);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_UPDATE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfRemoveInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().removeInvoiceItem(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_REMOVE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfSubmitInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().submitInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfReviewInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().reviewInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_REVIEW_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfApproveInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().approveInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfRejectInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().rejectInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_REJECT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfPayInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().payInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_PAY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfCloseInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().closeInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/workspace-flow/interfaces/_actions/workspace-flow-issue.actions.ts
+````typescript
+"use server";
+
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow-issue.actions.ts
+ * @description Server Actions for workspace-flow Issue write operations.
+ * Delegates exclusively to WorkspaceFlowFacade.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { WorkspaceFlowIssueFacade } from "../../api/workspace-flow-issue.facade";
+import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
+import type { OpenIssueDto } from "../../application/dto/open-issue.dto";
+import type { ResolveIssueDto } from "../../application/dto/resolve-issue.dto";
+
+function makeFacade(): WorkspaceFlowIssueFacade {
+  return new WorkspaceFlowIssueFacade(
+    new FirebaseIssueRepository(),
+  );
+}
+
+export async function wfOpenIssue(dto: OpenIssueDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().openIssue(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_OPEN_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfStartIssue(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().startIssue(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_START_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfFixIssue(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().fixIssue(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_FIX_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfSubmitIssueRetest(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().submitIssueRetest(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RETEST_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfPassIssueRetest(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().passIssueRetest(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RETEST_PASS_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfFailIssueRetest(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().failIssueRetest(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RETEST_FAIL_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfResolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().resolveIssue(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfCloseIssue(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().closeIssue(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/workspace-flow/interfaces/_actions/workspace-flow-task.actions.ts
+````typescript
+"use server";
+
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow-task.actions.ts
+ * @description Server Actions for workspace-flow Task write operations.
+ * Delegates exclusively to WorkspaceFlowFacade.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { WorkspaceFlowTaskFacade } from "../../api/workspace-flow-task.facade";
+import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
+import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
+import type { CreateTaskDto } from "../../application/dto/create-task.dto";
+import type { UpdateTaskDto } from "../../application/dto/update-task.dto";
+
+function makeFacade(): WorkspaceFlowTaskFacade {
+  return new WorkspaceFlowTaskFacade(
+    new FirebaseTaskRepository(),
+    new FirebaseIssueRepository(),
+  );
+}
+
+export async function wfCreateTask(dto: CreateTaskDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().createTask(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfUpdateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().updateTask(taskId, dto);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfAssignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().assignTask(taskId, assigneeId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_ASSIGN_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfSubmitTaskToQa(taskId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().submitTaskToQa(taskId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_SUBMIT_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfPassTaskQa(taskId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().passTaskQa(taskId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_PASS_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfApproveTaskAcceptance(taskId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().approveTaskAcceptance(taskId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfArchiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().archiveTask(taskId, invoiceStatus);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
 ````
@@ -60447,1047 +63612,191 @@ Any of the following require a context7 lookup before proceeding:
 - Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
 ````
 
-## File: app/(public)/page.tsx
+## File: app/(shell)/dev-tools/dev-tools-helpers.ts
+````typescript
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface ParseResult {
+  doc_id: string;
+  status: "processing" | "completed" | "error";
+  page_count?: number;
+  json_gcs_uri?: string;
+  error_message?: string;
+}
+
+export interface DocRecord {
+  id: string;
+  status: "processing" | "completed" | "error" | string;
+  filename: string;
+  gcs_uri: string;
+  uploaded_at: Date | null;
+  page_count?: number;
+  json_gcs_uri?: string;
+  error_message?: string;
+  rag_status?: string;
+  rag_chunk_count?: number;
+  rag_vector_count?: number;
+  rag_raw_chars?: number;
+  rag_normalized_chars?: number;
+  rag_normalization_version?: string;
+  rag_language_hint?: string;
+  rag_error?: string;
+}
+
+export type UploadStatus = "idle" | "uploading" | "waiting" | "done" | "error";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+export const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+export const WATCH_PATH = "uploads/";
+export const ACCEPTED_MIME: Record<string, string> = {
+  pdf: "application/pdf",
+  tif: "image/tiff",
+  tiff: "image/tiff",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+};
+export const ACCEPTED_EXTS = ".pdf, .tif / .tiff, .png, .jpg / .jpeg";
+
+// ── Data-mapping helpers ──────────────────────────────────────────────────────
+
+export function formatDateTime(value: Date | null): string {
+  if (!value) return "—";
+  return value.toLocaleString("zh-TW", { hour12: false });
+}
+
+function deriveJsonUri(gcsUri: string): string {
+  if (!gcsUri.startsWith("gs://")) return "";
+  const withoutPrefix = gcsUri.slice(5);
+  const firstSlash = withoutPrefix.indexOf("/");
+  if (firstSlash < 0) return "";
+
+  const bucket = withoutPrefix.slice(0, firstSlash);
+  const objectPath = withoutPrefix.slice(firstSlash + 1);
+  if (!objectPath.startsWith("uploads/")) return "";
+
+  const relativePath = objectPath.slice("uploads/".length);
+  const dotIndex = relativePath.lastIndexOf(".");
+  const stem = dotIndex > -1 ? relativePath.slice(0, dotIndex) : relativePath;
+  return `gs://${bucket}/files/${stem}.json`;
+}
+
+export function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+export function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+export function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" ? value : undefined;
+}
+
+function asDate(value: unknown): Date | null {
+  if (value instanceof Date) return value;
+  if (value && typeof value === "object" && "toDate" in value) {
+    if (typeof (value as { toDate?: unknown }).toDate === "function") {
+      const converted = (value as { toDate: () => unknown }).toDate();
+      return converted instanceof Date ? converted : null;
+    }
+  }
+  return null;
+}
+
+export function mapSnapshotDoc(doc: { id: string; data: () => unknown }): DocRecord {
+  const data = asRecord(doc.data());
+  const source = asRecord(data.source);
+  const parsed = asRecord(data.parsed);
+  const rag = asRecord(data.rag);
+  const err = asRecord(data.error);
+
+  return {
+    id: doc.id,
+    status: asString(data.status, "unknown"),
+    filename: asString(source.filename, doc.id),
+    gcs_uri: asString(source.gcs_uri),
+    uploaded_at: asDate(source.uploaded_at),
+    page_count: asNumber(parsed.page_count),
+    json_gcs_uri: asString(parsed.json_gcs_uri, deriveJsonUri(asString(source.gcs_uri))),
+    error_message: asString(err.message) || undefined,
+    rag_status: asString(rag.status) || undefined,
+    rag_chunk_count: asNumber(rag.chunk_count),
+    rag_vector_count: asNumber(rag.vector_count),
+    rag_raw_chars: asNumber(rag.raw_chars),
+    rag_normalized_chars: asNumber(rag.normalized_chars),
+    rag_normalization_version: asString(rag.normalization_version) || undefined,
+    rag_language_hint: asString(rag.language_hint) || undefined,
+    rag_error: asString(rag.error) || undefined,
+  };
+}
+````
+
+## File: app/(shell)/dev-tools/page.tsx
 ````typescript
 "use client";
 
 /**
- * app/(public)/page.tsx
- * Public landing page with top-right auth entry and inline auth panel.
- * Uses identity module use cases directly on the client so Firebase auth state
- * actually updates AuthProvider via onAuthStateChanged.
+ * Module: dev-tools page — /dev-tools
+ * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
+ * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
+ * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
+ *   Doc-list state and operations → useDevToolsDocList hook.
+ *   Parsed-docs table → DevToolsParsedDocsSection component.
  */
 
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
-
-import { useAuth } from "@/app/providers/auth-provider";
-import { createClientAuthUseCases } from "@/modules/identity/api";
-import { createClientAccountUseCases } from "@/modules/account/api";
+import { useRef, useState, useEffect } from "react";
 import {
-  createDevDemoUser,
-  isDevDemoCredential,
-  isLocalDevDemoAllowed,
-  writeDevDemoSession,
-} from "@/app/providers/dev-demo-auth";
+  FlaskConical,
+  FileUp,
+  AlertCircle,
+  FileText,
+  Trash2,
+  Code2,
+  ExternalLink,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 
-type Tab = "login" | "register";
-
-export default function PublicPage() {
-  const { state, dispatch } = useAuth();
-  const router = useRouter();
-
-  const [tab, setTab] = useState<Tab>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [resetSent, setResetSent] = useState(false);
-  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
-
-  const {
-    signInUseCase,
-    signInAnonymouslyUseCase,
-    registerUseCase,
-    sendPasswordResetEmailUseCase,
-    createUserAccountUseCase,
-  } =
-    useMemo(() => ({
-      ...createClientAuthUseCases(),
-      ...createClientAccountUseCases(),
-    }), []);
-
-  useEffect(() => {
-    if (state.status === "authenticated") {
-      router.replace("/dashboard");
-    }
-  }, [state.status, router]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    try {
-      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
-        writeDevDemoSession(createDevDemoUser());
-        window.location.assign("/dashboard");
-        return;
-      }
-
-      const result =
-        tab === "login"
-          ? await signInUseCase.execute({ email, password })
-          : await registerUseCase.execute({ email, password, name });
-
-      if (!result.success) {
-        setError(result.error.message);
-        return;
-      }
-
-      if (tab === "register") {
-        const accountResult = await createUserAccountUseCase.execute(
-          result.aggregateId,
-          name,
-          email,
-        );
-        if (!accountResult.success) {
-          setError(accountResult.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleGuestAccess() {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const result = await signInAnonymouslyUseCase.execute();
-      if (!result.success) {
-        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
-        // blocked in sandboxes), create a local guest session so the shell can be tested.
-        if (isLocalDevDemoAllowed()) {
-          const guestUser = createDevDemoUser();
-          writeDevDemoSession(guestUser);
-          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
-        } else {
-          setError(result.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handlePasswordReset() {
-    if (!email) {
-      setError("Enter your email address first.");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const result = await sendPasswordResetEmailUseCase.execute(email);
-      if (result.success) {
-        setResetSent(true);
-        setError(null);
-      } else {
-        setError(result.error.message);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  if (state.status === "initializing") {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  return (
-    <main className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
-        <button
-          type="button"
-          onClick={() => {
-            setError(null);
-            setResetSent(false);
-            setIsAuthPanelOpen((prev) => !prev);
-          }}
-          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
-        >
-          {isAuthPanelOpen ? "Close" : "Sign In"}
-        </button>
-      </header>
-
-      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
-        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
-            Unified MDDD/Hexagonal workspace for identity, account, and organization modules.
-            Use the top-right sign in button to access your dashboard.
-          </p>
-        </div>
-
-        {isAuthPanelOpen && (
-          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
-            <div className="flex flex-col items-center pb-4 pt-8">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
-                <ShieldCheck className="h-7 w-7 text-primary/90" />
-              </div>
-            </div>
-
-            <div className="px-6">
-              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
-                {(["login", "register"] as Tab[]).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => {
-                      setTab(t);
-                      setError(null);
-                    }}
-                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
-                      tab === t
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {t === "login" ? "Sign In" : "Register"}
-                  </button>
-                ))}
-              </div>
-
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                {tab === "register" && (
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
-                    <input
-                      id="register-name"
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Your display name"
-                      required
-                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
-                  <input
-                    id="auth-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    autoComplete="email"
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
-                    {tab === "login" && (
-                      <button
-                        type="button"
-                        onClick={handlePasswordReset}
-                        className="text-xs text-primary/70 hover:text-primary"
-                      >
-                        {resetSent ? "Email sent!" : "Forgot password?"}
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    id="auth-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete={tab === "login" ? "current-password" : "new-password"}
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                {error && (
-                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    {error}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : tab === "login" ? (
-                    "Enter Dimension"
-                  ) : (
-                    "Create Account"
-                  )}
-                </button>
-              </form>
-            </div>
-
-            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
-              <button
-                type="button"
-                onClick={handleGuestAccess}
-                disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-    </main>
-  );
-}
-````
-
-## File: app/(shell)/_components/create-organization-dialog.tsx
-````typescript
-"use client";
-
-import { type FormEvent, useState } from "react";
-
-import type { AuthUser } from "@/app/providers/auth-context";
-import type { AccountEntity } from "@/modules/account/api";
-import { createOrganization } from "@/modules/organization/api";
+import { useApp } from "@/app/providers/app-provider";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
 import { Button } from "@ui-shadcn/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-interface CreateOrganizationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  user: AuthUser | null;
-  onOrganizationCreated?: (account: AccountEntity) => void;
-  onNavigate: (href: string) => void;
-}
-
-export function CreateOrganizationDialog({
-  open,
-  onOpenChange,
-  user,
-  onOrganizationCreated,
-  onNavigate,
-}: CreateOrganizationDialogProps) {
-  const [orgName, setOrgName] = useState("");
-  const [orgError, setOrgError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-
-  function reset() {
-    setOrgName("");
-    setOrgError(null);
-    setIsCreating(false);
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!user) {
-      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-    const name = orgName.trim();
-    if (!name) {
-      setOrgError("請輸入組織名稱。");
-      return;
-    }
-    setIsCreating(true);
-    setOrgError(null);
-    const result = await createOrganization({
-      organizationName: name,
-      ownerId: user.id,
-      ownerName: user.name,
-      ownerEmail: user.email,
-    });
-    if (!result.success) {
-      setOrgError(result.error.message);
-      setIsCreating(false);
-      return;
-    }
-    const newAccount: AccountEntity = {
-      id: result.aggregateId,
-      name,
-      accountType: "organization",
-      ownerId: user.id,
-    };
-    onOrganizationCreated?.(newAccount);
-    reset();
-    onOpenChange(false);
-    onNavigate("/organization");
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(isOpen) => {
-        onOpenChange(isOpen);
-        if (!isOpen) reset();
-      }}
-    >
-      <DialogContent aria-describedby="rail-create-org-description">
-        <DialogHeader>
-          <DialogTitle>建立新組織</DialogTitle>
-          <DialogDescription id="rail-create-org-description">
-            輸入名稱後會直接建立組織並切換到新的組織內容。
-          </DialogDescription>
-        </DialogHeader>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
-              組織名稱
-            </label>
-            <Input
-              id="rail-organization-name"
-              value={orgName}
-              onChange={(e) => {
-                setOrgName(e.target.value);
-                if (orgError) setOrgError(null);
-              }}
-              placeholder="例如：Gig Team"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-              disabled={isCreating}
-              maxLength={80}
-            />
-            {orgError && <p className="text-sm text-destructive">{orgError}</p>}
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                reset();
-                onOpenChange(false);
-              }}
-              disabled={isCreating}
-            >
-              取消
-            </Button>
-            <Button type="submit" disabled={isCreating || !user}>
-              {isCreating ? "建立中…" : "直接建立"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: app/(shell)/_components/nav-check-row.tsx
-````typescript
-"use client";
-
-/**
- * nav-check-row.tsx
- * Owns: CheckRow (static) and WorkspaceCheckRow (drag-and-drop) row components
- *   used inside the CustomizeNavigationDialog.
- */
-
-import { GripVertical } from "lucide-react";
-import { useEffect, useRef } from "react";
-
-import {
-  attachClosestEdge,
-  combine,
-  draggable,
-  DropIndicator,
-  dropTargetForElements,
-  extractClosestEdge,
-  type Edge,
-} from "@lib-dragdrop";
-import { Checkbox } from "@ui-shadcn/ui/checkbox";
-import { Label } from "@ui-shadcn/ui/label";
-
-// ── CheckRow ───────────────────────────────────────────────────────────────
-
-interface CheckRowProps {
-  id: string;
-  label: string;
-  checked: boolean;
-  onToggle: () => void;
-}
-
-export function CheckRow({ id, label, checked, onToggle }: CheckRowProps) {
-  return (
-    <div className="flex items-center gap-3 rounded-md px-2 py-2 transition hover:bg-muted/50">
-      <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground/40 active:cursor-grabbing" />
-      <Checkbox
-        id={`nav-check-${id}`}
-        checked={checked}
-        onCheckedChange={onToggle}
-        className="shrink-0"
-      />
-      <Label
-        htmlFor={`nav-check-${id}`}
-        className="cursor-pointer select-none text-sm font-normal"
-      >
-        {label}
-      </Label>
-    </div>
-  );
-}
-
-// ── WorkspaceCheckRow ──────────────────────────────────────────────────────
-
-interface WorkspaceCheckRowProps {
-  id: string;
-  label: string;
-  checked: boolean;
-  activeDropEdge: Edge | null;
-  isDropTarget: boolean;
-  onToggle: () => void;
-  onDragOverItem: (targetId: string, edge: Edge | null) => void;
-  onDragLeaveItem: (targetId: string) => void;
-  onReorder: (sourceId: string, targetId: string, edge: Edge | null) => void;
-}
-
-export function WorkspaceCheckRow({
-  id,
-  label,
-  checked,
-  activeDropEdge,
-  isDropTarget,
-  onToggle,
-  onDragOverItem,
-  onDragLeaveItem,
-  onReorder,
-}: WorkspaceCheckRowProps) {
-  const ref = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-
-    return combine(
-      draggable({
-        element,
-        getInitialData: () => ({ type: "workspace-nav-item", itemId: id }),
-      }),
-      dropTargetForElements({
-        element,
-        canDrop: ({ source }) =>
-          source.data.type === "workspace-nav-item" && source.data.itemId !== id,
-        getData: ({ input, element: dropElement }) =>
-          attachClosestEdge(
-            { type: "workspace-nav-item", itemId: id },
-            { input, element: dropElement, allowedEdges: ["top", "bottom"] },
-          ),
-        onDragEnter: ({ self }) => { onDragOverItem(id, extractClosestEdge(self.data)); },
-        onDrag: ({ self }) => { onDragOverItem(id, extractClosestEdge(self.data)); },
-        onDragLeave: () => { onDragLeaveItem(id); },
-        onDrop: ({ source, self }) => {
-          const sourceId =
-            typeof source.data.itemId === "string" ? source.data.itemId : null;
-          if (!sourceId || sourceId === id) {
-            onDragLeaveItem(id);
-            return;
-          }
-          onReorder(sourceId, id, extractClosestEdge(self.data));
-          onDragLeaveItem(id);
-        },
-      }),
-    );
-  }, [id, onDragLeaveItem, onDragOverItem, onReorder]);
-
-  return (
-    <div ref={ref} className="relative">
-      <div className="flex items-center gap-3 rounded-md px-2 py-2 transition hover:bg-muted/50">
-        <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground/40 active:cursor-grabbing" />
-        <Checkbox
-          id={`nav-check-${id}`}
-          checked={checked}
-          onCheckedChange={onToggle}
-          className="shrink-0"
-        />
-        <Label
-          htmlFor={`nav-check-${id}`}
-          className="cursor-pointer select-none text-sm font-normal"
-        >
-          {label}
-        </Label>
-      </div>
-
-      {isDropTarget && activeDropEdge && (
-        <div className="pointer-events-none absolute inset-x-2">
-          <DropIndicator edge={activeDropEdge} />
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/_components/use-sidebar-locale.ts
-````typescript
-"use client";
-
-import { useState, useEffect } from "react";
-
-export interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
-
-/**
- * Loads the sidebar locale bundle from the public localized-files directory.
- * Returns null until the bundle is loaded or if loading fails (callers fall back to hardcoded labels).
- */
-export function useSidebarLocale(): SidebarLocaleBundle | null {
-  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadSidebarLocale() {
-      const isZhHant =
-        typeof navigator !== "undefined" &&
-        /^(zh-TW|zh-HK|zh-MO|zh-Hant)/i.test(navigator.language);
-      const localeFile = isZhHant ? "zh-TW.json" : "en.json";
-
-      try {
-        const response = await fetch(`/localized-files/${localeFile}`, { cache: "no-store" });
-        if (!response.ok) return;
-        const data = (await response.json()) as SidebarLocaleBundle;
-        if (!cancelled) {
-          setLocaleBundle(data);
-        }
-      } catch {
-        // Keep fallback labels when localization files are unavailable.
-      }
-    }
-
-    void loadSidebarLocale();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return localeBundle;
-}
-````
-
-## File: app/(shell)/ai-chat/ai-chat-helpers.ts
-````typescript
-import type { Thread } from "./_actions";
-
-// ── Domain types ──────────────────────────────────────────────────────────────
-
-export interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
-
-// ── Storage key ───────────────────────────────────────────────────────────────
-
-export const STORAGE_KEY = (accountId: string, workspaceId: string) =>
-  `nb_thread_${accountId}_${workspaceId || "default"}`;
-
-// ── Pure helpers ──────────────────────────────────────────────────────────────
-
-export function buildContextPrompt(history: ChatMessage[]): string {
-  if (history.length === 0) return "";
-  const lines = history.map((m) => `[${m.role === "user" ? "User" : "Assistant"}]: ${m.content}`);
-  return `Previous conversation context (for reference):\n${lines.join("\n")}\n\nPlease continue the conversation, taking the above context into account.`;
-}
-
-export function generateMsgId() {
-  return `msg_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
-}
-
-export function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: string): Thread {
-  return {
-    id,
-    messages: msgs.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: new Date().toISOString() })),
-    createdAt,
-    updatedAt: new Date().toISOString(),
-  };
-}
-````
-
-## File: app/(shell)/dev-tools/dev-tools-badges.tsx
-````typescript
-"use client";
-
-import { CheckCircle2, Loader2, XCircle } from "lucide-react";
-
-export function StatusBadge({ status, errorMessage }: { status: string; errorMessage?: string }) {
-  if (status === "completed") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
-        <CheckCircle2 className="size-3" /> 完成
-      </span>
-    );
-  }
-  if (status === "processing") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
-        <Loader2 className="size-3 animate-spin" /> 處理中
-      </span>
-    );
-  }
-  if (status === "error") {
-    return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
-        title={errorMessage}
-      >
-        <XCircle className="size-3" /> 錯誤
-      </span>
-    );
-  }
-  return <span className="text-xs text-muted-foreground">{status || "—"}</span>;
-}
-
-export function RagBadge({ status, error }: { status?: string; error?: string }) {
-  if (status === "ready") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
-        <CheckCircle2 className="size-3" /> RAG Ready
-      </span>
-    );
-  }
-  if (status === "error") {
-    return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
-        title={error}
-      >
-        <XCircle className="size-3" /> RAG Error
-      </span>
-    );
-  }
-  if (status) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
-        <Loader2 className="size-3 animate-spin" /> {status}
-      </span>
-    );
-  }
-  return <span className="text-xs text-muted-foreground">—</span>;
-}
-````
-
-## File: app/(shell)/dev-tools/dev-tools-parsed-docs-section.tsx
-````typescript
-"use client";
-
-/**
- * DevToolsParsedDocsSection.tsx
- * Owns: the "已解析檔案" (completed-only) table section in the Dev Tools page.
- * Receives all doc data and handlers as props; contains no state.
- */
-
-import { CheckCircle2, FlaskConical, Loader2 } from "lucide-react";
-
-import { type DocRecord } from "./dev-tools-helpers";
-import { RagBadge } from "./dev-tools-badges";
-import { formatDateTime } from "./use-dev-tools-doc-list";
-
-interface DevToolsParsedDocsSectionProps {
-  parsedDocs: DocRecord[];
-  reindexingId: string | null;
-  onViewJson: (doc: DocRecord) => void;
-  onManualProcess: (doc: DocRecord) => void;
-  formatNormalizationRatio: (doc: DocRecord) => string;
-}
-
-export function DevToolsParsedDocsSection({
-  parsedDocs,
-  reindexingId,
-  onViewJson,
-  onManualProcess,
-  formatNormalizationRatio,
-}: DevToolsParsedDocsSectionProps) {
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center gap-2">
-        <CheckCircle2 className="size-4 text-emerald-600" />
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          已解析檔案（{parsedDocs.length}）
-        </h2>
-      </div>
-      {parsedDocs.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-          尚無解析完成檔案
-        </p>
-      ) : (
-        <div className="overflow-hidden rounded-xl border border-emerald-500/20">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-sm">
-              <thead>
-                <tr className="border-b border-emerald-500/10 bg-emerald-500/5">
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Chunks / Vectors</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Normalization</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">版本 / 語系</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">JSON</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">完成時間</th>
-                </tr>
-              </thead>
-              <tbody>
-                {parsedDocs.map((doc, i) => (
-                  <tr
-                    key={`parsed-${doc.id}`}
-                    className={`border-b border-border/30 last:border-0 ${i % 2 === 0 ? "bg-background" : "bg-muted/20"}`}
-                  >
-                    <td className="px-4 py-2.5 font-mono text-xs max-w-[220px] truncate" title={doc.filename}>
-                      {doc.filename}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs font-medium">{doc.page_count ?? "—"}</td>
-                    <td className="px-4 py-2.5 text-xs">
-                      <RagBadge status={doc.rag_status} error={doc.rag_error} />
-                    </td>
-                    <td className="px-4 py-2.5 text-xs font-mono">
-                      {(doc.rag_chunk_count ?? 0).toLocaleString()} /{" "}
-                      {(doc.rag_vector_count ?? 0).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs font-mono">
-                      {formatNormalizationRatio(doc)}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs font-mono">
-                      {(doc.rag_normalization_version || "—").toUpperCase()} /{" "}
-                      {(doc.rag_language_hint || "—").toUpperCase()}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs max-w-[320px]">
-                      {doc.json_gcs_uri ? (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => { onViewJson(doc); }}
-                            className="font-mono text-left truncate text-primary hover:underline"
-                            title={doc.json_gcs_uri}
-                          >
-                            {doc.json_gcs_uri}
-                          </button>
-                          <button
-                            onClick={() => { onManualProcess(doc); }}
-                            disabled={reindexingId === doc.id}
-                            title="手動整理（Normalization + RAG）"
-                            className="inline-flex h-6 items-center gap-1 rounded-md border border-border/60 px-2 text-[11px] text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
-                          >
-                            {reindexingId === doc.id ? (
-                              <Loader2 className="size-3 animate-spin" />
-                            ) : (
-                              <FlaskConical className="size-3" />
-                            )}
-                            手動整理
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                      {formatDateTime(doc.uploaded_at)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </section>
-  );
-}
-````
-
-## File: app/(shell)/dev-tools/use-dev-tools-doc-list.ts
-````typescript
-"use client";
-
-/**
- * useDevToolsDocList.ts
- * Owns: Firestore subscription for the document list, JSON-preview state,
- *   and all per-document async operations (view, delete, reindex).
- */
-
-import { useEffect, useRef, useState } from "react";
-
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
-
-import {
   UPLOAD_BUCKET,
-  mapSnapshotDoc,
-  formatDateTime,
-  type DocRecord,
+  WATCH_PATH,
+  ACCEPTED_MIME,
+  ACCEPTED_EXTS,
+  asRecord,
+  asString,
+  asNumber,
+  type ParseResult,
+  type UploadStatus,
 } from "./dev-tools-helpers";
+import { StatusBadge, RagBadge } from "./dev-tools-badges";
+import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
+import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
 
-// ── Public state ───────────────────────────────────────────────────────────
+// ── Page component ─────────────────────────────────────────────────────────
 
-export interface DocListState {
-  allDocs: DocRecord[];
-  selectedDocId: string | null;
-  selectedDoc: DocRecord | undefined;
-  jsonContent: string | null;
-  jsonLoading: boolean;
-  deletingId: string | null;
-  reindexingId: string | null;
-}
+export default function DevToolsPage() {
+  const { state: appState } = useApp();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+  const activeWorkspaceId = appState.activeWorkspaceId ?? "";
 
-export interface DocListHandlers {
-  handleViewOriginal: (doc: DocRecord) => Promise<void>;
-  handleViewJson: (doc: DocRecord) => Promise<void>;
-  handleDeleteDoc: (doc: DocRecord) => Promise<void>;
-  handleManualProcess: (doc: DocRecord, appendLog: (msg: string) => void) => Promise<void>;
-  closeJsonPreview: () => void;
-  formatNormalizationRatio: (doc: DocRecord) => string;
-}
+  // ── Upload state ──────────────────────────────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<UploadStatus>("idle");
+  const [result, setResult] = useState<ParseResult | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [logs, setLogs] = useState<string[]>([]);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
-// ── Hook ───────────────────────────────────────────────────────────────────
-
-export function useDevToolsDocList(activeAccountId: string): DocListState & DocListHandlers {
-  const [allDocs, setAllDocs] = useState<DocRecord[]>([]);
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
-  const [jsonContent, setJsonContent] = useState<string | null>(null);
-  const [jsonLoading, setJsonLoading] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [reindexingId, setReindexingId] = useState<string | null>(null);
-
-  const unsubscribeListRef = useRef<(() => void) | null>(null);
-
-  // Subscribe to all documents for this account
-  useEffect(() => {
-    if (!activeAccountId) {
-      setAllDocs([]);
-      return;
-    }
-    try {
-      const db = getFirebaseFirestore();
-      const colRef = firestoreApi.collection(db, "accounts", activeAccountId, "documents");
-      unsubscribeListRef.current = firestoreApi.onSnapshot(colRef, (snapshot) => {
-        const docs: DocRecord[] = snapshot.docs.map(mapSnapshotDoc);
-        docs.sort((a, b) => (b.uploaded_at?.getTime() ?? 0) - (a.uploaded_at?.getTime() ?? 0));
-        setAllDocs(docs);
-      });
-    } catch (_err) {}
-    return () => { unsubscribeListRef.current?.(); };
-  }, [activeAccountId]);
-
-  function closeJsonPreview() {
-    setSelectedDocId(null);
-    setJsonContent(null);
-  }
-
-  async function handleViewOriginal(doc: DocRecord) {
-    if (!doc.gcs_uri) return;
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const fileRef = storageApi.ref(storage, doc.gcs_uri);
-      const url = await storageApi.getDownloadURL(fileRef);
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (err: unknown) {
-      alert(`無法取得下載連結：${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  async function handleViewJson(doc: DocRecord) {
-    if (!doc.json_gcs_uri) return;
-    if (selectedDocId === doc.id && jsonContent !== null) {
-      closeJsonPreview();
-      return;
-    }
-    setSelectedDocId(doc.id);
-    setJsonContent(null);
-    setJsonLoading(true);
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const jsonRef = storageApi.ref(storage, doc.json_gcs_uri);
-      const url = await storageApi.getDownloadURL(jsonRef);
-      const res = await fetch(url);
-      const text = await res.text();
-      setJsonContent(text);
-    } catch (err: unknown) {
-      setJsonContent(`// 載入失敗：${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setJsonLoading(false);
-    }
-  }
-
-  async function handleDeleteDoc(doc: DocRecord) {
-    if (
-      !window.confirm(
-        `確定刪除「${doc.filename}」？\n此操作將同時刪除 Firestore 記錄與 GCS 檔案，無法復原。`,
-      )
-    )
-      return;
-    setDeletingId(doc.id);
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const db = getFirebaseFirestore();
-      if (doc.gcs_uri) {
-        try { await storageApi.deleteObject(storageApi.ref(storage, doc.gcs_uri)); } catch (_err) {}
-      }
-      if (doc.json_gcs_uri) {
-        try { await storageApi.deleteObject(storageApi.ref(storage, doc.json_gcs_uri)); } catch (_err) {}
-      }
-      if (!activeAccountId) throw new Error("缺少 active account");
-      await firestoreApi.deleteDoc(
-        firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id),
-      );
-      if (selectedDocId === doc.id) closeJsonPreview();
-    } catch (err: unknown) {
-      alert(`刪除失敗：${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
-  async function handleManualProcess(
-    doc: DocRecord,
-    appendLog: (msg: string) => void,
-  ) {
-    if (!doc.json_gcs_uri) return;
-    if (!activeAccountId) {
-      alert("缺少 active account，無法手動整理");
-      return;
-    }
-    setReindexingId(doc.id);
-    appendLog(`🧹 手動整理開始：${doc.id}`);
-    try {
-      const functions = getFirebaseFunctions("asia-southeast1");
-      const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
-      await callable({
-        account_id: activeAccountId,
-        doc_id: doc.id,
-        json_gcs_uri: doc.json_gcs_uri,
-        source_gcs_uri: doc.gcs_uri,
-        filename: doc.filename,
-        page_count: doc.page_count ?? 0,
-      });
-      appendLog(`✅ 手動整理完成：${doc.id}`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      appendLog(`❌ 手動整理失敗：${msg}`);
-      alert(`手動整理失敗：${msg}`);
-    } finally {
-      setReindexingId(null);
-    }
-  }
-
-  function formatNormalizationRatio(doc: DocRecord): string {
-    const raw = doc.rag_raw_chars ?? 0;
-    const normalized = doc.rag_normalized_chars ?? 0;
-    if (raw <= 0 || normalized <= 0) return "—";
-    const ratio = (normalized / raw) * 100;
-    return `${normalized.toLocaleString()} / ${raw.toLocaleString()} (${ratio.toFixed(1)}%)`;
-  }
-
-  const selectedDoc = selectedDocId ? allDocs.find((d) => d.id === selectedDocId) : undefined;
-
-  return {
+  // ── Doc list + operations (extracted hook) ────────────────────────────────
+  const {
     allDocs,
     selectedDocId,
     selectedDoc,
@@ -61501,1138 +63810,403 @@ export function useDevToolsDocList(activeAccountId: string): DocListState & DocL
     handleManualProcess,
     closeJsonPreview,
     formatNormalizationRatio,
-    // re-export for table columns
-  };
-}
+  } = useDevToolsDocList(activeAccountId);
 
-// Re-export for convenience in table components
-export { formatDateTime };
-````
+  // Cleanup upload subscription on unmount
+  useEffect(() => {
+    return () => { if (unsubscribeRef.current) unsubscribeRef.current(); };
+  }, []);
 
-## File: app/(shell)/knowledge-base/articles/articles-category-panel.tsx
-````typescript
-"use client";
-
-import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, FolderOpen, Layers } from "lucide-react";
-
-import type { Category } from "@/modules/knowledge-base/api";
-
-// ── Category tree helpers ────────────────────────────────────────────────────
-
-export interface CategoryNode extends Category {
-  children: CategoryNode[];
-}
-
-export function buildCategoryTree(categories: Category[]): CategoryNode[] {
-  const map = new Map<string, CategoryNode>();
-  for (const cat of categories) {
-    map.set(cat.id, { ...cat, children: [] });
+  function appendLog(msg: string) {
+    setLogs((prev) => [
+      ...prev,
+      `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`,
+    ]);
   }
-  const roots: CategoryNode[] = [];
-  for (const node of map.values()) {
-    if (node.parentCategoryId) {
-      map.get(node.parentCategoryId)?.children.push(node);
-    } else {
-      roots.push(node);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    setResult(null);
+    setErrorMsg(null);
+    setStatus("idle");
+    setLogs([]);
+    if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
+  }
+
+  function buildUuidUploadPath(accountId: string, file: File) {
+    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
+    const docId = crypto.randomUUID();
+    return { uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`, docId };
+  }
+
+  function watchDocument(docId: string) {
+    if (!activeAccountId) {
+      appendLog("❌ 缺少 active account，無法監聽文件狀態");
+      return;
     }
-  }
-  return roots;
-}
-
-// ── Category tree panel ──────────────────────────────────────────────────────
-
-interface CategoryTreePanelProps {
-  categories: Category[];
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-}
-
-export function CategoryTreePanel({ categories, selectedId, onSelect }: CategoryTreePanelProps) {
-  const roots = useMemo(() => buildCategoryTree(categories), [categories]);
-
-  return (
-    <aside className="w-52 shrink-0 space-y-1">
-      <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-        分類
-      </p>
-      <button
-        type="button"
-        onClick={() => onSelect(null)}
-        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
-          selectedId === null
-            ? "bg-primary/10 text-primary font-medium"
-            : "text-foreground hover:bg-muted"
-        }`}
-      >
-        <Layers className="size-3.5 shrink-0 text-muted-foreground" />
-        全部文章
-      </button>
-      {roots.map((node) => (
-        <CategoryNodeRow
-          key={node.id}
-          node={node}
-          selectedId={selectedId}
-          onSelect={onSelect}
-        />
-      ))}
-      {categories.length === 0 && (
-        <p className="px-2 text-xs text-muted-foreground/60">尚無分類</p>
-      )}
-    </aside>
-  );
-}
-
-interface CategoryNodeRowProps {
-  node: CategoryNode;
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-}
-
-function CategoryNodeRow({ node, selectedId, onSelect }: CategoryNodeRowProps) {
-  const [expanded, setExpanded] = useState(true);
-  const hasChildren = node.children.length > 0;
-  const isSelected = selectedId === node.id;
-
-  return (
-    <div>
-      <div className="flex items-center gap-0.5">
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="p-0.5 text-muted-foreground opacity-0 transition hover:opacity-100"
-          style={{ visibility: hasChildren ? "visible" : "hidden" }}
-          aria-label={expanded ? "折疊" : "展開"}
-        >
-          {expanded ? (
-            <ChevronDown className="size-3" />
-          ) : (
-            <ChevronRight className="size-3" />
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => onSelect(node.id)}
-          className={`flex flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors ${
-            isSelected
-              ? "bg-primary/10 text-primary font-medium"
-              : "text-foreground hover:bg-muted"
-          }`}
-        >
-          <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="truncate">{node.name}</span>
-          {node.articleIds.length > 0 && (
-            <span className="ml-auto text-[10px] text-muted-foreground/60">
-              {node.articleIds.length}
-            </span>
-          )}
-        </button>
-      </div>
-      {hasChildren && expanded && (
-        <div className="ml-4 space-y-0.5 border-l border-border/40 pl-1">
-          {node.children.map((child) => (
-            <CategoryNodeRow
-              key={child.id}
-              node={child}
-              selectedId={selectedId}
-              onSelect={onSelect}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/knowledge-base/articles/page.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { getArticles, getCategories, ArticleDialog } from "@/modules/knowledge-base/api";
-import type { Article, ArticleStatus, VerificationState, Category } from "@/modules/knowledge-base/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { CategoryTreePanel } from "./articles-category-panel";
-
-const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "草稿", variant: "outline" },
-  published: { label: "已發佈", variant: "default" },
-  archived: { label: "已封存", variant: "secondary" },
-};
-
-const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
-  verified: { label: "已驗證", icon: BadgeCheck },
-  needs_review: { label: "待審查", icon: FileClock },
-  unverified: { label: "未驗證", icon: CircleDot },
-};
-
-// ── Main page ────────────────────────────────────────────────────────────────
-
-export default function KnowledgeBaseArticlesPage() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    if (!accountId || !workspaceId) { setLoading(false); return; }
-    setLoading(true);
     try {
-      const [arts, cats] = await Promise.all([
-        getArticles({ accountId, workspaceId }),
-        getCategories(accountId, workspaceId),
-      ]);
-      setArticles(arts);
-      setCategories(cats);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const filteredArticles = useMemo(() => {
-    if (!selectedCategoryId) return articles;
-    const cat = categories.find((c) => c.id === selectedCategoryId);
-    if (!cat) return articles;
-    return articles.filter((a) => cat.articleIds.includes(a.id));
-  }, [articles, categories, selectedCategoryId]);
-
-  function handleSuccess(articleId?: string) {
-    if (articleId) {
-      router.push(`/knowledge-base/articles/${articleId}`);
-    } else {
-      load();
+      const db = getFirebaseFirestore();
+      const docRef = firestoreApi.doc(db, "accounts", activeAccountId, "documents", docId);
+      if (unsubscribeRef.current) unsubscribeRef.current();
+      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {
+        if (!snapshot.exists()) { appendLog("等待 Firestore 初始化…"); return; }
+        const data = asRecord(snapshot.data());
+        const docStatus = asString(data.status, "unknown");
+        appendLog(`Firestore update: status=${docStatus}`);
+        if (docStatus === "completed") {
+          const parsed = asRecord(data.parsed);
+          const r: ParseResult = {
+            doc_id: docId,
+            status: "completed",
+            page_count: asNumber(parsed.page_count) ?? 0,
+            json_gcs_uri: asString(parsed.json_gcs_uri),
+          };
+          setResult(r);
+          setStatus("done");
+          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
+          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+        } else if (docStatus === "error") {
+          const error = asRecord(data.error);
+          const msg = asString(error.message, "未知錯誤");
+          setErrorMsg(msg);
+          setStatus("error");
+          appendLog(`❌ 錯誤：${msg}`);
+          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+        }
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appendLog(`❌ 監聽失敗：${msg}`);
+      setErrorMsg(msg);
+      setStatus("error");
     }
   }
 
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
-        <p className="text-sm text-muted-foreground">
-          組織知識庫的 SOP 文章、通用文件與驗證管治。
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push("/knowledge")}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!accountId || !workspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增文章
-        </Button>
-      </div>
-
-      <ArticleDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        categories={categories}
-        onSuccess={handleSuccess}
-      />
-
-      {!accountId || !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
-        </p>
-      ) : loading ? (
-        <div className="flex gap-4">
-          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
-          <div className="grid flex-1 gap-3 sm:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full rounded-lg" />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="flex gap-4">
-          <CategoryTreePanel
-            categories={categories}
-            selectedId={selectedCategoryId}
-            onSelect={setSelectedCategoryId}
-          />
-
-          <div className="flex-1">
-            {filteredArticles.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
-                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {filteredArticles.map((article) => {
-                  const status = STATUS_CONFIG[article.status];
-                  const veri = VERIFICATION_CONFIG[article.verificationState];
-                  const VeriIcon = veri.icon;
-                  return (
-                    <Card
-                      key={article.id}
-                      className="cursor-pointer hover:bg-muted/10 transition-colors"
-                      onClick={() => router.push(`/knowledge-base/articles/${article.id}`)}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
-                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <VeriIcon className="h-3 w-3" />
-                          <span>{veri.label}</span>
-                        </div>
-                        {article.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {article.tags.slice(0, 3).map((tag) => (
-                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <p className="text-[10px] text-muted-foreground/70">
-                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/knowledge-database/databases/[databaseId]/database-add-field-dialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import type { FieldType } from "@/modules/knowledge-database/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@ui-shadcn/ui/select";
-
-export const FIELD_TYPES: { value: FieldType; label: string }[] = [
-  { value: "text", label: "文字" },
-  { value: "number", label: "數字" },
-  { value: "checkbox", label: "核取方塊" },
-  { value: "date", label: "日期" },
-  { value: "select", label: "單選" },
-  { value: "multi_select", label: "多選" },
-  { value: "url", label: "URL" },
-  { value: "email", label: "電子郵件" },
-];
-
-interface AddFieldDialogProps {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  onAdd: (name: string, type: FieldType, required: boolean) => void;
-  isPending: boolean;
-}
-
-export function AddFieldDialog({ open, onOpenChange, onAdd, isPending }: AddFieldDialogProps) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState<FieldType>("text");
-  const [required, setRequired] = useState(false);
+  async function handleUploadAndParse() {
+    if (!selectedFile) return;
+    if (!activeAccountId) {
+      setErrorMsg("缺少 active account，無法上傳與解析");
+      setStatus("error");
+      return;
+    }
+    setStatus("uploading");
+    setResult(null);
+    setErrorMsg(null);
+    appendLog("📤 上傳檔案到 Cloud Storage…");
+    try {
+      // Step 1: Upload to GCS
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);
+      const fileRef = storageApi.ref(storage, uploadPath);
+      const snap = await storageApi.uploadBytes(fileRef, selectedFile, {
+        contentType: ACCEPTED_MIME[selectedFile.name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream",
+        customMetadata: {
+          account_id: activeAccountId,
+          workspace_id: activeWorkspaceId,
+          filename: selectedFile.name,
+        },
+      });
+      appendLog(`✅ 上傳完成：${snap.ref.fullPath}`);
+      // Step 2: Watch Firestore for status updates
+      setStatus("waiting");
+      appendLog("⏳ 等待 parse_document 處理…");
+      watchDocument(docId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setErrorMsg(msg);
+      setStatus("error");
+      appendLog(`❌ 上傳失敗：${msg}`);
+    }
+  }
 
   function reset() {
-    setName(""); setType("text"); setRequired(false);
+    if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+    setSelectedFile(null);
+    setResult(null);
+    setErrorMsg(null);
+    setStatus("idle");
+    setLogs([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function handleOpenChange(v: boolean) {
-    if (!v) reset();
-    onOpenChange(v);
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    onAdd(name.trim(), type, required);
-    reset();
-    onOpenChange(false);
-  }
+  const isLoading = status === "uploading" || status === "waiting";
+  const parsedDocs = allDocs.filter((doc) => doc.status === "completed");
+  const ragReadyCount = allDocs.filter((doc) => doc.rag_status === "ready").length;
+  const ragErrorCount = allDocs.filter((doc) => doc.rag_status === "error").length;
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader><DialogTitle>新增欄位</DialogTitle></DialogHeader>
-        <form id="field-form" className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-1.5">
-            <Label htmlFor="field-name">名稱 *</Label>
-            <Input id="field-name" value={name} onChange={(e) => setName(e.target.value)} disabled={isPending} placeholder="欄位名稱" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>類型</Label>
-            <Select value={type} onValueChange={(v) => setType(v as FieldType)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {FIELD_TYPES.map((ft) => (
-                  <SelectItem key={ft.value} value={ft.value}>{ft.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              id="field-required"
-              type="checkbox"
-              checked={required}
-              onChange={(e) => setRequired(e.target.checked)}
-              className="h-4 w-4"
-            />
-            <Label htmlFor="field-required" className="cursor-pointer">必填欄位</Label>
-          </div>
-        </form>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>取消</Button>
-          <Button type="submit" form="field-form" disabled={isPending || !name.trim()}>新增</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: app/(shell)/knowledge-database/databases/[databaseId]/page.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, FileText, PlusCircle, Table2, Kanban, List, Calendar, LayoutGrid, Zap } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import {
-  getDatabase,
-  addDatabaseField,
-  archiveDatabase,
-  DatabaseTableView,
-  DatabaseBoardView,
-  DatabaseListView,
-  DatabaseCalendarView,
-  DatabaseGalleryView,
-  DatabaseAutomationView,
-} from "@/modules/knowledge-database/api";
-import type { Database, FieldType } from "@/modules/knowledge-database/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { AddFieldDialog } from "./database-add-field-dialog";
-
-export default function DatabaseDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const databaseId = params.databaseId as string;
-
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  const [database, setDatabase] = useState<Database | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [addFieldOpen, setAddFieldOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"table" | "board" | "list" | "calendar" | "gallery" | "automations">("table");
-  const [isPending, startTransition] = useTransition();
-
-  const load = useCallback(async () => {
-    if (!accountId || !databaseId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const db = await getDatabase(accountId, databaseId);
-      setDatabase(db);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, databaseId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  function handleAddField(name: string, type: FieldType, required: boolean) {
-    startTransition(async () => {
-      await addDatabaseField({
-        databaseId,
-        accountId,
-        field: { name, type, config: {}, required },
-      });
-      await load();
-    });
-  }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveDatabase(accountId, databaseId);
-      router.push("/knowledge-database/databases");
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-      </div>
-    );
-  }
-
-  if (!database) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Top bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
-        </Button>
-      </div>
-
-      {/* Page header */}
-      <header className="space-y-1 border-b border-border/60 pb-4">
-        <div className="flex items-center gap-2">
-          {database.icon && <span className="text-xl">{database.icon}</span>}
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{database.name}</h1>
+    <div className="mx-auto max-w-2xl space-y-8">
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
+          <FlaskConical className="size-5 text-amber-500" />
         </div>
-        {database.description && (
-          <p className="text-sm text-muted-foreground">{database.description}</p>
-        )}
-        <p className="text-xs text-muted-foreground/70">
-          {database.fields.length} 個欄位 · 更新於 {new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
-        </p>
-      </header>
-
-      {/* View switcher + actions */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center rounded-md border border-border/60 p-0.5">
-          <button
-            type="button"
-            onClick={() => setViewMode("table")}
-            title="表格視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Table2 className="h-3 w-3" /> 表格
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("board")}
-            title="看板視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "board" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Kanban className="h-3 w-3" /> 看板
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("list")}
-            title="清單視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <List className="h-3 w-3" /> 清單
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("calendar")}
-            title="日曆視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Calendar className="h-3 w-3" /> 日曆
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("gallery")}
-            title="圖庫視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "gallery" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <LayoutGrid className="h-3 w-3" /> 圖庫
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("automations")}
-            title="自動化規則"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "automations" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Zap className="h-3 w-3" /> 自動化
-          </button>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => router.push(`/knowledge-database/databases/${databaseId}/forms`)} disabled={isPending}>
-            <FileText className="mr-1.5 h-3.5 w-3.5" /> 表單
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
-            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
-            <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
-          </Button>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Dev Tools</h1>
+          <p className="text-xs text-muted-foreground">
+            py_fn · parse_document · Document AI · Firestore 實時監聽
+          </p>
         </div>
       </div>
 
-      {/* View */}
-      {viewMode === "table" && (
-        <DatabaseTableView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "board" && (
-        <DatabaseBoardView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "list" && (
-        <DatabaseListView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "calendar" && (
-        <DatabaseCalendarView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "gallery" && (
-        <DatabaseGalleryView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "automations" && (
-        <DatabaseAutomationView
-          databaseId={databaseId}
-          accountId={accountId}
-          currentUserId={currentUserId}
-        />
-      )}
+      {/* ── Stats ──────────────────────────────────────────────────── */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">全部文件</p>
+          <p className="text-lg font-semibold tracking-tight">{allDocs.length}</p>
+        </div>
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+          <p className="text-[11px] text-emerald-700">解析完成</p>
+          <p className="text-lg font-semibold tracking-tight text-emerald-700">{parsedDocs.length}</p>
+        </div>
+        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+          <p className="text-[11px] text-blue-700">RAG Ready</p>
+          <p className="text-lg font-semibold tracking-tight text-blue-700">{ragReadyCount}</p>
+        </div>
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
+          <p className="text-[11px] text-destructive">RAG Error</p>
+          <p className="text-lg font-semibold tracking-tight text-destructive">{ragErrorCount}</p>
+        </div>
+      </section>
 
-      <AddFieldDialog
-        open={addFieldOpen}
-        onOpenChange={setAddFieldOpen}
-        onAdd={handleAddField}
-        isPending={isPending}
-      />
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/knowledge/pages/[pageId]/knowledge-page-header-widgets.tsx
-````typescript
-"use client";
-
-import { useEffect, useRef, useState } from "react";
-import { Check, ImageIcon, Pencil, Smile } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@ui-shadcn/ui/popover";
-
-// ── Title editor ──────────────────────────────────────────────────────────────
-
-export interface TitleEditorProps {
-  initialTitle: string;
-  onSave: (title: string) => void;
-  isPending: boolean;
-}
-
-export function TitleEditor({ initialTitle, onSave, isPending }: TitleEditorProps) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(initialTitle);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => { setValue(initialTitle); }, [initialTitle]);
-
-  function startEdit() {
-    setEditing(true);
-    setTimeout(() => inputRef.current?.focus(), 0);
-  }
-
-  function commit() {
-    setEditing(false);
-    const trimmed = value.trim();
-    if (trimmed && trimmed !== initialTitle) {
-      onSave(trimmed);
-    } else {
-      setValue(initialTitle);
-    }
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter") { e.preventDefault(); commit(); }
-    if (e.key === "Escape") { setValue(initialTitle); setEditing(false); }
-  }
-
-  if (editing) {
-    return (
-      <div className="flex items-center gap-2">
-        <Input
-          ref={inputRef}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={commit}
-          onKeyDown={handleKeyDown}
-          disabled={isPending}
-          className="h-auto border-0 bg-transparent px-0 text-2xl font-semibold tracking-tight shadow-none focus-visible:ring-0"
-        />
-        <button
-          type="button"
-          onClick={commit}
-          disabled={isPending}
-          className="rounded p-1 text-muted-foreground hover:text-foreground"
-          aria-label="儲存標題"
+      {/* ── File picker ────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          1. 選擇檔案
+        </h2>
+        <label
+          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 transition
+            ${selectedFile ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
         >
-          <Check className="size-4" />
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="group flex items-center gap-2">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">{value}</h1>
-      <button
-        type="button"
-        onClick={startEdit}
-        disabled={isPending}
-        className="invisible rounded p-1 text-muted-foreground hover:text-foreground group-hover:visible"
-        aria-label="重新命名頁面"
-      >
-        <Pencil className="size-3.5" />
-      </button>
-    </div>
-  );
-}
-
-// ── Icon picker ───────────────────────────────────────────────────────────────
-
-const QUICK_EMOJIS = ["📄", "📝", "📚", "💡", "🎯", "🚀", "⭐", "🔑", "📌", "🗂️", "🏷️", "🔖", "📋", "🗒️", "📊", "🔍"];
-
-export interface IconPickerProps {
-  value?: string;
-  onChange: (icon: string) => void;
-  isPending: boolean;
-}
-
-export function IconPicker({ value, onChange, isPending }: IconPickerProps) {
-  const [open, setOpen] = useState(false);
-  const [custom, setCustom] = useState("");
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          disabled={isPending}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-border/60 bg-muted/30 text-xl hover:bg-muted/60 transition"
-          title="設定頁面圖示"
-        >
-          {value ? value : <Smile className="h-5 w-5 text-muted-foreground" />}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-64 p-3">
-        <p className="mb-2 text-xs font-medium text-muted-foreground">選擇圖示</p>
-        <div className="mb-3 grid grid-cols-8 gap-1">
-          {QUICK_EMOJIS.map((e) => (
-            <button
-              key={e}
-              type="button"
-              onClick={() => { onChange(e); setOpen(false); }}
-              className="rounded p-1 text-lg hover:bg-muted transition"
-            >
-              {e}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <Input
-            value={custom}
-            onChange={(e) => setCustom(e.target.value)}
-            placeholder="輸入 emoji 或文字"
-            className="h-7 text-xs"
+          <FileUp className="size-8 text-muted-foreground" />
+          <div className="text-center">
+            <p className="text-sm font-medium">
+              {selectedFile ? selectedFile.name : "點擊或拖曳上傳"}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={Object.keys(ACCEPTED_MIME).join(",")}
+            className="sr-only"
+            onChange={handleFileChange}
           />
-          <Button
-            size="sm"
-            className="h-7 px-2 text-xs"
-            disabled={!custom.trim()}
-            onClick={() => { onChange(custom.trim()); setCustom(""); setOpen(false); }}
-          >
-            套用
+        </label>
+      </section>
+
+      {/* ── Actions ────────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          2. 執行上傳 &amp; 解析
+        </h2>
+        <div className="flex gap-3">
+          <Button onClick={handleUploadAndParse} disabled={!selectedFile || isLoading} className="gap-2">
+            {isLoading ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />}
+            {status === "uploading" ? "上傳中…" : status === "waiting" ? "等待中…" : "開始"}
+          </Button>
+          <Button variant="outline" onClick={reset} disabled={isLoading}>
+            重置
           </Button>
         </div>
-        {value && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-2 h-7 w-full text-xs text-muted-foreground"
-            onClick={() => { onChange(""); setOpen(false); }}
-          >
-            移除圖示
-          </Button>
-        )}
-      </PopoverContent>
-    </Popover>
-  );
-}
+      </section>
 
-// ── Cover editor ──────────────────────────────────────────────────────────────
-
-export interface CoverEditorProps {
-  value?: string;
-  onChange: (url: string) => void;
-  isPending: boolean;
-}
-
-export function CoverEditor({ value, onChange, isPending }: CoverEditorProps) {
-  const [open, setOpen] = useState(false);
-  const [url, setUrl] = useState(value ?? "");
-
-  return (
-    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (v) setUrl(value ?? ""); }}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          disabled={isPending}
-          className="flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/50 transition"
-          title="設定封面圖片"
-        >
-          <ImageIcon className="h-3.5 w-3.5" />
-          {value ? "變更封面" : "新增封面"}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-72 p-3">
-        <p className="mb-2 text-xs font-medium text-muted-foreground">封面圖片 URL</p>
-        <div className="flex gap-2">
-          <Input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://..."
-            className="h-7 text-xs"
-          />
-          <Button
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={() => { onChange(url.trim()); setOpen(false); }}
-          >
-            套用
-          </Button>
-        </div>
-        {value && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-2 h-7 w-full text-xs text-muted-foreground"
-            onClick={() => { onChange(""); setOpen(false); }}
-          >
-            移除封面
-          </Button>
-        )}
-      </PopoverContent>
-    </Popover>
-  );
-}
-````
-
-## File: app/(shell)/knowledge/pages/[pageId]/page.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import {
-  getKnowledgePage,
-  renameKnowledgePage,
-  archiveKnowledgePage,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-  PageEditorView,
-} from "@/modules/knowledge/api";
-import type { KnowledgePage } from "@/modules/knowledge/api";
-import { CommentPanel } from "@/modules/knowledge-collaboration/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { TitleEditor, IconPicker, CoverEditor } from "./knowledge-page-header-widgets";
-
-// ── Page ──────────────────────────────────────────────────────────────────────
-
-export default function KnowledgePageDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const pageId = params.pageId as string;
-
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-
-  const [page, setPage] = useState<KnowledgePage | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [commentOpen, setCommentOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-
-  const load = useCallback(async () => {
-    if (!accountId || !pageId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const p = await getKnowledgePage(accountId, pageId);
-      setPage(p);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, pageId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handleRename(title: string) {
-    startTransition(async () => {
-      const result = await renameKnowledgePage({ accountId, pageId, title });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, title } : prev);
-      }
-    });
-  }
-
-  function handleIconChange(iconUrl: string) {
-    startTransition(async () => {
-      const result = await updateKnowledgePageIcon({ accountId, pageId, iconUrl });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, iconUrl: iconUrl || undefined } : prev);
-      }
-    });
-  }
-
-  function handleCoverChange(coverUrl: string) {
-    startTransition(async () => {
-      const result = await updateKnowledgePageCover({ accountId, pageId, coverUrl });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, coverUrl: coverUrl || undefined } : prev);
-      }
-    });
-  }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveKnowledgePage({ accountId, pageId });
-      router.push("/knowledge/pages");
-    });
-  }
-
-  // ── Loading skeleton ────────────────────────────────────────────────────────
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-6 w-72" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </div>
-    );
-  }
-
-  // ── Not found ───────────────────────────────────────────────────────────────
-
-  if (!page) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge/pages")}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" />
-          頁面列表
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到此頁面，可能已被封存或刪除。</p>
-      </div>
-    );
-  }
-
-  // ── Page view ───────────────────────────────────────────────────────────────
-
-  const updatedAt = page.updatedAtISO
-    ? new Date(page.updatedAtISO).toLocaleDateString("zh-TW", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : null;
-
-  return (
-    <div className="space-y-0">
-      {/* Cover image */}
-      {page.coverUrl && (
-        <div
-          className="relative h-40 w-full overflow-hidden rounded-t-xl bg-muted"
-          style={{ backgroundImage: `url(${page.coverUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
-        />
-      )}
-
-      <div className="space-y-4 px-0 pt-4">
-        {/* Top bar */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge/pages")}>
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
-            頁面列表
-          </Button>
-          <div className="ml-auto flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={commentOpen ? "default" : "outline"}
-              onClick={() => setCommentOpen((v) => !v)}
-            >
-              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-              留言
-            </Button>
-            {page.status === "active" && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleArchive}
-                disabled={isPending}
-              >
-                <Archive className="mr-1.5 h-3.5 w-3.5" />
-                封存
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Page header */}
-        <header className="space-y-2 border-b border-border/60 pb-4">
-          {/* Icon row */}
-          <div className="flex items-end gap-3">
-            <IconPicker
-              value={page.iconUrl}
-              onChange={handleIconChange}
-              isPending={isPending}
-            />
-            <CoverEditor
-              value={page.coverUrl}
-              onChange={handleCoverChange}
-              isPending={isPending}
-            />
-          </div>
-          <TitleEditor
-            initialTitle={page.title}
-            onSave={handleRename}
-            isPending={isPending}
-          />
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {page.status === "archived" && (
-              <Badge variant="secondary">已封存</Badge>
-            )}
-            {page.approvalState === "approved" && (
-              <Badge variant="default">已審核</Badge>
-            )}
-            {page.verificationState === "verified" && (
-              <Badge variant="outline">已驗證</Badge>
-            )}
-            {page.verificationState === "needs_review" && (
-              <Badge variant="destructive">待審查</Badge>
-            )}
-            {updatedAt && <span>更新於 {updatedAt}</span>}
-          </div>
-        </header>
-
-        {/* Main content + optional comment side panel */}
-        <div className={`flex gap-4 ${commentOpen ? "items-start" : ""}`}>
-          {/* Block editor — connected to Firebase */}
-          <div className="min-w-0 flex-1">
-            {accountId ? (
-              <PageEditorView accountId={accountId} pageId={pageId} />
-            ) : (
-              <p className="text-sm text-muted-foreground">請先登入以載入內容。</p>
-            )}
-          </div>
-
-          {/* Comment panel — slides in from right */}
-          {commentOpen && accountId && (
-            <aside className="w-72 shrink-0 rounded-xl border border-border/60 bg-card p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-semibold">留言</span>
-                <button
-                  type="button"
-                  onClick={() => setCommentOpen(false)}
-                  className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground"
-                  aria-label="關閉留言面板"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
+      {/* ── Result ─────────────────────────────────────────────────── */}
+      {(status === "done" || status === "error") && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            3. 結果
+          </h2>
+          {status === "done" && result && (
+            <div className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
+              <div className="flex items-center gap-2 text-emerald-600">
+                <CheckCircle2 className="size-4 shrink-0" />
+                <span className="text-sm font-medium">解析成功</span>
               </div>
-              <CommentPanel
-                accountId={accountId}
-                workspaceId={appState.activeWorkspaceId ?? ""}
-                contentId={pageId}
-                contentType="page"
-                currentUserId={authState.user?.id ?? ""}
-              />
-            </aside>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <dt className="text-muted-foreground">doc_id</dt>
+                <dd className="font-mono text-xs">{result.doc_id}</dd>
+                <dt className="text-muted-foreground">page_count</dt>
+                <dd className="font-bold">{result.page_count}</dd>
+                <dt className="text-muted-foreground">JSON 位置</dt>
+                <dd className="font-mono text-xs break-all">{result.json_gcs_uri || "—"}</dd>
+              </dl>
+            </div>
           )}
+          {status === "error" && (
+            <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+              <XCircle className="mt-0.5 size-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+        </section>
+      )}
+
+      {status === "waiting" && (
+        <section className="space-y-3">
+          <div className="flex items-start gap-2 rounded-xl border border-blue-300/30 bg-blue-500/5 p-4 text-sm text-blue-600">
+            <AlertCircle className="mt-0.5 size-4 shrink-0 animate-pulse" />
+            <div>
+              <p className="font-medium">處理中…</p>
+              <p className="mt-1 text-xs opacity-75">Document AI 正在解析檔案，請稍候</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── All uploaded docs table ─────────────────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <FileText className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            已上傳檔案（{allDocs.length}）
+          </h2>
         </div>
-      </div>
+        {allDocs.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+            尚無上傳記錄
+          </p>
+        ) : (
+          <div className="space-y-0 overflow-hidden rounded-xl border border-border/60">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead>
+                  <tr className="border-b border-border/60 bg-muted/40">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allDocs.map((doc, i) => (
+                    <tr
+                      key={doc.id}
+                      className={`border-b border-border/40 last:border-0 transition-colors ${
+                        selectedDocId === doc.id
+                          ? "bg-primary/8 ring-1 ring-inset ring-primary/20"
+                          : i % 2 === 0 ? "bg-background" : "bg-muted/20"
+                      }`}
+                    >
+                      <td className="px-4 py-2.5 font-mono text-xs max-w-[180px] truncate" title={doc.filename}>
+                        {doc.filename}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <StatusBadge status={doc.status} errorMessage={doc.error_message} />
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <RagBadge status={doc.rag_status} error={doc.rag_error} />
+                      </td>
+                      <td className="px-4 py-2.5 text-xs">
+                        {doc.page_count != null ? doc.page_count : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                        {formatDateTime(doc.uploaded_at)}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => { void handleViewOriginal(doc); }}
+                            disabled={!doc.gcs_uri}
+                            title="查看原始檔案"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
+                          >
+                            <ExternalLink className="size-3.5" />
+                          </button>
+                          <button
+                            onClick={() => { void handleViewJson(doc); }}
+                            disabled={doc.status !== "completed" || !doc.json_gcs_uri}
+                            title="查看 JSON 解析結果"
+                            className={`inline-flex size-7 items-center justify-center rounded-md transition hover:bg-muted disabled:opacity-30 ${
+                              selectedDocId === doc.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            <Code2 className="size-3.5" />
+                          </button>
+                          <button
+                            onClick={() => { void handleDeleteDoc(doc); }}
+                            disabled={deletingId === doc.id}
+                            title="刪除"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                          >
+                            {deletingId === doc.id
+                              ? <Loader2 className="size-3.5 animate-spin" />
+                              : <Trash2 className="size-3.5" />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* JSON preview panel */}
+            {selectedDocId && (
+              <div className="border-t border-border/60 bg-[#0d1117]">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
+                  <div className="flex items-center gap-2 text-xs text-green-400">
+                    <Code2 className="size-3.5" />
+                    <span className="font-mono">
+                      {selectedDoc?.filename ?? selectedDocId} — JSON
+                    </span>
+                  </div>
+                  <button
+                    onClick={closeJsonPreview}
+                    className="text-white/30 hover:text-white/70 transition text-xs"
+                  >
+                    ✕ 關閉
+                  </button>
+                </div>
+                {selectedDoc?.rag_status === "error" && (
+                  <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs text-destructive">
+                    RAG 失敗：{selectedDoc.rag_error || "未知錯誤"}
+                  </div>
+                )}
+                <div className="max-h-80 overflow-y-auto p-4">
+                  {jsonLoading ? (
+                    <div className="flex items-center gap-2 text-green-400/60 text-xs">
+                      <Loader2 className="size-3.5 animate-spin" /> 載入中…
+                    </div>
+                  ) : (
+                    <pre className="font-mono text-xs leading-relaxed text-green-400 whitespace-pre-wrap break-words">
+                      {jsonContent}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ── Parsed docs table (extracted component) ─────────────────── */}
+      <DevToolsParsedDocsSection
+        parsedDocs={parsedDocs}
+        reindexingId={reindexingId}
+        onViewJson={(doc) => { void handleViewJson(doc); }}
+        onManualProcess={(doc) => { void handleManualProcess(doc, appendLog); }}
+        formatNormalizationRatio={formatNormalizationRatio}
+      />
+
+      {/* ── Console log ────────────────────────────────────────────── */}
+      {logs.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            Console
+          </h2>
+          <div className="max-h-48 overflow-y-auto rounded-xl bg-[#0d1117] p-4">
+            {logs.map((line, i) => (
+              <p key={i} className="font-mono text-xs leading-relaxed text-green-400">
+                {line}
+              </p>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
@@ -63012,155 +64586,6 @@ description: Feature（Use Case）層設計規範，負責跨 Bounded Context �
       *.tsx
     hooks/            # React hooks（可選）
     state/            # client state（可選）
-````
-
-## File: modules/account/api/index.ts
-````typescript
-/**
- * account 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 account 模組內部實作。
- */
-
-// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
-
-export type {
-  AccountEntity,
-  AccountType,
-  OrganizationRole,
-  Presence,
-  ThemeConfig,
-  Wallet,
-  ExpertiseBadge,
-} from "../domain/entities/Account";
-
-export type {
-  AccountPolicy,
-  PolicyRule,
-  PolicyEffect,
-} from "../domain/entities/AccountPolicy";
-
-// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
-
-export {
-  getUserProfile,
-  subscribeToUserProfile,
-  subscribeToAccountsForUser,
-  getAccountRole,
-  subscribeToAccountRoles,
-  getAccountPolicies,
-  getActiveAccountPolicies,
-} from "../interfaces/queries/account.queries";
-
-// ─── Use Cases (供 composition root / app layer 使用) ────────────────────────
-
-export { CreateUserAccountUseCase } from "../application/use-cases/account.use-cases";
-
-// ─── Infrastructure (供 composition root 使用) ───────────────────────────────
-
-export { FirebaseAccountRepository } from "../infrastructure/firebase/FirebaseAccountRepository";
-
-// ─── Client-side use-case factory (client-only — do NOT import in Server Components) ──
-
-import { FirebaseAccountRepository as _AccountRepo } from "../infrastructure/firebase/FirebaseAccountRepository";
-import { CreateUserAccountUseCase as _CreateAccount } from "../application/use-cases/account.use-cases";
-
-/**
- * Creates a wired set of client-side account use cases for use in "use client" components.
- * Keeps infrastructure wiring in the module boundary rather than in UI files.
- */
-export function createClientAccountUseCases() {
-  const repo = new _AccountRepo();
-  return {
-    createUserAccountUseCase: new _CreateAccount(repo),
-  };
-}
-````
-
-## File: modules/identity/api/index.ts
-````typescript
-/**
- * identity 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 identity 模組內部實作。
- */
-
-import { FirebaseTokenRefreshRepository } from "../infrastructure/firebase/FirebaseTokenRefreshRepository";
-import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
-import type { TokenRefreshReason } from "../domain/entities/TokenRefreshSignal";
-
-// ─── DTO ──────────────────────────────────────────────────────────────────────
-
-/** 發送 Token Refresh 訊號所需的輸入參數。 */
-export interface EmitTokenRefreshSignalInput {
-  accountId: string;
-  reason: TokenRefreshReason;
-  traceId?: string;
-}
-
-// ─── 內部單例 ──────────────────────────────────────────────────────────────────
-
-const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
-const emitUseCase = new EmitTokenRefreshSignalUseCase(tokenRefreshRepo);
-
-// ─── 公開 API Facade ──────────────────────────────────────────────────────────
-
-export const identityApi = {
-  /**
-   * [S6] 發送 TOKEN_REFRESH_SIGNAL，通知前端重新整理 Custom Claims。
-   * 應在角色或政策變更後呼叫。
-   */
-  async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void> {
-    await emitUseCase.execute(input.accountId, input.reason, input.traceId);
-  },
-} as const;
-
-// ─── 公開 Use Cases & Infrastructure (供 composition root 使用) ──────────────
-
-export { FirebaseIdentityRepository } from "../infrastructure/firebase/FirebaseIdentityRepository";
-export {
-  SignInUseCase,
-  SignInAnonymouslyUseCase,
-  RegisterUseCase,
-  SendPasswordResetEmailUseCase,
-  SignOutUseCase,
-} from "../application/use-cases/identity.use-cases";
-
-// ─── Client-side use-case factory (client-only — do NOT import in Server Components) ──
-
-import { FirebaseIdentityRepository as _IdentityRepo } from "../infrastructure/firebase/FirebaseIdentityRepository";
-import {
-  SignInUseCase as _SignIn,
-  SignInAnonymouslyUseCase as _SignInAnon,
-  RegisterUseCase as _Register,
-  SendPasswordResetEmailUseCase as _ResetEmail,
-} from "../application/use-cases/identity.use-cases";
-
-/**
- * Creates a wired set of client-side auth use cases for use in "use client" components.
- * Keeps infrastructure wiring in the module boundary rather than in UI files.
- */
-export function createClientAuthUseCases() {
-  const repo = new _IdentityRepo();
-  return {
-    signInUseCase: new _SignIn(repo),
-    signInAnonymouslyUseCase: new _SignInAnon(repo),
-    registerUseCase: new _Register(repo),
-    sendPasswordResetEmailUseCase: new _ResetEmail(repo),
-  };
-}
-
-// ─── Server Actions ───────────────────────────────────────────────────────────
-
-export {
-  signIn,
-  signInAnonymously,
-  register,
-  sendPasswordResetEmail,
-  signOut,
-} from "../interfaces/_actions/identity.actions";
-
-// ─── Client-only hook (import only from "use client" files) ──────────────────
-
-export { useTokenRefreshListener } from "../interfaces/hooks/useTokenRefreshListener";
 ````
 
 ## File: modules/knowledge-base/api/index.ts
@@ -65836,6 +67261,246 @@ export async function getKnowledgeCollections(
 }
 ````
 
+## File: modules/knowledge/subdomains/knowledge-ai/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-ai/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-ai/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-ai/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-authoring/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-authoring/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-authoring/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-authoring/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-automation/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-automation/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-automation/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-automation/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-base/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-base/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-base/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-base/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-collaboration/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-collaboration/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-collaboration/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-collaboration/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-core/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-core/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-core/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-core/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-database/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-database/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-database/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-database/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-integration/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-integration/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-integration/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-integration/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-query/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-query/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-query/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-query/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-search/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-search/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-search/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-search/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-source/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-source/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-source/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-source/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-versioning/application/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-versioning/domain/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-versioning/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/knowledge/subdomains/knowledge-versioning/interfaces/.gitkeep
+````
+
+````
+
 ## File: modules/knowledge/ubiquitous-language.md
 ````markdown
 # Ubiquitous Language — knowledge
@@ -65987,6 +67652,251 @@ export async function saveThread(accountId: string, thread: Thread): Promise<voi
 export async function loadThread(accountId: string, threadId: string): Promise<Thread | null> {
   return makeThreadRepo().getById(accountId, threadId);
 }
+````
+
+## File: modules/platform/application/.gitkeep
+````
+
+````
+
+## File: modules/platform/domain/.gitkeep
+````
+
+````
+
+## File: modules/platform/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/platform/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/platform/ports/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/account/application/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/account/domain/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/account/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/account/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/audit/application/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/audit/domain/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/audit/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/audit/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/config/application/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/config/domain/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/config/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/config/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/identity/application/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/identity/domain/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/identity/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/identity/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/integration/application/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/integration/domain/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/integration/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/integration/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/notification/application/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/notification/domain/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/notification/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/notification/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/observability/application/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/observability/domain/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/observability/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/observability/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/organization/application/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/organization/domain/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/organization/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/organization/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/permission/application/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/permission/domain/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/permission/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/permission/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/subscription/application/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/subscription/domain/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/subscription/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/subscription/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/workflow/application/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/workflow/domain/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/workflow/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/platform/subdomains/workflow/interfaces/.gitkeep
+````
+
 ````
 
 ## File: modules/search/api/server.ts
@@ -66767,831 +68677,6 @@ export function FileProcessingDialogBody({
       )}
     </>
   );
-}
-````
-
-## File: modules/workspace-flow/api/index.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file index.ts
- * @description Public cross-module boundary for workspace-flow.
- *
- * External consumers MUST import only from this path:
- *   @/modules/workspace-flow/api
- *
- * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
- * @author workspace-flow
- * @since 2026-03-24
- */
-
-// ── Facade (write + summary-read surface) ────────────────────────────────────
-
-// Composite facade (all three aggregates)
-export { WorkspaceFlowFacade } from "./workspace-flow.facade";
-
-// Focused facades (prefer these when only one aggregate is needed)
-export { WorkspaceFlowTaskFacade } from "./workspace-flow-task.facade";
-export { WorkspaceFlowIssueFacade } from "./workspace-flow-issue.facade";
-export { WorkspaceFlowInvoiceFacade } from "./workspace-flow-invoice.facade";
-
-// ── Public contracts ──────────────────────────────────────────────────────────
-
-export type {
-  // Entities
-  Task,
-  Issue,
-  Invoice,
-  InvoiceItem,
-  // Value objects
-  TaskStatus,
-  IssueStatus,
-  IssueStage,
-  InvoiceStatus,
-  // Summary projections
-  TaskSummary,
-  IssueSummary,
-  InvoiceSummary,
-  InvoiceItemSummary,
-  // CRUD / command DTOs
-  CreateTaskDto,
-  UpdateTaskDto,
-  OpenIssueDto,
-  ResolveIssueDto,
-  AddInvoiceItemDto,
-  UpdateInvoiceItemDto,
-  RemoveInvoiceItemDto,
-  // Query / pagination DTOs
-  TaskQueryDto,
-  IssueQueryDto,
-  InvoiceQueryDto,
-  PaginationDto,
-  PagedResult,
-  // Command result
-  CommandResult,
-} from "./contracts";
-
-export {
-  // Value object lists (enum arrays)
-  TASK_STATUSES,
-  ISSUE_STATUSES,
-  ISSUE_STAGES,
-  INVOICE_STATUSES,
-  // Summary projection helpers
-  toTaskSummary,
-  toIssueSummary,
-  toInvoiceSummary,
-  toInvoiceItemSummary,
-} from "./contracts";
-
-// ── Read queries (server-side) ────────────────────────────────────────────────
-
-export {
-  getWorkspaceFlowTasks,
-  getWorkspaceFlowTask,
-  getWorkspaceFlowIssues,
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowInvoiceItems,
-} from "../interfaces/queries/workspace-flow.queries";
-
-// ── UI components ─────────────────────────────────────────────────────────────
-
-export { WorkspaceFlowTab } from "../interfaces/components/WorkspaceFlowTab";
-
-// ── Event listeners (knowledge → workspace-flow integration) ─────────────────
-
-export {
-  createKnowledgeToWorkflowListener,
-} from "./listeners";
-
-export type {
-  KnowledgePageApprovedHandler,
-} from "./listeners";
-````
-
-## File: modules/workspace-flow/api/workspace-flow-invoice.facade.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file workspace-flow-invoice.facade.ts
- * @description Focused facade for Invoice aggregate write and summary-read operations.
- *
- * Consumers that only need Invoice operations should use this class directly
- * instead of the composite {@link WorkspaceFlowFacade}.
- *
- * @author workspace-flow
- * @since 2026-04-06
- */
-
-import type { InvoiceRepository } from "../domain/repositories/InvoiceRepository";
-
-import { CreateInvoiceUseCase } from "../application/use-cases/create-invoice.use-case";
-import { AddInvoiceItemUseCase } from "../application/use-cases/add-invoice-item.use-case";
-import { UpdateInvoiceItemUseCase } from "../application/use-cases/update-invoice-item.use-case";
-import { RemoveInvoiceItemUseCase } from "../application/use-cases/remove-invoice-item.use-case";
-import { SubmitInvoiceUseCase } from "../application/use-cases/submit-invoice.use-case";
-import { ReviewInvoiceUseCase } from "../application/use-cases/review-invoice.use-case";
-import { ApproveInvoiceUseCase } from "../application/use-cases/approve-invoice.use-case";
-import { RejectInvoiceUseCase } from "../application/use-cases/reject-invoice.use-case";
-import { PayInvoiceUseCase } from "../application/use-cases/pay-invoice.use-case";
-import { CloseInvoiceUseCase } from "../application/use-cases/close-invoice.use-case";
-
-import type { AddInvoiceItemDto } from "../application/dto/add-invoice-item.dto";
-import type { UpdateInvoiceItemDto } from "../application/dto/update-invoice-item.dto";
-import type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-item.dto";
-import type { InvoiceQueryDto } from "../application/dto/invoice-query.dto";
-import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
-
-import type { InvoiceSummary } from "../interfaces/contracts/workspace-flow.contract";
-import { toInvoiceSummary } from "../interfaces/contracts/workspace-flow.contract";
-
-import type { CommandResult } from "@shared-types";
-
-// ── Pagination helper ─────────────────────────────────────────────────────────
-
-function toPagedResult<T>(items: T[], pagination?: PaginationDto): PagedResult<T> {
-  const page = pagination?.page ?? 1;
-  const pageSize = pagination?.pageSize ?? (items.length || 20);
-  const start = (page - 1) * pageSize;
-  const paged = items.slice(start, start + pageSize);
-  return { items: paged, total: items.length, page, pageSize, hasMore: start + pageSize < items.length };
-}
-
-/**
- * WorkspaceFlowInvoiceFacade
- *
- * Single entry point for all Invoice write and summary-read operations.
- * Requires only InvoiceRepository — no cross-aggregate dependencies.
- */
-export class WorkspaceFlowInvoiceFacade {
-  constructor(private readonly invoiceRepository: InvoiceRepository) {}
-
-  // ── Write operations ─────────────────────────────────────────────────────────
-
-  async createInvoice(workspaceId: string): Promise<CommandResult> {
-    return new CreateInvoiceUseCase(this.invoiceRepository).execute(workspaceId);
-  }
-
-  async addInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> {
-    return new AddInvoiceItemUseCase(this.invoiceRepository).execute(dto);
-  }
-
-  async updateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
-    return new UpdateInvoiceItemUseCase(this.invoiceRepository).execute(invoiceItemId, dto);
-  }
-
-  async removeInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {
-    return new RemoveInvoiceItemUseCase(this.invoiceRepository).execute(dto.invoiceId, dto.invoiceItemId);
-  }
-
-  async submitInvoice(invoiceId: string): Promise<CommandResult> {
-    return new SubmitInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
-  }
-
-  async reviewInvoice(invoiceId: string): Promise<CommandResult> {
-    return new ReviewInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
-  }
-
-  async approveInvoice(invoiceId: string): Promise<CommandResult> {
-    return new ApproveInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
-  }
-
-  async rejectInvoice(invoiceId: string): Promise<CommandResult> {
-    return new RejectInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
-  }
-
-  async payInvoice(invoiceId: string): Promise<CommandResult> {
-    return new PayInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
-  }
-
-  async closeInvoice(invoiceId: string): Promise<CommandResult> {
-    return new CloseInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
-  }
-
-  // ── Read operations ──────────────────────────────────────────────────────────
-
-  async listInvoices(query: InvoiceQueryDto, pagination?: PaginationDto): Promise<PagedResult<InvoiceSummary>> {
-    const all = await this.invoiceRepository.findByWorkspaceId(query.workspaceId);
-    const filtered = query.status ? all.filter((inv) => inv.status === query.status) : all;
-    return toPagedResult(filtered.map(toInvoiceSummary), pagination);
-  }
-
-  async getInvoiceSummary(invoiceId: string): Promise<InvoiceSummary | null> {
-    const invoice = await this.invoiceRepository.findById(invoiceId);
-    return invoice ? toInvoiceSummary(invoice) : null;
-  }
-}
-````
-
-## File: modules/workspace-flow/api/workspace-flow-issue.facade.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file workspace-flow-issue.facade.ts
- * @description Focused facade for Issue aggregate write and summary-read operations.
- *
- * Consumers that only need Issue operations should use this class directly
- * instead of the composite {@link WorkspaceFlowFacade}.
- *
- * @author workspace-flow
- * @since 2026-04-06
- */
-
-import type { IssueRepository } from "../domain/repositories/IssueRepository";
-
-import { OpenIssueUseCase } from "../application/use-cases/open-issue.use-case";
-import { StartIssueUseCase } from "../application/use-cases/start-issue.use-case";
-import { FixIssueUseCase } from "../application/use-cases/fix-issue.use-case";
-import { SubmitIssueRetestUseCase } from "../application/use-cases/submit-issue-retest.use-case";
-import { PassIssueRetestUseCase } from "../application/use-cases/pass-issue-retest.use-case";
-import { FailIssueRetestUseCase } from "../application/use-cases/fail-issue-retest.use-case";
-import { ResolveIssueUseCase } from "../application/use-cases/resolve-issue.use-case";
-import { CloseIssueUseCase } from "../application/use-cases/close-issue.use-case";
-
-import type { OpenIssueDto } from "../application/dto/open-issue.dto";
-import type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
-import type { IssueQueryDto } from "../application/dto/issue-query.dto";
-import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
-
-import type { IssueSummary } from "../interfaces/contracts/workspace-flow.contract";
-import { toIssueSummary } from "../interfaces/contracts/workspace-flow.contract";
-
-import type { CommandResult } from "@shared-types";
-
-// ── Pagination helper ─────────────────────────────────────────────────────────
-
-function toPagedResult<T>(items: T[], pagination?: PaginationDto): PagedResult<T> {
-  const page = pagination?.page ?? 1;
-  const pageSize = pagination?.pageSize ?? (items.length || 20);
-  const start = (page - 1) * pageSize;
-  const paged = items.slice(start, start + pageSize);
-  return { items: paged, total: items.length, page, pageSize, hasMore: start + pageSize < items.length };
-}
-
-/**
- * WorkspaceFlowIssueFacade
- *
- * Single entry point for all Issue write and summary-read operations.
- * Requires only IssueRepository — no cross-aggregate dependencies.
- */
-export class WorkspaceFlowIssueFacade {
-  constructor(private readonly issueRepository: IssueRepository) {}
-
-  // ── Write operations ─────────────────────────────────────────────────────────
-
-  async openIssue(dto: OpenIssueDto): Promise<CommandResult> {
-    return new OpenIssueUseCase(this.issueRepository).execute(dto);
-  }
-
-  async startIssue(issueId: string): Promise<CommandResult> {
-    return new StartIssueUseCase(this.issueRepository).execute(issueId);
-  }
-
-  async fixIssue(issueId: string): Promise<CommandResult> {
-    return new FixIssueUseCase(this.issueRepository).execute(issueId);
-  }
-
-  async submitIssueRetest(issueId: string): Promise<CommandResult> {
-    return new SubmitIssueRetestUseCase(this.issueRepository).execute(issueId);
-  }
-
-  async passIssueRetest(issueId: string): Promise<CommandResult> {
-    return new PassIssueRetestUseCase(this.issueRepository).execute(issueId);
-  }
-
-  async failIssueRetest(issueId: string): Promise<CommandResult> {
-    return new FailIssueRetestUseCase(this.issueRepository).execute(issueId);
-  }
-
-  async resolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
-    return new ResolveIssueUseCase(this.issueRepository).execute(dto);
-  }
-
-  async closeIssue(issueId: string): Promise<CommandResult> {
-    return new CloseIssueUseCase(this.issueRepository).execute(issueId);
-  }
-
-  // ── Read operations ──────────────────────────────────────────────────────────
-
-  async listIssues(query: IssueQueryDto, pagination?: PaginationDto): Promise<PagedResult<IssueSummary>> {
-    const all = await this.issueRepository.findByTaskId(query.taskId);
-    const filtered = query.status ? all.filter((i) => i.status === query.status) : all;
-    return toPagedResult(filtered.map(toIssueSummary), pagination);
-  }
-
-  async getIssueSummary(issueId: string): Promise<IssueSummary | null> {
-    const issue = await this.issueRepository.findById(issueId);
-    return issue ? toIssueSummary(issue) : null;
-  }
-}
-````
-
-## File: modules/workspace-flow/api/workspace-flow-task.facade.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file workspace-flow-task.facade.ts
- * @description Focused facade for Task aggregate write and summary-read operations.
- *
- * Consumers that only need Task operations should use this class directly
- * instead of the composite {@link WorkspaceFlowFacade}.
- *
- * Note: `issueRepository` is required because `passTaskQa` and
- * `approveTaskAcceptance` are cross-aggregate operations that create issues
- * as a side-effect of task state transitions.
- *
- * @author workspace-flow
- * @since 2026-04-06
- */
-
-import type { TaskRepository } from "../domain/repositories/TaskRepository";
-import type { IssueRepository } from "../domain/repositories/IssueRepository";
-
-import { CreateTaskUseCase } from "../application/use-cases/create-task.use-case";
-import { UpdateTaskUseCase } from "../application/use-cases/update-task.use-case";
-import { AssignTaskUseCase } from "../application/use-cases/assign-task.use-case";
-import { SubmitTaskToQaUseCase } from "../application/use-cases/submit-task-to-qa.use-case";
-import { PassTaskQaUseCase } from "../application/use-cases/pass-task-qa.use-case";
-import { ApproveTaskAcceptanceUseCase } from "../application/use-cases/approve-task-acceptance.use-case";
-import { ArchiveTaskUseCase } from "../application/use-cases/archive-task.use-case";
-
-import type { CreateTaskDto } from "../application/dto/create-task.dto";
-import type { UpdateTaskDto } from "../application/dto/update-task.dto";
-import type { TaskQueryDto } from "../application/dto/task-query.dto";
-import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
-
-import type { TaskSummary } from "../interfaces/contracts/workspace-flow.contract";
-import { toTaskSummary } from "../interfaces/contracts/workspace-flow.contract";
-
-import type { CommandResult } from "@shared-types";
-
-// ── Pagination helper ─────────────────────────────────────────────────────────
-
-function toPagedResult<T>(items: T[], pagination?: PaginationDto): PagedResult<T> {
-  const page = pagination?.page ?? 1;
-  const pageSize = pagination?.pageSize ?? (items.length || 20);
-  const start = (page - 1) * pageSize;
-  const paged = items.slice(start, start + pageSize);
-  return { items: paged, total: items.length, page, pageSize, hasMore: start + pageSize < items.length };
-}
-
-/**
- * WorkspaceFlowTaskFacade
- *
- * Single entry point for all Task write and summary-read operations.
- * Requires both TaskRepository and IssueRepository because QA pass and
- * acceptance approval are cross-aggregate transitions that produce issues.
- */
-export class WorkspaceFlowTaskFacade {
-  constructor(
-    private readonly taskRepository: TaskRepository,
-    private readonly issueRepository: IssueRepository,
-  ) {}
-
-  // ── Write operations ─────────────────────────────────────────────────────────
-
-  async createTask(dto: CreateTaskDto): Promise<CommandResult> {
-    return new CreateTaskUseCase(this.taskRepository).execute(dto);
-  }
-
-  async updateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
-    return new UpdateTaskUseCase(this.taskRepository).execute(taskId, dto);
-  }
-
-  async assignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
-    return new AssignTaskUseCase(this.taskRepository).execute(taskId, assigneeId);
-  }
-
-  async submitTaskToQa(taskId: string): Promise<CommandResult> {
-    return new SubmitTaskToQaUseCase(this.taskRepository).execute(taskId);
-  }
-
-  /** Cross-aggregate: transitions task to qa_passed and creates a linked issue. */
-  async passTaskQa(taskId: string): Promise<CommandResult> {
-    return new PassTaskQaUseCase(this.taskRepository, this.issueRepository).execute(taskId);
-  }
-
-  /** Cross-aggregate: transitions task to accepted and closes the linked issue. */
-  async approveTaskAcceptance(taskId: string): Promise<CommandResult> {
-    return new ApproveTaskAcceptanceUseCase(this.taskRepository, this.issueRepository).execute(taskId);
-  }
-
-  async archiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
-    return new ArchiveTaskUseCase(this.taskRepository).execute(taskId, invoiceStatus);
-  }
-
-  // ── Read operations ──────────────────────────────────────────────────────────
-
-  async listTasks(query: TaskQueryDto, pagination?: PaginationDto): Promise<PagedResult<TaskSummary>> {
-    const all = await this.taskRepository.findByWorkspaceId(query.workspaceId);
-    const filtered = query.status ? all.filter((t) => t.status === query.status) : all;
-    const assigneeFiltered = query.assigneeId
-      ? filtered.filter((t) => t.assigneeId === query.assigneeId)
-      : filtered;
-    return toPagedResult(assigneeFiltered.map(toTaskSummary), pagination);
-  }
-
-  async getTaskSummary(taskId: string): Promise<TaskSummary | null> {
-    const task = await this.taskRepository.findById(taskId);
-    return task ? toTaskSummary(task) : null;
-  }
-}
-````
-
-## File: modules/workspace-flow/api/workspace-flow.facade.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file workspace-flow.facade.ts
- * @description Composite facade aggregating Task, Issue, and Invoice operations.
- *
- * Delegates entirely to the three focused facades:
- *   - {@link WorkspaceFlowTaskFacade}   — Task aggregate
- *   - {@link WorkspaceFlowIssueFacade}  — Issue aggregate
- *   - {@link WorkspaceFlowInvoiceFacade} — Invoice aggregate
- *
- * Prefer the focused facades when only one aggregate is needed.
- * Use this composite facade only when all three aggregates must be
- * available through a single construction point.
- *
- * @author workspace-flow
- * @since 2026-03-24
- */
-
-import type { TaskRepository } from "../domain/repositories/TaskRepository";
-import type { IssueRepository } from "../domain/repositories/IssueRepository";
-import type { InvoiceRepository } from "../domain/repositories/InvoiceRepository";
-
-import { WorkspaceFlowTaskFacade } from "./workspace-flow-task.facade";
-import { WorkspaceFlowIssueFacade } from "./workspace-flow-issue.facade";
-import { WorkspaceFlowInvoiceFacade } from "./workspace-flow-invoice.facade";
-
-import type { CreateTaskDto } from "../application/dto/create-task.dto";
-import type { UpdateTaskDto } from "../application/dto/update-task.dto";
-import type { OpenIssueDto } from "../application/dto/open-issue.dto";
-import type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
-import type { AddInvoiceItemDto } from "../application/dto/add-invoice-item.dto";
-import type { UpdateInvoiceItemDto } from "../application/dto/update-invoice-item.dto";
-import type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-item.dto";
-import type { TaskQueryDto } from "../application/dto/task-query.dto";
-import type { IssueQueryDto } from "../application/dto/issue-query.dto";
-import type { InvoiceQueryDto } from "../application/dto/invoice-query.dto";
-import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
-
-import type {
-  TaskSummary,
-  IssueSummary,
-  InvoiceSummary,
-} from "../interfaces/contracts/workspace-flow.contract";
-
-import type { CommandResult } from "@shared-types";
-
-/**
- * WorkspaceFlowFacade
- *
- * Composite entry point for all workspace-flow write and read-summary operations.
- * Delegates to {@link WorkspaceFlowTaskFacade}, {@link WorkspaceFlowIssueFacade},
- * and {@link WorkspaceFlowInvoiceFacade}.
- *
- * @example
- * ```ts
- * const facade = new WorkspaceFlowFacade(
- *   new FirebaseTaskRepository(),
- *   new FirebaseIssueRepository(),
- *   new FirebaseInvoiceRepository(),
- * );
- * await facade.createTask({ workspaceId, title: "My task" });
- * ```
- */
-export class WorkspaceFlowFacade {
-  private readonly taskFacade: WorkspaceFlowTaskFacade;
-  private readonly issueFacade: WorkspaceFlowIssueFacade;
-  private readonly invoiceFacade: WorkspaceFlowInvoiceFacade;
-
-  constructor(
-    taskRepository: TaskRepository,
-    issueRepository: IssueRepository,
-    invoiceRepository: InvoiceRepository,
-  ) {
-    this.taskFacade = new WorkspaceFlowTaskFacade(taskRepository, issueRepository);
-    this.issueFacade = new WorkspaceFlowIssueFacade(issueRepository);
-    this.invoiceFacade = new WorkspaceFlowInvoiceFacade(invoiceRepository);
-  }
-
-  // ── Task operations (delegated) ──────────────────────────────────────────────
-
-  createTask(dto: CreateTaskDto): Promise<CommandResult> { return this.taskFacade.createTask(dto); }
-  updateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> { return this.taskFacade.updateTask(taskId, dto); }
-  assignTask(taskId: string, assigneeId: string): Promise<CommandResult> { return this.taskFacade.assignTask(taskId, assigneeId); }
-  submitTaskToQa(taskId: string): Promise<CommandResult> { return this.taskFacade.submitTaskToQa(taskId); }
-  passTaskQa(taskId: string): Promise<CommandResult> { return this.taskFacade.passTaskQa(taskId); }
-  approveTaskAcceptance(taskId: string): Promise<CommandResult> { return this.taskFacade.approveTaskAcceptance(taskId); }
-  archiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> { return this.taskFacade.archiveTask(taskId, invoiceStatus); }
-  listTasks(query: TaskQueryDto, pagination?: PaginationDto): Promise<PagedResult<TaskSummary>> { return this.taskFacade.listTasks(query, pagination); }
-  getTaskSummary(taskId: string): Promise<TaskSummary | null> { return this.taskFacade.getTaskSummary(taskId); }
-
-  // ── Issue operations (delegated) ─────────────────────────────────────────────
-
-  openIssue(dto: OpenIssueDto): Promise<CommandResult> { return this.issueFacade.openIssue(dto); }
-  startIssue(issueId: string): Promise<CommandResult> { return this.issueFacade.startIssue(issueId); }
-  fixIssue(issueId: string): Promise<CommandResult> { return this.issueFacade.fixIssue(issueId); }
-  submitIssueRetest(issueId: string): Promise<CommandResult> { return this.issueFacade.submitIssueRetest(issueId); }
-  passIssueRetest(issueId: string): Promise<CommandResult> { return this.issueFacade.passIssueRetest(issueId); }
-  failIssueRetest(issueId: string): Promise<CommandResult> { return this.issueFacade.failIssueRetest(issueId); }
-  resolveIssue(dto: ResolveIssueDto): Promise<CommandResult> { return this.issueFacade.resolveIssue(dto); }
-  closeIssue(issueId: string): Promise<CommandResult> { return this.issueFacade.closeIssue(issueId); }
-  listIssues(query: IssueQueryDto, pagination?: PaginationDto): Promise<PagedResult<IssueSummary>> { return this.issueFacade.listIssues(query, pagination); }
-  getIssueSummary(issueId: string): Promise<IssueSummary | null> { return this.issueFacade.getIssueSummary(issueId); }
-
-  // ── Invoice operations (delegated) ───────────────────────────────────────────
-
-  createInvoice(workspaceId: string): Promise<CommandResult> { return this.invoiceFacade.createInvoice(workspaceId); }
-  addInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> { return this.invoiceFacade.addInvoiceItem(dto); }
-  updateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> { return this.invoiceFacade.updateInvoiceItem(invoiceItemId, dto); }
-  removeInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> { return this.invoiceFacade.removeInvoiceItem(dto); }
-  submitInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.submitInvoice(invoiceId); }
-  reviewInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.reviewInvoice(invoiceId); }
-  approveInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.approveInvoice(invoiceId); }
-  rejectInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.rejectInvoice(invoiceId); }
-  payInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.payInvoice(invoiceId); }
-  closeInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.closeInvoice(invoiceId); }
-  listInvoices(query: InvoiceQueryDto, pagination?: PaginationDto): Promise<PagedResult<InvoiceSummary>> { return this.invoiceFacade.listInvoices(query, pagination); }
-  getInvoiceSummary(invoiceId: string): Promise<InvoiceSummary | null> { return this.invoiceFacade.getInvoiceSummary(invoiceId); }
-}
-````
-
-## File: modules/workspace-flow/interfaces/_actions/workspace-flow-invoice.actions.ts
-````typescript
-"use server";
-
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow-invoice.actions.ts
- * @description Server Actions for workspace-flow Invoice write operations.
- * Delegates exclusively to WorkspaceFlowFacade.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { WorkspaceFlowInvoiceFacade } from "../../api/workspace-flow-invoice.facade";
-import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
-import type { AddInvoiceItemDto } from "../../application/dto/add-invoice-item.dto";
-import type { UpdateInvoiceItemDto } from "../../application/dto/update-invoice-item.dto";
-import type { RemoveInvoiceItemDto } from "../../application/dto/remove-invoice-item.dto";
-
-function makeFacade(): WorkspaceFlowInvoiceFacade {
-  return new WorkspaceFlowInvoiceFacade(
-    new FirebaseInvoiceRepository(),
-  );
-}
-
-export async function wfCreateInvoice(workspaceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().createInvoice(workspaceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfAddInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().addInvoiceItem(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_ADD_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfUpdateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().updateInvoiceItem(invoiceItemId, dto);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_UPDATE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfRemoveInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().removeInvoiceItem(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_REMOVE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfSubmitInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().submitInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfReviewInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().reviewInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_REVIEW_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfApproveInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().approveInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfRejectInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().rejectInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_REJECT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfPayInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().payInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_PAY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfCloseInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().closeInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/workspace-flow/interfaces/_actions/workspace-flow-issue.actions.ts
-````typescript
-"use server";
-
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow-issue.actions.ts
- * @description Server Actions for workspace-flow Issue write operations.
- * Delegates exclusively to WorkspaceFlowFacade.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { WorkspaceFlowIssueFacade } from "../../api/workspace-flow-issue.facade";
-import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
-import type { OpenIssueDto } from "../../application/dto/open-issue.dto";
-import type { ResolveIssueDto } from "../../application/dto/resolve-issue.dto";
-
-function makeFacade(): WorkspaceFlowIssueFacade {
-  return new WorkspaceFlowIssueFacade(
-    new FirebaseIssueRepository(),
-  );
-}
-
-export async function wfOpenIssue(dto: OpenIssueDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().openIssue(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_OPEN_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfStartIssue(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().startIssue(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_START_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfFixIssue(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().fixIssue(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_FIX_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfSubmitIssueRetest(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().submitIssueRetest(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RETEST_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfPassIssueRetest(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().passIssueRetest(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RETEST_PASS_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfFailIssueRetest(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().failIssueRetest(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RETEST_FAIL_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfResolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().resolveIssue(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfCloseIssue(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().closeIssue(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/workspace-flow/interfaces/_actions/workspace-flow-task.actions.ts
-````typescript
-"use server";
-
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow-task.actions.ts
- * @description Server Actions for workspace-flow Task write operations.
- * Delegates exclusively to WorkspaceFlowFacade.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { WorkspaceFlowTaskFacade } from "../../api/workspace-flow-task.facade";
-import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
-import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
-import type { CreateTaskDto } from "../../application/dto/create-task.dto";
-import type { UpdateTaskDto } from "../../application/dto/update-task.dto";
-
-function makeFacade(): WorkspaceFlowTaskFacade {
-  return new WorkspaceFlowTaskFacade(
-    new FirebaseTaskRepository(),
-    new FirebaseIssueRepository(),
-  );
-}
-
-export async function wfCreateTask(dto: CreateTaskDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().createTask(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfUpdateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().updateTask(taskId, dto);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfAssignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().assignTask(taskId, assigneeId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_ASSIGN_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfSubmitTaskToQa(taskId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().submitTaskToQa(taskId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_SUBMIT_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfPassTaskQa(taskId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().passTaskQa(taskId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_PASS_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfApproveTaskAcceptance(taskId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().approveTaskAcceptance(taskId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfArchiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().archiveTask(taskId, invoiceStatus);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
 }
 ````
 
@@ -70100,6 +71185,86 @@ export interface WorkspaceDomainEventPublisher {
 }
 ````
 
+## File: modules/workspace/subdomains/audit/application/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/audit/domain/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/audit/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/audit/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/feed/application/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/feed/domain/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/feed/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/feed/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/scheduling/application/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/scheduling/domain/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/scheduling/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/workflow/application/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/workflow/domain/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/workflow/infrastructure/.gitkeep
+````
+
+````
+
+## File: modules/workspace/subdomains/workflow/interfaces/.gitkeep
+````
+
+````
+
 ## File: py_fn/src/interface/handlers/parse_document.py
 ````python
 """
@@ -70485,127 +71650,6 @@ export default defineConfig({
     ],
   },
 });
-````
-
-## File: app/(shell)/dev-tools/dev-tools-helpers.ts
-````typescript
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface ParseResult {
-  doc_id: string;
-  status: "processing" | "completed" | "error";
-  page_count?: number;
-  json_gcs_uri?: string;
-  error_message?: string;
-}
-
-export interface DocRecord {
-  id: string;
-  status: "processing" | "completed" | "error" | string;
-  filename: string;
-  gcs_uri: string;
-  uploaded_at: Date | null;
-  page_count?: number;
-  json_gcs_uri?: string;
-  error_message?: string;
-  rag_status?: string;
-  rag_chunk_count?: number;
-  rag_vector_count?: number;
-  rag_raw_chars?: number;
-  rag_normalized_chars?: number;
-  rag_normalization_version?: string;
-  rag_language_hint?: string;
-  rag_error?: string;
-}
-
-export type UploadStatus = "idle" | "uploading" | "waiting" | "done" | "error";
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-export const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
-export const WATCH_PATH = "uploads/";
-export const ACCEPTED_MIME: Record<string, string> = {
-  pdf: "application/pdf",
-  tif: "image/tiff",
-  tiff: "image/tiff",
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-};
-export const ACCEPTED_EXTS = ".pdf, .tif / .tiff, .png, .jpg / .jpeg";
-
-// ── Data-mapping helpers ──────────────────────────────────────────────────────
-
-export function formatDateTime(value: Date | null): string {
-  if (!value) return "—";
-  return value.toLocaleString("zh-TW", { hour12: false });
-}
-
-function deriveJsonUri(gcsUri: string): string {
-  if (!gcsUri.startsWith("gs://")) return "";
-  const withoutPrefix = gcsUri.slice(5);
-  const firstSlash = withoutPrefix.indexOf("/");
-  if (firstSlash < 0) return "";
-
-  const bucket = withoutPrefix.slice(0, firstSlash);
-  const objectPath = withoutPrefix.slice(firstSlash + 1);
-  if (!objectPath.startsWith("uploads/")) return "";
-
-  const relativePath = objectPath.slice("uploads/".length);
-  const dotIndex = relativePath.lastIndexOf(".");
-  const stem = dotIndex > -1 ? relativePath.slice(0, dotIndex) : relativePath;
-  return `gs://${bucket}/files/${stem}.json`;
-}
-
-export function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-export function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-export function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" ? value : undefined;
-}
-
-function asDate(value: unknown): Date | null {
-  if (value instanceof Date) return value;
-  if (value && typeof value === "object" && "toDate" in value) {
-    if (typeof (value as { toDate?: unknown }).toDate === "function") {
-      const converted = (value as { toDate: () => unknown }).toDate();
-      return converted instanceof Date ? converted : null;
-    }
-  }
-  return null;
-}
-
-export function mapSnapshotDoc(doc: { id: string; data: () => unknown }): DocRecord {
-  const data = asRecord(doc.data());
-  const source = asRecord(data.source);
-  const parsed = asRecord(data.parsed);
-  const rag = asRecord(data.rag);
-  const err = asRecord(data.error);
-
-  return {
-    id: doc.id,
-    status: asString(data.status, "unknown"),
-    filename: asString(source.filename, doc.id),
-    gcs_uri: asString(source.gcs_uri),
-    uploaded_at: asDate(source.uploaded_at),
-    page_count: asNumber(parsed.page_count),
-    json_gcs_uri: asString(parsed.json_gcs_uri, deriveJsonUri(asString(source.gcs_uri))),
-    error_message: asString(err.message) || undefined,
-    rag_status: asString(rag.status) || undefined,
-    rag_chunk_count: asNumber(rag.chunk_count),
-    rag_vector_count: asNumber(rag.vector_count),
-    rag_raw_chars: asNumber(rag.raw_chars),
-    rag_normalized_chars: asNumber(rag.normalized_chars),
-    rag_normalization_version: asString(rag.normalization_version) || undefined,
-    rag_language_hint: asString(rag.language_hint) || undefined,
-    rag_error: asString(rag.error) || undefined,
-  };
-}
 ````
 
 ## File: app/(shell)/knowledge/pages/page.tsx
@@ -73008,481 +74052,630 @@ export interface WorkspaceRepository {
 - `WorkspaceDomainEventPublisher`
 ````
 
-## File: app/(shell)/dev-tools/page.tsx
+## File: app/(shell)/_components/app-rail.tsx
 ````typescript
 "use client";
 
 /**
- * Module: dev-tools page — /dev-tools
- * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
- * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
- * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
- *   Doc-list state and operations → useDevToolsDocList hook.
- *   Parsed-docs table → DevToolsParsedDocsSection component.
+ * Module: app-rail.tsx
+ * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
+ * Responsibilities: app logo, account context switcher, top-level section icon nav with
+ *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
+ * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
+ *   `h-full` ensures it fills the parent `h-screen` container.
  */
 
-import { useRef, useState, useEffect } from "react";
+import Link from "next/link";
 import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
   FlaskConical,
-  FileUp,
-  AlertCircle,
-  FileText,
-  Trash2,
-  Code2,
-  ExternalLink,
-  Loader2,
-  CheckCircle2,
-  XCircle,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import { useApp } from "@/app/providers/app-provider";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import { Button } from "@ui-shadcn/ui/button";
+import type { AuthUser } from "@/app/providers/auth-context";
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import { type WorkspaceEntity } from "@/modules/workspace/api";
 import {
-  UPLOAD_BUCKET,
-  WATCH_PATH,
-  ACCEPTED_MIME,
-  ACCEPTED_EXTS,
-  asRecord,
-  asString,
-  asNumber,
-  type ParseResult,
-  type UploadStatus,
-} from "./dev-tools-helpers";
-import { StatusBadge, RagBadge } from "./dev-tools-badges";
-import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
-import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+import { CreateOrganizationDialog } from "./create-organization-dialog";
+import { CreateWorkspaceDialogRail } from "./create-workspace-dialog-rail";
 
-// ── Page component ─────────────────────────────────────────────────────────
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
 
-export default function DevToolsPage() {
-  const { state: appState } = useApp();
-  const activeAccountId = appState.activeAccount?.id ?? "";
-  const activeWorkspaceId = appState.activeWorkspaceId ?? "";
+interface RailItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  /** When false the item is hidden; defaults to true */
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
 
-  // ── Upload state ──────────────────────────────────────────────────────────
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<UploadStatus>("idle");
-  const [result, setResult] = useState<ParseResult | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [logs, setLogs] = useState<string[]>([]);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
+function isExactOrChildPath(targetPath: string, pathname: string) {
+  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+}
 
-  // ── Doc list + operations (extracted hook) ────────────────────────────────
-  const {
-    allDocs,
-    selectedDocId,
-    selectedDoc,
-    jsonContent,
-    jsonLoading,
-    deletingId,
-    reindexingId,
-    handleViewOriginal,
-    handleViewJson,
-    handleDeleteDoc,
-    handleManualProcess,
-    closeJsonPreview,
-    formatNormalizationRatio,
-  } = useDevToolsDocList(activeAccountId);
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
+}
 
-  // Cleanup upload subscription on unmount
-  useEffect(() => {
-    return () => { if (unsubscribeRef.current) unsubscribeRef.current(); };
-  }, []);
+export function AppRail({
+  pathname,
+  user,
+  activeAccount,
+  organizationAccounts,
+  workspaces,
+  workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOrganizationCreated,
+  onSignOut: _onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
 
-  function appendLog(msg: string) {
-    setLogs((prev) => [
-      ...prev,
-      `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`,
-    ]);
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null;
-    setSelectedFile(file);
-    setResult(null);
-    setErrorMsg(null);
-    setStatus("idle");
-    setLogs([]);
-    if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
-  }
+  const railItems: RailItem[] = [
+    // ── Organization / hub layer ─────────────────────────────────────
+    {
+      href: "/workspace",
+      label: "工作區中心",
+      icon: <Building2 className="size-[18px]" />,
+    },
+    // ── People (org-only) ─────────────────────────────────────────
+    {
+      href: "/organization/members",
+      label: "成員",
+      icon: <UserRound className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
+    },
+    {
+      href: "/organization/teams",
+      label: "團隊",
+      icon: <Users className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
+    },
+    // ── Operations (org-only) ─────────────────────────────────────
+    {
+      href: "/organization/daily",
+      label: "每日",
+      icon: <NotebookText className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
+    },
+    {
+      href: "/organization/schedule",
+      label: "排程",
+      icon: <CalendarDays className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
+    },
+    // ── Admin (org-only) ──────────────────────────────────────────
+    {
+      href: "/organization/audit",
+      label: "稽核",
+      icon: <ClipboardList className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
+    },
+    {
+      href: "/organization/permissions",
+      label: "權限",
+      icon: <SlidersHorizontal className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
+    },
+    // ── Developer ────────────────────────────────────────────────
+    {
+      href: "/dev-tools",
+      label: "開發工具",
+      icon: <FlaskConical className="size-[18px]" />,
+    },
+  ];
 
-  function buildUuidUploadPath(accountId: string, file: File) {
-    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
-    const docId = crypto.randomUUID();
-    return { uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`, docId };
-  }
+  const visibleRailItems = railItems.filter((item) => item.show !== false);
 
-  function watchDocument(docId: string) {
-    if (!activeAccountId) {
-      appendLog("❌ 缺少 active account，無法監聽文件狀態");
-      return;
-    }
-    try {
-      const db = getFirebaseFirestore();
-      const docRef = firestoreApi.doc(db, "accounts", activeAccountId, "documents", docId);
-      if (unsubscribeRef.current) unsubscribeRef.current();
-      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {
-        if (!snapshot.exists()) { appendLog("等待 Firestore 初始化…"); return; }
-        const data = asRecord(snapshot.data());
-        const docStatus = asString(data.status, "unknown");
-        appendLog(`Firestore update: status=${docStatus}`);
-        if (docStatus === "completed") {
-          const parsed = asRecord(data.parsed);
-          const r: ParseResult = {
-            doc_id: docId,
-            status: "completed",
-            page_count: asNumber(parsed.page_count) ?? 0,
-            json_gcs_uri: asString(parsed.json_gcs_uri),
-          };
-          setResult(r);
-          setStatus("done");
-          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
-          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-        } else if (docStatus === "error") {
-          const error = asRecord(data.error);
-          const msg = asString(error.message, "未知錯誤");
-          setErrorMsg(msg);
-          setStatus("error");
-          appendLog(`❌ 錯誤：${msg}`);
-          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-        }
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      appendLog(`❌ 監聽失敗：${msg}`);
-      setErrorMsg(msg);
-      setStatus("error");
-    }
-  }
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces],
+  );
 
-  async function handleUploadAndParse() {
-    if (!selectedFile) return;
-    if (!activeAccountId) {
-      setErrorMsg("缺少 active account，無法上傳與解析");
-      setStatus("error");
-      return;
-    }
-    setStatus("uploading");
-    setResult(null);
-    setErrorMsg(null);
-    appendLog("📤 上傳檔案到 Cloud Storage…");
-    try {
-      // Step 1: Upload to GCS
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);
-      const fileRef = storageApi.ref(storage, uploadPath);
-      const snap = await storageApi.uploadBytes(fileRef, selectedFile, {
-        contentType: ACCEPTED_MIME[selectedFile.name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream",
-        customMetadata: {
-          account_id: activeAccountId,
-          workspace_id: activeWorkspaceId,
-          filename: selectedFile.name,
-        },
-      });
-      appendLog(`✅ 上傳完成：${snap.ref.fullPath}`);
-      // Step 2: Watch Firestore for status updates
-      setStatus("waiting");
-      appendLog("⏳ 等待 parse_document 處理…");
-      watchDocument(docId);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setErrorMsg(msg);
-      setStatus("error");
-      appendLog(`❌ 上傳失敗：${msg}`);
-    }
-  }
-
-  function reset() {
-    if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-    setSelectedFile(null);
-    setResult(null);
-    setErrorMsg(null);
-    setStatus("idle");
-    setLogs([]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
-
-  const isLoading = status === "uploading" || status === "waiting";
-  const parsedDocs = allDocs.filter((doc) => doc.status === "completed");
-  const ragReadyCount = allDocs.filter((doc) => doc.rag_status === "ready").length;
-  const ragErrorCount = allDocs.filter((doc) => doc.rag_status === "error").length;
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
-      {/* ── Header ─────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
-          <FlaskConical className="size-5 text-amber-500" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Dev Tools</h1>
-          <p className="text-xs text-muted-foreground">
-            py_fn · parse_document · Document AI · Firestore 實時監聽
-          </p>
-        </div>
-      </div>
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        {/* ── Workspace / account logo tile ─────────────────────────── */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
 
-      {/* ── Stats ──────────────────────────────────────────────────── */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
-          <p className="text-[11px] text-muted-foreground">全部文件</p>
-          <p className="text-lg font-semibold tracking-tight">{allDocs.length}</p>
-        </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
-          <p className="text-[11px] text-emerald-700">解析完成</p>
-          <p className="text-lg font-semibold tracking-tight text-emerald-700">{parsedDocs.length}</p>
-        </div>
-        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2">
-          <p className="text-[11px] text-blue-700">RAG Ready</p>
-          <p className="text-lg font-semibold tracking-tight text-blue-700">{ragReadyCount}</p>
-        </div>
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
-          <p className="text-[11px] text-destructive">RAG Error</p>
-          <p className="text-lg font-semibold tracking-tight text-destructive">{ragErrorCount}</p>
-        </div>
-      </section>
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => {
+                  onSelectOrganization(account);
+                }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setIsCreateOrgOpen(true);
+              }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-      {/* ── File picker ────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          1. 選擇檔案
-        </h2>
-        <label
-          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 transition
-            ${selectedFile ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
-        >
-          <FileUp className="size-8 text-muted-foreground" />
-          <div className="text-center">
-            <p className="text-sm font-medium">
-              {selectedFile ? selectedFile.name : "點擊或拖曳上傳"}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={Object.keys(ACCEPTED_MIME).join(",")}
-            className="sr-only"
-            onChange={handleFileChange}
-          />
-        </label>
-      </section>
+        <div className="my-2 h-px w-7 bg-border/50" />
 
-      {/* ── Actions ────────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          2. 執行上傳 &amp; 解析
-        </h2>
-        <div className="flex gap-3">
-          <Button onClick={handleUploadAndParse} disabled={!selectedFile || isLoading} className="gap-2">
-            {isLoading ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />}
-            {status === "uploading" ? "上傳中…" : status === "waiting" ? "等待中…" : "開始"}
-          </Button>
-          <Button variant="outline" onClick={reset} disabled={isLoading}>
-            重置
-          </Button>
-        </div>
-      </section>
+        {/* ── Section nav icons ─────────────────────────────────────── */}
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
 
-      {/* ── Result ─────────────────────────────────────────────────── */}
-      {(status === "done" || status === "error") && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            3. 結果
-          </h2>
-          {status === "done" && result && (
-            <div className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
-              <div className="flex items-center gap-2 text-emerald-600">
-                <CheckCircle2 className="size-4 shrink-0" />
-                <span className="text-sm font-medium">解析成功</span>
-              </div>
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <dt className="text-muted-foreground">doc_id</dt>
-                <dd className="font-mono text-xs">{result.doc_id}</dd>
-                <dt className="text-muted-foreground">page_count</dt>
-                <dd className="font-bold">{result.page_count}</dd>
-                <dt className="text-muted-foreground">JSON 位置</dt>
-                <dd className="font-mono text-xs break-all">{result.json_gcs_uri || "—"}</dd>
-              </dl>
-            </div>
-          )}
-          {status === "error" && (
-            <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              <XCircle className="mt-0.5 size-4 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-        </section>
-      )}
+            if (item.href === "/workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
 
-      {status === "waiting" && (
-        <section className="space-y-3">
-          <div className="flex items-start gap-2 rounded-xl border border-blue-300/30 bg-blue-500/5 p-4 text-sm text-blue-600">
-            <AlertCircle className="mt-0.5 size-4 shrink-0 animate-pulse" />
-            <div>
-              <p className="font-medium">處理中…</p>
-              <p className="mt-1 text-xs opacity-75">Document AI 正在解析檔案，請稍候</p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── All uploaded docs table ─────────────────────────────────── */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <FileText className="size-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            已上傳檔案（{allDocs.length}）
-          </h2>
-        </div>
-        {allDocs.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-            尚無上傳記錄
-          </p>
-        ) : (
-          <div className="space-y-0 overflow-hidden rounded-xl border border-border/60">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead>
-                  <tr className="border-b border-border/60 bg-muted/40">
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allDocs.map((doc, i) => (
-                    <tr
-                      key={doc.id}
-                      className={`border-b border-border/40 last:border-0 transition-colors ${
-                        selectedDocId === doc.id
-                          ? "bg-primary/8 ring-1 ring-inset ring-primary/20"
-                          : i % 2 === 0 ? "bg-background" : "bg-muted/20"
-                      }`}
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        router.push("/workspace");
+                      }}
+                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
                     >
-                      <td className="px-4 py-2.5 font-mono text-xs max-w-[180px] truncate" title={doc.filename}>
-                        {doc.filename}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <StatusBadge status={doc.status} errorMessage={doc.error_message} />
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <RagBadge status={doc.rag_status} error={doc.rag_error} />
-                      </td>
-                      <td className="px-4 py-2.5 text-xs">
-                        {doc.page_count != null ? doc.page_count : "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                        {formatDateTime(doc.uploaded_at)}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => { void handleViewOriginal(doc); }}
-                            disabled={!doc.gcs_uri}
-                            title="查看原始檔案"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
-                          >
-                            <ExternalLink className="size-3.5" />
-                          </button>
-                          <button
-                            onClick={() => { void handleViewJson(doc); }}
-                            disabled={doc.status !== "completed" || !doc.json_gcs_uri}
-                            title="查看 JSON 解析結果"
-                            className={`inline-flex size-7 items-center justify-center rounded-md transition hover:bg-muted disabled:opacity-30 ${
-                              selectedDocId === doc.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            <Code2 className="size-3.5" />
-                          </button>
-                          <button
-                            onClick={() => { void handleDeleteDoc(doc); }}
-                            disabled={deletingId === doc.id}
-                            title="刪除"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
-                          >
-                            {deletingId === doc.id
-                              ? <Loader2 className="size-3.5 animate-spin" />
-                              : <Trash2 className="size-3.5" />}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(`/workspace/${workspace.id}`);
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsCreateWorkspaceOpen(true);
+                      }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
 
-            {/* JSON preview panel */}
-            {selectedDocId && (
-              <div className="border-t border-border/60 bg-[#0d1117]">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
-                  <div className="flex items-center gap-2 text-xs text-green-400">
-                    <Code2 className="size-3.5" />
-                    <span className="font-mono">
-                      {selectedDoc?.filename ?? selectedDocId} — JSON
-                    </span>
-                  </div>
-                  <button
-                    onClick={closeJsonPreview}
-                    className="text-white/30 hover:text-white/70 transition text-xs"
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
                   >
-                    ✕ 關閉
-                  </button>
-                </div>
-                {selectedDoc?.rag_status === "error" && (
-                  <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs text-destructive">
-                    RAG 失敗：{selectedDoc.rag_error || "未知錯誤"}
-                  </div>
-                )}
-                <div className="max-h-80 overflow-y-auto p-4">
-                  {jsonLoading ? (
-                    <div className="flex items-center gap-2 text-green-400/60 text-xs">
-                      <Loader2 className="size-3.5 animate-spin" /> 載入中…
-                    </div>
-                  ) : (
-                    <pre className="font-mono text-xs leading-relaxed text-green-400 whitespace-pre-wrap break-words">
-                      {jsonContent}
-                    </pre>
-                  )}
-                </div>
+                    {item.icon}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        {/* ── Spacer ────────────────────────────────────────────────── */}
+        <div className="flex-1" />
+
+        <div className="h-1" />
+      </aside>
+
+      {/* ── Create organization dialog ─────────────────────────────── */}
+      <CreateOrganizationDialog
+        open={isCreateOrgOpen}
+        onOpenChange={setIsCreateOrgOpen}
+        user={user}
+        onOrganizationCreated={onOrganizationCreated}
+        onNavigate={(href) => { router.push(href); }}
+      />
+
+      {/* ── Create workspace dialog ────────────────────────────────── */}
+      <CreateWorkspaceDialogRail
+        open={isCreateWorkspaceOpen}
+        onOpenChange={setIsCreateWorkspaceOpen}
+        activeAccount={activeAccount}
+        isOrganizationAccount={isOrganizationAccount}
+        onNavigate={(href) => { router.push(href); }}
+      />
+    </TooltipProvider>
+  );
+}
+````
+
+## File: app/(shell)/_components/customize-navigation-dialog.tsx
+````typescript
+"use client";
+
+/**
+ * Module: customize-navigation-dialog.tsx
+ * Purpose: Let users pick which nav items stay pinned in the secondary sidebar.
+ * Responsibilities: dialog shell, section rendering, preference state management.
+ * Constraints: UI-only; pure preference storage, no backend call.
+ *   Data/constants/localStorage live in nav-preferences-data.ts.
+ *   Row components live in nav-check-row.tsx.
+ */
+
+import { useMemo, useState, useEffect } from "react";
+
+import { reorder, type Edge } from "@lib-dragdrop";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Checkbox } from "@ui-shadcn/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Separator } from "@ui-shadcn/ui/separator";
+
+import { CheckRow, WorkspaceCheckRow } from "./nav-check-row";
+import { type WorkspaceNavItem, WORKSPACE_NAV_ITEMS } from "@/modules/workspace/api";
+import {
+  DIALOG_TEXT,
+  ORGANIZATION_NAV_ITEMS,
+  PERSONAL_ITEMS,
+  readNavPreferences,
+  writeNavPreferences,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+} from "./nav-preferences-data";
+
+// Re-export the stable public surface so existing consumers (dashboard-sidebar,
+// workspace-sidebar-section) don't need to change their import paths.
+export type { NavPreferences };
+export { readNavPreferences };
+
+// ── Props ──────────────────────────────────────────────────────────────────
+
+interface CustomizeNavigationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onPreferencesChange?: (prefs: NavPreferences) => void;
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
+
+export function CustomizeNavigationDialog({
+  open,
+  onOpenChange,
+  onPreferencesChange,
+}: CustomizeNavigationDialogProps) {
+  const [prefs, setPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [dragTarget, setDragTarget] = useState<{ id: string; edge: Edge | null } | null>(null);
+
+  const uiLocale = useMemo<"zh" | "en">(() => {
+    if (typeof navigator === "undefined") return "zh";
+    const language = navigator.language?.toLowerCase() ?? "";
+    return language.startsWith("zh") ? "zh" : "en";
+  }, []);
+
+  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const localeFile =
+      uiLocale === "zh" ? "/localized-files/zh-TW.json" : "/localized-files/en.json";
+    let canceled = false;
+    fetch(localeFile)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to load locale file: ${res.status}`);
+        return res.json() as Promise<SidebarLocaleBundle>;
+      })
+      .then((json) => { if (!canceled) setLocaleBundle(json); })
+      .catch(() => { if (!canceled) setLocaleBundle(null); });
+    return () => { canceled = true; };
+  }, [uiLocale]);
+
+  const text = DIALOG_TEXT[uiLocale];
+
+  const workspaceItemsById = useMemo(
+    () => Object.fromEntries(WORKSPACE_NAV_ITEMS.map((item) => [item.id, item])),
+    [],
+  );
+
+  const orderedWorkspaceItems = useMemo(
+    () =>
+      prefs.workspaceOrder
+        .map((id) => workspaceItemsById[id])
+        .filter((item): item is WorkspaceNavItem => item != null),
+    [prefs.workspaceOrder, workspaceItemsById],
+  );
+
+  const getWorkspaceLabel = (item: WorkspaceNavItem) =>
+    localeBundle?.workspace?.tabLabels?.[item.tabKey] ?? item.fallbackLabel;
+
+  const getOrganizationLabel = (item: (typeof ORGANIZATION_NAV_ITEMS)[number]) =>
+    uiLocale === "zh" ? item.zhLabel : item.enLabel;
+
+  function updatePrefs(update: Partial<NavPreferences>) {
+    const next = { ...prefs, ...update };
+    writeNavPreferences(next);
+    setPrefs(next);
+    onPreferencesChange?.(next);
+  }
+
+  function togglePersonal(id: string) {
+    const next = prefs.pinnedPersonal.includes(id)
+      ? prefs.pinnedPersonal.filter((x) => x !== id)
+      : [...prefs.pinnedPersonal, id];
+    updatePrefs({ pinnedPersonal: next });
+  }
+
+  function toggleWorkspace(id: string) {
+    const next = prefs.pinnedWorkspace.includes(id)
+      ? prefs.pinnedWorkspace.filter((x) => x !== id)
+      : [...prefs.pinnedWorkspace, id];
+    updatePrefs({ pinnedWorkspace: next });
+  }
+
+  function reorderWorkspaceItems(sourceId: string, targetId: string, edge: Edge | null) {
+    const startIndex = prefs.workspaceOrder.indexOf(sourceId);
+    const targetIndex = prefs.workspaceOrder.indexOf(targetId);
+    if (startIndex === -1 || targetIndex === -1) return;
+    const destinationIndex = edge === "bottom" ? targetIndex + 1 : targetIndex;
+    const nextOrder = reorder({ list: prefs.workspaceOrder, startIndex, finishIndex: destinationIndex });
+    updatePrefs({ workspaceOrder: nextOrder });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{text.title}</DialogTitle>
+          <DialogDescription>{text.description}</DialogDescription>
+        </DialogHeader>
+
+        {/* ── Personal items ─────────────────────────────────────────── */}
+        <div className="mt-2 space-y-1">
+          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionPersonal}
+          </p>
+          <div className="rounded-lg border border-border/60 bg-background/50">
+            {PERSONAL_ITEMS.map((item) => (
+              <CheckRow
+                key={item.id}
+                id={item.id}
+                label={text[item.labelKey]}
+                checked={prefs.pinnedPersonal.includes(item.id)}
+                onToggle={() => { togglePersonal(item.id); }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <Separator className="my-2" />
+
+        {/* ── Workspace items ────────────────────────────────────────── */}
+        <div className="space-y-1">
+          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionWorkspace}
+          </p>
+          <div className="rounded-lg border border-border/60 bg-background/50">
+            {orderedWorkspaceItems.map((item) => (
+              <WorkspaceCheckRow
+                key={item.id}
+                id={item.id}
+                label={getWorkspaceLabel(item)}
+                checked={prefs.pinnedWorkspace.includes(item.id)}
+                isDropTarget={dragTarget?.id === item.id}
+                activeDropEdge={dragTarget?.id === item.id ? dragTarget.edge : null}
+                onToggle={() => { toggleWorkspace(item.id); }}
+                onDragOverItem={(targetId, edge) => { setDragTarget({ id: targetId, edge }); }}
+                onDragLeaveItem={(targetId) => {
+                  setDragTarget((current) => (current?.id === targetId ? null : current));
+                }}
+                onReorder={reorderWorkspaceItems}
+              />
+            ))}
+          </div>
+        </div>
+
+        <Separator className="my-2" />
+
+        {/* ── Organization items ──────────────────────────────────────── */}
+        <div className="space-y-1">
+          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionOrganization}
+          </p>
+          <div className="rounded-lg border border-border/60 bg-background/50">
+            {ORGANIZATION_NAV_ITEMS.map((item) => (
+              <CheckRow
+                key={item.id}
+                id={item.id}
+                label={getOrganizationLabel(item)}
+                checked={prefs.pinnedWorkspace.includes(item.id)}
+                onToggle={() => { toggleWorkspace(item.id); }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <Separator className="my-2" />
+
+        {/* ── Display settings ───────────────────────────────────────── */}
+        <div className="space-y-3">
+          <p className="px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionDisplay}
+          </p>
+          <div className="rounded-lg border border-border/60 bg-background/50 px-4 py-3 space-y-3">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="nav-limit-workspaces"
+                checked={prefs.showLimitedWorkspaces}
+                onCheckedChange={(checked) => { updatePrefs({ showLimitedWorkspaces: Boolean(checked) }); }}
+              />
+              <Label htmlFor="nav-limit-workspaces" className="cursor-pointer text-sm font-medium">
+                {text.limitedLabel}
+              </Label>
+            </div>
+            {prefs.showLimitedWorkspaces && (
+              <div className="space-y-1.5 pl-7">
+                <Label htmlFor="nav-max-workspaces" className="text-xs text-muted-foreground">
+                  {text.limitedInputLabel}
+                </Label>
+                <Input
+                  id="nav-max-workspaces"
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={prefs.maxWorkspaces}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val) && val >= 1) updatePrefs({ maxWorkspaces: Math.min(val, 50) });
+                  }}
+                  className="w-full"
+                />
               </div>
             )}
           </div>
-        )}
-      </section>
+        </div>
 
-      {/* ── Parsed docs table (extracted component) ─────────────────── */}
-      <DevToolsParsedDocsSection
-        parsedDocs={parsedDocs}
-        reindexingId={reindexingId}
-        onViewJson={(doc) => { void handleViewJson(doc); }}
-        onManualProcess={(doc) => { void handleManualProcess(doc, appendLog); }}
-        formatNormalizationRatio={formatNormalizationRatio}
-      />
-
-      {/* ── Console log ────────────────────────────────────────────── */}
-      {logs.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Console
-          </h2>
-          <div className="max-h-48 overflow-y-auto rounded-xl bg-[#0d1117] p-4">
-            {logs.map((line, i) => (
-              <p key={i} className="font-mono text-xs leading-relaxed text-green-400">
-                {line}
-              </p>
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
+        {/* ── Footer ─────────────────────────────────────────────────── */}
+        <div className="flex justify-end pt-2">
+          <Button type="button" onClick={() => { onOpenChange(false); }}>
+            {text.done}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 ````
@@ -76471,630 +77664,36 @@ export interface WorkspaceQueryRepository {
 }
 ````
 
-## File: app/(shell)/_components/app-rail.tsx
+## File: app/(shell)/_components/create-workspace-dialog-rail.tsx
 ````typescript
 "use client";
 
-/**
- * Module: app-rail.tsx
- * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
- * Responsibilities: app logo, account context switcher, top-level section icon nav with
- *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
- * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
- *   `h-full` ensures it fills the parent `h-screen` container.
- */
-
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import { type WorkspaceEntity } from "@/modules/workspace/api";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-import { CreateOrganizationDialog } from "./create-organization-dialog";
-import { CreateWorkspaceDialogRail } from "./create-workspace-dialog-rail";
+import { CreateWorkspaceDialogRail as WorkspaceCreateWorkspaceDialogRail } from "@/modules/workspace/api";
 
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-
-interface RailItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  /** When false the item is hidden; defaults to true */
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-
-function isExactOrChildPath(targetPath: string, pathname: string) {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
-}
-
-function getInitial(name: string | undefined | null): string {
-  return name?.trim().charAt(0).toUpperCase() || "U";
-}
-
-export function AppRail({
-  pathname,
-  user,
-  activeAccount,
-  organizationAccounts,
-  workspaces,
-  workspacesHydrated,
-  isOrganizationAccount,
-  onSelectPersonal,
-  onSelectOrganization,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onOrganizationCreated,
-  onSignOut: _onSignOut,
-}: AppRailProps) {
-  const router = useRouter();
-  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const railItems: RailItem[] = [
-    // ── Organization / hub layer ─────────────────────────────────────
-    {
-      href: "/workspace",
-      label: "工作區中心",
-      icon: <Building2 className="size-[18px]" />,
-    },
-    // ── People (org-only) ─────────────────────────────────────────
-    {
-      href: "/organization/members",
-      label: "成員",
-      icon: <UserRound className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
-    },
-    {
-      href: "/organization/teams",
-      label: "團隊",
-      icon: <Users className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
-    },
-    // ── Operations (org-only) ─────────────────────────────────────
-    {
-      href: "/organization/daily",
-      label: "每日",
-      icon: <NotebookText className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
-    },
-    {
-      href: "/organization/schedule",
-      label: "排程",
-      icon: <CalendarDays className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
-    },
-    // ── Admin (org-only) ──────────────────────────────────────────
-    {
-      href: "/organization/audit",
-      label: "稽核",
-      icon: <ClipboardList className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
-    },
-    {
-      href: "/organization/permissions",
-      label: "權限",
-      icon: <SlidersHorizontal className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
-    },
-    // ── Developer ────────────────────────────────────────────────
-    {
-      href: "/dev-tools",
-      label: "開發工具",
-      icon: <FlaskConical className="size-[18px]" />,
-    },
-  ];
-
-  const visibleRailItems = railItems.filter((item) => item.show !== false);
-
-  const sortedWorkspaces = useMemo(
-    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces],
-  );
-
-  const accountName = activeAccount?.name ?? user?.name ?? "—";
-
-  return (
-    <TooltipProvider delayDuration={400}>
-      <aside
-        aria-label="App navigation rail"
-        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
-      >
-        {/* ── Workspace / account logo tile ─────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
-                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[180px]">
-              <p className="text-xs font-medium">{accountName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => {
-                  onSelectOrganization(account);
-                }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                setIsCreateOrgOpen(true);
-              }}
-              className="gap-2 text-primary"
-            >
-              <Plus className="size-3.5 shrink-0" />
-              <span>建立組織</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="my-2 h-px w-7 bg-border/50" />
-
-        {/* ── Section nav icons ─────────────────────────────────────── */}
-        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
-          {visibleRailItems.map((item) => {
-            const active = item.isActive?.(pathname) ?? isActive(item.href);
-
-            if (item.href === "/workspace") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="工作區中心：切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">工作區中心：切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        router.push("/workspace");
-                      }}
-                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
-                    >
-                      工作區中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(`/workspace/${workspace.id}`);
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setIsCreateWorkspaceOpen(true);
-                      }}
-                      className="gap-2 text-primary"
-                    >
-                      <Plus className="size-3.5 shrink-0" />
-                      <span>建立工作區</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">{item.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
-
-        {/* ── Spacer ────────────────────────────────────────────────── */}
-        <div className="flex-1" />
-
-        <div className="h-1" />
-      </aside>
-
-      {/* ── Create organization dialog ─────────────────────────────── */}
-      <CreateOrganizationDialog
-        open={isCreateOrgOpen}
-        onOpenChange={setIsCreateOrgOpen}
-        user={user}
-        onOrganizationCreated={onOrganizationCreated}
-        onNavigate={(href) => { router.push(href); }}
-      />
-
-      {/* ── Create workspace dialog ────────────────────────────────── */}
-      <CreateWorkspaceDialogRail
-        open={isCreateWorkspaceOpen}
-        onOpenChange={setIsCreateWorkspaceOpen}
-        activeAccount={activeAccount}
-        isOrganizationAccount={isOrganizationAccount}
-        onNavigate={(href) => { router.push(href); }}
-      />
-    </TooltipProvider>
-  );
-}
-````
-
-## File: app/(shell)/_components/customize-navigation-dialog.tsx
-````typescript
-"use client";
-
-/**
- * Module: customize-navigation-dialog.tsx
- * Purpose: Let users pick which nav items stay pinned in the secondary sidebar.
- * Responsibilities: dialog shell, section rendering, preference state management.
- * Constraints: UI-only; pure preference storage, no backend call.
- *   Data/constants/localStorage live in nav-preferences-data.ts.
- *   Row components live in nav-check-row.tsx.
- */
-
-import { useMemo, useState, useEffect } from "react";
-
-import { reorder, type Edge } from "@lib-dragdrop";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Checkbox } from "@ui-shadcn/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Separator } from "@ui-shadcn/ui/separator";
-
-import { CheckRow, WorkspaceCheckRow } from "./nav-check-row";
-import { type WorkspaceNavItem, WORKSPACE_NAV_ITEMS } from "@/modules/workspace/api";
-import {
-  DIALOG_TEXT,
-  ORGANIZATION_NAV_ITEMS,
-  PERSONAL_ITEMS,
-  readNavPreferences,
-  writeNavPreferences,
-  type NavPreferences,
-  type SidebarLocaleBundle,
-} from "./nav-preferences-data";
-
-// Re-export the stable public surface so existing consumers (dashboard-sidebar,
-// workspace-sidebar-section) don't need to change their import paths.
-export type { NavPreferences };
-export { readNavPreferences };
-
-// ── Props ──────────────────────────────────────────────────────────────────
-
-interface CustomizeNavigationDialogProps {
+interface CreateWorkspaceDialogRailProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onPreferencesChange?: (prefs: NavPreferences) => void;
+  activeAccount: ActiveAccount | null;
+  isOrganizationAccount: boolean;
+  onNavigate: (href: string) => void;
 }
 
-// ── Component ──────────────────────────────────────────────────────────────
-
-export function CustomizeNavigationDialog({
+export function CreateWorkspaceDialogRail({
   open,
   onOpenChange,
-  onPreferencesChange,
-}: CustomizeNavigationDialogProps) {
-  const [prefs, setPrefs] = useState<NavPreferences>(() => readNavPreferences());
-  const [dragTarget, setDragTarget] = useState<{ id: string; edge: Edge | null } | null>(null);
-
-  const uiLocale = useMemo<"zh" | "en">(() => {
-    if (typeof navigator === "undefined") return "zh";
-    const language = navigator.language?.toLowerCase() ?? "";
-    return language.startsWith("zh") ? "zh" : "en";
-  }, []);
-
-  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const localeFile =
-      uiLocale === "zh" ? "/localized-files/zh-TW.json" : "/localized-files/en.json";
-    let canceled = false;
-    fetch(localeFile)
-      .then((res) => {
-        if (!res.ok) throw new Error(`Failed to load locale file: ${res.status}`);
-        return res.json() as Promise<SidebarLocaleBundle>;
-      })
-      .then((json) => { if (!canceled) setLocaleBundle(json); })
-      .catch(() => { if (!canceled) setLocaleBundle(null); });
-    return () => { canceled = true; };
-  }, [uiLocale]);
-
-  const text = DIALOG_TEXT[uiLocale];
-
-  const workspaceItemsById = useMemo(
-    () => Object.fromEntries(WORKSPACE_NAV_ITEMS.map((item) => [item.id, item])),
-    [],
-  );
-
-  const orderedWorkspaceItems = useMemo(
-    () =>
-      prefs.workspaceOrder
-        .map((id) => workspaceItemsById[id])
-        .filter((item): item is WorkspaceNavItem => item != null),
-    [prefs.workspaceOrder, workspaceItemsById],
-  );
-
-  const getWorkspaceLabel = (item: WorkspaceNavItem) =>
-    localeBundle?.workspace?.tabLabels?.[item.tabKey] ?? item.fallbackLabel;
-
-  const getOrganizationLabel = (item: (typeof ORGANIZATION_NAV_ITEMS)[number]) =>
-    uiLocale === "zh" ? item.zhLabel : item.enLabel;
-
-  function updatePrefs(update: Partial<NavPreferences>) {
-    const next = { ...prefs, ...update };
-    writeNavPreferences(next);
-    setPrefs(next);
-    onPreferencesChange?.(next);
-  }
-
-  function togglePersonal(id: string) {
-    const next = prefs.pinnedPersonal.includes(id)
-      ? prefs.pinnedPersonal.filter((x) => x !== id)
-      : [...prefs.pinnedPersonal, id];
-    updatePrefs({ pinnedPersonal: next });
-  }
-
-  function toggleWorkspace(id: string) {
-    const next = prefs.pinnedWorkspace.includes(id)
-      ? prefs.pinnedWorkspace.filter((x) => x !== id)
-      : [...prefs.pinnedWorkspace, id];
-    updatePrefs({ pinnedWorkspace: next });
-  }
-
-  function reorderWorkspaceItems(sourceId: string, targetId: string, edge: Edge | null) {
-    const startIndex = prefs.workspaceOrder.indexOf(sourceId);
-    const targetIndex = prefs.workspaceOrder.indexOf(targetId);
-    if (startIndex === -1 || targetIndex === -1) return;
-    const destinationIndex = edge === "bottom" ? targetIndex + 1 : targetIndex;
-    const nextOrder = reorder({ list: prefs.workspaceOrder, startIndex, finishIndex: destinationIndex });
-    updatePrefs({ workspaceOrder: nextOrder });
-  }
-
+  activeAccount,
+  isOrganizationAccount,
+  onNavigate,
+}: CreateWorkspaceDialogRailProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{text.title}</DialogTitle>
-          <DialogDescription>{text.description}</DialogDescription>
-        </DialogHeader>
-
-        {/* ── Personal items ─────────────────────────────────────────── */}
-        <div className="mt-2 space-y-1">
-          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {text.sectionPersonal}
-          </p>
-          <div className="rounded-lg border border-border/60 bg-background/50">
-            {PERSONAL_ITEMS.map((item) => (
-              <CheckRow
-                key={item.id}
-                id={item.id}
-                label={text[item.labelKey]}
-                checked={prefs.pinnedPersonal.includes(item.id)}
-                onToggle={() => { togglePersonal(item.id); }}
-              />
-            ))}
-          </div>
-        </div>
-
-        <Separator className="my-2" />
-
-        {/* ── Workspace items ────────────────────────────────────────── */}
-        <div className="space-y-1">
-          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {text.sectionWorkspace}
-          </p>
-          <div className="rounded-lg border border-border/60 bg-background/50">
-            {orderedWorkspaceItems.map((item) => (
-              <WorkspaceCheckRow
-                key={item.id}
-                id={item.id}
-                label={getWorkspaceLabel(item)}
-                checked={prefs.pinnedWorkspace.includes(item.id)}
-                isDropTarget={dragTarget?.id === item.id}
-                activeDropEdge={dragTarget?.id === item.id ? dragTarget.edge : null}
-                onToggle={() => { toggleWorkspace(item.id); }}
-                onDragOverItem={(targetId, edge) => { setDragTarget({ id: targetId, edge }); }}
-                onDragLeaveItem={(targetId) => {
-                  setDragTarget((current) => (current?.id === targetId ? null : current));
-                }}
-                onReorder={reorderWorkspaceItems}
-              />
-            ))}
-          </div>
-        </div>
-
-        <Separator className="my-2" />
-
-        {/* ── Organization items ──────────────────────────────────────── */}
-        <div className="space-y-1">
-          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {text.sectionOrganization}
-          </p>
-          <div className="rounded-lg border border-border/60 bg-background/50">
-            {ORGANIZATION_NAV_ITEMS.map((item) => (
-              <CheckRow
-                key={item.id}
-                id={item.id}
-                label={getOrganizationLabel(item)}
-                checked={prefs.pinnedWorkspace.includes(item.id)}
-                onToggle={() => { toggleWorkspace(item.id); }}
-              />
-            ))}
-          </div>
-        </div>
-
-        <Separator className="my-2" />
-
-        {/* ── Display settings ───────────────────────────────────────── */}
-        <div className="space-y-3">
-          <p className="px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {text.sectionDisplay}
-          </p>
-          <div className="rounded-lg border border-border/60 bg-background/50 px-4 py-3 space-y-3">
-            <div className="flex items-center gap-3">
-              <Checkbox
-                id="nav-limit-workspaces"
-                checked={prefs.showLimitedWorkspaces}
-                onCheckedChange={(checked) => { updatePrefs({ showLimitedWorkspaces: Boolean(checked) }); }}
-              />
-              <Label htmlFor="nav-limit-workspaces" className="cursor-pointer text-sm font-medium">
-                {text.limitedLabel}
-              </Label>
-            </div>
-            {prefs.showLimitedWorkspaces && (
-              <div className="space-y-1.5 pl-7">
-                <Label htmlFor="nav-max-workspaces" className="text-xs text-muted-foreground">
-                  {text.limitedInputLabel}
-                </Label>
-                <Input
-                  id="nav-max-workspaces"
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={prefs.maxWorkspaces}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    if (!isNaN(val) && val >= 1) updatePrefs({ maxWorkspaces: Math.min(val, 50) });
-                  }}
-                  className="w-full"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Footer ─────────────────────────────────────────────────── */}
-        <div className="flex justify-end pt-2">
-          <Button type="button" onClick={() => { onOpenChange(false); }}>
-            {text.done}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <WorkspaceCreateWorkspaceDialogRail
+      open={open}
+      onOpenChange={onOpenChange}
+      accountId={activeAccount?.id ?? null}
+      accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
+      onNavigate={onNavigate}
+    />
   );
 }
 ````
@@ -79451,40 +80050,6 @@ Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 
 - [context-map.md](./context-map.md) — 與其他 bounded contexts 的關係
 ````
 
-## File: app/(shell)/_components/create-workspace-dialog-rail.tsx
-````typescript
-"use client";
-
-import type { ActiveAccount } from "@/app/providers/app-context";
-import { CreateWorkspaceDialogRail as WorkspaceCreateWorkspaceDialogRail } from "@/modules/workspace/api";
-
-interface CreateWorkspaceDialogRailProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  activeAccount: ActiveAccount | null;
-  isOrganizationAccount: boolean;
-  onNavigate: (href: string) => void;
-}
-
-export function CreateWorkspaceDialogRail({
-  open,
-  onOpenChange,
-  activeAccount,
-  isOrganizationAccount,
-  onNavigate,
-}: CreateWorkspaceDialogRailProps) {
-  return (
-    <WorkspaceCreateWorkspaceDialogRail
-      open={open}
-      onOpenChange={onOpenChange}
-      accountId={activeAccount?.id ?? null}
-      accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
-      onNavigate={onNavigate}
-    />
-  );
-}
-````
-
 ## File: app/(shell)/_components/use-recent-workspaces.ts
 ````typescript
 export {
@@ -79492,6 +80057,347 @@ export {
   getWorkspaceIdFromPath,
   useRecentWorkspaces,
 } from "@/modules/workspace/api";
+````
+
+## File: app/(shell)/ai-chat/page.tsx
+````typescript
+"use client";
+
+/**
+ * Module: ai-chat page
+ * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
+ * Thread persistence: Firestore via saveThread/loadThread (survives page reload).
+ * Multi-turn context: previous messages injected as system prompt.
+ */
+
+import Link from "next/link";
+import { Bot, BookOpen, Brain, FileText, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { v7 as uuid } from "@lib-uuid";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/api";
+import { sendChatMessage, saveThread, loadThread } from "./_actions";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import {
+  type ChatMessage,
+  STORAGE_KEY,
+  buildContextPrompt,
+  generateMsgId,
+  threadFromMessages,
+} from "./ai-chat-helpers";
+
+export default function AiChatPage() {
+  const searchParams = useSearchParams();
+  const { state: { workspaces } } = useApp();
+  const { state: authState } = useAuth();
+  const accountId = authState.user?.id ?? "";
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [threadCreatedAt, setThreadCreatedAt] = useState<string>(new Date().toISOString());
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const currentWorkspace = resolveWorkspaceFromMap(workspaces ?? {}, requestedWorkspaceId);
+  const workspaceName = currentWorkspace?.name ?? null;
+  const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
+  const latestUserPrompt = [...messages].reverse().find((message) => message.role === "user")?.content ?? null;
+
+  // Load persisted thread on mount
+  useEffect(() => {
+    if (!accountId) return;
+    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+    const storedId = localStorage.getItem(storageKey);
+    if (!storedId) return;
+    setThreadId(storedId);
+    void loadThread(accountId, storedId).then((thread) => {
+      if (!thread || thread.messages.length === 0) return;
+      setThreadCreatedAt(thread.createdAt);
+      setMessages(
+        thread.messages
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
+      );
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
+  const summaryItems = useMemo(() => {
+    if (messages.length === 0) {
+      return [
+        "先整理來源文件與工作區脈絡，再開始對話。",
+        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
+      ];
+    }
+
+    return [
+      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((message) => message.role === "assistant").length} 次模型回覆。`,
+      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
+    ];
+  }, [latestUserPrompt, messages]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || isPending) return;
+
+    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
+    const nextMessages = [...messages, userMsg];
+    setMessages(nextMessages);
+    setInput("");
+    setError(null);
+    setIsPending(true);
+
+    // Build multi-turn context from history (exclude the new user message)
+    const contextPrompt = buildContextPrompt(messages);
+
+    try {
+      const result = await sendChatMessage({
+        prompt: text,
+        ...(contextPrompt ? { system: contextPrompt } : {}),
+      });
+      if (result.ok) {
+        const assistantMsg: ChatMessage = {
+          id: generateMsgId(),
+          role: "assistant",
+          content: result.data.text,
+        };
+        const finalMessages = [...nextMessages, assistantMsg];
+        setMessages(finalMessages);
+
+        // Persist thread to Firestore
+        if (accountId) {
+          const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+          let currentThreadId = threadId;
+          if (!currentThreadId) {
+            currentThreadId = uuid();
+            setThreadId(currentThreadId);
+            localStorage.setItem(storageKey, currentThreadId);
+          }
+          const thread = threadFromMessages(currentThreadId, finalMessages, threadCreatedAt);
+          void saveThread(accountId, thread);
+        }
+      } else {
+        setError(result.error.message);
+      }
+    } catch {
+      setError("無法連接至 AI 服務，請稍後再試。");
+    } finally {
+      setIsPending(false);
+      // Defer scroll to allow React to flush the new message into the DOM first.
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
+    }
+  }
+
+  function handleNewThread() {
+    if (!accountId) return;
+    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+    localStorage.removeItem(storageKey);
+    setThreadId(null);
+    setMessages([]);
+    setThreadCreatedAt(new Date().toISOString());
+    setError(null);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSubmit(e as unknown as React.FormEvent);
+    }
+  }
+
+  return (
+    <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <aside className="border-b border-border/60 bg-muted/20 p-4 lg:border-b-0 lg:border-r">
+        <div className="space-y-4">
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Brain className="size-4 text-primary" />
+                Notebook / AI
+              </CardTitle>
+              <CardDescription>
+                將工作區知識、知識頁面與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <WorkspaceContextCard workspace={currentWorkspace} />
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <BookOpen className="size-4 text-primary" />
+                Source context
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <Link href={`/source/documents${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <FileText className="size-3.5" />
+                文件來源 / Documents
+              </Link>
+              <Link href={`/knowledge/pages${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <BookOpen className="size-3.5" />
+                知識頁面 / Pages
+              </Link>
+              <Link href={`/notebook/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <Bot className="size-3.5" />
+                Ask / Cite / RAG Query
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Summary snapshot</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              {summaryItems.map((item) => (
+                <p key={item} className="rounded-md border border-border/50 px-3 py-2">
+                  {item}
+                </p>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Lightbulb className="size-4 text-primary" />
+                Insight board
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <p className="rounded-md border border-border/50 px-3 py-2">
+                目前仍是 Notebook shell，摘要、洞察、引用整理會在後續 phase 持續補齊。
+              </p>
+              <p className="rounded-md border border-border/50 px-3 py-2">
+                若你需要可追溯回答，優先改從 Ask / Cite 取得引用，再回到這裡整理觀點。
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </aside>
+
+      <section className="flex min-h-0 flex-col">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-3">
+          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10">
+            <Bot className="size-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-sm font-semibold leading-none">Notebook / AI</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">工作區問答 · 摘要草稿 · 洞察整理</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            {threadId && (
+              <span className="text-[10px] text-muted-foreground/60">
+                Thread · {messages.length} 則
+              </span>
+            )}
+            <Button size="sm" variant="ghost" onClick={handleNewThread} disabled={messages.length === 0}>
+              <Plus className="mr-1 size-3.5" />
+              新對話
+            </Button>
+          </div>
+        </div>
+
+        {workspaceName && (
+          <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+            目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span> 進入；Notebook 會把這裡視為主要知識上下文。
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {messages.length === 0 && !isPending && (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
+                <Bot className="size-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">開始你的 notebook conversation</p>
+                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                  先問工作區背景、文件摘要、會議筆記整理或知識問答，再逐步累積 summary 與 insight。
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="mx-auto max-w-2xl space-y-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
+              >
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground",
+                  )}
+                >
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                </div>
+              </div>
+            ))}
+
+            {isPending && (
+              <div className="flex justify-start">
+                <div className="rounded-2xl bg-muted px-4 py-2.5">
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
+                {error}
+              </div>
+            )}
+
+            <div ref={bottomRef} />
+          </div>
+        </div>
+
+        <form
+          onSubmit={(e) => void handleSubmit(e)}
+          className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur"
+        >
+          <div className="mx-auto flex max-w-2xl items-end gap-2">
+            <textarea
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="輸入你的 notebook 問題… (Enter 送出，Shift+Enter 換行)"
+              disabled={isPending}
+              className="flex-1 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ maxHeight: "120px" }}
+            />
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isPending || !input.trim()}
+              className="shrink-0 gap-1.5"
+            >
+              {isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <SendHorizonal className="size-4" />
+              )}
+              <span className="hidden sm:inline">送出</span>
+            </Button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
 ````
 
 ## File: app/(shell)/workspace/[workspaceId]/page.tsx
@@ -80136,343 +81042,348 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 - 只服務單一 page 的 tab composition helper
 ````
 
-## File: app/(shell)/ai-chat/page.tsx
+## File: app/(shell)/_components/nav-preferences-data.ts
+````typescript
+/**
+ * nav-preferences-data.ts
+ * Owns: NavPreferences type, nav-item catalogs, default values,
+ *   validation helpers, and localStorage read/write utilities.
+ * Constraints: No React imports. No UI imports. Pure data / serialization.
+ */
+
+import {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "@/modules/workspace/api";
+
+// Re-export so existing consumers of this file (customize-navigation-dialog
+// via nav-preferences-data) keep working during the transition.
+export { WORKSPACE_NAV_ITEMS, normalizeWorkspaceOrder };
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+export interface NavPreferences {
+  /** IDs of personal nav items that are pinned */
+  pinnedPersonal: string[];
+  /** IDs of workspace org-management items that are pinned */
+  pinnedWorkspace: string[];
+  /** Whether to show a limited number of workspaces */
+  showLimitedWorkspaces: boolean;
+  /** Max number of workspaces to show (when showLimitedWorkspaces = true) */
+  maxWorkspaces: number;
+  /** Explicit display order of workspace items for sidebar and customize dialog */
+  workspaceOrder: string[];
+}
+
+export interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+
+const STORAGE_KEY = "xuanwu:nav-preferences";
+
+// ── Personal nav items ─────────────────────────────────────────────────────
+
+export const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
+  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
+];
+
+// ── Workspace / org-management items ──────────────────────────────────────
+// WORKSPACE_NAV_ITEMS is owned by modules/workspace/api (workspace BC).
+// It is re-exported above for backward-compatible consumers of this file.
+
+export const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
+  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
+  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
+  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
+];
+
+export const DIALOG_TEXT = {
+  zh: {
+    title: "Customize navigation",
+    description:
+      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
+    sectionPersonal: "個人",
+    sectionWorkspace: "工作區",
+    sectionOrganization: "組織管理",
+    sectionDisplay: "顯示設定",
+    limitedLabel: "側欄僅顯示固定數量的最近工作區",
+    limitedInputLabel: "工作區數量",
+    done: "完成",
+    recentWorkspaces: "最近工作區",
+  },
+  en: {
+    title: "Customize navigation",
+    description:
+      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
+    sectionPersonal: "Personal",
+    sectionWorkspace: "Workspace",
+    sectionOrganization: "Organization",
+    sectionDisplay: "Display",
+    limitedLabel: "Show a limited number of recent workspaces in sidebar",
+    limitedInputLabel: "Number of workspaces",
+    done: "Done",
+    recentWorkspaces: "Recent workspaces",
+  },
+} as const;
+
+// ── Defaults + validation ──────────────────────────────────────────────────
+
+export const DEFAULT_PREFS: NavPreferences = {
+  pinnedPersonal: ["recent-workspaces"],
+  pinnedWorkspace: [
+    ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
+    ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
+  ],
+  showLimitedWorkspaces: true,
+  maxWorkspaces: 10,
+  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
+};
+
+const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
+const VALID_WORKSPACE_ITEM_IDS = new Set([
+  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
+  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
+]);
+// normalizeWorkspaceOrder is owned by modules/workspace/api (workspace BC).
+// It is re-exported above.
+
+function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
+  if (!Array.isArray(ids)) return fallback;
+  const normalized = ids
+    .filter((id): id is string => typeof id === "string")
+    .filter((id) => validSet.has(id));
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
+}
+
+// ── localStorage helpers ───────────────────────────────────────────────────
+
+export function readNavPreferences(): NavPreferences {
+  if (typeof window === "undefined") return DEFAULT_PREFS;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_PREFS;
+    const parsed = JSON.parse(raw) as Partial<NavPreferences>;
+    return {
+      pinnedPersonal: normalizePinnedIds(
+        parsed.pinnedPersonal,
+        VALID_PERSONAL_ITEM_IDS,
+        DEFAULT_PREFS.pinnedPersonal,
+      ),
+      pinnedWorkspace: normalizePinnedIds(
+        parsed.pinnedWorkspace,
+        VALID_WORKSPACE_ITEM_IDS,
+        DEFAULT_PREFS.pinnedWorkspace,
+      ),
+      showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
+      maxWorkspaces:
+        typeof parsed.maxWorkspaces === "number"
+          ? parsed.maxWorkspaces
+          : DEFAULT_PREFS.maxWorkspaces,
+      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
+    };
+  } catch {
+    return DEFAULT_PREFS;
+  }
+}
+
+export function writeNavPreferences(prefs: NavPreferences): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+}
+````
+
+## File: app/(shell)/_components/sidebar-nav-data.tsx
+````typescript
+import {
+  BookOpen,
+  Bot,
+  Brain,
+  Building2,
+  Database,
+  FileText,
+  UserRound,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
+
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import {
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+
+export type NavSection =
+  | "workspace"
+  | "knowledge"
+  | "knowledge-base"
+  | "knowledge-database"
+  | "source"
+  | "notebook"
+  | "ai-chat"
+  | "account"
+  | "organization"
+  | "other";
+
+// ── Static nav constants ──────────────────────────────────────────────────────
+
+export const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
+
+export const ACCOUNT_NAV_ITEMS = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
+] as const;
+
+export const ACCOUNT_SECTION_MATCHERS = [
+  "/organization/daily",
+  "/organization/schedule",
+  "/organization/audit",
+] as const;
+
+export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
+  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
+  knowledge: { label: "Knowledge", icon: <BookOpen className="size-3" /> },
+  "knowledge-base": { label: "Knowledge Base", icon: <BookOpen className="size-3" /> },
+  "knowledge-database": { label: "Knowledge Database", icon: <Database className="size-3" /> },
+  source: { label: "Source", icon: <FileText className="size-3" /> },
+  notebook: { label: "Notebook", icon: <Brain className="size-3" /> },
+  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
+  account: { label: "Account", icon: <UserRound className="size-3" /> },
+  organization: { label: "組織", icon: <Users className="size-3" /> },
+  other: { label: "導覽", icon: null },
+};
+
+// ── CSS class helpers ─────────────────────────────────────────────────────────
+
+export function sidebarItemClass(active: boolean) {
+  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
+    active
+      ? "border-primary/30 bg-primary/10 text-primary"
+      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
+  }`;
+}
+
+export const sidebarSectionTitleClass =
+  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
+
+export const sidebarGroupButtonClass =
+  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
+
+// ── Pure section helpers ──────────────────────────────────────────────────────
+
+export function resolveNavSection(pathname: string): NavSection {
+  if (pathname.startsWith("/workspace")) return "workspace";
+  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
+  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
+  if (pathname.startsWith("/knowledge")) return "knowledge";
+  if (pathname.startsWith("/source")) return "source";
+  if (pathname.startsWith("/notebook")) return "notebook";
+  if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)))
+    return "account";
+  if (pathname.startsWith("/organization")) return "organization";
+  return "other";
+}
+
+export function isActiveOrganizationAccount(
+  activeAccount: ActiveAccount | null,
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
+// ── Simple section nav component ──────────────────────────────────────────────
+
+export function SimpleNavLinks({
+  items,
+  title,
+  isActiveRoute,
+}: {
+  items: readonly { href: string; label: string }[];
+  title: string;
+  isActiveRoute: (href: string) => boolean;
+}) {
+  return (
+    <nav className="space-y-0.5" aria-label={`${title} navigation`}>
+      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+        {title}
+      </p>
+      {items.map((item) => {
+        const active = isActiveRoute(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+````
+
+## File: app/(shell)/_components/workspace-sidebar-section.tsx
 ````typescript
 "use client";
 
-/**
- * Module: ai-chat page
- * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
- * Thread persistence: Firestore via saveThread/loadThread (survives page reload).
- * Multi-turn context: previous messages injected as system prompt.
- */
+import { WorkspaceSidebarSection as ModuleWorkspaceSidebarSection } from "@/modules/workspace/api";
 
-import Link from "next/link";
-import { Bot, BookOpen, Brain, FileText, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { v7 as uuid } from "@lib-uuid";
+import type { SidebarLocaleBundle } from "./use-sidebar-locale";
+import type { NavPreferences } from "./customize-navigation-dialog";
+import { sidebarItemClass } from "./sidebar-nav-data";
 
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/api";
-import { sendChatMessage, saveThread, loadThread } from "./_actions";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import {
-  type ChatMessage,
-  STORAGE_KEY,
-  buildContextPrompt,
-  generateMsgId,
-  threadFromMessages,
-} from "./ai-chat-helpers";
+// ── Tab link item shape ────────────────────────────────────────────────────────
 
-export default function AiChatPage() {
-  const searchParams = useSearchParams();
-  const { state: { workspaces } } = useApp();
-  const { state: authState } = useAuth();
-  const accountId = authState.user?.id ?? "";
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [threadId, setThreadId] = useState<string | null>(null);
-  const [threadCreatedAt, setThreadCreatedAt] = useState<string>(new Date().toISOString());
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const currentWorkspace = resolveWorkspaceFromMap(workspaces ?? {}, requestedWorkspaceId);
-  const workspaceName = currentWorkspace?.name ?? null;
-  const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
-  const latestUserPrompt = [...messages].reverse().find((message) => message.role === "user")?.content ?? null;
+// ── Props ─────────────────────────────────────────────────────────────────────
 
-  // Load persisted thread on mount
-  useEffect(() => {
-    if (!accountId) return;
-    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-    const storedId = localStorage.getItem(storageKey);
-    if (!storedId) return;
-    setThreadId(storedId);
-    void loadThread(accountId, storedId).then((thread) => {
-      if (!thread || thread.messages.length === 0) return;
-      setThreadCreatedAt(thread.createdAt);
-      setMessages(
-        thread.messages
-          .filter((m) => m.role === "user" || m.role === "assistant")
-          .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
-      );
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId]);
-  const summaryItems = useMemo(() => {
-    if (messages.length === 0) {
-      return [
-        "先整理來源文件與工作區脈絡，再開始對話。",
-        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
-      ];
-    }
+interface WorkspaceSidebarSectionProps {
+  workspacePathId: string;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+}
 
-    return [
-      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((message) => message.role === "assistant").length} 次模型回覆。`,
-      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
-    ];
-  }, [latestUserPrompt, messages]);
+// ── Component ─────────────────────────────────────────────────────────────────
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || isPending) return;
-
-    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
-    const nextMessages = [...messages, userMsg];
-    setMessages(nextMessages);
-    setInput("");
-    setError(null);
-    setIsPending(true);
-
-    // Build multi-turn context from history (exclude the new user message)
-    const contextPrompt = buildContextPrompt(messages);
-
-    try {
-      const result = await sendChatMessage({
-        prompt: text,
-        ...(contextPrompt ? { system: contextPrompt } : {}),
-      });
-      if (result.ok) {
-        const assistantMsg: ChatMessage = {
-          id: generateMsgId(),
-          role: "assistant",
-          content: result.data.text,
-        };
-        const finalMessages = [...nextMessages, assistantMsg];
-        setMessages(finalMessages);
-
-        // Persist thread to Firestore
-        if (accountId) {
-          const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-          let currentThreadId = threadId;
-          if (!currentThreadId) {
-            currentThreadId = uuid();
-            setThreadId(currentThreadId);
-            localStorage.setItem(storageKey, currentThreadId);
-          }
-          const thread = threadFromMessages(currentThreadId, finalMessages, threadCreatedAt);
-          void saveThread(accountId, thread);
-        }
-      } else {
-        setError(result.error.message);
-      }
-    } catch {
-      setError("無法連接至 AI 服務，請稍後再試。");
-    } finally {
-      setIsPending(false);
-      // Defer scroll to allow React to flush the new message into the DOM first.
-      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
-    }
-  }
-
-  function handleNewThread() {
-    if (!accountId) return;
-    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-    localStorage.removeItem(storageKey);
-    setThreadId(null);
-    setMessages([]);
-    setThreadCreatedAt(new Date().toISOString());
-    setError(null);
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSubmit(e as unknown as React.FormEvent);
-    }
-  }
-
+export function WorkspaceSidebarSection({
+  workspacePathId,
+  navPrefs,
+  localeBundle,
+}: WorkspaceSidebarSectionProps) {
   return (
-    <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
-      <aside className="border-b border-border/60 bg-muted/20 p-4 lg:border-b-0 lg:border-r">
-        <div className="space-y-4">
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Brain className="size-4 text-primary" />
-                Notebook / AI
-              </CardTitle>
-              <CardDescription>
-                將工作區知識、知識頁面與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <WorkspaceContextCard workspace={currentWorkspace} />
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <BookOpen className="size-4 text-primary" />
-                Source context
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              <Link href={`/source/documents${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <FileText className="size-3.5" />
-                文件來源 / Documents
-              </Link>
-              <Link href={`/knowledge/pages${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <BookOpen className="size-3.5" />
-                知識頁面 / Pages
-              </Link>
-              <Link href={`/notebook/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <Bot className="size-3.5" />
-                Ask / Cite / RAG Query
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Summary snapshot</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              {summaryItems.map((item) => (
-                <p key={item} className="rounded-md border border-border/50 px-3 py-2">
-                  {item}
-                </p>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Lightbulb className="size-4 text-primary" />
-                Insight board
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              <p className="rounded-md border border-border/50 px-3 py-2">
-                目前仍是 Notebook shell，摘要、洞察、引用整理會在後續 phase 持續補齊。
-              </p>
-              <p className="rounded-md border border-border/50 px-3 py-2">
-                若你需要可追溯回答，優先改從 Ask / Cite 取得引用，再回到這裡整理觀點。
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </aside>
-
-      <section className="flex min-h-0 flex-col">
-        <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-3">
-          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10">
-            <Bot className="size-4 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-sm font-semibold leading-none">Notebook / AI</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">工作區問答 · 摘要草稿 · 洞察整理</p>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            {threadId && (
-              <span className="text-[10px] text-muted-foreground/60">
-                Thread · {messages.length} 則
-              </span>
-            )}
-            <Button size="sm" variant="ghost" onClick={handleNewThread} disabled={messages.length === 0}>
-              <Plus className="mr-1 size-3.5" />
-              新對話
-            </Button>
-          </div>
-        </div>
-
-        {workspaceName && (
-          <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
-            目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span> 進入；Notebook 會把這裡視為主要知識上下文。
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          {messages.length === 0 && !isPending && (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
-                <Bot className="size-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">開始你的 notebook conversation</p>
-                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                  先問工作區背景、文件摘要、會議筆記整理或知識問答，再逐步累積 summary 與 insight。
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="mx-auto max-w-2xl space-y-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
-              >
-                <div
-                  className={cn(
-                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground",
-                  )}
-                >
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-                </div>
-              </div>
-            ))}
-
-            {isPending && (
-              <div className="flex justify-start">
-                <div className="rounded-2xl bg-muted px-4 py-2.5">
-                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
-                {error}
-              </div>
-            )}
-
-            <div ref={bottomRef} />
-          </div>
-        </div>
-
-        <form
-          onSubmit={(e) => void handleSubmit(e)}
-          className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur"
-        >
-          <div className="mx-auto flex max-w-2xl items-end gap-2">
-            <textarea
-              rows={1}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="輸入你的 notebook 問題… (Enter 送出，Shift+Enter 換行)"
-              disabled={isPending}
-              className="flex-1 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ maxHeight: "120px" }}
-            />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isPending || !input.trim()}
-              className="shrink-0 gap-1.5"
-            >
-              {isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <SendHorizonal className="size-4" />
-              )}
-              <span className="hidden sm:inline">送出</span>
-            </Button>
-          </div>
-        </form>
-      </section>
-    </div>
+    <ModuleWorkspaceSidebarSection
+      workspacePathId={workspacePathId}
+      navPrefs={navPrefs}
+      localeBundle={localeBundle}
+      getItemClassName={sidebarItemClass}
+    />
   );
 }
 ````
@@ -81380,352 +82291,6 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 | Domain Event（領域事件） | 事件類別、訊息物件，作為對外發布的 domain language |
 ````
 
-## File: app/(shell)/_components/nav-preferences-data.ts
-````typescript
-/**
- * nav-preferences-data.ts
- * Owns: NavPreferences type, nav-item catalogs, default values,
- *   validation helpers, and localStorage read/write utilities.
- * Constraints: No React imports. No UI imports. Pure data / serialization.
- */
-
-import {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "@/modules/workspace/api";
-
-// Re-export so existing consumers of this file (customize-navigation-dialog
-// via nav-preferences-data) keep working during the transition.
-export { WORKSPACE_NAV_ITEMS, normalizeWorkspaceOrder };
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export interface NavPreferences {
-  /** IDs of personal nav items that are pinned */
-  pinnedPersonal: string[];
-  /** IDs of workspace org-management items that are pinned */
-  pinnedWorkspace: string[];
-  /** Whether to show a limited number of workspaces */
-  showLimitedWorkspaces: boolean;
-  /** Max number of workspaces to show (when showLimitedWorkspaces = true) */
-  maxWorkspaces: number;
-  /** Explicit display order of workspace items for sidebar and customize dialog */
-  workspaceOrder: string[];
-}
-
-export interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
-
-const STORAGE_KEY = "xuanwu:nav-preferences";
-
-// ── Personal nav items ─────────────────────────────────────────────────────
-
-export const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
-  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
-];
-
-// ── Workspace / org-management items ──────────────────────────────────────
-// WORKSPACE_NAV_ITEMS is owned by modules/workspace/api (workspace BC).
-// It is re-exported above for backward-compatible consumers of this file.
-
-export const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
-  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
-  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
-  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
-];
-
-export const DIALOG_TEXT = {
-  zh: {
-    title: "Customize navigation",
-    description:
-      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
-    sectionPersonal: "個人",
-    sectionWorkspace: "工作區",
-    sectionOrganization: "組織管理",
-    sectionDisplay: "顯示設定",
-    limitedLabel: "側欄僅顯示固定數量的最近工作區",
-    limitedInputLabel: "工作區數量",
-    done: "完成",
-    recentWorkspaces: "最近工作區",
-  },
-  en: {
-    title: "Customize navigation",
-    description:
-      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
-    sectionPersonal: "Personal",
-    sectionWorkspace: "Workspace",
-    sectionOrganization: "Organization",
-    sectionDisplay: "Display",
-    limitedLabel: "Show a limited number of recent workspaces in sidebar",
-    limitedInputLabel: "Number of workspaces",
-    done: "Done",
-    recentWorkspaces: "Recent workspaces",
-  },
-} as const;
-
-// ── Defaults + validation ──────────────────────────────────────────────────
-
-export const DEFAULT_PREFS: NavPreferences = {
-  pinnedPersonal: ["recent-workspaces"],
-  pinnedWorkspace: [
-    ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
-    ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
-  ],
-  showLimitedWorkspaces: true,
-  maxWorkspaces: 10,
-  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
-};
-
-const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
-const VALID_WORKSPACE_ITEM_IDS = new Set([
-  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
-  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
-]);
-// normalizeWorkspaceOrder is owned by modules/workspace/api (workspace BC).
-// It is re-exported above.
-
-function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
-  if (!Array.isArray(ids)) return fallback;
-  const normalized = ids
-    .filter((id): id is string => typeof id === "string")
-    .filter((id) => validSet.has(id));
-  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
-}
-
-// ── localStorage helpers ───────────────────────────────────────────────────
-
-export function readNavPreferences(): NavPreferences {
-  if (typeof window === "undefined") return DEFAULT_PREFS;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_PREFS;
-    const parsed = JSON.parse(raw) as Partial<NavPreferences>;
-    return {
-      pinnedPersonal: normalizePinnedIds(
-        parsed.pinnedPersonal,
-        VALID_PERSONAL_ITEM_IDS,
-        DEFAULT_PREFS.pinnedPersonal,
-      ),
-      pinnedWorkspace: normalizePinnedIds(
-        parsed.pinnedWorkspace,
-        VALID_WORKSPACE_ITEM_IDS,
-        DEFAULT_PREFS.pinnedWorkspace,
-      ),
-      showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
-      maxWorkspaces:
-        typeof parsed.maxWorkspaces === "number"
-          ? parsed.maxWorkspaces
-          : DEFAULT_PREFS.maxWorkspaces,
-      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
-    };
-  } catch {
-    return DEFAULT_PREFS;
-  }
-}
-
-export function writeNavPreferences(prefs: NavPreferences): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-}
-````
-
-## File: app/(shell)/_components/sidebar-nav-data.tsx
-````typescript
-import {
-  BookOpen,
-  Bot,
-  Brain,
-  Building2,
-  Database,
-  FileText,
-  UserRound,
-  Users,
-} from "lucide-react";
-import Link from "next/link";
-
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import {
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-
-export type NavSection =
-  | "workspace"
-  | "knowledge"
-  | "knowledge-base"
-  | "knowledge-database"
-  | "source"
-  | "notebook"
-  | "ai-chat"
-  | "account"
-  | "organization"
-  | "other";
-
-// ── Static nav constants ──────────────────────────────────────────────────────
-
-export const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
-
-export const ACCOUNT_NAV_ITEMS = [
-  { id: "schedule", label: "排程", href: "/organization/schedule" },
-  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
-  { id: "daily", label: "每日", href: "/organization/daily" },
-  { id: "audit", label: "稽核", href: "/organization/audit" },
-] as const;
-
-export const ACCOUNT_SECTION_MATCHERS = [
-  "/organization/daily",
-  "/organization/schedule",
-  "/organization/audit",
-] as const;
-
-export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
-  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  knowledge: { label: "Knowledge", icon: <BookOpen className="size-3" /> },
-  "knowledge-base": { label: "Knowledge Base", icon: <BookOpen className="size-3" /> },
-  "knowledge-database": { label: "Knowledge Database", icon: <Database className="size-3" /> },
-  source: { label: "Source", icon: <FileText className="size-3" /> },
-  notebook: { label: "Notebook", icon: <Brain className="size-3" /> },
-  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
-  account: { label: "Account", icon: <UserRound className="size-3" /> },
-  organization: { label: "組織", icon: <Users className="size-3" /> },
-  other: { label: "導覽", icon: null },
-};
-
-// ── CSS class helpers ─────────────────────────────────────────────────────────
-
-export function sidebarItemClass(active: boolean) {
-  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
-    active
-      ? "border-primary/30 bg-primary/10 text-primary"
-      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
-  }`;
-}
-
-export const sidebarSectionTitleClass =
-  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
-
-export const sidebarGroupButtonClass =
-  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
-
-// ── Pure section helpers ──────────────────────────────────────────────────────
-
-export function resolveNavSection(pathname: string): NavSection {
-  if (pathname.startsWith("/workspace")) return "workspace";
-  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
-  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
-  if (pathname.startsWith("/knowledge")) return "knowledge";
-  if (pathname.startsWith("/source")) return "source";
-  if (pathname.startsWith("/notebook")) return "notebook";
-  if (pathname.startsWith("/ai-chat")) return "ai-chat";
-  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)))
-    return "account";
-  if (pathname.startsWith("/organization")) return "organization";
-  return "other";
-}
-
-export function isActiveOrganizationAccount(
-  activeAccount: ActiveAccount | null,
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-// ── Simple section nav component ──────────────────────────────────────────────
-
-export function SimpleNavLinks({
-  items,
-  title,
-  isActiveRoute,
-}: {
-  items: readonly { href: string; label: string }[];
-  title: string;
-  isActiveRoute: (href: string) => boolean;
-}) {
-  return (
-    <nav className="space-y-0.5" aria-label={`${title} navigation`}>
-      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-        {title}
-      </p>
-      {items.map((item) => {
-        const active = isActiveRoute(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-              active
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-````
-
-## File: app/(shell)/_components/workspace-sidebar-section.tsx
-````typescript
-"use client";
-
-import { WorkspaceSidebarSection as ModuleWorkspaceSidebarSection } from "@/modules/workspace/api";
-
-import type { SidebarLocaleBundle } from "./use-sidebar-locale";
-import type { NavPreferences } from "./customize-navigation-dialog";
-import { sidebarItemClass } from "./sidebar-nav-data";
-
-// ── Tab link item shape ────────────────────────────────────────────────────────
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-interface WorkspaceSidebarSectionProps {
-  workspacePathId: string;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function WorkspaceSidebarSection({
-  workspacePathId,
-  navPrefs,
-  localeBundle,
-}: WorkspaceSidebarSectionProps) {
-  return (
-    <ModuleWorkspaceSidebarSection
-      workspacePathId={workspacePathId}
-      navPrefs={navPrefs}
-      localeBundle={localeBundle}
-      getItemClassName={sidebarItemClass}
-    />
-  );
-}
-````
-
 ## File: modules/workspace/aggregates.md
 ````markdown
 # Aggregates — workspace
@@ -81858,16 +82423,6 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 - P1 已正式落地於 `domain/value-objects/`：`WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
 - `WikiContentTree` 不是 write-side aggregate；它是為導覽組裝的 query model
 - `WorkspaceMember` 不是目前的 canonical write-side 名稱；查詢模型請使用 `WorkspaceMemberView`
-````
-
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/types/routes.d.ts";
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````
 
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
@@ -82426,6 +82981,16 @@ export function DashboardSidebar({
     </div>
   );
 }
+````
+
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````
 
 ## File: modules/workspace/api/ui.ts
