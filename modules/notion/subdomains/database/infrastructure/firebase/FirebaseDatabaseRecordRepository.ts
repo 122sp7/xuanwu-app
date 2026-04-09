@@ -16,7 +16,9 @@ import {
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
-import { db } from "@integration-firebase/firestore";
+import { getFirebaseFirestore } from "@integration-firebase/firestore";
+
+const db = getFirebaseFirestore();
 import type { IDatabaseRecordRepository, CreateRecordInput, UpdateRecordInput } from "../../domain/repositories/IDatabaseRecordRepository";
 import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
 

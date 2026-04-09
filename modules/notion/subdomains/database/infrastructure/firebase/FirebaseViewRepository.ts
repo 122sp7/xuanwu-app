@@ -16,7 +16,9 @@ import {
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
-import { db } from "@integration-firebase/firestore";
+import { getFirebaseFirestore } from "@integration-firebase/firestore";
+
+const db = getFirebaseFirestore();
 import type { IViewRepository, CreateViewInput, UpdateViewInput } from "../../domain/repositories/IViewRepository";
 import type { ViewSnapshot } from "../../domain/aggregates/View";
 
