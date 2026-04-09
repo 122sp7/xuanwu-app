@@ -10,7 +10,7 @@
 
 import { createContext, type Dispatch } from "react";
 
-import type { AccountEntity } from "@/modules/account/api";
+import type { AccountEntity } from "@/modules/platform/subdomains/account";
 import type { WorkspaceEntity } from "@/modules/workspace/api";
 import type { AuthUser } from "./auth-context";
 

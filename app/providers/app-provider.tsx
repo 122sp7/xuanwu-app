@@ -18,7 +18,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { subscribeToAccountsForUser, type AccountEntity } from "@/modules/account/api";
+import { subscribeToAccountsForUser, type AccountEntity } from "@/modules/platform/subdomains/account";
 import { subscribeToWorkspacesForAccount } from "@/modules/workspace/api";
 import {
   getWorkspaceStorageKey,
