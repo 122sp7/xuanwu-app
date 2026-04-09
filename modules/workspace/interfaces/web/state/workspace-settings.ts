@@ -1,4 +1,4 @@
-import type { WorkspaceEntity, WorkspaceGrant } from "../api/contracts";
+import type { WorkspaceEntity } from "../../api/contracts";
 
 export interface WorkspaceCustomRoleDraft {
   readonly roleId: string;
@@ -50,16 +50,4 @@ export function createSettingsDraft(workspace: WorkspaceEntity): WorkspaceSettin
       role: entry.role,
     })) ?? [],
   };
-}
-
-export function describeGrant(grant: WorkspaceGrant): string {
-  if (grant.teamId) {
-    return "Team grant";
-  }
-
-  if (grant.userId) {
-    return "User grant";
-  }
-
-  return "Unscoped grant";
 }

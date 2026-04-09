@@ -21,32 +21,35 @@ export {
 	getWorkspaceTabStatus,
 	getWorkspaceTabsByGroup,
 	isWorkspaceTabValue,
-} from "../interfaces/web/workspace-tabs";
+} from "../interfaces/web/navigation/workspace-tabs";
 
 export {
 	getWorkspaceStorageKey,
+} from "../interfaces/web/state/workspace-session";
+
+export {
 	resolveWorkspaceFromMap,
 	toWorkspaceMap,
-} from "../interfaces/web/workspace-session";
+} from "../interfaces/web/utils/workspace-map";
 
-export type { WorkspaceNavItem } from "../interfaces/web/workspace-nav-items";
+export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
 export {
 	WORKSPACE_NAV_ITEMS,
 	normalizeWorkspaceOrder,
-} from "../interfaces/web/workspace-nav-items";
+} from "../interfaces/web/navigation/workspace-nav-items";
 
 export type {
 	WorkspaceQuickAccessItem,
 	WorkspaceQuickAccessMatcherOptions,
-} from "../interfaces/web/workspace-quick-access";
+} from "../interfaces/web/components/navigation/workspace-quick-access";
 
-export { buildWorkspaceQuickAccessItems } from "../interfaces/web/workspace-quick-access";
+export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
 
 export type {
 	WorkspaceTabDevStatus,
 	WorkspaceTabGroup,
 	WorkspaceTabValue,
-} from "../interfaces/web/workspace-tabs";
+} from "../interfaces/web/navigation/workspace-tabs";
 
 export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
 export {

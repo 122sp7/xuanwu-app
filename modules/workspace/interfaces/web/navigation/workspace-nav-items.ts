@@ -2,22 +2,14 @@
  * workspace-nav-items.ts
  *
  * Catalog of workspace sidebar tab entries owned by the workspace BC.
- * Consumers (customize-navigation-dialog, nav-preferences-data) read
- * this catalog; they do not define it.
- *
- * Hexagonal role: driving-adapter surface — declares which tabs this
- * bounded context exposes to shell navigation customization.
+ * Consumers read this catalog; they do not define it.
  */
-
-// ── Types ──────────────────────────────────────────────────────────────────
 
 export interface WorkspaceNavItem {
   id: string;
   tabKey: string;
   fallbackLabel: string;
 }
-
-// ── Catalog ────────────────────────────────────────────────────────────────
 
 export const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = [
   { id: "workspace-modules", tabKey: "workspaceModules", fallbackLabel: "Workspace Modules" },
@@ -28,16 +20,9 @@ export const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = [
   { id: "tasks", tabKey: "Tasks", fallbackLabel: "Tasks" },
 ];
 
-// ── Normalization helper ───────────────────────────────────────────────────
-
 const VALID_WORKSPACE_ORDER_IDS = new Set(WORKSPACE_NAV_ITEMS.map((item) => item.id));
 const DEFAULT_WORKSPACE_ORDER = WORKSPACE_NAV_ITEMS.map((item) => item.id);
 
-/**
- * Sanitises a persisted workspace order array: keeps only known IDs,
- * deduplicates, and appends any IDs missing from the stored value so
- * the result is always a complete, valid ordering.
- */
 export function normalizeWorkspaceOrder(order: unknown): string[] {
   const fallback = DEFAULT_WORKSPACE_ORDER;
   if (!Array.isArray(order)) return fallback;

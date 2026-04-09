@@ -14,7 +14,7 @@ import { WorkspaceInformationCard } from "./WorkspaceInformationCard";
 import {
   getWorkspaceAddressLines,
   getWorkspaceRoleAssignments,
-} from "../../workspace-supporting-records";
+} from "../../view-models/workspace-supporting-records";
 
 interface WorkspaceProductSpineCardProps {
   readonly workspace: WorkspaceEntity;

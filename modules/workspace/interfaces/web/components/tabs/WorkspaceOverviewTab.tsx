@@ -11,7 +11,7 @@ import {
 } from "@ui-shadcn/ui/card";
 import { Separator } from "@ui-shadcn/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-import { describeGrant } from "../../workspace-settings";
+import { describeGrant } from "../../view-models/workspace-grants";
 import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
 import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
 import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";

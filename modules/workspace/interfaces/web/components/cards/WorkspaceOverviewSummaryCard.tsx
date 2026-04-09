@@ -15,7 +15,7 @@ import {
   getWorkspaceInitials,
   lifecycleBadgeVariant,
 } from "../layout/workspace-detail-helpers";
-import { getWorkspaceGovernanceSummary } from "../../workspace-supporting-records";
+import { getWorkspaceGovernanceSummary } from "../../view-models/workspace-supporting-records";
 
 interface WorkspaceOverviewSummaryCardProps {
   readonly workspace: WorkspaceEntity;

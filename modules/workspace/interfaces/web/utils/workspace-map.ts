@@ -1,10 +1,4 @@
-import type { WorkspaceEntity } from "../api/contracts";
-
-const LAST_ACTIVE_WORKSPACE_STORAGE_PREFIX = "xuanwu_last_active_workspace:";
-
-export function getWorkspaceStorageKey(accountId: string): string {
-  return `${LAST_ACTIVE_WORKSPACE_STORAGE_PREFIX}${accountId}`;
-}
+import type { WorkspaceEntity } from "../../api/contracts";
 
 export function toWorkspaceMap(workspaces: WorkspaceEntity[]): Record<string, WorkspaceEntity> {
   return Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace]));

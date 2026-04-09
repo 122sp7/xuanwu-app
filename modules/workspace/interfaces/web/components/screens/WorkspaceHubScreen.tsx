@@ -16,7 +16,7 @@ import {
 } from "@ui-shadcn/ui/card";
 
 import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
-import { getWorkspaceGovernanceSummary } from "../../workspace-supporting-records";
+import { getWorkspaceGovernanceSummary } from "../../view-models/workspace-supporting-records";
 import { CreateWorkspaceDialog } from "../dialogs/CreateWorkspaceDialog";
 
 const lifecycleBadgeVariant: Record<

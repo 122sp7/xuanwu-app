@@ -18,11 +18,11 @@ import { useApp } from "@/app/providers/app-provider";
 import {
   createSettingsDraft,
   type WorkspaceSettingsDraft,
-} from "../../workspace-settings";
+} from "../../state/workspace-settings";
 import {
   getWorkspaceAddressLines,
   getWorkspacePersonnelEntries,
-} from "../../workspace-supporting-records";
+} from "../../view-models/workspace-supporting-records";
 import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
 import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
 import {
@@ -31,7 +31,7 @@ import {
   getWorkspaceTabsByGroup,
   isWorkspaceTabValue,
   type WorkspaceTabValue,
-} from "../../workspace-tabs";
+} from "../../navigation/workspace-tabs";
 import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
 import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
 import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";

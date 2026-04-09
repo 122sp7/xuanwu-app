@@ -11,6 +11,7 @@
 ```txt
 interfaces/web/
 	components/
+		navigation/
 		dialogs/
 		cards/
 		screens/
@@ -18,12 +19,10 @@ interfaces/web/
 		rails/
 		layout/
 	hooks/
-	workspace-nav-items.ts
-	workspace-quick-access.tsx
-	workspace-session.ts
-	workspace-settings.ts
-	workspace-supporting-records.ts
-	workspace-tabs.ts
+	navigation/
+	state/
+	utils/
+	view-models/
 ```
 
 ## ✅ 屬於此處
@@ -36,8 +35,12 @@ interfaces/web/
 | Tab panes | `components/tabs/*` |
 | Rail / side panel UI | `components/rails/*` |
 | Layout helpers / sections | `components/layout/*` |
+| Navigation UI composition | `components/navigation/*` |
 | React Hooks | `hooks/useWorkspaceHub.ts` |
-| UI state / form draft mapping | `workspace-settings.ts` |
+| Navigation metadata / tab catalogs | `navigation/*` |
+| UI state / draft/session mapping | `state/*` |
+| Entity → UI record mapping | `view-models/*` |
+| Small pure helpers | `utils/*` |
 
 ---
 
@@ -55,10 +58,10 @@ interfaces/web/
 ## 依賴箭頭
 
 ```txt
-interfaces/web/components | hooks
+interfaces/web/components | hooks | navigation | state | utils | view-models
 	-> modules/workspace/api | ../api/*
 modules/workspace/api
-	-> interfaces/api/{contracts,facades,ui}
+	-> interfaces/api/{contracts,facades} + interfaces/web public composition
 ```
 
 `interfaces/web` **不可**直接依賴 `infrastructure/*`、`application/*`、`domain/*`。

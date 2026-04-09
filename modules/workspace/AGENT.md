@@ -53,7 +53,7 @@ modules/workspace/
 └── interfaces/                 ← Driving Adapters（外部入口）
 	├── api/                    ← Adapter implementation（contracts / facades / queries / actions / runtime）
 	├── cli/                    ← CLI / Cron Job → Input Port
-	└── web/                    ← shadcn UI Components + Hooks（cards / dialogs / screens / tabs / rails / layout）
+	└── web/                    ← shadcn UI + navigation/state/view-models（components / hooks / navigation / state / utils / view-models）
 ```
 
 ## 戰略層級（Domain / Subdomain / Bounded Context）
