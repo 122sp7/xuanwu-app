@@ -119,11 +119,29 @@ platform 包含：
 
 這個 bounded context 以 23 個子域作為封閉 inventory。任何新需求預設都應被視為既有子域的責任延伸，而不是新增第 24 個子域。只有在既有 23 個子域無法吸收時，才允許重新打開 inventory。
 
+## 計畫吸收模組
+
+以下四個現有獨立模組的能力**計畫在未來重構中合并進 platform**，成為對應子域的正式實作。在合并完成前，這些模組作為各自子域的前身實作繼續運作，platform blueprint 定義語言與 port 契約的規範形式。
+
+| 獨立模組 | 目標子域 | 現有核心概念 | 合并備注 |
+|---|---|---|---|
+| `modules/identity/` | `identity` | `Identity`, `uid`, `TokenRefreshSignal`, `IdentityRepository`, `TokenRefreshRepository` | 提供 `AuthenticatedSubject` 與 `IdentitySignal` 的前身語意 |
+| `modules/account/` | `account` + `account-profile` | `Account`, `AccountPolicy`, `AccountProfile`, `AccountRepository`, `AccountQueryRepository`, `AccountPolicyRepository` | `account` 承接帳號聚合根；`account-profile` 承接可治理輪廓屬性 |
+| `modules/organization/` | `organization` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`, `OrganizationRepository`, `OrgPolicyRepository` | 提供 `MembershipBoundary` 與 `RoleAssignment` 的前身語意 |
+| `modules/notification/` | `notification` | `NotificationEntity`, `NotificationRepository`，conformist 消費者 | 提供 `NotificationDispatch` 與 `NotificationRoute` 的前身語意 |
+
+**合并優先序：** `identity` → `account` → `organization` → `notification`（按語意依賴順序）
+
+**合并後規則：**
+- 獨立模組應設為 deprecated，並把 `api/index.ts` 指向 `modules/platform/api`
+- Platform blueprint 的語言定義優先；若有術語歧異，以本文件與 `ubiquitous-language.md` 為準
+
 ## 邊界測試問題
 
 1. 這個變更屬於哪個既有子域
 2. 它需要的是新語言、既有語言的細化，還是新的 port contract
 3. 它是 domain rule、application orchestration、adapter concern，還是 public boundary projection
 4. 它是否會破壞 closed inventory 或 dependency direction
+5. 若涉及 identity / account / organization / notification，是否與計畫吸收方向一致
 
 若第 1 題答不出來，表示 platform 邊界尚未被正確理解。

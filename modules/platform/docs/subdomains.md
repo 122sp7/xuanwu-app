@@ -79,6 +79,20 @@
 - `analytics`
 - `support`
 
+## Migration-Pending Subdomains
+
+以下五個 platform 子域目前在 repository 中存在對應的**獨立模組**。這些獨立模組是子域的**前身實作**，計畫在未來重構中合并進 platform。
+
+| 子域 | 對應獨立模組 | 合并方向說明 |
+|---|---|---|
+| `identity` | `modules/identity/` | `Identity`, `TokenRefreshSignal`, `IdentityRepository`, `TokenRefreshRepository` → 吸收進 `identity` 子域 |
+| `account` | `modules/account/` | `Account`, `AccountPolicy`, `AccountRepository`, `AccountQueryRepository`, `AccountPolicyRepository` → 吸收進 `account` 子域 |
+| `account-profile` | `modules/account/` | `AccountProfile` 概念目前住在 `account` 模組；獨立的 profile 治理能力 → 吸收進 `account-profile` 子域 |
+| `organization` | `modules/organization/` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`, `OrganizationRepository`, `OrgPolicyRepository` → 吸收進 `organization` 子域 |
+| `notification` | `modules/notification/` | `NotificationEntity`, `NotificationRepository`，目前為 conformist 消費者 → 吸收進 `notification` 子域 |
+
+**重構規則：** 合并前，platform 的語言、port 契約與事件命名以本 blueprint 文件為準；合并後，獨立模組應廢棄並指向 `modules/platform/`。
+
 ## Inventory Freeze Rule
 
 後續若有人想新增 platform 子域，必須先證明以下三件事都成立：
