@@ -1,8 +1,12 @@
 # knowledge
 
-> **Domain Type:** Core Domain  
-> **Module:** `modules/knowledge/`  
-> **Authoritative docs:** [`modules/knowledge/`](../../../modules/knowledge/)
+> ⚠️ **Migration Notice:** 此文件描述的是已規劃遷移至 `modules/notion/subdomains/knowledge` 的前身模組。  
+> **最新權威文件請查閱：** [`docs/contexts/notion/README.md`](../notion/README.md)
+
+> **Domain Type:** Core Domain（已合并為 notion 主域的 `knowledge` 子域）
+> **Module（前身）:** `modules/knowledge/`
+> **目標模組:** `modules/notion/subdomains/knowledge/`
+> **Authoritative docs:** [`modules/notion/docs/`](../../../modules/notion/docs/)
 
 ## Boundary
 
