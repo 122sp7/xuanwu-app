@@ -14463,45 +14463,6 @@ infrastructure/firebase
 `infrastructure/firebase` **不可**反向讓 Firebase 細節滲透進 `domain/`。
 ````
 
-## File: modules/workspace/ports/README.md
-````markdown
-# workspace ports
-
-此資料夾是 `workspace` bounded context 的顯式 ports 入口。
-
-## 目的
-
-- 集中列出 hexagonal architecture 的 port 介面（只有 interface/type，沒有實作）
-- 讓 `ports/` 不再是空殼目錄
-- 清楚區分 `ports`（抽象）與 `infrastructure`（adapter 實作）
-
-## 交互順序（Runtime Flow）
-
-1. Driver：UI / Server Action / 其他 bounded context 呼叫 `api/`
-2. Driving Adapter：`interfaces/*` 把請求轉成 command/query
-3. Application Use Case：協調流程與授權邊界
-4. Domain Model：`Workspace` aggregate 與 value objects 套用 invariant
-5. Driven Port：`ports/index.ts` 匯出的 repository/event publisher 介面
-6. Driven Adapter：`infrastructure/*` 實作 port（Firebase / shared event bus）
-
-## 依賴方向（Compile-time）
-
-- `interfaces -> application -> domain`
-- `infrastructure -> domain`（實作 ports）
-- `domain` 不可反向依賴 `interfaces`、`application`、`infrastructure`
-- `ports` 只匯出抽象，不可匯出 adapter 類別
-
-## 目前 Port 清單
-
-- `WorkspaceRepository`
-- `WorkspaceCapabilityRepository`
-- `WorkspaceAccessRepository`
-- `WorkspaceLocationRepository`
-- `WorkspaceQueryRepository`
-- `WikiWorkspaceRepository`
-- `WorkspaceDomainEventPublisher`
-````
-
 ## File: modules/knowledge/aggregates.md
 ````markdown
 # Aggregates — knowledge
@@ -14836,73 +14797,6 @@ workspace-flow 合併後，Process Manager 將搬入此目錄：
 同時，其 in-memory 冪等性 Set 需替換為 Firestore persistent store（`infrastructure/firebase/MaterializedEventRepository`）。
 ````
 
-## File: modules/workspace/domain/aggregates/AGENT.md
-````markdown
-# domain/aggregates — Aggregate Roots（聚合根）
-
-此目錄放 `workspace` BC 的所有 **Aggregate Root 類別**。
-Aggregate Root 是 write-side 的一致性邊界。
-
----
-
-## ✅ 屬於此處
-
-| 類型 | 範例 |
-|------|------|
-| Aggregate Root class | `Workspace`（含 invariant、domain event 發出） |
-| Aggregate 內嵌的 command type | `CreateWorkspaceCommand`、`UpdateWorkspaceSettingsCommand` |
-| Aggregate 上的 factory method 或 static constructor | `Workspace.create()`、`Task.create()` |
-
-**判斷準則**：有自己的唯一識別、維護業務不變量（invariant）、
-作為外部引用的根（其他 aggregate 只能持有其 ID）→ 放入此處。
-
----
-
-## ❌ 禁止放入
-
-| 禁止項目 | 原因 |
-|----------|------|
-| 純實體（Entity，無 invariant 責任） | 放 `domain/entities/` |
-| Value Object（無 identity，equality by value） | 放 `domain/value-objects/` |
-| Read model / projection（查詢用途） | 放 `interfaces/` 或 `application/dtos/` |
-| Repository / Event Publisher 介面 | 放 `ports/output/` |
-| Framework import（Firebase、React 等） | Aggregate 必須 framework-free |
-
----
-
-## 現況
-
-> `Workspace` 目前仍在 `domain/entities/Workspace.ts`。
-> 在 Phase 3（workspace-flow 合併）完成後，將整批遷移：
-
-| Aggregate Root | 來源 | 狀態 |
-|---------------|------|------|
-| `Workspace` | `domain/entities/Workspace.ts` | 待遷移 |
-| `Task` | `workspace-flow` 合併 | Phase 3 |
-| `Issue` | `workspace-flow` 合併 | Phase 3 |
-| `Invoice` | `workspace-flow` 合併 | Phase 3 |
-
----
-
-## 命名慣例
-
-```
-PascalCase.ts     → Aggregate Root 類別檔案
-PascalCase.test.ts → 對應的單元測試
-```
-
-## 依賴方向
-
-```
-domain/aggregates → domain/value-objects
-domain/aggregates → domain/entities
-domain/aggregates → domain/events（發出事件型別）
-domain/aggregates → domain/services（呼叫 domain service，如有需要）
-```
-
-`domain/aggregates` **不可**依賴 `application/`、`infrastructure/`、`interfaces/`。
-````
-
 ## File: modules/workspace/domain/services/AGENT.md
 ````markdown
 # domain/services — Domain Services（領域服務 = 邏輯）
@@ -15208,6 +15102,198 @@ ports/output → domain/（只取型別，e.g., WorkspaceDomainEvent）
 - `WikiWorkspaceRepository`
 ````
 
+## File: modules/workspace/ports/README.md
+````markdown
+# workspace ports
+
+此資料夾是 `workspace` bounded context 的顯式 ports 入口。
+
+## 目的
+
+- 集中列出 hexagonal architecture 的 port 介面（只有 interface/type，沒有實作）
+- 讓 `ports/` 不再是空殼目錄
+- 清楚區分 `ports`（抽象）與 `infrastructure`（adapter 實作）
+
+## 交互順序（Runtime Flow）
+
+1. Driver：UI / Server Action / 其他 bounded context 呼叫 `api/`
+2. Driving Adapter：`interfaces/*` 把請求轉成 command/query
+3. Application Use Case：協調流程與授權邊界
+4. Domain Model：`Workspace` aggregate 與 value objects 套用 invariant
+5. Driven Port：`ports/index.ts` 匯出的 repository/event publisher 介面
+6. Driven Adapter：`infrastructure/*` 實作 port（Firebase / shared event bus）
+
+## 依賴方向（Compile-time）
+
+- `interfaces -> ports/input -> application -> domain`
+- `application -> ports/output`
+- `infrastructure -> ports/output`（實作 ports）
+- `domain` 不可反向依賴 `interfaces`、`application`、`infrastructure`
+- `ports` 只匯出抽象，不可匯出 adapter 類別
+
+## 目前 Port 清單
+
+### Driving Ports
+
+- `WorkspaceCommandPort`
+- `WorkspaceQueryPort`
+
+### Driven Ports
+
+- `WorkspaceRepository`
+- `WorkspaceCapabilityRepository`
+- `WorkspaceAccessRepository`
+- `WorkspaceLocationRepository`
+- `WorkspaceQueryRepository`
+- `WikiWorkspaceRepository`
+- `WorkspaceDomainEventPublisher`
+````
+
+## File: modules/workspace/domain/aggregates/AGENT.md
+````markdown
+# domain/aggregates — Aggregate Roots（聚合根）
+
+此目錄放 `workspace` BC 的所有 **Aggregate Root 類別**。
+Aggregate Root 是 write-side 的一致性邊界。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Aggregate Root class | `Workspace`（含 invariant、domain event 發出） |
+| Aggregate 內嵌的 command type | `CreateWorkspaceCommand`、`UpdateWorkspaceSettingsCommand` |
+| Aggregate 上的 factory method 或 static constructor | `Workspace.create()`、`Task.create()` |
+
+**判斷準則**：有自己的唯一識別、維護業務不變量（invariant）、
+作為外部引用的根（其他 aggregate 只能持有其 ID）→ 放入此處。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| 純實體（Entity，無 invariant 責任） | 放 `domain/entities/` |
+| Value Object（無 identity，equality by value） | 放 `domain/value-objects/` |
+| Read model / projection（查詢用途） | 放 `interfaces/` 或 `application/dtos/` |
+| Repository / Event Publisher 介面 | 放 `ports/output/` |
+| Framework import（Firebase、React 等） | Aggregate 必須 framework-free |
+
+---
+
+## 現況
+
+`Workspace` 已收斂到 `domain/aggregates/Workspace.ts`，目前這個目錄承載 workspace BC 的 write-side aggregate root。
+
+後續 Phase 3（workspace-flow 合併）時，預計再補入：
+
+| Aggregate Root | 來源 | 狀態 |
+|---------------|------|------|
+| `Workspace` | `domain/aggregates/Workspace.ts` | 已收斂 |
+| `Task` | `workspace-flow` 合併 | Phase 3 |
+| `Issue` | `workspace-flow` 合併 | Phase 3 |
+| `Invoice` | `workspace-flow` 合併 | Phase 3 |
+
+---
+
+## 命名慣例
+
+```
+PascalCase.ts     → Aggregate Root 類別檔案
+PascalCase.test.ts → 對應的單元測試
+```
+
+## 依賴方向
+
+```
+domain/aggregates → domain/value-objects
+domain/aggregates → domain/entities
+domain/aggregates → domain/events（發出事件型別）
+domain/aggregates → domain/services（呼叫 domain service，如有需要）
+```
+
+`domain/aggregates` **不可**依賴 `application/`、`infrastructure/`、`interfaces/`。
+````
+
+## File: modules/workspace/subdomain.md
+````markdown
+# Subdomain — workspace
+
+`workspace` 所對應的問題空間在 Xuanwu 的戰略分類中屬於 generic subdomain。
+
+全域 subdomain 分類由 [docs/ddd/subdomains.md](../../docs/ddd/subdomains.md) 擁有；本文件只說明 workspace 為什麼落在這個分類，以及它在 selected problem-space view 中的意義。
+
+## Why Generic
+
+workspace 解決的是「協作範圍、生命週期與公開邊界」問題，而不是 Xuanwu 的主要差異化來源。
+
+它的重要性很高，但它不是產品獨特價值本身。真正形成產品差異化的，仍是知識內容、檢索、協作語意與工作流等上下文。
+
+## What Problem Space It Covers
+
+workspace 子域聚焦這些問題：
+
+- 工作區作為協作容器的存在性
+- 工作區範圍鍵 `workspaceId`
+- 工作區生命週期與可見性
+- 讓其他 bounded contexts 能以共同範圍語言協作
+
+## What It Deliberately Does Not Differentiate
+
+- 它不定義知識內容本身
+- 它不定義組織成員真相來源
+- 它不定義檢索、RAG、文章治理等差異化業務能力
+
+Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 bounded context 內部或邊界上的實作 / 協作概念。
+
+同理，以下結構也不是 subdomain 本體，而是 `modules/workspace/` 這個 bounded context 的落地方式：
+
+- `domain/`
+- `application/`
+- `ports/input/`、`ports/output/`
+- `interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- `infrastructure/`
+
+換句話說，workspace 子域提供的是必要的結構性能力，而不是核心競爭優勢。
+
+## Selected Strategic View
+
+這份文件只用 workspace 為中心看它周邊牽涉到的問題空間：
+
+- `organization` 提供 ownership 與 member/team truth
+- `knowledge`、`knowledge-base`、`source`、`notebook` 等透過 `workspaceId` 對齊範圍
+- `workspace-flow`、`workspace-feed`、`workspace-scheduling` 等在工作區範圍內延伸自己的語言
+
+這是一個 selected view，不是整個 Xuanwu domain 的完整 subdomain 分析。
+
+## What Is Not a Subdomain
+
+以下概念雖然與 workspace 有關，但不應拿來當 subdomain：
+
+- Firestore、event bus 等 external systems
+- Browser UI、Server Actions、job triggers 等 drivers
+- repository ports、adapters 等 hexagonal 結構元件
+- `ports/input/`、`ports/output/`、`application/services/`、`domain/services/` 等 folder / layer 名稱
+- `WorkspaceMemberView`、`Wiki*Node` 這類 read models / projections
+
+## Investment Posture
+
+作為 generic subdomain，workspace 的策略不是追求花俏建模，而是：
+
+- 穩定邊界
+- 穩定 published language
+- 清楚 ownership
+- 對其他 bounded contexts 提供低摩擦協作面
+
+## Related Local Docs
+
+- [README.md](./README.md) — 模組總覽
+- [bounded-context.md](./bounded-context.md) — 本地 bounded context 邊界
+- [context-map.md](./context-map.md) — 與其他 bounded contexts 的關係
+````
+
 ## File: modules/workspace/bounded-context.md
 ````markdown
 # Bounded Context — workspace
@@ -15326,7 +15412,7 @@ interfaces/web ─┘
 
 ## Ownership Guardrails
 
-- 跨模組或 app composition consumer 應透過 `@/modules/workspace/interfaces/api` 協作
+- 跨模組或 app composition consumer 應透過 `@/modules/workspace/api` 協作
 - `domain/` 不感知 React、Firebase SDK、HTTP client
 - `application/` 不直接依賴 infrastructure implementation
 - `infrastructure/` 不透過 `interfaces/` 反向回繞
@@ -15338,83 +15424,6 @@ interfaces/web ─┘
 - [context-map.md](./context-map.md) — 對外關係與 integration patterns
 - [aggregates.md](./aggregates.md) — bounded context 內部核心模型
 - [repositories.md](./repositories.md) — output ports 與 adapters
-````
-
-## File: modules/workspace/subdomain.md
-````markdown
-# Subdomain — workspace
-
-`workspace` 所對應的問題空間在 Xuanwu 的戰略分類中屬於 generic subdomain。
-
-全域 subdomain 分類由 [docs/ddd/subdomains.md](../../docs/ddd/subdomains.md) 擁有；本文件只說明 workspace 為什麼落在這個分類，以及它在 selected problem-space view 中的意義。
-
-## Why Generic
-
-workspace 解決的是「協作範圍、生命週期與公開邊界」問題，而不是 Xuanwu 的主要差異化來源。
-
-它的重要性很高，但它不是產品獨特價值本身。真正形成產品差異化的，仍是知識內容、檢索、協作語意與工作流等上下文。
-
-## What Problem Space It Covers
-
-workspace 子域聚焦這些問題：
-
-- 工作區作為協作容器的存在性
-- 工作區範圍鍵 `workspaceId`
-- 工作區生命週期與可見性
-- 讓其他 bounded contexts 能以共同範圍語言協作
-
-## What It Deliberately Does Not Differentiate
-
-- 它不定義知識內容本身
-- 它不定義組織成員真相來源
-- 它不定義檢索、RAG、文章治理等差異化業務能力
-
-Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 bounded context 內部或邊界上的實作 / 協作概念。
-
-同理，以下結構也不是 subdomain 本體，而是 `modules/workspace/` 這個 bounded context 的落地方式：
-
-- `domain/`
-- `application/`
-- `ports/input/`、`ports/output/`
-- `interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
-- `infrastructure/`
-
-換句話說，workspace 子域提供的是必要的結構性能力，而不是核心競爭優勢。
-
-## Selected Strategic View
-
-這份文件只用 workspace 為中心看它周邊牽涉到的問題空間：
-
-- `organization` 提供 ownership 與 member/team truth
-- `knowledge`、`knowledge-base`、`source`、`notebook` 等透過 `workspaceId` 對齊範圍
-- `workspace-flow`、`workspace-feed`、`workspace-scheduling` 等在工作區範圍內延伸自己的語言
-
-這是一個 selected view，不是整個 Xuanwu domain 的完整 subdomain 分析。
-
-## What Is Not a Subdomain
-
-以下概念雖然與 workspace 有關，但不應拿來當 subdomain：
-
-- Firestore、event bus 等 external systems
-- Browser UI、Server Actions、job triggers 等 drivers
-- repository ports、adapters 等 hexagonal 結構元件
-- `ports/input/`、`ports/output/`、`application/services/`、`domain/services/` 等 folder / layer 名稱
-- `WorkspaceMemberView`、`Wiki*Node` 這類 read models / projections
-
-## Investment Posture
-
-作為 generic subdomain，workspace 的策略不是追求花俏建模，而是：
-
-- 穩定邊界
-- 穩定 published language
-- 清楚 ownership
-- 對其他 bounded contexts 提供低摩擦協作面
-
-## Related Local Docs
-
-- [README.md](./README.md) — 模組總覽
-- [bounded-context.md](./bounded-context.md) — 本地 bounded context 邊界
-- [context-map.md](./context-map.md) — 與其他 bounded contexts 的關係
 ````
 
 ## File: modules/workspace/context-map.md
@@ -15735,6 +15744,141 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 - 只服務單一 page 的 tab composition helper
 ````
 
+## File: modules/workspace/application-services.md
+````markdown
+# workspace — Application Services
+
+> **Canonical bounded context:** `workspace`
+> **模組路徑:** `modules/workspace/`
+> **Domain Type:** Generic Subdomain
+
+本文件定義 workspace application layer 的目標契約。Application layer 負責承接 driving ports、協調 use cases、DTO、domain services、output ports 與 domain event publishing，不承載 React UI state，也不作為跨模組偷渡 internal implementation 的入口。
+
+從六邊形架構看，application layer 位在 domain model 外層、adapter 內層：它負責接住 inbound requests、呼叫 domain model 與 ports，並協調 outbound integration，但不應吞掉 aggregate 本身的規則。
+
+從依賴反轉看，application layer 應向下依賴 `domain/` 抽象與 `ports/output/`，由 `infrastructure/` 提供實作；UI、Route Handlers、CLI 等 entrypoints 則經由 `ports/input/` 依賴 application layer，而不是直接跨進 repository implementation。
+
+## Application Folder Contract
+
+| 目錄 | 角色 | 放什麼 |
+|---|---|---|
+| `application/use-cases/` | 單一 use case 入口 | 一個 user goal 對應的一段協調流程 |
+| `application/services/` | 跨 use case / 跨 aggregate 流程協調 | process manager、saga-style orchestration、較長流程 |
+| `application/dtos/` | 邊界資料形狀 | input DTO、output DTO、query filter DTO |
+
+## 依賴箭頭（Application 視角）
+
+```txt
+interfaces/*
+	-> ports/input
+	-> application/use-cases
+	-> application/services
+	-> domain/services
+	-> domain/aggregates + domain/entities + domain/value-objects
+	-> ports/output
+	-> infrastructure/*
+```
+
+## Use Case / Service / DTO 分工
+
+| 類型 | 主要責任 | 不該放的內容 |
+|---|---|---|
+| Use Case | 單一使用案例的 command / query 協調 | 長流程狀態、純業務規則、UI state |
+| Application Service | 跨多步驟或跨多 use case 的流程編排 | invariant、value object 規則、Firebase 直接呼叫 |
+| DTO | 進出 application layer 的資料形狀 | domain decision、repository implementation |
+
+## Application Layer 職責
+
+- 協調 command-side use cases
+- 協調 query-side use cases / projection builders
+- 呼叫 output ports 與必要的 domain service
+- 在持久化成功後觸發 domain event publishing
+- 保持 input / output 契約穩定，讓 `interfaces/` 可以薄適配
+
+## Ports / Adapters / Drivers / Read Models
+
+- Driver / 外部驅動器：Browser UI、Route Handlers、CLI / Cron、其他 bounded context 對 `interfaces/api/` 的呼叫者，以及未來可能的事件 subscriber / job trigger
+- Driving Adapters：`interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- Driving Ports：`ports/input/`
+- Driven Ports：`ports/output/`
+- Driven Adapters：Firebase repositories、event bus / event store integration 等外部技術實作
+- Read Models：application layer 在 query-side 協調產出的 `WorkspaceMemberView`、`Wiki*Node` 等讀取模型
+
+## 本文件涉及的 DDD 概念
+
+- Output Port（輸出端口）→ 介面；application layer 依賴的是 output port，而不是 infrastructure adapter 類別
+- Domain Service（領域服務）→ 類別 / 函式；只有當規則不屬於 aggregate / value object 時才由 application layer 協作呼叫
+- Application Service（應用服務）→ 類別 / 函式；專門協調多 use case 或跨 aggregate 流程
+- Factory（工廠）→ 類別 / 函式；用來建立 aggregate、value object、domain event 等有效模型
+- Domain Event（領域事件）→ 事件類別、訊息物件；application layer 可在持久化成功後發布，但事件語言本身屬於 domain
+
+## 在整體 Domain 裡的位置
+
+- 這些 application services 只服務 `workspace` 這個 bounded context
+- 它們不代表整個 generic subdomain 的所有流程，更不應直接編排其他 bounded context 的內部實作
+- 若流程跨越多個 bounded context，應明確透過 `interfaces/api/`、published language 或更高層的 composition orchestration 協作
+
+## Event-Driven 與長流程定位
+
+- 若 workspace 未來出現多步驟、跨事件的長流程協調，預設先放入 `application/services/`，而不是直接塞進 aggregate 或 domain service
+- 只有當流程追蹤本身成為領域概念時，才考慮引入 tracker aggregate 或對應 domain model
+- 目前 workspace application layer 會協調事件發布，但尚未引入專屬的 long-running process executive / saga state object
+
+## Command-side Use Cases
+
+| Use Case | 目的 | 備註 |
+|---|---|---|
+| `CreateWorkspaceUseCase` | 建立工作區 | 最小建立流程 |
+| `CreateWorkspaceWithCapabilitiesUseCase` | 建立工作區並掛載能力 | 透過 `WorkspaceRepository` + `WorkspaceCapabilityRepository` 協作 |
+| `UpdateWorkspaceSettingsUseCase` | 更新名稱、可見性、生命週期與 supporting records | 目前是主要設定更新入口 |
+| `DeleteWorkspaceUseCase` | 刪除工作區 | 應搭配生命週期與下游資料政策檢視 |
+| `MountCapabilitiesUseCase` | 掛載工作區能力 | 僅依賴 `WorkspaceCapabilityRepository` |
+| `GrantTeamAccessUseCase` | 為 workspace 授權 team access | 僅依賴 `WorkspaceAccessRepository` |
+| `GrantIndividualAccessUseCase` | 為 workspace 新增 direct grant | 僅依賴 `WorkspaceAccessRepository` |
+| `CreateWorkspaceLocationUseCase` | 建立工作區位置節點 | 僅依賴 `WorkspaceLocationRepository` |
+
+## Query-side Use Cases / Projection Builders / Read Model Builders
+
+| Use Case / Function | 目的 |
+|---|---|
+| `FetchWorkspaceMembersUseCase` | 組合 `WorkspaceMemberView[]` |
+| `buildWikiContentTree` | 組合工作區導覽樹 projection |
+
+這些輸出是 read model / projection，不是 aggregate。
+
+## Factories 與 Composition Points
+
+- Domain event factories 應放在 `domain/events/` 或 `domain/factories/`，不放在 UI 或 page component
+- Aggregate / Value Object factories 是類別 / 函式，用來建立有效 domain object，不應散落在 React component 中
+- UI draft factories 應留在 `interfaces/web/` 或其他 UI-oriented layer，不應假裝成 application service
+- Route Handlers、CLI handlers 與 query wrappers 是 driving adapter，不是 application service 本體
+
+## 非目標
+
+- 不保存 React component state
+- 不直接 new infrastructure adapter 作為主要協作方式
+- 不把 `WorkspaceDetailScreen` 的 tab composition 寫進 application layer
+- 不把純業務規則塞進 `application/services/`
+
+## 實作對位
+
+### 目前 use-case 檔案
+
+- `application/use-cases/workspace-lifecycle.use-cases.ts`
+- `application/use-cases/workspace-capabilities.use-cases.ts`
+- `application/use-cases/workspace-access.use-cases.ts`
+- `application/use-cases/workspace-member.use-cases.ts`
+- `application/use-cases/wiki-content-tree.use-case.ts`
+- `application/use-cases/workspace.use-cases.ts`（barrel only）
+
+### 收斂方向
+
+- `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` 保持 thin driving adapters
+- `ports/input/` 收斂 inbound contracts
+- `application/services/` 作為跨 use case / 跨 aggregate 流程容器
+- 應用層用語與 `aggregates.md`、`repositories.md`、`domain-events.md` 同步
+````
+
 ## File: modules/workspace/README.md
 ````markdown
 # workspace — 協作容器上下文
@@ -15918,9 +16062,9 @@ flowchart TD
 
 ## 實作備註
 
-- 目前程式中仍有一些 supporting records 與 read projections 混置於 `domain/entities/`；本文件定義的是收斂方向
+- 目前 read projections 已收斂到 `application/dtos/`，supporting records 與 web helper 則留在對應的 interface layer
 - `WorkspaceMemberView` 與 `WikiContentTree` 型別不得再被描述成 aggregate 或 value object
-- 這份 README 以 `interfaces/api/`、`ports/input/`、`ports/output/` 為文件基線，後續代碼應向此結構收斂
+- 這份 README 以公開邊界 `api/index.ts`、內部 driving adapter `interfaces/api/`、以及 `ports/input/` / `ports/output/` 為文件基線
 - `WorkspaceMemberView` 與 `WikiContentTree` 型別不得再被描述成 aggregate 或 value object
 
 ## 詳細文件
@@ -15936,275 +16080,6 @@ flowchart TD
 | [domain-services.md](./domain-services.md) | domain service 與 ports/adapters/drivers/read models 的區別 |
 | [domain-events.md](./domain-events.md) | workspace 領域事件契約、事件驅動整合與 projection 關係 |
 | [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
-````
-
-## File: modules/workspace/aggregates.md
-````markdown
-# Aggregates — workspace
-
-本文件中的 Aggregate / Aggregate Root、Entity、Value Object 都以類別 / 物件來討論；它們是 workspace bounded context 的 write-side domain model，而不是 UI projection。
-
-從六邊形架構的角度看，這份文件描述的是 bounded context 核心的 domain model，不是外層 adapter，也不是整個 Xuanwu domain 的 context map。
-
-這裡列出的 aggregate、entity、value object 也是此 bounded context 通用語言的一部分；它們與 domain events 一起構成 `workspace` collaboration language，而不只是型別分類。
-
-Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain model 外圍。這份文件只在需要區分 read model / projection 時提及外層結構。
-
-## Domain Model Folder Contract
-
-| 目錄 | 角色 | 放什麼 |
-|---|---|---|
-| `domain/aggregates/` | Aggregate Root 主體 | write-side consistency boundary、aggregate commands、aggregate methods |
-| `domain/entities/` | supporting entities / 既有 domain objects | 具 identity 的 supporting objects、過渡期既有模型 |
-| `domain/value-objects/` | value equality 語意 | `WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address` |
-| `domain/services/` | 純業務規則 | 不自然屬於單一 aggregate 的規則 |
-| `domain/events/` | published domain language | 對外發布的事件語言 |
-
-文件與後續代碼應以這個結構為收斂方向。
-
-## Write-side Aggregate Root
-
-### `Workspace`
-
-`Workspace` 是此 bounded context 的 aggregate root。它代表一個協作範圍，並保護工作區生命週期、可見性與工作區範圍識別語言的一致性。
-
-在目標結構下，`Workspace` 應位於 `domain/aggregates/`。若某些既有程式仍暫放在 `domain/entities/`，應視為收斂中的過渡狀態，而不是新的建模準則。
-
-### 核心屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 工作區主鍵；建立後不可變更 |
-| `name` | `WorkspaceName` | 工作區名稱值對象 |
-| `accountId` | `string` | 擁有工作區的 account / organization |
-| `accountType` | `"user" \| "organization"` | 擁有者類型 |
-| `lifecycleState` | `WorkspaceLifecycleState` | `preparatory | active | stopped` |
-| `visibility` | `WorkspaceVisibility` | `visible | hidden` |
-| `createdAt` | `Timestamp` | 建立時間 |
-
-### 不變條件
-
-- `id`、`accountId`、`accountType` 在建立後不可變更
-- `lifecycleState` 的 canonical 語言是 `preparatory | active | stopped`
-- `visibility` 的 canonical 語言是 `visible | hidden`
-- 下游 context 只能在有效的 `workspaceId` 範圍內掛載資料與行為
-
-## Supporting Domain Objects Inside `Workspace`
-
-### Entities
-
-| 類型 | 說明 |
-|------|------|
-| `WorkspaceLocation` | 以 `locationId` 識別的工作區位置節點 |
-| `Capability` | 目前以 `id` 識別的工作區能力記錄；若治理規則成長，可再評估外拆 |
-| `WorkspacePersonnelCustomRole` | 以 `roleId` 識別的人員自訂角色記錄 |
-
-這些 supporting entities 應放在 `domain/entities/`，而不是回頭冒充 aggregate root。
-
-### Value Objects
-
-| 類型 | 說明 |
-|------|------|
-| `WorkspaceLifecycleState` | 工作區生命週期值 |
-| `WorkspaceVisibility` | 工作區可見性值 |
-| `WorkspaceName` | 工作區名稱值，負責 trim 與基本字串約束 |
-| `Address` | 地址值型資料 |
-| `WorkspaceGrant` | 工作區授權記錄；以內容而非獨立 aggregate identity 判斷語意 |
-| `WorkspacePersonnel` | 管理/監督/安全等角色參照集合 |
-| `CapabilitySpec` | 能力定義的值型描述 |
-
-這些型別應留在 `domain/value-objects/`，不應放進 `application/dtos/` 或 `interfaces/` 充當資料傳輸形狀。
-
-## Read-side Projections / Read Models（不是 Aggregate）
-
-| 類型 | 說明 |
-|------|------|
-| `WorkspaceMemberView` | 工作區成員查詢投影，組合 workspace 與 organization 的資料 |
-| `WorkspaceMemberAccessChannel` | 讀模型中的接入通道描述 |
-| `WikiAccountContentNode` | 帳戶導覽節點 |
-| `WikiWorkspaceContentNode` | 工作區導覽節點 |
-| `WikiContentItemNode` | 導覽項 read projection |
-
-`WorkspaceMemberView` 與 `Wiki*Node` 型別目前放在 `domain/entities/` 下，但語意上是 query-side projection，不是 write-side aggregate、entity 或 value object。
-
-文件上必須清楚區分：
-
-- write-side truth：`domain/aggregates/`、`domain/entities/`、`domain/value-objects/`
-- read-side projection：供查詢與呈現使用的 `WorkspaceMemberView`、`Wiki*Node`
-
-這些 projection / read model 是為特定讀取需求與驅動器提供的查詢形狀：
-
-- 它們可由 query-side use case、repository adapter 或 ACL translation 組裝
-- 它們優先服務查詢與呈現，不優先服務 invariant 保護
-- 它們不是 ports，也不是 adapters；而是 adapters / query flows 產出的讀取模型
-
-## Strategic Reminder
-
-- `Workspace` aggregate root 屬於 `workspace` 這個 bounded context 的內部 tactical model
-- 它不等於整個 Xuanwu domain，也不等於 generic subdomain 的全部關係圖
-- Subdomain / Bounded Context 的外部關係應在 `README.md` 與 `context-map.md` 理解，不應把整體戰略關係塞回 aggregate 定義
-- 一個 subdomain 內可以有多個 bounded contexts；本文件只處理 `modules/workspace/` 這個 bounded context 的核心模型
-
-## Factory Boundary
-
-- Factory（工廠）在本 context 中是類別 / 函式，用來建立 aggregate、value object 或對 reconstitution 做集中驗證
-- `Workspace` 與 P1 value objects 應優先透過 factory / parser 建立，而不是由 interface adapter 任意拼接 raw object
-- Factory 不是 Repository，也不是 Domain Service；它的責任是安全建立模型，不是持久化或協調流程
-
-## 與 Application / Ports 的分工
-
-- Aggregate 保護 invariant，不協調長流程
-- Domain Service 補足不自然屬於單一 aggregate 的純規則
-- Application Service 協調多個 use case 或跨 aggregate 流程
-- Output Ports 負責外部能力抽象，不屬於 domain model 本體
-
-## What This File Does Not Own
-
-- Driver / 外部驅動器：例如 Browser UI、Server Actions、其他 bounded context 呼叫者
-- Adapter：例如 Firebase repository classes、Server Action wrappers、query wrappers
-- Port 定義本身：見 [repositories.md](./repositories.md)
-
-## Tactical Debt Notes
-
-- `Workspace` aggregate 目前仍承載 capabilities、grants、locations、personnel 等 supporting records；若之後規則持續成長，應再評估切分 ownership
-- P1 已正式落地於 `domain/value-objects/`：`WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
-- `WikiContentTree` 不是 write-side aggregate；它是為導覽組裝的 query model
-- `WorkspaceMember` 不是目前的 canonical write-side 名稱；查詢模型請使用 `WorkspaceMemberView`
-````
-
-## File: modules/workspace/application-services.md
-````markdown
-# workspace — Application Services
-
-> **Canonical bounded context:** `workspace`
-> **模組路徑:** `modules/workspace/`
-> **Domain Type:** Generic Subdomain
-
-本文件定義 workspace application layer 的目標契約。Application layer 負責承接 driving ports、協調 use cases、DTO、domain services、output ports 與 domain event publishing，不承載 React UI state，也不作為跨模組偷渡 internal implementation 的入口。
-
-從六邊形架構看，application layer 位在 domain model 外層、adapter 內層：它負責接住 inbound requests、呼叫 domain model 與 ports，並協調 outbound integration，但不應吞掉 aggregate 本身的規則。
-
-從依賴反轉看，application layer 應向下依賴 `domain/` 抽象與 `ports/output/`，由 `infrastructure/` 提供實作；UI、Route Handlers、CLI 等 entrypoints 則經由 `ports/input/` 依賴 application layer，而不是直接跨進 repository implementation。
-
-## Application Folder Contract
-
-| 目錄 | 角色 | 放什麼 |
-|---|---|---|
-| `application/use-cases/` | 單一 use case 入口 | 一個 user goal 對應的一段協調流程 |
-| `application/services/` | 跨 use case / 跨 aggregate 流程協調 | process manager、saga-style orchestration、較長流程 |
-| `application/dtos/` | 邊界資料形狀 | input DTO、output DTO、query filter DTO |
-
-## 依賴箭頭（Application 視角）
-
-```txt
-interfaces/*
-	-> ports/input
-	-> application/use-cases
-	-> application/services
-	-> domain/services
-	-> domain/aggregates + domain/entities + domain/value-objects
-	-> ports/output
-	-> infrastructure/*
-```
-
-## Use Case / Service / DTO 分工
-
-| 類型 | 主要責任 | 不該放的內容 |
-|---|---|---|
-| Use Case | 單一使用案例的 command / query 協調 | 長流程狀態、純業務規則、UI state |
-| Application Service | 跨多步驟或跨多 use case 的流程編排 | invariant、value object 規則、Firebase 直接呼叫 |
-| DTO | 進出 application layer 的資料形狀 | domain decision、repository implementation |
-
-## Application Layer 職責
-
-- 協調 command-side use cases
-- 協調 query-side use cases / projection builders
-- 呼叫 output ports 與必要的 domain service
-- 在持久化成功後觸發 domain event publishing
-- 保持 input / output 契約穩定，讓 `interfaces/` 可以薄適配
-
-## Ports / Adapters / Drivers / Read Models
-
-- Driver / 外部驅動器：Browser UI、Route Handlers、CLI / Cron、其他 bounded context 對 `interfaces/api/` 的呼叫者，以及未來可能的事件 subscriber / job trigger
-- Driving Adapters：`interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
-- Driving Ports：`ports/input/`
-- Driven Ports：`ports/output/`
-- Driven Adapters：Firebase repositories、event bus / event store integration 等外部技術實作
-- Read Models：application layer 在 query-side 協調產出的 `WorkspaceMemberView`、`Wiki*Node` 等讀取模型
-
-## 本文件涉及的 DDD 概念
-
-- Output Port（輸出端口）→ 介面；application layer 依賴的是 output port，而不是 infrastructure adapter 類別
-- Domain Service（領域服務）→ 類別 / 函式；只有當規則不屬於 aggregate / value object 時才由 application layer 協作呼叫
-- Application Service（應用服務）→ 類別 / 函式；專門協調多 use case 或跨 aggregate 流程
-- Factory（工廠）→ 類別 / 函式；用來建立 aggregate、value object、domain event 等有效模型
-- Domain Event（領域事件）→ 事件類別、訊息物件；application layer 可在持久化成功後發布，但事件語言本身屬於 domain
-
-## 在整體 Domain 裡的位置
-
-- 這些 application services 只服務 `workspace` 這個 bounded context
-- 它們不代表整個 generic subdomain 的所有流程，更不應直接編排其他 bounded context 的內部實作
-- 若流程跨越多個 bounded context，應明確透過 `interfaces/api/`、published language 或更高層的 composition orchestration 協作
-
-## Event-Driven 與長流程定位
-
-- 若 workspace 未來出現多步驟、跨事件的長流程協調，預設先放入 `application/services/`，而不是直接塞進 aggregate 或 domain service
-- 只有當流程追蹤本身成為領域概念時，才考慮引入 tracker aggregate 或對應 domain model
-- 目前 workspace application layer 會協調事件發布，但尚未引入專屬的 long-running process executive / saga state object
-
-## Command-side Use Cases
-
-| Use Case | 目的 | 備註 |
-|---|---|---|
-| `CreateWorkspaceUseCase` | 建立工作區 | 最小建立流程 |
-| `CreateWorkspaceWithCapabilitiesUseCase` | 建立工作區並掛載能力 | 透過 `WorkspaceRepository` + `WorkspaceCapabilityRepository` 協作 |
-| `UpdateWorkspaceSettingsUseCase` | 更新名稱、可見性、生命週期與 supporting records | 目前是主要設定更新入口 |
-| `DeleteWorkspaceUseCase` | 刪除工作區 | 應搭配生命週期與下游資料政策檢視 |
-| `MountCapabilitiesUseCase` | 掛載工作區能力 | 僅依賴 `WorkspaceCapabilityRepository` |
-| `GrantTeamAccessUseCase` | 為 workspace 授權 team access | 僅依賴 `WorkspaceAccessRepository` |
-| `GrantIndividualAccessUseCase` | 為 workspace 新增 direct grant | 僅依賴 `WorkspaceAccessRepository` |
-| `CreateWorkspaceLocationUseCase` | 建立工作區位置節點 | 僅依賴 `WorkspaceLocationRepository` |
-
-## Query-side Use Cases / Projection Builders / Read Model Builders
-
-| Use Case / Function | 目的 |
-|---|---|
-| `FetchWorkspaceMembersUseCase` | 組合 `WorkspaceMemberView[]` |
-| `buildWikiContentTree` | 組合工作區導覽樹 projection |
-
-這些輸出是 read model / projection，不是 aggregate。
-
-## Factories 與 Composition Points
-
-- Domain event factories 應放在 `domain/events/` 或 `domain/factories/`，不放在 UI 或 page component
-- Aggregate / Value Object factories 是類別 / 函式，用來建立有效 domain object，不應散落在 React component 中
-- UI draft factories 應留在 `interfaces/web/` 或其他 UI-oriented layer，不應假裝成 application service
-- Route Handlers、CLI handlers 與 query wrappers 是 driving adapter，不是 application service 本體
-
-## 非目標
-
-- 不保存 React component state
-- 不直接 new infrastructure adapter 作為主要協作方式
-- 不把 `WorkspaceDetailScreen` 的 tab composition 寫進 application layer
-- 不把純業務規則塞進 `application/services/`
-
-## 實作對位
-
-### 目前 use-case 檔案
-
-- `application/use-cases/workspace-lifecycle.use-cases.ts`
-- `application/use-cases/workspace-capabilities.use-cases.ts`
-- `application/use-cases/workspace-access.use-cases.ts`
-- `application/use-cases/workspace-member.use-cases.ts`
-- `application/use-cases/wiki-content-tree.use-case.ts`
-- `application/use-cases/workspace.use-cases.ts`（barrel only）
-
-### 收斂方向
-
-- `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` 保持 thin driving adapters
-- `ports/input/` 收斂 inbound contracts
-- `application/services/` 作為跨 use case / 跨 aggregate 流程容器
-- 應用層用語與 `aggregates.md`、`repositories.md`、`domain-events.md` 同步
 ````
 
 ## File: modules/workspace/repositories.md
@@ -16502,6 +16377,140 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 | Domain Event（領域事件） | 事件類別、訊息物件，作為對外發布的 domain language |
 ````
 
+## File: modules/workspace/aggregates.md
+````markdown
+# Aggregates — workspace
+
+本文件中的 Aggregate / Aggregate Root、Entity、Value Object 都以類別 / 物件來討論；它們是 workspace bounded context 的 write-side domain model，而不是 UI projection。
+
+從六邊形架構的角度看，這份文件描述的是 bounded context 核心的 domain model，不是外層 adapter，也不是整個 Xuanwu domain 的 context map。
+
+這裡列出的 aggregate、entity、value object 也是此 bounded context 通用語言的一部分；它們與 domain events 一起構成 `workspace` collaboration language，而不只是型別分類。
+
+Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain model 外圍。這份文件只在需要區分 read model / projection 時提及外層結構。
+
+## Domain Model Folder Contract
+
+| 目錄 | 角色 | 放什麼 |
+|---|---|---|
+| `domain/aggregates/` | Aggregate Root 主體 | write-side consistency boundary、aggregate commands、aggregate methods |
+| `domain/entities/` | supporting entities / 既有 domain objects | 具 identity 的 supporting objects、過渡期既有模型 |
+| `domain/value-objects/` | value equality 語意 | `WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address` |
+| `domain/services/` | 純業務規則 | 不自然屬於單一 aggregate 的規則 |
+| `domain/events/` | published domain language | 對外發布的事件語言 |
+
+文件與後續代碼應以這個結構為收斂方向。
+
+## Write-side Aggregate Root
+
+### `Workspace`
+
+`Workspace` 是此 bounded context 的 aggregate root。它代表一個協作範圍，並保護工作區生命週期、可見性與工作區範圍識別語言的一致性。
+
+在目標結構下，`Workspace` 應位於 `domain/aggregates/`。若某些既有程式仍暫放在 `domain/entities/`，應視為收斂中的過渡狀態，而不是新的建模準則。
+
+### 核心屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 工作區主鍵；建立後不可變更 |
+| `name` | `WorkspaceName` | 工作區名稱值對象 |
+| `accountId` | `string` | 擁有工作區的 account / organization |
+| `accountType` | `"user" \| "organization"` | 擁有者類型 |
+| `lifecycleState` | `WorkspaceLifecycleState` | `preparatory | active | stopped` |
+| `visibility` | `WorkspaceVisibility` | `visible | hidden` |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+### 不變條件
+
+- `id`、`accountId`、`accountType` 在建立後不可變更
+- `lifecycleState` 的 canonical 語言是 `preparatory | active | stopped`
+- `visibility` 的 canonical 語言是 `visible | hidden`
+- 下游 context 只能在有效的 `workspaceId` 範圍內掛載資料與行為
+
+## Supporting Domain Objects Inside `Workspace`
+
+### Entities
+
+| 類型 | 說明 |
+|------|------|
+| `WorkspaceLocation` | 以 `locationId` 識別的工作區位置節點 |
+| `Capability` | 目前以 `id` 識別的工作區能力記錄；若治理規則成長，可再評估外拆 |
+| `WorkspacePersonnelCustomRole` | 以 `roleId` 識別的人員自訂角色記錄 |
+
+這些 supporting entities 應放在 `domain/entities/`，而不是回頭冒充 aggregate root。
+
+### Value Objects
+
+| 類型 | 說明 |
+|------|------|
+| `WorkspaceLifecycleState` | 工作區生命週期值 |
+| `WorkspaceVisibility` | 工作區可見性值 |
+| `WorkspaceName` | 工作區名稱值，負責 trim 與基本字串約束 |
+| `Address` | 地址值型資料 |
+| `WorkspaceGrant` | 工作區授權記錄；以內容而非獨立 aggregate identity 判斷語意 |
+| `WorkspacePersonnel` | 管理/監督/安全等角色參照集合 |
+| `CapabilitySpec` | 能力定義的值型描述 |
+
+這些型別應留在 `domain/value-objects/`，不應放進 `application/dtos/` 或 `interfaces/` 充當資料傳輸形狀。
+
+## Read-side Projections / Read Models（不是 Aggregate）
+
+| 類型 | 說明 |
+|------|------|
+| `WorkspaceMemberView` | 工作區成員查詢投影，組合 workspace 與 organization 的資料 |
+| `WorkspaceMemberAccessChannel` | 讀模型中的接入通道描述 |
+| `WikiAccountContentNode` | 帳戶導覽節點 |
+| `WikiWorkspaceContentNode` | 工作區導覽節點 |
+| `WikiContentItemNode` | 導覽項 read projection |
+
+`WorkspaceMemberView` 與 `Wiki*Node` 型別應放在 `application/dtos/` 下，作為 query-side projection，而不是 write-side aggregate、entity 或 value object。
+
+文件上必須清楚區分：
+
+- write-side truth：`domain/aggregates/`、`domain/entities/`、`domain/value-objects/`
+- read-side projection：供查詢與呈現使用的 `WorkspaceMemberView`、`Wiki*Node`
+
+這些 projection / read model 是為特定讀取需求與驅動器提供的查詢形狀：
+
+- 它們可由 query-side use case、repository adapter 或 ACL translation 組裝
+- 它們優先服務查詢與呈現，不優先服務 invariant 保護
+- 它們不是 ports，也不是 adapters；而是 adapters / query flows 產出的讀取模型
+
+## Strategic Reminder
+
+- `Workspace` aggregate root 屬於 `workspace` 這個 bounded context 的內部 tactical model
+- 它不等於整個 Xuanwu domain，也不等於 generic subdomain 的全部關係圖
+- Subdomain / Bounded Context 的外部關係應在 `README.md` 與 `context-map.md` 理解，不應把整體戰略關係塞回 aggregate 定義
+- 一個 subdomain 內可以有多個 bounded contexts；本文件只處理 `modules/workspace/` 這個 bounded context 的核心模型
+
+## Factory Boundary
+
+- Factory（工廠）在本 context 中是類別 / 函式，用來建立 aggregate、value object 或對 reconstitution 做集中驗證
+- `Workspace` 與 P1 value objects 應優先透過 factory / parser 建立，而不是由 interface adapter 任意拼接 raw object
+- Factory 不是 Repository，也不是 Domain Service；它的責任是安全建立模型，不是持久化或協調流程
+
+## 與 Application / Ports 的分工
+
+- Aggregate 保護 invariant，不協調長流程
+- Domain Service 補足不自然屬於單一 aggregate 的純規則
+- Application Service 協調多個 use case 或跨 aggregate 流程
+- Output Ports 負責外部能力抽象，不屬於 domain model 本體
+
+## What This File Does Not Own
+
+- Driver / 外部驅動器：例如 Browser UI、Server Actions、其他 bounded context 呼叫者
+- Adapter：例如 Firebase repository classes、Server Action wrappers、query wrappers
+- Port 定義本身：見 [repositories.md](./repositories.md)
+
+## Tactical Debt Notes
+
+- `Workspace` aggregate 目前仍承載 capabilities、grants、locations、personnel 等 supporting records；若之後規則持續成長，應再評估切分 ownership
+- P1 已正式落地於 `domain/value-objects/`：`WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
+- `WikiContentTree` 不是 write-side aggregate；它是為導覽組裝的 query model
+- `WorkspaceMember` 不是目前的 canonical write-side 名稱；查詢模型請使用 `WorkspaceMemberView`
+````
+
 ## File: modules/workspace/AGENT.md
 ````markdown
 # AGENT.md — workspace BC
@@ -16668,7 +16677,7 @@ interfaces/web ─┘
 ### ✅ 允許
 
 ```typescript
-import { getWorkspaceById, WorkspaceDetailScreen } from "@/modules/workspace/interfaces/api";
+import { getWorkspaceById, WorkspaceDetailScreen } from "@/modules/workspace/api";
 import type { WorkspaceRepository } from "@/modules/workspace/ports";
 ```
 
@@ -16681,7 +16690,7 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 
 ## 分層守衛
 
-- `index.ts` 只能是薄入口；跨模組與 app composition consumer 應優先使用 `@/modules/workspace/interfaces/api`
+- `api/index.ts` 只能是薄入口；跨模組與 app composition consumer 應優先使用 `@/modules/workspace/api`
 - `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` 只做 driving adapter，不處理 domain 決策
 - `application/use-cases/` 處理單一 use case，不吞進純業務規則
 - `application/services/` 只負責流程，不替代 domain service
@@ -16704,8 +16713,8 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 
 ## Tactical 建模守則
 
-- `WorkspaceMemberView` 是 read projection，不是 aggregate、entity 或 value object
-- `WikiContentTree.ts` 目前承載的是導覽/查詢模型，不是 write-side aggregate
+- `WorkspaceMemberView` 是 read projection，應放在 query-side DTO，而不是 aggregate、entity 或 value object
+- `WikiContentTree` 相關型別目前應放在 `application/dtos/`，不是 write-side aggregate
 - `WorkspaceLifecycleState` 的 canonical 值是 `preparatory | active | stopped`，不是 `active | archived`
 - 若要新增跨 aggregate 規則，先判斷是否真的需要 domain service；不要用 application service 假裝 aggregate
 - 若要新增跨 use case 長流程，先放進 `application/services/`，不要把流程協調塞進 `domain/services/`
