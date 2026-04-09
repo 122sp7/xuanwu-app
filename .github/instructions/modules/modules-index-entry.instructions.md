@@ -11,7 +11,7 @@ Use this instruction for module root `index.ts` files.
 ## Rules
 
 - `index.ts` is an aggregate export only.
-- Re-export stable public members from `api/` or other intentionally public entry points.
+- Re-export stable public members from `interfaces/api` or other intentionally public entry points.
 - Keep the file free of orchestration, conditionals, adapter wiring, and business logic.
 
 ## Guardrails

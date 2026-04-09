@@ -11,10 +11,10 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 
 ## 邊界規則
 
-1. **跨模組存取**只能透過目標模組的 `api/` 公開合約進行。嚴禁直接匯入其他模組的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 內部程式碼。
+1. **跨模組存取**只能透過目標模組的公開邊界（`modules/<context>/index.ts`，或其明確公開的 API 入口）進行。嚴禁直接匯入其他模組的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 內部程式碼。
 2. **限界上下文間的通訊**只能透過以下方式：
    - 發布與訂閱**領域事件** (Domain Events)
-   - 呼叫目標模組的 `api/` 公開 Facade 或合約
+   - 呼叫目標模組公開邊界的 Facade 或合約
 3. **基礎設施直接呼叫**（如 Firebase Admin、Upstash）必須封裝在各自模組的 `infrastructure/` 層，不得跨模組共用。
 
 ## 依賴方向
@@ -45,7 +45,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - ❌ `import { X } from '@/modules/other-context/domain/...'`
 - ❌ `import { X } from '@/modules/other-context/application/...'`
 - ❌ `import { X } from '@/modules/other-context/infrastructure/...'`
-- ✅ `import { X } from '@/modules/other-context/api'`
+- ✅ `import { X } from '@/modules/other-context'`
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill modules-mddd-api-surface

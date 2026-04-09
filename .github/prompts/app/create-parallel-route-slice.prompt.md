@@ -15,7 +15,7 @@ Create or refactor a route slice in `app/` that composes one feature block and k
 
 - Route path: `${input:routePath:app/(shell)/dashboard}`
 - Block role: `${input:blockRole:dashboard panel | sidebar tool | modal | chat console}`
-- Allowed module APIs: `${input:moduleApis:@/modules/workspace/api}`
+- Allowed module APIs: `${input:moduleApis:@/modules/workspace/interfaces/api}`
 - Rendering mode: `${input:renderMode:server | client}`
 
 ## Workflow

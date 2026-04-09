@@ -7,7 +7,8 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 
 ## Required Shape
 
-- `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`.
+- `domain/`, `application/`, `ports/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`.
+- Public boundary should be exposed by the module root `index.ts` (for example re-exporting from `interfaces/api`).
 
 ## Naming
 
@@ -28,7 +29,7 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 
 ## Module Lifecycle Notes
 
-- New module: establish `api/` contract immediately and document inventory updates.
+- New module: establish a public contract immediately (via `index.ts` and `interfaces/api`) and document inventory updates.
 - Split/merge: map source-to-target ownership and classify internal vs public surfaces.
 - Delete: remove consumers first, then delete module, then update docs and dependency references.
 
