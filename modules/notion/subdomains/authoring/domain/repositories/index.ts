@@ -1,3 +1,4 @@
 // TODO: export IArticleRepository, ICategoryRepository
 
-export {};
+export type { IArticleRepository } from "./IArticleRepository";
+export type { ICategoryRepository } from "./ICategoryRepository";
