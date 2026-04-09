@@ -18,29 +18,29 @@ platform 這個 bounded context 負責回答五類問題：
 
 - `identity`
 - `account-profile`
-- `organization-directory`
+- `organization`
 
 ### 治理與安全
 
 - `access-control`
-- `security-policies`
-- `platform-configuration`
-- `feature-toggles`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
 
 ### 商業與權益
 
 - `billing`
-- `user-subscriptions`
+- `subscription`
 
 ### 流程與交付
 
-- `external-integrations`
-- `process-workflows`
-- `notification-delivery`
+- `integration`
+- `workflow`
+- `notification`
 
 ### 證據與診斷
 
-- `audit-trail`
+- `audit-log`
 - `observability`
 
 ## 邊界包含什麼

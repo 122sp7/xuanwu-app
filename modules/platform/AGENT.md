@@ -24,18 +24,18 @@ platform 的正式子域清單已固定為：
 
 - `identity`
 - `account-profile`
-- `organization-directory`
+- `organization`
 - `access-control`
-- `security-policies`
-- `platform-configuration`
-- `feature-toggles`
-- `external-integrations`
-- `process-workflows`
-- `notification-delivery`
-- `audit-trail`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `integration`
+- `workflow`
+- `notification`
+- `audit-log`
 - `observability`
 - `billing`
-- `user-subscriptions`
+- `subscription`
 
 這份 inventory 預設為 closed by default。代理人必須先把需求映射到這 14 個子域之一，不能為了方便再建立新的資料夾別名。
 
@@ -84,7 +84,7 @@ platform 的正式子域清單已固定為：
 - `AuditSignal`
 - `ObservabilitySignal`
 
-不要把這些術語隨意替換成籠統字眼，如 `settings`、`job`、`hook`、`status log`、`feature`、`auth result`。
+不要把這些術語隨意替換成籠統字眼，如 `settings`、`background-job`、`hook`、`status log`、`feature`、`auth result`。
 
 ## 允許的修改
 

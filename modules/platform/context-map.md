@@ -6,46 +6,46 @@
 
 ```text
 identity -> account-profile -> access-control
-identity -> audit-trail
+identity -> audit-log
 
-organization-directory -> access-control
-organization-directory -> audit-trail
+organization -> access-control
+organization -> audit-log
 
-security-policies -> access-control
-security-policies -> process-workflows
-security-policies -> audit-trail
+security-policy -> access-control
+security-policy -> workflow
+security-policy -> audit-log
 
-platform-configuration -> feature-toggles
-platform-configuration -> access-control
-platform-configuration -> external-integrations
-platform-configuration -> process-workflows
-platform-configuration -> notification-delivery
-platform-configuration -> observability
+platform-config -> feature-flag
+platform-config -> access-control
+platform-config -> integration
+platform-config -> workflow
+platform-config -> notification
+platform-config -> observability
 
-user-subscriptions -> billing
-user-subscriptions -> feature-toggles
-user-subscriptions -> access-control
-user-subscriptions -> external-integrations
-user-subscriptions -> process-workflows
+subscription -> billing
+subscription -> feature-flag
+subscription -> access-control
+subscription -> integration
+subscription -> workflow
 
-access-control -> external-integrations
-access-control -> process-workflows
-access-control -> audit-trail
+access-control -> integration
+access-control -> workflow
+access-control -> audit-log
 
-process-workflows -> notification-delivery
-process-workflows -> audit-trail
-process-workflows -> observability
+workflow -> notification
+workflow -> audit-log
+workflow -> observability
 
-external-integrations -> audit-trail
-external-integrations -> observability
+integration -> audit-log
+integration -> observability
 
-notification-delivery -> audit-trail
-notification-delivery -> observability
+notification -> audit-log
+notification -> observability
 
-billing -> audit-trail
+billing -> audit-log
 billing -> observability
 
-audit-trail -> observability
+audit-log -> observability
 ```
 
 ## 協作關係
@@ -54,19 +54,19 @@ audit-trail -> observability
 |---|---|---|---|
 | `identity` | `account-profile` | `AuthenticatedSubject`, `SubjectScope` | 驗證過的主體需要被映射成可治理輪廓 |
 | `account-profile` | `access-control` | `AccountProfile`, `SubjectPreference` | 授權決策需要主體屬性與偏好 |
-| `organization-directory` | `access-control` | `MembershipBoundary`, `RoleAssignment` | 存取控制需要群組與角色資訊 |
-| `security-policies` | `access-control` | `PolicyCatalog`, `AccessPolicy` | 授權判斷要遵守安全政策 |
-| `platform-configuration` | `feature-toggles` | `ConfigurationProfile`, `CapabilityToggle` | 能力開關需要設定輪廓與 rollout 參數 |
-| `platform-configuration` | `process-workflows` | `ConfigurationProfile` | 流程啟動依賴設定化規則與參數 |
-| `user-subscriptions` | `feature-toggles` | `Entitlement`, `UsageLimit` | feature rollout 必須受方案權益約束 |
-| `user-subscriptions` | `external-integrations` | `PlanConstraint`, `DeliveryAllowance` | 某些整合只在特定方案與配額下可用 |
-| `user-subscriptions` | `billing` | `SubscriptionAgreement`, `BillingState` | 訂閱生命週期與計費狀態互相影響 |
-| `access-control` | `process-workflows` | `PermissionDecision` | 流程觸發前要先通過授權 |
-| `process-workflows` | `notification-delivery` | `WorkflowTrigger`, `NotificationDispatch` | 流程結果常需轉成通知請求 |
-| `process-workflows` | `audit-trail` | `AuditSignal`, `CorrelationContext` | 重要流程節點需要留下證據 |
-| `external-integrations` | `audit-trail` | `AuditSignal`, `DispatchOutcome` | 外部交付結果屬治理軌跡 |
-| `notification-delivery` | `audit-trail` | `DispatchOutcome`, `AuditSignal` | 派送成功或失敗都要記錄 |
-| `audit-trail` | `observability` | `AuditClassification`, `ObservabilitySignal` | 稽核分類可轉為運維診斷訊號 |
+| `organization` | `access-control` | `MembershipBoundary`, `RoleAssignment` | 存取控制需要群組與角色資訊 |
+| `security-policy` | `access-control` | `PolicyCatalog`, `AccessPolicy` | 授權判斷要遵守安全政策 |
+| `platform-config` | `feature-flag` | `ConfigurationProfile`, `CapabilityToggle` | 能力開關需要設定輪廓與 rollout 參數 |
+| `platform-config` | `workflow` | `ConfigurationProfile` | 流程啟動依賴設定化規則與參數 |
+| `subscription` | `feature-flag` | `Entitlement`, `UsageLimit` | feature rollout 必須受方案權益約束 |
+| `subscription` | `integration` | `PlanConstraint`, `DeliveryAllowance` | 某些整合只在特定方案與配額下可用 |
+| `subscription` | `billing` | `SubscriptionAgreement`, `BillingState` | 訂閱生命週期與計費狀態互相影響 |
+| `access-control` | `workflow` | `PermissionDecision` | 流程觸發前要先通過授權 |
+| `workflow` | `notification` | `WorkflowTrigger`, `NotificationDispatch` | 流程結果常需轉成通知請求 |
+| `workflow` | `audit-log` | `AuditSignal`, `CorrelationContext` | 重要流程節點需要留下證據 |
+| `integration` | `audit-log` | `AuditSignal`, `DispatchOutcome` | 外部交付結果屬治理軌跡 |
+| `notification` | `audit-log` | `DispatchOutcome`, `AuditSignal` | 派送成功或失敗都要記錄 |
+| `audit-log` | `observability` | `AuditClassification`, `ObservabilitySignal` | 稽核分類可轉為運維診斷訊號 |
 | `billing` | `observability` | `BillingState`, `ObservabilitySignal` | 計費異常需要被量測與告警 |
 
 ## Context Map Rule

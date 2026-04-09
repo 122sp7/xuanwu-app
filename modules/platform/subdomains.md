@@ -8,18 +8,18 @@
 |---|---|---|---|
 | `identity` | 誰是已驗證主體 | `AuthenticatedSubject`, `IdentitySignal` | `PlatformEventIngressPort`, `SubjectDirectory` |
 | `account-profile` | 主體有哪些可治理屬性與偏好 | `AccountProfile`, `SubjectPreference` | `PlatformEventIngressPort`, `SubjectDirectory` |
-| `organization-directory` | 主體處於哪些組織與角色邊界 | `MembershipBoundary`, `RoleAssignment` | `PlatformEventIngressPort`, `SubjectDirectory` |
+| `organization` | 主體處於哪些組織與角色邊界 | `MembershipBoundary`, `RoleAssignment` | `PlatformEventIngressPort`, `SubjectDirectory` |
 | `access-control` | 主體現在能做什麼 | `PermissionDecision`, `AccessPolicy` | `PlatformCommandPort`, `PolicyCatalogRepository` |
-| `security-policies` | 平台安全規則如何被定義與發佈 | `PolicyCatalog`, `PolicyRule` | `PlatformCommandPort`, `PolicyCatalogRepository` |
-| `platform-configuration` | 平台以何種設定輪廓運作 | `ConfigurationProfile`, `ConfigurationProfileRef` | `PlatformCommandPort`, `ConfigurationProfileStore` |
-| `feature-toggles` | 哪些能力在哪種條件下被打開 | `PlatformCapability`, `CapabilityToggle` | `PlatformCommandPort`, `ConfigurationProfileStore` |
-| `external-integrations` | 平台如何與外部系統安全協作 | `IntegrationContract`, `DeliveryPolicy` | `PlatformCommandPort`, `IntegrationContractRepository`, `ExternalSystemGateway` |
-| `process-workflows` | 哪些事實要被轉成可執行流程 | `WorkflowTrigger`, `WorkflowPolicy` | `PlatformCommandPort`, `WorkflowPolicyRepository`, `WorkflowDispatcherPort` |
-| `notification-delivery` | 哪些對象應收到什麼訊息 | `NotificationDispatch`, `NotificationRoute` | `PlatformCommandPort`, `NotificationGateway`, `DeliveryHistoryRepository` |
-| `audit-trail` | 什麼事必須被永久追蹤 | `AuditSignal`, `AuditClassification` | `PlatformCommandPort`, `AuditSignalStore` |
+| `security-policy` | 平台安全規則如何被定義與發佈 | `PolicyCatalog`, `PolicyRule` | `PlatformCommandPort`, `PolicyCatalogRepository` |
+| `platform-config` | 平台以何種設定輪廓運作 | `ConfigurationProfile`, `ConfigurationProfileRef` | `PlatformCommandPort`, `ConfigurationProfileStore` |
+| `feature-flag` | 哪些能力在哪種條件下被打開 | `PlatformCapability`, `CapabilityToggle` | `PlatformCommandPort`, `ConfigurationProfileStore` |
+| `integration` | 平台如何與外部系統安全協作 | `IntegrationContract`, `DeliveryPolicy` | `PlatformCommandPort`, `IntegrationContractRepository`, `ExternalSystemGateway` |
+| `workflow` | 哪些事實要被轉成可執行流程 | `WorkflowTrigger`, `WorkflowPolicy` | `PlatformCommandPort`, `WorkflowPolicyRepository`, `WorkflowDispatcherPort` |
+| `notification` | 哪些對象應收到什麼訊息 | `NotificationDispatch`, `NotificationRoute` | `PlatformCommandPort`, `NotificationGateway`, `DeliveryHistoryRepository` |
+| `audit-log` | 什麼事必須被永久追蹤 | `AuditSignal`, `AuditClassification` | `PlatformCommandPort`, `AuditSignalStore` |
 | `observability` | 如何量測健康、追蹤與告警 | `ObservabilitySignal`, `HealthIndicator` | `PlatformCommandPort`, `ObservabilitySink` |
 | `billing` | 計費狀態、收費結果與財務證據如何被管理 | `BillingState`, `DispatchOutcome` | `PlatformCommandPort`, `DeliveryHistoryRepository`, `AuditSignalStore` |
-| `user-subscriptions` | 方案、權益、配額與有效期間如何被管理 | `SubscriptionAgreement`, `Entitlement`, `UsageLimit` | `PlatformCommandPort`, `SubscriptionAgreementRepository`, `UsageMeterRepository` |
+| `subscription` | 方案、權益、配額與有效期間如何被管理 | `SubscriptionAgreement`, `Entitlement`, `UsageLimit` | `PlatformCommandPort`, `SubscriptionAgreementRepository`, `UsageMeterRepository` |
 
 ## Capability Groups
 
@@ -27,29 +27,29 @@
 
 - `identity`
 - `account-profile`
-- `organization-directory`
+- `organization`
 
 ### 治理與安全
 
 - `access-control`
-- `security-policies`
-- `platform-configuration`
-- `feature-toggles`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
 
 ### 商業與權益
 
 - `billing`
-- `user-subscriptions`
+- `subscription`
 
 ### 流程與交付
 
-- `external-integrations`
-- `process-workflows`
-- `notification-delivery`
+- `integration`
+- `workflow`
+- `notification`
 
 ### 證據與診斷
 
-- `audit-trail`
+- `audit-log`
 - `observability`
 
 ## Inventory Freeze Rule
@@ -67,13 +67,13 @@
 以下舊名稱已退休，不得重新引入：
 
 - `account` -> `account-profile`
-- `organization` -> `organization-directory`
-- `config` -> `platform-configuration`
+- `organization` -> `organization`
+- `config` -> `platform-config`
 - `permission` -> `access-control`
-- `integration` -> `external-integrations`
-- `workflow` -> `process-workflows`
-- `notification` -> `notification-delivery`
-- `audit` -> `audit-trail`
-- `subscription` -> `user-subscriptions`
+- `integration` -> `integration`
+- `workflow` -> `workflow`
+- `notification` -> `notification`
+- `audit` -> `audit-log`
+- `subscription` -> `subscription`
 
 若未來需要查舊文件或舊分支，應以上述映射理解，而不是回復舊資料夾名稱。

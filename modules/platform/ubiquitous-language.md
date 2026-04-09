@@ -95,7 +95,7 @@ platform 事件推薦使用：
 | `IntegrationContract` | Webhook Config, Endpoint Settings |
 | `SubscriptionAgreement` | Plan, Billing Row |
 | `PermissionDecision` | Auth Result, Check Flag |
-| `WorkflowTrigger` | Job, Task Hook |
+| `WorkflowTrigger` | background-job, Task Hook |
 | `NotificationDispatch` | Message Send, Push Action |
 | `AuditSignal` | Log Line, History Row |
 | `ObservabilitySignal` | Error Message, Console Output |
