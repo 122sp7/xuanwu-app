@@ -9,7 +9,7 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { dispatchNotification } from "@/modules/notification/api";
+import { dispatchNotification } from "@/modules/platform/subdomains/notification";
 import {
   CreateCommentUseCase,
   UpdateCommentUseCase,

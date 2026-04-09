@@ -9,7 +9,7 @@ import {
   organizationApi,
   type OrganizationMemberDTO,
   type OrganizationTeamDTO,
-} from "@/modules/organization/api";
+} from "@/modules/platform/subdomains/organization";
 import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
 import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";

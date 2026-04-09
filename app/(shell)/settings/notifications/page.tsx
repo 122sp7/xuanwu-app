@@ -14,7 +14,7 @@ import {
   markNotificationRead,
   getNotificationsForRecipient,
   type NotificationEntity,
-} from "@/modules/notification/api";
+} from "@/modules/platform/subdomains/notification";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";

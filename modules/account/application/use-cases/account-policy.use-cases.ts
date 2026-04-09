@@ -7,7 +7,7 @@
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { AccountPolicyRepository } from "../../domain/repositories/AccountPolicyRepository";
 import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
-import { identityApi } from "@/modules/identity/api";
+import { identityApi } from "@/modules/platform/subdomains/identity";
 
 // ─── Create Account Policy ────────────────────────────────────────────────────
 
