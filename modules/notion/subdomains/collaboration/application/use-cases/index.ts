@@ -1,6 +1,3 @@
-// TODO: export CreateCommentUseCase, ResolveCommentUseCase
-// TODO: export GrantPermissionUseCase, RevokePermissionUseCase
-// TODO: export CreateVersionUseCase, RestoreVersionUseCase
-// TODO: export LockPageUseCase
-
-export {};
+export { CreateCommentUseCase, UpdateCommentUseCase, ResolveCommentUseCase, DeleteCommentUseCase, ListCommentsUseCase } from "./CommentUseCases";
+export { CreateVersionUseCase, DeleteVersionUseCase } from "./VersionUseCases";
+export { GrantPermissionUseCase, RevokePermissionUseCase } from "./PermissionUseCases";

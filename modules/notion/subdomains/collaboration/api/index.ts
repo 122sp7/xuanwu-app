@@ -3,16 +3,28 @@
  * Layer: api (public boundary)
  * Purpose: Exposes only what external consumers need.
  *          All cross-module access must go through this file only.
- * Status: Migration-Pending — awaiting full migration from modules/knowledge-collaboration/
- *
- * Note: collaboration uses an opaque contentId reference pattern — it does NOT
- * expose types that couple consumers to knowledge/authoring/database internals.
  */
 
-// TODO: export Comment, Permission, Version snapshot types
-// TODO: export GrantPermissionDto, RevokePermissionDto
-// TODO: export server actions (createComment, resolveComment, grantPermission, ...)
-// TODO: export queries (getCommentsForContent, getPermissionsForContent, getVersionHistory)
-// TODO: export UI components (CommentThreadView, PermissionPanelView, VersionHistoryView)
+// Aggregate snapshot types
+export type { CommentSnapshot, SelectionRange, ContentType, CommentId, CommentUnsubscribe } from "../domain/aggregates/Comment";
+export type { VersionSnapshot, VersionId } from "../domain/aggregates/Version";
+export type { PermissionSnapshot, PermissionLevel, PrincipalType, PermissionId } from "../domain/aggregates/Permission";
 
-export {};
+// DTOs
+export type {
+  CreateCommentDto, UpdateCommentDto, ResolveCommentDto, DeleteCommentDto,
+  CreateVersionDto, DeleteVersionDto,
+  GrantPermissionDto, RevokePermissionDto,
+} from "../application/dto/CollaborationDto";
+
+// Server actions
+export { createComment, updateComment, resolveComment, deleteComment } from "../interfaces/_actions/comment.actions";
+export { createVersion, deleteVersion } from "../interfaces/_actions/version.actions";
+export { grantPermission, revokePermission } from "../interfaces/_actions/permission.actions";
+
+// Queries
+export { getComments, getVersions, getPermissions, subscribeComments } from "../interfaces/queries/index";
+
+// UI components
+export { CommentPanel } from "../interfaces/components/CommentPanel";
+export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";

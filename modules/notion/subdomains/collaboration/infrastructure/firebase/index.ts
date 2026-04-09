@@ -1,3 +1,3 @@
-// TODO: export FirebaseCommentRepository, FirebasePermissionRepository, FirebaseVersionRepository
-
-export {};
+export { FirebaseCommentRepository } from "./FirebaseCommentRepository";
+export { FirebaseVersionRepository } from "./FirebaseVersionRepository";
+export { FirebasePermissionRepository } from "./FirebasePermissionRepository";

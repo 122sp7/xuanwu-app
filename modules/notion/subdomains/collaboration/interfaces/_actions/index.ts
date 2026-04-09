@@ -1,5 +1,3 @@
-// TODO: export server actions: createComment, resolveComment
-// TODO: export grantPermission, revokePermission
-// TODO: export createVersion, restoreVersion, lockPage
-
-export {};
+export { createComment, updateComment, resolveComment, deleteComment } from "./comment.actions";
+export { createVersion, deleteVersion } from "./version.actions";
+export { grantPermission, revokePermission } from "./permission.actions";

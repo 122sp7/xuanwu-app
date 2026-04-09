@@ -1,3 +1,2 @@
-// TODO: export CommentThreadView, PermissionPanelView, VersionHistoryView
-
-export {};
+export { CommentPanel } from "./CommentPanel";
+export { VersionHistoryPanel } from "./VersionHistoryPanel";
