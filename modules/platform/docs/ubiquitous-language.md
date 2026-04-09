@@ -112,3 +112,9 @@ platform 事件推薦使用：
 ## 術語治理
 
 任何新的 aggregate、port、event 或子域命名，都應先檢查是否已能被本文件的術語覆蓋。若不能覆蓋，再更新本文件，而不是先在實作或其他文件中發明第二套說法。
+
+## 與 docs/README 的分工
+
+- 本文件只維護命名與詞彙定義
+- 子域職責請見 `subdomains.md`
+- 邊界規則請見 `bounded-context.md`

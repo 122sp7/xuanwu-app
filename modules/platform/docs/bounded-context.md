@@ -104,3 +104,9 @@ platform 包含：
 4. 它是否會破壞 closed inventory
 
 若第 1 題答不出來，表示 platform 邊界尚未被正確理解。
+
+## 與 docs/README 的分工
+
+- 本文件只負責邊界、責任與封板規則
+- 子域定義請見 `subdomains.md`
+- 協作關係請見 `context-map.md`
