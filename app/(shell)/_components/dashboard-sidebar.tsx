@@ -18,7 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-import { createKnowledgePage } from "@/modules/knowledge/api";
+import { createKnowledgePage } from "@/modules/notion/api";
 import { buildWorkspaceQuickAccessItems } from "@/modules/workspace/api";
 import { useAuth } from "@/app/providers/auth-provider";
 import {

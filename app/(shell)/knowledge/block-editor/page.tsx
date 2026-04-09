@@ -1,6 +1,6 @@
 "use client";
 
-import { BlockEditorView } from "@/modules/knowledge/api";
+import { BlockEditorView } from "@/modules/notion/api";
 
 export default function KnowledgeBlockEditorPage() {
   return (
