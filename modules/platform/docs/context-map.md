@@ -1,6 +1,13 @@
 # Context Map — platform
 
-本文件描述 platform 的 23 個子域如何在本地 bounded context 內協作。這是一張 local platform map，不是全系統上下文圖。
+本文件描述 platform 的 23 個子域如何在同一個 bounded context 內協作。這是一張 **local platform map**，目的是說明共享語言、事件事實與 use case 協作，不是全系統上下文圖。
+
+## Collaboration Rule
+
+- 子域之間透過 published language、input ports、output ports 與 read models 協作
+- 不應讓某個子域的 adapter 直接依賴另一個子域的 adapter
+- 若跨子域互動需要新的共享語言，先更新 `ubiquitous-language.md` 與本文件
+- 若跨子域互動需要新的依賴契約，先更新 `application-services.md` 或 `repositories.md`
 
 ## Local Platform Map
 
@@ -108,4 +115,4 @@ analytics -> observability
 
 ## Context Map Rule
 
-若某個新需求無法被這張 map 中的既有節點與共享語言吸收，先調整 map 與 `subdomains.md`，而不是直接再加新資料夾。
+若某個新需求無法被這張 map 中的既有節點、共享語言與既有 ports 吸收，先調整 map、`subdomains.md` 與相關 ports 文件，而不是直接再加新資料夾。
