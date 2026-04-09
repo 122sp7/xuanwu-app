@@ -108,6 +108,47 @@ platform 事件推薦使用：
 - `notification.dispatch_requested`
 - `audit.signal_recorded`
 
+## Migration-Pending 術語（計畫吸收模組）
+
+下列術語目前由對應的**獨立模組**定義，在合并進 platform 後應以本表的定義為準。若與獨立模組現有命名有差異，合并時以本表為遷移目標。
+
+### 來自 `modules/identity/`
+
+| 術語 | 英文 | platform 對應概念 | 定義 |
+|---|---|---|---|
+| 身份 | Identity | `AuthenticatedSubject` | Firebase Auth 驗證後的使用者記錄，以 `uid` 為唯一識別碼；合并後以 `AuthenticatedSubject` 作為 platform 語言 |
+| 唯一身份碼 | uid | SubjectId | Firebase Authentication 產生的使用者全域唯一 ID |
+| Token 刷新訊號 | TokenRefreshSignal | IdentitySignal | 代表 Firebase ID token 需要更新的訊號；合并後作為 `IdentitySignal` 的一種 |
+
+### 來自 `modules/account/`
+
+| 術語 | 英文 | platform 對應概念 | 定義 |
+|---|---|---|---|
+| 帳戶 | Account | Account（同名） | 使用者在平台的業務記錄，含 profile 資訊與狀態 |
+| 帳戶政策 | AccountPolicy | PolicyRule（account context） | 附加到帳戶的存取控制政策，決定 Firebase custom claims 內容 |
+| 帳戶 ID | accountId | SubjectScope 的組成部分 | Account 的業務主鍵（對應 Firebase uid，但在業務層使用 accountId 術語） |
+| 自訂宣告 | customClaims | — | Firebase ID token 中的自訂 claims；合并後以 platform `Entitlement` 語言統一表達 |
+
+### 來自 `modules/organization/`
+
+| 術語 | 英文 | platform 對應概念 | 定義 |
+|---|---|---|---|
+| 組織 | Organization | Organization（同名） | 頂層多租戶單元，代表一個企業或團隊 |
+| 成員參照 | MemberReference | MembershipBoundary 的組成 | 組織成員的輕量參照（含 accountId、role、presence） |
+| 隊伍 | Team | — | 組織內的子群組（internal / external 類型） |
+| 合作夥伴邀請 | PartnerInvite | — | 邀請外部合作夥伴加入隊伍的邀請記錄 |
+| 組織角色 | OrganizationRole | RoleAssignment 的值域 | `Owner \| Admin \| Member \| Guest` |
+| 在線狀態 | Presence | — | `active \| away \| offline` |
+| 邀請狀態 | InviteState | — | `pending \| accepted \| expired` |
+
+### 來自 `modules/notification/`
+
+| 術語 | 英文 | platform 對應概念 | 定義 |
+|---|---|---|---|
+| 通知實體 | NotificationEntity | NotificationDispatch（合并後） | 一則系統通知記錄（含標題、內容、類型、讀取狀態） |
+| 接收者 ID | recipientId | NotificationRoute 的對象語言 | 接收此通知的帳戶 ID |
+| 通知類型 | NotificationType | — | `info \| alert \| success \| warning` |
+
 ## 禁止替換術語
 
 | 正確 | 不建議替換成 |

@@ -48,6 +48,17 @@
 | Driven adapters | `infrastructure/` |
 | Published language | `domain/events/` + `application/dtos/` |
 
+## 計畫吸收模組
+
+以下四個獨立模組計畫重構進 platform 子域，詳見各文件的 **Migration-Pending** 節：
+
+| 獨立模組 | 目標子域 | 語言文件 |
+|---|---|---|
+| `modules/identity/` | `identity` | [subdomains.md](./subdomains.md), [ubiquitous-language.md](./ubiquitous-language.md) |
+| `modules/account/` | `account` + `account-profile` | [subdomains.md](./subdomains.md), [aggregates.md](./aggregates.md) |
+| `modules/organization/` | `organization` | [subdomains.md](./subdomains.md), [domain-events.md](./domain-events.md) |
+| `modules/notification/` | `notification` | [subdomains.md](./subdomains.md), [repositories.md](./repositories.md) |
+
 ## 變更同步規則
 
 - 變更聚合或值物件：同步更新 `aggregates.md` 與 `ubiquitous-language.md`

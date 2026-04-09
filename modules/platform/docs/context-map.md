@@ -113,6 +113,20 @@ analytics -> observability
 | `analytics` | `observability` | `BehaviorMetric`, `ObservabilitySignal` | 分析結果需進入告警與健康視圖 |
 | `billing` | `observability` | `BillingState`, `ObservabilitySignal` | 計費異常需要被量測與告警 |
 
+## 計畫吸收模組的協作現狀
+
+下列子域目前有對應的獨立模組，在合并前以「上游獨立模組 → platform subdomain blueprint」的方向映射：
+
+| 子域 | 目前獨立模組 | 現有協作語言 |
+|---|---|---|
+| `identity` | `modules/identity/` | `Identity`, `uid`, `TokenRefreshSignal`；identity 不訂閱任何事件，是最上游的身份來源 |
+| `account` | `modules/account/` | `Account`, `AccountPolicy`；訂閱 `TokenRefreshSignal` 以更新 custom claims |
+| `account-profile` | `modules/account/`（AccountProfile 概念） | `AccountProfile`, `SubjectPreference`；目前與 account 同住 |
+| `organization` | `modules/organization/` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`；發出 `organization.member_joined` 等事件，被 `access-control`、`notification` 消費 |
+| `notification` | `modules/notification/` | `NotificationEntity`, `NotificationRepository`；為 conformist 消費者，訂閱 `workspace.member_joined`、`workspace-flow.task_status_changed` 等事件，不發出 domain events |
+
+**合并前的協作規則：** platform blueprint 只定義語言與 port 契約；獨立模組仍是語意的事實來源，直到完成合并並退役為止。
+
 ## Context Map Rule
 
 若某個新需求無法被這張 map 中的既有節點、共享語言與既有 ports 吸收，先調整 map、`subdomains.md` 與相關 ports 文件，而不是直接再加新資料夾。
