@@ -1,0 +1,1 @@
+﻿// Purpose: Placeholder scaffold file for platform module development.

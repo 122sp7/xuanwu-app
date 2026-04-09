@@ -1,0 +1,1 @@
+﻿// Purpose: Adapter layer placeholder for platform subdomain 'notification'.

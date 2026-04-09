@@ -1,0 +1,1 @@
+﻿<!-- Purpose: Subdomain scaffold overview for platform 'search'. -->
