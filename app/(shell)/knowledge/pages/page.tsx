@@ -5,8 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace, PageTreeView } from "@/modules/knowledge/api";
-import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
+import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace, PageTreeView } from "@/modules/notion/api";
+import type { KnowledgePageTreeNode } from "@/modules/notion/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 

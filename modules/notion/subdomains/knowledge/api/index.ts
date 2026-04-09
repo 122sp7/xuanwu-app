@@ -7,6 +7,8 @@
 
 // ── Types (read-only snapshots – no aggregate class refs) ─────────────────────
 export type { KnowledgePageSnapshot } from "../domain/aggregates/KnowledgePage";
+/** @alias KnowledgePageSnapshot — provided for backward-compatibility */
+export type { KnowledgePageSnapshot as KnowledgePage } from "../domain/aggregates/KnowledgePage";
 export type { ContentBlockSnapshot } from "../domain/aggregates/ContentBlock";
 export type { KnowledgeCollectionSnapshot } from "../domain/aggregates/KnowledgeCollection";
 
@@ -33,6 +35,14 @@ export {
   renameKnowledgePage,
   moveKnowledgePage,
   archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
   addKnowledgeBlock,
   updateKnowledgeBlock,
   deleteKnowledgeBlock,
@@ -48,6 +58,8 @@ export { PageTreeView } from "../interfaces/components/PageTreeView";
 export type { PageTreeViewProps } from "../interfaces/components/PageTreeView";
 export { PageDialog } from "../interfaces/components/PageDialog";
 export { BlockEditorView } from "../interfaces/components/BlockEditorView";
+export { PageEditorView } from "../interfaces/components/PageEditorView";
+export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
