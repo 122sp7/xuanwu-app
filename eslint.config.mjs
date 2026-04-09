@@ -5,375 +5,151 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import jsdoc from "eslint-plugin-jsdoc";
 import jsxA11y from "eslint-plugin-jsx-a11y";
- 
-const sourceFileGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
-const typescriptFileGlobs = ["**/*.{ts,tsx}"];
-const moduleFileGlobs = ["modules/**/*.{ts,tsx}"];
-const boundaryRuleSeverity = "warn";
-const moduleLayerTypes = ["module-domain", "module-application", "module-infrastructure", "module-interfaces"];
 
-const moduleApiEntrypointMessage =
-  "Module imports must use `@/modules/<module>/api` only (except approved system facade).";
+// ─── Globs ───────────────────────────────────────────────────────────────────
+const srcGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
+const tsGlobs  = ["**/*.{ts,tsx}"];
+const modGlobs = ["modules/**/*.{ts,tsx}"];
 
-const moduleApiEntrypointPattern = {
-  regex: "^@/modules/(?!system$)[^/]+$",
-  message: moduleApiEntrypointMessage,
+// ─── Module boundary helpers ─────────────────────────────────────────────────
+const WARN = "warn";
+
+const moduleElements = ["domain","application","infrastructure","interfaces"].flatMap((layer) => [
+  { type: `module-${layer}`, pattern: `modules/*/${layer}/**/*`, capture: ["module"] },
+]);
+moduleElements.unshift(
+  { type: "module-root", pattern: "modules/*/index.ts",  capture: ["module"] },
+  { type: "module-api",  pattern: "modules/*/api/**/*",  capture: ["module"] },
+);
+
+const layers = ["module-domain","module-application","module-infrastructure","module-interfaces"];
+const sameModule = (type) => ({ to: { type, captured: { module: "{{from.captured.module}}" } } });
+
+const layerAllows = {
+  "module-domain":         ["module-domain"],
+  "module-application":    ["module-application","module-domain"],
+  "module-infrastructure": ["module-infrastructure","module-application","module-domain"],
+  "module-interfaces":     ["module-interfaces","module-application","module-infrastructure","module-domain"],
 };
-
-const moduleNonApiSubpathPattern = {
-  regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)).+",
-  message: "Cross-module dependencies must use `@/modules/<module>/api` only; internal module paths are forbidden.",
-};
-
-const explicitIndexPathPattern = {
-  group: ["**/index", "**/index.ts", "**/index.tsx"],
-  message: "Import the target file or public module boundary directly instead of using an explicit index path.",
-};
-
-const moduleInternalLayerPattern = {
-  group: [
-    "@/modules/*/application/**",
-    "@/modules/*/domain/**",
-    "@/modules/*/infrastructure/**",
-    "@/modules/*/interfaces/**",
-  ],
-  message: "Cross-module dependencies must go through `@/modules/<module>/api`, not an internal layer path.",
-};
-
-const moduleElements = [
-  {
-    type: "module-root",
-    pattern: "modules/*/index.ts",
-    capture: ["module"],
-  },
-  {
-    type: "module-api",
-    pattern: "modules/*/api/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-domain",
-    pattern: "modules/*/domain/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-application",
-    pattern: "modules/*/application/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-infrastructure",
-    pattern: "modules/*/infrastructure/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-interfaces",
-    pattern: "modules/*/interfaces/**/*",
-    capture: ["module"],
-  },
-];
-
-const sameModuleCapture = { module: "{{from.captured.module}}" };
-const sameModuleTarget = (type) => ({ to: { type, captured: sameModuleCapture } });
-
-const crossModuleApiRules = moduleLayerTypes.map((type) => ({
-  from: { type },
-  allow: [{ to: { type: "module-api" } }],
-  message: "Cross-module imports must go through `modules/<target>/api`.",
-}));
-
-const sameModuleRootRules = moduleLayerTypes.map((type) => ({
-  from: { type },
-  allow: [sameModuleTarget("module-root")],
-  message: "Module root barrel is allowed only for the same module.",
-}));
-
-const apiLayerRule = {
-  from: { type: "module-api" },
-  allow: ["module-api", ...moduleLayerTypes].map(sameModuleTarget),
-  message: "API layer may depend only on same-module layers.",
-};
-
-const sameModuleLayerAllowMap = {
-  "module-domain": ["module-domain"],
-  "module-application": ["module-application", "module-domain"],
-  "module-infrastructure": ["module-infrastructure", "module-application", "module-domain"],
-  "module-interfaces": ["module-interfaces", "module-application", "module-infrastructure", "module-domain"],
-};
-
-const sameModuleLayerMessageMap = {
-  "module-domain": "Domain may only depend on domain of the same module.",
-  "module-application": "Application may depend only on application/domain in the same module.",
-  "module-infrastructure": "Infrastructure may depend only on infrastructure/application/domain in the same module.",
-  "module-interfaces": "Interfaces may depend only on interfaces/application/infrastructure/domain in the same module.",
-};
-
-const sameModuleLayerRules = moduleLayerTypes.map((type) => ({
-  from: { type },
-  allow: sameModuleLayerAllowMap[type].map(sameModuleTarget),
-  message: sameModuleLayerMessageMap[type],
-}));
 
 const moduleDependencyRules = [
-  ...crossModuleApiRules,
-  ...sameModuleRootRules,
-  apiLayerRule,
-  ...sameModuleLayerRules,
+  // cross-module → must go through api
+  ...layers.map((type) => ({ from: { type }, allow: [{ to: { type: "module-api" } }] })),
+  // same-module root barrel allowed
+  ...layers.map((type) => ({ from: { type }, allow: [sameModule("module-root")] })),
+  // api layer owns same-module layers
+  { from: { type: "module-api" }, allow: ["module-api",...layers].map(sameModule) },
+  // same-module layer purity
+  ...layers.map((type) => ({ from: { type }, allow: layerAllows[type].map(sameModule) })),
 ];
 
-const packageAliasMigrationPatterns = [
-  {
-    group: ["@/shared/*"],
-    message: "Use @shared-types, @shared-utils, @shared-validators, @shared-constants, or @shared-hooks instead.",
-  },
-  {
-    group: ["@/infrastructure/*"],
-    message: "Use @integration-firebase, @integration-upstash, or @integration-http instead.",
-  },
-  {
-    group: ["@/libs/*"],
-    message: "Use the corresponding @lib-* or @integration-* package alias instead.",
-  },
-  {
-    group: ["@/ui/shadcn/*"],
-    message: "Use @ui-shadcn/* instead.",
-  },
-  {
-    group: ["@/ui/vis", "@/ui/vis/*"],
-    message: "Use @ui-vis instead.",
-  },
-  {
-    group: ["@/interfaces/*"],
-    message: "Use @api-contracts instead.",
-  },
+// ─── Restricted import patterns ───────────────────────────────────────────────
+const apiEntrypoint   = { regex: "^@/modules/(?!system$)[^/]+$",                          message: "Use @/modules/<module>/api only." };
+const nonApiSubpath   = { regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)).+",    message: "Cross-module deps must use @/modules/<module>/api." };
+const explicitIndex   = { group: ["**/index","**/index.ts","**/index.tsx"],                message: "Import the target file directly, not an index path." };
+const internalLayer   = { group: layers.flatMap((l) => [`@/modules/*/${l.replace("module-","")}/**`]), message: "Use @/modules/<module>/api, not internal layer paths." };
+
+const legacyAliases = [
+  { group: ["@/shared/*"],        message: "Use @shared-types / @shared-utils / … instead." },
+  { group: ["@/infrastructure/*"],message: "Use @integration-firebase / @integration-upstash / … instead." },
+  { group: ["@/libs/*"],          message: "Use the corresponding @lib-* or @integration-* alias." },
+  { group: ["@/ui/shadcn/*"],     message: "Use @ui-shadcn/* instead." },
+  { group: ["@/ui/vis","@/ui/vis/*"], message: "Use @ui-vis instead." },
+  { group: ["@/interfaces/*"],    message: "Use @api-contracts instead." },
 ];
 
-const createRestrictedImportsRule = (patterns) => [
-  boundaryRuleSeverity,
-  {
-    patterns,
-  },
-];
+const restrictedImports = (patterns) => ["no-restricted-imports", [WARN, { patterns }]];
 
-const eslintConfig = defineConfig([
+// ─── Config ───────────────────────────────────────────────────────────────────
+export default defineConfig([
   ...nextVitals,
   ...nextTs,
+
+  // JSDoc
   {
-    files: sourceFileGlobs,
-    plugins: {
-      jsdoc,
-    },
-    settings: {
-      jsdoc: {
-        mode: "typescript",
-      },
-    },
+    files: srcGlobs,
+    plugins: { jsdoc },
+    settings: { jsdoc: { mode: "typescript" } },
     rules: {
-      "jsdoc/check-alignment": "warn",
-      "jsdoc/check-syntax": "warn",
-      "jsdoc/check-tag-names": "warn",
-      "jsdoc/no-blank-blocks": "warn",
+      "jsdoc/check-alignment": WARN,
+      "jsdoc/check-syntax":    WARN,
+      "jsdoc/check-tag-names": WARN,
+      "jsdoc/no-blank-blocks": WARN,
     },
   },
+
+  // TypeScript naming + type imports + unused vars
   {
-    files: typescriptFileGlobs,
-    plugins: {
-      "@typescript-eslint": tseslint,
-    },
+    files: tsGlobs,
+    plugins: { "@typescript-eslint": tseslint },
     rules: {
-      "@typescript-eslint/naming-convention": [
-        "warn",
-        {
-          selector: "typeLike",
-          format: ["PascalCase"],
-        },
-        {
-          selector: "typeParameter",
-          format: ["PascalCase"],
-        },
-        {
-          selector: "variable",
-          modifiers: ["destructured"],
-          format: null,
-        },
-        {
-          selector: "function",
-          format: ["camelCase", "PascalCase"],
-          leadingUnderscore: "allow",
-        },
-        {
-          selector: "variable",
-          format: ["camelCase", "PascalCase", "UPPER_CASE"],
-          leadingUnderscore: "allow",
-          trailingUnderscore: "allow",
-        },
-        {
-          selector: "parameter",
-          modifiers: ["destructured"],
-          format: null,
-        },
-        {
-          selector: "parameter",
-          format: ["camelCase"],
-          leadingUnderscore: "allow",
-        },
-        {
-          selector: "enumMember",
-          format: ["PascalCase", "UPPER_CASE"],
-        },
+      "@typescript-eslint/naming-convention": [WARN,
+        { selector: "typeLike",     format: ["PascalCase"] },
+        { selector: "typeParameter",format: ["PascalCase"] },
+        { selector: "variable",     modifiers: ["destructured"], format: null },
+        { selector: "function",     format: ["camelCase","PascalCase"], leadingUnderscore: "allow" },
+        { selector: "variable",     format: ["camelCase","PascalCase","UPPER_CASE"], leadingUnderscore: "allow", trailingUnderscore: "allow" },
+        { selector: "parameter",    modifiers: ["destructured"], format: null },
+        { selector: "parameter",    format: ["camelCase"], leadingUnderscore: "allow" },
+        { selector: "enumMember",   format: ["PascalCase","UPPER_CASE"] },
       ],
+      "@typescript-eslint/consistent-type-imports": [WARN, { prefer: "type-imports", fixStyle: "inline-type-imports" }],
+      "@typescript-eslint/no-unused-vars":          [WARN, { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" }],
     },
   },
-  {
-    rules: {
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
-      ],
-    },
-  },
-  // ─── Consistent type-only imports ──────────────────────────────────────
-  // Enforces `import type` for type-only imports, improving tree-shaking and
-  // making module-boundary intent explicit (matches project MDDD conventions).
-  {
-    files: typescriptFileGlobs,
-    plugins: {
-      "@typescript-eslint": tseslint,
-    },
-    rules: {
-      "@typescript-eslint/consistent-type-imports": [
-        "warn",
-        { prefer: "type-imports", fixStyle: "inline-type-imports" },
-      ],
-    },
-  },
-  // ─── React best-practices ───────────────────────────────────────────────
-  // eslint-config-next already pulls in react / react-hooks rules via its
-  // own config; these overrides make project-specific settings explicit and
-  // add missing checks not covered by the base config.
+
+  // React + a11y
   {
     files: ["**/*.{jsx,tsx}"],
     rules: {
-      "react/react-in-jsx-scope": "off",   // Not needed with Next.js 13+ JSX transform
-      "react/prop-types": "off",            // TypeScript types replace PropTypes
-      "react/self-closing-comp": "warn",    // Prefer <Foo /> over <Foo></Foo>
-      "react/jsx-no-useless-fragment": ["warn", { allowExpressions: true }],
-      "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
-    },
-  },
-  // ─── Accessibility (jsx-a11y) ───────────────────────────────────────────
-  // eslint-plugin-jsx-a11y is installed by Next.js but never explicitly
-  // activated here.  Enabling recommended rules as warn catches common a11y
-  // mistakes without breaking the zero-error baseline.
-  {
-    files: ["**/*.{jsx,tsx}"],
-    rules: {
+      "react/react-in-jsx-scope":       "off",
+      "react/prop-types":               "off",
+      "react/self-closing-comp":        WARN,
+      "react/jsx-no-useless-fragment":  [WARN, { allowExpressions: true }],
+      "react-hooks/rules-of-hooks":     "error",
+      "react-hooks/exhaustive-deps":    WARN,
       ...Object.fromEntries(
-        Object.entries(jsxA11y.flatConfigs.recommended.rules ?? {}).map(([rule, config]) => {
-          // Rule config can be a string ("error"), a number (2), or an array (["error", opts]).
-          // Downgrade all errors to warnings to preserve the zero-error baseline.
-          if (Array.isArray(config)) {
-            const [severity, ...rest] = config;
-            const normalised = severity === "error" || severity === 2 ? "warn" : severity;
-            return [rule, rest.length > 0 ? [normalised, ...rest] : normalised];
+        Object.entries(jsxA11y.flatConfigs.recommended.rules ?? {}).map(([rule, cfg]) => {
+          if (Array.isArray(cfg)) {
+            const [sev, ...rest] = cfg;
+            const w = sev === "error" || sev === 2 ? WARN : sev;
+            return [rule, rest.length ? [w, ...rest] : w];
           }
-          const normalised = config === "error" || config === 2 ? "warn" : config;
-          return [rule, normalised];
+          return [rule, cfg === "error" || cfg === 2 ? WARN : cfg];
         }),
       ),
     },
   },
-  {
-    files: moduleFileGlobs,
-    plugins: {
-      boundaries,
-    },
-    settings: {
-      "boundaries/include": moduleFileGlobs,
-      "boundaries/elements": moduleElements,
-    },
-    rules: {
-      "boundaries/dependencies": [
-        boundaryRuleSeverity,
-        {
-          default: "disallow",
-          rules: moduleDependencyRules,
-        },
-      ],
-    },
-  },
-  // ─── MDDD layer-purity: file-size guardrails ────────────────────────────
-  // Vernon (IDDD): each layer has a single concern.  God files are the
-  // strongest signal that business logic has leaked into the wrong layer.
-  //
-  // Thresholds (warn, not error, to preserve zero-error baseline):
-  //   interfaces/ ≤ 300 lines  — UI components must not own business logic.
-  //   application/ ≤ 300 lines — one use-case file = one use-case.
-  //   infrastructure/ ≤ 400 lines — repositories are legitimately longer.
-  //
-  // When a file exceeds the limit: extract a sub-component / split use-cases
-  // / break the repository into focused query/command repositories.
-  {
-    files: ["modules/*/interfaces/**/*.{ts,tsx}"],
-    rules: {
-      "max-lines": ["warn", { max: 300, skipBlankLines: true, skipComments: true }],
-    },
-  },
-  {
-    files: ["modules/*/application/**/*.{ts,tsx}"],
-    rules: {
-      "max-lines": ["warn", { max: 300, skipBlankLines: true, skipComments: true }],
-    },
-  },
-  {
-    files: ["modules/*/infrastructure/**/*.{ts,tsx}"],
-    rules: {
-      "max-lines": ["warn", { max: 400, skipBlankLines: true, skipComments: true }],
-    },
-  },
-  // ─── Package boundary enforcement ───────────────────────────────────────
-  // Forbid legacy import paths that were migrated to packages/*.
-  {
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule(packageAliasMigrationPatterns),
-    },
-  },
-  // ─── Strict module entrypoint enforcement ───────────────────────────────
-  {
-    files: [
-      "app/**/*.{ts,tsx,js,jsx}",
-      "providers/**/*.{ts,tsx,js,jsx}",
-      "debug/**/*.{ts,tsx,js,jsx}",
-    ],
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule([
-        moduleApiEntrypointPattern,
-        moduleNonApiSubpathPattern,
-      ]),
-    },
-  },
-  // ─── Module import boundary enforcement (kept after global restricted imports so it is not overridden) ───
-  {
-    files: moduleFileGlobs,
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule([
-        explicitIndexPathPattern,
-        moduleApiEntrypointPattern,
-        moduleNonApiSubpathPattern,
-        moduleInternalLayerPattern,
-      ]),
-    },
-  },
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    ".agents/**",
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
-]);
 
-export default eslintConfig;
+  // Module boundaries (eslint-plugin-boundaries)
+  {
+    files: modGlobs,
+    plugins: { boundaries },
+    settings: { "boundaries/include": modGlobs, "boundaries/elements": moduleElements },
+    rules: {
+      "boundaries/dependencies": [WARN, { default: "disallow", rules: moduleDependencyRules }],
+    },
+  },
+
+  // File-size guardrails per MDDD layer
+  { files: ["modules/*/interfaces/**/*.{ts,tsx}"],    rules: { "max-lines": [WARN, { max: 300, skipBlankLines: true, skipComments: true }] } },
+  { files: ["modules/*/application/**/*.{ts,tsx}"],   rules: { "max-lines": [WARN, { max: 300, skipBlankLines: true, skipComments: true }] } },
+  { files: ["modules/*/infrastructure/**/*.{ts,tsx}"],rules: { "max-lines": [WARN, { max: 400, skipBlankLines: true, skipComments: true }] } },
+
+  // Legacy alias migration
+  { rules: { [restrictedImports(legacyAliases)[0]]: restrictedImports(legacyAliases)[1] } },
+
+  // app / providers / debug → only module api entrypoints
+  {
+    files: ["app/**/*.{ts,tsx,js,jsx}","providers/**/*.{ts,tsx,js,jsx}","debug/**/*.{ts,tsx,js,jsx}"],
+    rules: { [restrictedImports([apiEntrypoint, nonApiSubpath])[0]]: restrictedImports([apiEntrypoint, nonApiSubpath])[1] },
+  },
+
+  // modules → strict entrypoint + internal layer enforcement
+  {
+    files: modGlobs,
+    rules: { [restrictedImports([explicitIndex, apiEntrypoint, nonApiSubpath, internalLayer])[0]]: restrictedImports([explicitIndex, apiEntrypoint, nonApiSubpath, internalLayer])[1] },
+  },
+
+  globalIgnores([".agents/**","modules/platform/**",".next/**","out/**","build/**","next-env.d.ts"]),
+]);
