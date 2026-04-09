@@ -13741,6 +13741,45 @@ knowledge ─── knowledge.page_promoted ───► knowledge-base
 > `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
 ````
 
+## File: modules/workspace/ports/README.md
+````markdown
+# workspace ports
+
+此資料夾是 `workspace` bounded context 的顯式 ports 入口。
+
+## 目的
+
+- 集中列出 hexagonal architecture 的 port 介面（只有 interface/type，沒有實作）
+- 讓 `ports/` 不再是空殼目錄
+- 清楚區分 `ports`（抽象）與 `infrastructure`（adapter 實作）
+
+## 交互順序（Runtime Flow）
+
+1. Driver：UI / Server Action / 其他 bounded context 呼叫 `api/`
+2. Driving Adapter：`interfaces/*` 把請求轉成 command/query
+3. Application Use Case：協調流程與授權邊界
+4. Domain Model：`Workspace` aggregate 與 value objects 套用 invariant
+5. Driven Port：`ports/index.ts` 匯出的 repository/event publisher 介面
+6. Driven Adapter：`infrastructure/*` 實作 port（Firebase / shared event bus）
+
+## 依賴方向（Compile-time）
+
+- `interfaces -> application -> domain`
+- `infrastructure -> domain`（實作 ports）
+- `domain` 不可反向依賴 `interfaces`、`application`、`infrastructure`
+- `ports` 只匯出抽象，不可匯出 adapter 類別
+
+## 目前 Port 清單
+
+- `WorkspaceRepository`
+- `WorkspaceCapabilityRepository`
+- `WorkspaceAccessRepository`
+- `WorkspaceLocationRepository`
+- `WorkspaceQueryRepository`
+- `WikiWorkspaceRepository`
+- `WorkspaceDomainEventPublisher`
+````
+
 ## File: .github/agents/commands.md
 ````markdown
 # Build, Lint & Development Commands
@@ -15259,11 +15298,11 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 > 本 BC 領域開發必須使用 Serena 指令：
 > ```
 > serena
-> #use skill xuanwu-app-skill
 > #use skill serena-mcp
-> #use skill context7
 > #use skill alistair-cockburn
 > #use skill iddd-implementing-ddd
+> #use skill xuanwu-app-skill
+> #use skill context7
 
 > ```
 
@@ -15287,13 +15326,37 @@ Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driv
 ## Tactical 對位
 
 - Aggregate Root：`Workspace`
-- Driven Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
+- Driven Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`、`WorkspaceDomainEventPublisher`
 - Driving Adapters：`interfaces/_actions/`、`interfaces/queries/`、UI composition 與其他進入點
-- Driven Adapters：`FirebaseWorkspaceRepository`、`FirebaseWorkspaceQueryRepository`、`FirebaseWikiWorkspaceRepository` 與事件發布整合點
+- Driven Adapters：`FirebaseWorkspaceRepository`、`FirebaseWorkspaceQueryRepository`、`FirebaseWikiWorkspaceRepository`、`SharedWorkspaceDomainEventPublisher`
 - Projection / Read Model：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`、`WikiContentItemNode`
 - Read Projections：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`
 - Repository Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
-- Planned Domain Events：`WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged`
+- Domain Event Port：`WorkspaceDomainEventPublisher`
+- Domain Events：`WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged`
+
+## 六邊形交互順序（Runtime）
+
+1. Driver 進入：UI / Server Actions / 其他 bounded context 呼叫 `api/`
+2. Driving Adapter 轉換：`interfaces/*` 轉 command/query
+3. Application Use Case 協調流程
+4. Domain Model 套用 invariant（`Workspace` aggregate + value objects）
+5. 透過 Driven Ports 呼叫外部能力（repositories / event publisher）
+6. Infrastructure Adapters 實作 ports（Firebase / shared event publishing）
+
+目前實際入口對位：
+
+- `api/contracts.ts`：公開契約（types / events / value object helpers）
+- `api/facade.ts`：公開行為入口（commands / queries）
+- `api/ui.ts`：公開 UI composition surface（components / hooks / tab metadata）
+- `ports/index.ts`：公開 port 抽象（repositories + event publisher port）
+
+## 六邊形依賴方向（Compile-time）
+
+- `interfaces -> application -> domain`
+- `infrastructure -> domain`（實作 ports）
+- `domain` 不可依賴 `interfaces`、`application`、`infrastructure`
+- `modules/workspace/ports` 只放 port 抽象匯出，不放 adapter 實作
 
 ## DDD 概念對位（文件讀法）
 
@@ -15344,6 +15407,7 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 - `interfaces/` 可使用本模組的 application/query adapters，但跨模組一律只能走對方 `api/`
 - `infrastructure/` 禁止 import `api/`
 - `FirebaseWikiWorkspaceRepository` 與 `FirebaseWorkspaceRepository` 之間維持本地相對路徑依賴，不透過模組公開入口繞回
+- `modules/workspace` 內禁止 `import { X as Y } from ...` 的 alias import；若出現命名衝突，應調整符號命名或改為 namespace import 以維持通用語言一致性
 
 ## 六邊形對位
 
@@ -15386,4 +15450,5 @@ npm run build
 | [application-services.md](./application-services.md) | application layer use cases、drivers、ports、adapters 與 read model orchestration |
 | [domain-services.md](./domain-services.md) | domain service 與 ports/adapters/drivers/read models 的區別 |
 | [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
+| [ports/README.md](./ports/README.md) | workspace ports 清單、交互順序與依賴方向 |
 ````

@@ -5912,142 +5912,6 @@ export function formatDateTime(value: string | Date | null | undefined): string 
 }
 ````
 
-## File: app/(shell)/organization/audit/page.tsx
-````typescript
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { AuditStream, getOrganizationAuditLogs } from "@/modules/workspace-audit/api";
-import { getWorkspacesForAccount } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { formatDateTime, isOrganizationAccount } from "../_utils";
-
-const MAX_DISPLAYED_AUDIT_LOGS = 50;
-
-export default function OrganizationAuditPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  const [workspaces, setWorkspaces] = useState<
-    Awaited<ReturnType<typeof getWorkspacesForAccount>>
-  >([]);
-  const [auditLogs, setAuditLogs] = useState<
-    Awaited<ReturnType<typeof getOrganizationAuditLogs>>
-  >([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    let cancelled = false;
-    const organizationId = activeOrganizationId;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const nextWorkspaces = await getWorkspacesForAccount(organizationId);
-        const workspaceIds = nextWorkspaces.map((w) => w.id);
-        const logs = await getOrganizationAuditLogs(workspaceIds, MAX_DISPLAYED_AUDIT_LOGS);
-        if (!cancelled) {
-          setWorkspaces(nextWorkspaces);
-          setAuditLogs(logs);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setWorkspaces([]);
-          setAuditLogs([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
-
-  const workspaceNameById = useMemo(
-    () => new Map(workspaces.map((w) => [w.id, w.name])),
-    [workspaces],
-  );
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">稽核</h1>
-        <p className="mt-1 text-sm text-muted-foreground">組織下所有工作區的 audit log 彙整。</p>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Audit</CardTitle>
-          <CardDescription>組織下所有工作區的 audit log 彙整。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入稽核資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取稽核資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && auditLogs.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的 audit logs。</p>
-          )}
-          {loadState === "loaded" &&
-            auditLogs.slice(0, MAX_DISPLAYED_AUDIT_LOGS).map((log) => (
-              <div key={log.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium">{log.action}</p>
-                  <Badge variant="outline">{log.source}</Badge>
-                  <Badge variant="secondary">
-                    {workspaceNameById.get(log.workspaceId) ?? log.workspaceId}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{log.detail || "—"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {formatDateTime(log.occurredAtISO)}
-                </p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      {/* ── 稽核時間軸（新版 AuditStream）─────────────────────────────── */}
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>稽核時間軸</CardTitle>
-          <CardDescription>
-            以時間軸視覺化呈現稽核事件；嚴重程度由色點標示（藍 = 中、橘 = 高、紅 = 嚴重）。
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AuditStream logs={auditLogs} height={500} />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/organization/content/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
@@ -23758,6 +23622,107 @@ export async function archiveKnowledgeCollection(input: ArchiveKnowledgeCollecti
 }
 ````
 
+## File: modules/knowledge/interfaces/components/block-row.tsx
+````typescript
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { GripVertical } from "lucide-react";
+
+import { draggable, dropTargetForElements } from "@lib-dragdrop";
+import type { BlockType, RichTextSpan } from "../../domain/value-objects/block-content";
+import { richTextToPlainText } from "../../domain/value-objects/block-content";
+import { TypeSelectorButton } from "./block-type-selector";
+
+export interface BlockRowProps {
+  readonly block: { id: string; content: { type: BlockType; richText: ReadonlyArray<RichTextSpan> } };
+  readonly index: number;
+  readonly setBlockRef: (id: string, el: HTMLDivElement | null) => void;
+  readonly onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>, blockId: string) => void;
+  readonly onTextChange: (text: string) => void;
+  readonly onTypeChange: (type: BlockType) => void;
+}
+
+export function BlockRow({ block, setBlockRef, onKeyDown, onTextChange, onTypeChange }: BlockRowProps) {
+  const dragHandleRef = useRef<HTMLButtonElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleEl = dragHandleRef.current;
+    const dropEl = dropRef.current;
+    if (!handleEl || !dropEl) return;
+    const cleanupDraggable = draggable({ element: handleEl, getInitialData: () => ({ blockId: block.id }) });
+    const cleanupDrop = dropTargetForElements({ element: dropEl, getData: () => ({ blockId: block.id }) });
+    return () => { cleanupDraggable(); cleanupDrop(); };
+  }, [block.id]);
+
+  const { type, richText } = block.content;
+
+  if (type === "divider") {
+    return (
+      <div ref={dropRef} className="group flex items-center gap-1 py-1">
+        <TypeSelectorButton currentType={type} open={typeMenuOpen} onOpenChange={setTypeMenuOpen} onSelect={onTypeChange} />
+        <button ref={dragHandleRef} type="button" aria-label="拖曳重排" className="cursor-grab touch-none opacity-0 transition group-hover:opacity-40 hover:!opacity-100 active:cursor-grabbing">
+          <GripVertical className="size-4 text-muted-foreground" />
+        </button>
+        <hr className="flex-1 border-t border-border/60" />
+      </div>
+    );
+  }
+
+  return (
+    <div ref={dropRef} className="group flex items-start gap-1">
+      <TypeSelectorButton currentType={type} open={typeMenuOpen} onOpenChange={setTypeMenuOpen} onSelect={onTypeChange} />
+      <button ref={dragHandleRef} type="button" aria-label="拖曳重排" className="mt-1 cursor-grab touch-none opacity-0 transition group-hover:opacity-40 hover:!opacity-100 active:cursor-grabbing">
+        <GripVertical className="size-4 text-muted-foreground" />
+      </button>
+      {type === "bullet-list" && <span className="mt-1 select-none text-sm text-foreground">•</span>}
+      <div
+        ref={(el) => setBlockRef(block.id, el)}
+        role="textbox"
+        tabIndex={0}
+        contentEditable
+        suppressContentEditableWarning
+        onKeyDown={(e) => onKeyDown(e, block.id)}
+        onInput={(e) => onTextChange(e.currentTarget.textContent ?? "")}
+        data-placeholder={blockPlaceholder(type)}
+        className={blockEditableClass(type)}
+      >
+        {richTextToPlainText(richText)}
+      </div>
+    </div>
+  );
+}
+
+function blockEditableClass(type: BlockType): string {
+  const base = "flex-1 rounded px-2 py-1 outline-none focus:bg-muted/30 empty:before:text-muted-foreground/40 empty:before:content-[attr(data-placeholder)]";
+  switch (type) {
+    case "heading-1": return `${base} text-3xl font-bold`;
+    case "heading-2": return `${base} text-2xl font-semibold`;
+    case "heading-3": return `${base} text-xl font-medium`;
+    case "quote": return `${base} border-l-4 border-primary/50 pl-3 italic text-muted-foreground`;
+    case "code": return `${base} font-mono text-sm bg-muted rounded`;
+    case "bullet-list":
+    case "numbered-list": return `${base} text-sm text-foreground`;
+    default: return `${base} min-h-[1.75rem] text-sm text-foreground`;
+  }
+}
+
+function blockPlaceholder(type: BlockType): string {
+  switch (type) {
+    case "heading-1": return "標題 1";
+    case "heading-2": return "標題 2";
+    case "heading-3": return "標題 3";
+    case "quote": return "引言…";
+    case "code": return "// 程式碼";
+    case "bullet-list": return "清單項目…";
+    case "numbered-list": return "清單項目…";
+    default: return "輸入文字…";
+  }
+}
+````
+
 ## File: modules/knowledge/interfaces/components/block-type-constants.ts
 ````typescript
 import type { BlockType } from "../../domain/value-objects/block-content";
@@ -23795,6 +23760,71 @@ export const BLOCK_TYPE_NAMES: Record<BlockType, string> = {
   "toc": "目錄",
   "synced": "同步區塊",
 };
+````
+
+## File: modules/knowledge/interfaces/components/block-type-selector.tsx
+````typescript
+"use client";
+
+import { useEffect, useRef } from "react";
+import { ChevronDown } from "lucide-react";
+
+import { BLOCK_TYPES } from "../../domain/value-objects/block-content";
+import type { BlockType } from "../../domain/value-objects/block-content";
+import { BLOCK_TYPE_LABELS, BLOCK_TYPE_NAMES } from "./block-type-constants";
+
+interface TypeSelectorButtonProps {
+  currentType: BlockType;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelect: (type: BlockType) => void;
+}
+
+export function TypeSelectorButton({ currentType, open, onOpenChange, onSelect }: TypeSelectorButtonProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onOpenChange(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open, onOpenChange]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-muted hover:text-foreground"
+        aria-label="切換區塊類型"
+        title="切換區塊類型"
+      >
+        {BLOCK_TYPE_LABELS[currentType]}
+        <ChevronDown className="size-3" />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-32 rounded-md border border-border bg-popover shadow-md">
+          {BLOCK_TYPES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => { onSelect(t); onOpenChange(false); }}
+              className={`flex w-full items-center gap-2 px-2 py-1 text-left text-xs hover:bg-muted ${t === currentType ? "font-semibold text-primary" : "text-foreground"}`}
+            >
+              <span className="w-5 font-mono text-[10px] text-muted-foreground">{BLOCK_TYPE_LABELS[t]}</span>
+              {BLOCK_TYPE_NAMES[t]}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 ````
 
 ## File: modules/knowledge/interfaces/components/BlockEditorView.tsx
@@ -26309,6 +26339,77 @@ export interface UpdateOrgPolicyInput {
 }
 ````
 
+## File: modules/organization/infrastructure/firebase/organization-mappers.ts
+````typescript
+import type {
+  OrganizationEntity,
+  MemberReference,
+  Team,
+  OrgPolicy,
+  PartnerInvite,
+  OrganizationRole,
+} from "../../domain/entities/Organization";
+
+export function toOrganizationEntity(id: string, data: Record<string, unknown>): OrganizationEntity {
+  return {
+    id,
+    name: typeof data.name === "string" ? data.name : "",
+    ownerId: typeof data.ownerId === "string" ? data.ownerId : "",
+    email: typeof data.email === "string" ? data.email : undefined,
+    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
+    description: typeof data.description === "string" ? data.description : undefined,
+    theme: data.theme != null ? (data.theme as OrganizationEntity["theme"]) : undefined,
+    members: Array.isArray(data.members) ? (data.members as MemberReference[]) : [],
+    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
+    teams: Array.isArray(data.teams) ? (data.teams as Team[]) : [],
+    partnerInvites: Array.isArray(data.partnerInvites)
+      ? (data.partnerInvites as PartnerInvite[])
+      : undefined,
+    createdAt: data.createdAt as OrganizationEntity["createdAt"],
+  };
+}
+
+export function toOrgPolicy(id: string, data: Record<string, unknown>): OrgPolicy {
+  const VALID_SCOPES = new Set<OrgPolicy["scope"]>(["workspace", "member", "global"]);
+  const scope = VALID_SCOPES.has(data.scope as OrgPolicy["scope"])
+    ? (data.scope as OrgPolicy["scope"])
+    : "global";
+  return {
+    id,
+    orgId: data.orgId as string,
+    name: typeof data.name === "string" ? data.name : "",
+    description: typeof data.description === "string" ? data.description : "",
+    rules: Array.isArray(data.rules) ? (data.rules as OrgPolicy["rules"]) : [],
+    scope,
+    isActive: data.isActive === true,
+    createdAt: typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString(),
+    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
+  };
+}
+
+export function toTeam(id: string, data: Record<string, unknown>): Team {
+  return {
+    id,
+    name: typeof data.name === "string" ? data.name : "",
+    description: typeof data.description === "string" ? data.description : "",
+    type: data.type === "external" ? "external" : "internal",
+    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
+  };
+}
+
+export function toPartnerInvite(id: string, data: Record<string, unknown>): PartnerInvite {
+  return {
+    id,
+    email: data.email as string,
+    teamId: data.teamId as string,
+    role: (data.role as OrganizationRole) ?? "Guest",
+    inviteState: (data.inviteState as PartnerInvite["inviteState"]) ?? "pending",
+    invitedAt: data.invitedAt as PartnerInvite["invitedAt"],
+    protocol: typeof data.protocol === "string" ? data.protocol : "",
+  };
+}
+````
+
 ## File: modules/organization/ports/.gitkeep
 ````
 
@@ -28239,6 +28340,105 @@ export function RagBadge({ status, error }: { status: string; error: string }) {
     );
   }
   return <span className="text-xs text-muted-foreground">-</span>;
+}
+````
+
+## File: modules/search/interfaces/components/rag-upload-panel.tsx
+````typescript
+"use client";
+
+import { type RefObject } from "react";
+import { FileUp, Loader2 } from "lucide-react";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+
+const ACCEPTED_MIME: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "image/tiff": ".tif/.tiff",
+  "image/png": ".png",
+  "image/jpeg": ".jpg/.jpeg",
+};
+
+export const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
+export { ACCEPTED_MIME };
+
+export interface RagUploadPanelProps {
+  readonly effectiveWorkspaceId: string;
+  readonly activeAccountId: string;
+  readonly uploading: boolean;
+  readonly selectedFile: File | null;
+  readonly dragging: boolean;
+  readonly fileInputRef: RefObject<HTMLInputElement | null>;
+  readonly onFileChange: (file: File | null) => void;
+  readonly onUpload: () => void;
+  readonly onDragOver: (event: React.DragEvent<HTMLLabelElement>) => void;
+  readonly onDragLeave: () => void;
+  readonly onDrop: (event: React.DragEvent<HTMLLabelElement>) => void;
+  readonly onClearFile: () => void;
+}
+
+export function RagUploadPanel({
+  effectiveWorkspaceId,
+  activeAccountId,
+  uploading,
+  selectedFile,
+  dragging,
+  fileInputRef,
+  onFileChange,
+  onUpload,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onClearFile,
+}: RagUploadPanelProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Upload File</CardTitle>
+        <CardDescription>
+          {effectiveWorkspaceId
+            ? `拖曳或選擇檔案上傳到目前 workspace scope：${effectiveWorkspaceId}`
+            : "拖曳或選擇檔案上傳到 account scope；workspace 視角為選填。"}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <label
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-6 transition ${
+            dragging ? "border-primary/60 bg-primary/10" : "border-border/70 bg-muted/10 hover:border-primary/40"
+          }`}
+        >
+          <FileUp className="size-7 text-muted-foreground" />
+          <div className="text-center">
+            <p className="text-sm font-medium">{selectedFile ? selectedFile.name : "點擊或拖曳上傳"}</p>
+            <p className="text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={Object.keys(ACCEPTED_MIME).join(",")}
+            className="sr-only"
+            onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
+          />
+        </label>
+        <div className="flex items-center gap-2">
+          <Button onClick={onUpload} disabled={uploading || !selectedFile || !activeAccountId}>
+            {uploading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+            {uploading ? "上傳中..." : "上傳並啟動解析"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={onClearFile}
+            disabled={uploading}
+          >
+            清除
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 ````
 
@@ -42439,6 +42639,62 @@ export class FirebaseWikiWorkspaceRepository implements WikiWorkspaceRepository 
 }
 ````
 
+## File: modules/workspace/interfaces/components/workspace-detail-helpers.ts
+````typescript
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { formatDate } from "@shared-utils";
+import type { WorkspaceTabGroup } from "../workspace-tabs";
+
+export const MOBILE_TAB_GROUP_ORDER: WorkspaceTabGroup[] = [
+  "primary",
+  "modules",
+  "library",
+  "spaces",
+  "databases",
+];
+
+export const lifecycleBadgeVariant: Record<
+  WorkspaceEntity["lifecycleState"],
+  "default" | "secondary" | "outline"
+> = {
+  active: "default",
+  preparatory: "secondary",
+  stopped: "outline",
+};
+
+export function getWorkspaceInitials(name: string): string {
+  const tokens = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  if (tokens.length === 0) {
+    return "WS";
+  }
+
+  return tokens.map((token) => token[0]?.toUpperCase() ?? "").join("");
+}
+
+export function formatTimestamp(
+  timestamp: WorkspaceEntity["createdAt"] | undefined,
+): string {
+  if (!timestamp) {
+    return "—";
+  }
+  try {
+    return formatDate(timestamp.toDate());
+  } catch {
+    return "—";
+  }
+}
+
+export function trimOrUndefined(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+````
+
 ## File: next.config.ts
 ````typescript
 import type { NextConfig } from "next";
@@ -56270,6 +56526,135 @@ export default function KnowledgePageDetailPage() {
 }
 ````
 
+## File: app/(shell)/organization/audit/page.tsx
+````typescript
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { AuditStream, getOrganizationAuditLogs } from "@/modules/workspace-audit/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { formatDateTime, isOrganizationAccount } from "../_utils";
+
+const MAX_DISPLAYED_AUDIT_LOGS = 50;
+
+export default function OrganizationAuditPage() {
+  const { state: appState } = useApp();
+  const { activeAccount, workspaces, workspacesHydrated } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  const [auditLogs, setAuditLogs] = useState<
+    Awaited<ReturnType<typeof getOrganizationAuditLogs>>
+  >([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  // workspaceNameById is derived from the app-provider subscription — no extra fetch needed.
+  const workspaceNameById = useMemo(
+    () => new Map(Object.values(workspaces).map((w) => [w.id, w.name])),
+    [workspaces],
+  );
+
+  useEffect(() => {
+    if (!activeOrganizationId || !workspacesHydrated) return;
+    let cancelled = false;
+    const workspaceIds = Object.keys(workspaces);
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const logs = await getOrganizationAuditLogs(workspaceIds, MAX_DISPLAYED_AUDIT_LOGS);
+        if (!cancelled) {
+          setAuditLogs(logs);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setAuditLogs([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId, workspacesHydrated, workspaces]);
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">稽核</h1>
+        <p className="mt-1 text-sm text-muted-foreground">組織下所有工作區的 audit log 彙整。</p>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Audit</CardTitle>
+          <CardDescription>組織下所有工作區的 audit log 彙整。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入稽核資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取稽核資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && auditLogs.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的 audit logs。</p>
+          )}
+          {loadState === "loaded" &&
+            auditLogs.slice(0, MAX_DISPLAYED_AUDIT_LOGS).map((log) => (
+              <div key={log.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">{log.action}</p>
+                  <Badge variant="outline">{log.source}</Badge>
+                  <Badge variant="secondary">
+                    {workspaceNameById.get(log.workspaceId) ?? log.workspaceId}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{log.detail || "—"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {formatDateTime(log.occurredAtISO)}
+                </p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      {/* ── 稽核時間軸（新版 AuditStream）─────────────────────────────── */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>稽核時間軸</CardTitle>
+          <CardDescription>
+            以時間軸視覺化呈現稽核事件；嚴重程度由色點標示（藍 = 中、橘 = 高、紅 = 嚴重）。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AuditStream logs={auditLogs} height={500} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/organization/page.tsx
 ````typescript
 "use client";
@@ -56466,213 +56851,6 @@ export default function OrganizationPage() {
           已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
         </p>
       )}
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/organization/workspaces/page.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useEffect, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { createWorkspace, getWorkspacesForAccount } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { isOrganizationAccount } from "../_utils";
-
-export default function OrganizationWorkspacesPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  const [workspaces, setWorkspaces] = useState<
-    Awaited<ReturnType<typeof getWorkspacesForAccount>>
-  >([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  async function loadWorkspaces(organizationId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getWorkspacesForAccount(organizationId);
-      setWorkspaces(data);
-      setLoadState("loaded");
-    } catch {
-      setWorkspaces([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    const organizationId: string = activeOrganizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getWorkspacesForAccount(organizationId);
-        if (!cancelled) {
-          setWorkspaces(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setWorkspaces([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
-
-  async function handleCreate() {
-    if (!activeOrganizationId || !newName.trim()) return;
-    setCreating(true);
-    setCreateError(null);
-    const result = await createWorkspace({
-      name: newName.trim(),
-      accountId: activeOrganizationId,
-      accountType: "organization",
-    });
-    setCreating(false);
-    if (result.success) {
-      setCreateOpen(false);
-      setNewName("");
-      void loadWorkspaces(activeOrganizationId);
-    } else {
-      setCreateError(result.error.message ?? "建立失敗，請稍後再試。");
-    }
-  }
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">工作區</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            組織下所有工作區清單，含 lifecycle 狀態與快速連結。
-          </p>
-        </div>
-        <Button size="sm" onClick={() => { setCreateOpen(true); setCreateError(null); setNewName(""); }}>
-          建立工作區
-        </Button>
-      </div>
-
-      {/* Create Workspace Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>建立工作區</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="ws-name">工作區名稱</Label>
-              <Input
-                id="ws-name"
-                placeholder="例：行銷專案"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") void handleCreate(); }}
-              />
-            </div>
-            {createError && <p className="text-xs text-destructive">{createError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setCreateOpen(false)}>取消</Button>
-            <Button onClick={() => void handleCreate()} disabled={creating || !newName.trim()}>
-              {creating ? "建立中…" : "建立"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Workspaces</CardTitle>
-          <CardDescription>組織下所有工作區清單，含 lifecycle 狀態與快速連結。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">工作區載入中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">無法載入工作區資料，請稍後再試。</p>
-          )}
-          {loadState === "loaded" && workspaces.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的工作區。</p>
-          )}
-          {loadState === "loaded" &&
-            workspaces.map((workspace) => (
-              <div key={workspace.id} className="rounded-lg border border-border/40 px-3 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild variant="link" className="h-auto p-0 text-sm font-medium">
-                      <Link href={`/workspace/${workspace.id}`}>{workspace.name}</Link>
-                    </Button>
-                    <Badge
-                      variant={
-                        workspace.lifecycleState === "active"
-                          ? "default"
-                          : workspace.lifecycleState === "preparatory"
-                            ? "secondary"
-                            : "outline"
-                      }
-                    >
-                      {workspace.lifecycleState}
-                    </Badge>
-                    <Badge variant="outline">{workspace.visibility}</Badge>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/workspace/${workspace.id}?tab=Files`}>檔案</Link>
-                    </Button>
-                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>知識頁面</Link>
-                    </Button>
-                  </div>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{workspace.id}</p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
     </div>
   );
 }
@@ -59991,170 +60169,53 @@ export async function assignKnowledgePageOwner(input: AssignPageOwnerDto): Promi
 }
 ````
 
-## File: modules/knowledge/interfaces/components/block-row.tsx
+## File: modules/knowledge/interfaces/_actions/knowledge.actions.ts
 ````typescript
-"use client";
+/**
+ * Module: knowledge
+ * Layer: interfaces/_actions
+ * Purpose: Re-export barrel for all knowledge Server Actions.
+ *          Implementations are split by subdomain for IDDD layer-purity.
+ *          Each sub-file carries its own "use server" directive; this barrel
+ *          must NOT repeat it — Turbopack cannot resolve re-exports from a
+ *          "use server" barrel that itself re-exports other "use server" files.
+ */
 
-import { useEffect, useRef, useState } from "react";
-import { GripVertical } from "lucide-react";
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  publishKnowledgeVersion,
+} from "./knowledge-page-lifecycle.actions";
 
-import { draggable, dropTargetForElements } from "@lib-dragdrop";
-import type { BlockType, RichTextSpan } from "../../domain/value-objects/block-content";
-import { richTextToPlainText } from "../../domain/value-objects/block-content";
-import { TypeSelectorButton } from "./block-type-selector";
+export {
+  approveKnowledgePage,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+} from "./knowledge-page-review.actions";
 
-export interface BlockRowProps {
-  readonly block: { id: string; content: { type: BlockType; richText: ReadonlyArray<RichTextSpan> } };
-  readonly index: number;
-  readonly setBlockRef: (id: string, el: HTMLDivElement | null) => void;
-  readonly onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>, blockId: string) => void;
-  readonly onTextChange: (text: string) => void;
-  readonly onTypeChange: (type: BlockType) => void;
-}
+export {
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "./knowledge-page-appearance.actions";
 
-export function BlockRow({ block, setBlockRef, onKeyDown, onTextChange, onTypeChange }: BlockRowProps) {
-  const dragHandleRef = useRef<HTMLButtonElement>(null);
-  const dropRef = useRef<HTMLDivElement>(null);
-  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
+export {
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+} from "./knowledge-block.actions";
 
-  useEffect(() => {
-    const handleEl = dragHandleRef.current;
-    const dropEl = dropRef.current;
-    if (!handleEl || !dropEl) return;
-    const cleanupDraggable = draggable({ element: handleEl, getInitialData: () => ({ blockId: block.id }) });
-    const cleanupDrop = dropTargetForElements({ element: dropEl, getData: () => ({ blockId: block.id }) });
-    return () => { cleanupDraggable(); cleanupDrop(); };
-  }, [block.id]);
-
-  const { type, richText } = block.content;
-
-  if (type === "divider") {
-    return (
-      <div ref={dropRef} className="group flex items-center gap-1 py-1">
-        <TypeSelectorButton currentType={type} open={typeMenuOpen} onOpenChange={setTypeMenuOpen} onSelect={onTypeChange} />
-        <button ref={dragHandleRef} type="button" aria-label="拖曳重排" className="cursor-grab touch-none opacity-0 transition group-hover:opacity-40 hover:!opacity-100 active:cursor-grabbing">
-          <GripVertical className="size-4 text-muted-foreground" />
-        </button>
-        <hr className="flex-1 border-t border-border/60" />
-      </div>
-    );
-  }
-
-  return (
-    <div ref={dropRef} className="group flex items-start gap-1">
-      <TypeSelectorButton currentType={type} open={typeMenuOpen} onOpenChange={setTypeMenuOpen} onSelect={onTypeChange} />
-      <button ref={dragHandleRef} type="button" aria-label="拖曳重排" className="mt-1 cursor-grab touch-none opacity-0 transition group-hover:opacity-40 hover:!opacity-100 active:cursor-grabbing">
-        <GripVertical className="size-4 text-muted-foreground" />
-      </button>
-      {type === "bullet-list" && <span className="mt-1 select-none text-sm text-foreground">•</span>}
-      <div
-        ref={(el) => setBlockRef(block.id, el)}
-        role="textbox"
-        tabIndex={0}
-        contentEditable
-        suppressContentEditableWarning
-        onKeyDown={(e) => onKeyDown(e, block.id)}
-        onInput={(e) => onTextChange(e.currentTarget.textContent ?? "")}
-        data-placeholder={blockPlaceholder(type)}
-        className={blockEditableClass(type)}
-      >
-        {richTextToPlainText(richText)}
-      </div>
-    </div>
-  );
-}
-
-function blockEditableClass(type: BlockType): string {
-  const base = "flex-1 rounded px-2 py-1 outline-none focus:bg-muted/30 empty:before:text-muted-foreground/40 empty:before:content-[attr(data-placeholder)]";
-  switch (type) {
-    case "heading-1": return `${base} text-3xl font-bold`;
-    case "heading-2": return `${base} text-2xl font-semibold`;
-    case "heading-3": return `${base} text-xl font-medium`;
-    case "quote": return `${base} border-l-4 border-primary/50 pl-3 italic text-muted-foreground`;
-    case "code": return `${base} font-mono text-sm bg-muted rounded`;
-    case "bullet-list":
-    case "numbered-list": return `${base} text-sm text-foreground`;
-    default: return `${base} min-h-[1.75rem] text-sm text-foreground`;
-  }
-}
-
-function blockPlaceholder(type: BlockType): string {
-  switch (type) {
-    case "heading-1": return "標題 1";
-    case "heading-2": return "標題 2";
-    case "heading-3": return "標題 3";
-    case "quote": return "引言…";
-    case "code": return "// 程式碼";
-    case "bullet-list": return "清單項目…";
-    case "numbered-list": return "清單項目…";
-    default: return "輸入文字…";
-  }
-}
-````
-
-## File: modules/knowledge/interfaces/components/block-type-selector.tsx
-````typescript
-"use client";
-
-import { useEffect, useRef } from "react";
-import { ChevronDown } from "lucide-react";
-
-import { BLOCK_TYPES } from "../../domain/value-objects/block-content";
-import type { BlockType } from "../../domain/value-objects/block-content";
-import { BLOCK_TYPE_LABELS, BLOCK_TYPE_NAMES } from "./block-type-constants";
-
-interface TypeSelectorButtonProps {
-  currentType: BlockType;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSelect: (type: BlockType) => void;
-}
-
-export function TypeSelectorButton({ currentType, open, onOpenChange, onSelect }: TypeSelectorButtonProps) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onOpenChange(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open, onOpenChange]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => onOpenChange(!open)}
-        className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-muted hover:text-foreground"
-        aria-label="切換區塊類型"
-        title="切換區塊類型"
-      >
-        {BLOCK_TYPE_LABELS[currentType]}
-        <ChevronDown className="size-3" />
-      </button>
-
-      {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-32 rounded-md border border-border bg-popover shadow-md">
-          {BLOCK_TYPES.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => { onSelect(t); onOpenChange(false); }}
-              className={`flex w-full items-center gap-2 px-2 py-1 text-left text-xs hover:bg-muted ${t === currentType ? "font-semibold text-primary" : "text-foreground"}`}
-            >
-              <span className="w-5 font-mono text-[10px] text-muted-foreground">{BLOCK_TYPE_LABELS[t]}</span>
-              {BLOCK_TYPE_NAMES[t]}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+export {
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+} from "./knowledge-collection.actions";
 ````
 
 ## File: modules/knowledge/interfaces/components/PageDialog.tsx
@@ -61022,6 +61083,399 @@ export interface OrgPolicyRepository {
 }
 ````
 
+## File: modules/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts
+````typescript
+/**
+ * FirebaseOrganizationRepository — Infrastructure adapter for organization persistence.
+ * Implements the OrganizationRepository port.
+ * Firebase SDK only exists in this file.
+ */
+
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  addDoc,
+  arrayUnion,
+  arrayRemove,
+  onSnapshot,
+  serverTimestamp,
+  writeBatch,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { OrganizationRepository, Unsubscribe } from "../../domain/repositories/OrganizationRepository";
+import type {
+  OrganizationEntity,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  OrganizationRole,
+} from "../../domain/entities/Organization";
+import { toOrganizationEntity, toTeam, toPartnerInvite } from "./organization-mappers";
+
+// ─── Repository ───────────────────────────────────────────────────────────────
+
+export class FirebaseOrganizationRepository implements OrganizationRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private organizationAccountRef(organizationId: string) {
+    return doc(this.db, "accounts", organizationId);
+  }
+
+  private buildOrganizationAccountData(
+    data: {
+      name?: string;
+      ownerId?: string;
+      email?: string;
+      photoURL?: string;
+      description?: string;
+      theme?: OrganizationEntity["theme"];
+      members?: MemberReference[];
+      memberIds?: string[];
+      teams?: Team[];
+      createdAt?: OrganizationEntity["createdAt"] | ReturnType<typeof serverTimestamp>;
+    },
+  ) {
+    return {
+      accountType: "organization" as const,
+      name: data.name ?? "",
+      ownerId: data.ownerId ?? "",
+      email: data.email ?? null,
+      photoURL: data.photoURL ?? null,
+      description: data.description ?? null,
+      theme: data.theme ?? null,
+      members: data.members ?? [],
+      memberIds: data.memberIds ?? [],
+      teams: data.teams ?? [],
+      createdAt: data.createdAt ?? serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+  }
+
+  // ─── Org Lifecycle ──────────────────────────────────────────────────────────
+
+  async create(command: CreateOrganizationCommand): Promise<string> {
+    const orgRef = doc(collection(this.db, "organizations"));
+    const owner: MemberReference = {
+      id: command.ownerId,
+      name: command.ownerName,
+      email: command.ownerEmail,
+      role: "Owner",
+      presence: "active",
+    };
+    const createdAt = serverTimestamp();
+    const organizationData = {
+      name: command.organizationName,
+      ownerId: command.ownerId,
+      members: [owner],
+      memberIds: [command.ownerId],
+      teams: [],
+      createdAt,
+    };
+    const batch = writeBatch(this.db);
+    batch.set(orgRef, organizationData);
+    batch.set(
+      this.organizationAccountRef(orgRef.id),
+      this.buildOrganizationAccountData({
+        name: command.organizationName,
+        ownerId: command.ownerId,
+        members: [owner],
+        memberIds: [command.ownerId],
+        teams: [],
+        createdAt,
+      }),
+      { merge: true },
+    );
+    await batch.commit();
+    return orgRef.id;
+  }
+
+  async findById(id: string): Promise<OrganizationEntity | null> {
+    const snap = await getDoc(doc(this.db, "organizations", id));
+    if (!snap.exists()) return null;
+    return toOrganizationEntity(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async save(org: OrganizationEntity): Promise<void> {
+    const orgRef = doc(this.db, "organizations", org.id);
+    const batch = writeBatch(this.db);
+    batch.set(orgRef, {
+      name: org.name,
+      ownerId: org.ownerId,
+      members: org.members,
+      memberIds: org.memberIds,
+      teams: org.teams,
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      this.organizationAccountRef(org.id),
+      this.buildOrganizationAccountData({
+        name: org.name,
+        ownerId: org.ownerId,
+        email: org.email,
+        photoURL: org.photoURL,
+        description: org.description,
+        theme: org.theme,
+        members: org.members,
+        memberIds: org.memberIds,
+        teams: org.teams,
+        createdAt: org.createdAt,
+      }),
+      { merge: true },
+    );
+    await batch.commit();
+  }
+
+  async updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void> {
+    const orgRef = doc(this.db, "organizations", command.organizationId);
+    const updates: Record<string, unknown> = {
+      accountType: "organization",
+      updatedAt: serverTimestamp(),
+    };
+    if (command.name !== undefined) updates.name = command.name;
+    if (command.description !== undefined) updates.description = command.description;
+    if (command.theme !== undefined) updates.theme = command.theme;
+    if (command.photoURL !== undefined) updates.photoURL = command.photoURL;
+    const batch = writeBatch(this.db);
+    batch.update(orgRef, updates);
+    batch.set(this.organizationAccountRef(command.organizationId), updates, { merge: true });
+    await batch.commit();
+  }
+
+  async delete(organizationId: string): Promise<void> {
+    const batch = writeBatch(this.db);
+    batch.delete(doc(this.db, "organizations", organizationId));
+    batch.delete(this.organizationAccountRef(organizationId));
+    await batch.commit();
+  }
+
+  // ─── Members ────────────────────────────────────────────────────────────────
+
+  async inviteMember(input: InviteMemberInput): Promise<string> {
+    const invite = {
+      email: input.email,
+      teamId: input.teamId,
+      role: input.role,
+      inviteState: "pending",
+      protocol: input.protocol,
+      invitedAt: serverTimestamp(),
+    };
+    const ref = await addDoc(
+      collection(this.db, "organizations", input.organizationId, "invites"),
+      invite,
+    );
+    return ref.id;
+  }
+
+  async recruitMember(
+    organizationId: string,
+    memberId: string,
+    name: string,
+    email: string,
+  ): Promise<void> {
+    const orgRef = doc(this.db, "organizations", organizationId);
+    const member: MemberReference = {
+      id: memberId,
+      name,
+      email,
+      role: "Member",
+      presence: "active",
+    };
+    const batch = writeBatch(this.db);
+    batch.update(orgRef, {
+      members: arrayUnion(member),
+      memberIds: arrayUnion(memberId),
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      this.organizationAccountRef(organizationId),
+      {
+        members: arrayUnion(member),
+        memberIds: arrayUnion(memberId),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    await batch.commit();
+  }
+
+  async removeMember(organizationId: string, memberId: string): Promise<void> {
+    const orgSnap = await getDoc(doc(this.db, "organizations", organizationId));
+    if (!orgSnap.exists()) return;
+    const data = orgSnap.data() as Record<string, unknown>;
+    const members = Array.isArray(data.members)
+      ? (data.members as MemberReference[]).filter((m) => m.id !== memberId)
+      : [];
+    const batch = writeBatch(this.db);
+    batch.update(doc(this.db, "organizations", organizationId), {
+      members,
+      memberIds: arrayRemove(memberId),
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      this.organizationAccountRef(organizationId),
+      {
+        members,
+        memberIds: arrayRemove(memberId),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    await batch.commit();
+  }
+
+  async updateMemberRole(input: UpdateMemberRoleInput): Promise<void> {
+    const orgSnap = await getDoc(doc(this.db, "organizations", input.organizationId));
+    if (!orgSnap.exists()) return;
+    const data = orgSnap.data() as Record<string, unknown>;
+    const members = Array.isArray(data.members)
+      ? (data.members as MemberReference[]).map((m) =>
+          m.id === input.memberId ? { ...m, role: input.role as OrganizationRole } : m,
+        )
+      : [];
+    const batch = writeBatch(this.db);
+    batch.update(doc(this.db, "organizations", input.organizationId), {
+      members,
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      this.organizationAccountRef(input.organizationId),
+      {
+        members,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    await batch.commit();
+  }
+
+  async getMembers(organizationId: string): Promise<MemberReference[]> {
+    const snap = await getDoc(doc(this.db, "organizations", organizationId));
+    if (!snap.exists()) return [];
+    const data = snap.data() as Record<string, unknown>;
+    return Array.isArray(data.members) ? (data.members as MemberReference[]) : [];
+  }
+
+  subscribeToMembers(
+    organizationId: string,
+    onUpdate: (members: MemberReference[]) => void,
+  ): Unsubscribe {
+    return onSnapshot(doc(this.db, "organizations", organizationId), (snap) => {
+      if (!snap.exists()) {
+        onUpdate([]);
+        return;
+      }
+      const data = snap.data() as Record<string, unknown>;
+      onUpdate(Array.isArray(data.members) ? (data.members as MemberReference[]) : []);
+    });
+  }
+
+  // ─── Teams ──────────────────────────────────────────────────────────────────
+
+  async createTeam(input: CreateTeamInput): Promise<string> {
+    const teamRef = doc(collection(this.db, "organizations", input.organizationId, "teams"));
+    await setDoc(teamRef, {
+      name: input.name,
+      description: input.description,
+      type: input.type,
+      memberIds: [],
+      createdAt: serverTimestamp(),
+    });
+    return teamRef.id;
+  }
+
+  async deleteTeam(organizationId: string, teamId: string): Promise<void> {
+    await deleteDoc(doc(this.db, "organizations", organizationId, "teams", teamId));
+  }
+
+  async addMemberToTeam(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+  ): Promise<void> {
+    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
+      memberIds: arrayUnion(memberId),
+    });
+  }
+
+  async removeMemberFromTeam(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+  ): Promise<void> {
+    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
+      memberIds: arrayRemove(memberId),
+    });
+  }
+
+  async getTeams(organizationId: string): Promise<Team[]> {
+    const snaps = await getDocs(
+      collection(this.db, "organizations", organizationId, "teams"),
+    );
+    return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
+  }
+
+  subscribeToTeams(
+    organizationId: string,
+    onUpdate: (teams: Team[]) => void,
+  ): Unsubscribe {
+    return onSnapshot(
+      collection(this.db, "organizations", organizationId, "teams"),
+      (snap) => {
+        onUpdate(snap.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>)));
+      },
+    );
+  }
+
+  // ─── Partners ────────────────────────────────────────────────────────────────
+
+  async sendPartnerInvite(
+    organizationId: string,
+    teamId: string,
+    email: string,
+  ): Promise<string> {
+    const ref = await addDoc(
+      collection(this.db, "organizations", organizationId, "partnerInvites"),
+      {
+        email,
+        teamId,
+        role: "Guest",
+        inviteState: "pending",
+        invitedAt: serverTimestamp(),
+      },
+    );
+    return ref.id;
+  }
+
+  async dismissPartnerMember(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+  ): Promise<void> {
+    await this.removeMemberFromTeam(organizationId, teamId, memberId);
+  }
+
+  async getPartnerInvites(organizationId: string): Promise<PartnerInvite[]> {
+    const snaps = await getDocs(
+      collection(this.db, "organizations", organizationId, "partnerInvites"),
+    );
+    return snaps.docs.map((d) => toPartnerInvite(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
 ## File: modules/organization/infrastructure/firebase/FirebaseOrgPolicyRepository.ts
 ````typescript
 /**
@@ -61111,77 +61565,6 @@ export class FirebaseOrgPolicyRepository implements OrgPolicyRepository {
 }
 ````
 
-## File: modules/organization/infrastructure/firebase/organization-mappers.ts
-````typescript
-import type {
-  OrganizationEntity,
-  MemberReference,
-  Team,
-  OrgPolicy,
-  PartnerInvite,
-  OrganizationRole,
-} from "../../domain/entities/Organization";
-
-export function toOrganizationEntity(id: string, data: Record<string, unknown>): OrganizationEntity {
-  return {
-    id,
-    name: typeof data.name === "string" ? data.name : "",
-    ownerId: typeof data.ownerId === "string" ? data.ownerId : "",
-    email: typeof data.email === "string" ? data.email : undefined,
-    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
-    description: typeof data.description === "string" ? data.description : undefined,
-    theme: data.theme != null ? (data.theme as OrganizationEntity["theme"]) : undefined,
-    members: Array.isArray(data.members) ? (data.members as MemberReference[]) : [],
-    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
-    teams: Array.isArray(data.teams) ? (data.teams as Team[]) : [],
-    partnerInvites: Array.isArray(data.partnerInvites)
-      ? (data.partnerInvites as PartnerInvite[])
-      : undefined,
-    createdAt: data.createdAt as OrganizationEntity["createdAt"],
-  };
-}
-
-export function toOrgPolicy(id: string, data: Record<string, unknown>): OrgPolicy {
-  const VALID_SCOPES = new Set<OrgPolicy["scope"]>(["workspace", "member", "global"]);
-  const scope = VALID_SCOPES.has(data.scope as OrgPolicy["scope"])
-    ? (data.scope as OrgPolicy["scope"])
-    : "global";
-  return {
-    id,
-    orgId: data.orgId as string,
-    name: typeof data.name === "string" ? data.name : "",
-    description: typeof data.description === "string" ? data.description : "",
-    rules: Array.isArray(data.rules) ? (data.rules as OrgPolicy["rules"]) : [],
-    scope,
-    isActive: data.isActive === true,
-    createdAt: typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString(),
-    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
-  };
-}
-
-export function toTeam(id: string, data: Record<string, unknown>): Team {
-  return {
-    id,
-    name: typeof data.name === "string" ? data.name : "",
-    description: typeof data.description === "string" ? data.description : "",
-    type: data.type === "external" ? "external" : "internal",
-    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
-  };
-}
-
-export function toPartnerInvite(id: string, data: Record<string, unknown>): PartnerInvite {
-  return {
-    id,
-    email: data.email as string,
-    teamId: data.teamId as string,
-    role: (data.role as OrganizationRole) ?? "Guest",
-    inviteState: (data.inviteState as PartnerInvite["inviteState"]) ?? "pending",
-    invitedAt: data.invitedAt as PartnerInvite["invitedAt"],
-    protocol: typeof data.protocol === "string" ? data.protocol : "",
-  };
-}
-````
-
 ## File: modules/organization/interfaces/queries/organization.queries.ts
 ````typescript
 /**
@@ -61268,105 +61651,6 @@ export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase {
   return new AnswerRagQueryUseCase(
     new FirebaseRagRetrievalRepository(),
     new GenkitRagGenerationRepository(),
-  );
-}
-````
-
-## File: modules/search/interfaces/components/rag-upload-panel.tsx
-````typescript
-"use client";
-
-import { type RefObject } from "react";
-import { FileUp, Loader2 } from "lucide-react";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-const ACCEPTED_MIME: Record<string, string> = {
-  "application/pdf": ".pdf",
-  "image/tiff": ".tif/.tiff",
-  "image/png": ".png",
-  "image/jpeg": ".jpg/.jpeg",
-};
-
-export const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
-export { ACCEPTED_MIME };
-
-export interface RagUploadPanelProps {
-  readonly effectiveWorkspaceId: string;
-  readonly activeAccountId: string;
-  readonly uploading: boolean;
-  readonly selectedFile: File | null;
-  readonly dragging: boolean;
-  readonly fileInputRef: RefObject<HTMLInputElement | null>;
-  readonly onFileChange: (file: File | null) => void;
-  readonly onUpload: () => void;
-  readonly onDragOver: (event: React.DragEvent<HTMLLabelElement>) => void;
-  readonly onDragLeave: () => void;
-  readonly onDrop: (event: React.DragEvent<HTMLLabelElement>) => void;
-  readonly onClearFile: () => void;
-}
-
-export function RagUploadPanel({
-  effectiveWorkspaceId,
-  activeAccountId,
-  uploading,
-  selectedFile,
-  dragging,
-  fileInputRef,
-  onFileChange,
-  onUpload,
-  onDragOver,
-  onDragLeave,
-  onDrop,
-  onClearFile,
-}: RagUploadPanelProps) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Upload File</CardTitle>
-        <CardDescription>
-          {effectiveWorkspaceId
-            ? `拖曳或選擇檔案上傳到目前 workspace scope：${effectiveWorkspaceId}`
-            : "拖曳或選擇檔案上傳到 account scope；workspace 視角為選填。"}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <label
-          onDragOver={onDragOver}
-          onDragLeave={onDragLeave}
-          onDrop={onDrop}
-          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-6 transition ${
-            dragging ? "border-primary/60 bg-primary/10" : "border-border/70 bg-muted/10 hover:border-primary/40"
-          }`}
-        >
-          <FileUp className="size-7 text-muted-foreground" />
-          <div className="text-center">
-            <p className="text-sm font-medium">{selectedFile ? selectedFile.name : "點擊或拖曳上傳"}</p>
-            <p className="text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={Object.keys(ACCEPTED_MIME).join(",")}
-            className="sr-only"
-            onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
-          />
-        </label>
-        <div className="flex items-center gap-2">
-          <Button onClick={onUpload} disabled={uploading || !selectedFile || !activeAccountId}>
-            {uploading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-            {uploading ? "上傳中..." : "上傳並啟動解析"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={onClearFile}
-            disabled={uploading}
-          >
-            清除
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 ````
@@ -64684,21 +64968,28 @@ export function CreateWorkspaceDialogRail({
 }
 ````
 
-## File: modules/workspace/interfaces/components/workspace-detail-helpers.ts
+## File: modules/workspace/interfaces/components/OrganizationWorkspacesScreen.tsx
 ````typescript
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { formatDate } from "@shared-utils";
-import type { WorkspaceTabGroup } from "../workspace-tabs";
+"use client";
 
-export const MOBILE_TAB_GROUP_ORDER: WorkspaceTabGroup[] = [
-  "primary",
-  "modules",
-  "library",
-  "spaces",
-  "databases",
-];
+import Link from "next/link";
+import { type FormEvent, useState } from "react";
 
-export const lifecycleBadgeVariant: Record<
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+
+import type { WorkspaceEntity } from "../../api/contracts";
+import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
+import { CreateWorkspaceDialog } from "./CreateWorkspaceDialog";
+
+const lifecycleBadgeVariant: Record<
   WorkspaceEntity["lifecycleState"],
   "default" | "secondary" | "outline"
 > = {
@@ -64707,36 +64998,119 @@ export const lifecycleBadgeVariant: Record<
   stopped: "outline",
 };
 
-export function getWorkspaceInitials(name: string): string {
-  const tokens = name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2);
-
-  if (tokens.length === 0) {
-    return "WS";
-  }
-
-  return tokens.map((token) => token[0]?.toUpperCase() ?? "").join("");
+interface OrganizationWorkspacesScreenProps {
+  readonly accountId: string | null | undefined;
 }
 
-export function formatTimestamp(
-  timestamp: WorkspaceEntity["createdAt"] | undefined,
-): string {
-  if (!timestamp) {
-    return "—";
-  }
-  try {
-    return formatDate(timestamp.toDate());
-  } catch {
-    return "—";
-  }
-}
+export function OrganizationWorkspacesScreen({ accountId }: OrganizationWorkspacesScreenProps) {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
 
-export function trimOrUndefined(value: string): string | undefined {
-  const trimmed = value.trim();
-  return trimmed || undefined;
+  const {
+    createError,
+    clearCreateError,
+    createWorkspaceForAccount,
+    isCreatingWorkspace,
+    loadState,
+    workspaces,
+  } = useWorkspaceHub({ accountId, accountType: "organization" });
+
+  function resetDialog() {
+    setWorkspaceName("");
+    clearCreateError();
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const result = await createWorkspaceForAccount(workspaceName);
+    if (!result.success) return;
+    resetDialog();
+    setIsCreateOpen(false);
+  }
+
+  if (!accountId) {
+    return (
+      <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">工作區</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            組織下所有工作區清單，含 lifecycle 狀態與快速連結。
+          </p>
+        </div>
+        <Button
+          size="sm"
+          onClick={() => {
+            resetDialog();
+            setIsCreateOpen(true);
+          }}
+        >
+          建立工作區
+        </Button>
+      </div>
+
+      <CreateWorkspaceDialog
+        open={isCreateOpen}
+        workspaceName={workspaceName}
+        createError={createError}
+        isCreatingWorkspace={isCreatingWorkspace}
+        accountId={accountId}
+        onOpenChange={setIsCreateOpen}
+        onWorkspaceNameChange={setWorkspaceName}
+        onSubmit={handleSubmit}
+      />
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Workspaces</CardTitle>
+          <CardDescription>組織下所有工作區清單，含 lifecycle 狀態與快速連結。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">工作區載入中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">無法載入工作區資料，請稍後再試。</p>
+          )}
+          {loadState === "loaded" && workspaces.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的工作區。</p>
+          )}
+          {loadState === "loaded" &&
+            workspaces.map((workspace) => (
+              <div key={workspace.id} className="rounded-lg border border-border/40 px-3 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button asChild variant="link" className="h-auto p-0 text-sm font-medium">
+                      <Link href={`/workspace/${workspace.id}`}>{workspace.name}</Link>
+                    </Button>
+                    <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
+                      {workspace.lifecycleState}
+                    </Badge>
+                    <Badge variant="outline">{workspace.visibility}</Badge>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
+                      <Link href={`/workspace/${workspace.id}?tab=Files`}>檔案</Link>
+                    </Button>
+                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
+                      <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                        知識頁面
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{workspace.id}</p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 ````
 
@@ -65209,6 +65583,67 @@ export function WorkspaceOverviewSettingsTab({
         }))}
       />
     </div>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/components/WorkspaceQuickstartCard.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+
+interface WorkspaceQuickstartCardProps {
+  readonly workspaceId: string;
+}
+
+export function WorkspaceQuickstartCard({ workspaceId }: WorkspaceQuickstartCardProps) {
+  return (
+    <Card className="border border-primary/20 bg-primary/5">
+      <CardHeader>
+        <CardTitle>🚀 開始使用這個工作區</CardTitle>
+        <CardDescription>完成以下步驟，讓工作區進入運作狀態。</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <p className="text-sm font-semibold">Step 1 · 上傳文件</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            先把原始文件上傳到 Files 分頁，作為知識基底。
+          </p>
+          <Button asChild size="sm" variant="outline" className="mt-3">
+            <Link href={`/workspace/${workspaceId}?tab=Files`}>前往 Files</Link>
+          </Button>
+        </div>
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <p className="text-sm font-semibold">Step 2 · 建立頁面</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            直接在工作區知識頁面建立第一個頁面，整理結構。
+          </p>
+          <Button asChild size="sm" variant="outline" className="mt-3">
+            <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspaceId)}`}>前往知識頁面</Link>
+          </Button>
+        </div>
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <p className="text-sm font-semibold">Step 3 · AI 查詢</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            用 RAG Query 對工作區知識提問，驗證內容可被檢索。
+          </p>
+          <Button asChild size="sm" variant="outline" className="mt-3">
+            <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspaceId)}`}>
+              前往 RAG Query
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 ````
@@ -67513,6 +67948,23 @@ export default function KnowledgePagesPage() {
 }
 ````
 
+## File: app/(shell)/organization/workspaces/page.tsx
+````typescript
+"use client";
+
+import { useApp } from "@/app/providers/app-provider";
+import { OrganizationWorkspacesScreen } from "@/modules/workspace/api";
+import { isOrganizationAccount } from "../_utils";
+
+export default function OrganizationWorkspacesPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  return <OrganizationWorkspacesScreen accountId={activeOrganizationId} />;
+}
+````
+
 ## File: CONTRIBUTING.md
 ````markdown
 # Contributing to Xuanwu App
@@ -68486,55 +68938,6 @@ export class GetKnowledgePageTreeByWorkspaceUseCase {
 }
 ````
 
-## File: modules/knowledge/interfaces/_actions/knowledge.actions.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: interfaces/_actions
- * Purpose: Re-export barrel for all knowledge Server Actions.
- *          Implementations are split by subdomain for IDDD layer-purity.
- *          Each sub-file carries its own "use server" directive; this barrel
- *          must NOT repeat it — Turbopack cannot resolve re-exports from a
- *          "use server" barrel that itself re-exports other "use server" files.
- */
-
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  publishKnowledgeVersion,
-} from "./knowledge-page-lifecycle.actions";
-
-export {
-  approveKnowledgePage,
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-} from "./knowledge-page-review.actions";
-
-export {
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "./knowledge-page-appearance.actions";
-
-export {
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-} from "./knowledge-block.actions";
-
-export {
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  addCollectionColumn,
-  archiveKnowledgeCollection,
-} from "./knowledge-collection.actions";
-````
-
 ## File: modules/knowledge/README.md
 ````markdown
 # knowledge — 知識內容上下文
@@ -68763,399 +69166,6 @@ export {
   getPartnerInvites,
   getOrgPolicies,
 } from "./interfaces/queries/organization.queries";
-````
-
-## File: modules/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts
-````typescript
-/**
- * FirebaseOrganizationRepository — Infrastructure adapter for organization persistence.
- * Implements the OrganizationRepository port.
- * Firebase SDK only exists in this file.
- */
-
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  getDocs,
-  addDoc,
-  arrayUnion,
-  arrayRemove,
-  onSnapshot,
-  serverTimestamp,
-  writeBatch,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { OrganizationRepository, Unsubscribe } from "../../domain/repositories/OrganizationRepository";
-import type {
-  OrganizationEntity,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  OrganizationRole,
-} from "../../domain/entities/Organization";
-import { toOrganizationEntity, toTeam, toPartnerInvite } from "./organization-mappers";
-
-// ─── Repository ───────────────────────────────────────────────────────────────
-
-export class FirebaseOrganizationRepository implements OrganizationRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private organizationAccountRef(organizationId: string) {
-    return doc(this.db, "accounts", organizationId);
-  }
-
-  private buildOrganizationAccountData(
-    data: {
-      name?: string;
-      ownerId?: string;
-      email?: string;
-      photoURL?: string;
-      description?: string;
-      theme?: OrganizationEntity["theme"];
-      members?: MemberReference[];
-      memberIds?: string[];
-      teams?: Team[];
-      createdAt?: OrganizationEntity["createdAt"] | ReturnType<typeof serverTimestamp>;
-    },
-  ) {
-    return {
-      accountType: "organization" as const,
-      name: data.name ?? "",
-      ownerId: data.ownerId ?? "",
-      email: data.email ?? null,
-      photoURL: data.photoURL ?? null,
-      description: data.description ?? null,
-      theme: data.theme ?? null,
-      members: data.members ?? [],
-      memberIds: data.memberIds ?? [],
-      teams: data.teams ?? [],
-      createdAt: data.createdAt ?? serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-  }
-
-  // ─── Org Lifecycle ──────────────────────────────────────────────────────────
-
-  async create(command: CreateOrganizationCommand): Promise<string> {
-    const orgRef = doc(collection(this.db, "organizations"));
-    const owner: MemberReference = {
-      id: command.ownerId,
-      name: command.ownerName,
-      email: command.ownerEmail,
-      role: "Owner",
-      presence: "active",
-    };
-    const createdAt = serverTimestamp();
-    const organizationData = {
-      name: command.organizationName,
-      ownerId: command.ownerId,
-      members: [owner],
-      memberIds: [command.ownerId],
-      teams: [],
-      createdAt,
-    };
-    const batch = writeBatch(this.db);
-    batch.set(orgRef, organizationData);
-    batch.set(
-      this.organizationAccountRef(orgRef.id),
-      this.buildOrganizationAccountData({
-        name: command.organizationName,
-        ownerId: command.ownerId,
-        members: [owner],
-        memberIds: [command.ownerId],
-        teams: [],
-        createdAt,
-      }),
-      { merge: true },
-    );
-    await batch.commit();
-    return orgRef.id;
-  }
-
-  async findById(id: string): Promise<OrganizationEntity | null> {
-    const snap = await getDoc(doc(this.db, "organizations", id));
-    if (!snap.exists()) return null;
-    return toOrganizationEntity(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async save(org: OrganizationEntity): Promise<void> {
-    const orgRef = doc(this.db, "organizations", org.id);
-    const batch = writeBatch(this.db);
-    batch.set(orgRef, {
-      name: org.name,
-      ownerId: org.ownerId,
-      members: org.members,
-      memberIds: org.memberIds,
-      teams: org.teams,
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.organizationAccountRef(org.id),
-      this.buildOrganizationAccountData({
-        name: org.name,
-        ownerId: org.ownerId,
-        email: org.email,
-        photoURL: org.photoURL,
-        description: org.description,
-        theme: org.theme,
-        members: org.members,
-        memberIds: org.memberIds,
-        teams: org.teams,
-        createdAt: org.createdAt,
-      }),
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void> {
-    const orgRef = doc(this.db, "organizations", command.organizationId);
-    const updates: Record<string, unknown> = {
-      accountType: "organization",
-      updatedAt: serverTimestamp(),
-    };
-    if (command.name !== undefined) updates.name = command.name;
-    if (command.description !== undefined) updates.description = command.description;
-    if (command.theme !== undefined) updates.theme = command.theme;
-    if (command.photoURL !== undefined) updates.photoURL = command.photoURL;
-    const batch = writeBatch(this.db);
-    batch.update(orgRef, updates);
-    batch.set(this.organizationAccountRef(command.organizationId), updates, { merge: true });
-    await batch.commit();
-  }
-
-  async delete(organizationId: string): Promise<void> {
-    const batch = writeBatch(this.db);
-    batch.delete(doc(this.db, "organizations", organizationId));
-    batch.delete(this.organizationAccountRef(organizationId));
-    await batch.commit();
-  }
-
-  // ─── Members ────────────────────────────────────────────────────────────────
-
-  async inviteMember(input: InviteMemberInput): Promise<string> {
-    const invite = {
-      email: input.email,
-      teamId: input.teamId,
-      role: input.role,
-      inviteState: "pending",
-      protocol: input.protocol,
-      invitedAt: serverTimestamp(),
-    };
-    const ref = await addDoc(
-      collection(this.db, "organizations", input.organizationId, "invites"),
-      invite,
-    );
-    return ref.id;
-  }
-
-  async recruitMember(
-    organizationId: string,
-    memberId: string,
-    name: string,
-    email: string,
-  ): Promise<void> {
-    const orgRef = doc(this.db, "organizations", organizationId);
-    const member: MemberReference = {
-      id: memberId,
-      name,
-      email,
-      role: "Member",
-      presence: "active",
-    };
-    const batch = writeBatch(this.db);
-    batch.update(orgRef, {
-      members: arrayUnion(member),
-      memberIds: arrayUnion(memberId),
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.organizationAccountRef(organizationId),
-      {
-        members: arrayUnion(member),
-        memberIds: arrayUnion(memberId),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async removeMember(organizationId: string, memberId: string): Promise<void> {
-    const orgSnap = await getDoc(doc(this.db, "organizations", organizationId));
-    if (!orgSnap.exists()) return;
-    const data = orgSnap.data() as Record<string, unknown>;
-    const members = Array.isArray(data.members)
-      ? (data.members as MemberReference[]).filter((m) => m.id !== memberId)
-      : [];
-    const batch = writeBatch(this.db);
-    batch.update(doc(this.db, "organizations", organizationId), {
-      members,
-      memberIds: arrayRemove(memberId),
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.organizationAccountRef(organizationId),
-      {
-        members,
-        memberIds: arrayRemove(memberId),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async updateMemberRole(input: UpdateMemberRoleInput): Promise<void> {
-    const orgSnap = await getDoc(doc(this.db, "organizations", input.organizationId));
-    if (!orgSnap.exists()) return;
-    const data = orgSnap.data() as Record<string, unknown>;
-    const members = Array.isArray(data.members)
-      ? (data.members as MemberReference[]).map((m) =>
-          m.id === input.memberId ? { ...m, role: input.role as OrganizationRole } : m,
-        )
-      : [];
-    const batch = writeBatch(this.db);
-    batch.update(doc(this.db, "organizations", input.organizationId), {
-      members,
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.organizationAccountRef(input.organizationId),
-      {
-        members,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async getMembers(organizationId: string): Promise<MemberReference[]> {
-    const snap = await getDoc(doc(this.db, "organizations", organizationId));
-    if (!snap.exists()) return [];
-    const data = snap.data() as Record<string, unknown>;
-    return Array.isArray(data.members) ? (data.members as MemberReference[]) : [];
-  }
-
-  subscribeToMembers(
-    organizationId: string,
-    onUpdate: (members: MemberReference[]) => void,
-  ): Unsubscribe {
-    return onSnapshot(doc(this.db, "organizations", organizationId), (snap) => {
-      if (!snap.exists()) {
-        onUpdate([]);
-        return;
-      }
-      const data = snap.data() as Record<string, unknown>;
-      onUpdate(Array.isArray(data.members) ? (data.members as MemberReference[]) : []);
-    });
-  }
-
-  // ─── Teams ──────────────────────────────────────────────────────────────────
-
-  async createTeam(input: CreateTeamInput): Promise<string> {
-    const teamRef = doc(collection(this.db, "organizations", input.organizationId, "teams"));
-    await setDoc(teamRef, {
-      name: input.name,
-      description: input.description,
-      type: input.type,
-      memberIds: [],
-      createdAt: serverTimestamp(),
-    });
-    return teamRef.id;
-  }
-
-  async deleteTeam(organizationId: string, teamId: string): Promise<void> {
-    await deleteDoc(doc(this.db, "organizations", organizationId, "teams", teamId));
-  }
-
-  async addMemberToTeam(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-  ): Promise<void> {
-    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
-      memberIds: arrayUnion(memberId),
-    });
-  }
-
-  async removeMemberFromTeam(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-  ): Promise<void> {
-    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
-      memberIds: arrayRemove(memberId),
-    });
-  }
-
-  async getTeams(organizationId: string): Promise<Team[]> {
-    const snaps = await getDocs(
-      collection(this.db, "organizations", organizationId, "teams"),
-    );
-    return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
-  }
-
-  subscribeToTeams(
-    organizationId: string,
-    onUpdate: (teams: Team[]) => void,
-  ): Unsubscribe {
-    return onSnapshot(
-      collection(this.db, "organizations", organizationId, "teams"),
-      (snap) => {
-        onUpdate(snap.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>)));
-      },
-    );
-  }
-
-  // ─── Partners ────────────────────────────────────────────────────────────────
-
-  async sendPartnerInvite(
-    organizationId: string,
-    teamId: string,
-    email: string,
-  ): Promise<string> {
-    const ref = await addDoc(
-      collection(this.db, "organizations", organizationId, "partnerInvites"),
-      {
-        email,
-        teamId,
-        role: "Guest",
-        inviteState: "pending",
-        invitedAt: serverTimestamp(),
-      },
-    );
-    return ref.id;
-  }
-
-  async dismissPartnerMember(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-  ): Promise<void> {
-    await this.removeMemberFromTeam(organizationId, teamId, memberId);
-  }
-
-  async getPartnerInvites(organizationId: string): Promise<PartnerInvite[]> {
-    const snaps = await getDocs(
-      collection(this.db, "organizations", organizationId, "partnerInvites"),
-    );
-    return snaps.docs.map((d) => toPartnerInvite(d.id, d.data() as Record<string, unknown>));
-  }
-}
 ````
 
 ## File: modules/source/interfaces/components/file-processing-dialog.surface.tsx
@@ -71143,67 +71153,6 @@ export function WorkspaceOverviewSummaryCard({
             <p className="text-xs text-muted-foreground">Grants</p>
             <p className="mt-1 text-xl font-semibold">{governanceSummary.grantCount}</p>
           </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/components/WorkspaceQuickstartCard.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-
-interface WorkspaceQuickstartCardProps {
-  readonly workspaceId: string;
-}
-
-export function WorkspaceQuickstartCard({ workspaceId }: WorkspaceQuickstartCardProps) {
-  return (
-    <Card className="border border-primary/20 bg-primary/5">
-      <CardHeader>
-        <CardTitle>🚀 開始使用這個工作區</CardTitle>
-        <CardDescription>完成以下步驟，讓工作區進入運作狀態。</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-border/40 px-4 py-4">
-          <p className="text-sm font-semibold">Step 1 · 上傳文件</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            先把原始文件上傳到 Files 分頁，作為知識基底。
-          </p>
-          <Button asChild size="sm" variant="outline" className="mt-3">
-            <Link href={`/workspace/${workspaceId}?tab=Files`}>前往 Files</Link>
-          </Button>
-        </div>
-        <div className="rounded-xl border border-border/40 px-4 py-4">
-          <p className="text-sm font-semibold">Step 2 · 建立頁面</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            直接在工作區知識頁面建立第一個頁面，整理結構。
-          </p>
-          <Button asChild size="sm" variant="outline" className="mt-3">
-            <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspaceId)}`}>前往知識頁面</Link>
-          </Button>
-        </div>
-        <div className="rounded-xl border border-border/40 px-4 py-4">
-          <p className="text-sm font-semibold">Step 3 · AI 查詢</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            用 RAG Query 對工作區知識提問，驗證內容可被檢索。
-          </p>
-          <Button asChild size="sm" variant="outline" className="mt-3">
-            <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspaceId)}`}>
-              前往 RAG Query
-            </Link>
-          </Button>
         </div>
       </CardContent>
     </Card>
@@ -79170,454 +79119,6 @@ export type {
 } from "../value-objects/WorkspaceVisibility";
 ````
 
-## File: modules/workspace/repositories.md
-````markdown
-# workspace — Repositories
-
-> **Canonical bounded context:** `workspace`
-> **模組路徑:** `modules/workspace/`
-> **Domain Type:** Generic Subdomain
-
-本文件定義 workspace 的 repository ports 與對應 infrastructure adapters。workspace 目前同時存在 write-side 與 read-side repository，目的是把 aggregate 持久化與 projection 查詢分開。
-
-在 workspace 中，Repository（倉儲）可以是介面或類別：`domain/repositories/` 裡的 port 是介面；`infrastructure/` 裡負責資料存取的 adapter 是類別。
-
-從六邊形架構看，repository ports 是 domain/application 內核朝外宣告的 driven ports；Firebase 類別是被動端 adapter，不應反向把外部技術語言帶回 domain model。
-
-從 event sourcing 視角補充：若未來採 event sourcing，Repository 會改為從 event store 讀取並重建 aggregate；但目前 workspace repository 是 current-state persistence，不是 event-sourced reconstitution。
-
-## Ports and Adapters Distinction
-
-- Port：`domain/repositories/` 中的介面，定義內核需要什麼能力
-- Adapter：`infrastructure/` 中的類別，實作這些能力並接上 Firestore / 其他外部系統
-- Driver 不直接呼叫 adapter；通常由 `interfaces/` / `application/` 協作後再使用對應 port
-
-## Write-side Repository Ports
-
-### `WorkspaceRepository`
-
-`WorkspaceRepository` 現在只服務 `Workspace` aggregate 的核心持久化與設定更新。
-
-#### 核心方法
-
-- `findById(id)`
-- `findByIdForAccount(accountId, workspaceId)`
-- `findAllByAccountId(accountId)`
-- `save(workspace)`
-- `updateSettings(command)`
-- `delete(id)`
-
-### Supporting Record Ports
-
-#### `WorkspaceCapabilityRepository`
-
-- `mountCapabilities()` / `unmountCapability()`
-
-#### `WorkspaceAccessRepository`
-
-- `grantTeamAccess()` / `revokeTeamAccess()`
-- `grantIndividualAccess()` / `revokeIndividualAccess()`
-
-#### `WorkspaceLocationRepository`
-
-- `createLocation()` / `updateLocation()` / `deleteLocation()`
-
-這些 supporting operations 目前仍由 workspace 擁有，但不再混在核心 aggregate repository port 中；若之後 ownership 外拆，可直接替換對應 supporting port。
-
-## Read-side Repository Ports
-
-### `WorkspaceQueryRepository`
-
-負責工作區查詢投影，而非 aggregate 持久化。
-
-#### 方法
-
-- `subscribeToWorkspacesForAccount(accountId, onUpdate)`
-- `getWorkspaceMembers(workspaceId)`
-
-這個 port 主要輸出 projection / read model，而不是 aggregate。
-
-### `WikiWorkspaceRepository`
-
-負責組合工作區導覽 tree 所需的最小工作區參照。
-
-#### 方法
-
-- `listByAccountId(accountId)`
-
-這個 port 服務的是 read-side composition，因此它的輸出也應視為 read model input，而不是 aggregate source of truth。
-
-## Infrastructure Adapters
-
-| Adapter | 作用 |
-|---|---|
-| `FirebaseWorkspaceRepository` | `WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository` 的 Firestore 實作 |
-| `FirebaseWorkspaceQueryRepository` | `WorkspaceQueryRepository` 的 Firebase / organization read-side 組裝實作 |
-| `FirebaseWikiWorkspaceRepository` | `WikiWorkspaceRepository` 的 Firestore 參照查詢實作 |
-
-## 設計規則
-
-- repository 介面定義在 `domain/repositories/`
-- infrastructure adapters 實作在 `infrastructure/`
-- `application/` 只依賴 repository ports，不依賴 adapter 類別
-- 跨模組 consumer 不直接 import repository implementation；一律透過 `api/` 或對應 interface adapter 使用
-
-## Tactical Debt Notes
-
-- supporting records 仍然物理上儲存在同一份 workspace document，但 application layer 已改為依賴專用 supporting ports
-- `WorkspaceQueryRepository` 同時承擔 read-side translation，尤其是把 `organization` 資料翻譯成 `WorkspaceMemberView`
-- 事件目前用於發布與整合，不用來作為 repository 的唯一狀態來源
-````
-
-## File: modules/workspace/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — workspace
-
-> **範圍：** 僅限 `modules/workspace/` bounded context 內
-
-本文件除了領域名詞，也會用少量 DDD 元術語幫助閱讀 companion docs；這些術語是文件讀法，不是要取代 workspace 自己的通用語言。
-
-## 戰略層級術語
-
-| 術語 | 在 workspace 文件中的意思 |
-|------|------------------------|
-| Domain | 指 Xuanwu 這個整體知識平台業務域 |
-| Subdomain | 指 workspace 所對應的協作容器問題空間；戰略分類屬於 generic subdomain |
-| Bounded Context | 指 `modules/workspace/` 這個語言、模型與 adapter 的邊界 |
-
-子域與限界上下文不是同一件事：subdomain 是業務問題空間；bounded context 是該語言與模型的實作/協作邊界。
-
-同一個 subdomain 可以由一個或多個 bounded contexts 落地；workspace 文件只描述 `modules/workspace/` 這個 bounded context 的語言，不替整個 subdomain 代言所有詞彙。
-
-## 核心術語
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 工作區 | `Workspace` | 協作容器的 aggregate root，代表一個工作區範圍 |
-| 工作區 ID | `workspaceId` | `Workspace` 的業務識別子，也是跨 context 的範圍鍵 |
-| 帳戶 ID | `accountId` | 擁有工作區的 account 或 organization 識別子 |
-| 工作區生命週期 | `WorkspaceLifecycleState` | `preparatory | active | stopped` |
-| 工作區可見性 | `WorkspaceVisibility` | `visible | hidden`，控制工作區是否可被發現 |
-
-## Supporting Domain Objects
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 工作區授權 | `WorkspaceGrant` | 工作區上的直接授權記錄，描述 user/team 與 role 關係 |
-| 工作區能力 | `Capability` | 目前掛載在工作區上的功能能力記錄 |
-| 工作區位置 | `WorkspaceLocation` | 工作區底下帶 identity 的位置節點 |
-| 工作區人員資訊 | `WorkspacePersonnel` | 工作區上的管理/監督/安全等角色參照集合 |
-| 工作區地址 | `Address` | 工作區地址值型資料 |
-
-## Read-side Projection Terms
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 工作區成員檢視 | `WorkspaceMemberView` | 由 workspace + organization 資料組裝出的成員查詢投影 |
-| 工作區成員接入通道 | `WorkspaceMemberAccessChannel` | 成員透過 owner/direct/team/personnel 進入工作區的路徑描述 |
-| 工作區帳戶節點 | `WikiAccountContentNode` | 用於導覽查詢的帳戶層節點 |
-| 工作區導覽節點 | `WikiWorkspaceContentNode` | 用於導覽查詢的工作區節點 |
-| 工作區導覽項 | `WikiContentItemNode` | 導覽/捷徑用的 read projection，不是 domain aggregate |
-
-Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driver 或查詢場景最佳化，但不應回頭成為 write-side truth。
-
-## Domain Event Terms
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 工作區已建立事件 | `WorkspaceCreatedEvent` | 工作區建立後對外發布的 domain event 訊息 |
-| 工作區生命週期已轉移事件 | `WorkspaceLifecycleTransitionedEvent` | 工作區生命週期改變後發布的 domain event |
-| 工作區可見性已變更事件 | `WorkspaceVisibilityChangedEvent` | 工作區可見性變更後發布的 domain event |
-
-## 行為語言（Behavioral Language）
-
-| 行為 | 英文 | 在 workspace 中的語意 |
-|------|------|------------------------|
-| 建立工作區 | `create workspace` | 建立一個新的工作區協作容器，初始化 `workspaceId`、生命週期與可見性 |
-| 啟用工作區 | `activate workspace` | 將工作區從 `preparatory` 推進到 `active`，表示它已進入可運作狀態 |
-| 停止工作區 | `stop workspace` | 將工作區從 `active` 推進到 `stopped`，表示該範圍不再繼續運作 |
-| 變更工作區可見性 | `change workspace visibility` | 在 `visible` 與 `hidden` 之間替換可見性，不改變工作區 identity |
-| 掛載工作區能力 | `mount capabilities` | 將能力記錄掛到工作區範圍之下 |
-| 授權工作區存取 | `grant workspace access` | 將 user / team / personnel 路徑的存取權授予工作區 |
-| 建立工作區位置 | `create workspace location` | 在工作區範圍下建立帶 identity 的位置節點 |
-| 發布工作區事件 | `publish workspace event` | 在 aggregate 狀態改變成功後，對外發布對應的 domain event |
-
-這些行為語言描述的是「workspace 做什麼」，不是 UI 按鈕文案，也不是 framework callback 名稱。
-
-## 不變條件（Invariants）
-
-- `workspaceId` 一旦建立，就持續代表同一個工作區範圍
-- `accountId` 與 `accountType` 在 workspace 建立後不應被重新指定
-- `WorkspaceLifecycleState` 的 canonical 值只有 `preparatory | active | stopped`
-- `WorkspaceVisibility` 的 canonical 值只有 `visible | hidden`
-- `WorkspaceVisibility` 是曝光語意，不是生命週期語意；它不能取代 `WorkspaceLifecycleState`
-- `WorkspaceName` 應維持為有效名稱值，而不是未經正規化的任意字串
-- `WorkspaceMemberView` 與 `Wiki*Node` 是 projection / read model，不是 write-side truth
-- 下游 bounded context 只能在有效的 `workspaceId` 範圍內對齊自己的資料與行為
-
-更完整的 aggregate-level invariants 請看 [aggregates.md](./aggregates.md)。本節只記錄通用語言層級必須一致理解的規則。
-
-## 狀態轉移語意（Transition Semantics）
-
-### 生命週期語意
-
-- `preparatory -> active`：工作區從準備中進入可運作狀態
-- `active -> stopped`：工作區從運作中進入停止狀態
-- `stopped`：目前語意上視為終止狀態，不等同 `archived`
-
-### 可見性語意
-
-- `visible -> hidden`：工作區仍存在，但不再以可發現狀態暴露
-- `hidden -> visible`：工作區重新回到可發現狀態
-- 可見性變化不等於生命週期變化；它不建立、刪除或重命名工作區
-
-### 事件語意
-
-- 建立工作區後可發布 `WorkspaceCreatedEvent`
-- 生命週期發生有效轉移後可發布 `WorkspaceLifecycleTransitionedEvent`
-- 可見性發生變更後可發布 `WorkspaceVisibilityChangedEvent`
-
-## 命名守則
-
-- aggregate 與 supporting objects 使用 `Workspace*` 前綴，保持 bounded context 可讀性
-- `WorkspaceLifecycleState` 是 canonical 名稱，不使用 `WorkspaceStatus`
-- `WorkspaceMemberView` 是 projection 名稱，不縮寫成 `WorkspaceMember`
-- 若描述 query tree，使用 `WikiAccountContentNode` / `WikiWorkspaceContentNode` / `WikiContentItemNode`
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `Workspace` | `Project`, `Space`, `Room` |
-| `WorkspaceLifecycleState` | `WorkspaceStatus`, `ArchivedState` |
-| `WorkspaceVisibility` | `VisibilityMode`, `DiscoveryState` |
-| `WorkspaceMemberView` | `WorkspaceMember`, `Member`, `Participant` |
-| `WikiAccountContentNode` / `WikiWorkspaceContentNode` | `WikiContentTree`, `PageTree`, `Hierarchy`（當你描述 aggregate 或 entity 時） |
-
-## 語意說明
-
-- `archived` 不是此 bounded context 的生命週期語言；停止中的工作區使用 `stopped`
-- `WorkspaceMemberView` 與 `Wiki*Node` 是查詢模型，不等同 write-side domain objects
-- `workspaceId` 是下游 context 對齊 workspace scope 的主要 published language
-- 同一組 workspace 語言應在此 bounded context 的 domain、application、interfaces、infrastructure 中保持一致；只有在邊界上才翻譯外部語言
-
-## 文件元術語對照
-
-| 概念 | 在這組文件中的意思 |
-|------|------------------|
-| Entity（實體） | 類別 / 物件，具備 identity，語意上可跨時間被辨識 |
-| Value Object（值對象） | 類別 / 物件，以值相等判斷語意，例如 `WorkspaceVisibility`、`Address` |
-| Aggregate / Aggregate Root（聚合 / 聚合根） | 類別 / 物件，負責保護 write-side 一致性；workspace 的 aggregate root 是 `Workspace` |
-| Repository（倉儲） | 介面或類別，負責 aggregate / projection 的資料存取 |
-| Ports（端口） | 介面，定義內核與外部協作的接縫 |
-| Adapters（適配器） | 類別 / 函式 / 模組，將 driver 或 external system 轉譯成內核可處理的契約 |
-| 外部系統 / Driver（驅動器） | 從 bounded context 外部發起互動的角色 / 系統，例如 UI、Server Actions、其他 context 呼叫者 |
-| Projection / Read Model | 查詢導向的讀取模型，例如 `WorkspaceMemberView`、`Wiki*Node` |
-| Domain Service（領域服務） | 類別 / 函式，承載不自然屬於 aggregate / value object 的純領域規則 |
-| Factory（工廠） | 類別 / 函式，負責建立 aggregate、value object、domain event 等有效模型 |
-| Domain Event（領域事件） | 事件類別、訊息物件，作為對外發布的 domain language |
-````
-
-## File: modules/workspace/api/ui.ts
-````typescript
-/**
- * workspace API UI surface.
- *
- * Public interface-layer composition exports.
- */
-
-export { WorkspaceDetailScreen } from "../interfaces/components/WorkspaceDetailScreen";
-export { WorkspaceDetailRouteScreen } from "../interfaces/components/WorkspaceDetailRouteScreen";
-export { WorkspaceHubScreen } from "../interfaces/components/WorkspaceHubScreen";
-export { WorkspaceMembersTab } from "../interfaces/components/WorkspaceMembersTab";
-export { WorkspaceSidebarSection } from "../interfaces/components/WorkspaceSidebarSection";
-export { CreateWorkspaceDialogRail } from "../interfaces/components/CreateWorkspaceDialogRail";
-
-export {
-  WORKSPACE_TAB_GROUPS,
-  WORKSPACE_TAB_META,
-  WORKSPACE_TAB_VALUES,
-  getWorkspaceTabLabel,
-  getWorkspaceTabMeta,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "../interfaces/workspace-tabs";
-
-export { getWorkspaceStorageKey, toWorkspaceMap } from "../interfaces/workspace-session";
-
-export type { WorkspaceNavItem } from "../interfaces/workspace-nav-items";
-export {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "../interfaces/workspace-nav-items";
-
-export type {
-  WorkspaceQuickAccessItem,
-  WorkspaceQuickAccessMatcherOptions,
-} from "../interfaces/workspace-quick-access";
-
-export { buildWorkspaceQuickAccessItems } from "../interfaces/workspace-quick-access";
-
-export type {
-  WorkspaceTabDevStatus,
-  WorkspaceTabGroup,
-  WorkspaceTabValue,
-} from "../interfaces/workspace-tabs";
-
-export { useWorkspaceHub } from "../interfaces/hooks/useWorkspaceHub";
-export {
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  getWorkspaceIdFromPath,
-  useRecentWorkspaces,
-} from "../interfaces/hooks/useRecentWorkspaces";
-````
-
-## File: modules/workspace/application/use-cases/workspace-lifecycle.use-cases.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Workspace lifecycle use cases — create and delete.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
-import type { WorkspaceCapabilityRepository } from "../../domain/repositories/WorkspaceCapabilityRepository";
-import type {
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  Capability,
-} from "../../domain/entities/Workspace";
-import {
-  createWorkspaceAggregate,
-  reconstituteWorkspaceAggregate,
-  toWorkspaceSnapshot,
-} from "../../domain/factories/WorkspaceFactory";
-import type { Workspace } from "../../domain/entities/Workspace";
-
-function sanitizeWorkspaceSettingsCommand(
-  workspace: Workspace,
-  command: UpdateWorkspaceSettingsCommand,
-): UpdateWorkspaceSettingsCommand {
-  workspace.applySettings(command);
-
-  return {
-    workspaceId: command.workspaceId,
-    accountId: command.accountId,
-    name: command.name !== undefined ? workspace.name : undefined,
-    visibility: command.visibility !== undefined ? workspace.visibility : undefined,
-    lifecycleState:
-      command.lifecycleState !== undefined ? workspace.lifecycleState : undefined,
-    address: command.address !== undefined ? workspace.address : undefined,
-    personnel: command.personnel !== undefined ? workspace.personnel : undefined,
-  };
-}
-
-// ─── Create Workspace ─────────────────────────────────────────────────────────
-
-export class CreateWorkspaceUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
-    try {
-      const workspace = createWorkspaceAggregate(command);
-      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace",
-      );
-    }
-  }
-}
-
-// ─── Create Workspace with Capabilities ──────────────────────────────────────
-
-export class CreateWorkspaceWithCapabilitiesUseCase {
-  constructor(
-    private readonly workspaceRepo: WorkspaceRepository,
-    private readonly capabilityRepo: WorkspaceCapabilityRepository,
-  ) {}
-
-  async execute(
-    command: CreateWorkspaceCommand,
-    capabilities: Capability[] = [],
-  ): Promise<CommandResult> {
-    try {
-      const workspace = createWorkspaceAggregate(command);
-      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
-      if (capabilities.length > 0) {
-        await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
-      }
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_WITH_CAPABILITIES_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace with capabilities",
-      );
-    }
-  }
-}
-
-// ─── Update Settings ──────────────────────────────────────────────────────────
-
-export class UpdateWorkspaceSettingsUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
-    try {
-      const workspace = await this.workspaceRepo.findByIdForAccount(
-        command.accountId,
-        command.workspaceId,
-      );
-      if (!workspace) {
-        return commandFailureFrom(
-          "WORKSPACE_NOT_FOUND",
-          `Workspace ${command.workspaceId} not found`,
-        );
-      }
-      await this.workspaceRepo.updateSettings(
-        sanitizeWorkspaceSettingsCommand(
-          reconstituteWorkspaceAggregate(workspace),
-          command,
-        ),
-      );
-      return commandSuccess(command.workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_UPDATE_FAILED",
-        err instanceof Error ? err.message : "Failed to update workspace settings",
-      );
-    }
-  }
-}
-
-// ─── Delete Workspace ─────────────────────────────────────────────────────────
-
-export class DeleteWorkspaceUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(workspaceId: string): Promise<CommandResult> {
-    try {
-      const workspace = await this.workspaceRepo.findById(workspaceId);
-      if (!workspace) {
-        return commandFailureFrom("WORKSPACE_NOT_FOUND", `Workspace ${workspaceId} not found`);
-      }
-      await this.workspaceRepo.delete(workspaceId);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_DELETE_FAILED",
-        err instanceof Error ? err.message : "Failed to delete workspace",
-      );
-    }
-  }
-}
-````
-
 ## File: modules/workspace/interfaces/components/WorkspaceOverviewTab.tsx
 ````typescript
 "use client";
@@ -79889,6 +79390,465 @@ export function WorkspaceOverviewTab({
 }
 ````
 
+## File: modules/workspace/repositories.md
+````markdown
+# workspace — Repositories
+
+> **Canonical bounded context:** `workspace`
+> **模組路徑:** `modules/workspace/`
+> **Domain Type:** Generic Subdomain
+
+本文件定義 workspace 的 repository ports 與對應 infrastructure adapters。workspace 目前同時存在 write-side 與 read-side repository，目的是把 aggregate 持久化與 projection 查詢分開。
+
+在 workspace 中，Repository（倉儲）可以是介面或類別：`domain/repositories/` 裡的 port 是介面；`infrastructure/` 裡負責資料存取的 adapter 是類別。
+
+從六邊形架構看，repository ports 是 domain/application 內核朝外宣告的 driven ports；Firebase 類別是被動端 adapter，不應反向把外部技術語言帶回 domain model。
+
+從 event sourcing 視角補充：若未來採 event sourcing，Repository 會改為從 event store 讀取並重建 aggregate；但目前 workspace repository 是 current-state persistence，不是 event-sourced reconstitution。
+
+## Ports and Adapters Distinction
+
+- Port：`domain/repositories/` 中的介面，定義內核需要什麼能力
+- Adapter：`infrastructure/` 中的類別，實作這些能力並接上 Firestore / 其他外部系統
+- Driver 不直接呼叫 adapter；通常由 `interfaces/` / `application/` 協作後再使用對應 port
+
+## Write-side Repository Ports
+
+### `WorkspaceRepository`
+
+`WorkspaceRepository` 現在只服務 `Workspace` aggregate 的核心持久化與設定更新。
+
+#### 核心方法
+
+- `findById(id)`
+- `findByIdForAccount(accountId, workspaceId)`
+- `findAllByAccountId(accountId)`
+- `save(workspace)`
+- `updateSettings(command)`
+- `delete(id)`
+
+### Supporting Record Ports
+
+#### `WorkspaceCapabilityRepository`
+
+- `mountCapabilities()` / `unmountCapability()`
+
+#### `WorkspaceAccessRepository`
+
+- `grantTeamAccess()` / `revokeTeamAccess()`
+- `grantIndividualAccess()` / `revokeIndividualAccess()`
+
+#### `WorkspaceLocationRepository`
+
+- `createLocation()` / `updateLocation()` / `deleteLocation()`
+
+這些 supporting operations 目前仍由 workspace 擁有，但不再混在核心 aggregate repository port 中；若之後 ownership 外拆，可直接替換對應 supporting port。
+
+## Read-side Repository Ports
+
+### `WorkspaceQueryRepository`
+
+負責工作區查詢投影，而非 aggregate 持久化。
+
+#### 方法
+
+- `subscribeToWorkspacesForAccount(accountId, onUpdate)`
+- `getWorkspaceMembers(workspaceId)`
+
+這個 port 主要輸出 projection / read model，而不是 aggregate。
+
+### `WikiWorkspaceRepository`
+
+負責組合工作區導覽 tree 所需的最小工作區參照。
+
+#### 方法
+
+- `listByAccountId(accountId)`
+
+這個 port 服務的是 read-side composition，因此它的輸出也應視為 read model input，而不是 aggregate source of truth。
+
+## Infrastructure Adapters
+
+| Adapter | 作用 |
+|---|---|
+| `FirebaseWorkspaceRepository` | `WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository` 的 Firestore 實作 |
+| `FirebaseWorkspaceQueryRepository` | `WorkspaceQueryRepository` 的 Firebase / organization read-side 組裝實作 |
+| `FirebaseWikiWorkspaceRepository` | `WikiWorkspaceRepository` 的 Firestore 參照查詢實作 |
+
+## 設計規則
+
+- repository 介面定義在 `domain/repositories/`
+- infrastructure adapters 實作在 `infrastructure/`
+- `application/` 只依賴 repository ports，不依賴 adapter 類別
+- 跨模組 consumer 不直接 import repository implementation；一律透過 `api/` 或對應 interface adapter 使用
+
+## Tactical Debt Notes
+
+- supporting records 仍然物理上儲存在同一份 workspace document，但 application layer 已改為依賴專用 supporting ports
+- `WorkspaceQueryRepository` 同時承擔 read-side translation，尤其是把 `organization` 資料翻譯成 `WorkspaceMemberView`
+- 事件目前用於發布與整合，不用來作為 repository 的唯一狀態來源
+````
+
+## File: modules/workspace/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — workspace
+
+> **範圍：** 僅限 `modules/workspace/` bounded context 內
+
+本文件除了領域名詞，也會用少量 DDD 元術語幫助閱讀 companion docs；這些術語是文件讀法，不是要取代 workspace 自己的通用語言。
+
+## 戰略層級術語
+
+| 術語 | 在 workspace 文件中的意思 |
+|------|------------------------|
+| Domain | 指 Xuanwu 這個整體知識平台業務域 |
+| Subdomain | 指 workspace 所對應的協作容器問題空間；戰略分類屬於 generic subdomain |
+| Bounded Context | 指 `modules/workspace/` 這個語言、模型與 adapter 的邊界 |
+
+子域與限界上下文不是同一件事：subdomain 是業務問題空間；bounded context 是該語言與模型的實作/協作邊界。
+
+同一個 subdomain 可以由一個或多個 bounded contexts 落地；workspace 文件只描述 `modules/workspace/` 這個 bounded context 的語言，不替整個 subdomain 代言所有詞彙。
+
+## 核心術語
+
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 工作區 | `Workspace` | 協作容器的 aggregate root，代表一個工作區範圍 |
+| 工作區 ID | `workspaceId` | `Workspace` 的業務識別子，也是跨 context 的範圍鍵 |
+| 帳戶 ID | `accountId` | 擁有工作區的 account 或 organization 識別子 |
+| 工作區生命週期 | `WorkspaceLifecycleState` | `preparatory | active | stopped` |
+| 工作區可見性 | `WorkspaceVisibility` | `visible | hidden`，控制工作區是否可被發現 |
+
+## Supporting Domain Objects
+
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 工作區授權 | `WorkspaceGrant` | 工作區上的直接授權記錄，描述 user/team 與 role 關係 |
+| 工作區能力 | `Capability` | 目前掛載在工作區上的功能能力記錄 |
+| 工作區位置 | `WorkspaceLocation` | 工作區底下帶 identity 的位置節點 |
+| 工作區人員資訊 | `WorkspacePersonnel` | 工作區上的管理/監督/安全等角色參照集合 |
+| 工作區地址 | `Address` | 工作區地址值型資料 |
+
+## Read-side Projection Terms
+
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 工作區成員檢視 | `WorkspaceMemberView` | 由 workspace + organization 資料組裝出的成員查詢投影 |
+| 工作區成員接入通道 | `WorkspaceMemberAccessChannel` | 成員透過 owner/direct/team/personnel 進入工作區的路徑描述 |
+| 工作區帳戶節點 | `WikiAccountContentNode` | 用於導覽查詢的帳戶層節點 |
+| 工作區導覽節點 | `WikiWorkspaceContentNode` | 用於導覽查詢的工作區節點 |
+| 工作區導覽項 | `WikiContentItemNode` | 導覽/捷徑用的 read projection，不是 domain aggregate |
+
+Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driver 或查詢場景最佳化，但不應回頭成為 write-side truth。
+
+## Domain Event Terms
+
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 工作區已建立事件 | `WorkspaceCreatedEvent` | 工作區建立後對外發布的 domain event 訊息 |
+| 工作區生命週期已轉移事件 | `WorkspaceLifecycleTransitionedEvent` | 工作區生命週期改變後發布的 domain event |
+| 工作區可見性已變更事件 | `WorkspaceVisibilityChangedEvent` | 工作區可見性變更後發布的 domain event |
+
+## 行為語言（Behavioral Language）
+
+| 行為 | 英文 | 在 workspace 中的語意 |
+|------|------|------------------------|
+| 建立工作區 | `create workspace` | 建立一個新的工作區協作容器，初始化 `workspaceId`、生命週期與可見性 |
+| 啟用工作區 | `activate workspace` | 將工作區從 `preparatory` 推進到 `active`，表示它已進入可運作狀態 |
+| 停止工作區 | `stop workspace` | 將工作區從 `active` 推進到 `stopped`，表示該範圍不再繼續運作 |
+| 變更工作區可見性 | `change workspace visibility` | 在 `visible` 與 `hidden` 之間替換可見性，不改變工作區 identity |
+| 掛載工作區能力 | `mount capabilities` | 將能力記錄掛到工作區範圍之下 |
+| 授權工作區存取 | `grant workspace access` | 將 user / team / personnel 路徑的存取權授予工作區 |
+| 建立工作區位置 | `create workspace location` | 在工作區範圍下建立帶 identity 的位置節點 |
+| 發布工作區事件 | `publish workspace event` | 在 aggregate 狀態改變成功後，對外發布對應的 domain event |
+
+這些行為語言描述的是「workspace 做什麼」，不是 UI 按鈕文案，也不是 framework callback 名稱。
+
+## 不變條件（Invariants）
+
+- `workspaceId` 一旦建立，就持續代表同一個工作區範圍
+- `accountId` 與 `accountType` 在 workspace 建立後不應被重新指定
+- `WorkspaceLifecycleState` 的 canonical 值只有 `preparatory | active | stopped`
+- `WorkspaceVisibility` 的 canonical 值只有 `visible | hidden`
+- `WorkspaceVisibility` 是曝光語意，不是生命週期語意；它不能取代 `WorkspaceLifecycleState`
+- `WorkspaceName` 應維持為有效名稱值，而不是未經正規化的任意字串
+- `WorkspaceMemberView` 與 `Wiki*Node` 是 projection / read model，不是 write-side truth
+- 下游 bounded context 只能在有效的 `workspaceId` 範圍內對齊自己的資料與行為
+
+更完整的 aggregate-level invariants 請看 [aggregates.md](./aggregates.md)。本節只記錄通用語言層級必須一致理解的規則。
+
+## 狀態轉移語意（Transition Semantics）
+
+### 生命週期語意
+
+- `preparatory -> active`：工作區從準備中進入可運作狀態
+- `active -> stopped`：工作區從運作中進入停止狀態
+- `stopped`：目前語意上視為終止狀態，不等同 `archived`
+
+### 可見性語意
+
+- `visible -> hidden`：工作區仍存在，但不再以可發現狀態暴露
+- `hidden -> visible`：工作區重新回到可發現狀態
+- 可見性變化不等於生命週期變化；它不建立、刪除或重命名工作區
+
+### 事件語意
+
+- 建立工作區後可發布 `WorkspaceCreatedEvent`
+- 生命週期發生有效轉移後可發布 `WorkspaceLifecycleTransitionedEvent`
+- 可見性發生變更後可發布 `WorkspaceVisibilityChangedEvent`
+
+## 命名守則
+
+- aggregate 與 supporting objects 使用 `Workspace*` 前綴，保持 bounded context 可讀性
+- `WorkspaceLifecycleState` 是 canonical 名稱，不使用 `WorkspaceStatus`
+- `WorkspaceMemberView` 是 projection 名稱，不縮寫成 `WorkspaceMember`
+- 若描述 query tree，使用 `WikiAccountContentNode` / `WikiWorkspaceContentNode` / `WikiContentItemNode`
+
+## 禁止替換術語
+
+| 正確 | 禁止 |
+|------|------|
+| `Workspace` | `Project`, `Space`, `Room` |
+| `WorkspaceLifecycleState` | `WorkspaceStatus`, `ArchivedState` |
+| `WorkspaceVisibility` | `VisibilityMode`, `DiscoveryState` |
+| `WorkspaceMemberView` | `WorkspaceMember`, `Member`, `Participant` |
+| `WikiAccountContentNode` / `WikiWorkspaceContentNode` | `WikiContentTree`, `PageTree`, `Hierarchy`（當你描述 aggregate 或 entity 時） |
+
+## 語意說明
+
+- `archived` 不是此 bounded context 的生命週期語言；停止中的工作區使用 `stopped`
+- `WorkspaceMemberView` 與 `Wiki*Node` 是查詢模型，不等同 write-side domain objects
+- `workspaceId` 是下游 context 對齊 workspace scope 的主要 published language
+- 同一組 workspace 語言應在此 bounded context 的 domain、application、interfaces、infrastructure 中保持一致；只有在邊界上才翻譯外部語言
+
+## 文件元術語對照
+
+| 概念 | 在這組文件中的意思 |
+|------|------------------|
+| Entity（實體） | 類別 / 物件，具備 identity，語意上可跨時間被辨識 |
+| Value Object（值對象） | 類別 / 物件，以值相等判斷語意，例如 `WorkspaceVisibility`、`Address` |
+| Aggregate / Aggregate Root（聚合 / 聚合根） | 類別 / 物件，負責保護 write-side 一致性；workspace 的 aggregate root 是 `Workspace` |
+| Repository（倉儲） | 介面或類別，負責 aggregate / projection 的資料存取 |
+| Ports（端口） | 介面，定義內核與外部協作的接縫 |
+| Adapters（適配器） | 類別 / 函式 / 模組，將 driver 或 external system 轉譯成內核可處理的契約 |
+| 外部系統 / Driver（驅動器） | 從 bounded context 外部發起互動的角色 / 系統，例如 UI、Server Actions、其他 context 呼叫者 |
+| Projection / Read Model | 查詢導向的讀取模型，例如 `WorkspaceMemberView`、`Wiki*Node` |
+| Domain Service（領域服務） | 類別 / 函式，承載不自然屬於 aggregate / value object 的純領域規則 |
+| Factory（工廠） | 類別 / 函式，負責建立 aggregate、value object、domain event 等有效模型 |
+| Domain Event（領域事件） | 事件類別、訊息物件，作為對外發布的 domain language |
+````
+
+## File: modules/workspace/application/use-cases/workspace-lifecycle.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Workspace lifecycle use cases — create and delete.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
+import type { WorkspaceCapabilityRepository } from "../../domain/repositories/WorkspaceCapabilityRepository";
+import type {
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  Capability,
+} from "../../domain/entities/Workspace";
+import {
+  createWorkspaceAggregate,
+  reconstituteWorkspaceAggregate,
+  toWorkspaceSnapshot,
+} from "../../domain/factories/WorkspaceFactory";
+import type { Workspace } from "../../domain/entities/Workspace";
+
+function sanitizeWorkspaceSettingsCommand(
+  workspace: Workspace,
+  command: UpdateWorkspaceSettingsCommand,
+): UpdateWorkspaceSettingsCommand {
+  workspace.applySettings(command);
+
+  return {
+    workspaceId: command.workspaceId,
+    accountId: command.accountId,
+    name: command.name !== undefined ? workspace.name : undefined,
+    visibility: command.visibility !== undefined ? workspace.visibility : undefined,
+    lifecycleState:
+      command.lifecycleState !== undefined ? workspace.lifecycleState : undefined,
+    address: command.address !== undefined ? workspace.address : undefined,
+    personnel: command.personnel !== undefined ? workspace.personnel : undefined,
+  };
+}
+
+// ─── Create Workspace ─────────────────────────────────────────────────────────
+
+export class CreateWorkspaceUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
+    try {
+      const workspace = createWorkspaceAggregate(command);
+      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_CREATE_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace",
+      );
+    }
+  }
+}
+
+// ─── Create Workspace with Capabilities ──────────────────────────────────────
+
+export class CreateWorkspaceWithCapabilitiesUseCase {
+  constructor(
+    private readonly workspaceRepo: WorkspaceRepository,
+    private readonly capabilityRepo: WorkspaceCapabilityRepository,
+  ) {}
+
+  async execute(
+    command: CreateWorkspaceCommand,
+    capabilities: Capability[] = [],
+  ): Promise<CommandResult> {
+    try {
+      const workspace = createWorkspaceAggregate(command);
+      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
+      if (capabilities.length > 0) {
+        await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
+      }
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_CREATE_WITH_CAPABILITIES_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace with capabilities",
+      );
+    }
+  }
+}
+
+// ─── Update Settings ──────────────────────────────────────────────────────────
+
+export class UpdateWorkspaceSettingsUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
+    try {
+      const workspace = await this.workspaceRepo.findByIdForAccount(
+        command.accountId,
+        command.workspaceId,
+      );
+      if (!workspace) {
+        return commandFailureFrom(
+          "WORKSPACE_NOT_FOUND",
+          `Workspace ${command.workspaceId} not found`,
+        );
+      }
+      await this.workspaceRepo.updateSettings(
+        sanitizeWorkspaceSettingsCommand(
+          reconstituteWorkspaceAggregate(workspace),
+          command,
+        ),
+      );
+      return commandSuccess(command.workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_UPDATE_FAILED",
+        err instanceof Error ? err.message : "Failed to update workspace settings",
+      );
+    }
+  }
+}
+
+// ─── Delete Workspace ─────────────────────────────────────────────────────────
+
+export class DeleteWorkspaceUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(workspaceId: string): Promise<CommandResult> {
+    try {
+      const workspace = await this.workspaceRepo.findById(workspaceId);
+      if (!workspace) {
+        return commandFailureFrom("WORKSPACE_NOT_FOUND", `Workspace ${workspaceId} not found`);
+      }
+      await this.workspaceRepo.delete(workspaceId);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_DELETE_FAILED",
+        err instanceof Error ? err.message : "Failed to delete workspace",
+      );
+    }
+  }
+}
+````
+
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+````
+
+## File: modules/workspace/api/ui.ts
+````typescript
+/**
+ * workspace API UI surface.
+ *
+ * Public interface-layer composition exports.
+ */
+
+export { WorkspaceDetailScreen } from "../interfaces/components/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "../interfaces/components/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "../interfaces/components/WorkspaceHubScreen";
+export { WorkspaceMembersTab } from "../interfaces/components/WorkspaceMembersTab";
+export { WorkspaceSidebarSection } from "../interfaces/components/WorkspaceSidebarSection";
+export { CreateWorkspaceDialogRail } from "../interfaces/components/CreateWorkspaceDialogRail";
+export { OrganizationWorkspacesScreen } from "../interfaces/components/OrganizationWorkspacesScreen";
+
+export {
+  WORKSPACE_TAB_GROUPS,
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_VALUES,
+  getWorkspaceTabLabel,
+  getWorkspaceTabMeta,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/workspace-tabs";
+
+export { getWorkspaceStorageKey, toWorkspaceMap } from "../interfaces/workspace-session";
+
+export type { WorkspaceNavItem } from "../interfaces/workspace-nav-items";
+export {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "../interfaces/workspace-nav-items";
+
+export type {
+  WorkspaceQuickAccessItem,
+  WorkspaceQuickAccessMatcherOptions,
+} from "../interfaces/workspace-quick-access";
+
+export { buildWorkspaceQuickAccessItems } from "../interfaces/workspace-quick-access";
+
+export type {
+  WorkspaceTabDevStatus,
+  WorkspaceTabGroup,
+  WorkspaceTabValue,
+} from "../interfaces/workspace-tabs";
+
+export { useWorkspaceHub } from "../interfaces/hooks/useWorkspaceHub";
+export {
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  getWorkspaceIdFromPath,
+  useRecentWorkspaces,
+} from "../interfaces/hooks/useRecentWorkspaces";
+````
+
 ## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
 ````typescript
 "use client";
@@ -80134,16 +80094,6 @@ export function WorkspaceDetailScreen({
     </div>
   );
 }
-````
-
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/types/routes.d.ts";
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````
 
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
