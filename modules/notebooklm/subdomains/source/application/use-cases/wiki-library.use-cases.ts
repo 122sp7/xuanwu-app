@@ -6,14 +6,14 @@
  * Design notes:
  * - All functions take explicit repository injection (no module-scope singletons).
  * - Event publisher is created lazily to avoid import-time side effects.
- * - Event publishing uses @/modules/shared/api public boundary only.
+ * - Event publishing uses @shared-events public boundary only.
  */
 
 import {
   InMemoryEventStoreRepository,
   NoopEventBusRepository,
   PublishDomainEventUseCase,
-} from "@/modules/shared/api";
+} from "@shared-events";
 
 import type {
   WikiLibrary,

@@ -4,10 +4,10 @@
  * Purpose: Private helpers for wiki-library use cases.
  *
  * Extracted from use-cases file to keep business workflow readable.
- * Depends on @/modules/shared/api for slug utilities.
+ * Depends on local slug-utils for slug derivation and validation.
  */
 
-import { deriveSlugCandidate, isValidSlug } from "@/modules/shared/api";
+import { deriveSlugCandidate, isValidSlug } from "../utils/slug-utils";
 import type { WikiLibrary } from "../../domain/entities/WikiLibrary";
 
 export function generateSourceId(): string {

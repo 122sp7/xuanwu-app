@@ -19,7 +19,7 @@
  * ## Placement
  * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
  *   `SimpleEventBus` subscriber registered at application startup.
- * - Alternative: `modules/shared/application/sagas/` for shared saga registry.
+ * - Alternative: a shared saga registry if cross-module saga coordination is needed.
  *
  * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
  */

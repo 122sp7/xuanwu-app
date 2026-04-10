@@ -1,7 +1,7 @@
 "use server";
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import type { IEventStoreRepository, IEventBusRepository } from "@/modules/shared/api";
+import type { IEventStoreRepository, IEventBusRepository } from "@shared-events";
 import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
 import {
   CreateKnowledgePageUseCase,

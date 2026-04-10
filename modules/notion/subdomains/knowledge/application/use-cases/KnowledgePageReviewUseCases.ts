@@ -12,7 +12,7 @@ import {
   PublishDomainEventUseCase,
   type IEventStoreRepository,
   type IEventBusRepository,
-} from "@/modules/shared/api";
+} from "@shared-events";
 import {
   ApproveKnowledgePageSchema,
   type ApproveKnowledgePageDto,
