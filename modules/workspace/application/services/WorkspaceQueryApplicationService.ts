@@ -11,11 +11,11 @@ import {
 } from "../use-cases/workspace-query.use-cases";
 import { FetchWorkspaceMembersUseCase } from "../use-cases/workspace-member.use-cases";
 import { buildWikiContentTree } from "../use-cases/wiki-content-tree.use-case";
-import type { WorkspaceQueryPort } from "../../ports/input/WorkspaceQueryPort";
+import type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";
 import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import type { WorkspaceQueryRepository } from "../../ports/output/WorkspaceQueryRepository";
-import type { WorkspaceRepository } from "../../ports/output/WorkspaceRepository";
-import type { WikiWorkspaceRepository } from "../../ports/output/WikiWorkspaceRepository";
+import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
+import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
+import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
 
 interface WorkspaceQueryApplicationServiceDependencies {
   workspaceRepo: WorkspaceRepository;

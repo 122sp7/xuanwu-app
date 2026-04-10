@@ -1,5 +1,5 @@
-import type { WorkspaceCommandPort } from "../../../ports/input/WorkspaceCommandPort";
-import type { WorkspaceQueryPort } from "../../../ports/input/WorkspaceQueryPort";
+import type { WorkspaceCommandPort } from "../../../domain/ports/input/WorkspaceCommandPort";
+import type { WorkspaceQueryPort } from "../../../domain/ports/input/WorkspaceQueryPort";
 
 export interface WorkspaceSessionContext {
   readonly workspaceCommandPort: WorkspaceCommandPort;

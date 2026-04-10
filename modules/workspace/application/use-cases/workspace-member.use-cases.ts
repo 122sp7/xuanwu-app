@@ -1,5 +1,5 @@
 import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMemberView";
-import type { WorkspaceQueryRepository } from "../../ports/output/WorkspaceQueryRepository";
+import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
 
 export class FetchWorkspaceMembersUseCase {
   constructor(private readonly workspaceQueryRepo: WorkspaceQueryRepository) {}
