@@ -4,6 +4,11 @@ description: Xuanwu Copilot Workspace Instructions
 name: Xuanwu Copilot Workspace Instructions
 ---
 
+#use skill serena-mcp
+#use skill hexagonal-ddd
+#use skill alistair-cockburn
+#use skill occams-razor
+
 # Xuanwu Copilot Workspace Instructions
 
 Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put detailed architecture truth in [docs/README.md](../docs/README.md), scoped behavior in [.github/instructions](./instructions), reusable workflows in prompts, and tool-specific procedure in skills.
