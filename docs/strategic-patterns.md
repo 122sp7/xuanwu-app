@@ -38,6 +38,39 @@
 - 以對稱關係語言掩蓋其實存在的上下游依賴。
 - 以實作方便為由，直接共享內部模型而不定 published language。
 
+## Copilot Generation Rules
+
+- 生成程式碼時，先選對戰略模式，再選對技術形狀。
+- 奧卡姆剃刀：優先使用最少但足夠的戰略模式，不要同時堆疊多個彼此衝突的模式。
+- 若一段整合沒有真正的語義污染，就不要硬加 ACL。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	BoundedContext["Bounded Context"] --> UpstreamDownstream["Upstream / Downstream"]
+	UpstreamDownstream --> PublishedLanguage["Published Language"]
+	PublishedLanguage --> ACLCF["ACL or Conformist"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	PatternChoice["Choose pattern"] --> Relationship["Set relationship direction"]
+	Relationship --> Language["Define published language"]
+	Language --> Protection["Apply ACL or Conformist if needed"]
+	Protection --> Code["Generate code"]
+```
+
+## Document Network
+
+- [architecture-overview.md](./architecture-overview.md)
+- [context-map.md](./context-map.md)
+- [integration-guidelines.md](./integration-guidelines.md)
+- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
+- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
+
 ## Decision References
 
 - [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)

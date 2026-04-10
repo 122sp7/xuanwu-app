@@ -46,3 +46,37 @@
 - 不得把 Shared Kernel / Partnership 與 ACL / Conformist 混寫在同一關係。
 - 不得把 direct model sharing 寫成 published language。
 - 不得把下游的轉譯責任倒灌回上游。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先畫清 upstream / downstream，再安排 API boundary、published language、ACL 或 Conformist。
+- 奧卡姆剃刀：若單一 published language 與單一 translation step 足夠，就不要再加第二層整合流程。
+- 不確定關係方向時，先修正文檔，不直接生成跨主域耦合程式碼。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream"] -->|PL / OHS| Downstream["Downstream"]
+	Downstream -->|ACL or Conformist| LocalModel["Local domain model"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Workspace["workspace"]
+	Platform --> Notion["notion"]
+	Platform --> NotebookLM["notebooklm"]
+	Workspace --> Notion
+	Workspace --> NotebookLM
+	Notion --> NotebookLM
+```
+
+## Document Network
+
+- [architecture-overview.md](./architecture-overview.md)
+- [integration-guidelines.md](./integration-guidelines.md)
+- [strategic-patterns.md](./strategic-patterns.md)
+- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
+- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)

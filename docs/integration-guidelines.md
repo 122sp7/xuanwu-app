@@ -48,6 +48,44 @@
 - 讓 downstream 省略 published language 與 local DTO，直接貼靠上游內部模型。
 - 把 ACL 當成預設樣板卻不判斷是否真的有語義污染。
 
+## Copilot Generation Rules
+
+- 生成程式碼時，先決定 upstream、downstream、published language，再決定 DTO、ACL 或 Conformist。
+- 奧卡姆剃刀：若 published language 加 local DTO 已足夠，就不要額外建立雙重 mapper、雙重 ACL 或鏡像 aggregate。
+- 只有在上游語義真的會污染本地語言時，才建立 ACL。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream"] -->|Published Language| Boundary["Downstream boundary"]
+	Boundary --> Translation["Local DTO / ACL / Conformist"]
+	Translation --> Application["Application"]
+	Application --> Domain["Domain"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Need["Cross-context need"] --> Direction["Identify upstream/downstream"]
+	Direction --> PL["Define published language"]
+	PL --> Decision["Need protection?"]
+	Decision -->|Yes| ACL["ACL"]
+	Decision -->|No| DTO["Local DTO / Conformist"]
+	ACL --> Domain["Downstream domain"]
+	DTO --> Domain
+```
+
+## Document Network
+
+- [context-map.md](./context-map.md)
+- [strategic-patterns.md](./strategic-patterns.md)
+- [architecture-overview.md](./architecture-overview.md)
+- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
+- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
+- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
+
 ## Conflict Resolution
 
 - 若某整合指南與 [context-map.md](./context-map.md) 的方向衝突，以 context map 為準。

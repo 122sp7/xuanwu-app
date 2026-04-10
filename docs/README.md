@@ -41,6 +41,31 @@
 - 不把對稱關係與 directed relationship 混寫在同一套戰略文件。
 - 不把 gap subdomains 描述成已驗證現況。
 
+## Copilot Generation Rules
+
+- 生成程式碼前，先從本文件決定應讀哪些戰略文件與 context 文件。
+- 奧卡姆剃刀：若現有文件網已能回答邊界問題，就不要再新增臨時規則文件。
+- 生成流程應先看 ADR，再看戰略文件，再看主域文件，最後才落到程式碼。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	ADR["ADR"] --> Strategy["Strategic docs"]
+	Strategy --> Context["Context docs"]
+	Context --> Code["Generated code"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Question["Coding question"] --> ADR["Check ADR"]
+	ADR --> Strategy["Read strategic docs"]
+	Strategy --> Context["Read owning context docs"]
+	Context --> Code["Generate boundary-safe code"]
+```
+
 ## Constraints
 
 - 本文件集是 Context7-only 的 architecture-first 版本。

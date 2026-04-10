@@ -29,3 +29,37 @@
 - 不把 baseline subdomains 與 recommended gap subdomains 混成同一種事實狀態。
 - 不把主域缺口直接分攤到別的主域，造成所有權漂移。
 - 不把子域名稱當成 UI 功能清單，而忽略其邊界責任。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個主域與子域，再決定實作位置。
+- 奧卡姆剃刀：能放進既有子域就不要創造新子域；能放進既有 use case 就不要新增第二條平行流程。
+- gap subdomain 只表示架構缺口，不表示一定要立刻實作。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart TD
+	MainDomain["Main domain"] --> Baseline["Baseline subdomains"]
+	MainDomain --> Gap["Recommended gap subdomains"]
+	Baseline --> UseCase["Use case / boundary"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Requirement["Requirement"] --> Domain["Choose main domain"]
+	Domain --> Subdomain["Choose owning subdomain"]
+	Subdomain --> Boundary["Choose boundary"]
+	Boundary --> Code["Generate code"]
+```
+
+## Document Network
+
+- [architecture-overview.md](./architecture-overview.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [contexts/workspace/subdomains.md](./contexts/workspace/subdomains.md)
+- [contexts/platform/subdomains.md](./contexts/platform/subdomains.md)
+- [contexts/notion/subdomains.md](./contexts/notion/subdomains.md)
+- [contexts/notebooklm/subdomains.md](./contexts/notebooklm/subdomains.md)
