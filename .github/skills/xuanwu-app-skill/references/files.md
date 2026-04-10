@@ -951,40 +951,17 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 
 # 限界上下文規則 (Bounded Context Rules)
 
-## 核心原則
+> 權威邊界入口：[`docs/bounded-contexts.md`](../../docs/bounded-contexts.md) 與 `docs/contexts/<context>/*`
 
-每個 `modules/<context>/` 是一個**獨立的限界上下文**，擁有自己的通用語言與領域模型。同一術語在不同限界上下文中可能有不同含義，須以各自的模型為準。
+## 強制規則
 
-## 邊界規則
-
-1. **跨模組存取**只能透過目標模組的 `modules/<context>/api` 公開邊界進行。嚴禁直接匯入其他模組的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 內部程式碼。
-2. **限界上下文間的通訊**只能透過以下方式：
-   - 發布與訂閱**領域事件** (Domain Events)
-   - 呼叫目標模組 `api/` 公開邊界的 Facade 或合約
-3. **基礎設施直接呼叫**（如 Firebase Admin、Upstash）必須封裝在各自模組的 `infrastructure/` 層，不得跨模組共用。
-
-## 依賴方向
-
-```
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `domain/` 必須保持框架無關（不能匯入 Firebase SDK、React、HTTP 客戶端等）。
-- `infrastructure/` 實作 `domain/` 定義的 Repository 介面，只向下依賴。
-- `application/` 協調 Use Cases，只依賴 `domain/` 的抽象。
-- `interfaces/` 處理 UI、路由處理器、API 傳輸與 Server Action 接線。
-
-## 上下文地圖 (Context Map)
-
-完整模組地圖請查閱：**[`docs/bounded-contexts.md`](../../docs/bounded-contexts.md)**
-
-> 模組清單不在此複製。模組職責變更時，必須更新上述文件，而非此處。
-
-## 防腐層 (Anti-Corruption Layer)
-
-- 整合外部系統（Firebase、Genkit、Upstash）時，必須在 `infrastructure/` 層建立適配器。
-- 防止外部概念與命名污染領域模型的類別與介面。
-- 在適配器中負責翻譯外部模型與領域模型之間的概念差異。
+1. 先依 `docs/**/*` 判斷 owning bounded context 與 subdomain，再決定檔案位置。
+2. 跨模組存取只能透過目標模組的 `api/` 公開邊界或對應領域事件；不得直接匯入他模組的 `domain/`、`application/`、`infrastructure/`、`interfaces/`。
+3. 依賴方向固定為 `interfaces/` → `application/` → `domain/` ← `infrastructure/`；`domain/` 必須保持框架無關。
+4. `<bounded-context>` 根層可承接 context-wide 的 `application/`、`domain/`、`infrastructure/`、`interfaces/`；不要把整個 bounded context 簡化成只有 `docs/` 與 `subdomains/`。
+5. 若團隊使用 `core/`，只可容納內核 `application/`、`domain/` 與必要 `ports/`；不得把 `infrastructure/` 或 `interfaces/` 放進 generic `core/`。
+6. 外部系統整合與模型轉譯放在 `infrastructure/` 或 ACL adapter，避免外部命名污染領域模型。
+7. `modules/<context>/docs/*` 只能補 implementation detail，不得覆蓋 `docs/**/*` 的 bounded-context 命名、所有權與邊界決策。
 
 ## 禁止模式
 
@@ -48112,7 +48089,7 @@ handoffs:
     prompt: 審查或重構此領域決策涉及的模組邊界、層依賴方向與公開 API 形狀。
   - label: 更新通用語言術語
     agent: KB Architect
-    prompt: 將本次領域建模新增或變更的術語同步更新至 terminology-glossary.md 與知識庫文件。
+    prompt: 將本次領域建模新增或變更的術語同步更新至 docs/ubiquitous-language.md 與對應 context 文件。
   - label: 品質審查
     agent: Quality Lead
     prompt: 審查此領域變更的行為風險、邊界回歸與遺漏驗證，確認符合 IDDD 規範。
@@ -48126,7 +48103,8 @@ handoffs:
 - `modules/**/domain/**`
 - `modules/**/application/use-cases/**`
 - `modules/**/application/machines/**`
-- `terminology-glossary.md`
+- `docs/ubiquitous-language.md`
+- `docs/contexts/*/**`
 - `.github/instructions/ubiquitous-language.instructions.md`
 - `.github/instructions/bounded-context-rules.instructions.md`
 - `.github/instructions/domain-modeling.instructions.md`
@@ -48134,51 +48112,30 @@ handoffs:
 
 ## 使命 (Mission)
 
-確保所有領域模型設計符合《Implementing Domain-Driven Design》(Vaughn Vernon) 的戰略（Strategic）與戰術（Tactical）設計原則，維護聚合完整性、通用語言一致性與事件驅動架構品質。
+以 docs-first authority 審查與修正領域模型設計，確保聚合、限界上下文、通用語言與領域事件符合 IDDD 與 Hexagonal DDD 規則。
 
-## IDDD 審查清單
+## 必讀來源
 
-### 通用語言 (Ubiquitous Language)
+- `docs/README.md`
+- `docs/ubiquitous-language.md`
+- `docs/subdomains.md`
+- `docs/bounded-contexts.md`
+- `docs/contexts/<context>/*`
+- `.github/instructions/ubiquitous-language.instructions.md`
+- `.github/instructions/bounded-context-rules.instructions.md`
+- `.github/instructions/domain-modeling.instructions.md`
+- `.github/instructions/event-driven-state.instructions.md`
 
-- [ ] 新命名是否已查閱 `terminology-glossary.md`？
-- [ ] 是否有違反通用語言的同義詞替換？
-- [ ] 領域事件命名是否使用過去式？
-- [ ] 類別、方法名稱是否反映領域概念而非技術概念？
+## 審查清單
 
-### 限界上下文 (Bounded Context)
-
-- [ ] 程式碼是否屬於正確的限界上下文（模組）？
-- [ ] 是否有直接存取其他模組的 `domain/`、`application/` 或 `infrastructure/` 內部？
-- [ ] 跨模組整合是否透過 `api/` 合約或領域事件進行？
-- [ ] 外部系統整合是否透過防腐層（Anti-Corruption Layer）隔離？
-
-### 上下文地圖 (Context Map)
-
-- [ ] 是否已查閱對應 context 的 `docs/contexts/<context>/context-map.md`？
-- [ ] 上下游關係與依賴方向是否與 Context Map 一致？
-- [ ] 跨上下文模型轉譯是否透過 ACL / adapter 處理？
-
-### 聚合設計 (Aggregate Design)
-
-- [ ] 聚合根是否保護所有業務不變數？
-- [ ] 狀態修改是否透過封裝的命令方法進行？
-- [ ] 是否存在貧血領域模型（只有 Getter/Setter，無業務邏輯）？
-- [ ] 聚合邊界是否合理（不過大、不過小）？
-- [ ] `pullDomainEvents()` 是否正確清空事件陣列？
-
-### 值對象 (Value Object)
-
-- [ ] 是否使用 Zod 品牌型別確保型別安全？
-- [ ] 值對象是否不可變（Immutable）？
-- [ ] 識別碼是否使用品牌型別保護？
-
-### 領域事件 (Domain Event)
-
-- [ ] 每次狀態變更是否產生對應的領域事件？
-- [ ] `occurredAt` 是否使用 ISO string（與 `shared/domain/events.ts` 一致）？
-- [ ] 事件 Payload 是否以 Zod Schema 嚴格定義？
-- [ ] 事件 `type` discriminant 是否為 `<module>.<action>` 格式？
-- [ ] 事件是否在聚合持久化成功後才發布？
+- [ ] 命名是否已先對齊 `docs/ubiquitous-language.md` 與對應 context 文件？
+- [ ] 程式碼是否位於正確的 bounded context / subdomain？
+- [ ] 跨模組互動是否只透過 `api/` 邊界或領域事件？
+- [ ] 上下游關係、ACL 與依賴方向是否與 `docs/contexts/<context>/context-map.md` 一致？
+- [ ] 聚合根是否保護不變數、避免貧血模型，且狀態修改透過封裝方法進行？
+- [ ] 值對象是否保持不可變，必要時使用 Zod / brand 型別保護？
+- [ ] 領域事件是否使用過去式命名、穩定 discriminant、ISO 時間欄位，並在持久化成功後發布？
+- [ ] 外部系統模型是否透過 `infrastructure/` 或 ACL adapter 轉譯，而未污染 `domain/`？
 
 ## 輸出格式
 
@@ -48278,237 +48235,61 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 
 ## File: .github/agents/knowledge-base.md
 ````markdown
-# Knowledge Base — MDDD Domain & Architecture
+# Knowledge Base — Implementation Navigation
 
-This file contains domain knowledge about the xuanwu-app architecture and codebase. For coding rules, see [`../instructions/README.md`](../instructions/README.md).
+This file is an implementation-oriented supplement for repository navigation. Strategic bounded-context ownership, canonical vocabulary, and duplicate-name resolution are owned by `docs/**/*` and must not be redefined here.
 
-## Authority Note
+## Use This File For
 
-- Strategic bounded-context ownership, canonical vocabulary, and duplicate-name resolution are owned by `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, and `docs/contexts/<context>/*`.
-- This file is an implementation-oriented supplement for boundary patterns and repository navigation. It must not override `docs/**/*` when architecture naming or ownership conflicts exist.
+- locating implementation surfaces quickly
+- recalling boundary-safe import patterns
+- checking the high-level code layout before reading concrete files
 
-## Module-Driven Domain Design (MDDD)
+## Docs Authority
 
-The project follows **Module-Driven Domain Design**: each business capability is a self-contained module under `modules/`. The architecture is **module-driven, not layer-driven** — code is grouped by domain context first, then by technical layer within each module.
+- Strategic ownership, terminology, and duplicate-name resolution: `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, `docs/contexts/<context>/*`
+- Bounded-context scaffolding and root-layer rules: `docs/bounded-context-subdomain-template.md`
+- Delivery sequencing and validation entrypoint: `docs/README.md` and `.github/agents/commands.md`
 
-### Core Principle
+## Boundary Summary
 
-> Docs own strategic bounded-context authority. In code, modules communicate through `modules/<target-module>/api/` only, never by reaching into each other's internals.
+- Cross-module imports go through `modules/<target>/api` only.
+- Dependency direction is `interfaces/` → `application/` → `domain/` ← `infrastructure/`.
+- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; subdomains own local concerns.
+- If a team adds `core/`, treat it as an optional inner wrapper only; do not put `infrastructure/` or `interfaces/` inside it.
 
-### Global Dependency Direction
+## Repository Surfaces
 
-```
-UI (interfaces/) → Application (application/) → Domain (domain/) ← Infrastructure (infrastructure/)
-```
+- `app/`: Next.js route composition, shell UX, providers, and orchestration
+- `modules/`: bounded-context and subdomain implementations
+- `packages/`: stable shared boundaries exposed through `@shared-*`, `@lib-*`, `@integration-*`, `@ui-*`
+- `py_fn/`: worker-side ingestion, parsing, chunking, embedding, and job execution
 
-The domain layer has **zero outward dependencies**. Infrastructure implements domain-defined interfaces.
+## Typical Module Shape
 
-## Module Structure
-
-Each module under `modules/` follows a four-layer Clean Architecture:
-
-```
-modules/<module-name>/
+```text
+modules/<context>/
 ├── api/
-│   └── index.ts                # Public cross-module API boundary
-├── index.ts                    # Aggregate export only (not a cross-module boundary)
-├── README.md                   # Module documentation (optional)
-├── domain/
-│   ├── entities/               # Aggregate roots, value objects, entity types
-│   ├── repositories/           # Repository interfaces (contracts, NOT implementations)
-│   ├── services/               # Pure domain services (stateless business rules)
-│   ├── value-objects/          # DDD value objects (immutable, equality by value)
-│   └── ports/                  # Hexagonal ports for cross-cutting dependencies (optional)
 ├── application/
-│   ├── use-cases/              # One file per use case (single operation)
-│   └── dto/                    # Data Transfer Objects for use-case I/O
+├── domain/
 ├── infrastructure/
-│   ├── firebase/               # Firebase Firestore repository implementations
-│   ├── genkit/                 # AI/Genkit integrations (AI module)
-│   ├── default/                # In-memory or simplified implementations
-│   ├── memory/                 # In-memory stores (e.g., billing placeholder)
-│   ├── persistence/            # Persistence adapters
-│   └── repositories/           # Repository implementations (alternative layout)
-└── interfaces/
-    ├── components/             # React UI components
-    ├── queries/                # TanStack Query hooks (read-side)
-    ├── _actions/               # Next.js Server Actions (write-side)
-    ├── hooks/                  # Custom React hooks
-    ├── api/                    # REST API route controllers
-    ├── contracts/              # API contracts
-    └── view-models/            # View model transformations
+├── interfaces/
+└── subdomains/<name>/
 ```
 
-Not every module has every subdirectory — only what it needs.
+Not every module needs every folder, and local details may live inside a subdomain rather than the bounded-context root.
 
-### Boundary Policy
+## Import Rules
 
-- Every `modules/<module-name>/` is isolated.
-- Cross-module imports are allowed only via `modules/<target-module>/api/`.
-- Keep guidance generic by default: do not prescribe a fixed domain-to-module mapping unless a governing contract explicitly requires it.
-- Keep boundaries explicit: business logic stays in `domain/` + `application/`; UI and UX concerns stay in `interfaces/` and `app/` composition.
+- Prefer package aliases such as `@shared-types`, `@shared-utils`, `@integration-firebase`, `@ui-shadcn`, and `@lib-*`.
+- Do not use legacy aliases such as `@/shared/*`, `@/libs/*`, or similar paths blocked by lint rules.
+- Inside one module, prefer relative imports over self-importing the module barrel.
+- Across modules, import only from the target module `api/` boundary.
 
-## Strategic Inventory
+## Validation
 
-Canonical strategic bounded contexts are `workspace`, `platform`, `notion`, and `notebooklm`, as defined in `docs/subdomains.md`, `docs/bounded-contexts.md`, and `docs/contexts/<context>/*`.
-
-Legacy or migration-era directories may still exist under `modules/`. Treat those paths as implementation surfaces or migration artifacts, not as authority for ownership, canonical naming, or cross-domain duplicate resolution.
-
-## Package System (21 Packages)
-
-Packages under `packages/` are **stable public boundaries** — the single source of truth for shared concerns. They contain actual implementations (no re-export chains).
-
-### Import Rule
-
-```typescript
-// ✅ CORRECT — via @alias from tsconfig.json
-import type { CommandResult, DomainError } from "@shared-types";
-import { cn, formatDate } from "@shared-utils";
-import { auth } from "@integration-firebase";
-
-// ❌ NEVER — relative paths to package internals
-import type { CommandResult } from "../../../../packages/shared-types/index";
-
-// ❌ NEVER — legacy paths (ESLint will block)
-import type { CommandResult } from "@/shared/types";
-```
-
-### Package Catalog
-
-| Alias | Package | Purpose |
-|-------|---------|---------|
-| `@shared-types` | shared-types | `CommandResult`, `DomainError`, `Timestamp`, primitive types |
-| `@shared-utils` | shared-utils | `cn()`, `formatDate()`, `generateId()` |
-| `@shared-validators` | shared-validators | Zod schemas for cross-cutting validation |
-| `@shared-constants` | shared-constants | `APP_NAME`, `PAGINATION_DEFAULTS` |
-| `@shared-hooks` | shared-hooks | `useAppStore` (Zustand global state) |
-| `@integration-firebase` | integration-firebase | Firebase client (auth, firestore, storage, messaging, functions, database, analytics, appcheck, performance, remote-config) |
-| `@integration-http` | integration-http | Axios HTTP client with interceptors |
-| `@api-contracts` | api-contracts | REST route registry + GraphQL schema |
-| `@ui-shadcn` | ui-shadcn | shadcn/ui components, `cn()` utility, hooks |
-| `@ui-vis` | ui-vis | Vis.js React components (VisNetwork, VisTimeline) |
-| `@lib-date-fns` | lib-date-fns | date-fns v4 wrapper |
-| `@lib-zod` | lib-zod | Zod v4 wrapper |
-| `@lib-uuid` | lib-uuid | UUID v13 wrapper |
-| `@lib-zustand` | lib-zustand | Zustand v5 wrapper |
-| `@lib-xstate` | lib-xstate | XState v5 + React hooks |
-| `@lib-tanstack` | lib-tanstack | TanStack Query/Form/Table/Virtual |
-| `@lib-superjson` | lib-superjson | SuperJSON for serialization |
-| `@lib-dragdrop` | lib-dragdrop | Atlaskit Pragmatic Drag and Drop |
-| `@lib-react-markdown` | lib-react-markdown | react-markdown wrapper |
-| `@lib-remark-gfm` | lib-remark-gfm | remark-gfm for GitHub-flavored markdown |
-
-### ESLint Boundary Enforcement
-
-Legacy import paths are blocked by `eslint.config.mjs`:
-
-| Blocked Pattern | Replacement |
-|----------------|-------------|
-| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-validators`, `@shared-constants`, `@shared-hooks` |
-| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
-| `@/libs/*` | `@lib-*` or `@integration-*` |
-| `@/ui/shadcn/*` | `@ui-shadcn/*` |
-| `@/ui/vis*` | `@ui-vis` |
-| `@/interfaces/*` | `@api-contracts` |
-
-`modules/` 內也有額外邊界保護：
-
-- `eslint-plugin-boundaries` 會檢查 `domain -> application / infrastructure / interfaces`、`application -> infrastructure / interfaces`、`infrastructure -> interfaces` 等違規依賴方向。
-- `modules/*` 之間不可直接 import 對方的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，必須走模組公開邊界（`@/modules/<module>/api`）。
-- 顯式 `index` 匯入（`../index`、`../index.ts`）在 `modules/` 內被封鎖，避免隱形跨層。
-
-### 已知邊界警告（待修復）
-
-以下為 `npm run lint` 中存在的既有 warning，尚未修復（0 errors，92 warnings 基準）：
-
-目前沒有 `no-restricted-imports` 或 `boundaries/dependencies` 邊界違規。所有模組間的互動皆透過 `/api` 公開邊界。
-
-> **已修復（2026-03）：** `modules/knowledge/api/index.ts` 原本直接 reach into 已移除的圖譜內部實作，現已改為遵守當前公開邊界與現行 module topology。
-
-> **已修復（2026-03）：** `modules/knowledge/application/use-cases/wiki-pages.use-case.ts` 與 `modules/source/application/use-cases/wiki-libraries.use-case.ts` 的歷史 `wiki_beta.*` 命名已改為符合目前知識／來源 ownership 的事件與 aggregate 命名。
-
-## Tech Stack
-
-| Concern | Technology | Version |
-|---------|-----------|---------|
-| Framework | Next.js (App Router) | 16.1.7 |
-| UI Library | React | 19.2.3 |
-| Language | TypeScript | 5 |
-| Backend | Firebase (client SDK) | 12 |
-| Styling | Tailwind CSS | 4 |
-| Validation | Zod | 4.3.6 |
-| State (global) | Zustand | 5.0.12 |
-| State (machines) | XState + @xstate/react | 5.28.0 / 6.1.0 |
-| AI | Genkit + Google GenAI | 1.30.1 |
-| Data Fetching | TanStack (Query, Table, Form, Virtual) | 5/8/1/3 |
-| Visualization | Vis (network, timeline, graph3d, vis-data) | Various |
-| Date Handling | date-fns | 4 |
-| HTTP Client | Axios | 1.13.6 |
-| Drag & Drop | @atlaskit/pragmatic-drag-and-drop | Latest |
-| Node Engine | Node.js | 24 |
-
-## Key Architectural Patterns
-
-### Repository Pattern
-
-- **Interface** lives in `domain/repositories/` — defines what the module needs
-- **Implementation** lives in `infrastructure/` — how to fetch/persist (Firebase, memory, etc.)
-- Domain layer never imports infrastructure
-
-### Use Case Pattern
-
-- Each use case is a single file under `application/use-cases/`
-- Naming: `verb-noun.use-case.ts` (e.g., `list-workspace-files.use-case.ts`)
-- One use case = one user-facing operation
-
-### Hexagonal Ports (Advanced)
-
-Example port shapes:
-- `domain/ports/ActorContextPort.ts` — resolves who is acting
-- `domain/ports/WorkspaceGrantPort.ts` — checks workspace permissions
-- `domain/ports/OrganizationPolicyPort.ts` — checks tenant policies
-- All access decisions flow through ports, not scattered in UI/router
-
-### Domain Events
-
-Event-store primitives live in `modules/shared` (migrated from the deleted `modules/event`):
-- `EventRecord` — rich event-store entity (id, eventName, aggregateType, aggregateId, occurredAt, payload, metadata)
-- `PublishDomainEventUseCase` — publishes events to the event store (`modules/shared/api`)
-- `IEventStoreRepository` / `IEventBusRepository` — event-store repository interfaces
-- `InMemoryEventStoreRepository` / `NoopEventBusRepository` — default implementations
-
-Domain events within a module follow the discriminated-union pattern: `type: "module.event_name"` with top-level fields (no `payload` wrapper) and `occurredAtISO: string`.
-
-### Internal Imports Within a Module
-
-Inside a module, files use **relative imports** (not the module's own barrel export):
-
-```typescript
-// ✅ Inside modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
-import { KnowledgePage } from "../../domain/entities/KnowledgePage";
-import type { IKnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
-
-// ❌ Do NOT self-import via the barrel
-import { KnowledgePage } from "@/modules/knowledge";
-```
-
-### Cross-Module Imports
-
-Between modules, always use the target module's `api/` boundary:
-
-```typescript
-// ✅ Cross-module import — event-store primitives are now in modules/shared
-import { PublishDomainEventUseCase } from "@/modules/shared/api";
-
-// ❌ Reaching into another module's internals
-import { PublishDomainEventUseCase } from "@/modules/shared/application/publish-domain-event";
-```
-
-## Responsibility Boundaries
-
-- Define ownership per feature or contract, not by hard-coded domain naming assumptions.
-- If a capability spans modules, formalize the boundary in `api/` and keep each module's internals private.
-- When ownership shifts, update contracts and architecture docs in the same change.
+- Use `.github/agents/commands.md` for lint, build, test, and deployment commands.
+- When strategic naming or ownership seems unclear, stop using this file and return to `docs/**/*`.
 ````
 
 ## File: .github/agents/rag-lead.agent.md
@@ -48565,54 +48346,23 @@ applyTo: 'docs/**/*.md'
 
 # 文件治理規範 (Documentation Governance)
 
-遵循 Vaughn Vernon《Implementing Domain-Driven Design》的 **Published Language** 原則：每個 DDD 概念只有一個公開、版本化的真相來源。
+本規範只描述 Copilot 在 `docs/**/*` 上的行為約束。DDD 戰略知識與文件結構權威一律回到 `docs/**/*`。
 
-> 權威知識入口：[`docs/subdomains.md`](../../docs/subdomains.md)、[`docs/bounded-contexts.md`](../../docs/bounded-contexts.md)、[`docs/ubiquitous-language.md`](../../docs/ubiquitous-language.md)
-> bounded-context 詳細文件：`docs/contexts/<context>/*`
-> `modules/<context>/docs/*` 若存在，只能視為 implementation-aligned detail，不得覆蓋 `docs/**/*` 的權威命名與邊界決策
-> 文件框架來源：[`docs/README.md`](../../docs/README.md) (Diataxis)
+> 文件入口：[`docs/README.md`](../../docs/README.md)
 
-## 核心規則（強制）
+## 強制規則
 
-1. **唯一真相來源（Single Source of Truth）**：DDD 根地圖與戰略分類由 `docs/subdomains.md`、`docs/bounded-contexts.md` 與 `docs/ubiquitous-language.md` 擁有；各 bounded context 的詳細參考集由對應 `docs/contexts/<context>/*` 擁有。新增文件前必須先確認對應 owner 已存在同主題內容。
-2. **禁止複製（No Duplication）**：嚴禁將 strategic maps 或 bounded-context detail 在多處複製。引用請使用 Markdown 相對連結。
-3. **引用而非複製（Link, Don't Copy）**：
-   ```markdown
-   ✅ 正確：詳見 [bounded-contexts.md](../../docs/bounded-contexts.md)
-   ❌ 錯誤：直接貼上 bounded-contexts.md 的內容
-   ```
-4. **Instructions 只含行為約束**：`.github/instructions/` 文件只描述 Copilot 的**行為規則**，不包含領域知識。知識連結到 `docs/subdomains.md`、`docs/bounded-contexts.md`、`docs/ubiquitous-language.md` 或 `docs/contexts/<context>/*` 詳細文件。
-5. **術語查閱優先**：引入新術語前，先查 [`../../docs/ubiquitous-language.md`](../../docs/ubiquitous-language.md) 與對應 bounded context 的 `docs/contexts/<context>/ubiquitous-language.md`。
+1. 新增或修改 `docs/**/*` 前，先從 [`../../docs/README.md`](../../docs/README.md) 判斷應更新哪個權威文件，而不是先新增平行說明文件。
+2. `docs/subdomains.md`、`docs/bounded-contexts.md`、`docs/ubiquitous-language.md` 與 `docs/contexts/<context>/*` 擁有 DDD 戰略與 bounded-context 權威；其他地方只可連結，不可複製。
+3. `.github/instructions/*` 只寫行為規則，不重述架構知識、術語表、context map 或 bounded-context inventory。
+4. `modules/<context>/docs/*` 若存在，只能描述 implementation-aligned detail，不得覆蓋 `docs/**/*` 的命名、所有權、邊界或 duplicate resolution。
+5. 若變更會影響 `.github/skills/` 的 repomix 參考輸出，必須使用既有 scripts 重新生成。
 
-## 文件分類（Diataxis 四象限）
+## 快速檢查
 
-| 目錄 | 目的 | 寫作風格 |
-|------|------|---------|
-| `docs/tutorials/` | 學習導向，引導式操作 | 第二人稱，步驟化 |
-| `docs/guides/how-to/` | 任務導向，解決特定問題 | 以目標開頭 |
-| `docs/reference/` | 精確事實，API / 術語查詢 | 簡潔、可掃描 |
-| `docs/guides/explanation/` | 概念導向，解釋「為什麼」 | 分析性散文 |
-| `docs/subdomains.md` + `docs/bounded-contexts.md` | Xuanwu 的 DDD 戰略地圖與入口 | 戰略分類 + 模組地圖 |
-
-## DDD 概念的文件定位
-
-| 概念 | 唯一文件 | 其他地方的處理 |
-|------|---------|--------------|
-| 子域分類 | [`subdomains.md`](../../docs/subdomains.md) | 只能連結，不能複製 |
-| 限界上下文 / 模組地圖 | [`bounded-contexts.md`](../../docs/bounded-contexts.md) | 只能連結，不能複製 |
-| bounded context 概覽 | `docs/contexts/<context>/README.md` | 只能連結，不能複製 |
-| 本地子域切分 | `docs/contexts/<context>/subdomains.md` | 只能連結，不能複製 |
-| 本地邊界與責任 | `docs/contexts/<context>/bounded-contexts.md` | 只能連結，不能複製 |
-| 通用語言 / 術語 | `docs/contexts/<context>/ubiquitous-language.md` | 只能連結，不能複製 |
-| 上下文地圖 | `docs/contexts/<context>/context-map.md` | 只能連結，不能複製 |
-
-## 防止文件膨脹的規則
-
-- **新增前審查**：每個新 `docs/` 文件必須明確歸屬 Diataxis 的一個象限。
-- **最大兩層深度**：`docs/<section>/<file>.md`，禁止更深的嵌套。
-- **禁止跨象限混合**：一個文件只服務一個目的（tutorial / how-to / reference / explanation）。
-- **實作細節不得覆蓋權威**：模組鄰近文件或程式碼註解可以描述 implementation detail，但不得推翻 `docs/**/*` 的 bounded-context 命名、所有權與 duplicate resolution。
-- **Repomix 技能同步**：`.github/skills/` 的 repomix 輸出必須透過 `package.json` 既有 scripts 重新生成，保持與 `.github/*`、`docs/subdomains.md`、`docs/bounded-contexts.md`、`docs/ubiquitous-language.md` 和 `docs/contexts/<context>/*` 同步。
+- 這段內容是否已由 `docs/**/*` 其中一個 owner 文件承接？
+- 這裡是否在重貼 docs，而不是只補本檔所需的行為約束？
+- 這次文件變更是否需要同步 regeneration repomix skills？
 
 Tags: #use skill context7 #use skill xuanwu-app-skill
 ````
@@ -77417,189 +77167,6 @@ export { OrganizationAuditPage } from "./components/OrganizationAuditPage";
 export type { OrganizationAuditPageProps } from "./components/OrganizationAuditPage";
 ````
 
-## File: .github/copilot-instructions.md
-````markdown
----
-applyTo: **
-description: Xuanwu Copilot Workspace Instructions
-name: Xuanwu Copilot Workspace Instructions
----
-
-# Xuanwu Copilot Workspace Instructions
-
-Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put file-type, framework, or task-specific rules in [.github/instructions](./instructions), reusable workflows in prompts, and tool- or role-specific behavior in skills.
-
-## Purpose
-
-- Xuanwu is a personal- and organization-oriented Knowledge Platform built as a modular monolith with MDDD boundaries.
-- Align Copilot with Xuanwu architecture, validation flow, and delivery boundaries.
-- Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
-- Prefer references to canonical docs over repeated policy text.
-
-## Non-Negotiable Session Contract
-
-- Start every conversation with Serena MCP. If Serena tools are unavailable, bootstrap Serena first, then continue.
-- Serena owns orchestration. Serena understands the request, gathers targeted context, decides whether subagents are needed, and remains responsible for final synthesis.
-- If confidence in any library API, framework behavior, or config schema detail is below 99.99%, query Context7 before writing, generating, or suggesting code.
-- Repository orchestration memory and index updates belong to Serena. Use Serena tools for project memory/index work; do not treat direct edits under `.serena/` or non-Serena project-memory paths as authoritative replacements.
-
-## Authoritative Sources
-
-Read these in order before making non-trivial decisions:
-
-1. [docs/ubiquitous-language.md](../docs/ubiquitous-language.md) for canonical terminology routing and duplicate-name guardrails.
-2. [docs/subdomains.md](../docs/subdomains.md) for strategic subdomain classification and cross-domain duplicate resolution.
-3. [docs/bounded-contexts.md](../docs/bounded-contexts.md) for main-domain ownership, bounded-context boundaries, and module map.
-4. `docs/contexts/<context>/{README.md,subdomains.md,bounded-contexts.md,context-map.md,ubiquitous-language.md}` for context-local boundary, language, and relationship detail.
-5. [agents/commands.md](./agents/commands.md) for validation commands, build, lint, test, and deployment workflows.
-
-## DDD Reference Authority
-
-Strategic DDD root maps are owned by `docs/subdomains.md` and `docs/bounded-contexts.md`. Bounded-context reference sets are owned by `docs/contexts/<context>/`.
-
-Cross-domain duplicate-name resolution is owned by `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, and `docs/contexts/<context>/*`. If `modules/<context>/docs/*` preserves legacy or implementation-oriented names during migration, those names must not override the strategic ownership and naming decisions in root `docs/`.
-
-| Query | Canonical Document |
-|-------|-------------------|
-| Strategic subdomain classification | [`docs/subdomains.md`](../docs/subdomains.md) |
-| Bounded Context boundaries / module map | [`docs/bounded-contexts.md`](../docs/bounded-contexts.md) |
-| Bounded Context + Subdomain delivery template | [`docs/bounded-context-subdomain-template.md`](../docs/bounded-context-subdomain-template.md) |
-| Project milestones from zero to delivery | [`docs/project-delivery-milestones.md`](../docs/project-delivery-milestones.md) |
-| Context overview / local responsibility | `docs/contexts/<context>/README.md` |
-| Context local subdomains | `docs/contexts/<context>/subdomains.md` |
-| Context local bounded-context view | `docs/contexts/<context>/bounded-contexts.md` |
-| Context terminology | `docs/contexts/<context>/ubiquitous-language.md` |
-| Context map | `docs/contexts/<context>/context-map.md` |
-
-**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/**/*` owns DDD routing and bounded-context documentation. Link instead of copying.
-
-**Rule**: when strategic naming conflicts with implementation-era names, root `docs/` wins for ownership, vocabulary, and cross-domain communication. Treat `modules/<context>/docs/*` as implementation-aligned detail, not as authority for duplicate generic names across main domains.
-
-## Hexagonal DDD Canonical Triad
-
-- **Ubiquitous Language**: `instructions/ubiquitous-language.instructions.md` + `docs/contexts/<context>/ubiquitous-language.md`
-- **Bounded Context**: `instructions/bounded-context-rules.instructions.md` + `docs/bounded-contexts.md` + `docs/contexts/<context>/bounded-contexts.md`
-- **Context Map**: `docs/contexts/<context>/context-map.md`
-
-Any architecture/design update must stay consistent across this triad.
-
-## Workspace-Wide Operating Rules
-
-- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
-- When scaffolding a new bounded context or subdomain tree, read `docs/bounded-context-subdomain-template.md` before generating directories or files.
-- Interpret that template literally: `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
-- When sequencing architecture-first delivery, read `docs/project-delivery-milestones.md` before turning planning gaps into implementation work.
-- Treat the approved plan as the execution contract; stay within scope and update docs when boundaries or public APIs change.
-- Search and read before editing. Prefer existing instructions, prompts, and skills over ad hoc restatement.
-- Keep changes minimal, local, and boundary-safe.
-
-## Architecture Guardrails
-
-- Follow docs-defined bounded contexts as the ownership authority; when working in code, keep each `modules/<context>/` directory isolated and access peers through `api/` boundaries only.
-- Cross-module access must go through the target module's `api/` boundary only.
-- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
-- If a team chooses to add a `core/` wrapper, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
-- Keep business logic in `domain/` and `application/`; keep UI, transport, and composition in `interfaces/` and `app/`.
-- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy `@/shared/*`, `@/libs/*`, or similar paths.
-- Preserve the runtime split: Next.js owns browser-facing UX, auth/session, orchestration, and streaming; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
-
-## Copilot Customization Design Rules
-
-- Keep this file concise and self-contained; prefer short directive statements over long tutorial prose.
-- Put scoped guidance in focused `.instructions.md` files with narrow `applyTo` patterns.
-- Reuse canonical references instead of duplicating the same rules across instructions, prompts, agents, and skills.
-- Do not turn temporary implementation details, current module counts, or migration mappings into permanent global rules.
-- When customizations appear ignored, verify them with Chat customization diagnostics before changing the file structure.
-
-## Serena MCP
-
-Serena MCP is **mandatory for every session**. There are no exceptions.
-
-Serena is the orchestration lead for every conversation. Start with Serena to understand the request, gather only the needed context, and decide whether focused subagents are required. Subagents assist with exploration or execution, but Serena remains responsible for task framing, delegation, and final synthesis.
-
-### Session-Start Protocol (Required)
-
-1. Bootstrap Serena MCP server if tools are not available:
-   ```bash
-   uvx --from git+https://github.com/oraios/serena serena start-mcp-server
-   ```
-2. Activate the `xuanwu-app` project before any read or write operation.
-3. List and read relevant memories before starting any non-trivial task.
-
-### Session-End Protocol (Required)
-
-After every meaningful phase (plan → impl → review → qa) and before any handoff:
-
-1. Write a phase-end memory update using Serena memory tools.
-2. Trigger an index update if files were added, renamed, or removed.
-
-See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md).
-
-### Hard Prohibitions
-
-- **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
-- **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
-- **NEVER** use non-Serena file edits as a substitute for Serena project memory or index updates.
-- If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
-- Index and memory changes are only valid when made through Serena tools.
-
-## Context7 Documentation Query
-
-When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing, generating, or suggesting code.
-
-### Trigger Conditions
-
-Any of the following require a context7 lookup before proceeding:
-
-- API signature, parameter name, or return type is uncertain.
-- Version-specific behavior or breaking-change risk exists.
-- Config schema details (Next.js, Firebase, Zod, XState, etc.) are not fully recalled.
-- A library was recently updated and you are unsure of the current behavior.
-
-### Required Steps
-
-1. Call `resolve-library-id` with the library name to get a Context7-compatible ID.
-2. Call `get-library-docs` with that ID and a focused `topic` to retrieve official docs.
-3. Use the retrieved docs as the authoritative source; do **not** rely on training-time recall alone.
-
-### Guardrails
-
-- Do not skip the lookup by assuming training data is current — default to querying.
-- Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
-- Keep queries focused: one `topic` per call rather than fetching the entire doc set.
-- See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
-
-## Claude Compatibility Layer
-
-`.claude/` is a supported Claude Code compatibility surface.
-
-- Use `.claude/settings.json` when you need Claude hook lifecycle, permissions, or project MCP behavior.
-- Use `.claude/rules/tech-strategy.md` when you need Claude-side technology-policy context.
-- Use `.claude/hooks/*` when a task touches Claude-specific guards, validation, or session automation.
-- Keep `.github/*` as the primary Copilot governance surface; use `.claude/` to preserve or understand Claude compatibility, not as a parallel source of repository-wide truth.
-
-## Skill And Agent Routing
-
-- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters; do not use it as the authority for strategic ownership or canonical naming.
-- Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters; strategic authority still comes from `docs/**/*`.
-- Use [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) when applying Hexagonal Architecture with DDD to module boundaries, ports/adapters, and cross-module API contracts.
-- Use boundary or contract skills only when the task actually crosses those concerns.
-- Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
-
-## Validation
-
-- Run the matching validation for changed files by using [agents/commands.md](./agents/commands.md).
-- Do not close work until required lint, build, test, and documentation updates are complete.
-
-## Terminology
-
-- Terminology routing is governed by [instructions/ubiquitous-language.instructions.md](./instructions/ubiquitous-language.instructions.md).
-- Treat glossary terminology as canonical naming and vocabulary authority.
-- Do not introduce new terms if an equivalent glossary term already exists.
-- When multiple names exist, normalize to the glossary term before implementation.
-- Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
-````
-
 ## File: app/(shell)/knowledge-base/articles/[articleId]/page.tsx
 ````typescript
 "use client";
@@ -78934,6 +78501,58 @@ export {
 } from "./providers/app-context";
 export { AppProvider, useApp } from "./providers/app-provider";
 export { Providers } from "./providers/providers";
+````
+
+## File: .github/copilot-instructions.md
+````markdown
+---
+applyTo: **
+description: Xuanwu Copilot Workspace Instructions
+name: Xuanwu Copilot Workspace Instructions
+---
+
+# Xuanwu Copilot Workspace Instructions
+
+Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put detailed architecture truth in [docs/README.md](../docs/README.md), scoped behavior in [.github/instructions](./instructions), reusable workflows in prompts, and tool-specific procedure in skills.
+
+## Session Contract
+
+- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it first, activate `xuanwu-app`, and use Serena for project memory/index work.
+- If confidence in any library API, framework behavior, or config schema detail is below 99.99%, verify it through Context7 before writing or suggesting code.
+- Treat `docs/**/*` as the authority for DDD routing, bounded-context ownership, terminology, and strategic duplicate-name resolution. `.github/*` defines Copilot behavior and must not compete with docs.
+- Run the matching validation from [agents/commands.md](./agents/commands.md) before closing non-trivial changes.
+
+## Read Order
+
+1. Start with [docs/README.md](../docs/README.md).
+2. Use [docs/ubiquitous-language.md](../docs/ubiquitous-language.md) for terminology and duplicate-name guardrails.
+3. Use [docs/subdomains.md](../docs/subdomains.md) and [docs/bounded-contexts.md](../docs/bounded-contexts.md) for ownership, module routing, and strategic boundaries.
+4. Use `docs/contexts/<context>/*` for context-local language, bounded-context detail, and context-map relationships.
+5. Use [docs/bounded-context-subdomain-template.md](../docs/bounded-context-subdomain-template.md) and [docs/project-delivery-milestones.md](../docs/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
+6. Use [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment validation.
+
+## Operating Rules
+
+- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
+- Cross-module collaboration goes through the target module `api/` boundary only.
+- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
+- `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
+- If a team adds `core/`, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
+- Keep business logic in `domain/` and `application`; keep UI, transport, and composition in `interfaces/` and `app/`.
+- Preserve the runtime split: Next.js owns browser-facing UX and orchestration; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
+- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy alias patterns.
+
+## Governance Rules
+
+- Keep this file thin. Put detailed, file-scoped behavior in `.github/instructions/` and reuse docs instead of copying architecture content into customization files.
+- Use [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for Serena workflow details, [skills/context7/SKILL.md](skills/context7/SKILL.md) for documentation verification, and [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) for boundary-safe module design.
+- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) and [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) for implementation lookup only; they are not strategic authority.
+- `.claude/` may exist as a compatibility surface, but `.github/*` remains the primary Copilot governance surface.
+
+## Terminology
+
+- Follow [instructions/ubiquitous-language.instructions.md](./instructions/ubiquitous-language.instructions.md) and the docs it routes to.
+- Normalize to canonical glossary terms before naming code, prompts, instructions, agents, skills, or documentation.
 ````
 
 ## File: app/(shell)/knowledge-database/databases/[databaseId]/page.tsx
