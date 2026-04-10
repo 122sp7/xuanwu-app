@@ -1,6 +1,8 @@
 # Platform
 
-## Subdomains
+本文件依 Context7 參考 DDD / Hexagonal 模組邊界與責任分離原則整理。以下缺口子域依本次任務前提，視為目前專案尚未落地但主域設計上應補齊的子域。
+
+## Current Subdomains
 
 | Subdomain | Role |
 |---|---|
@@ -27,3 +29,19 @@
 | observability | 健康量測、追蹤與告警 |
 | analytics | 平台使用行為量測與分析 |
 | support | 客服工單、支援知識與處理流程 |
+
+## Missing Gap Subdomains
+
+| Proposed Subdomain | Why Needed | Gap If Missing |
+|---|---|---|
+| tenant | 承接租戶邊界、租戶生命週期、隔離與 tenant-scoped policy | organization 無法完整覆蓋個人租戶、企業租戶與多租戶隔離模型 |
+| entitlement | 承接 subscription、feature-flag、policy 之後的有效權益解算 | 權益、配額、功能可用性會分散在多個子域，缺少統一決策點 |
+| secret-management | 承接憑證、token、integration secret、rotation 與存取審計 | integration 與 security-policy 之間缺少敏感憑證的專責邊界 |
+| consent | 承接通知同意、資料使用同意、隱私偏好與 lawful basis | compliance 會被迫承接過細的使用者同意語意，導致治理模型過重 |
+
+## Recommended Order
+
+1. tenant
+2. entitlement
+3. secret-management
+4. consent
