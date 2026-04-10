@@ -16653,6 +16653,19 @@ export type PlatformSharedValueObjectFactory = (typeof PLATFORM_SHARED_VALUE_OBJ
 
 ````
 
+## File: modules/platform/subdomains/account-profile/adapters/create-legacy-account-profile-application.adapter.ts
+````typescript
+import { getUserProfile, subscribeToUserProfile } from "../../account";
+import type { LegacyAccountProfileApplicationPort } from "../application";
+
+export function createLegacyAccountProfileApplicationAdapter(): LegacyAccountProfileApplicationPort {
+	return {
+		getUserProfile,
+		subscribeToUserProfile,
+	};
+}
+````
+
 ## File: modules/platform/subdomains/account-profile/adapters/index.ts
 ````typescript
 export { createLegacyAccountProfileApplicationAdapter } from "./create-legacy-account-profile-application.adapter";
@@ -16668,6 +16681,19 @@ export { createLegacyAccountProfileApplicationAdapter } from "./create-legacy-ac
 export type { LegacyAccountProfileApplicationPort } from "./legacy-account-profile-application.port";
 ````
 
+## File: modules/platform/subdomains/account-profile/application/legacy-account-profile-application.port.ts
+````typescript
+import { getUserProfile, subscribeToUserProfile } from "../../account";
+
+/**
+ * Temporary compatibility port during migration from account profile concerns.
+ */
+export interface LegacyAccountProfileApplicationPort {
+	getUserProfile: typeof getUserProfile;
+	subscribeToUserProfile: typeof subscribeToUserProfile;
+}
+````
+
 ## File: modules/platform/subdomains/account-profile/domain/.gitkeep
 ````
 
@@ -16676,6 +16702,13 @@ export type { LegacyAccountProfileApplicationPort } from "./legacy-account-profi
 ## File: modules/platform/subdomains/account-profile/domain/index.ts
 ````typescript
 // Purpose: Domain layer placeholder for platform subdomain 'account-profile'.
+````
+
+## File: modules/platform/subdomains/account-profile/index.ts
+````typescript
+export * from "./application";
+export * from "./adapters";
+export { getUserProfile, subscribeToUserProfile } from "../account";
 ````
 
 ## File: modules/platform/subdomains/account/adapters/.gitkeep
@@ -62891,39 +62924,6 @@ Determine and enforce authorization decisions: what a verified subject is curren
 ## Status
 
 🔨 Migration-Pending — scaffold only
-````
-
-## File: modules/platform/subdomains/account-profile/adapters/create-legacy-account-profile-application.adapter.ts
-````typescript
-import { getUserProfile, subscribeToUserProfile } from "../../account";
-import type { LegacyAccountProfileApplicationPort } from "../application";
-
-export function createLegacyAccountProfileApplicationAdapter(): LegacyAccountProfileApplicationPort {
-	return {
-		getUserProfile,
-		subscribeToUserProfile,
-	};
-}
-````
-
-## File: modules/platform/subdomains/account-profile/application/legacy-account-profile-application.port.ts
-````typescript
-import { getUserProfile, subscribeToUserProfile } from "../../account";
-
-/**
- * Temporary compatibility port during migration from account profile concerns.
- */
-export interface LegacyAccountProfileApplicationPort {
-	getUserProfile: typeof getUserProfile;
-	subscribeToUserProfile: typeof subscribeToUserProfile;
-}
-````
-
-## File: modules/platform/subdomains/account-profile/index.ts
-````typescript
-export * from "./application";
-export * from "./adapters";
-export { getUserProfile, subscribeToUserProfile } from "../account";
 ````
 
 ## File: modules/platform/subdomains/account-profile/README.md
