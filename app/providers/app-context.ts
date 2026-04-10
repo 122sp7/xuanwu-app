@@ -6,15 +6,19 @@
  *
  * Holds the set of accounts visible to the current user plus the currently
  * active account selection. Consumed by feature pages and sidebar nav.
+ *
+ * ActiveAccount is now owned by the Platform BC.
+ * Re-exported here for backward compatibility with existing app-layer callers.
  */
 
 import { createContext, type Dispatch } from "react";
 
-import type { AccountEntity } from "@/modules/platform/api";
+import type { AccountEntity, AuthUser } from "@/modules/platform/api";
 import type { WorkspaceEntity } from "@/modules/workspace/api";
-import type { AuthUser } from "./auth-context";
 
-export type ActiveAccount = AccountEntity | AuthUser;
+// ActiveAccount canonical source is Platform BC — import and re-export for app-layer consumers.
+import type { ActiveAccount } from "@/modules/platform/api";
+export type { ActiveAccount };
 
 export interface AppState {
   /** All organization accounts visible to the signed-in user. */

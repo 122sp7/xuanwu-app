@@ -3,7 +3,7 @@
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { AuthUser } from "@/app/providers/auth-context";
+import type { AuthUser } from "@/modules/platform/api";
 import { useApp } from "@/app/providers/app-provider";
 import type { AccountEntity } from "../../../account/domain/entities/Account";
 import { createOrganization } from "../../adapters/server-actions/organization.actions";
