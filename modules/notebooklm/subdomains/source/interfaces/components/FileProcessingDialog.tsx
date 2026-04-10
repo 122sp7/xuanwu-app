@@ -101,38 +101,6 @@ export function FileProcessingDialog({
         parse: { status: "success", detail: `解析完成，共 ${parsedDocument.pageCount} 頁。` },
       }));
 
-      if (shouldCreatePage) {
-        setSummary((current) => ({
-          ...current,
-          page: { status: "running", detail: "正在建立可編輯的 Knowledge Page 草稿" },
-        }));
-
-        try {
-          if (!user?.id) throw new Error("缺少登入使用者，無法建立 Knowledge Page 草稿");
-
-          const draftPage = await createKnowledgeDraftFromSourceDocument({
-            accountId,
-            workspaceId,
-            createdByUserId: user.id,
-            filename,
-            sourceGcsUri: gcsUri,
-            jsonGcsUri: parsedDocument.jsonGcsUri,
-            pageCount: parsedDocument.pageCount,
-          });
-
-          if (!draftPage.success) throw new Error(draftPage.error.message || "建立 Knowledge Page 失敗");
-
-          setSummary((current) => ({
-            ...current,
-            pageHref: `/knowledge/pages/${draftPage.aggregateId}`,
-            page: { status: "success", detail: "已建立單頁 Draft，可直接進頁面補內容、調整結構，後續再迭代切頁策略。" },
-          }));
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "建立 Knowledge Page 失敗";
-          setSummary((current) => ({ ...current, page: { status: "error", detail: message } }));
-        }
-      }
-
       if (shouldRunRag) {
         setSummary((current) => ({
           ...current,
@@ -162,6 +130,38 @@ export function FileProcessingDialog({
         } catch (error) {
           const message = error instanceof Error ? error.message : "RAG 索引失敗";
           setSummary((current) => ({ ...current, rag: { status: "error", detail: message } }));
+        }
+      }
+
+      if (shouldCreatePage) {
+        setSummary((current) => ({
+          ...current,
+          page: { status: "running", detail: "正在建立可編輯的 Knowledge Page 草稿" },
+        }));
+
+        try {
+          if (!user?.id) throw new Error("缺少登入使用者，無法建立 Knowledge Page 草稿");
+
+          const draftPage = await createKnowledgeDraftFromSourceDocument({
+            accountId,
+            workspaceId,
+            createdByUserId: user.id,
+            filename,
+            sourceGcsUri: gcsUri,
+            jsonGcsUri: parsedDocument.jsonGcsUri,
+            pageCount: parsedDocument.pageCount,
+          });
+
+          if (!draftPage.success) throw new Error(draftPage.error.message || "建立 Knowledge Page 失敗");
+
+          setSummary((current) => ({
+            ...current,
+            pageHref: `/knowledge/pages/${draftPage.aggregateId}`,
+            page: { status: "success", detail: "已建立單頁 Draft，可直接進頁面補內容、調整結構，後續再迭代切頁策略。" },
+          }));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "建立 Knowledge Page 失敗";
+          setSummary((current) => ({ ...current, page: { status: "error", detail: message } }));
         }
       }
 
