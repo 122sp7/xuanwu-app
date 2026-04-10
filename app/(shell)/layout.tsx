@@ -18,14 +18,14 @@ import type { AccountEntity } from "@/modules/platform/api";
 import {
   AccountSwitcher,
   AppBreadcrumbs,
+  AppRail,
+  DashboardSidebar,
   GlobalSearchDialog,
   HeaderControls,
   HeaderUserAvatar,
   ShellGuard,
   useGlobalSearch,
 } from "@/modules/platform/api";
-import { AppRail } from "./_components/app-rail";
-import { DashboardSidebar } from "./_components/dashboard-sidebar";
 
 const routeTitles: Record<string, string> = {
   "/organization": "組織治理",
@@ -186,6 +186,7 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
           }}
         />
         <DashboardSidebar
+          userId={authState.user?.id ?? null}
           pathname={pathname}
           activeAccount={appState.activeAccount}
           workspaces={accountWorkspaces}
