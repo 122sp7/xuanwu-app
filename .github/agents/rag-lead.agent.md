@@ -21,18 +21,21 @@ handoffs:
 ## Target Scope
 
 - `py_fn/**`
-- `modules/retrieval/**`
-- `modules/knowledge/**`
+- `modules/notebooklm/**`
+- `modules/notion/**` when canonical source contracts or source references change
+- `modules/platform/**` when shared `platform.ai` capability, entitlement, or policy constraints affect retrieval flows
 
 ## Focus
 
 - Ingestion contract alignment
 - Retrieval quality and index consistency
 - Runtime split between app orchestration and worker processing
+- Ownership alignment: `notebooklm` owns ingestion / retrieval / grounding / evaluation semantics, `notion` provides canonical sources, and shared model/provider capability is consumed from `platform.ai`
 
 ## Guardrails
 
 - Validate contract alignment before changing ingestion shape.
 - Keep Next.js orchestration and `py_fn` ingestion responsibilities separated.
+- Do not reintroduce generic `ai` or `retrieval` ownership into `notion`; keep retrieval semantics in `notebooklm` and consume shared AI capability from `platform.ai`.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 

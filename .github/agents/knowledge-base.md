@@ -2,13 +2,18 @@
 
 This file contains domain knowledge about the xuanwu-app architecture and codebase. For coding rules, see [`../instructions/README.md`](../instructions/README.md).
 
+## Authority Note
+
+- Strategic bounded-context ownership, canonical vocabulary, and duplicate-name resolution are owned by `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, and `docs/contexts/<context>/*`.
+- This file is an implementation-oriented supplement for boundary patterns and repository navigation. It must not override `docs/**/*` when architecture naming or ownership conflicts exist.
+
 ## Module-Driven Domain Design (MDDD)
 
 The project follows **Module-Driven Domain Design**: each business capability is a self-contained module under `modules/`. The architecture is **module-driven, not layer-driven** — code is grouped by domain context first, then by technical layer within each module.
 
 ### Core Principle
 
-> Every module owns a bounded context. Modules communicate through `modules/<target-module>/api/` only, never by reaching into each other's internals.
+> Docs own strategic bounded-context authority. In code, modules communicate through `modules/<target-module>/api/` only, never by reaching into each other's internals.
 
 ### Global Dependency Direction
 
@@ -63,13 +68,11 @@ Not every module has every subdirectory — only what it needs.
 - Keep guidance generic by default: do not prescribe a fixed domain-to-module mapping unless a governing contract explicitly requires it.
 - Keep boundaries explicit: business logic stays in `domain/` + `application/`; UI and UX concerns stay in `interfaces/` and `app/` composition.
 
-## Module Inventory
+## Strategic Inventory
 
-Current module directories under `modules/` represent bounded contexts. Treat names as implementation-specific and avoid using this list as a hard-coded ownership policy for future design:
+Canonical strategic bounded contexts are `workspace`, `platform`, `notion`, and `notebooklm`, as defined in `docs/subdomains.md`, `docs/bounded-contexts.md`, and `docs/contexts/<context>/*`.
 
-`account`, `ai`, `identity`, `knowledge`, `knowledge-base`, `knowledge-collaboration`, `knowledge-database`, `notebook`, `notification`, `organization`, `search`, `shared`, `source`, `workspace`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`.
-
-> **Removed modules:** `wiki` (decomposed into `knowledge-base`, `knowledge-collaboration`, `knowledge-database`), `namespace` (slug utilities migrated to `shared`), `event` (event-store primitives migrated to `shared`). The following names in older docs are stale and no longer exist: `agent`, `asset`, `content`, `knowledge-graph`, `retrieval`, `audit`, `file`, `graph`, `storage`.
+Legacy or migration-era directories may still exist under `modules/`. Treat those paths as implementation surfaces or migration artifacts, not as authority for ownership, canonical naming, or cross-domain duplicate resolution.
 
 ## Package System (21 Packages)
 

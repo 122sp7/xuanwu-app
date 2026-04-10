@@ -90,7 +90,7 @@ Cockburn 在 2005 年提出六邊形架構，目標是讓**應用核心完全隔
 
 ```typescript
 // ✅ Port：在 domain/ 定義介面——不依賴任何框架
-// modules/knowledge/domain/repositories/KnowledgePageRepository.ts
+// modules/<context>/domain/repositories/MyAggregateRepository.ts
 export interface KnowledgePageRepository {
   findById(id: KnowledgePageId): Promise<KnowledgePage | null>;
   save(page: KnowledgePage): Promise<void>;
@@ -98,7 +98,7 @@ export interface KnowledgePageRepository {
 }
 
 // ✅ Adapter：在 infrastructure/ 實作——可替換
-// modules/knowledge/infrastructure/firebase/FirebaseKnowledgePageRepository.ts
+// modules/<context>/infrastructure/firebase/FirebaseMyAggregateRepository.ts
 export class FirebaseKnowledgePageRepository implements KnowledgePageRepository {
   async findById(id: KnowledgePageId): Promise<KnowledgePage | null> {
     // Firebase 實作細節在這裡，domain/ 完全不知道

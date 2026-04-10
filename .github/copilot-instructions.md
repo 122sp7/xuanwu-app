@@ -26,15 +26,15 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 
 Read these in order before making non-trivial decisions:
 
-1. [instructions/ubiquitous-language.instructions.md](./instructions/ubiquitous-language.instructions.md) for canonical terminology routing.
-2. [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for module isolation and cross-context collaboration boundaries.
-3. `modules/<context>/context-map.md` for context relationships, upstream/downstream contracts, and anti-corruption decisions.
-4. [agents/knowledge-base.md](./agents/knowledge-base.md) for repository-wide architecture rules and module boundaries.
+1. [docs/ubiquitous-language.md](../docs/ubiquitous-language.md) for canonical terminology routing and duplicate-name guardrails.
+2. [docs/subdomains.md](../docs/subdomains.md) for strategic subdomain classification and cross-domain duplicate resolution.
+3. [docs/bounded-contexts.md](../docs/bounded-contexts.md) for main-domain ownership, bounded-context boundaries, and module map.
+4. `docs/contexts/<context>/{README.md,subdomains.md,bounded-contexts.md,context-map.md,ubiquitous-language.md}` for context-local boundary, language, and relationship detail.
 5. [agents/commands.md](./agents/commands.md) for validation commands, build, lint, test, and deployment workflows.
 
 ## DDD Reference Authority
 
-Strategic DDD root maps are owned by `docs/subdomains.md` and `docs/bounded-contexts.md`. Bounded-context reference sets currently live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
+Strategic DDD root maps are owned by `docs/subdomains.md` and `docs/bounded-contexts.md`. Bounded-context reference sets are owned by `docs/contexts/<context>/`.
 
 Cross-domain duplicate-name resolution is owned by `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, and `docs/contexts/<context>/*`. If `modules/<context>/docs/*` preserves legacy or implementation-oriented names during migration, those names must not override the strategic ownership and naming decisions in root `docs/`.
 
@@ -44,23 +44,21 @@ Cross-domain duplicate-name resolution is owned by `docs/subdomains.md`, `docs/b
 | Bounded Context boundaries / module map | [`docs/bounded-contexts.md`](../docs/bounded-contexts.md) |
 | Bounded Context + Subdomain delivery template | [`docs/bounded-context-subdomain-template.md`](../docs/bounded-context-subdomain-template.md) |
 | Project milestones from zero to delivery | [`docs/project-delivery-milestones.md`](../docs/project-delivery-milestones.md) |
-| Context terminology | `modules/<context>/ubiquitous-language.md` |
-| Context aggregates / entities / value objects | `modules/<context>/aggregates.md` |
-| Context domain events | `modules/<context>/domain-events.md` |
-| Context map | `modules/<context>/context-map.md` |
-| Context repositories | `modules/<context>/repositories.md` |
-| Context application services | `modules/<context>/application-services.md` |
-| Context domain services | `modules/<context>/domain-services.md` |
+| Context overview / local responsibility | `docs/contexts/<context>/README.md` |
+| Context local subdomains | `docs/contexts/<context>/subdomains.md` |
+| Context local bounded-context view | `docs/contexts/<context>/bounded-contexts.md` |
+| Context terminology | `docs/contexts/<context>/ubiquitous-language.md` |
+| Context map | `docs/contexts/<context>/context-map.md` |
 
-**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/subdomains.md` + `docs/bounded-contexts.md` contains strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
+**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/**/*` owns DDD routing and bounded-context documentation. Link instead of copying.
 
 **Rule**: when strategic naming conflicts with implementation-era names, root `docs/` wins for ownership, vocabulary, and cross-domain communication. Treat `modules/<context>/docs/*` as implementation-aligned detail, not as authority for duplicate generic names across main domains.
 
 ## Hexagonal DDD Canonical Triad
 
-- **Ubiquitous Language**: `instructions/ubiquitous-language.instructions.md` + `modules/<context>/ubiquitous-language.md`
-- **Bounded Context**: `instructions/bounded-context-rules.instructions.md` + `docs/bounded-contexts.md`
-- **Context Map**: `modules/<context>/context-map.md`
+- **Ubiquitous Language**: `instructions/ubiquitous-language.instructions.md` + `docs/contexts/<context>/ubiquitous-language.md`
+- **Bounded Context**: `instructions/bounded-context-rules.instructions.md` + `docs/bounded-contexts.md` + `docs/contexts/<context>/bounded-contexts.md`
+- **Context Map**: `docs/contexts/<context>/context-map.md`
 
 Any architecture/design update must stay consistent across this triad.
 
@@ -75,7 +73,7 @@ Any architecture/design update must stay consistent across this triad.
 
 ## Architecture Guardrails
 
-- Follow Module-Driven Domain Design: each `modules/<context>/` directory is an isolated bounded context.
+- Follow docs-defined bounded contexts as the ownership authority; when working in code, keep each `modules/<context>/` directory isolated and access peers through `api/` boundaries only.
 - Cross-module access must go through the target module's `api/` boundary only.
 - Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
 - Keep business logic in `domain/` and `application/`; keep UI, transport, and composition in `interfaces/` and `app/`.
@@ -159,8 +157,8 @@ Any of the following require a context7 lookup before proceeding:
 
 ## Skill And Agent Routing
 
-- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
-- Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters.
+- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters; do not use it as the authority for strategic ownership or canonical naming.
+- Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters; strategic authority still comes from `docs/**/*`.
 - Use [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) when applying Hexagonal Architecture with DDD to module boundaries, ports/adapters, and cross-module API contracts.
 - Use boundary or contract skills only when the task actually crosses those concerns.
 - Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.

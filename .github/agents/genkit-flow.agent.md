@@ -20,19 +20,22 @@ handoffs:
 
 ## Target Scope
 
-- `modules/agent/**`
 - `app/**`
-- `modules/retrieval/**`
+- `modules/platform/**`
+- `modules/notebooklm/**`
+- `modules/notion/**` when content-side orchestration consumes shared AI capability
 
 ## Focus
 
 - Flow inputs and outputs
 - Prompt and tool orchestration boundaries
 - Error handling and fallback behavior
+- Separation between shared `platform.ai` governance and `notebooklm` reasoning / retrieval semantics
 
 ## Guardrails
 
 - Keep flow contracts explicit.
 - Avoid leaking worker-only logic into app orchestration.
+- Keep generic AI ownership in `platform.ai`; downstream contexts consume capability rather than redefining ownership.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 

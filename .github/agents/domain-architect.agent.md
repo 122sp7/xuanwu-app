@@ -51,7 +51,7 @@ handoffs:
 
 ### 上下文地圖 (Context Map)
 
-- [ ] 是否已查閱對應模組 `modules/<context>/context-map.md`？
+- [ ] 是否已查閱對應 context 的 `docs/contexts/<context>/context-map.md`？
 - [ ] 上下游關係與依賴方向是否與 Context Map 一致？
 - [ ] 跨上下文模型轉譯是否透過 ACL / adapter 處理？
 

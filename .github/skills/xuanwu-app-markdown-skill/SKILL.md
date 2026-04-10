@@ -15,6 +15,10 @@ Use this skill when you need to:
 - Read source code for any file
 - Search for code patterns or keywords
 
+Authority guardrail:
+- These generated references are implementation snapshots, not the authority for strategic bounded-context ownership, canonical naming, or duplicate-name resolution.
+- For architecture and vocabulary decisions, read `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, and `docs/contexts/<context>/*` first.
+
 ## Files
 
 | File | Contents |
@@ -71,6 +75,7 @@ function calculateTotal
 - Use line counts in `project-structure.md` to estimate file complexity
 - Search `## File:` pattern to jump between files
 - Check `summary.md` for excluded files, format details, and file statistics
+- If a generated reference conflicts with `docs/**/*`, treat the generated reference as implementation-only and follow `docs/**/*`.
 
 ---
 
