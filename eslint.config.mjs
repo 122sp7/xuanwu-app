@@ -9,50 +9,66 @@ import jsxA11y from "eslint-plugin-jsx-a11y";
 // ─── Globs ───────────────────────────────────────────────────────────────────
 const srcGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
 const tsGlobs  = ["**/*.{ts,tsx}"];
-const modGlobs = ["modules/**/*.{ts,tsx}"];
+const moduleCodeGlobs = ["modules/**/*.{js,jsx,ts,tsx}"];
+const outerAdapterGlobs = ["app/**/*.{ts,tsx,js,jsx}","providers/**/*.{ts,tsx,js,jsx}","debug/**/*.{ts,tsx,js,jsx}"];
+const packageGlobs = ["packages/**/*.{ts,tsx,js,jsx}"];
 
 // ─── Module boundary helpers ─────────────────────────────────────────────────
 const WARN = "warn";
 
-const moduleElements = ["domain","application","infrastructure","interfaces"].flatMap((layer) => [
-  { type: `module-${layer}`, pattern: `modules/*/${layer}/**/*`, capture: ["module"] },
-]);
-moduleElements.unshift(
-  { type: "module-root",           pattern: "modules/*/index.ts",               capture: ["module"] },
-  { type: "module-api",            pattern: "modules/*/api/**/*",                capture: ["module"] },
-  { type: "module-interfaces-api", pattern: "modules/*/interfaces/api/**/*",    capture: ["module"] },
-  { type: "module-interfaces-web", pattern: "modules/*/interfaces/web/**/*",    capture: ["module"] },
-);
+const mainDomainElements = [
+  { type: "main-domain-api", pattern: "modules/*/api/**/*", mode: "file", capture: ["domain"] },
+  { type: "main-domain-domain", pattern: "modules/*/domain/**/*", mode: "file", capture: ["domain"] },
+  { type: "main-domain-application", pattern: "modules/*/application/**/*", mode: "file", capture: ["domain"] },
+  { type: "main-domain-infrastructure", pattern: "modules/*/infrastructure/**/*", mode: "file", capture: ["domain"] },
+  { type: "main-domain-interfaces", pattern: "modules/*/interfaces/**/*", mode: "file", capture: ["domain"] },
+];
 
-const layers = ["module-domain","module-application","module-infrastructure","module-interfaces"];
-const sameModule = (type) => ({ to: { type, captured: { module: "{{from.captured.module}}" } } });
+const subdomainElements = [
+  { type: "subdomain-api", pattern: "modules/*/subdomains/*/api/**/*", mode: "file", capture: ["domain","subdomain"] },
+  { type: "subdomain-domain", pattern: "modules/*/subdomains/*/domain/**/*", mode: "file", capture: ["domain","subdomain"] },
+  { type: "subdomain-application", pattern: "modules/*/subdomains/*/application/**/*", mode: "file", capture: ["domain","subdomain"] },
+  { type: "subdomain-infrastructure", pattern: "modules/*/subdomains/*/infrastructure/**/*", mode: "file", capture: ["domain","subdomain"] },
+  { type: "subdomain-interfaces", pattern: "modules/*/subdomains/*/interfaces/**/*", mode: "file", capture: ["domain","subdomain"] },
+];
 
-const layerAllows = {
-  "module-domain":         ["module-domain"],
-  "module-application":    ["module-application","module-domain"],
-  "module-infrastructure": ["module-infrastructure","module-application","module-domain"],
-  "module-interfaces":     ["module-interfaces","module-application","module-infrastructure","module-domain"],
-};
+const moduleElements = [...subdomainElements, ...mainDomainElements];
 
-const moduleDependencyRules = [
-  // cross-module → must go through api, interfaces/api, or interfaces/web
-  ...layers.map((type) => ({ from: { type }, allow: [{ to: { type: "module-api" } }, { to: { type: "module-interfaces-api" } }, { to: { type: "module-interfaces-web" } }] })),
-  // same-module root barrel allowed
-  ...layers.map((type) => ({ from: { type }, allow: [sameModule("module-root")] })),
-  // api layer owns same-module layers
-  { from: { type: "module-api" }, allow: ["module-api",...layers].map(sameModule) },
-  // interfaces/api and interfaces/web as same-module public adapter layers
-  { from: { type: "module-interfaces-api" }, allow: ["module-interfaces-api","module-interfaces-web","module-api",...layers].map(sameModule) },
-  { from: { type: "module-interfaces-web" }, allow: ["module-interfaces-web","module-interfaces-api","module-api",...layers].map(sameModule) },
-  // same-module layer purity
-  ...layers.map((type) => ({ from: { type }, allow: layerAllows[type].map(sameModule) })),
+const sameDomain = (type) => [type, { domain: "${from.domain}" }];
+const sameSubdomain = (type) => [type, { domain: "${from.domain}", subdomain: "${from.subdomain}" }];
+
+const moduleElementTypeRules = [
+  { from: ["main-domain-domain"], allow: [sameDomain("main-domain-domain")] },
+  { from: ["main-domain-application"], allow: [sameDomain("main-domain-application"), sameDomain("main-domain-domain")] },
+  { from: ["main-domain-infrastructure"], allow: [sameDomain("main-domain-infrastructure"), sameDomain("main-domain-application"), sameDomain("main-domain-domain")] },
+  { from: ["main-domain-interfaces"], allow: [sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api")] },
+  { from: ["main-domain-api"], allow: [sameDomain("main-domain-api"), sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("main-domain-infrastructure"), sameDomain("subdomain-api")] },
+  { from: ["subdomain-domain"], allow: [sameSubdomain("subdomain-domain")] },
+  { from: ["subdomain-application"], allow: [sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain")] },
+  { from: ["subdomain-infrastructure"], allow: [sameSubdomain("subdomain-infrastructure"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain")] },
+  { from: ["subdomain-interfaces"], allow: [sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain")] },
+  { from: ["subdomain-api"], allow: [sameSubdomain("subdomain-api"), sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameSubdomain("subdomain-infrastructure")] },
 ];
 
 // ─── Restricted import patterns ───────────────────────────────────────────────
-const apiEntrypoint   = { regex: "^@/modules/(?!system$)[^/]+$",                          message: "Use @/modules/<module>/api only." };
-const nonApiSubpath   = { regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)|interfaces/(?:api|web)(?:/|$)).+", message: "Cross-module deps must use @/modules/<module>/api, @/modules/<module>/interfaces/api, or @/modules/<module>/interfaces/web." };
-const explicitIndex   = { group: ["**/index","**/index.ts","**/index.tsx"],                message: "Import the target file directly, not an index path." };
-const internalLayer   = { group: ["domain","application","infrastructure"].flatMap((l) => [`@/modules/*/${l}/**`]), message: "Use @/modules/<module>/api, @/modules/<module>/interfaces/api, or @/modules/<module>/interfaces/web — not internal layer paths." };
+const moduleRootBarrel = { regex: "^@/modules/(?!system$)[^/]+$", message: "Do not import module root barrels; use @/modules/<main-domain>/api." };
+const subdomainRootBarrel = { regex: "^@/modules/[^/]+/subdomains/[^/]+$", message: "Do not import subdomain root barrels; use @/modules/<main-domain>/subdomains/<subdomain>/api." };
+const nonApiModuleSubpath = { regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)|subdomains/[^/]+/api(?:/|$)).+", message: "Cross-boundary dependencies must use API boundaries only." };
+const explicitIndex = { group: ["**/index","**/index.ts","**/index.tsx"], message: "Import the boundary path, not an explicit index file." };
+const internalLayer = {
+  group: [
+    "@/modules/*/domain/**",
+    "@/modules/*/application/**",
+    "@/modules/*/infrastructure/**",
+    "@/modules/*/interfaces/**",
+    "@/modules/*/subdomains/*/domain/**",
+    "@/modules/*/subdomains/*/application/**",
+    "@/modules/*/subdomains/*/infrastructure/**",
+    "@/modules/*/subdomains/*/interfaces/**",
+  ],
+  message: "Use the owning API boundary instead of internal layer paths.",
+};
+const packageToModules = { regex: "^@/modules/", message: "packages/* must remain independent of application modules." };
 
 const legacyAliases = [
   { group: ["@/shared/*"],        message: "Use @shared-types / @shared-utils / … instead." },
@@ -128,11 +144,11 @@ export default defineConfig([
 
   // Module boundaries (eslint-plugin-boundaries)
   {
-    files: modGlobs,
+    files: moduleCodeGlobs,
     plugins: { boundaries },
-    settings: { "boundaries/include": modGlobs, "boundaries/elements": moduleElements },
+    settings: { "boundaries/include": moduleCodeGlobs, "boundaries/elements": moduleElements },
     rules: {
-      "boundaries/dependencies": [WARN, { default: "disallow", rules: moduleDependencyRules }],
+      "boundaries/element-types": [WARN, { default: "disallow", rules: moduleElementTypeRules }],
     },
   },
 
@@ -146,15 +162,21 @@ export default defineConfig([
 
   // app / providers / debug → only module api entrypoints
   {
-    files: ["app/**/*.{ts,tsx,js,jsx}","providers/**/*.{ts,tsx,js,jsx}","debug/**/*.{ts,tsx,js,jsx}"],
-    rules: { [restrictedImports([apiEntrypoint, nonApiSubpath])[0]]: restrictedImports([apiEntrypoint, nonApiSubpath])[1] },
+    files: outerAdapterGlobs,
+    rules: { [restrictedImports([moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath])[0]]: restrictedImports([moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath])[1] },
   },
 
   // modules → strict entrypoint + internal layer enforcement
   {
-    files: modGlobs,
-    rules: { [restrictedImports([explicitIndex, apiEntrypoint, nonApiSubpath, internalLayer])[0]]: restrictedImports([explicitIndex, apiEntrypoint, nonApiSubpath, internalLayer])[1] },
+    files: moduleCodeGlobs,
+    rules: { [restrictedImports([explicitIndex, moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath, internalLayer])[0]]: restrictedImports([explicitIndex, moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath, internalLayer])[1] },
   },
 
-  globalIgnores([".agents/**","modules/platform/**",".next/**","out/**","build/**","next-env.d.ts"]),
+  // packages must not depend on application modules
+  {
+    files: packageGlobs,
+    rules: { [restrictedImports([packageToModules])[0]]: restrictedImports([packageToModules])[1] },
+  },
+
+  globalIgnores([".agents/**",".next/**","out/**","build/**","next-env.d.ts"]),
 ]);
