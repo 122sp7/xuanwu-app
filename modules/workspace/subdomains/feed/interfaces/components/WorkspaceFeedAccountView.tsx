@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Eye, Heart, MessageCircle, Repeat2, Share2, Star } from "lucide-react";
 
-import { useApp } from "@/app/providers/app-provider";
+import { useApp } from "@/modules/platform/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { Textarea } from "@ui-shadcn/ui/textarea";
 import { workspaceFeedFacade } from "../../api/workspace-feed.facade";

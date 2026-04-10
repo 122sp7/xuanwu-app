@@ -13,7 +13,7 @@ import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
 import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
 import { WorkspaceFlowTab } from "@/modules/workspace/api";
 import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
-import { useApp } from "@/app/providers/app-provider";
+import { useApp } from "@/modules/platform/api";
 
 import {
   createSettingsDraft,

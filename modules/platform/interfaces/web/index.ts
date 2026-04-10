@@ -4,6 +4,7 @@ export { AppBreadcrumbs } from "./components/AppBreadcrumbs";
 export { GlobalSearchDialog, useGlobalSearch } from "./components/GlobalSearchDialog";
 export { AppRail } from "./components/AppRail";
 export { DashboardSidebar } from "./components/DashboardSidebar";
+export { ShellLayout } from "./components/ShellLayout";
 export type { DashboardSidebarProps, NavSection } from "./navigation/sidebar-nav-data";
 export {
   resolveNavSection,
@@ -17,3 +18,14 @@ export {
   sidebarGroupButtonClass,
   SimpleNavLinks,
 } from "./navigation/sidebar-nav-data";
+
+// providers
+export {
+  AppContext,
+  type AppState,
+  type AppAction,
+  type AppContextValue,
+  type ActiveAccount,
+} from "./providers/app-context";
+export { AppProvider, useApp } from "./providers/app-provider";
+export { Providers } from "./providers/providers";
