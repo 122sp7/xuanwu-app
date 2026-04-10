@@ -1,7 +1,6 @@
 "use client";
 
-import { useApp } from "@/app/providers/app-provider";
-import { isActiveOrganizationAccount, TeamsPage } from "@/modules/platform/api";
+import { useApp, isActiveOrganizationAccount, TeamsPage } from "@/modules/platform/api"
 
 export default function OrganizationTeamsPage() {
   const { state: { activeAccount } } = useApp();

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useApp } from "@/app/providers/app-provider";
+import { useApp } from "@/modules/platform/api";
 import { OrganizationWorkspacesScreen } from "@/modules/workspace/api";
 import { isActiveOrganizationAccount } from "@/modules/platform/api";
 

@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Brain, Building2, Database, FolderKanban, MessageSquare } from "lucide-react";
 
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
+import { useApp, useAuth } from "@/modules/platform/api"
 import { buildWikiContentTree } from "@/modules/workspace/api";
 import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
 import { Badge } from "@ui-shadcn/ui/badge";

@@ -1,7 +1,6 @@
 "use client";
 
-import { useApp } from "@/app/providers/app-provider";
-import { isActiveOrganizationAccount, PermissionsPage } from "@/modules/platform/api";
+import { useApp, isActiveOrganizationAccount, PermissionsPage } from "@/modules/platform/api"
 
 export default function OrganizationPermissionsPage() {
   const { state: { activeAccount } } = useApp();

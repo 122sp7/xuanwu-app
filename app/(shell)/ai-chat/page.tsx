@@ -2,8 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
+import { useApp, useAuth } from "@/modules/platform/api"
 import { AiChatPage } from "@/modules/notebooklm/api";
 
 export default function AiChatRoutePage() {

@@ -1,7 +1,6 @@
 "use client";
 
-import { useApp } from "@/app/providers/app-provider";
-import { isActiveOrganizationAccount, OrganizationAuditPage } from "@/modules/platform/api";
+import { useApp, isActiveOrganizationAccount, OrganizationAuditPage } from "@/modules/platform/api"
 
 export default function OrganizationAuditPageRoute() {
   const { state: appState } = useApp();

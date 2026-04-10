@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { useApp } from "@/app/providers/app-provider";
+import { useApp } from "@/modules/platform/api";
 
 /**
  * /source/documents is now a redirect shim.

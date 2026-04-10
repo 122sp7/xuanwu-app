@@ -10,8 +10,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
+import { useApp, useAuth } from "@/modules/platform/api"
 import type { AccountEntity } from "@/modules/platform/api";
 import { isActiveOrganizationAccount } from "@/modules/platform/api";
 import { Button } from "@ui-shadcn/ui/button";

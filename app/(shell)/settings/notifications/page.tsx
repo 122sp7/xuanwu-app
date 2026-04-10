@@ -1,7 +1,6 @@
 "use client";
 
-import { useAuth } from "@/app/providers/auth-provider";
-import { NotificationsPage } from "@/modules/platform/api";
+import { useAuth, NotificationsPage } from "@/modules/platform/api"
 
 export default function NotificationCenterPage() {
   const { state: authState } = useAuth();
