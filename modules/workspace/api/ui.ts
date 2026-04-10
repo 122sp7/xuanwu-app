@@ -98,6 +98,10 @@ export {
   writeNavPreferences,
 } from "../interfaces/web/navigation/nav-preferences-data";
 
+// ── Sidebar locale ────────────────────────────────────────────────────────────
+
+export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-locale";
+
 // ── Navigation customize dialog ───────────────────────────────────────────────
 
 export { CustomizeNavigationDialog } from "../interfaces/web/components/dialogs/CustomizeNavigationDialog";

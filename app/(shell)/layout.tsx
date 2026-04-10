@@ -17,14 +17,15 @@ import { useAuth } from "@/app/providers/auth-provider";
 import type { AccountEntity } from "@/modules/platform/api";
 import {
   AccountSwitcher,
+  AppBreadcrumbs,
+  GlobalSearchDialog,
   HeaderControls,
   HeaderUserAvatar,
   ShellGuard,
+  useGlobalSearch,
 } from "@/modules/platform/api";
-import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
 import { AppRail } from "./_components/app-rail";
 import { DashboardSidebar } from "./_components/dashboard-sidebar";
-import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
 
 const routeTitles: Record<string, string> = {
   "/organization": "組織治理",

@@ -27,10 +27,10 @@ import {
   readNavPreferences,
   type NavPreferences,
   useRecentWorkspaces,
+  useSidebarLocale,
   WorkspaceSidebarSection,
 } from "@/modules/workspace/api";
 import { useAuth } from "@/app/providers/auth-provider";
-import { useSidebarLocale } from "./use-sidebar-locale";
 import {
   type DashboardSidebarProps,
   ORGANIZATION_MANAGEMENT_ITEMS,

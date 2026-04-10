@@ -1,17 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import type { SidebarLocaleBundle } from "./nav-preferences-data";
 
-export interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
+export type { SidebarLocaleBundle };
 
 /**
  * Loads the sidebar locale bundle from the public localized-files directory.
- * Returns null until the bundle is loaded or if loading fails (callers fall back to hardcoded labels).
+ * Returns null until the bundle is loaded or if loading fails
+ * (callers fall back to hardcoded labels).
  */
 export function useSidebarLocale(): SidebarLocaleBundle | null {
   const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
