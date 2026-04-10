@@ -1,7 +1,6 @@
 /**
- * modules/shared — domain: slug utilities
- * Pure slug derivation and validation helpers shared across domains.
- * Moved from modules/namespace/domain/services/slug-policy.ts.
+ * notebooklm/subdomains/source — slug utilities
+ * Pure slug derivation and validation helpers for wiki library names.
  */
 
 /**
@@ -11,10 +10,10 @@
 export function deriveSlugCandidate(displayName: string): string {
   return displayName
     .toLowerCase()
-    .replace(/[\s_./\\]+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-{2,}/g, '-')
-    .replace(/^-+|-+$/g, '')
+    .replace(/[\s_./\\]+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "")
     .slice(0, 63);
 }
 

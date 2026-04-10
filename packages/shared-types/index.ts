@@ -1,3 +1,52 @@
+import { z } from "@lib-zod";
+
+// ─── Domain Event base interface ─────────────────────────────────────────────
+
+/** All domain events must implement this interface. */
+export interface DomainEvent {
+  /** Unique event identifier */
+  readonly eventId: string;
+  /** Event type discriminant (e.g. "workspace.created") */
+  readonly type: string;
+  /** Aggregate root ID that triggered the event */
+  readonly aggregateId: string;
+  /** ISO 8601 occurrence timestamp */
+  readonly occurredAt: string;
+}
+
+// ─── Base entity schema ───────────────────────────────────────────────────────
+
+const CreatedBySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  avatarUrl: z.string().optional(),
+});
+
+/**
+ * Shared base fields for all domain entities.
+ * Includes tenant isolation (accountId / workspaceId) and audit trail (createdBy).
+ */
+export const BaseEntitySchema = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  workspaceId: z.string(),
+  accountId: z.string(),
+  createdBy: CreatedBySchema,
+});
+
+export type BaseEntity = z.infer<typeof BaseEntitySchema>;
+export type CreatedBy = z.infer<typeof CreatedBySchema>;
+
+/**
+ * Query scope for account-level or workspace-level queries.
+ * When workspaceId is omitted, the query spans all workspaces for the tenant.
+ */
+export interface QueryScope {
+  accountId: string;
+  workspaceId?: string;
+}
+
 // ─── Primitive types ──────────────────────────────────────────────────────────
 
 export type ID = string;

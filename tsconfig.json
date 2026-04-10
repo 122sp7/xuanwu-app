@@ -25,6 +25,7 @@
     "paths": {
       "@/*": ["./*"],
       "@shared-types": ["./packages/shared-types/index.ts"],
+      "@shared-events": ["./packages/shared-events/index.ts"],
       "@shared-utils": ["./packages/shared-utils/index.ts"],
       "@shared-validators": ["./packages/shared-validators/index.ts"],
       "@shared-constants": ["./packages/shared-constants/index.ts"],
