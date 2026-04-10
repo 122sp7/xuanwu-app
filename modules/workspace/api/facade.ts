@@ -77,8 +77,8 @@ export {
   getWorkspaceFlowInvoices,
   getWorkspaceFlowInvoiceItems,
   createKnowledgeToWorkflowListener,
-} from "../subdomains/workflow/api";
+} from "../subdomains/workspace-workflow/api";
 
 export type {
   KnowledgePageApprovedHandler,
-} from "../subdomains/workflow/api";
+} from "../subdomains/workspace-workflow/api";

@@ -59,13 +59,6 @@ const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
       pathname === "/notebook/rag-query" || pathname.startsWith("/notebook/rag-query/"),
   },
   {
-    href: "/source/documents?workspaceId={workspaceId}",
-    label: "文件",
-    icon: <FileText className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/source/documents" || pathname.startsWith("/source/documents/"),
-  },
-  {
     href: "/source/libraries?workspaceId={workspaceId}",
     label: "資料庫",
     icon: <Database className="size-3.5" />,

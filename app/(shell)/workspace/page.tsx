@@ -2,16 +2,12 @@
 
 import { useSearchParams } from "next/navigation";
 
-import type { ActiveAccount } from "@/app/providers/app-context";
-import { useApp } from "@/app/providers/app-provider";
+import type { ActiveAccount } from "@/modules/platform/api";
+import { useApp, useAuth, isActiveOrganizationAccount } from "@/modules/platform/api"
 import { WorkspaceHubScreen } from "@/modules/workspace/api";
 
-function isOrganizationAccount(activeAccount: ActiveAccount | null): activeAccount is ActiveAccount & { accountType: "organization" } {
-  return Boolean(activeAccount && "accountType" in activeAccount && activeAccount.accountType === "organization");
-}
-
 function getActiveAccountType(activeAccount: ActiveAccount | null) {
-  return isOrganizationAccount(activeAccount) ? "organization" : "user";
+  return isActiveOrganizationAccount(activeAccount) ? "organization" : "user";
 }
 
 export default function WorkspacePage() {
@@ -19,6 +15,7 @@ export default function WorkspacePage() {
   const {
     state: { activeAccount, accountsHydrated, bootstrapPhase },
   } = useApp();
+  const { state: authState } = useAuth();
   const context = searchParams.get("context");
 
   return (
@@ -35,6 +32,7 @@ export default function WorkspacePage() {
         accountType={getActiveAccountType(activeAccount)}
         accountsHydrated={accountsHydrated}
         isBootstrapSeeded={bootstrapPhase === "seeded"}
+        currentUserId={authState.user?.id}
       />
     </div>
   );

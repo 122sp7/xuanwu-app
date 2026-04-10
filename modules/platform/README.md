@@ -40,7 +40,7 @@ modules/platform/
     AGENT.md
 ```
 
-## Canonical Subdomain Inventory (23)
+## Canonical Subdomain Inventory (24)
 
 - `identity`
 - `account`
@@ -55,6 +55,7 @@ modules/platform/
 - `billing`
 - `subscription`
 - `referral`
+- `ai`
 - `integration`
 - `workflow`
 - `notification`

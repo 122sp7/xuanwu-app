@@ -73,11 +73,6 @@ export function WorkspaceProductSpineCard({ workspace }: WorkspaceProductSpineCa
             <Button asChild size="sm" variant="outline">
               <Link href={`/workspace/${workspace.id}?tab=Files`}>Files 分頁</Link>
             </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>
-                文件
-              </Link>
-            </Button>
           </div>
         </div>
 

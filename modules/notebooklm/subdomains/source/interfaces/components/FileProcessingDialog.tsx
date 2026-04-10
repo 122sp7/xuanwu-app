@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 
-import { useAuth } from "@/app/providers/auth-provider";
+import { useAuth } from "@/modules/platform/api";
 import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
 import { Button } from "@ui-shadcn/ui/button";
 

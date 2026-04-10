@@ -86,6 +86,27 @@ export {
   useRecentWorkspaces,
 } from "../interfaces/web/hooks/useRecentWorkspaces";
 
+// ── Navigation preferences ────────────────────────────────────────────────────
+
+export type { NavPreferences, SidebarLocaleBundle } from "../interfaces/web/navigation/nav-preferences-data";
+export {
+  PERSONAL_ITEMS,
+  ORGANIZATION_NAV_ITEMS,
+  DIALOG_TEXT,
+  DEFAULT_PREFS,
+  readNavPreferences,
+  writeNavPreferences,
+} from "../interfaces/web/navigation/nav-preferences-data";
+
+// ── Sidebar locale ────────────────────────────────────────────────────────────
+
+export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-locale";
+
+// ── Navigation customize dialog ───────────────────────────────────────────────
+
+export { CustomizeNavigationDialog } from "../interfaces/web/components/dialogs/CustomizeNavigationDialog";
+export { CheckRow, WorkspaceCheckRow } from "../interfaces/web/components/dialogs/NavCheckRow";
+
 export {
   AuditStream,
   WorkspaceAuditTab,
@@ -102,4 +123,4 @@ export {
   WorkspaceSchedulingTab,
 } from "../subdomains/scheduling/api";
 
-export { WorkspaceFlowTab } from "../subdomains/workflow/api";
+export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";

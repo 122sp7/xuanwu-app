@@ -72,3 +72,10 @@ export {
   LibraryTableView,
   FileProcessingDialog,
 } from "../subdomains/source";
+
+// ---------------------------------------------------------------------------
+// conversation subdomain — AI chat UI and helpers
+// ---------------------------------------------------------------------------
+
+export { AiChatPage } from "../subdomains/conversation";
+export type { AiChatPageProps, ChatMessage } from "../subdomains/conversation";

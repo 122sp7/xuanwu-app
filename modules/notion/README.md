@@ -42,33 +42,38 @@ modules/notion/
         authoring/          ← modules/knowledge-base 遷移目標
         collaboration/      ← modules/knowledge-collaboration 遷移目標
         database/           ← modules/knowledge-database 遷移目標
-        ai/
-        analytics/
+        knowledge-analytics/
         attachments/
         automation/
-        integration/
+        knowledge-integration/
         notes/
         templates/
-        versioning/
+        knowledge-versioning/
     docs/
     README.md
     AGENT.md
 ```
 
-## Canonical Subdomain Inventory (12)
+## Canonical Subdomain Inventory (11)
 
 - `knowledge` — 核心頁面、區塊、集合（← `modules/knowledge`）
 - `authoring` — 組織知識庫文章（← `modules/knowledge-base`）
 - `collaboration` — 留言、權限、版本（← `modules/knowledge-collaboration`）
 - `database` — 結構化資料庫視圖（← `modules/knowledge-database`）
-- `ai` — AI 輔助生成與摘要
-- `analytics` — 使用分析
+- `knowledge-analytics` — 知識使用行為量測
 - `attachments` — 附件與媒體
 - `automation` — 自動化觸發規則
-- `integration` — 外部系統整合
+- `knowledge-integration` — 知識與外部系統雙向整合
 - `notes` — 個人筆記快取
 - `templates` — 頁面範本
-- `versioning` — 版本快照管理
+- `knowledge-versioning` — 全域版本快照策略管理
+
+> ⚠️ **Code Migration Required**
+> - `ai` 子域已從 notion 移除。通用 AI 模型調用能力由 `platform.ai` 提供；notion 子域消費 `platform.ai`，不擁有 `ai` 子域所有權。
+>   `subdomains/ai/` 目錄（含 stub 檔案）應予刪除。
+> - `subdomains/analytics/` → 已重命名為 `subdomains/knowledge-analytics/`。
+> - `subdomains/integration/` → 已重命名為 `subdomains/knowledge-integration/`。
+> - `subdomains/versioning/` → 已重命名為 `subdomains/knowledge-versioning/`。
 
 此 inventory 採 closed by default；新增子域前必須先完成文件治理與邊界論證。
 

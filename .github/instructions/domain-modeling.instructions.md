@@ -1,11 +1,11 @@
 ---
-description: '聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範，遵循 IDDD 戰術設計原則。'
+description: '聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範，遵循 Hexagonal Architecture with Domain-Driven Design 戰術設計原則。'
 applyTo: 'modules/**/domain/**/*.{ts,tsx}'
 ---
 
 # 領域模型設計規範 (Domain Modeling)
 
-> 完整知識參考：**對應 bounded context 的 `modules/<context>/aggregates.md`**
+> 完整邊界參考：**先查 `docs/contexts/<context>/README.md`、`bounded-contexts.md`、`subdomains.md`、`ubiquitous-language.md`**
 > 此文件只包含**行為約束與程式碼範例**，不複製領域知識。
 
 ## 聚合根 (Aggregate Root)
@@ -121,5 +121,4 @@ modules/<context>/domain/
 ```
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
 #use skill hexagonal-ddd

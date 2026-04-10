@@ -10,21 +10,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
+import { useApp, useAuth } from "@/modules/platform/api"
 import type { AccountEntity } from "@/modules/platform/api";
+import { isActiveOrganizationAccount } from "@/modules/platform/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-function isOrganizationAccount(
-  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
 
 export default function OrganizationPage() {
   const router = useRouter();
@@ -34,7 +24,7 @@ export default function OrganizationPage() {
   const { accounts, activeAccount, accountsHydrated, bootstrapPhase } = appState;
 
   const orgList = Object.values(accounts);
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
 
   function handleSwitch(account: AccountEntity) {
     dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });

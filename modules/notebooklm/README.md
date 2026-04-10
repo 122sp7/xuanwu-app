@@ -13,24 +13,28 @@
 | 能力 | 說明 |
 |---|---|
 | 對話 Thread 管理 | 維護對話串與訊息歷史（`conversation` 子域） |
-| AI 模型調用 | 提示工程與模型介接（`ai` 子域） |
 | Notebook 組合 | Notebook 容器與內容組合管理（`notebook` 子域） |
 | 來源追蹤 | 來源文件追蹤與引用管理（`source` 子域） |
 | RAG 合成 | 摘要、洞察與合成生成（`synthesis` 子域） |
 | 輕量筆記 | 對話衍生筆記與知識連結（`note` 子域） |
-| 版本策略 | 對話版本與快照管理（`versioning` 子域） |
+| 對話版本策略 | 對話版本與快照管理（`conversation-versioning` 子域） |
 
-## 子域清單（7 個）
+## 子域清單（6 個）
 
 | 子域 | 核心職責 |
 |---|---|
-| `ai` | AI 模型調用與提示工程 |
 | `conversation` | 對話 Thread 與 Message 生命週期 |
 | `note` | 輕量筆記與知識連結 |
 | `notebook` | Notebook 組合與管理 |
 | `source` | 來源文件追蹤與引用 |
 | `synthesis` | RAG 合成、摘要與洞察生成 |
-| `versioning` | 對話版本與快照策略 |
+| `conversation-versioning` | 對話版本與快照策略 |
+
+> ⚠️ **Code Migration Required**
+> - `ai` 子域已從 notebooklm 移除，其通用 AI 模型調用能力由 `platform.ai` 提供。
+>   現有 `subdomains/ai/` 內的 RAG/grounding/synthesis 實作需重構至 `retrieval`、`grounding`、`evaluation` gap 子域（見 `docs/contexts/notebooklm/subdomains.md`）。
+>   受影響檔案：`api/index.ts`、`api/server.ts`（目前引用 `subdomains/ai/qa`）。
+> - `subdomains/versioning/` 目錄已重命名為 `subdomains/conversation-versioning/`。
 
 ## 與其他 Bounded Context 協作
 
@@ -49,7 +53,7 @@
 | Input ports | `ports/input/` | 進入 application 的穩定契約 |
 | Output ports | `ports/output/` | repositories、stores、gateways、sinks |
 | Driven adapters | `infrastructure/` | 對 output ports 的具體實作 |
-| Subdomains | `subdomains/` | 7 個子域各自的能力邊界 |
+| Subdomains | `subdomains/` | 6 個子域各自的能力邊界 |
 
 ## 詳細文件
 
@@ -57,7 +61,7 @@
 |---|---|
 | [docs/README.md](./docs/README.md) | 文件索引 |
 | [docs/bounded-context.md](./docs/bounded-context.md) | 邊界定義、能力分組與封板規則 |
-| [docs/subdomains.md](./docs/subdomains.md) | 7 個子域的正式責任表 |
+| [docs/subdomains.md](./docs/subdomains.md) | 6 個子域的正式責任表 |
 | [docs/ubiquitous-language.md](./docs/ubiquitous-language.md) | 此 BC 通用語言 |
 | [docs/aggregates.md](./docs/aggregates.md) | 聚合根與核心概念 |
 | [docs/domain-events.md](./docs/domain-events.md) | 領域事件與整合語言 |

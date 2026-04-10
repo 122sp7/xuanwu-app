@@ -11,6 +11,7 @@ export type WorkspaceHubLoadState = "idle" | "loading" | "loaded" | "error";
 interface UseWorkspaceHubOptions {
   readonly accountId: string | null | undefined;
   readonly accountType: "user" | "organization";
+  readonly creatorUserId?: string | null;
 }
 
 function sortWorkspaces(items: WorkspaceEntity[]) {
@@ -19,7 +20,7 @@ function sortWorkspaces(items: WorkspaceEntity[]) {
   );
 }
 
-export function useWorkspaceHub({ accountId, accountType }: UseWorkspaceHubOptions) {
+export function useWorkspaceHub({ accountId, accountType, creatorUserId }: UseWorkspaceHubOptions) {
   const [workspaces, setWorkspaces] = useState<WorkspaceEntity[]>([]);
   const [loadState, setLoadState] = useState<WorkspaceHubLoadState>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -108,6 +109,7 @@ export function useWorkspaceHub({ accountId, accountType }: UseWorkspaceHubOptio
         name: nextWorkspaceName,
         accountId,
         accountType,
+        creatorUserId: creatorUserId ?? undefined,
       });
 
       if (!result.success) {
@@ -120,7 +122,7 @@ export function useWorkspaceHub({ accountId, accountType }: UseWorkspaceHubOptio
       setIsCreatingWorkspace(false);
       return result;
     },
-    [accountId, accountType, refreshWorkspaces],
+    [accountId, accountType, creatorUserId, refreshWorkspaces],
   );
 
   const workspaceStats = useMemo(() => {

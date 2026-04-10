@@ -1,38 +1,86 @@
 # Ubiquitous Language
 
-## Core Terms
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD ubiquitous language 原則重建，不主張反映現況實作。
 
-| Term | Definition |
+## Strategic Terms
+
+| Term | Meaning |
 |---|---|
-| Bounded Context | A boundary where a specific domain model and language are valid. |
-| Aggregate | Consistency boundary that enforces invariants for related entities/value objects. |
-| Published Language | Stable external contract for cross-context interaction (DTO/events). |
-| ACL (Anti-Corruption Layer) | Adapter that translates external model into internal model. |
-| Customer/Supplier | Relationship where supplier controls model and customer integrates intentionally. |
-| Domain Event | Immutable record of a significant fact that occurred within a bounded context (past-tense name). |
-| Repository | Contract (interface) that abstracts persistence; owned by domain, implemented in infrastructure. |
-| Value Object | Immutable object with no identity, compared by value equality. |
-| Entity | Object with unique identity that persists across state changes. |
-| Use Case | Single user-facing operation; application-layer orchestration of domain and infrastructure. |
-| Port | Contract/interface defined by the core domain for external adapters to implement. |
-| Adapter | Implementation of a port; lives in infrastructure or interfaces layer. |
-| Published Event Discriminant | Unique identifier for a domain event in discriminated-union form (kebab-case `<module>.<action>`). |
+| Main Domain | 戰略層級的主要 bounded context 群組 |
+| Bounded Context | 一組高凝聚、可自洽的語言與規則邊界 |
+| Published Language | 跨邊界交換時使用的共同語言 |
+| Upstream | 關係中提供語言或能力的一方 |
+| Downstream | 關係中消費語言或能力的一方 |
+| Anti-Corruption Layer | downstream 用來保護本地語言的轉譯層 |
+| Conformist | downstream 直接接受 upstream 語言的整合選擇 |
+| Shared Kernel | 對稱共用模型關係 |
+| Partnership | 對稱共同成功 / 共同失敗關係 |
 
-## Banned or Ambiguous Terms
+## Domain Terms
 
-| Avoid | Use Instead | Reason |
-|---|---|---|
-| module internals | published API contract | Clarifies boundary and dependency direction |
-| shared model (without scope) | shared kernel contract | Forces explicit ownership |
-| direct integration | ACL adapter integration | Prevents model leakage |
-| User | Tenant, Actor (context-specific) | Avoid ambiguity across bounded contexts |
-| shared code | package boundary (`@shared-*`, `@lib-*`) | Enforces explicit contract and reuse intent |
+| Domain | Key Terms |
+|---|---|
+| platform | Actor, Tenant, Entitlement, Consent, Secret |
+| workspace | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail |
+| notion | KnowledgeArtifact, Taxonomy, Relation, Publication |
+| notebooklm | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
 
-## Language Rules
+## Naming Rules
 
-1. Terms in this file are authoritative for strategic docs.
-2. New term introduction requires definition + owner context.
-3. Do not use synonyms if canonical term exists.
-4. Domain events must use past-tense naming (e.g., `WorkspaceCreated`, `MemberInvited`).
-5. Repository interfaces belong in `domain/repositories/`; implementations in `infrastructure/`.
-6. Cross-module terminology must align with the target bounded context's ubiquitous language.
+- 不用 User 混指 Actor 與 Membership。
+- 不用 Plan 混指 Subscription 與 Entitlement。
+- 不用 Wiki 混指 KnowledgeArtifact。
+- 不用 Chat 混指 Conversation。
+- 不用 Search 混指 Retrieval。
+- 不用 AI 混指 platform 的 shared AI capability 與 notion / notebooklm 的本地 use case。
+- 不用 Analytics 混指 platform analytics 與 notion 的 knowledge-analytics。
+- 不用 Integration 混指 platform integration 與 notion 的 knowledge-integration。
+- 不用 Versioning 混指 notion 的 knowledge-versioning 與 notebooklm 的 conversation-versioning。
+- 不用 Workflow 混指 platform workflow 與 workspace-workflow。
+
+## Naming Anti-Patterns
+
+- 用同一個詞同時代表平台治理語言與工作區參與語言。
+- 用內容產品舊名覆蓋 notion 的正典語言。
+- 用 Search 混指 notebooklm 的 Retrieval 與一般搜尋能力。
+- 用同一個 generic 子域名跨主域重複宣稱所有權，再期望 Copilot 自行猜對上下文。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先對齊 strategic term，再對齊 context-specific term，最後才命名型別與 API。
+- 奧卡姆剃刀：若一個詞已足夠準確，就不要再加第二個近義詞製造歧義。
+- 名稱衝突時先回到 glossary，而不是直接在程式碼裡各自命名。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic terms"] --> Context["Context terms"]
+	Context --> Boundary["Published language / API"]
+	Boundary --> Code["Generated code names"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Requirement["Requirement"] --> Term["Select canonical term"]
+	Term --> Context["Map to owning context"]
+	Context --> Boundary["Expose via boundary"]
+	Boundary --> Code["Generate code"]
+```
+
+## Document Network
+
+- [contexts/workspace/ubiquitous-language.md](./contexts/workspace/ubiquitous-language.md)
+- [contexts/platform/ubiquitous-language.md](./contexts/platform/ubiquitous-language.md)
+- [contexts/notion/ubiquitous-language.md](./contexts/notion/ubiquitous-language.md)
+- [contexts/notebooklm/ubiquitous-language.md](./contexts/notebooklm/ubiquitous-language.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0004-ubiquitous-language.md](./decisions/0004-ubiquitous-language.md)
+
+## Conflict Resolution
+
+- 若 strategic term 與主域 term 衝突，優先維持主域語言不被污染，再回寫 strategic glossary。
+- 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。

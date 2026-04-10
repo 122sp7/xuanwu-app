@@ -5,7 +5,7 @@ tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 handoffs:
   - label: Refactor Module Boundary
-    agent: MDDD Architect
+    agent: Hexagonal DDD Architect
     prompt: Refactor or review module boundaries, layer direction, and public API shape for this domain decision.
   - label: Update Contracts
     agent: TS Interface Writer

@@ -11,15 +11,15 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, ShieldCheck } from "lucide-react";
 
-import { useAuth } from "@/app/providers/auth-provider";
-import { createClientAuthUseCases } from "@/modules/platform/api";
-import { createClientAccountUseCases } from "@/modules/platform/api";
 import {
+  useAuth,
+  createClientAuthUseCases,
+  createClientAccountUseCases,
   createDevDemoUser,
   isDevDemoCredential,
   isLocalDevDemoAllowed,
   writeDevDemoSession,
-} from "@/app/providers/dev-demo-auth";
+} from "@/modules/platform/api";
 
 type Tab = "login" | "register";
 
@@ -159,7 +159,7 @@ export default function PublicPage() {
         <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
           <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
-            Unified MDDD/Hexagonal workspace for identity, account, and organization modules.
+            Unified Hexagonal Architecture with DDD workspace for identity, account, and organization modules.
             Use the top-right sign in button to access your dashboard.
           </p>
         </div>

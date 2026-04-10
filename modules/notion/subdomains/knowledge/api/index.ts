@@ -60,6 +60,7 @@ export { PageDialog } from "../interfaces/components/PageDialog";
 export { BlockEditorView } from "../interfaces/components/BlockEditorView";
 export { PageEditorView } from "../interfaces/components/PageEditorView";
 export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
+export { KnowledgePagesRouteScreen } from "../interfaces/components/KnowledgePagesRouteScreen";
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
@@ -70,3 +71,14 @@ export type { KnowledgePageTreeNode } from "../domain/aggregates/KnowledgePage";
 
 // ── Domain events (published language — for cross-module event subscriptions) ─
 export type { PageApprovedEvent, PageApprovedPayload, ExtractedTask, ExtractedInvoice } from "../domain/events/KnowledgePageEvents";
+
+// ── Sidebar component ─────────────────────────────────────────────────────────
+export { KnowledgeSidebarSection } from "../interfaces/components/KnowledgeSidebarSection";
+
+// ── Page header widgets ───────────────────────────────────────────────────────
+export { TitleEditor, IconPicker, CoverEditor } from "../interfaces/components/KnowledgePageHeaderWidgets";
+export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../interfaces/components/KnowledgePageHeaderWidgets";
+
+// ── Route screen components ───────────────────────────────────────────────────
+export { KnowledgePageDetailPage } from "../interfaces/components/KnowledgePageDetailPage";
+export type { KnowledgePageDetailPageProps } from "../interfaces/components/KnowledgePageDetailPage";

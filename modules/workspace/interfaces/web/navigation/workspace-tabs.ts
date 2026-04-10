@@ -29,7 +29,7 @@ export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
   Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
   Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
   Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
-  Tasks: { label: "Tasks", prefId: "tasks", group: "modules", status: "🏗️" },
+  Tasks: { label: "Workflow", prefId: "tasks", group: "modules", status: "🏗️" },
   Feed: { label: "Feed", prefId: "feed", group: "modules", status: "🏗️" },
 };
 

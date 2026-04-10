@@ -60,14 +60,20 @@
 
 | 子域 | 核心問題 |
 |---|---|
-| `ai` | AI 輔助如何被整合進頁面生成與摘要 |
-| `analytics` | 知識使用行為如何被量測 |
+| `knowledge-analytics` | 知識使用行為如何被量測 |
 | `attachments` | 附件與媒體如何被關聯與儲存 |
 | `automation` | 哪些知識事件應觸發自動化動作 |
-| `integration` | 知識如何與外部系統雙向整合 |
+| `knowledge-integration` | 知識如何與外部系統雙向整合 |
 | `notes` | 個人輕量筆記如何與正式知識協作 |
 | `templates` | 頁面範本如何被管理與套用 |
-| `versioning` | 版本快照策略如何在全域層級被管理 |
+| `knowledge-versioning` | 版本快照策略如何在全域層級被管理 |
+
+> ⚠️ **Code Migration Required**
+> - `ai` 子域已從 notion 移除。通用 AI 能力由 `platform.ai` 提供；notion 消費，不擁有。
+>   `subdomains/ai/` 目錄（stubs）應予刪除。
+> - `subdomains/analytics/` → 已重命名為 `subdomains/knowledge-analytics/`。
+> - `subdomains/integration/` → 已重命名為 `subdomains/knowledge-integration/`。
+> - `subdomains/versioning/` → 已重命名為 `subdomains/knowledge-versioning/`。
 
 ## 邊界測試問題
 
@@ -85,7 +91,7 @@
 |---|---|
 | [README.md](./README.md) | 模組概覽與合并計畫 |
 | [docs/bounded-context.md](./docs/bounded-context.md) | 邊界定義與封板規則 |
-| [docs/subdomains.md](./docs/subdomains.md) | 12 子域清單 |
+| [docs/subdomains.md](./docs/subdomains.md) | 11 子域清單 |
 | [docs/context-map.md](./docs/context-map.md) | 與外部 BC 的協作關係 |
 | [docs/ubiquitous-language.md](./docs/ubiquitous-language.md) | 術語定義 |
 | [docs/aggregates.md](./docs/aggregates.md) | 聚合根設計 |

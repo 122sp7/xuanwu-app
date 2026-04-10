@@ -16,14 +16,20 @@
 | `authoring` | 組織知識庫文章如何被建立、驗證與分類 | `Article`, `Category`, `VerificationState`, `ArticleOwner`, `Backlink` | `modules/knowledge-base/` |
 | `collaboration` | 如何協作留言、管理細粒度權限與版本快照 | `Comment`, `Permission`, `PermissionLevel`, `Version`, `NamedVersion` | `modules/knowledge-collaboration/` |
 | `database` | 結構化資料如何以多視圖管理 | `Database`, `Field`, `Record`, `Property`, `View`, `ViewType` | `modules/knowledge-database/` |
-| `ai` | AI 輔助如何被整合進頁面生成與摘要 | `AiDraftRequest`, `IngestionSignal` | — |
-| `analytics` | 知識使用行為如何被量測 | `PageViewEvent`, `KnowledgeMetric` | — |
+| `knowledge-analytics` | 知識使用行為如何被量測 | `PageViewEvent`, `KnowledgeMetric` | — |
 | `attachments` | 附件與媒體如何被關聯與儲存 | `Attachment`, `MediaRef` | — |
 | `automation` | 哪些知識事件應觸發自動化動作 | `AutomationRule`, `TriggerCondition` | — |
-| `integration` | 知識如何與外部系統雙向整合 | `IntegrationSource`, `SyncPolicy` | — |
+| `knowledge-integration` | 知識如何與外部系統雙向整合 | `IntegrationSource`, `SyncPolicy` | — |
 | `notes` | 個人輕量筆記如何與正式知識協作 | `Note`, `NoteRef` | — |
 | `templates` | 頁面範本如何被管理與套用 | `PageTemplate`, `TemplateApplication` | — |
-| `versioning` | 全域版本快照策略如何被管理 | `VersionPolicy`, `RetentionRule` | — |
+| `knowledge-versioning` | 全域版本快照策略如何被管理 | `VersionPolicy`, `RetentionRule` | — |
+
+> ⚠️ **Code Migration Required**
+> - `ai` 子域已從 notion 移除。`platform.ai` 提供通用 AI 能力；notion 消費，不擁有。
+>   `subdomains/ai/` 目錄（目前含 stub `.gitkeep` 檔）應予刪除。
+> - `subdomains/analytics/` → 已重命名為 `subdomains/knowledge-analytics/`。
+> - `subdomains/integration/` → 已重命名為 `subdomains/knowledge-integration/`。
+> - `subdomains/versioning/` → 已重命名為 `subdomains/knowledge-versioning/`。
 
 ## Capability Groups
 
@@ -39,8 +45,7 @@
 
 ### AI 與分析
 
-- `ai`
-- `analytics`
+- `knowledge-analytics`
 
 ### 內容豐富與自動化
 
@@ -50,9 +55,9 @@
 
 ### 整合與個人
 
-- `integration`
+- `knowledge-integration`
 - `notes`
-- `versioning`
+- `knowledge-versioning`
 
 ## Migration-Pending Subdomains
 
@@ -71,7 +76,7 @@
 
 後續若有人想新增 notion 子域，必須先證明以下三件事都成立：
 
-1. 既有 12 個子域沒有任何一個能吸收該能力
+1. 既有 11 個子域沒有任何一個能吸收該能力
 2. 新能力需要獨立的語言、port 焦點與責任邊界
 3. `README.md`、`bounded-context.md`、`context-map.md`、本文件都已先被更新
 

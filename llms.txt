@@ -7,7 +7,7 @@ This file is the AI-first documentation router for the repository. Read this bef
 ## Primary repository truths
 
 - `.github/copilot-instructions.md` — Copilot workspace guidance (always-on baseline)
-- `.github/agents/knowledge-base.md` — MDDD architecture, module boundaries, package aliases
+- `.github/agents/knowledge-base.md` — Hexagonal DDD architecture, module boundaries, package aliases
 - `.github/agents/commands.md` — Build, lint, test, and deployment workflows
 - `.github/instructions/` — Behavioral constraints (branching, commit, ubiquitous language, bounded contexts)
 - `docs/ubiquitous-language.md` — Strategic DDD terminology authority
@@ -21,7 +21,7 @@ Read from high level to detail:
 
 1. This file (`llms.txt`)
 2. `.github/copilot-instructions.md` (Copilot session contract)
-3. `.github/agents/knowledge-base.md` (MDDD foundation)
+3. `.github/agents/knowledge-base.md` (Hexagonal DDD foundation)
 4. `.github/agents/commands.md` (Validation and deployment)
 5. `.github/instructions/ubiquitous-language.instructions.md` (Terminology rules)
 6. `.github/instructions/bounded-context-rules.instructions.md` (Module isolation rules)

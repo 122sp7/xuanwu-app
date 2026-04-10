@@ -17,4 +17,4 @@ argument-hint: Provide action intent, input schema, and target use case.
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices
-#use skill modules-mddd-api-surface
+#use skill hexagonal-ddd

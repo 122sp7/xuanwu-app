@@ -34,6 +34,7 @@ interface WorkspaceHubScreenProps {
   readonly accountType: "user" | "organization";
   readonly accountsHydrated: boolean;
   readonly isBootstrapSeeded: boolean;
+  readonly currentUserId?: string | null;
 }
 
 export function WorkspaceHubScreen({
@@ -42,6 +43,7 @@ export function WorkspaceHubScreen({
   accountType,
   accountsHydrated,
   isBootstrapSeeded,
+  currentUserId,
 }: WorkspaceHubScreenProps) {
   const router = useRouter();
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
@@ -59,6 +61,7 @@ export function WorkspaceHubScreen({
   } = useWorkspaceHub({
     accountId,
     accountType,
+    creatorUserId: currentUserId,
   });
 
   function resetCreateWorkspaceDialog() {

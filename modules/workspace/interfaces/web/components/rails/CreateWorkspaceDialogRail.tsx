@@ -19,6 +19,7 @@ interface CreateWorkspaceDialogRailProps {
   onOpenChange: (open: boolean) => void;
   accountId: string | null;
   accountType: "user" | "organization" | null;
+  creatorUserId?: string | null;
   onNavigate: (href: string) => void;
 }
 
@@ -27,6 +28,7 @@ export function CreateWorkspaceDialogRail({
   onOpenChange,
   accountId,
   accountType,
+  creatorUserId,
   onNavigate,
 }: CreateWorkspaceDialogRailProps) {
   const [workspaceName, setWorkspaceName] = useState("");
@@ -57,6 +59,7 @@ export function CreateWorkspaceDialogRail({
       name,
       accountId,
       accountType,
+      creatorUserId: creatorUserId ?? undefined,
     });
 
     if (!result.success) {

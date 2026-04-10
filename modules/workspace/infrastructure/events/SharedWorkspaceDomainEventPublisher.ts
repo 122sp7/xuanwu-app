@@ -3,7 +3,7 @@ import {
   NoopEventBusRepository,
   PublishDomainEventUseCase,
   QStashEventBusRepository,
-} from "@/modules/shared/api";
+} from "@shared-events";
 import type {
   WorkspaceDomainEventPublisher,
   WorkspaceEventPublishMetadata,

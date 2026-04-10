@@ -1,5 +1,5 @@
 import { v7 } from "@lib-uuid";
-import type { DomainEvent } from "@/modules/shared/api";
+import type { DomainEvent } from "@shared-types";
 
 import type {
   WorkspaceLifecycleState,

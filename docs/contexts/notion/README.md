@@ -1,101 +1,115 @@
-# notion
+# Notion Context
 
-> **Domain Type:** Core Domain
-> **Module:** `modules/notion/`
-> **Authoritative docs:** [`modules/notion/docs/`](../../../modules/notion/docs/)
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
 
-## Boundary
+## Purpose
 
-- **Responsible for:**
-  - `KnowledgePage` lifecycle — create, edit, version, archive, restore（`knowledge` 子域）
-  - `Article` and `Category` lifecycle — authoring, verification, classification（`authoring` 子域）
-  - Collaborative comments, fine-grained permissions, version snapshots（`collaboration` 子域）
-  - Structured data with multi-view management — `Database`, `Field`, `Record`, `View`（`database` 子域）
-  - AI-assisted page generation and summarization integration（`ai` 子域）
-  - Knowledge usage behavior measurement（`analytics` 子域）
-  - Attachment and media association storage（`attachments` 子域）
-  - Event-driven automation rules（`automation` 子域）
-  - Bidirectional external system integration（`integration` 子域）
-  - Personal lightweight notes collaborating with formal knowledge（`notes` 子域）
-  - Page template management and application（`templates` 子域）
-  - Global version snapshot policy management（`versioning` 子域）
+notion 是知識內容生命週期主域。它的責任是提供 knowledge artifact、authoring、database、taxonomy、relations、templates、publishing、knowledge-versioning 與 collaboration 等內容語言，承接正式知識內容的正典狀態。
 
-- **Not responsible for:**
-  - Workspace container identity and lifecycle → `workspace`
-  - Platform identity, account, or subscription governance → `platform`
-  - AI conversation threads and RAG synthesis → `notebooklm`
-  - Raw document ingestion pipeline → `py_fn`
+## Why This Context Exists
 
-## Subdomain Inventory
+- 把知識內容正典與平台治理、工作區範疇、對話推理分離。
+- 讓內容建立、分類、關聯、交付與版本規則維持在同一個主域。
+- 提供 notebooklm 可引用、但不可直接改寫的知識來源。
 
-| 子域 | 核心語言 | 前身模組 |
-|---|---|---|
-| `knowledge` | `KnowledgePage`, `ContentBlock`, `ContentVersion`, `KnowledgeCollection` | `modules/knowledge/` |
-| `authoring` | `Article`, `Category`, `VerificationState`, `ArticleOwner`, `Backlink` | `modules/knowledge-base/` |
-| `collaboration` | `Comment`, `Permission`, `PermissionLevel`, `Version`, `NamedVersion` | `modules/knowledge-collaboration/` |
-| `database` | `Database`, `Field`, `Record`, `Property`, `View`, `ViewType` | `modules/knowledge-database/` |
-| `ai` | `AiDraftRequest`, `IngestionSignal` | — |
-| `analytics` | `PageViewEvent`, `KnowledgeMetric` | — |
-| `attachments` | `Attachment`, `MediaRef` | — |
-| `automation` | `AutomationRule`, `TriggerCondition` | — |
-| `integration` | `IntegrationSource`, `SyncPolicy` | — |
-| `notes` | `Note`, `NoteRef` | — |
-| `templates` | `PageTemplate`, `TemplateApplication` | — |
-| `versioning` | `VersionPolicy`, `RetentionRule` | — |
+## Context Summary
 
-## Published Language
+| Aspect | Summary |
+|---|---|
+| Primary Role | 正典知識內容生命週期 |
+| Upstream Dependency | platform 治理、workspace scope |
+| Downstream Consumer | notebooklm |
+| Core Principle | notion 擁有正式內容，不擁有治理或推理過程 |
 
-- **Commands (representative):**
-  - `CreateKnowledgePage` / `ArchiveKnowledgePage` / `PromotePage`
-  - `CreateArticle` / `VerifyArticle`
-  - `AddComment` / `GrantPermission`
-  - `CreateDatabase` / `AddRecord`
+## Baseline Subdomains
 
-- **Queries (representative):**
-  - `GetKnowledgePage` / `ListKnowledgePages`
-  - `GetPageTree`
-  - `ListArticles` / `GetArticle`
-  - `QueryDatabase`
+- knowledge
+- authoring
+- collaboration
+- database
+- knowledge-analytics
+- attachments
+- automation
+- knowledge-integration
+- notes
+- templates
+- knowledge-versioning
 
-- **Events (representative):**
-  - `notion.page_created` / `notion.page_archived` / `notion.page_promoted`
-  - `notion.article_created` / `notion.article_verified`
-  - `notion.comment_added`
-  - `notion.database_record_updated`
-  - See [`modules/notion/docs/domain-events.md`](../../../modules/notion/docs/domain-events.md) for full inventory.
+## Recommended Gap Subdomains
 
-## Upstream / Downstream
+- taxonomy
+- relations
+- publishing
 
-- **Upstream:**
-  - `platform` → notion — identity validation, account ownership, subscription entitlement (Published Language)
-  - `workspace` → notion — `workspaceId` scoping for all content operations (Published Language)
+## Key Relationships
 
-- **Downstream:**
-  - notion → `notebooklm` — indexed content chunks provided via `search` subdomain for RAG generation (Customer/Supplier)
-  - notion → `py_fn` — `page_approved` triggers RAG ingestion pipeline (Customer/Supplier via Events)
+- 與 platform：notion 消費 actor、organization、access、entitlement、ai capability。
+- 與 workspace：notion 消費 workspaceId、membership scope、share scope。
+- 與 notebooklm：notion 向 notebooklm 提供 knowledge artifact reference 與 attachment reference。
 
-- **Relationship types:**
-  - `platform → notion`: Published Language / Conformist
-  - `workspace → notion`: Published Language
-  - `notion → notebooklm`: Customer/Supplier (via search index)
-  - `notion → py_fn`: Customer/Supplier (Events)
+## Reading Order
 
-## Migration Notes
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
 
-The following legacy modules are planned to be absorbed into the corresponding notion subdomains:
+## Dependency Direction
 
-| 前身模組 | 目標子域 | 狀態 |
-|---|---|---|
-| `modules/knowledge/` | `notion/subdomains/knowledge` | Migration-Pending |
-| `modules/knowledge-base/` | `notion/subdomains/authoring` | Migration-Pending |
-| `modules/knowledge-collaboration/` | `notion/subdomains/collaboration` | Migration-Pending |
-| `modules/knowledge-database/` | `notion/subdomains/database` | Migration-Pending |
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- notion 對外只暴露 published language、API boundary、events，不暴露內部內容模型。
 
-## Context Rules
+## Anti-Pattern Rules
 
-1. Keep domain model isolated from external model leakage.
-2. Expose only stable contracts via published language.
-3. Record boundary changes in `docs/context-map.md` and ADRs.
-4. Cross-module access must use `modules/notion/api` only — never import internal layers directly.
-5. Subdomain inventory is **closed by default** — see [`modules/notion/docs/subdomains.md`](../../../modules/notion/docs/subdomains.md) for freeze rules.
-6. `workspace`-scoped write paths must carry `workspaceId`.
+- 不把 notebooklm 的衍生輸出直接當成 notion 正典內容。
+- 不把 taxonomy、relations、publishing 壓回單一 knowledge 編輯流程。
+- 不把 platform 的治理語言混成內容生命週期本身。
+- 不把 platform.ai 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notion 的正典內容定位，再安排 authoring、knowledge、taxonomy、publishing 的交互。
+- 內容輔助、摘要與生成若只是內容 use case 的支援能力，優先由 knowledge / authoring use case 消費 `platform.ai`，而不是在 notion 再建一個 generic `ai` 子域。
+- 奧卡姆剃刀：不要預先新增第二套內容流程，只在既有內容邊界真的不夠時才補新抽象。
+- 優先讓同一條 input -> translation -> application -> domain -> publication 流程保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Boundary["notion boundary"]
+	Workspace["workspace"] --> Boundary
+	Boundary --> Translation["DTO / ACL"]
+	Translation --> App["Application use case"]
+	App --> Domain["Notion domain"]
+	Domain --> Output["KnowledgeArtifact / Publication"]
+	Output --> NotebookLM["notebooklm consumer"]
+```
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../README.md](../../README.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。

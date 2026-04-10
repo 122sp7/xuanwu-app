@@ -6,7 +6,7 @@
  *          currently active workspace.
  */
 
-import { useApp } from "@/app/providers/app-provider";
+import { useApp } from "@/modules/platform/api";
 import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
 
 export default function WorkspaceFeedPage() {

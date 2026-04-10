@@ -1,7 +1,7 @@
 ---
 name: refactor-module
-description: Refactor existing module internals while preserving MDDD layers and public boundaries.
-agent: Modules Architect
+description: Refactor existing module internals while preserving Hexagonal Architecture with Domain-Driven Design layers and public boundaries.
+agent: Hexagonal DDD Architect
 argument-hint: Provide module name, refactor goal, and boundary risks.
 ---
 
@@ -15,5 +15,4 @@ argument-hint: Provide module name, refactor goal, and boundary risks.
 4. Update tests/docs alongside code changes.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
 #use skill hexagonal-ddd

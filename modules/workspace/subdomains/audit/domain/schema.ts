@@ -3,7 +3,7 @@
  */
 
 import { z } from "@lib-zod";
-import { BaseEntitySchema } from "@/modules/shared/domain/types";
+import { BaseEntitySchema } from "@shared-types";
 
 export const AUDIT_ACTIONS = ["create", "update", "delete", "login", "export"] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

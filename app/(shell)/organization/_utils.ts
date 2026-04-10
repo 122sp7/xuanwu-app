@@ -1,16 +1,3 @@
-import type { AccountEntity } from "@/modules/platform/api";
-import type { ActiveAccount } from "@/app/providers/app-context";
-
-export function isOrganizationAccount(
-  activeAccount: ActiveAccount | null,
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
 export function formatDateTime(value: string | Date | null | undefined): string {
   if (!value) return "—";
   try {

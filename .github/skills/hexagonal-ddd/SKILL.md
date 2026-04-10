@@ -1,78 +1,101 @@
 ---
 name: hexagonal-ddd
-description: >
-  Hexagonal Architecture with Domain-Driven Design skillbook. Use when designing or reviewing module boundaries,
-  ports/adapters, aggregate/use-case layering, and API-only cross-module collaboration in Xuanwu.
+description: >-
+  Hexagonal Architecture with Domain-Driven Design skillbook. Use when designing or reviewing bounded-context ownership,
+  domain/application separation, ports/adapters, aggregates, and API-only cross-module collaboration in Xuanwu.
 user-invocable: true
 disable-model-invocation: false
 ---
 
 # Hexagonal Architecture with Domain-Driven Design
 
-This skill applies Hexagonal Architecture (Ports & Adapters) with DDD tactical patterns for Xuanwu modules.
-Use it for architecture design, refactor guidance, and conflict audits.
+Use this skill when the task involves module boundaries, application flow, tactical domain design, or refactoring code back behind stable ports and public APIs.
 
-## Context7-verified references
+## Research Basis
 
-Validated with Context7:
+Context7-verified:
 
-1. `/sairyss/domain-driven-hexagon` (mode: `code`)
-   - Repository ports as abstractions in core.
-   - Strict dependency rule: domain must not depend on API/database layers.
-   - Value Object modeling pattern and CQRS handler examples.
-2. `/dasiths/portsandadapterspatterndemo` (mode: `info`)
-   - Ports and adapters pattern separation and decoupling goals.
-3. `/alicanakkus/modular-architecture-hexagonal-demo-project` (mode: `info`)
-   - Modular layering and adapter-oriented boundaries.
+1. `/sairyss/domain-driven-hexagon`
+   - Dependencies point inward; application core does not depend on frameworks or external resources directly.
+   - Ports are contracts owned by the core; adapters implement them outside the core.
+   - Ports may live in application by default, but domain-owned ports are appropriate when a domain rule itself depends on an external capability.
+   - Adapters should not be called directly; they are reached through ports.
+   - Feature-oriented structure is preferable to broad technical buckets when files change together.
 
-## Core principles
+Web-verified:
 
-1. Core domain logic stays independent of frameworks and infrastructure.
-2. Ports are contracts owned by the core/application; adapters implement them outside.
-3. Cross-module calls must use the target module `api/` boundary only.
-4. `interfaces -> application -> domain <- infrastructure` remains the dependency direction.
-5. `index.ts` is aggregate export only; do not treat it as the cross-module boundary.
+1. Martin Fowler, Domain-Driven Design
+   - DDD centers software around a rich domain model, ubiquitous language in code, aggregates, and strategic bounded contexts.
+2. Hexagonal architecture overview
+   - The core is isolated from UI, database, test scripts, and external systems through ports and adapters.
+   - A port can have multiple adapters, and the shape is about replaceable boundaries, not a literal six-part layout.
 
-## Xuanwu mapping
+## Working Synthesis
 
-| Hexagonal concept | Xuanwu location |
+Hexagonal DDD in this repo means:
+
+1. Start from owning bounded context and ubiquitous language, not from folders.
+2. Keep business rules in domain objects and domain services, not in routes, UI, or persistence code.
+3. Use application for orchestration, transactions, command/query flow, and DTO translation.
+4. Place infrastructure and interfaces outside the core, depending inward.
+5. Expose cross-module collaboration only through the target module `api/` boundary or published events.
+6. Add abstractions only when they protect a real boundary.
+
+## Xuanwu Mapping
+
+| Concern | Xuanwu location |
 |---|---|
-| Driving adapters | `modules/<context>/interfaces/*`, `app/` composition |
-| Driving boundary (public) | `modules/<context>/api/` |
+| Public cross-module boundary | `modules/<context>/api/` |
+| Driving adapters | `app/`, `modules/<context>/interfaces/` |
 | Application orchestration | `modules/<context>/application/` |
-| Domain core | `modules/<context>/domain/` |
-| Driven ports | `modules/<context>/domain/repositories/` and related core contracts |
+| Domain rules and invariants | `modules/<context>/domain/` |
 | Driven adapters | `modules/<context>/infrastructure/` |
+| Context-wide concern | `<bounded-context>/application|domain|infrastructure|interfaces` |
 
-## Enforcement checklist
+## Placement Rules
 
-- No domain imports of Firebase/HTTP/React/runtime adapters.
-- No cross-module imports into peer `domain/`, `application/`, `infrastructure/`, `interfaces/`.
-- Cross-module import path uses `@/modules/<target>/api`.
-- Repository interfaces stay in core; concrete persistence is in infrastructure.
-- Server Action / route handlers remain thin adapters delegating to use cases.
+1. Choose the owning bounded context before choosing the file path.
+2. Default to existing subdomains; create a new one only when ownership or language genuinely diverges.
+3. Keep `interfaces -> application -> domain <- infrastructure` as the dependency rule.
+4. Treat `index.ts` as exports only; do not treat it as the public module boundary.
+5. Use `api/` for cross-module calls; do not import peer `domain/`, `application/`, `interfaces/`, or `infrastructure/` directly.
+6. Bounded-context root layers are valid for context-wide policies or orchestration; do not force everything into a generic `core/` wrapper.
 
-## Anti-patterns
+## Port Decision Heuristics
 
-- Treating `index.ts` as a module public API boundary.
-- Leaking infrastructure details into domain or use-case decisions.
-- Calling peer module internals directly.
-- Putting business rules into UI/route/adapters.
-- Using DDD/Hexagonal as dogma without fitness-to-context (overengineering).
+Create a port when at least one of these is true:
 
-## Recommended workflow
+1. The core must stay independent from a framework, SDK, database, queue, or remote service.
+2. The dependency crosses process, runtime, or bounded-context boundaries.
+3. Multiple adapters are plausible now, or swapping later is a realistic requirement.
+4. A domain rule depends on an external capability and that dependency must remain expressible in domain terms.
 
-1. Identify module boundary and actor/use-case scope.
-2. Define or verify inbound/outbound ports.
-3. Confirm adapter placement (`interfaces`/`infrastructure`) and dependency direction.
-4. Verify cross-module interactions go through `api/`.
-5. Update docs and contracts together when boundaries change.
+Avoid a port when the abstraction only exists to look architectural.
 
-## Output contract
+## Red Flags
+
+- Domain imports React, Firebase, HTTP clients, ORM models, or runtime transport types.
+- Application rewrites business invariants that belong in domain.
+- A route handler or Server Action becomes the real use-case implementation.
+- Another module imports peer internals instead of `@/modules/<target>/api`.
+- A repository implementation is referenced directly from the core.
+- A new layer or folder is introduced without a new boundary to protect.
+
+## Review Loop
+
+1. Identify the actor, use case, and owning bounded context.
+2. Name concepts with the repo glossary before naming types.
+3. Place rules in domain, orchestration in application, adapters outside.
+4. Verify every outward dependency is inverted or isolated behind the public boundary.
+5. Remove decorative abstractions that do not protect a real seam.
+6. Update docs and contracts together when ownership or language changes.
+
+## Output Contract
 
 When this skill is used, provide:
 
-1. conflict findings (if any),
-2. exact boundary/layer corrections,
-3. changed files and rationale,
-4. residual risks or migration notes.
+1. the owning bounded context and subdomain,
+2. boundary or layer violations,
+3. the minimal structural correction,
+4. changed files and rationale,
+5. residual risks or migration notes.

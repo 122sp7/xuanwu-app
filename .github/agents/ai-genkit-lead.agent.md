@@ -20,18 +20,22 @@ handoffs:
 
 ## Target Scope
 
-- `modules/agent/**`
 - `app/**`
+- `modules/platform/**`
+- `modules/notebooklm/**`
+- `modules/notion/**` when content use cases consume shared AI capability
 - `py_fn/**` when coordinating runtime boundaries and worker handoff contracts
 
 ## Focus
 
-- Genkit flow ownership and app-side orchestration
-- Contract-safe integration with ingestion and retrieval layers
+- Shared `platform.ai` capability ownership and app-side orchestration
+- Contract-safe integration with `notebooklm` reasoning flows and worker-side ingestion / retrieval layers
 
 ## Guardrails
 
+- Keep shared provider, quota, and safety policy in `platform.ai`.
 - Keep auth and chat orchestration in Next.js.
 - Keep parsing, chunking, embedding in py_fn workers.
+- Do not model `notion` or `notebooklm` as owning a generic `ai` bounded-context surface.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill 

@@ -36,9 +36,6 @@ export { getArticles, getArticle, getCategories, getBacklinks } from "../interfa
 
 // ─── UI Components ────────────────────────────────────────────────────────────
 export { ArticleDialog } from "../interfaces/components/ArticleDialog";
-
-// TODO: export server actions (createArticle, publishArticle, archiveArticle, ...)
-// TODO: export queries (getArticle, getArticlesByWorkspace, getCategoryTree)
-// TODO: export UI components (ArticleEditorView, ArticleListView, CategoryTreeView)
-
-export {};
+export { KnowledgeBaseArticlesRouteScreen } from "../interfaces/components/KnowledgeBaseArticlesRouteScreen";
+export { ArticleDetailPage } from "../interfaces/components/ArticleDetailPage";
+export type { ArticleDetailPageProps } from "../interfaces/components/ArticleDetailPage";
