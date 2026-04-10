@@ -1,29 +1,40 @@
-# Xuanwu Strategic Architecture Docs
+# Docs
+
+本文件集在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
 
 ## Purpose
 
-This folder is the strategic documentation set for **Hexagonal Architecture with Domain-Driven Design**.
+這份文件集提供四個主域的 architecture-first 戰略藍圖，並用單一決策日誌與主域文件消除術語、邊界與關係上的衝突。
 
-## Reading Guide
+## Single Source Of Truth Map
 
-```mermaid
-flowchart TD
-  A[README] --> B[architecture-overview.md]
-  B --> C[subdomains.md]
-  C --> D[bounded-contexts.md]
-  D --> E[context-map.md]
-  E --> F[ubiquitous-language.md]
-  F --> G[strategic-patterns.md]
-  G --> H[integration-guidelines.md]
-  D --> I[contexts/_template.md]
-  I --> J[contexts/*.md]
-  E --> K[decisions/README.md]
-```
+| Document | Role |
+|---|---|
+| [architecture-overview.md](./architecture-overview.md) | 全域架構敘事總覽 |
+| [subdomains.md](./subdomains.md) | 四主域與子域總清單 |
+| [bounded-contexts.md](./bounded-contexts.md) | 主域與子域所有權地圖 |
+| [context-map.md](./context-map.md) | 主域間關係圖與方向 |
+| [ubiquitous-language.md](./ubiquitous-language.md) | 戰略詞彙表 |
+| [integration-guidelines.md](./integration-guidelines.md) | 主域整合規則 |
+| [strategic-patterns.md](./strategic-patterns.md) | 採用與禁用的戰略模式 |
+| [decisions/README.md](./decisions/README.md) | ADR 索引與決策日誌 |
+| [contexts/_template.md](./contexts/_template.md) | 新主域或新 context 文件樣板 |
 
-## Rules
+## Context Folders
 
-1. Update `bounded-contexts.md` and `context-map.md` together when boundaries change.
-2. Update `ubiquitous-language.md` before introducing new domain terms.
-3. Keep cross-context collaboration API-first and explicit.
-4. Record strategic changes as ADRs under `decisions/`.
+- [contexts/workspace/README.md](./contexts/workspace/README.md)
+- [contexts/platform/README.md](./contexts/platform/README.md)
+- [contexts/notion/README.md](./contexts/notion/README.md)
+- [contexts/notebooklm/README.md](./contexts/notebooklm/README.md)
 
+## Conflict Resolution Rules
+
+- ADR 與戰略敘事衝突時，以 ADR 為準。
+- 戰略文件與主域文件衝突時，先以更具邊界意義的主域文件為準，再回寫戰略文件。
+- 子域所有權衝突時，以 [bounded-contexts.md](./bounded-contexts.md) 與 [subdomains.md](./subdomains.md) 為準。
+- 關係方向衝突時，以 [context-map.md](./context-map.md) 為準。
+
+## Constraints
+
+- 本文件集是 Context7-only 的 architecture-first 版本。
+- 本文件集沒有檢視任何既有專案內容，因此不應被解讀為 repo-inspected 現況描述。
