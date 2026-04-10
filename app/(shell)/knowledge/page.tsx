@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Brain, Building2, Database, FolderKanban, MessageSquare } from "lucide-react";
+import { Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
 
 import { useApp, useAuth } from "@/modules/platform/api"
 import { buildWikiContentTree } from "@/modules/workspace/api";

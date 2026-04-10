@@ -24,7 +24,7 @@ export class SubmitWorkDemandUseCase {
         accountId: input.accountId,
         requesterId: input.requesterId,
         title: input.title,
-        description: input.description,
+        description: input.description ?? "",
         priority: input.priority,
         scheduledAt: input.scheduledAt,
         status: "open",

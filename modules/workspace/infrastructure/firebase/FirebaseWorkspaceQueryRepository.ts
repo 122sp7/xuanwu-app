@@ -112,7 +112,7 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
     const mergeMember = (
       memberId: string,
       channel: WorkspaceMemberAccessChannel,
-      orgMember?: MemberReference,
+      orgMember?: OrganizationMemberReference,
     ) => {
       const current = members.get(memberId) ?? createFallbackMember(memberId);
       const channelKey = [
