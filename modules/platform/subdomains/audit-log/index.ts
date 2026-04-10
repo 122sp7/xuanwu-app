@@ -1,1 +1,1 @@
-﻿// Purpose: Public entry point placeholder for platform subdomain 'audit-log'.
+export * from "./api";

@@ -7,8 +7,8 @@ import {
   makeWorkspaceRepo,
 } from "../../../api/runtime/factories";
 import { getOrganizationMembers, getOrganizationTeams } from "@/modules/platform/api";
-import type { WorkspaceCommandPort } from "../../../ports/input/WorkspaceCommandPort";
-import type { WorkspaceQueryPort } from "../../../ports/input/WorkspaceQueryPort";
+import type { WorkspaceCommandPort } from "../../../domain/ports/input/WorkspaceCommandPort";
+import type { WorkspaceQueryPort } from "../../../domain/ports/input/WorkspaceQueryPort";
 import { createWorkspaceSessionContext } from "./workspace-session-context";
 
 const workspaceRepo = makeWorkspaceRepo();

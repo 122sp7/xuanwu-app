@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { createOrgPolicy, getOrgPolicies } from "../../adapters";
+import { createOrgPolicy, getOrgPolicies } from "../";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {

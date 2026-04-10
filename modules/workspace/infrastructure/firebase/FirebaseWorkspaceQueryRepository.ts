@@ -3,7 +3,7 @@ import type {
   WorkspaceMemberPresence,
   WorkspaceMemberView,
 } from "../../domain/entities/WorkspaceMemberView";
-import type { WorkspaceQueryRepository } from "../../ports/output/WorkspaceQueryRepository";
+import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
 import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
 import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";

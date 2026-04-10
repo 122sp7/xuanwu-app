@@ -10,7 +10,7 @@ import {
   GrantIndividualAccessUseCase,
   CreateWorkspaceLocationUseCase,
 } from "../use-cases/workspace.use-cases";
-import type { WorkspaceCommandPort } from "../../ports/input/WorkspaceCommandPort";
+import type { WorkspaceCommandPort } from "../../domain/ports/input/WorkspaceCommandPort";
 import type {
   WorkspaceAccessRepository,
   WorkspaceCapabilityRepository,
@@ -18,7 +18,7 @@ import type {
   WorkspaceEventPublishMetadata,
   WorkspaceLocationRepository,
   WorkspaceRepository,
-} from "../../ports";
+} from "../../domain/ports";
 import type {
   Capability,
   CreateWorkspaceCommand,

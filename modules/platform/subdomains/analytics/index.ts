@@ -1,1 +1,1 @@
-﻿// Purpose: Public entry point placeholder for platform subdomain 'analytics'.
+export * from "./api";

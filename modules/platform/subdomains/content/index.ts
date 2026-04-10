@@ -1,1 +1,1 @@
-﻿// Purpose: Public entry point placeholder for platform subdomain 'content'.
+export * from "./api";

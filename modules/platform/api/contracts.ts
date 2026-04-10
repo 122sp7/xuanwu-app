@@ -10,7 +10,7 @@ export type {
 	PolicyCatalogView,
 	SubscriptionEntitlementsView,
 	WorkflowPolicyView,
-} from "../ports/output";
+} from "../domain/ports/output";
 export * from "../domain/events";
 
 // ── Identity session types ────────────────────────────────────────────────────

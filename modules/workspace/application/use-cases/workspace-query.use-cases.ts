@@ -5,11 +5,11 @@
  */
 
 import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import type { WorkspaceRepository } from "../../ports/output/WorkspaceRepository";
+import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
 import type {
   Unsubscribe,
   WorkspaceQueryRepository,
-} from "../../ports/output/WorkspaceQueryRepository";
+} from "../../domain/ports/output/WorkspaceQueryRepository";
 
 export class ListWorkspacesForAccountUseCase {
   constructor(private readonly workspaceRepo: WorkspaceRepository) {}

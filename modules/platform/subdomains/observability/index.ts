@@ -1,1 +1,1 @@
-﻿// Purpose: Public entry point placeholder for platform subdomain 'observability'.
+export * from "./api";

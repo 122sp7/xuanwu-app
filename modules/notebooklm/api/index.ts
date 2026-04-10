@@ -2,7 +2,7 @@
  * modules/notebooklm — public API barrel.
  */
 
-export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation";
+export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation/api";
 
 export type {
   NotebookResponse,
@@ -12,7 +12,7 @@ export type {
 } from "../subdomains/notebook/api";
 
 export { generateNotebookResponse } from "../subdomains/notebook/api";
-export { saveThread, loadThread } from "../subdomains/conversation";
+export { saveThread, loadThread } from "../subdomains/conversation/api";
 
 // ---------------------------------------------------------------------------
 // Q&A subdomain — types and UI (replaces @/modules/search/api)
@@ -23,8 +23,8 @@ export type {
   AnswerRagQueryResult,
   RagCitation,
   RagRetrievalSummary,
-} from "../subdomains/ai/qa";
-export { RagQueryView } from "../subdomains/ai/qa";
+} from "../subdomains/ai/api";
+export { RagQueryView } from "../subdomains/ai/api";
 
 // ---------------------------------------------------------------------------
 // Source subdomain — types, hooks, and UI (replaces @/modules/source/api)
@@ -40,20 +40,20 @@ export type {
   CreateWikiLibraryInput,
   AddWikiLibraryFieldInput,
   CreateWikiLibraryRowInput,
-} from "../subdomains/source";
+} from "../subdomains/source/api";
 
 export type {
   SourceDocument,
   SourceLiveDocument,
   AssetDocument,
   AssetLiveDocument,
-} from "../subdomains/source";
+} from "../subdomains/source/api";
 
 export {
   useSourceDocumentsSnapshot,
   mapToSourceLiveDocument,
   mapToAssetLiveDocument,
-} from "../subdomains/source";
+} from "../subdomains/source/api";
 
 export {
   listWikiLibraries,
@@ -61,7 +61,7 @@ export {
   addWikiLibraryField,
   createWikiLibraryRow,
   getWikiLibrarySnapshot,
-} from "../subdomains/source";
+} from "../subdomains/source/api";
 
 export {
   SourceDocumentsView,
@@ -69,11 +69,11 @@ export {
   LibrariesView,
   LibraryTableView,
   FileProcessingDialog,
-} from "../subdomains/source";
+} from "../subdomains/source/api";
 
 // ---------------------------------------------------------------------------
 // conversation subdomain — AI chat UI and helpers
 // ---------------------------------------------------------------------------
 
-export { AiChatPage } from "../subdomains/conversation";
-export type { AiChatPageProps, ChatMessage } from "../subdomains/conversation";
+export { AiChatPage } from "../subdomains/conversation/api";
+export type { AiChatPageProps, ChatMessage } from "../subdomains/conversation/api";

@@ -11,7 +11,7 @@ import type {
   WikiContentItemNode,
   WikiWorkspaceContentNode,
 } from "../../domain/entities/WikiContentTree";
-import type { WikiWorkspaceRepository } from "../../ports/output/WikiWorkspaceRepository";
+import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
 
 function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {
   return [
