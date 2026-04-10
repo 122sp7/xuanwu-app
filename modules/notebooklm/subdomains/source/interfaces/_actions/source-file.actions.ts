@@ -12,7 +12,6 @@ import type {
 } from "../../application/dto/source-file.dto";
 import type {
   RegisterUploadedRagDocumentInputDto,
-  RegisterUploadedRagDocumentOutputDto,
   RegisterUploadedRagDocumentResult,
 } from "../../application/dto/rag-document.dto";
 import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../../api/factories";

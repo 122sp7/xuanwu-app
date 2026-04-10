@@ -10,7 +10,7 @@ import {
   query, serverTimestamp, setDoc, updateDoc, where,
 } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as _generateId } from "@lib-uuid";
 import { ContentBlock } from "../../domain/aggregates/ContentBlock";
 import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
 import type { IContentBlockRepository } from "../../domain/repositories/IContentBlockRepository";

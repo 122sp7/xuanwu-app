@@ -36,7 +36,6 @@ import type {
   ArchiveDatabaseDto,
   CreateRecordDto,
   UpdateRecordDto,
-  DeleteRecordDto,
   CreateViewDto,
   UpdateViewDto,
   DeleteViewDto,

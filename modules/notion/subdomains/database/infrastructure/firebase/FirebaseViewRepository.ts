@@ -7,7 +7,6 @@
 
 import {
   collection,
-  doc,
   getDoc,
   getDocs,
   addDoc,
@@ -24,10 +23,6 @@ import type { ViewSnapshot } from "../../domain/aggregates/View";
 
 function viewsCol(accountId: string, databaseId: string) {
   return collection(db, "accounts", accountId, "knowledgeDatabases", databaseId, "views");
-}
-
-function viewDoc(accountId: string, databaseId: string, id: string) {
-  return doc(db, "accounts", accountId, "knowledgeDatabases", databaseId, "views", id);
 }
 
 function toISO(ts: unknown): string {
