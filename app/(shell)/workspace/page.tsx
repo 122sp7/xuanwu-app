@@ -5,14 +5,11 @@ import { useSearchParams } from "next/navigation";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
+import { isActiveOrganizationAccount } from "@/modules/platform/api";
 import { WorkspaceHubScreen } from "@/modules/workspace/api";
 
-function isOrganizationAccount(activeAccount: ActiveAccount | null): activeAccount is ActiveAccount & { accountType: "organization" } {
-  return Boolean(activeAccount && "accountType" in activeAccount && activeAccount.accountType === "organization");
-}
-
 function getActiveAccountType(activeAccount: ActiveAccount | null) {
-  return isOrganizationAccount(activeAccount) ? "organization" : "user";
+  return isActiveOrganizationAccount(activeAccount) ? "organization" : "user";
 }
 
 export default function WorkspacePage() {

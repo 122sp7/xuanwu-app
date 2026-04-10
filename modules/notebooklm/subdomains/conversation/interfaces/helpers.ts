@@ -1,4 +1,4 @@
-import type { Thread } from "./_actions";
+import type { Thread } from "@/modules/notebooklm/api";
 
 // ── Domain types ──────────────────────────────────────────────────────────────
 

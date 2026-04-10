@@ -20,4 +20,3 @@ export async function sendChatMessage(
 
 export { saveThread, loadThread };
 export type { Thread };
-

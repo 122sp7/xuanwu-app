@@ -75,7 +75,11 @@ export {
   // UI components
   AccountSwitcher,
   CreateOrganizationDialog,
+  MembersPage,
+  TeamsPage,
+  PermissionsPage,
 } from "../subdomains/organization";
+export type { MembersPageProps, TeamsPageProps, PermissionsPageProps } from "../subdomains/organization";
 
 // background-job — knowledge ingestion pipeline management
 export * from "../subdomains/background-job";

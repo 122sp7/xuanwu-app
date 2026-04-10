@@ -12,14 +12,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@ui-shadcn/ui/card";
-import { formatDateTime, isOrganizationAccount } from "../_utils";
+import { isActiveOrganizationAccount } from "@/modules/platform/api";
+import { formatDateTime } from "../_utils";
 
 const MAX_DISPLAYED_AUDIT_LOGS = 50;
 
 export default function OrganizationAuditPage() {
   const { state: appState } = useApp();
   const { activeAccount, workspaces, workspacesHydrated } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
 
   const [auditLogs, setAuditLogs] = useState<
     Awaited<ReturnType<typeof getOrganizationAuditLogs>>

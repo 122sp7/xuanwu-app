@@ -74,3 +74,7 @@ export type { PageApprovedEvent, PageApprovedPayload, ExtractedTask, ExtractedIn
 
 // ── Sidebar component ─────────────────────────────────────────────────────────
 export { KnowledgeSidebarSection } from "../interfaces/components/KnowledgeSidebarSection";
+
+// ── Page header widgets ───────────────────────────────────────────────────────
+export { TitleEditor, IconPicker, CoverEditor } from "../interfaces/components/KnowledgePageHeaderWidgets";
+export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../interfaces/components/KnowledgePageHeaderWidgets";

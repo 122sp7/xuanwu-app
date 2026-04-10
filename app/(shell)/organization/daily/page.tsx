@@ -2,12 +2,12 @@
 
 import { useApp } from "@/app/providers/app-provider";
 import { WorkspaceFeedAccountView } from "@/modules/workspace/api";
-import { isOrganizationAccount } from "../_utils";
+import { isActiveOrganizationAccount } from "@/modules/platform/api";
 
 export default function OrganizationDailyPage() {
   const { state: appState } = useApp();
   const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
 
   if (!activeOrganizationId) {
     return (

@@ -20,7 +20,7 @@ import {
 import type { Database, FieldType } from "@/modules/notion/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { AddFieldDialog } from "./database-add-field-dialog";
+import { AddFieldDialog } from "@/modules/notion/api";
 
 export default function DatabaseDetailPage() {
   const params = useParams();
