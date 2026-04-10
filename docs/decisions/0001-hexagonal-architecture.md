@@ -40,3 +40,39 @@ Context7 驗證的 DDD / Hexagonal 參考指出，模組應保持高凝聚、低
 - Domain 直接依賴 framework、SDK、transport、database implementation。
 - Application service 直接呼叫 driven adapter，而不透過 port。
 - Interface adapter 直接承載核心業務規則。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 interfaces -> application -> domain <- infrastructure 的向內依賴方向。
+- 奧卡姆剃刀：若較少的 abstraction 已能保護邊界，就不要額外新增 port、service、facade 或 adapter。
+- 只有外部依賴或語義污染明確存在時，才建立 port 與 adapter。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Interfaces["Interfaces"] --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
+	Infrastructure -. implements .-> Ports["Ports"]
+	Application -. uses .-> Ports
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Request["Request"] --> Interfaces["Driving adapter"]
+	Interfaces --> Application["Application orchestration"]
+	Application --> Domain["Domain decision"]
+	Domain --> Ports["Port contract"]
+	Ports --> Infrastructure["Driven adapter"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
+- [0003-context-map.md](./0003-context-map.md)
+- [../architecture-overview.md](../architecture-overview.md)
+- [../integration-guidelines.md](../integration-guidelines.md)

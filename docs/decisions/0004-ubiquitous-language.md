@@ -43,3 +43,35 @@ Context7 驗證的 DDD 參考指出，領域核心必須運作在自己清楚的
 - 用同一個詞同時指涉治理、內容、推理三種不同責任。
 - 用舊產品術語覆蓋新的 bounded context 語言。
 - 讓實作便利性凌駕於 ubiquitous language 一致性。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先對齊 strategic term 與 context-specific term，再決定檔名、型別與 API 名稱。
+- 奧卡姆剃刀：若一個名詞已足夠表達邊界，就不要再堆疊第二個近義抽象詞。
+- 名稱若與現有語言衝突，先修正文檔與用語，再寫程式碼。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic language"] --> Context["Context language"]
+	Context --> Boundary["API / Published Language"]
+	Boundary --> Code["Generated code names"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Requirement["Requirement"] --> Term["Choose canonical term"]
+	Term --> Context["Map to owning context"]
+	Context --> Boundary["Expose through correct boundary"]
+	Boundary --> Code["Generate code"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
+- [../ubiquitous-language.md](../ubiquitous-language.md)
+- [../contexts/_template.md](../contexts/_template.md)

@@ -43,3 +43,37 @@ Context7 驗證的 bounded context 原則要求每個 context 只承載一組高
 - 讓多個主域同時聲稱同一正典所有權。
 - 用 UI、部署或資料表分組來取代 bounded context 切分。
 - 把 gap subdomain 寫成已落地事實，而不標示為架構缺口。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先判定需求屬於哪個主域與子域，再決定檔案位置與依賴方向。
+- 奧卡姆剃刀：若既有 bounded context 已可吸收需求，就不要新增平級主域或語意重疊子域。
+- 所有權不清楚時，先修正語言與 context map，再寫程式碼。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart TD
+	MainDomain["Main Domain"] --> Subdomain["Subdomain"]
+	Subdomain --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Need["New requirement"] --> Ownership["Identify owning bounded context"]
+	Ownership --> Language["Align ubiquitous language"]
+	Language --> API["Choose boundary / API"]
+	API --> Code["Generate code in owning context"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md)
+- [0003-context-map.md](./0003-context-map.md)
+- [../bounded-contexts.md](../bounded-contexts.md)
+- [../subdomains.md](../subdomains.md)

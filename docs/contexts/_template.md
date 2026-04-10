@@ -20,8 +20,12 @@
 - Recommended Gap Subdomains
 - Key Relationships
 - Reading Order
+- Copilot Generation Rules
 - Dependency Direction
+- Dependency Direction Flow
 - Anti-Pattern Rules
+- Correct Interaction Flow
+- Document Network
 - Constraints
 
 ## subdomains.md Template
@@ -29,6 +33,10 @@
 - Baseline Subdomains
 - Recommended Gap Subdomains
 - Recommended Order
+- Copilot Generation Rules
+- Dependency Direction Flow
+- Correct Interaction Flow
+- Document Network
 
 ## bounded-contexts.md Template
 
@@ -36,16 +44,24 @@
 - Baseline Bounded Contexts
 - Recommended Gap Bounded Contexts
 - Domain Invariants
+- Copilot Generation Rules
 - Dependency Direction
+- Dependency Direction Flow
 - Anti-Patterns
+- Correct Interaction Flow
+- Document Network
 
 ## context-map.md Template
 
 - Context Role
 - Relationships
 - Mapping Rules
+- Copilot Generation Rules
 - Dependency Direction
+- Dependency Direction Flow
 - Anti-Patterns
+- Correct Interaction Flow
+- Document Network
 
 ## ubiquitous-language.md Template
 
@@ -53,6 +69,10 @@
 - Language Rules
 - Avoid
 - Naming Anti-Patterns
+- Copilot Generation Rules
+- Dependency Direction Flow
+- Correct Interaction Flow
+- Document Network
 
 ## AGENT.md Template
 
@@ -61,8 +81,12 @@
 - Route Here When
 - Route Elsewhere When
 - Guardrails
+- Copilot Generation Rules
 - Dependency Direction
+- Dependency Direction Flow
 - Hard Prohibitions
+- Correct Interaction Flow
+- Document Network
 
 ## Consistency Rules
 
@@ -76,3 +100,24 @@
 - 不得把 domain 寫成依賴 framework、transport、storage 或第三方 SDK 的層。
 - 不得把 Shared Kernel / Partnership 與 ACL / Conformist 混用在同一關係敘事。
 - 不得把其他主域的正典模型直接拿來當成本地主域模型。
+
+## Occam Guardrail
+
+- 若較少的抽象已能保護邊界與可測試性，就不要額外新增 port、ACL、DTO、subdomain、service 或流程節點。
+
+## Diagram Templates
+
+```mermaid
+flowchart LR
+	Interfaces["Interfaces"] --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
+```
+
+```mermaid
+flowchart LR
+	Upstream["Upstream"] -->|Published Language| Boundary["API boundary"]
+	Boundary --> Translation["Local DTO / ACL"]
+	Translation --> Application["Application"]
+	Application --> Domain["Domain"]
+```

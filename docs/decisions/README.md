@@ -26,6 +26,40 @@
 - 0004 禁止語言污染與同詞多義。
 - 0005 禁止錯置 ACL / Conformist 的責任位置。
 
+## Copilot Generation Rules
+
+- 生成程式碼前，先由 ADR 決定邊界、語言與整合責任，再下手實作。
+- 奧卡姆剃刀：若既有 ADR 已能解決當前判斷，就不要再堆疊新的臨時規則文件。
+- 新規則若會改變邊界，先補 ADR，再補戰略文件與 context docs。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	ADR["ADR"] --> Strategy["Strategic docs"]
+	Strategy --> Context["Context docs"]
+	Context --> Code["Generated code"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Question["Architecture question"] --> ADR["Check ADR"]
+	ADR --> Strategy["Align strategic docs"]
+	Strategy --> Context["Align context docs"]
+	Context --> Code["Generate boundary-safe code"]
+```
+
+## Document Network
+
+- [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md)
+- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
+- [0003-context-map.md](./0003-context-map.md)
+- [0004-ubiquitous-language.md](./0004-ubiquitous-language.md)
+- [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md)
+- [../README.md](../README.md)
+
 ## Constraints
 
 - 本目錄在本次任務限制下，只依 Context7 架構參考重建。

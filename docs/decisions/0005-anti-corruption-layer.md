@@ -40,3 +40,39 @@ Context Mapper 明確指出 ACL 只能出現在 upstream-downstream 關係中，
 - 把 ACL 當成 upstream 的工作。
 - 在同一關係同時宣稱 ACL 與 Conformist。
 - 用 Shared Kernel / Partnership 當理由跳過整合語義判斷。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認自己是 upstream 還是 downstream，再決定是否需要 ACL 或 Conformist。
+- 奧卡姆剃刀：若 published language 加 local DTO 已足夠，就不要額外新增第二層 ACL。
+- 只有在上游語言真的會污染本地語言時，才建立 ACL。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream"] -->|Published Language| DownstreamBoundary["Downstream boundary"]
+	DownstreamBoundary --> ACL["ACL if needed"]
+	DownstreamBoundary --> CF["Conformist if language matches"]
+	ACL --> LocalDomain["Local domain"]
+	CF --> LocalDomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream context"] -->|PL / OHS| Boundary["Downstream API client"]
+	Boundary --> Decision["Need protection?"]
+	Decision -->|Yes| ACL["ACL"]
+	Decision -->|No| CF["Conformist"]
+	ACL --> Domain["Downstream domain"]
+	CF --> Domain
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [0003-context-map.md](./0003-context-map.md)
+- [../context-map.md](../context-map.md)
+- [../integration-guidelines.md](../integration-guidelines.md)
