@@ -1,5 +1,5 @@
 ---
-description: 'IDDD-based documentation governance rules: single source of truth per DDD concept, Diataxis classification, and anti-bloat constraints.'
+description: 'Hexagonal Architecture with Domain-Driven Design documentation governance rules: single source of truth, docs-first authority, and anti-bloat constraints.'
 applyTo: 'docs/**/*.md'
 ---
 

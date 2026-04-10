@@ -1,5 +1,5 @@
 ---
-description: '聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範，遵循 IDDD 戰術設計原則。'
+description: '聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範，遵循 Hexagonal Architecture with Domain-Driven Design 戰術設計原則。'
 applyTo: 'modules/**/domain/**/*.{ts,tsx}'
 ---
 
@@ -121,5 +121,4 @@ modules/<context>/domain/
 ```
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
 #use skill hexagonal-ddd

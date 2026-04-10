@@ -14,5 +14,5 @@ argument-hint: Provide change summary, touched files, and known risk areas.
 - State residual risks and testing gaps explicitly.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
+#use skill hexagonal-ddd
 #use skill vscode-typescript-workbench

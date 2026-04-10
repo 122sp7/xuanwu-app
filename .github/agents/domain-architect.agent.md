@@ -1,18 +1,18 @@
 ---
 name: Domain Architect
-description: IDDD 領域架構審查 Agent，專注確保聚合根、限界上下文、通用語言與事件驅動設計符合 Vaughn Vernon《Implementing Domain-Driven Design》規範。
+description: Hexagonal Architecture with Domain-Driven Design 領域架構審查 Agent，專注確保聚合根、限界上下文、通用語言與事件驅動設計符合邊界與依賴方向規範。
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
 handoffs:
-  - label: 審查模組邊界
-    agent: MDDD Architect
+  - label: Boundary Review 審查模組邊界
+    agent: Hexagonal DDD Architect
     prompt: 審查或重構此領域決策涉及的模組邊界、層依賴方向與公開 API 形狀。
-  - label: 更新通用語言術語
+  - label: Glossary Update 更新通用語言術語
     agent: KB Architect
     prompt: 將本次領域建模新增或變更的術語同步更新至 docs/ubiquitous-language.md 與對應 context 文件。
-  - label: 品質審查
+  - label: Quality Review 品質審查
     agent: Quality Lead
-    prompt: 審查此領域變更的行為風險、邊界回歸與遺漏驗證，確認符合 IDDD 規範。
+    prompt: 審查此領域變更的行為風險、邊界回歸與遺漏驗證，確認符合 Hexagonal DDD 規範。
 
 ---
 
@@ -32,7 +32,7 @@ handoffs:
 
 ## 使命 (Mission)
 
-以 docs-first authority 審查與修正領域模型設計，確保聚合、限界上下文、通用語言與領域事件符合 IDDD 與 Hexagonal DDD 規則。
+以 docs-first authority 審查與修正領域模型設計，確保聚合、限界上下文、通用語言與領域事件符合 Hexagonal Architecture with Domain-Driven Design 規則。
 
 ## 必讀來源
 
@@ -59,11 +59,10 @@ handoffs:
 
 ## 輸出格式
 
-1. **IDDD 合規性評估**：通過 / 需修正
+1. **Hexagonal DDD 合規性評估**：通過 / 需修正
 2. **問題項目清單**：每項附檔案路徑與具體說明
 3. **修正建議**：附程式碼範例
 4. **驗證指令執行結果**：`npm run lint` 與 `npm run build` 結果
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
 #use skill hexagonal-ddd

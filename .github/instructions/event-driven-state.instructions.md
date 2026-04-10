@@ -1,5 +1,5 @@
 ---
-description: 'XState 狀態機與領域事件互動規範，包含 SuperJSON 序列化處理，遵循 IDDD 事件驅動架構原則。'
+description: 'XState 狀態機與領域事件互動規範，包含 SuperJSON 序列化處理，遵循 Hexagonal Architecture with Domain-Driven Design 的事件驅動原則。'
 applyTo: 'modules/**/*.{ts,tsx}'
 ---
 
@@ -104,5 +104,4 @@ export class CreateWorkspaceUseCase {
 - 事件 Schema 使用 Zod 驗證，確保 Payload 型別安全。
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
 #use skill hexagonal-ddd

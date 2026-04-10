@@ -1,6 +1,6 @@
 ---
 name: generate-domain-event
-description: 根據業務操作生成符合 IDDD 規範的 TypeScript 領域事件定義，包含 Zod Schema、型別推導與聚合整合。
+description: 根據業務操作生成符合 Hexagonal Architecture with Domain-Driven Design 規範的 TypeScript 領域事件定義，包含 Zod Schema、型別推導與聚合整合。
 agent: Domain Architect
 argument-hint: 提供觸發事件的業務操作名稱、所屬聚合、Payload 欄位與所屬模組。
 ---
@@ -55,5 +55,4 @@ export type {EventName} = z.infer<typeof {EventName}Schema>;
 - `npm run lint` — 確認無邊界違規。
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
 #use skill hexagonal-ddd

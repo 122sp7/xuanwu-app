@@ -1,9 +1,9 @@
 ---
-description: 'MDDD architecture rules for layer ownership and dependency direction.'
+description: 'Hexagonal Architecture with Domain-Driven Design rules for layer ownership and dependency direction.'
 applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 ---
 
-# Architecture MDDD
+# Architecture Hexagonal DDD
 
 ## Layer Direction
 
@@ -31,5 +31,4 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 - Do not reverse dependency direction for convenience during refactors.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
 #use skill hexagonal-ddd

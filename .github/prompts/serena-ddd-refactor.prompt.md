@@ -1,16 +1,16 @@
 ---
 
-name: serena-ddd-refactor
-description: Scan large files, refactor to follow Vaughn Vernon Implementing Domain-Driven Design without breaking functionality, then update Serena MCP memory and index.
+name: serena-hexagonal-ddd-refactor
+description: Scan large files, refactor to follow Hexagonal Architecture with Domain-Driven Design without breaking functionality, then update Serena MCP memory and index.
 agent: copilot
 argument-hint: <project-root>
 -----------------------------
 
-# Serena DDD Refactor Prompt
+# Serena Hexagonal DDD Refactor Prompt
 
 ## Objective
 
-Identify oversized files in the project, verify whether they violate Domain-Driven Design layering principles from Vaughn Vernon, refactor them without breaking functionality, then update Serena MCP memory and symbol index.
+Identify oversized files in the project, verify whether they violate Hexagonal Architecture with Domain-Driven Design layering principles, refactor them without breaking functionality, then update Serena MCP memory and symbol index.
 
 ---
 
@@ -53,7 +53,7 @@ Focus refactoring on these large files first.
 
 ---
 
-# Step 3 — DDD Refactor Rules (Vaughn Vernon)
+# Step 3 — Hexagonal DDD Refactor Rules
 
 Refactor files that violate these rules:
 
@@ -187,7 +187,7 @@ prune_index → remove outdated symbols
 3. list_memories
 4. read_memory
 5. Find largest files
-6. Check DDD violations
+6. Check Hexagonal DDD violations
 7. Refactor and split files
 8. Ensure functionality still works
 9. #sym:update_memory
@@ -198,7 +198,7 @@ prune_index → remove outdated symbols
 
 # Core Principle
 
-DDD refactoring goal is not smaller files, but correct boundaries:
+Hexagonal DDD refactoring goal is not smaller files, but correct boundaries:
 
 ```
 Controller → Application Service → Domain → Repository

@@ -1,5 +1,5 @@
 ---
-description: '限界上下文邊界與模組依賴方向規範，遵循 Vaughn Vernon IDDD 戰略設計原則。'
+description: '限界上下文邊界與模組依賴方向規範，遵循 Hexagonal Architecture with Domain-Driven Design 原則。'
 applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 ---
 
@@ -25,5 +25,4 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 - ✅ `import { X } from '@/modules/other-context/api'`
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
 #use skill hexagonal-ddd
