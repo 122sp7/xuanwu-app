@@ -21,6 +21,7 @@ import {
   DeleteTeamUseCase,
   UpdateTeamMembersUseCase,
 } from "../application/use-cases/organization-team.use-cases";
+import { FirebaseTeamRepository } from "../subdomains/team/api";
 import {
   CreatePartnerGroupUseCase,
   SendPartnerInviteUseCase,
@@ -36,14 +37,15 @@ import type {
   UpdateOrganizationSettingsCommand,
   InviteMemberInput,
   UpdateMemberRoleInput,
-  CreateTeamInput,
   CreateOrgPolicyInput,
   UpdateOrgPolicyInput,
 } from "../domain/entities/Organization";
+import type { CreateTeamInput } from "../subdomains/team/api";
 import type { CommandResult } from "@shared-types";
 
 const orgRepo = new FirebaseOrganizationRepository();
 const policyRepo = new FirebaseOrgPolicyRepository();
+const teamRepo = new FirebaseTeamRepository();
 
 export const organizationService = {
   createOrganization: (cmd: CreateOrganizationCommand): Promise<CommandResult> =>
@@ -75,13 +77,13 @@ export const organizationService = {
     new UpdateMemberRoleUseCase(orgRepo).execute(input),
 
   createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
-    new CreateTeamUseCase(orgRepo).execute(input),
+    new CreateTeamUseCase(teamRepo).execute(input),
 
   deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
-    new DeleteTeamUseCase(orgRepo).execute(orgId, teamId),
+    new DeleteTeamUseCase(teamRepo).execute(orgId, teamId),
 
   updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
-    new UpdateTeamMembersUseCase(orgRepo).execute(orgId, teamId, memberId, action),
+    new UpdateTeamMembersUseCase(teamRepo).execute(orgId, teamId, memberId, action),
 
   createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
     new CreatePartnerGroupUseCase(orgRepo).execute(orgId, groupName),

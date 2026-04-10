@@ -8,6 +8,7 @@ interface CreateWorkspaceDialogRailProps {
   onOpenChange: (open: boolean) => void;
   activeAccount: ActiveAccount | null;
   isOrganizationAccount: boolean;
+  creatorUserId?: string | null;
   onNavigate: (href: string) => void;
 }
 
@@ -16,6 +17,7 @@ export function CreateWorkspaceDialogRail({
   onOpenChange,
   activeAccount,
   isOrganizationAccount,
+  creatorUserId,
   onNavigate,
 }: CreateWorkspaceDialogRailProps) {
   return (
@@ -24,6 +26,7 @@ export function CreateWorkspaceDialogRail({
       onOpenChange={onOpenChange}
       accountId={activeAccount?.id ?? null}
       accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
+      creatorUserId={creatorUserId}
       onNavigate={onNavigate}
     />
   );

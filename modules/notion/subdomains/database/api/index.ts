@@ -94,3 +94,4 @@ export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarV
 export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
 export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
 export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
+export { KnowledgeDatabasesRouteScreen } from "../interfaces/components/KnowledgeDatabasesRouteScreen";

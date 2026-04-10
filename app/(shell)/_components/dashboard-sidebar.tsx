@@ -491,7 +491,7 @@ export function DashboardSidebar({
               pathname={pathname}
               workspacesHydrated={workspacesHydrated}
               allWorkspaceLinks={allWorkspaceLinks}
-              activeWorkspaceId={activeWorkspaceId}
+              activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
               creatingKind={creatingKind}
               onSelectWorkspace={onSelectWorkspace}
               onQuickCreatePage={() => { void handleQuickCreatePage(); }}

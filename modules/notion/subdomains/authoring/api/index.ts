@@ -36,6 +36,7 @@ export { getArticles, getArticle, getCategories, getBacklinks } from "../interfa
 
 // ─── UI Components ────────────────────────────────────────────────────────────
 export { ArticleDialog } from "../interfaces/components/ArticleDialog";
+export { KnowledgeBaseArticlesRouteScreen } from "../interfaces/components/KnowledgeBaseArticlesRouteScreen";
 
 // TODO: export server actions (createArticle, publishArticle, archiveArticle, ...)
 // TODO: export queries (getArticle, getArticlesByWorkspace, getCategoryTree)

@@ -56,6 +56,7 @@ export interface CreateWorkspaceCommand {
   readonly name: WorkspaceNameInput;
   readonly accountId: string;
   readonly accountType: "user" | "organization";
+  readonly creatorUserId?: string;
 }
 
 export interface UpdateWorkspaceSettingsCommand {
@@ -172,6 +173,11 @@ export class Workspace implements WorkspaceEntity {
   }
 
   static create(command: CreateWorkspaceCommand): Workspace {
+    const initialGrants: WorkspaceGrant[] =
+      command.accountType === "organization" && command.creatorUserId?.trim()
+        ? [{ userId: command.creatorUserId.trim(), role: "owner" }]
+        : [];
+
     return new Workspace({
       id: crypto.randomUUID(),
       name: createWorkspaceName(command.name),
@@ -180,7 +186,7 @@ export class Workspace implements WorkspaceEntity {
       lifecycleState: createWorkspaceLifecycleState("preparatory"),
       visibility: createWorkspaceVisibility("visible"),
       capabilities: [],
-      grants: [],
+      grants: initialGrants,
       teamIds: [],
       createdAt: createWorkspaceTimestamp(),
     });

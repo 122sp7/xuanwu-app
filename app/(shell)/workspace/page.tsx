@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 
 import type { ActiveAccount } from "@/app/providers/app-context";
 import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
 import { WorkspaceHubScreen } from "@/modules/workspace/api";
 
 function isOrganizationAccount(activeAccount: ActiveAccount | null): activeAccount is ActiveAccount & { accountType: "organization" } {
@@ -19,6 +20,7 @@ export default function WorkspacePage() {
   const {
     state: { activeAccount, accountsHydrated, bootstrapPhase },
   } = useApp();
+  const { state: authState } = useAuth();
   const context = searchParams.get("context");
 
   return (
@@ -35,6 +37,7 @@ export default function WorkspacePage() {
         accountType={getActiveAccountType(activeAccount)}
         accountsHydrated={accountsHydrated}
         isBootstrapSeeded={bootstrapPhase === "seeded"}
+        currentUserId={authState.user?.id}
       />
     </div>
   );

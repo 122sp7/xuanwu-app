@@ -353,6 +353,7 @@ export function AppRail({
         onOpenChange={setIsCreateWorkspaceOpen}
         activeAccount={activeAccount}
         isOrganizationAccount={isOrganizationAccount}
+        creatorUserId={user?.id}
         onNavigate={(href) => { router.push(href); }}
       />
     </TooltipProvider>

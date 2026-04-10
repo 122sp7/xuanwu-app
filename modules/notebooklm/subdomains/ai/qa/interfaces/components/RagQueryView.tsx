@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Search } from "lucide-react";
+import { AlertCircle, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 
 import { useApp } from "@/app/providers/app-provider";
@@ -13,6 +13,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@ui-shadcn/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@ui-shadcn/ui/alert";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
@@ -36,6 +37,10 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
   const activeAccountId = appState.activeAccount?.id ?? "";
   const effectiveWorkspaceId = workspaceId?.trim() ?? "";
 
+  const isDemoOrUnauthenticated =
+    authState.status !== "authenticated" ||
+    authState.user?.email === DEV_DEMO_ACCOUNT_EMAIL;
+
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [answer, setAnswer] = useState("");
@@ -46,10 +51,6 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
     const q = query.trim();
     if (!q) {
       toast.error("請先輸入問題");
-      return;
-    }
-    if (authState.status !== "authenticated" || authState.user?.email === DEV_DEMO_ACCOUNT_EMAIL) {
-      toast.error("請先以真實帳號登入才能執行 RAG 查詢");
       return;
     }
     if (!activeAccountId) {
@@ -81,6 +82,18 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
 
   return (
     <div className="space-y-4">
+      {/* Auth warning — shown upfront when user cannot execute RAG queries */}
+      {isDemoOrUnauthenticated && (
+        <Alert variant="destructive">
+          <AlertCircle className="size-4" />
+          <AlertTitle>需要真實帳號</AlertTitle>
+          <AlertDescription>
+            目前以 Demo 帳號或未登入狀態存取。RAG 查詢需要真實 Firebase 帳號才能執行。
+            請登出後以正式帳號重新登入。
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Query input */}
       <Card>
         <CardHeader>
@@ -99,8 +112,13 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
             }}
             placeholder="請輸入你的問題...（Ctrl+Enter 送出）"
             rows={4}
+            disabled={isDemoOrUnauthenticated}
           />
-          <Button onClick={() => void handleSubmit()} disabled={loading}>
+          <Button
+            onClick={() => void handleSubmit()}
+            disabled={loading || isDemoOrUnauthenticated}
+            title={isDemoOrUnauthenticated ? "請先以真實帳號登入才能執行 RAG 查詢" : undefined}
+          >
             {loading ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
             ) : (
