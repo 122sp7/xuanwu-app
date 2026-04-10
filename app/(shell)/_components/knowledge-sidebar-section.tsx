@@ -33,7 +33,18 @@ export function KnowledgeSidebarSection({
   onSelectWorkspace,
   onQuickCreatePage,
 }: KnowledgeSidebarSectionProps) {
-  const [isKnowledgeWorkspacesExpanded, setIsKnowledgeWorkspacesExpanded] = useState(false);
+  const [isKnowledgeWorkspacesExpanded, setIsKnowledgeWorkspacesExpanded] = useState(
+    () => Boolean(activeWorkspaceId),
+  );
+  // Track prop changes without useEffect to avoid cascading renders.
+  // When activeWorkspaceId transitions from absent → present, auto-expand.
+  const [prevActiveWorkspaceId, setPrevActiveWorkspaceId] = useState(activeWorkspaceId);
+  if (prevActiveWorkspaceId !== activeWorkspaceId) {
+    setPrevActiveWorkspaceId(activeWorkspaceId);
+    if (activeWorkspaceId && !isKnowledgeWorkspacesExpanded) {
+      setIsKnowledgeWorkspacesExpanded(true);
+    }
+  }
 
   return (
     <nav className="space-y-0.5" aria-label="Knowledge navigation">

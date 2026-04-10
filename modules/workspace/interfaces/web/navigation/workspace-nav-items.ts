@@ -17,7 +17,7 @@ export const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = [
   { id: "daily", tabKey: "Daily", fallbackLabel: "Daily" },
   { id: "schedule", tabKey: "Schedule", fallbackLabel: "Schedule" },
   { id: "audit", tabKey: "Audit", fallbackLabel: "Audit" },
-  { id: "tasks", tabKey: "Tasks", fallbackLabel: "Tasks" },
+  { id: "tasks", tabKey: "Tasks", fallbackLabel: "Workflow" },
 ];
 
 const VALID_WORKSPACE_ORDER_IDS = new Set(WORKSPACE_NAV_ITEMS.map((item) => item.id));
