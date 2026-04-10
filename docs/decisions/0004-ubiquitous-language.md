@@ -75,3 +75,5 @@ flowchart LR
 - [0002-bounded-contexts.md](./0002-bounded-contexts.md)
 - [../ubiquitous-language.md](../ubiquitous-language.md)
 - [../contexts/_template.md](../contexts/_template.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)

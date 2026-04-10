@@ -58,6 +58,8 @@ flowchart LR
 - [0003-context-map.md](./0003-context-map.md)
 - [0004-ubiquitous-language.md](./0004-ubiquitous-language.md)
 - [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)
 - [../README.md](../README.md)
 
 ## Constraints

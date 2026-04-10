@@ -77,3 +77,5 @@ flowchart LR
 - [0003-context-map.md](./0003-context-map.md)
 - [../bounded-contexts.md](../bounded-contexts.md)
 - [../subdomains.md](../subdomains.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)
