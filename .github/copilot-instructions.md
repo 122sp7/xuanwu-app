@@ -36,6 +36,8 @@ Read these in order before making non-trivial decisions:
 
 Strategic DDD root maps are owned by `docs/subdomains.md` and `docs/bounded-contexts.md`. Bounded-context reference sets currently live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
 
+Cross-domain duplicate-name resolution is owned by `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, and `docs/contexts/<context>/*`. If `modules/<context>/docs/*` preserves legacy or implementation-oriented names during migration, those names must not override the strategic ownership and naming decisions in root `docs/`.
+
 | Query | Canonical Document |
 |-------|-------------------|
 | Strategic subdomain classification | [`docs/subdomains.md`](../docs/subdomains.md) |
@@ -51,6 +53,8 @@ Strategic DDD root maps are owned by `docs/subdomains.md` and `docs/bounded-cont
 | Context domain services | `modules/<context>/domain-services.md` |
 
 **Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/subdomains.md` + `docs/bounded-contexts.md` contains strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
+
+**Rule**: when strategic naming conflicts with implementation-era names, root `docs/` wins for ownership, vocabulary, and cross-domain communication. Treat `modules/<context>/docs/*` as implementation-aligned detail, not as authority for duplicate generic names across main domains.
 
 ## Hexagonal DDD Canonical Triad
 

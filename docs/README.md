@@ -49,6 +49,7 @@
 - 戰略文件與主域文件衝突時，先以更具邊界意義的主域文件為準，再回寫戰略文件。
 - 子域所有權衝突時，以 [bounded-contexts.md](./bounded-contexts.md) 與 [subdomains.md](./subdomains.md) 為準。
 - 關係方向衝突時，以 [context-map.md](./context-map.md) 為準。
+- 若 root `docs/` 與 `modules/*/docs/*` 的 generic 子域命名衝突，以 root `docs/` 的戰略命名與 duplicate resolution 為準。
 
 ## Global Anti-Pattern Rules
 
