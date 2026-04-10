@@ -132,7 +132,7 @@ export type {
   PaginationDto,
   PagedResult,
   CommandResult,
-} from "../subdomains/workflow/api";
+} from "../subdomains/workspace-workflow/api";
 
 export {
   TASK_STATUSES,
@@ -143,4 +143,4 @@ export {
   toIssueSummary,
   toInvoiceSummary,
   toInvoiceItemSummary,
-} from "../subdomains/workflow/api";
+} from "../subdomains/workspace-workflow/api";

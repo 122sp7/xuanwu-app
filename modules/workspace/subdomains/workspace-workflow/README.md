@@ -1,7 +1,9 @@
 
-## workspace.workflow subdomain
+## workspace-workflow subdomain
 
-The workflow subdomain owns workspace-scoped process orchestration: defining, executing, and governing multi-step automated workflows triggered by domain events or user actions within a workspace.
+The `workspace-workflow` subdomain owns workspace-scoped process orchestration: defining, executing, and governing multi-step automated workflows triggered by domain events or user actions within a workspace.
+
+> **Renamed from `workflow`** to `workspace-workflow` per `docs/contexts/workspace/subdomains.md` to avoid naming conflict with `platform.workflow`.
 
 ### Strategic classification
 

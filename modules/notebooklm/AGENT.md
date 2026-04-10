@@ -42,13 +42,18 @@ import type { ThreadDTO, MessageDTO } from "@/modules/notebooklm/api";
 
 | 子域 | 路徑 | 核心職責 |
 |------|------|---------|
-| `ai` | `subdomains/ai/` | AI 模型調用與提示工程 |
 | `conversation` | `subdomains/conversation/` | Thread 與 Message 生命週期 |
 | `note` | `subdomains/note/` | 輕量筆記與知識連結 |
 | `notebook` | `subdomains/notebook/` | Notebook 組合與管理 |
 | `source` | `subdomains/source/` | 來源文件追蹤與引用 |
 | `synthesis` | `subdomains/synthesis/` | RAG 合成、摘要與洞察生成 |
-| `versioning` | `subdomains/versioning/` | 對話版本與快照策略 |
+| `conversation-versioning` | `subdomains/conversation-versioning/` | 對話版本與快照策略 |
+
+> ⚠️ **Code Migration Required**
+> - `ai` 子域不屬於 notebooklm。通用 AI 模型提供者能力由 `platform.ai` 負責。
+>   `subdomains/ai/` 內的 RAG/grounding/synthesis 程式碼應重構至 `retrieval`、`grounding`、`evaluation` gap 子域。
+>   受影響：`api/index.ts`、`api/server.ts`（目前引用 `subdomains/ai/qa`）。
+> - `subdomains/versioning/` → 已重命名為 `subdomains/conversation-versioning/`。
 
 ## 驗證命令
 

@@ -17,7 +17,7 @@
 | `audit` | 工作區操作稽核記錄如何被捕獲與查詢 | `AuditEntry`, `AuditAction`, `WorkspaceAuditView`, `AuditFilter` |
 | `feed` | 工作區活動摘要如何被生成與推送 | `FeedItem`, `FeedEvent`, `ActivitySummary`, `FeedCursor` |
 | `scheduling` | 工作區相關的排程與時間管理如何運作 | `Schedule`, `ScheduleSlot`, `RecurrenceRule`, `ScheduleEvent` |
-| `workflow` | 工作區流程自動化如何被定義與觸發 | `Workflow`, `WorkflowStep`, `WorkflowTrigger`, `WorkflowRun` |
+| `workspace-workflow` | 工作區流程自動化如何被定義與觸發 | `Workflow`, `WorkflowStep`, `WorkflowTrigger`, `WorkflowRun` |
 
 ## Capability Groups
 
@@ -32,7 +32,7 @@
 
 ### 自動化
 
-- `workflow` — 工作區流程自動化
+- `workspace-workflow` — 工作區流程自動化
 
 ## 子域 README
 
@@ -41,7 +41,11 @@
 | `audit` | [subdomains/audit/README.md](../subdomains/audit/README.md) |
 | `feed` | [subdomains/feed/README.md](../subdomains/feed/README.md) |
 | `scheduling` | [subdomains/scheduling/README.md](../subdomains/scheduling/README.md) |
-| `workflow` | [subdomains/workflow/README.md](../subdomains/workflow/README.md) |
+| `workspace-workflow` | [subdomains/workspace-workflow/README.md](../subdomains/workspace-workflow/README.md) |
+
+> ⚠️ **Code Migration Required**
+> - `subdomains/workflow/` → 已重命名為 `subdomains/workspace-workflow/` 以符合 `docs/contexts/workspace/subdomains.md` 規範，避免與 `platform.workflow` 名稱衝突。
+>   受影響：`api/contracts.ts`、`api/facade.ts`、`api/ui.ts`（import 路徑 `../subdomains/workflow/api` → `../subdomains/workspace-workflow/api`）。
 
 ## Investment Posture
 

@@ -123,4 +123,4 @@ export {
   WorkspaceSchedulingTab,
 } from "../subdomains/scheduling/api";
 
-export { WorkspaceFlowTab } from "../subdomains/workflow/api";
+export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";

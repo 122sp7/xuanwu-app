@@ -79,7 +79,7 @@ modules/workspace/
 ## Documentation index
 
 - [subdomain.md](./docs/subdomain.md) — Subdomain classification and strategic position
-- [subdomains.md](./docs/subdomains.md) — Canonical subdomain inventory (4 subdomains)
+- [subdomains.md](./docs/subdomains.md) — Canonical subdomain inventory (4 subdomains: audit, feed, scheduling, workspace-workflow)
 - [bounded-context.md](./docs/bounded-context.md) — Boundary definition, scope, and upstream/downstream relationships
 - [ubiquitous-language.md](./docs/ubiquitous-language.md) — Canonical terminology for this context
 - [aggregates.md](./docs/aggregates.md) — Aggregate roots, entities, and value objects

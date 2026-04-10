@@ -43,6 +43,7 @@ platform 的正式子域清單已固定為：
 - `billing`
 - `subscription`
 - `referral`
+- `ai`
 - `integration`
 - `workflow`
 - `notification`
@@ -54,7 +55,12 @@ platform 的正式子域清單已固定為：
 - `analytics`
 - `support`
 
-這份 inventory 預設為 closed by default。代理人必須先把需求映射到這 23 個子域之一，不能為了方便再建立新的資料夾別名。
+這份 inventory 預設為 closed by default。代理人必須先把需求映射到這 24 個子域之一，不能為了方便再建立新的資料夾別名。
+
+> ⚠️ **Code Migration Required**
+> - `ai` 子域已加入 platform，作為第 24 個 baseline 子域。
+>   `modules/platform/subdomains/` 目前缺少 `ai/` 目錄，需補充對應 scaffold（至少 README.md）。
+>   notebooklm 與 notion 的通用 AI provider 能力應消費 `platform.ai`，而非各自擁有 `ai` 子域。
 
 ## 代理人工作契約
 
