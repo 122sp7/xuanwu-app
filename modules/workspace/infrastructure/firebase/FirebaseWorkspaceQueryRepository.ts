@@ -5,12 +5,6 @@ import type {
 } from "../../domain/entities/WorkspaceMemberView";
 import type { WorkspaceQueryRepository } from "../../ports/output/WorkspaceQueryRepository";
 import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import {
-  getOrganizationMembers,
-  getOrganizationTeams,
-  type MemberReference,
-  type Team,
-} from "@/modules/platform/api";
 import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
 import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
@@ -25,7 +19,36 @@ const personnelLabelEntries = Object.entries(personnelLabels) as Array<
   [keyof typeof personnelLabels, string]
 >;
 
-function toPresence(value: MemberReference["presence"] | undefined): WorkspaceMemberPresence {
+interface OrganizationMemberReference {
+  id: string;
+  name: string;
+  email?: string;
+  role?: string;
+  presence?: string;
+  isExternal?: boolean;
+}
+
+interface OrganizationTeam {
+  id: string;
+  name: string;
+  memberIds: string[];
+}
+
+interface OrganizationDirectoryGateway {
+  getOrganizationMembers(organizationId: string): Promise<OrganizationMemberReference[]>;
+  getOrganizationTeams(organizationId: string): Promise<OrganizationTeam[]>;
+}
+
+const defaultOrganizationDirectoryGateway: OrganizationDirectoryGateway = {
+  async getOrganizationMembers() {
+    return [];
+  },
+  async getOrganizationTeams() {
+    return [];
+  },
+};
+
+function toPresence(value: OrganizationMemberReference["presence"] | undefined): WorkspaceMemberPresence {
   if (value === "active" || value === "away" || value === "offline") {
     return value;
   }
@@ -44,6 +67,10 @@ function createFallbackMember(id: string): WorkspaceMemberView {
 }
 
 export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
+  constructor(
+    private readonly organizationDirectoryGateway: OrganizationDirectoryGateway = defaultOrganizationDirectoryGateway,
+  ) {}
+
   private get db() {
     return getFirestore(firebaseClientApp);
   }
@@ -85,7 +112,7 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
     const mergeMember = (
       memberId: string,
       channel: WorkspaceMemberAccessChannel,
-      orgMember?: MemberReference,
+      orgMember?: OrganizationMemberReference,
     ) => {
       const current = members.get(memberId) ?? createFallbackMember(memberId);
       const channelKey = [
@@ -115,14 +142,14 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
 
     if (workspace.accountType === "organization") {
       const [organizationMembers, teams] = await Promise.all([
-        getOrganizationMembers(workspace.accountId),
-        getOrganizationTeams(workspace.accountId),
+        this.organizationDirectoryGateway.getOrganizationMembers(workspace.accountId),
+        this.organizationDirectoryGateway.getOrganizationTeams(workspace.accountId),
       ]);
 
-      const organizationMemberMap = new Map(organizationMembers.map((member: MemberReference) => [member.id, member]));
-      const teamMap = new Map(teams.map((team: Team) => [team.id, team]));
+      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
+      const teamMap = new Map(teams.map((team) => [team.id, team]));
 
-      const mergeTeam = (team: Team, role?: string, protocol?: string) => {
+      const mergeTeam = (team: OrganizationTeam, role?: string, protocol?: string) => {
         const label = team.name || team.id;
         team.memberIds.forEach((memberId: string) => {
           mergeMember(

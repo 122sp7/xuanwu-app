@@ -12,7 +12,7 @@
 
 import type { ReactNode } from "react";
 import { Toaster } from "@ui-shadcn/ui/sonner";
-import { AuthProvider } from "../../../subdomains/identity/interfaces/providers/auth-provider";
+import { AuthProvider } from "../../../subdomains/identity";
 import { AppProvider } from "./app-provider";
 
 export function Providers({ children }: { children: ReactNode }) {

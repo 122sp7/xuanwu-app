@@ -7,7 +7,7 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { FirebaseCategoryRepository } from "../../infrastructure/firebase/FirebaseCategoryRepository";
+import { makeCategoryRepo } from "../../api/factories";
 import {
   CreateCategoryUseCase,
   RenameCategoryUseCase,
@@ -22,13 +22,9 @@ import type {
   DeleteCategorySchema,
 } from "../../application/dto/CategoryDto";
 
-function makeRepo() {
-  return new FirebaseCategoryRepository();
-}
-
 export async function createCategory(input: z.infer<typeof CreateCategorySchema>): Promise<CommandResult> {
   try {
-    return await new CreateCategoryUseCase(makeRepo()).execute(input);
+    return await new CreateCategoryUseCase(makeCategoryRepo()).execute(input);
   } catch (e) {
     return commandFailureFrom("CATEGORY_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
   }
@@ -36,7 +32,7 @@ export async function createCategory(input: z.infer<typeof CreateCategorySchema>
 
 export async function renameCategory(input: z.infer<typeof RenameCategorySchema>): Promise<CommandResult> {
   try {
-    return await new RenameCategoryUseCase(makeRepo()).execute(input);
+    return await new RenameCategoryUseCase(makeCategoryRepo()).execute(input);
   } catch (e) {
     return commandFailureFrom("CATEGORY_RENAME_FAILED", (e as Error)?.message ?? "Unknown error");
   }
@@ -44,7 +40,7 @@ export async function renameCategory(input: z.infer<typeof RenameCategorySchema>
 
 export async function moveCategory(input: z.infer<typeof MoveCategorySchema>): Promise<CommandResult> {
   try {
-    return await new MoveCategoryUseCase(makeRepo()).execute(input);
+    return await new MoveCategoryUseCase(makeCategoryRepo()).execute(input);
   } catch (e) {
     return commandFailureFrom("CATEGORY_MOVE_FAILED", (e as Error)?.message ?? "Unknown error");
   }
@@ -52,7 +48,7 @@ export async function moveCategory(input: z.infer<typeof MoveCategorySchema>): P
 
 export async function deleteCategory(input: z.infer<typeof DeleteCategorySchema>): Promise<CommandResult> {
   try {
-    return await new DeleteCategoryUseCase(makeRepo()).execute(input);
+    return await new DeleteCategoryUseCase(makeCategoryRepo()).execute(input);
   } catch (e) {
     return commandFailureFrom("CATEGORY_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
   }

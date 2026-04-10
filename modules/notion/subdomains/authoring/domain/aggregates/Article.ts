@@ -4,7 +4,7 @@
  * Purpose: Article aggregate root — lifecycle, publication, and verification of KB articles.
  */
 
-import type { NotionDomainEvent } from "../../../../core/domain/events/NotionDomainEvent";
+import type { NotionDomainEvent } from "../events/NotionDomainEvent";
 
 export type ArticleStatus = "draft" | "published" | "archived";
 export type ArticleVerificationState = "verified" | "needs_review" | "unverified";

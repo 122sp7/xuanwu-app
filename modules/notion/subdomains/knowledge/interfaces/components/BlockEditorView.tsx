@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useRef } from "react";
 import { useBlockEditorStore } from "../store/block-editor.store";
-import { richTextToPlainText } from "../../../../core/domain/value-objects/BlockContent";
+import { richTextToPlainText } from "../../domain/value-objects/BlockContent";
 
 /**
  * Notion knowledge subdomain — minimal block editor.
@@ -35,6 +35,10 @@ export function BlockEditorView() {
     return (
       <div className="flex min-h-[200px] flex-col gap-1 rounded-lg border border-dashed p-4">
         <div
+          role="textbox"
+          aria-multiline="true"
+          aria-label="新區塊內容"
+          tabIndex={0}
           contentEditable
           suppressContentEditableWarning
           className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
@@ -54,6 +58,10 @@ export function BlockEditorView() {
         return (
           <div
             key={block.id}
+            role="textbox"
+            aria-multiline="true"
+            aria-label={`區塊 ${block.id}`}
+            tabIndex={0}
             contentEditable
             suppressContentEditableWarning
             className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"

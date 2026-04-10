@@ -10,12 +10,12 @@ import {
   query, serverTimestamp, setDoc, updateDoc, where,
 } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as _generateId } from "@lib-uuid";
 import { ContentBlock } from "../../domain/aggregates/ContentBlock";
 import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
 import type { IContentBlockRepository } from "../../domain/repositories/IContentBlockRepository";
-import type { BlockContent } from "../../../../core/domain/value-objects/BlockContent";
-import { BLOCK_TYPES } from "../../../../core/domain/value-objects/BlockContent";
+import type { BlockContent } from "../../domain/value-objects/BlockContent";
+import { BLOCK_TYPES } from "../../domain/value-objects/BlockContent";
 
 const VALID_TYPES = new Set<string>(BLOCK_TYPES);
 

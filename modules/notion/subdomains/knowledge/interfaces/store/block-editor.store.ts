@@ -7,7 +7,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { BlockContent } from "../../../../core/domain/value-objects/BlockContent";
+import type { BlockContent } from "../../domain/value-objects/BlockContent";
 
 export interface EditorBlock {
   id: string;

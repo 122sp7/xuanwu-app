@@ -4,7 +4,7 @@
  * Purpose: IViewRepository — persistence contract for View aggregate.
  */
 
-import type { ViewSnapshot, ViewType } from "../aggregates/View";
+import type { ViewSnapshot, ViewType, FilterRule, SortRule } from "../aggregates/View";
 
 export interface CreateViewInput {
   accountId: string;
@@ -19,8 +19,8 @@ export interface UpdateViewInput {
   id: string;
   accountId: string;
   name?: string;
-  filters?: import("../aggregates/View").FilterRule[];
-  sorts?: import("../aggregates/View").SortRule[];
+  filters?: FilterRule[];
+  sorts?: SortRule[];
   visibleFieldIds?: string[];
   hiddenFieldIds?: string[];
 }

@@ -5,7 +5,7 @@
  */
 
 import { z } from "@lib-zod";
-import { BLOCK_TYPES } from "../../../../core/domain/value-objects/BlockContent";
+import { BLOCK_TYPES } from "../../domain/value-objects/BlockContent";
 
 export const BlockTypeSchema = z.enum(BLOCK_TYPES);
 

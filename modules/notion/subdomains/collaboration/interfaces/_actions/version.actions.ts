@@ -7,11 +7,9 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { makeVersionRepo } from "../../api/factories";
 import { CreateVersionUseCase, DeleteVersionUseCase } from "../../application/use-cases/VersionUseCases";
-import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
 import type { CreateVersionDto, DeleteVersionDto } from "../../application/dto/CollaborationDto";
-
-function makeVersionRepo() { return new FirebaseVersionRepository(); }
 
 export async function createVersion(input: CreateVersionDto): Promise<CommandResult> {
   try {

@@ -1,1 +1,0 @@
-export { FirebaseThreadRepository } from "./FirebaseThreadRepository";

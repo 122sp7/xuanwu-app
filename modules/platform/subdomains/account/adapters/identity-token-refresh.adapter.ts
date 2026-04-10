@@ -3,7 +3,7 @@
  * This adapter lives in the adapters layer so the application layer stays clean.
  */
 
-import { identityApi } from "@/modules/platform/subdomains/identity";
+import { identityApi } from "@/modules/platform/subdomains/identity/api";
 import type { TokenRefreshPort, TokenRefreshSignalInput } from "../domain/ports/TokenRefreshPort";
 
 export class IdentityTokenRefreshAdapter implements TokenRefreshPort {

@@ -7,7 +7,7 @@
  *   accounts/{accountId}/backlinkOutbound/{sourcePageId}
  */
 
-import { doc, getDoc, getDocs, collection, getFirestore, writeBatch } from "firebase/firestore";
+import { doc, getDoc, getFirestore, writeBatch } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
 import type { IBacklinkIndexRepository, UpsertBacklinkEntriesInput, RemoveBacklinksFromSourceInput } from "../../domain/repositories/IBacklinkIndexRepository";
 import { BacklinkIndex } from "../../domain/aggregates/BacklinkIndex";

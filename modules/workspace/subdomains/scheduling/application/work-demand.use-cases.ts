@@ -9,7 +9,7 @@ import { commandFailureFrom, commandSuccess } from "@shared-types";
 
 import type { WorkDemand } from "../domain/types";
 import type { IDemandRepository } from "../domain/repository";
-import type { CreateDemandInput, AssignMemberInput } from "../api/schema";
+import type { AssignMemberInput, CreateDemandInput } from "./dto/work-demand.dto";
 
 export class SubmitWorkDemandUseCase {
   constructor(private readonly repo: IDemandRepository) {}
@@ -24,7 +24,7 @@ export class SubmitWorkDemandUseCase {
         accountId: input.accountId,
         requesterId: input.requesterId,
         title: input.title,
-        description: input.description,
+        description: input.description ?? "",
         priority: input.priority,
         scheduledAt: input.scheduledAt,
         status: "open",
@@ -83,4 +83,3 @@ export class ListAccountDemandsUseCase {
     return this.repo.listByAccount(accountId);
   }
 }
-

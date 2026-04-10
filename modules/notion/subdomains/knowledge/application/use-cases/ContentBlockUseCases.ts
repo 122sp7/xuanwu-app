@@ -3,7 +3,7 @@ import { v7 as generateId } from "@lib-uuid";
 import { ContentBlock } from "../../domain/aggregates/ContentBlock";
 import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
 import type { IContentBlockRepository } from "../../domain/repositories/IContentBlockRepository";
-import type { BlockContent } from "../../../../core/domain/value-objects/BlockContent";
+import type { BlockContent } from "../../domain/value-objects/BlockContent";
 import {
   AddKnowledgeBlockSchema, type AddKnowledgeBlockDto,
   UpdateKnowledgeBlockSchema, type UpdateKnowledgeBlockDto,

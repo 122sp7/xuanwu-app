@@ -5,7 +5,7 @@
  *          static factory methods, business methods, and domain events.
  */
 
-import type { NotionDomainEvent } from "../../../../core/domain/events/NotionDomainEvent";
+import type { NotionDomainEvent } from "../events/NotionDomainEvent";
 
 export interface KnowledgePageSnapshot {
   readonly id: string;

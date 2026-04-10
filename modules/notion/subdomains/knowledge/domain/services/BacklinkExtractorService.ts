@@ -5,7 +5,7 @@
  */
 
 import type { ContentBlockSnapshot } from "../aggregates/ContentBlock";
-import { extractMentionedPageIds } from "../../../../core/domain/value-objects/BlockContent";
+import { extractMentionedPageIds } from "../value-objects/BlockContent";
 
 export interface BacklinkMention {
   readonly targetPageId: string;

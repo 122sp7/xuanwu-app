@@ -4,7 +4,7 @@
  * Purpose: KnowledgeCollection aggregate root — named grouping / database-view of pages.
  */
 
-import type { NotionDomainEvent } from "../../../../core/domain/events/NotionDomainEvent";
+import type { NotionDomainEvent } from "../events/NotionDomainEvent";
 
 export type CollectionColumnType =
   | "text"

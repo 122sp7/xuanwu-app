@@ -8,7 +8,7 @@ import { Textarea } from "@ui-shadcn/ui/textarea";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Separator } from "@ui-shadcn/ui/separator";
 
-import { subscribeComments } from "../queries/index";
+import { subscribeComments } from "../queries";
 import { createComment, resolveComment, deleteComment } from "../_actions/comment.actions";
 import type { CommentSnapshot } from "../../domain/aggregates/Comment";
 

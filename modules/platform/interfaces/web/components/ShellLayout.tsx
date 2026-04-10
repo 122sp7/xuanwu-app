@@ -14,16 +14,14 @@ import { useEffect, useState } from "react";
 import { PanelLeftOpen, Search } from "lucide-react";
 
 import { useApp } from "../providers/app-provider";
-import { useAuth } from "../../../subdomains/identity/interfaces/providers/auth-provider";
-import type { AccountEntity } from "../../../subdomains/account";
-import { AccountSwitcher } from "../../../subdomains/organization/interfaces/components/AccountSwitcher";
+import { useAuth, ShellGuard } from "../../../subdomains/identity";
+import { type AccountEntity, HeaderUserAvatar } from "../../../subdomains/account";
+import { AccountSwitcher } from "../../../subdomains/organization";
 import { AppBreadcrumbs } from "./AppBreadcrumbs";
 import { AppRail } from "./AppRail";
 import { DashboardSidebar } from "./DashboardSidebar";
 import { GlobalSearchDialog, useGlobalSearch } from "./GlobalSearchDialog";
 import { HeaderControls } from "./HeaderControls";
-import { HeaderUserAvatar } from "../../../subdomains/account/interfaces/components/HeaderUserAvatar";
-import { ShellGuard } from "../../../subdomains/identity/interfaces/components/ShellGuard";
 
 const routeTitles: Record<string, string> = {
   "/organization": "組織治理",

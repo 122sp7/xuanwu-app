@@ -13,7 +13,7 @@ import { Button } from "@ui-shadcn/ui/button";
 import { Input } from "@ui-shadcn/ui/input";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-import { getRecords } from "../queries/index";
+import { getRecords } from "../queries";
 import { createRecord, updateRecord, deleteRecord } from "../_actions/database.actions";
 import type { DatabaseSnapshot, Field } from "../../domain/aggregates/Database";
 import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";

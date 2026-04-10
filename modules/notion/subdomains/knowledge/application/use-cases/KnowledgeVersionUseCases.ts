@@ -1,4 +1,4 @@
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import { commandFailureFrom, type CommandResult } from "@shared-types";
 import type { CreateKnowledgeVersionDto } from "../dto/KnowledgePageDto";
 import { CreateKnowledgeVersionSchema } from "../dto/KnowledgePageDto";
 

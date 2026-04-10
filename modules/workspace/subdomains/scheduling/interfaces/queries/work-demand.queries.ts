@@ -5,10 +5,10 @@ import {
   ListWorkspaceDemandsUseCase,
   ListAccountDemandsUseCase,
 } from "../../application/work-demand.use-cases";
-import { FirebaseDemandRepository } from "../../infrastructure/firebase/FirebaseDemandRepository";
+import { makeDemandRepo } from "../../api/factories";
 
 function makeRepo() {
-  return new FirebaseDemandRepository();
+  return makeDemandRepo();
 }
 
 export async function getWorkspaceDemands(workspaceId: string): Promise<WorkDemand[]> {
@@ -18,4 +18,3 @@ export async function getWorkspaceDemands(workspaceId: string): Promise<WorkDema
 export async function getAccountDemands(accountId: string): Promise<WorkDemand[]> {
   return new ListAccountDemandsUseCase(makeRepo()).execute(accountId);
 }
-

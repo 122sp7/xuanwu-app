@@ -15,7 +15,7 @@ import {
   Zap,
 } from "lucide-react";
 
-import { getDatabase } from "../queries/index";
+import { getDatabase } from "../queries";
 import { addDatabaseField, archiveDatabase } from "../_actions/database.actions";
 import { DatabaseTableView } from "./DatabaseTableView";
 import { DatabaseBoardView } from "./DatabaseBoardView";

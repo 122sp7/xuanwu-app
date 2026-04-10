@@ -9,7 +9,7 @@
 
 import { useEffect, useCallback } from "react";
 import { useBlockEditorStore } from "../store/block-editor.store";
-import { getKnowledgeBlocks } from "../queries/index";
+import { getKnowledgeBlocks } from "../queries";
 import { BlockEditorView } from "./BlockEditorView";
 
 export interface PageEditorViewProps {

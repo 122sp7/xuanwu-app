@@ -6,7 +6,7 @@
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { IDatabaseRepository } from "../../domain/repositories/IDatabaseRepository";
-import type { DatabaseSnapshot, Field } from "../../domain/aggregates/Database";
+import type { DatabaseSnapshot } from "../../domain/aggregates/Database";
 import { CreateDatabaseSchema, UpdateDatabaseSchema, AddFieldSchema, ArchiveDatabaseSchema, GetDatabaseSchema, ListDatabasesSchema } from "../dto/DatabaseDto";
 import type { CreateDatabaseDto, UpdateDatabaseDto, AddFieldDto, ArchiveDatabaseDto, GetDatabaseDto, ListDatabasesDto } from "../dto/DatabaseDto";
 

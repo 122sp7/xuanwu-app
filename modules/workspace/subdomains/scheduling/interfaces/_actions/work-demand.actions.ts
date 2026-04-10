@@ -5,14 +5,14 @@ import { commandFailureFrom } from "@shared-types";
 
 import { CreateDemandSchema, AssignMemberSchema } from "../../api/schema";
 import type { CreateDemandInput, AssignMemberInput } from "../../api/schema";
+import { makeDemandRepo } from "../../api/factories";
 import {
   SubmitWorkDemandUseCase,
   AssignWorkDemandUseCase,
 } from "../../application/work-demand.use-cases";
-import { FirebaseDemandRepository } from "../../infrastructure/firebase/FirebaseDemandRepository";
 
 function makeRepo() {
-  return new FirebaseDemandRepository();
+  return makeDemandRepo();
 }
 
 export async function submitWorkDemand(raw: CreateDemandInput): Promise<CommandResult> {
@@ -44,4 +44,3 @@ export async function assignWorkDemand(raw: AssignMemberInput): Promise<CommandR
     );
   }
 }
-

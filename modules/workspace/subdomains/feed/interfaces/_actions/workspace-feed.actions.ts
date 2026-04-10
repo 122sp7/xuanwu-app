@@ -9,6 +9,10 @@ import type {
   RepostWorkspaceFeedPostDto,
 } from "../../application/dto/workspace-feed.dto";
 import {
+  makeWorkspaceFeedInteractionRepo,
+  makeWorkspaceFeedPostRepo,
+} from "../../api/factories";
+import {
   BookmarkWorkspaceFeedPostUseCase,
   CreateWorkspaceFeedPostUseCase,
   LikeWorkspaceFeedPostUseCase,
@@ -17,17 +21,13 @@ import {
   ShareWorkspaceFeedPostUseCase,
   ViewWorkspaceFeedPostUseCase,
 } from "../../application/use-cases/workspace-feed.use-cases";
-import {
-  FirebaseWorkspaceFeedInteractionRepository,
-  FirebaseWorkspaceFeedPostRepository,
-} from "../../infrastructure";
 
 function makePostRepo() {
-  return new FirebaseWorkspaceFeedPostRepository();
+  return makeWorkspaceFeedPostRepo();
 }
 
 function makeInteractionRepo() {
-  return new FirebaseWorkspaceFeedInteractionRepository();
+  return makeWorkspaceFeedInteractionRepo();
 }
 
 export async function createWorkspaceFeedPost(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {

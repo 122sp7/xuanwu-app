@@ -3,9 +3,8 @@
 import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { AuthUser } from "../../../../api/contracts";
-import { useApp } from "../../../../interfaces/web/providers/app-provider";
-import type { AccountEntity } from "../../../account/domain/entities/Account";
+import type { AccountEntity, AuthUser } from "../../../../api";
+import { useApp } from "../../../../api";
 import { createOrganization } from "../../adapters/server-actions/organization.actions";
 import { Button } from "@ui-shadcn/ui/button";
 import {

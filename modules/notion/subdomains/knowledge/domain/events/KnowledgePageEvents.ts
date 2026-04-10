@@ -4,7 +4,7 @@
  * Purpose: KnowledgePage domain events.
  */
 
-import type { NotionDomainEvent } from "../../../../core/domain/events/NotionDomainEvent";
+import type { NotionDomainEvent } from "./NotionDomainEvent";
 
 export interface PageCreatedPayload {
   readonly pageId: string;

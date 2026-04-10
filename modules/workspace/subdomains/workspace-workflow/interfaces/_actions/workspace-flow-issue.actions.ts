@@ -9,13 +9,13 @@
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { WorkspaceFlowIssueFacade } from "../../api/workspace-flow-issue.facade";
-import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
+import { makeIssueRepo } from "../../api/factories";
 import type { OpenIssueDto } from "../../application/dto/open-issue.dto";
 import type { ResolveIssueDto } from "../../application/dto/resolve-issue.dto";
 
 function makeFacade(): WorkspaceFlowIssueFacade {
   return new WorkspaceFlowIssueFacade(
-    new FirebaseIssueRepository(),
+    makeIssueRepo(),
   );
 }
 

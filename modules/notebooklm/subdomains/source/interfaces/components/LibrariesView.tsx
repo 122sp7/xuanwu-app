@@ -12,7 +12,7 @@ import {
   type WikiLibrary,
   type WikiLibraryFieldType,
   type WikiLibraryRow,
-} from "../../index";
+} from "../..";
 
 interface WikiLibrariesViewProps {
   readonly accountId: string;

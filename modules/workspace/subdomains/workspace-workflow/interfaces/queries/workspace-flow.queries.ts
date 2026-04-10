@@ -11,21 +11,7 @@ import type { Task } from "../../domain/entities/Task";
 import type { Issue } from "../../domain/entities/Issue";
 import type { Invoice } from "../../domain/entities/Invoice";
 import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
-import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
-import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
-import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
-
-function makeTaskRepo() {
-  return new FirebaseTaskRepository();
-}
-
-function makeIssueRepo() {
-  return new FirebaseIssueRepository();
-}
-
-function makeInvoiceRepo() {
-  return new FirebaseInvoiceRepository();
-}
+import { makeInvoiceRepo, makeIssueRepo, makeTaskRepo } from "../../api/factories";
 
 /**
  * List all tasks for a workspace.

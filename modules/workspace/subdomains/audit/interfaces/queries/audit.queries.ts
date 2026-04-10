@@ -3,9 +3,9 @@ import {
   ListOrganizationAuditLogsUseCase,
   ListWorkspaceAuditLogsUseCase,
 } from "../../application/use-cases/list-audit-logs.use-cases";
-import { FirebaseAuditRepository } from "../../infrastructure/firebase/FirebaseAuditRepository";
+import { makeAuditRepo } from "../../api/factories";
 
-const auditRepo = new FirebaseAuditRepository();
+const auditRepo = makeAuditRepo();
 const listWorkspaceAuditLogsUseCase = new ListWorkspaceAuditLogsUseCase(auditRepo);
 const listOrganizationAuditLogsUseCase = new ListOrganizationAuditLogsUseCase(auditRepo);
 

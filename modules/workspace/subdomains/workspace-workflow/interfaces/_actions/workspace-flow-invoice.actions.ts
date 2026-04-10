@@ -9,14 +9,14 @@
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { WorkspaceFlowInvoiceFacade } from "../../api/workspace-flow-invoice.facade";
-import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
+import { makeInvoiceRepo } from "../../api/factories";
 import type { AddInvoiceItemDto } from "../../application/dto/add-invoice-item.dto";
 import type { UpdateInvoiceItemDto } from "../../application/dto/update-invoice-item.dto";
 import type { RemoveInvoiceItemDto } from "../../application/dto/remove-invoice-item.dto";
 
 function makeFacade(): WorkspaceFlowInvoiceFacade {
   return new WorkspaceFlowInvoiceFacade(
-    new FirebaseInvoiceRepository(),
+    makeInvoiceRepo(),
   );
 }
 

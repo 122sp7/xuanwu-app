@@ -6,11 +6,10 @@
  */
 
 import {
-  arrayRemove, arrayUnion, collection, doc, getDoc, getDocs,
+  collection, doc, getDoc, getDocs,
   getFirestore, query, serverTimestamp, setDoc, updateDoc, where,
 } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
 import { KnowledgeCollection } from "../../domain/aggregates/KnowledgeCollection";
 import type { KnowledgeCollectionSnapshot } from "../../domain/aggregates/KnowledgeCollection";
 import type { IKnowledgeCollectionRepository } from "../../domain/repositories/IKnowledgeCollectionRepository";

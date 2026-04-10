@@ -4,9 +4,9 @@
  * Purpose: ContentBlock aggregate root — atomic content unit inside a Page.
  */
 
-import type { BlockContent } from "../../../../core/domain/value-objects/BlockContent";
-import { richTextToPlainText } from "../../../../core/domain/value-objects/BlockContent";
-import type { NotionDomainEvent } from "../../../../core/domain/events/NotionDomainEvent";
+import type { BlockContent } from "../value-objects/BlockContent";
+import { richTextToPlainText } from "../value-objects/BlockContent";
+import type { NotionDomainEvent } from "../events/NotionDomainEvent";
 
 export interface ContentBlockSnapshot {
   readonly id: string;

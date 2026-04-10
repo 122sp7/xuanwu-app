@@ -24,7 +24,7 @@ export { createVersion, deleteVersion } from "../interfaces/_actions/version.act
 export { grantPermission, revokePermission } from "../interfaces/_actions/permission.actions";
 
 // Queries
-export { getComments, getVersions, getPermissions, subscribeComments } from "../interfaces/queries/index";
+export { getComments, getVersions, getPermissions, subscribeComments } from "../interfaces/queries";
 
 // UI components
 export { CommentPanel } from "../interfaces/components/CommentPanel";

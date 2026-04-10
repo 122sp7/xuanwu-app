@@ -13,9 +13,9 @@ import { Button } from "@ui-shadcn/ui/button";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 import { Badge } from "@ui-shadcn/ui/badge";
 
-import { getRecords } from "../queries/index";
+import { getRecords } from "../queries";
 import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, Field } from "../../domain/aggregates/Database";
+import type { DatabaseSnapshot } from "../../domain/aggregates/Database";
 import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
 
 interface DatabaseListViewProps {

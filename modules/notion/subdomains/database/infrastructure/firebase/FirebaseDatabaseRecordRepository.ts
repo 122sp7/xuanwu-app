@@ -7,7 +7,6 @@
 
 import {
   collection,
-  doc,
   getDoc,
   getDocs,
   addDoc,
@@ -24,10 +23,6 @@ import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRec
 
 function recordsCol(accountId: string, databaseId: string) {
   return collection(db, "accounts", accountId, "knowledgeDatabases", databaseId, "records");
-}
-
-function recordDoc(accountId: string, databaseId: string, id: string) {
-  return doc(db, "accounts", accountId, "knowledgeDatabases", databaseId, "records", id);
 }
 
 function toISO(ts: unknown): string {

@@ -1,17 +1,20 @@
 import { WorkspaceCommandApplicationService } from "../../../application/services/WorkspaceCommandApplicationService";
 import { WorkspaceQueryApplicationService } from "../../../application/services/WorkspaceQueryApplicationService";
-import { SharedWorkspaceDomainEventPublisher } from "../../../infrastructure/events/SharedWorkspaceDomainEventPublisher";
-import { FirebaseWikiWorkspaceRepository } from "../../../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
-import { FirebaseWorkspaceQueryRepository } from "../../../infrastructure/firebase/FirebaseWorkspaceQueryRepository";
-import { FirebaseWorkspaceRepository } from "../../../infrastructure/firebase/FirebaseWorkspaceRepository";
+import {
+  makeWikiWorkspaceRepo,
+  makeWorkspaceDomainEventPublisher,
+  makeWorkspaceQueryRepo,
+  makeWorkspaceRepo,
+} from "../../../api/runtime/factories";
+import { getOrganizationMembers, getOrganizationTeams } from "@/modules/platform/api";
 import type { WorkspaceCommandPort } from "../../../ports/input/WorkspaceCommandPort";
 import type { WorkspaceQueryPort } from "../../../ports/input/WorkspaceQueryPort";
 import { createWorkspaceSessionContext } from "./workspace-session-context";
 
-const workspaceRepo = new FirebaseWorkspaceRepository();
-const workspaceQueryRepo = new FirebaseWorkspaceQueryRepository();
-const wikiWorkspaceRepo = new FirebaseWikiWorkspaceRepository();
-const workspaceDomainEventPublisher = new SharedWorkspaceDomainEventPublisher();
+const workspaceRepo = makeWorkspaceRepo();
+const workspaceQueryRepo = makeWorkspaceQueryRepo({ getOrganizationMembers, getOrganizationTeams });
+const wikiWorkspaceRepo = makeWikiWorkspaceRepo();
+const workspaceDomainEventPublisher = makeWorkspaceDomainEventPublisher();
 
 const workspaceCommandPort: WorkspaceCommandPort = new WorkspaceCommandApplicationService({
   workspaceRepo,

@@ -14,7 +14,7 @@ import {
   Link2,
 } from "lucide-react";
 
-import { getArticle, getCategories, getBacklinks } from "../queries/index";
+import { getArticle, getCategories, getBacklinks } from "../queries";
 import {
   publishArticle,
   archiveArticle,
@@ -24,7 +24,7 @@ import {
 import { ArticleDialog } from "./ArticleDialog";
 import type { ArticleSnapshot as Article } from "../../domain/aggregates/Article";
 import type { CategorySnapshot as Category } from "../../domain/aggregates/Category";
-import { CommentPanel, VersionHistoryPanel } from "@/modules/notion/subdomains/collaboration/api";
+import { CommentPanel, VersionHistoryPanel } from "@/modules/notion/api";
 import { ReactMarkdown } from "@lib-react-markdown";
 import { remarkGfm } from "@lib-remark-gfm";
 import { Badge } from "@ui-shadcn/ui/badge";

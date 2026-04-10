@@ -10,7 +10,7 @@ import {
   orderBy, query, serverTimestamp, setDoc, updateDoc, where,
 } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
+import { v7 as _generateId } from "@lib-uuid";
 import { KnowledgePage } from "../../domain/aggregates/KnowledgePage";
 import type { KnowledgePageSnapshot } from "../../domain/aggregates/KnowledgePage";
 import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
@@ -96,17 +96,17 @@ export class FirebaseKnowledgePageRepository implements IKnowledgePageRepository
     return snaps.size;
   }
 
-  async findSnapshotById(accountId: string, pageId: string): Promise<import("../../domain/aggregates/KnowledgePage").KnowledgePageSnapshot | null> {
+  async findSnapshotById(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
     const page = await this.findById(accountId, pageId);
     return page ? page.getSnapshot() : null;
   }
 
-  async listSnapshotsByAccountId(accountId: string): Promise<import("../../domain/aggregates/KnowledgePage").KnowledgePageSnapshot[]> {
+  async listSnapshotsByAccountId(accountId: string): Promise<KnowledgePageSnapshot[]> {
     const pages = await this.listByAccountId(accountId);
     return pages.map((p) => p.getSnapshot());
   }
 
-  async listSnapshotsByWorkspaceId(accountId: string, workspaceId: string): Promise<import("../../domain/aggregates/KnowledgePage").KnowledgePageSnapshot[]> {
+  async listSnapshotsByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
     const pages = await this.listByWorkspaceId(accountId, workspaceId);
     return pages.map((p) => p.getSnapshot());
   }

@@ -5,8 +5,7 @@
  * packages or infrastructure wiring.
  */
 
-export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-agent-response.use-case";
-export { GenkitNotebookRepository } from "../infrastructure/genkit/GenkitNotebookRepository";
+export { GenerateNotebookResponseUseCase, GenkitNotebookRepository } from "../subdomains/notebook/api";
 
 // Q&A subdomain — AnswerRagQueryUseCase factory (replaces @/modules/search/api/server)
 export { createAnswerRagQueryUseCase } from "../subdomains/ai/qa/server";
