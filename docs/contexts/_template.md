@@ -94,6 +94,8 @@
 - subdomains 與 bounded-contexts 必須使用同一套 baseline / gap 子域集合。
 - README 只做入口摘要，不重寫 ADR 級決策。
 - 若新 context 需要 symmetric relationship，必須先明確說明為什麼不採用 upstream-downstream。
+- 若 context 文件涉及模組骨架或分層，必須與 `docs/bounded-context-subdomain-template.md` 一致：`<bounded-context>` 根層可承接 context-wide 的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，不應被簡化成只有 `docs/` 與 `subdomains/`。
+- 若文件提到 `core/`，必須明確說明它只是可選包裝；`infrastructure/` 與 `interfaces/` 仍屬外層，不得被包進泛用 `core/`。
 
 ## Mandatory Anti-Pattern Rules
 
@@ -104,6 +106,7 @@
 ## Copilot Generation Rules
 
 - 先決定 owning context、語言、邊界與依賴方向，再生成程式碼。
+- 若需求屬於 shared policy、published language 或跨 subdomain orchestration，允許在 `<bounded-context>` 根層使用 hexagonal layers；否則優先落回擁有責任的 subdomain。
 - 奧卡姆剃刀：若較少的抽象已能保護邊界與可測試性，就不要額外新增 port、ACL、DTO、subdomain、service 或流程節點。
 - 任何新文件都應沿用同一套規則、流程圖與文件網絡章節。
 
@@ -132,6 +135,7 @@ flowchart LR
 
 - [../README.md](../README.md)
 - [../architecture-overview.md](../architecture-overview.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
 - [../bounded-contexts.md](../bounded-contexts.md)
 - [../context-map.md](../context-map.md)
 - [../integration-guidelines.md](../integration-guidelines.md)

@@ -66,6 +66,7 @@ Any architecture/design update must stay consistent across this triad.
 
 - Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
 - When scaffolding a new bounded context or subdomain tree, read `docs/bounded-context-subdomain-template.md` before generating directories or files.
+- Interpret that template literally: `<bounded-context>` root may own context-wide `application/`, `domain/`, `infrastructure/`, and `interfaces/`; do not reduce it to only `docs/` plus `subdomains/`.
 - When sequencing architecture-first delivery, read `docs/project-delivery-milestones.md` before turning planning gaps into implementation work.
 - Treat the approved plan as the execution contract; stay within scope and update docs when boundaries or public APIs change.
 - Search and read before editing. Prefer existing instructions, prompts, and skills over ad hoc restatement.
@@ -76,6 +77,7 @@ Any architecture/design update must stay consistent across this triad.
 - Follow docs-defined bounded contexts as the ownership authority; when working in code, keep each `modules/<context>/` directory isolated and access peers through `api/` boundaries only.
 - Cross-module access must go through the target module's `api/` boundary only.
 - Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
+- If a team chooses to add a `core/` wrapper, limit it to inner concerns like `application/`, `domain/`, and optional `ports/`; do not place `infrastructure/` or `interfaces/` inside a generic `core/`.
 - Keep business logic in `domain/` and `application/`; keep UI, transport, and composition in `interfaces/` and `app/`.
 - Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy `@/shared/*`, `@/libs/*`, or similar paths.
 - Preserve the runtime split: Next.js owns browser-facing UX, auth/session, orchestration, and streaming; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
