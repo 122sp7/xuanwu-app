@@ -34,3 +34,9 @@ Context7 驗證的 DDD / Hexagonal 參考指出，模組應保持高凝聚、低
 
 - 若任何文件暗示 domain 直接依賴 framework / infrastructure，以本 ADR 為準並判定為衝突。
 - 若任何文件把 index 或共享檔案當成跨主域真實邊界，以本 ADR 為準並改回公開 API / published language。
+
+## Rejected Anti-Patterns
+
+- Domain 直接依賴 framework、SDK、transport、database implementation。
+- Application service 直接呼叫 driven adapter，而不透過 port。
+- Interface adapter 直接承載核心業務規則。

@@ -39,3 +39,10 @@
 | Team | Organization 或 Tenant |
 | Plan Access | Entitlement |
 | API Key Store | SecretManagement |
+
+## Naming Anti-Patterns
+
+- 不用 User 混稱 Actor。
+- 不用 Team 混稱 Organization 或 Tenant。
+- 不用 Plan 混稱 Entitlement。
+- 不用 Preference 混稱 Consent。

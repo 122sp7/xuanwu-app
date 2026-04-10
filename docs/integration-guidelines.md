@@ -42,6 +42,12 @@
 4. 一致則考慮 conformist，不一致則建立 ACL。
 5. 避免把 DTO、entity、policy、UI 狀態混成同一層。
 
+## Integration Anti-Patterns
+
+- 直接傳遞上游 aggregate、entity、repository 給下游使用。
+- 讓 downstream 省略 published language 與 local DTO，直接貼靠上游內部模型。
+- 把 ACL 當成預設樣板卻不判斷是否真的有語義污染。
+
 ## Conflict Resolution
 
 - 若某整合指南與 [context-map.md](./context-map.md) 的方向衝突，以 context map 為準。

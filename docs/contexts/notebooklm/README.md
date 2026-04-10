@@ -52,6 +52,17 @@ notebooklm 是對話、來源處理與推理主域。它的責任是提供 noteb
 4. [ubiquitous-language.md](./ubiquitous-language.md)
 5. [AGENT.md](./AGENT.md)
 
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- 跨主域只消費 published language、API boundary、events，不直接依賴他域內部模型。
+
+## Anti-Pattern Rules
+
+- 不把 notebooklm 的衍生輸出直接宣稱為 notion 的正典知識內容。
+- 不把 retrieval/grounding 降格成單純 UI 功能或模型提示細節。
+- 不把 ingestion 與 source reference 混成同一個不可拆分責任。
+
 ## Constraints
 
 - 本文件是 architecture-first 版本。

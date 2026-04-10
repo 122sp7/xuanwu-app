@@ -20,3 +20,15 @@ platform 是其他三個主域的治理上游。依 Context Mapper 的 upstream/
 - workspace、notion、notebooklm 可以把平台輸出當作 supplier language，但不能穿透其內部模型。
 - audit-log 與 analytics 可消費其他主域的事件，但那不等於接管對方的主域責任。
 - tenant、entitlement、secret-management、consent 是平台應補齊的核心缺口邊界。
+
+## Dependency Direction
+
+- platform 是 workspace、notion、notebooklm 的治理 upstream，而不是它們的內容或流程 owner。
+- platform 對下游輸出 published language，不輸出內部 aggregate、repository 或 secret 結構。
+- 下游若需保護本地語言，ACL 由下游自行實作，不由 platform 代替選擇。
+
+## Anti-Patterns
+
+- 把 platform 與下游主域寫成 Shared Kernel，再同時保留 supplier/downstream 敘事。
+- 讓 platform 直接穿透下游主域內部模型，以治理名義接管業務邏輯。
+- 把審計或分析事件消費錯寫成平台擁有下游正典責任。

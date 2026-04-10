@@ -23,3 +23,9 @@
 - platform 關心治理與權益。
 - notion 關心正典知識內容。
 - notebooklm 關心推理與衍生輸出。
+
+## Subdomain Anti-Patterns
+
+- 不把 baseline subdomains 與 recommended gap subdomains 混成同一種事實狀態。
+- 不把主域缺口直接分攤到別的主域，造成所有權漂移。
+- 不把子域名稱當成 UI 功能清單，而忽略其邊界責任。

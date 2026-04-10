@@ -32,6 +32,12 @@
 - 不把 Shared Kernel 與 directed relationship 混用。
 - 不把 technical shared libraries 混寫成 strategic shared kernel。
 
+## Strategic Anti-Patterns
+
+- 以 shared technical package 取代真正的 bounded context 關係設計。
+- 以對稱關係語言掩蓋其實存在的上下游依賴。
+- 以實作方便為由，直接共享內部模型而不定 published language。
+
 ## Decision References
 
 - [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)

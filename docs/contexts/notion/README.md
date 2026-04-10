@@ -56,6 +56,17 @@ notion 是知識內容生命週期主域。它的責任是提供 knowledge artif
 4. [ubiquitous-language.md](./ubiquitous-language.md)
 5. [AGENT.md](./AGENT.md)
 
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- notion 對外只暴露 published language、API boundary、events，不暴露內部內容模型。
+
+## Anti-Pattern Rules
+
+- 不把 notebooklm 的衍生輸出直接當成 notion 正典內容。
+- 不把 taxonomy、relations、publishing 壓回單一 knowledge 編輯流程。
+- 不把 platform 的治理語言混成內容生命週期本身。
+
 ## Constraints
 
 - 本文件是 architecture-first 版本。

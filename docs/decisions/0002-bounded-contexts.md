@@ -37,3 +37,9 @@ Context7 驗證的 bounded context 原則要求每個 context 只承載一組高
 
 - 若任何文件出現超過四個主域的平級切分，以本 ADR 為準並視為衝突。
 - 若任何文件把 recommended gap subdomains 寫成已驗證現況，以本 ADR 為準並改回 architecture-first 表述。
+
+## Rejected Anti-Patterns
+
+- 讓多個主域同時聲稱同一正典所有權。
+- 用 UI、部署或資料表分組來取代 bounded context 切分。
+- 把 gap subdomain 寫成已落地事實，而不標示為架構缺口。

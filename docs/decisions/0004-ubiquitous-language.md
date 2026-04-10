@@ -37,3 +37,9 @@ Context7 驗證的 DDD 參考指出，領域核心必須運作在自己清楚的
 
 - 若戰略語言與主域語言衝突，先以更具邊界意義的主域語言為準，再回寫 strategic glossary。
 - 若兩個主域同時主張同一術語所有權，以 bounded contexts 與 context map 的所有權關係為準。
+
+## Rejected Anti-Patterns
+
+- 用同一個詞同時指涉治理、內容、推理三種不同責任。
+- 用舊產品術語覆蓋新的 bounded context 語言。
+- 讓實作便利性凌駕於 ubiquitous language 一致性。

@@ -33,6 +33,12 @@
 - 不用 Chat 混指 Conversation。
 - 不用 Search 混指 Retrieval。
 
+## Naming Anti-Patterns
+
+- 用同一個詞同時代表平台治理語言與工作區參與語言。
+- 用內容產品舊名覆蓋 notion 的正典語言。
+- 用 Search 混指 notebooklm 的 Retrieval 與一般搜尋能力。
+
 ## Conflict Resolution
 
 - 若 strategic term 與主域 term 衝突，優先維持主域語言不被污染，再回寫 strategic glossary。

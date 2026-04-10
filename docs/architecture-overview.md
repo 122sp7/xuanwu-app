@@ -46,6 +46,18 @@
 - notion 是正典內容擁有者，不是治理上游。
 - notebooklm 是衍生推理輸出擁有者，不是正典內容擁有者。
 
+## System-Wide Dependency Direction
+
+- 每個主域內部固定遵守 interfaces -> application -> domain <- infrastructure。
+- 跨主域依賴只能透過 published language、public API boundary、events。
+- 外部框架、SDK、傳輸與儲存細節只能停留在 adapter 邊界。
+
+## System-Wide Anti-Patterns
+
+- 把 domain 核心直接接上 framework、database、HTTP、queue 或 AI SDK。
+- 把主域內部模型直接共享給其他主域，取代 published language。
+- 把治理、內容、推理三種責任重新揉成單一平級主域。
+
 ## Reading Path
 
 1. [bounded-contexts.md](./bounded-contexts.md)

@@ -29,3 +29,9 @@
 2. grounding
 3. ingestion
 4. evaluation
+
+## Anti-Patterns
+
+- 不把 retrieval 與 grounding 併回 source 或 ai，否則推理鏈條失去清楚邊界。
+- 不把 evaluation 只當成 dashboard 指標，否則品質語言無法成為正典子域。
+- 不把 notebook、conversation、note 混成單一 UI 容器語意，否則無法維持聚合邊界。

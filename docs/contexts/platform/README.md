@@ -68,6 +68,17 @@ platform 是治理與營運支撐主域。它的責任是提供 actor、identity
 4. [ubiquitous-language.md](./ubiquitous-language.md)
 5. [AGENT.md](./AGENT.md)
 
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- platform 對外只輸出治理結果與 published language，不輸出內部治理模型細節。
+
+## Anti-Pattern Rules
+
+- 不把 platform 寫成內容主域或對話主域。
+- 不把 entitlement、consent、secret-management 混成同一個泛用設定區。
+- 不把其他主域對平台的依賴寫成可以直接存取其內部模型。
+
 ## Constraints
 
 - 本文件是 architecture-first 版本。

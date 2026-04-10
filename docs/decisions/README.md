@@ -18,6 +18,14 @@
 - 若某份戰略文件與 ADR 衝突，以 ADR 的 decision 與 conflict resolution 為準。
 - 若未來新增新的架構決策，應沿用同一結構補充，而不是覆寫舊決策歷史。
 
+## Anti-Pattern Coverage
+
+- 0001 禁止把 framework / infrastructure 滲入核心。
+- 0002 禁止主域與子域所有權漂移。
+- 0003 禁止上下游方向與對稱關係混寫。
+- 0004 禁止語言污染與同詞多義。
+- 0005 禁止錯置 ACL / Conformist 的責任位置。
+
 ## Constraints
 
 - 本目錄在本次任務限制下，只依 Context7 架構參考重建。

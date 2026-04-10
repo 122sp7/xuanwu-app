@@ -34,6 +34,13 @@
 - 子域所有權衝突時，以 [bounded-contexts.md](./bounded-contexts.md) 與 [subdomains.md](./subdomains.md) 為準。
 - 關係方向衝突時，以 [context-map.md](./context-map.md) 為準。
 
+## Global Anti-Pattern Rules
+
+- 不把 framework、transport、storage、SDK 細節寫進 domain 核心。
+- 不把其他主域的內部模型當成自己的正典語言。
+- 不把對稱關係與 directed relationship 混寫在同一套戰略文件。
+- 不把 gap subdomains 描述成已驗證現況。
+
 ## Constraints
 
 - 本文件集是 Context7-only 的 architecture-first 版本。

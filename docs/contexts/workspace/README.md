@@ -49,6 +49,17 @@ workspace 是協作容器與工作區範疇主域。它的責任是提供 worksp
 4. [ubiquitous-language.md](./ubiquitous-language.md)
 5. [AGENT.md](./AGENT.md)
 
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- workspace 對外只暴露 scope、published language、API boundary、events，不暴露內部實作。
+
+## Anti-Pattern Rules
+
+- 不把 workspace scope 寫成平台治理結果本身。
+- 不把 feed、audit、workflow 互相取代為單一泛用流程層。
+- 不把 notion 或 notebooklm 的內容與推理責任吸回 workspace。
+
 ## Constraints
 
 - 本文件是 architecture-first 版本。

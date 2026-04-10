@@ -32,3 +32,15 @@ platform 是治理與營運支撐主域。依 bounded context 原則，它應把
 - entitlement 必須是解算結果，不是任意 UI 標記。
 - billing event 與 subscription state 必須分離。
 - secret 不應作為一般 integration payload 傳播。
+
+## Dependency Direction
+
+- platform 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
+- identity、organization、billing、notification 等外部整合能力必須透過 port/adapter 進入核心。
+- domain 不得向外依賴 HTTP、Firebase、secret provider 或 message transport 細節。
+
+## Anti-Patterns
+
+- 把 entitlement 當成 subscription plan 名稱或 UI 開關。
+- 把 secret-management 混回 integration，使敏感治理責任失焦。
+- 讓 platform 直接持有其他主域的正典內容或推理模型。

@@ -35,3 +35,10 @@
 | Timeline | ActivityFeed 或 Schedule |
 | Share Permission | ShareScope |
 | Workspace Log | ActivityFeed 或 AuditTrail |
+
+## Naming Anti-Patterns
+
+- 不用 User 混指 Membership 與 Actor reference。
+- 不用 Timeline 混指 ActivityFeed 與 Schedule。
+- 不用 Permission 混指 ShareScope。
+- 不用 Log 混指 ActivityFeed 與 AuditTrail。

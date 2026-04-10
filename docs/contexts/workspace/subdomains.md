@@ -26,3 +26,10 @@
 2. membership
 3. sharing
 4. presence
+
+## Anti-Patterns
+
+- 不把 lifecycle 混進 workflow，使容器生命週期被流程編排吞沒。
+- 不把 membership 混成 organization 或 identity。
+- 不把 sharing 混成一般 permission 欄位集合。
+- 不把 presence 藏進 UI 狀態而失去獨立語言。

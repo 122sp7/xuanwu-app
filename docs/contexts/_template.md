@@ -20,6 +20,8 @@
 - Recommended Gap Subdomains
 - Key Relationships
 - Reading Order
+- Dependency Direction
+- Anti-Pattern Rules
 - Constraints
 
 ## subdomains.md Template
@@ -34,18 +36,23 @@
 - Baseline Bounded Contexts
 - Recommended Gap Bounded Contexts
 - Domain Invariants
+- Dependency Direction
+- Anti-Patterns
 
 ## context-map.md Template
 
 - Context Role
 - Relationships
 - Mapping Rules
+- Dependency Direction
+- Anti-Patterns
 
 ## ubiquitous-language.md Template
 
 - Canonical Terms
 - Language Rules
 - Avoid
+- Naming Anti-Patterns
 
 ## AGENT.md Template
 
@@ -54,6 +61,8 @@
 - Route Here When
 - Route Elsewhere When
 - Guardrails
+- Dependency Direction
+- Hard Prohibitions
 
 ## Consistency Rules
 
@@ -61,3 +70,9 @@
 - subdomains 與 bounded-contexts 必須使用同一套 baseline / gap 子域集合。
 - README 只做入口摘要，不重寫 ADR 級決策。
 - 若新 context 需要 symmetric relationship，必須先明確說明為什麼不採用 upstream-downstream。
+
+## Mandatory Anti-Pattern Rules
+
+- 不得把 domain 寫成依賴 framework、transport、storage 或第三方 SDK 的層。
+- 不得把 Shared Kernel / Partnership 與 ACL / Conformist 混用在同一關係敘事。
+- 不得把其他主域的正典模型直接拿來當成本地主域模型。

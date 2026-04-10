@@ -34,3 +34,9 @@ Context Mapper 明確指出 ACL 只能出現在 upstream-downstream 關係中，
 - 若任何文件把 ACL 寫成 upstream 的責任，判定為衝突，以本 ADR 為準。
 - 若任何文件同時要求 ACL 與 Conformist 套在同一整合，判定為衝突，以本 ADR 為準。
 - 若任何文件在對稱關係上使用 ACL / Conformist，判定為衝突，以本 ADR 為準。
+
+## Rejected Anti-Patterns
+
+- 把 ACL 當成 upstream 的工作。
+- 在同一關係同時宣稱 ACL 與 Conformist。
+- 用 Shared Kernel / Partnership 當理由跳過整合語義判斷。
