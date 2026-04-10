@@ -1,79 +1,59 @@
-# notebooklm
+# NotebookLM Context
 
-> **Domain Type:** Supporting Subdomain
-> **Module:** `modules/notebooklm/`
-> **Authoritative docs:** [`modules/notebooklm/`](../../../modules/notebooklm/)
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
 
-## Boundary
+## Purpose
 
-- **Responsible for:**
-  - `Thread` lifecycle — create and maintain AI conversation threads（`conversation` 子域）
-  - `Message` history — ordered, append-only message list within a thread（`conversation` 子域）
-  - RAG-augmented response generation — transforms retrieval results into readable, citable answers（`synthesis` 子域）
-  - Citation and source trace — preserves `citation` / source references for trustworthy responses（`source` 子域）
-  - `Summary` production — condensed knowledge insights from retrieved content（`synthesis` 子域）
-  - `Notebook` composition and management（`notebook` 子域）
-  - Lightweight note creation and knowledge linkage（`note` 子域）
-  - AI model invocation and prompt engineering（`ai` 子域）
-  - Conversation version and snapshot policies（`versioning` 子域）
+notebooklm 是對話、來源處理與推理主域。它的責任是提供 notebook、conversation、source ingestion、retrieval、grounding、synthesis、evaluation 與 versioning 等語言，把來源材料轉成可對話、可追溯、可評估的衍生輸出。
 
-- **Not responsible for:**
-  - Semantic search and chunk retrieval → `notion` `search` subdomain
-  - Knowledge content creation or editing → `notion`
-  - External document ingestion pipeline → `py_fn`
-  - Workspace/collaboration scope management → `workspace`
+## Why This Context Exists
 
-## Subdomain Inventory
+- 把推理流程與正典知識內容分離。
+- 把來源匯入、檢索、grounding 與 synthesis 統整成同一主域。
+- 提供可回流到其他主域、但本質上仍屬衍生輸出的能力邊界。
 
-| 子域 | 核心語言 |
+## Context Summary
+
+| Aspect | Summary |
 |---|---|
-| `ai` | `ModelConfig`, `PromptTemplate`, `InferenceRequest` |
-| `conversation` | `Thread`, `Message`, `MessageRole` |
-| `note` | `Note`, `NoteRef` |
-| `notebook` | `Notebook`, `NotebookSection` |
-| `source` | `SourceDocument`, `Citation`, `SourceTrace` |
-| `synthesis` | `NotebookResponse`, `Summary`, `RetrievalContext` |
-| `versioning` | `ConversationSnapshot`, `VersionPolicy` |
+| Primary Role | 對話、來源處理、檢索與推理輸出 |
+| Upstream Dependency | platform 治理、workspace scope、notion 內容來源 |
+| Downstream Consumer | 無固定主域級 consumer；輸出可被其他主域吸收 |
+| Core Principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
 
-## Published Language
+## Baseline Subdomains
 
-- **Commands:**
-  - `GenerateNotebookResponse` (RAG-augmented, via `notion` search upstream)
-  - `CreateThread`
-  - `AddMessage`
-  - `CreateNotebook`
+- ai
+- conversation
+- note
+- notebook
+- source
+- synthesis
+- versioning
 
-- **Queries:**
-  - `GetThread`
-  - `ListMessages`
-  - `GetNotebook`
+## Recommended Gap Subdomains
 
-- **Events:**
-  - `notebooklm.thread_created`
-  - `notebooklm.response_generated`
-  - `notebooklm.notebook_created`
+- ingestion
+- retrieval
+- grounding
+- evaluation
 
-## Upstream / Downstream
+## Key Relationships
 
-- **Upstream:**
-  - `platform` → notebooklm — identity and account validation (Published Language)
-  - `workspace` → notebooklm — `workspaceId` scope (Published Language)
-  - `notion` → notebooklm — semantic retrieval chunks via `search` subdomain for RAG generation (Customer/Supplier, synchronous query)
+- 與 platform：notebooklm 消費 actor、organization、access、entitlement。
+- 與 workspace：notebooklm 消費 workspaceId、membership scope、share scope。
+- 與 notion：notebooklm 消費 knowledge artifact reference、attachment reference、taxonomy hint。
 
-- **Downstream:**
-  - notebooklm → `app/(shell)/ai-chat` — AI Chat page calls `notebooklm/api` through a local `_actions.ts` anti-corruption adapter; `notebooklm/api` barrel must **not** be imported directly in Client Components (Genkit server-only)
+## Reading Order
 
-- **Relationship types:**
-  - `platform → notebooklm`: Published Language / Conformist
-  - `workspace → notebooklm`: Published Language
-  - `notion → notebooklm`: Customer/Supplier (synchronous query)
-  - `notebooklm → app/(shell)/ai-chat`: Anti-Corruption Layer (ACL via `_actions.ts`)
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
 
-## Context Rules
+## Constraints
 
-1. Keep domain model isolated from external model leakage.
-2. Expose only stable contracts via published language.
-3. Record boundary changes in `docs/context-map.md` and ADRs.
-4. `notebooklm/api` barrel is server-only (Genkit); never import it directly in Client Components.
-5. `Thread.messages` is append-only — messages cannot be reordered or deleted.
-6. Retrieval is always delegated to `notion` search subdomain; `notebooklm` does not own embedding or indexing.
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。

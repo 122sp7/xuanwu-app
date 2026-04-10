@@ -1,66 +1,56 @@
-# workspace
+# Workspace Context
 
-> **Domain Type:** Generic Subdomain  
-> **Module:** `modules/workspace/`  
-> **Authoritative docs:** [`modules/workspace/`](../../../modules/workspace/)
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
 
-## Boundary
+## Purpose
 
-- **Responsible for:**
-  - `Workspace` aggregate lifecycle — `preparatory | active | stopped`
-  - Workspace visibility — `visible | hidden`
-  - Stable collaboration container identity — `workspaceId` as the canonical scope anchor for all downstream contexts
-  - Public contracts via `modules/workspace/api` (contracts, facade, ui, index)
-  - Read projections: `WorkspaceMemberView`, `WikiAccountContentNode`, `WikiWorkspaceContentNode`, `WikiContentItemNode`
+workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、稽核、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
 
-- **Not responsible for:**
-  - Organization member and team governance → `organization`
-  - Knowledge content semantics → `knowledge`
-  - UI tab composition (interface composition, not context-map ownership)
-  - Business domain rules beyond collaboration scope
+## Why This Context Exists
 
-## Published Language
+- 把工作區容器語意與平台治理語意分離。
+- 把工作區 scope 作為其他主域可依賴的 published language。
+- 把活動流、稽核、排程與流程協調收斂為同一主域內的高凝聚能力。
 
-- **Commands:**
-  - `CreateWorkspace`
-  - `RenameWorkspace`
-  - `ChangeWorkspaceVisibility`
-  - `TransitionWorkspaceLifecycle` (`activate`, `stop`)
-  - `UpdateWorkspaceAddress`
-  - `UpdateWorkspacePersonnel`
-  - `ApplyWorkspaceSettings`
+## Context Summary
 
-- **Queries:**
-  - `GetWorkspace`
-  - `ListWorkspacesByAccount`
-  - `GetWorkspaceMembers`
+| Aspect | Summary |
+|---|---|
+| Primary Role | 協作容器與 workspace scope |
+| Upstream Dependency | platform 的 actor、organization、access、entitlement |
+| Downstream Consumers | notion、notebooklm |
+| Core Principle | workspace 暴露 scope，不接管治理或內容正典 |
 
-- **Events:**
-  - `workspace.created`
-  - `workspace.lifecycle_transitioned`
-  - `workspace.visibility_changed`
+## Baseline Subdomains
 
-## Upstream / Downstream
+- audit
+- feed
+- scheduling
+- workflow
 
-- **Upstream:**
-  - `platform` → workspace — owner identity and account context (Published Language / Customer-Supplier)
-  - `platform` → workspace — organization membership and member/team read translation (Published Language)
+## Recommended Gap Subdomains
 
-- **Downstream (conformist consumers scoped by `workspaceId`):**
-  - `notion` (all knowledge content subdomains)
-  - `notebooklm` (AI conversation and synthesis)
-  - workspace subdomains: `audit`, `feed`, `scheduling`, `workflow`
+- lifecycle
+- membership
+- sharing
+- presence
 
-- **Relationship types:**
-  - `platform → workspace`: Published Language / Conformist
-  - `workspace → notion`: Published Language (workspaceId scope + domain events)
-  - `workspace → notebooklm`: Published Language (workspaceId scope)
+## Key Relationships
 
-## Context Rules
+- 與 platform：workspace 是治理結果的 downstream consumer。
+- 與 notion：workspace 向 notion 提供 workspaceId、membership scope、share scope。
+- 與 notebooklm：workspace 向 notebooklm 提供 workspaceId、membership scope、share scope。
 
-1. Keep domain model isolated from external model leakage.
-2. Expose only stable contracts via published language.
-3. Record boundary changes in `docs/context-map.md` and ADRs.
-4. Cross-module access must use `modules/workspace/api` only — never import internal `domain/`, `application/`, `infrastructure/`, or `interfaces/` directly.
-5. This context does not own organization truth (member/team governance).
-6. This context does not own knowledge-content semantics.
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
