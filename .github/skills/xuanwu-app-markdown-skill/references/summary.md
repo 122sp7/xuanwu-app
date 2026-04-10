@@ -39,20 +39,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-278 files | 11,083 lines
+263 files | 15,420 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 278 | 11,083 |
+| Markdown | 263 | 15,420 |
 
 **Largest files:**
 - `py_fn/README.md` (265 lines)
 - `.github/agents/knowledge-base.md` (228 lines)
 - `.github/prompts/serena-ddd-refactor.prompt.md` (215 lines)
+- `modules/workspace/subdomains/feed/README.md` (212 lines)
 - `modules/notion/docs/aggregates.md` (201 lines)
 - `modules/platform/docs/aggregates.md` (181 lines)
 - `modules/platform/docs/ubiquitous-language.md` (176 lines)
-- `.github/copilot-instructions.md` (171 lines)
+- `.github/copilot-instructions.md` (175 lines)
 - `modules/platform/AGENT.md` (170 lines)
 - `.github/prompts/playwright-mcp-inspect.prompt.md` (163 lines)
-- `modules/notion/docs/application-services.md` (153 lines)

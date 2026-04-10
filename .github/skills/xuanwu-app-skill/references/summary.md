@@ -38,30 +38,30 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1531 files | 72,352 lines
+1588 files | 76,309 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 874 | 32,176 |
-| Markdown | 228 | 11,933 |
-| No Extension | 179 | 263 |
-| TypeScript (TSX) | 173 | 22,783 |
+| TypeScript | 883 | 32,387 |
+| Markdown | 263 | 15,420 |
+| TypeScript (TSX) | 185 | 23,019 |
+| No Extension | 180 | 264 |
 | Python | 61 | 3,823 |
 | JSON | 7 | 821 |
 | Text | 3 | 107 |
-| JavaScript (ESM) | 2 | 167 |
 | RULES | 2 | 18 |
+| JavaScript (ESM) | 2 | 189 |
 | CSS | 1 | 197 |
 | Other | 1 | 64 |
 
 **Largest files:**
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
-- `app/(shell)/_components/dashboard-sidebar.tsx` (554 lines)
+- `modules/platform/interfaces/web/components/DashboardSidebar.tsx` (552 lines)
 - `app/(shell)/dev-tools/page.tsx` (475 lines)
 - `firestore.indexes.json` (437 lines)
-- `app/(shell)/_components/app-rail.tsx` (360 lines)
+- `modules/platform/interfaces/web/components/AppRail.tsx` (358 lines)
 - `packages/ui-shadcn/ui/chart.tsx` (356 lines)
-- `app/(shell)/ai-chat/page.tsx` (337 lines)
-- `app/(shell)/layout.tsx` (321 lines)
+- `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (341 lines)
+- `modules/platform/interfaces/web/components/ShellLayout.tsx` (323 lines)
 - `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
-- `modules/workspace/domain/aggregates/Workspace.ts` (299 lines)
+- `modules/workspace/domain/aggregates/Workspace.ts` (305 lines)
