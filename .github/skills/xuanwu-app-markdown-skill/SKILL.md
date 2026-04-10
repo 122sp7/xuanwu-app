@@ -5,7 +5,7 @@ description: Reference codebase for Xuanwu App. Use this skill when you need to 
 
 # Xuanwu App Codebase Reference
 
-254 files | 15193 lines | 166546 tokens
+254 files | 15218 lines | 167372 tokens
 
 ## Overview
 
@@ -14,10 +14,6 @@ Use this skill when you need to:
 - Find where specific functionality is implemented
 - Read source code for any file
 - Search for code patterns or keywords
-
-Authority guardrail:
-- These generated references are implementation snapshots, not the authority for strategic bounded-context ownership, canonical naming, or duplicate-name resolution.
-- For architecture and vocabulary decisions, read `docs/subdomains.md`, `docs/bounded-contexts.md`, `docs/ubiquitous-language.md`, and `docs/contexts/<context>/*` first.
 
 ## Files
 
@@ -75,7 +71,6 @@ function calculateTotal
 - Use line counts in `project-structure.md` to estimate file complexity
 - Search `## File:` pattern to jump between files
 - Check `summary.md` for excluded files, format details, and file statistics
-- If a generated reference conflicts with `docs/**/*`, treat the generated reference as implementation-only and follow `docs/**/*`.
 
 ---
 
