@@ -8,4 +8,4 @@
 export { GenerateNotebookResponseUseCase, GenkitNotebookRepository } from "../subdomains/notebook/api";
 
 // Q&A subdomain — AnswerRagQueryUseCase factory (replaces @/modules/search/api/server)
-export { createAnswerRagQueryUseCase } from "../subdomains/ai/qa/server";
+export { createAnswerRagQueryUseCase } from "../subdomains/ai/api/server";
