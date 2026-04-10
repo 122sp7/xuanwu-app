@@ -7804,140 +7804,6 @@ export class UpdatePageCoverUseCase {
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageReviewUseCases.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: application/use-cases
- * Purpose: Page review/wiki use cases — approve, verify, request review, assign owner.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
-
-import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
-import {
-  PublishDomainEventUseCase,
-  type IEventStoreRepository,
-  type IEventBusRepository,
-} from "@/modules/shared/api";
-import {
-  ApproveKnowledgePageSchema,
-  type ApproveKnowledgePageDto,
-} from "../dto/KnowledgePageDto";
-import {
-  VerifyKnowledgePageSchema,
-  type VerifyKnowledgePageDto,
-  RequestPageReviewSchema,
-  type RequestPageReviewDto,
-  AssignPageOwnerSchema,
-  type AssignPageOwnerDto,
-} from "../dto/KnowledgeWikiDto";
-
-export class ApproveKnowledgePageUseCase {
-  constructor(
-    private readonly repo: IKnowledgePageRepository,
-    private readonly eventStore: IEventStoreRepository,
-    private readonly eventBus: IEventBusRepository,
-  ) {}
-
-  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = ApproveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const {
-      accountId,
-      pageId,
-      actorId,
-      causationId: inputCausationId,
-      extractedTasks,
-      extractedInvoices,
-      correlationId: inputCorrelationId,
-      workspaceId,
-    } = parsed.data;
-
-    const causationId = inputCausationId ?? generateId();
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    if (page.status === "archived") return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
-    if (page.approvalState === "approved") return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
-
-    const nowISO = new Date().toISOString();
-    page.approve(actorId, nowISO);
-    await this.repo.save(page);
-
-    const correlationId = inputCorrelationId ?? generateId();
-    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
-      id: generateId(),
-      eventName: "knowledge.page_approved",
-      aggregateType: "KnowledgePage",
-      aggregateId: pageId,
-      payload: {
-        pageId,
-        accountId,
-        workspaceId: workspaceId ?? page.workspaceId,
-        extractedTasks,
-        extractedInvoices,
-        actorId,
-        causationId: inputCausationId,
-        correlationId,
-      },
-      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
-    });
-
-    return commandSuccess(pageId, Date.now());
-  }
-}
-
-export class VerifyKnowledgePageUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
-    const parsed = VerifyKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.verify(verifiedByUserId, verificationExpiresAtISO);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class RequestPageReviewUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
-    const parsed = RequestPageReviewSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, requestedByUserId } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.requestReview(requestedByUserId);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class AssignPageOwnerUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
-    const parsed = AssignPageOwnerSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, ownerId } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.assignOwner(ownerId);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-````
-
 ## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageUseCases.ts
 ````typescript
 /**
@@ -9459,6 +9325,108 @@ export class FirebaseBacklinkIndexRepository implements IBacklinkIndexRepository
 }
 ````
 
+## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseContentBlockRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing IContentBlockRepository.
+ * Firestore path: accounts/{accountId}/contentBlocks/{blockId}
+ */
+
+import {
+  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
+  query, serverTimestamp, setDoc, updateDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import { ContentBlock } from "../../domain/aggregates/ContentBlock";
+import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
+import type { IContentBlockRepository } from "../../domain/repositories/IContentBlockRepository";
+import type { BlockContent } from "../../../../core/domain/value-objects/BlockContent";
+import { BLOCK_TYPES } from "../../../../core/domain/value-objects/BlockContent";
+
+const VALID_TYPES = new Set<string>(BLOCK_TYPES);
+
+function blocksCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "contentBlocks");
+}
+function blockDoc(db: ReturnType<typeof getFirestore>, accountId: string, blockId: string) {
+  return doc(db, "accounts", accountId, "contentBlocks", blockId);
+}
+
+function toBlockContent(raw: unknown): BlockContent {
+  if (typeof raw !== "object" || raw === null) return { type: "text", richText: [] };
+  const obj = raw as Record<string, unknown>;
+  const type = typeof obj.type === "string" && VALID_TYPES.has(obj.type) ? (obj.type as BlockContent["type"]) : "text";
+  return {
+    type,
+    richText: Array.isArray(obj.richText) ? (obj.richText as BlockContent["richText"]) : [],
+    properties: typeof obj.properties === "object" && obj.properties !== null ? (obj.properties as Record<string, unknown>) : undefined,
+  };
+}
+
+function toSnapshot(id: string, d: Record<string, unknown>): ContentBlockSnapshot {
+  return {
+    id,
+    pageId: typeof d.pageId === "string" ? d.pageId : "",
+    accountId: typeof d.accountId === "string" ? d.accountId : "",
+    content: toBlockContent(d.content),
+    order: typeof d.order === "number" ? d.order : 0,
+    parentBlockId: typeof d.parentBlockId === "string" ? d.parentBlockId : null,
+    childBlockIds: Array.isArray(d.childBlockIds) ? (d.childBlockIds as string[]) : [],
+    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
+    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
+  };
+}
+
+export class FirebaseContentBlockRepository implements IContentBlockRepository {
+  private get db() { return getFirestore(firebaseClientApp); }
+
+  async save(block: ContentBlock): Promise<void> {
+    const snap = block.getSnapshot();
+    const ref = blockDoc(this.db, snap.accountId, snap.id);
+    const existing = await getDoc(ref);
+    const data: Record<string, unknown> = { ...snap, updatedAt: serverTimestamp() };
+    if (!existing.exists()) {
+      data.createdAt = serverTimestamp();
+      await setDoc(ref, data);
+    } else {
+      await updateDoc(ref, data);
+    }
+  }
+
+  async findById(accountId: string, blockId: string): Promise<ContentBlock | null> {
+    const snap = await getDoc(blockDoc(this.db, accountId, blockId));
+    if (!snap.exists()) return null;
+    return ContentBlock.reconstitute(toSnapshot(snap.id, snap.data() as Record<string, unknown>));
+  }
+
+  async listByPageId(accountId: string, pageId: string): Promise<ContentBlock[]> {
+    const snaps = await getDocs(
+      query(blocksCol(this.db, accountId), where("pageId", "==", pageId)),
+    );
+    return snaps.docs.map((d) => ContentBlock.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
+  }
+
+  async delete(accountId: string, blockId: string): Promise<void> {
+    await deleteDoc(blockDoc(this.db, accountId, blockId));
+  }
+
+  async nextOrder(accountId: string, pageId: string): Promise<number> {
+    const snaps = await getDocs(
+      query(blocksCol(this.db, accountId), where("pageId", "==", pageId)),
+    );
+    return snaps.size;
+  }
+
+  async countByPageId(accountId: string, pageId: string): Promise<number> {
+    const snaps = await getDocs(query(blocksCol(this.db, accountId), where("pageId", "==", pageId)));
+    return snaps.size;
+  }
+}
+````
+
 ## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseKnowledgeCollectionRepository.ts
 ````typescript
 /**
@@ -9695,6 +9663,37 @@ export {
 } from "./knowledge-collection.actions";
 ````
 
+## File: modules/notion/subdomains/knowledge/interfaces/_actions/knowledge-block.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { FirebaseContentBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
+import {
+  AddContentBlockUseCase,
+  UpdateContentBlockUseCase,
+  DeleteContentBlockUseCase,
+} from "../../application/use-cases/ContentBlockUseCases";
+import type { AddKnowledgeBlockDto as AddContentBlockDto, UpdateKnowledgeBlockDto as UpdateContentBlockDto, DeleteKnowledgeBlockDto as DeleteContentBlockDto } from "../../application/dto/ContentBlockDto";
+
+const makeBlockRepo = () => new FirebaseContentBlockRepository();
+
+export async function addKnowledgeBlock(input: AddContentBlockDto): Promise<CommandResult> {
+  try { return await new AddContentBlockUseCase(makeBlockRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("BLOCK_ADD_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function updateKnowledgeBlock(input: UpdateContentBlockDto): Promise<CommandResult> {
+  try { return await new UpdateContentBlockUseCase(makeBlockRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("BLOCK_UPDATE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function deleteKnowledgeBlock(input: DeleteContentBlockDto): Promise<CommandResult> {
+  try { return await new DeleteContentBlockUseCase(makeBlockRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("BLOCK_DELETE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+````
+
 ## File: modules/notion/subdomains/knowledge/interfaces/_actions/knowledge-collection.actions.ts
 ````typescript
 "use server";
@@ -9748,6 +9747,78 @@ export async function addCollectionColumn(input: AddCollectionColumnDto): Promis
 export async function archiveKnowledgeCollection(input: ArchiveKnowledgeCollectionDto): Promise<CommandResult> {
   try { return await new ArchiveKnowledgeCollectionUseCase(makeCollRepo()).execute(input); }
   catch (e) { return commandFailureFrom("COLLECTION_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/components/BlockEditorView.tsx
+````typescript
+"use client";
+
+import { useEffect, useRef, useCallback } from "react";
+import { useBlockEditorStore } from "../store/block-editor.store";
+import { richTextToPlainText } from "../../../../core/domain/value-objects/BlockContent";
+
+/**
+ * Notion knowledge subdomain — minimal block editor.
+ * Full drag-and-drop and rich block types are in the extensions/ layer.
+ */
+export function BlockEditorView() {
+  const { blocks, addBlock, updateBlock, deleteBlock } = useBlockEditorStore();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>, blockId: string) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      addBlock(blockId);
+    }
+    if (e.key === "Backspace") {
+      const target = e.currentTarget;
+      if (target.textContent === "") {
+        e.preventDefault();
+        deleteBlock(blockId);
+      }
+    }
+  }
+
+  function handleInput(e: React.FormEvent<HTMLDivElement>, blockId: string) {
+    const text = (e.currentTarget as HTMLDivElement).textContent ?? "";
+    updateBlock(blockId, { type: "text", richText: [{ type: "text", plainText: text }] });
+  }
+
+  if (!blocks.length) {
+    return (
+      <div className="flex min-h-[200px] flex-col gap-1 rounded-lg border border-dashed p-4">
+        <div
+          contentEditable
+          suppressContentEditableWarning
+          className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); addBlock(null); }
+          }}
+          data-placeholder="開始輸入…"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="flex flex-col gap-0.5">
+      {blocks.map((block) => {
+        const text = richTextToPlainText(block.content.richText);
+        return (
+          <div
+            key={block.id}
+            contentEditable
+            suppressContentEditableWarning
+            className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
+            onKeyDown={(e) => handleKeyDown(e, block.id)}
+            onInput={(e) => handleInput(e, block.id)}
+            dangerouslySetInnerHTML={{ __html: text }}
+          />
+        );
+      })}
+    </div>
+  );
 }
 ````
 
@@ -9887,6 +9958,70 @@ export function PageTreeView({ nodes, accountId, workspaceId, currentUserId, all
     );
   }
   return <ul className="space-y-0.5">{nodes.map((n) => <TreeNode key={n.id} node={n} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} allowCreate={allowCreate} onPageClick={onPageClick} onCreated={onCreated} depth={0} />)}</ul>;
+}
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/queries/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: interfaces/queries
+ * Purpose: Server-side read helpers for the knowledge subdomain.
+ */
+
+import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
+import { FirebaseContentBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
+import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseKnowledgeCollectionRepository";
+import {
+  GetKnowledgePageUseCase,
+  ListKnowledgePagesUseCase,
+  ListKnowledgePagesByWorkspaceUseCase,
+  GetKnowledgePageTreeUseCase,
+  GetKnowledgePageTreeByWorkspaceUseCase,
+} from "../../application/use-cases/KnowledgePageUseCases";
+import { ListContentBlocksUseCase } from "../../application/use-cases/ContentBlockUseCases";
+import {
+  GetKnowledgeCollectionUseCase,
+  ListKnowledgeCollectionsUseCase,
+} from "../../application/use-cases/KnowledgeCollectionUseCases";
+import type { KnowledgePageSnapshot } from "../../domain/aggregates/KnowledgePage";
+import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
+import type { KnowledgeCollectionSnapshot } from "../../domain/aggregates/KnowledgeCollection";
+
+const makePageRepo = () => new FirebaseKnowledgePageRepository();
+const makeBlockRepo = () => new FirebaseContentBlockRepository();
+const makeCollRepo = () => new FirebaseKnowledgeCollectionRepository();
+
+export async function getKnowledgePage(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
+  return new GetKnowledgePageUseCase(makePageRepo()).execute(accountId, pageId);
+}
+
+export async function getKnowledgePages(accountId: string): Promise<KnowledgePageSnapshot[]> {
+  return new ListKnowledgePagesUseCase(makePageRepo()).execute(accountId);
+}
+
+export async function getKnowledgePagesByWorkspace(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
+  return new ListKnowledgePagesByWorkspaceUseCase(makePageRepo()).execute(accountId, workspaceId);
+}
+
+export async function getKnowledgePageTree(accountId: string) {
+  return new GetKnowledgePageTreeUseCase(makePageRepo()).execute(accountId);
+}
+
+export async function getKnowledgePageTreeByWorkspace(accountId: string, workspaceId: string) {
+  return new GetKnowledgePageTreeByWorkspaceUseCase(makePageRepo()).execute(accountId, workspaceId);
+}
+
+export async function getKnowledgeBlocks(accountId: string, pageId: string): Promise<ContentBlockSnapshot[]> {
+  return new ListContentBlocksUseCase(makeBlockRepo()).execute(accountId, pageId);
+}
+
+export async function getKnowledgeCollection(accountId: string, collectionId: string): Promise<KnowledgeCollectionSnapshot | null> {
+  return new GetKnowledgeCollectionUseCase(makeCollRepo()).execute(accountId, collectionId);
+}
+
+export async function getKnowledgeCollections(accountId: string): Promise<KnowledgeCollectionSnapshot[]> {
+  return new ListKnowledgeCollectionsUseCase(makeCollRepo()).execute(accountId);
 }
 ````
 
@@ -20123,6 +20258,613 @@ export function NotificationBell({ recipientId }: NotificationBellProps) {
 
 ````
 
+## File: modules/platform/subdomains/organization/adapters/firebase/FirebaseOrganizationRepository.ts
+````typescript
+/**
+ * FirebaseOrganizationRepository — Infrastructure adapter for organization persistence.
+ * Firebase SDK is isolated to this file and organization-mappers.ts.
+ * Dual-write: `organizations` (primary) + `accounts` (for organization account profile).
+ */
+
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  addDoc,
+  arrayUnion,
+  arrayRemove,
+  onSnapshot,
+  serverTimestamp,
+  writeBatch,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { OrganizationRepository, Unsubscribe } from "../../domain/repositories/OrganizationRepository";
+import type {
+  OrganizationEntity,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  OrganizationRole,
+} from "../../domain/entities/Organization";
+import { toOrganizationEntity, toTeam, toPartnerInvite } from "./organization-mappers";
+
+export class FirebaseOrganizationRepository implements OrganizationRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private orgAccountRef(organizationId: string) {
+    return doc(this.db, "accounts", organizationId);
+  }
+
+  private buildAccountData(data: {
+    name?: string;
+    ownerId?: string;
+    email?: string;
+    photoURL?: string;
+    description?: string;
+    theme?: OrganizationEntity["theme"];
+    members?: MemberReference[];
+    memberIds?: string[];
+    teams?: Team[];
+    createdAt?: OrganizationEntity["createdAt"] | ReturnType<typeof serverTimestamp>;
+  }) {
+    return {
+      accountType: "organization" as const,
+      name: data.name ?? "",
+      ownerId: data.ownerId ?? "",
+      email: data.email ?? null,
+      photoURL: data.photoURL ?? null,
+      description: data.description ?? null,
+      theme: data.theme ?? null,
+      members: data.members ?? [],
+      memberIds: data.memberIds ?? [],
+      teams: data.teams ?? [],
+      createdAt: data.createdAt ?? serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+  }
+
+  async create(command: CreateOrganizationCommand): Promise<string> {
+    const orgRef = doc(collection(this.db, "organizations"));
+    const owner: MemberReference = {
+      id: command.ownerId,
+      name: command.ownerName,
+      email: command.ownerEmail,
+      role: "Owner",
+      presence: "active",
+    };
+    const createdAt = serverTimestamp();
+    const batch = writeBatch(this.db);
+    batch.set(orgRef, {
+      name: command.organizationName,
+      ownerId: command.ownerId,
+      members: [owner],
+      memberIds: [command.ownerId],
+      teams: [],
+      createdAt,
+    });
+    batch.set(
+      this.orgAccountRef(orgRef.id),
+      this.buildAccountData({
+        name: command.organizationName,
+        ownerId: command.ownerId,
+        members: [owner],
+        memberIds: [command.ownerId],
+        teams: [],
+        createdAt,
+      }),
+      { merge: true },
+    );
+    await batch.commit();
+    return orgRef.id;
+  }
+
+  async findById(id: string): Promise<OrganizationEntity | null> {
+    const snap = await getDoc(doc(this.db, "organizations", id));
+    if (!snap.exists()) return null;
+    return toOrganizationEntity(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async save(org: OrganizationEntity): Promise<void> {
+    const batch = writeBatch(this.db);
+    batch.set(doc(this.db, "organizations", org.id), {
+      name: org.name,
+      ownerId: org.ownerId,
+      members: org.members,
+      memberIds: org.memberIds,
+      teams: org.teams,
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      this.orgAccountRef(org.id),
+      this.buildAccountData({
+        name: org.name,
+        ownerId: org.ownerId,
+        email: org.email,
+        photoURL: org.photoURL,
+        description: org.description,
+        theme: org.theme,
+        members: org.members,
+        memberIds: org.memberIds,
+        teams: org.teams,
+        createdAt: org.createdAt,
+      }),
+      { merge: true },
+    );
+    await batch.commit();
+  }
+
+  async updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void> {
+    const updates: Record<string, unknown> = {
+      accountType: "organization",
+      updatedAt: serverTimestamp(),
+    };
+    if (command.name !== undefined) updates.name = command.name;
+    if (command.description !== undefined) updates.description = command.description;
+    if (command.theme !== undefined) updates.theme = command.theme;
+    if (command.photoURL !== undefined) updates.photoURL = command.photoURL;
+    const batch = writeBatch(this.db);
+    batch.update(doc(this.db, "organizations", command.organizationId), updates);
+    batch.set(this.orgAccountRef(command.organizationId), updates, { merge: true });
+    await batch.commit();
+  }
+
+  async delete(organizationId: string): Promise<void> {
+    const batch = writeBatch(this.db);
+    batch.delete(doc(this.db, "organizations", organizationId));
+    batch.delete(this.orgAccountRef(organizationId));
+    await batch.commit();
+  }
+
+  async inviteMember(input: InviteMemberInput): Promise<string> {
+    const ref = await addDoc(collection(this.db, "organizations", input.organizationId, "invites"), {
+      email: input.email,
+      teamId: input.teamId,
+      role: input.role,
+      inviteState: "pending",
+      protocol: input.protocol,
+      invitedAt: serverTimestamp(),
+    });
+    return ref.id;
+  }
+
+  async recruitMember(organizationId: string, memberId: string, name: string, email: string): Promise<void> {
+    const member: MemberReference = { id: memberId, name, email, role: "Member", presence: "active" };
+    const batch = writeBatch(this.db);
+    batch.update(doc(this.db, "organizations", organizationId), {
+      members: arrayUnion(member),
+      memberIds: arrayUnion(memberId),
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(this.orgAccountRef(organizationId), { members: arrayUnion(member), memberIds: arrayUnion(memberId), updatedAt: serverTimestamp() }, { merge: true });
+    await batch.commit();
+  }
+
+  async removeMember(organizationId: string, memberId: string): Promise<void> {
+    const snap = await getDoc(doc(this.db, "organizations", organizationId));
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const members = Array.isArray(data.members)
+      ? (data.members as MemberReference[]).filter((m) => m.id !== memberId)
+      : [];
+    const batch = writeBatch(this.db);
+    batch.update(doc(this.db, "organizations", organizationId), { members, memberIds: arrayRemove(memberId), updatedAt: serverTimestamp() });
+    batch.set(this.orgAccountRef(organizationId), { members, memberIds: arrayRemove(memberId), updatedAt: serverTimestamp() }, { merge: true });
+    await batch.commit();
+  }
+
+  async updateMemberRole(input: UpdateMemberRoleInput): Promise<void> {
+    const snap = await getDoc(doc(this.db, "organizations", input.organizationId));
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const members = Array.isArray(data.members)
+      ? (data.members as MemberReference[]).map((m) =>
+          m.id === input.memberId ? { ...m, role: input.role as OrganizationRole } : m,
+        )
+      : [];
+    const batch = writeBatch(this.db);
+    batch.update(doc(this.db, "organizations", input.organizationId), { members, updatedAt: serverTimestamp() });
+    batch.set(this.orgAccountRef(input.organizationId), { members, updatedAt: serverTimestamp() }, { merge: true });
+    await batch.commit();
+  }
+
+  async getMembers(organizationId: string): Promise<MemberReference[]> {
+    const snap = await getDoc(doc(this.db, "organizations", organizationId));
+    if (!snap.exists()) return [];
+    const data = snap.data() as Record<string, unknown>;
+    return Array.isArray(data.members) ? (data.members as MemberReference[]) : [];
+  }
+
+  subscribeToMembers(organizationId: string, onUpdate: (members: MemberReference[]) => void): Unsubscribe {
+    return onSnapshot(doc(this.db, "organizations", organizationId), (snap) => {
+      if (!snap.exists()) { onUpdate([]); return; }
+      const data = snap.data() as Record<string, unknown>;
+      onUpdate(Array.isArray(data.members) ? (data.members as MemberReference[]) : []);
+    });
+  }
+
+  async createTeam(input: CreateTeamInput): Promise<string> {
+    const teamRef = doc(collection(this.db, "organizations", input.organizationId, "teams"));
+    await setDoc(teamRef, {
+      name: input.name,
+      description: input.description,
+      type: input.type,
+      memberIds: [],
+      createdAt: serverTimestamp(),
+    });
+    return teamRef.id;
+  }
+
+  async deleteTeam(organizationId: string, teamId: string): Promise<void> {
+    await deleteDoc(doc(this.db, "organizations", organizationId, "teams", teamId));
+  }
+
+  async addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void> {
+    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
+      memberIds: arrayUnion(memberId),
+    });
+  }
+
+  async removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void> {
+    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
+      memberIds: arrayRemove(memberId),
+    });
+  }
+
+  async getTeams(organizationId: string): Promise<Team[]> {
+    const snaps = await getDocs(collection(this.db, "organizations", organizationId, "teams"));
+    return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
+  }
+
+  subscribeToTeams(organizationId: string, onUpdate: (teams: Team[]) => void): Unsubscribe {
+    return onSnapshot(collection(this.db, "organizations", organizationId, "teams"), (snap) => {
+      onUpdate(snap.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>)));
+    });
+  }
+
+  async sendPartnerInvite(organizationId: string, teamId: string, email: string): Promise<string> {
+    const ref = await addDoc(collection(this.db, "organizations", organizationId, "partnerInvites"), {
+      email,
+      teamId,
+      role: "Guest",
+      inviteState: "pending",
+      invitedAt: serverTimestamp(),
+    });
+    return ref.id;
+  }
+
+  async dismissPartnerMember(organizationId: string, teamId: string, memberId: string): Promise<void> {
+    await this.removeMemberFromTeam(organizationId, teamId, memberId);
+  }
+
+  async getPartnerInvites(organizationId: string): Promise<PartnerInvite[]> {
+    const snaps = await getDocs(collection(this.db, "organizations", organizationId, "partnerInvites"));
+    return snaps.docs.map((d) => toPartnerInvite(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
+## File: modules/platform/subdomains/organization/adapters/firebase/FirebaseOrgPolicyRepository.ts
+````typescript
+/**
+ * FirebaseOrgPolicyRepository — Infrastructure adapter for org-policy persistence.
+ * OrgPolicy lives in top-level `orgPolicies` collection, independent of `organizations`.
+ */
+
+import {
+  getFirestore,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { OrgPolicyRepository } from "../../domain/repositories/OrgPolicyRepository";
+import type { OrgPolicy, CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
+import { toOrgPolicy } from "./organization-mappers";
+
+export class FirebaseOrgPolicyRepository implements OrgPolicyRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy> {
+    const now = new Date().toISOString();
+    const ref = await addDoc(collection(this.db, "orgPolicies"), {
+      orgId: input.orgId,
+      name: input.name,
+      description: input.description,
+      rules: input.rules,
+      scope: input.scope,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+      _createdAt: serverTimestamp(),
+    });
+    return {
+      id: ref.id,
+      orgId: input.orgId,
+      name: input.name,
+      description: input.description,
+      rules: input.rules,
+      scope: input.scope,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  async updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void> {
+    const updates: Record<string, unknown> = {
+      updatedAt: new Date().toISOString(),
+      _updatedAt: serverTimestamp(),
+    };
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.description !== undefined) updates.description = data.description;
+    if (data.rules !== undefined) updates.rules = data.rules;
+    if (data.scope !== undefined) updates.scope = data.scope;
+    if (data.isActive !== undefined) updates.isActive = data.isActive;
+    await updateDoc(doc(this.db, "orgPolicies", policyId), updates);
+  }
+
+  async deletePolicy(policyId: string): Promise<void> {
+    await deleteDoc(doc(this.db, "orgPolicies", policyId));
+  }
+
+  async getPolicies(orgId: string): Promise<OrgPolicy[]> {
+    const q = query(collection(this.db, "orgPolicies"), where("orgId", "==", orgId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toOrgPolicy(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
+## File: modules/platform/subdomains/organization/adapters/firebase/organization-mappers.ts
+````typescript
+import type {
+  OrganizationEntity,
+  MemberReference,
+  Team,
+  OrgPolicy,
+  PartnerInvite,
+} from "../../domain/entities/Organization";
+
+export function toOrganizationEntity(id: string, data: Record<string, unknown>): OrganizationEntity {
+  return {
+    id,
+    name: typeof data.name === "string" ? data.name : "",
+    ownerId: typeof data.ownerId === "string" ? data.ownerId : "",
+    email: typeof data.email === "string" ? data.email : undefined,
+    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
+    description: typeof data.description === "string" ? data.description : undefined,
+    theme: data.theme != null ? (data.theme as OrganizationEntity["theme"]) : undefined,
+    members: Array.isArray(data.members) ? (data.members as MemberReference[]) : [],
+    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
+    teams: Array.isArray(data.teams) ? (data.teams as Team[]) : [],
+    partnerInvites: Array.isArray(data.partnerInvites) ? (data.partnerInvites as PartnerInvite[]) : undefined,
+    createdAt: data.createdAt as OrganizationEntity["createdAt"],
+  };
+}
+
+export function toTeam(id: string, data: Record<string, unknown>): Team {
+  return {
+    id,
+    name: typeof data.name === "string" ? data.name : "",
+    description: typeof data.description === "string" ? data.description : "",
+    type: data.type === "external" ? "external" : "internal",
+    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
+  };
+}
+
+export function toPartnerInvite(id: string, data: Record<string, unknown>): PartnerInvite {
+  const VALID_STATES = new Set<PartnerInvite["inviteState"]>(["pending", "accepted", "expired"]);
+  return {
+    id,
+    email: typeof data.email === "string" ? data.email : "",
+    teamId: typeof data.teamId === "string" ? data.teamId : "",
+    role: (data.role as PartnerInvite["role"]) ?? "Guest",
+    inviteState: VALID_STATES.has(data.inviteState as PartnerInvite["inviteState"])
+      ? (data.inviteState as PartnerInvite["inviteState"])
+      : "pending",
+    invitedAt: data.invitedAt as PartnerInvite["invitedAt"],
+    protocol: typeof data.protocol === "string" ? data.protocol : "",
+  };
+}
+
+export function toOrgPolicy(id: string, data: Record<string, unknown>): OrgPolicy {
+  const VALID_SCOPES = new Set<OrgPolicy["scope"]>(["workspace", "member", "global"]);
+  return {
+    id,
+    orgId: typeof data.orgId === "string" ? data.orgId : "",
+    name: typeof data.name === "string" ? data.name : "",
+    description: typeof data.description === "string" ? data.description : "",
+    rules: Array.isArray(data.rules) ? (data.rules as OrgPolicy["rules"]) : [],
+    scope: VALID_SCOPES.has(data.scope as OrgPolicy["scope"]) ? (data.scope as OrgPolicy["scope"]) : "global",
+    isActive: data.isActive === true,
+    createdAt: typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString(),
+    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
+  };
+}
+````
+
+## File: modules/platform/subdomains/organization/adapters/index.ts
+````typescript
+export { organizationService } from "./organization-service";
+export { getOrganizationMembers, getOrganizationTeams, getOrgPolicies } from "./queries/organization.queries";
+export {
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+} from "./server-actions/organization.actions";
+export { createOrgPolicy, updateOrgPolicy, deleteOrgPolicy } from "./server-actions/organization-policy.actions";
+````
+
+## File: modules/platform/subdomains/organization/adapters/server-actions/organization-policy.actions.ts
+````typescript
+"use server";
+
+/**
+ * Organization Policy Server Actions — thin adapters over use cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { organizationService } from "../organization-service";
+import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
+
+export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
+  try { return await organizationService.createOrgPolicy(input); }
+  catch (err) { return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateOrgPolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
+  try { return await organizationService.updateOrgPolicy(policyId, data); }
+  catch (err) { return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteOrgPolicy(policyId); }
+  catch (err) { return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+````
+
+## File: modules/platform/subdomains/organization/adapters/server-actions/organization.actions.ts
+````typescript
+"use server";
+
+/**
+ * Organization Server Actions — thin adapters over use cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { organizationService } from "../organization-service";
+import type {
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+} from "../../domain/entities/Organization";
+
+export async function createOrganization(cmd: CreateOrganizationCommand): Promise<CommandResult> {
+  try { return await organizationService.createOrganization(cmd); }
+  catch (err) { return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createOrganizationWithTeam(
+  cmd: CreateOrganizationCommand,
+  teamName: string,
+  teamType: "internal" | "external" = "internal",
+): Promise<CommandResult> {
+  try { return await organizationService.createOrganizationWithTeam(cmd, teamName, teamType); }
+  catch (err) { return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateOrganizationSettings(cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> {
+  try { return await organizationService.updateSettings(cmd); }
+  catch (err) { return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteOrganization(organizationId); }
+  catch (err) { return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
+  try { return await organizationService.inviteMember(input); }
+  catch (err) { return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function recruitMember(
+  organizationId: string,
+  memberId: string,
+  name: string,
+  email: string,
+): Promise<CommandResult> {
+  try { return await organizationService.recruitMember(organizationId, memberId, name, email); }
+  catch (err) { return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function dismissMember(organizationId: string, memberId: string): Promise<CommandResult> {
+  try { return await organizationService.removeMember(organizationId, memberId); }
+  catch (err) { return commandFailureFrom("REMOVE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
+  try { return await organizationService.updateMemberRole(input); }
+  catch (err) { return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
+  try { return await organizationService.createTeam(input); }
+  catch (err) { return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteTeam(organizationId: string, teamId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteTeam(organizationId, teamId); }
+  catch (err) { return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateTeamMembers(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+  action: "add" | "remove",
+): Promise<CommandResult> {
+  try { return await organizationService.updateTeamMembers(organizationId, teamId, memberId, action); }
+  catch (err) { return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createPartnerGroup(organizationId: string, groupName: string): Promise<CommandResult> {
+  try { return await organizationService.createPartnerGroup(organizationId, groupName); }
+  catch (err) { return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function sendPartnerInvite(
+  organizationId: string,
+  teamId: string,
+  email: string,
+): Promise<CommandResult> {
+  try { return await organizationService.sendPartnerInvite(organizationId, teamId, email); }
+  catch (err) { return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function dismissPartnerMember(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+): Promise<CommandResult> {
+  try { return await organizationService.dismissPartnerMember(organizationId, teamId, memberId); }
+  catch (err) { return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+````
+
 ## File: modules/platform/subdomains/organization/application/.gitkeep
 ````
 
@@ -20867,913 +21609,6 @@ export interface OrgPolicyRepository {
 ## File: modules/platform/subdomains/workflow/index.ts
 ````typescript
 // Purpose: Public entry point placeholder for platform subdomain 'workflow'.
-````
-
-## File: modules/shared/AGENT.md
-````markdown
-# AGENT.md — shared BC
-
-## 模組定位
-
-`shared` 是 Shared Kernel，提供所有 BC 共同依賴的最小基礎型別集。修改任何 shared/ 型別前，需確認所有消費方的影響。
-
-## 最重要規則：DomainEvent 欄位名稱
-
-```typescript
-// ✅ 正確：occurredAt（ISO string）
-interface MyEvent {
-  readonly type: "module.action";
-  readonly occurredAt: string;  // ISO 8601
-}
-
-// ❌ 錯誤：不存在 occurredAtISO 欄位
-interface WrongEvent {
-  readonly occurredAtISO: string;  // 不正確
-}
-```
-
-## 通用語言
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `DomainEvent` | BaseEvent, Event |
-| `occurredAt` | occurredAtISO, timestamp（作為 DomainEvent 欄位） |
-| `EventRecord` | AuditRecord（在此 BC 內） |
-
-## 邊界規則
-
-- `shared/` 內不放業務邏輯
-- 只放多個 BC 都需要的最小型別
-- 任何新增需要全域共識
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/shared/aggregates.md
-````markdown
-# Aggregates — shared
-
-## 注意
-
-`shared` 是 Shared Kernel，不包含業務聚合根。它只提供基礎型別定義。
-
----
-
-## 基礎介面：DomainEvent
-
-```typescript
-// modules/shared/domain/events.ts
-interface DomainEvent {
-  readonly type: string;       // discriminant: "module.action"
-  readonly occurredAt: string; // ISO 8601 — 不是 Date，不是 occurredAtISO
-}
-```
-
-**所有模組的領域事件介面都繼承此基礎介面。**
-
----
-
-## 基礎介面：EventRecord
-
-```typescript
-// modules/shared/domain/event-record.ts
-interface EventRecord {
-  readonly eventId: string;    // UUID v4
-  readonly occurredAt: string; // ISO 8601
-  readonly actorId?: string;   // 操作者 ID（可選）
-  readonly correlationId?: string;
-  readonly causationId?: string;
-}
-```
-
----
-
-## 工具型別
-
-| 型別 / 工具 | 說明 |
-|------------|------|
-| `ID` | string alias，用於所有業務 ID |
-| `Timestamp` | Firebase Timestamp 型別別名 |
-| `domain/slug-utils.ts` | URL-safe slug 生成（`toSlug()`, `isValidSlug()`） |
-````
-
-## File: modules/shared/api/index.ts
-````typescript
-/**
- * modules/shared — public API barrel.
- * Re-exports all shared domain primitives for cross-module consumption.
- */
-
-export type { BaseEntity, CreatedBy, QueryScope } from "../domain/types";
-export { BaseEntitySchema } from "../domain/types";
-export type { DomainEvent } from "../domain/events";
-export type { KnowledgeUpdatedEvent } from "../domain/events/knowledge-updated.event";
-export {
-  KNOWLEDGE_UPDATED_EVENT_TYPE,
-  createKnowledgeUpdatedEvent,
-} from "../domain/events/knowledge-updated.event";
-export type { KnowledgePageCreatedEvent } from "../domain/events/knowledge-page-created.event";
-export {
-  KNOWLEDGE_PAGE_CREATED_EVENT_TYPE,
-  createKnowledgePageCreatedEvent,
-} from "../domain/events/knowledge-page-created.event";
-export { SimpleEventBus } from "../infrastructure/SimpleEventBus";
-export type { EventHandler } from "../infrastructure/SimpleEventBus";
-
-// ── Slug utilities (moved from modules/namespace) ─────────────────────────────
-export { deriveSlugCandidate, isValidSlug } from "../domain/slug-utils";
-
-// ── Event-store primitives (moved from modules/event) ─────────────────────────
-export { EventRecord } from "../domain/event-record";
-export type {
-  EventRecordPayload,
-  EventMetadata,
-  IEventStoreRepository,
-  IEventBusRepository,
-} from "../domain/event-record";
-export { PublishDomainEventUseCase } from "../application/publish-domain-event";
-export type { PublishDomainEventDTO } from "../application/publish-domain-event";
-export { InMemoryEventStoreRepository } from "../infrastructure/InMemoryEventStoreRepository";
-export { NoopEventBusRepository } from "../infrastructure/NoopEventBusRepository";
-export { QStashEventBusRepository } from "../infrastructure/QStashEventBusRepository";
-````
-
-## File: modules/shared/application-services.md
-````markdown
-# shared — Application Services
-
-> **Canonical bounded context:** `shared`
-> **模組路徑:** `modules/shared/`
-> **Domain Type:** Shared Kernel
-
-本文件記錄 `shared` 的 application layer 服務與 use cases。內容與 `modules/shared/application/` 實作保持一致。
-
-## Application Layer 職責
-
-提供所有 bounded contexts 共用的最小型別與事件合約，是 Shared Kernel。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/publish-domain-event.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/shared/README.md`
-- 模組 AGENT：`../../../modules/shared/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/shared/application-services.md`
-````
-
-## File: modules/shared/application/publish-domain-event.ts
-````typescript
-/**
- * modules/shared — application: PublishDomainEventUseCase
- * Moved from modules/event/application/use-cases/publish-domain-event.ts.
- *
- * Write-side orchestration for event capture, persistence, and dispatch.
- */
-import { EventRecord } from '../domain/event-record';
-import type {
-  EventRecordPayload,
-  EventMetadata,
-  IEventBusRepository,
-  IEventStoreRepository,
-} from '../domain/event-record';
-
-export interface PublishDomainEventDTO {
-  id: string;
-  eventName: string;
-  aggregateType: string;
-  aggregateId: string;
-  payload: EventRecordPayload;
-  metadata?: EventMetadata;
-  occurredAt?: Date;
-}
-
-export class PublishDomainEventUseCase {
-  constructor(
-    private readonly eventStore: IEventStoreRepository,
-    private readonly eventBus: IEventBusRepository,
-  ) {}
-
-  async execute(dto: PublishDomainEventDTO): Promise<EventRecord> {
-    const event = new EventRecord(
-      dto.id,
-      dto.eventName,
-      dto.aggregateType,
-      dto.aggregateId,
-      dto.occurredAt ?? new Date(),
-      dto.payload,
-      dto.metadata,
-    );
-
-    await this.eventStore.save(event);
-    await this.eventBus.publish(event);
-    event.markDispatched(new Date());
-    await this.eventStore.markDispatched(event.id, event.dispatchedAt ?? new Date());
-
-    return event;
-  }
-}
-````
-
-## File: modules/shared/context-map.md
-````markdown
-# Context Map — shared
-
-## Shared Kernel 的特殊地位
-
-`shared` 不是普通的 Customer/Supplier 關係。它是 **Shared Kernel** 模式：
-
-> 「兩個 Team 共同擁有一個小型共享模型，任何一方的修改都需要另一方的協調。」
-> — Vaughn Vernon, IDDD
-
-## 關係
-
-所有 16 個 BC 都依賴 `shared/`，但這不是普通的依賴關係——它是**共同擁有的合約**：
-
-```
-modules/shared/
-  ↑ import by all 16 BCs
-```
-
-## 規則
-
-1. `shared/` 的任何變更（特別是 `DomainEvent` 介面）都必須同步更新所有消費方
-2. 不允許任何 BC 反向依賴（shared/ 不 import 任何 BC）
-3. `shared/` 只包含所有 BC 都認可的最小公共型別
-
-## IDDD 整合模式
-
-| 關係 | 模式 |
-|------|------|
-| shared ← 所有 BC | Shared Kernel |
-````
-
-## File: modules/shared/domain-events.md
-````markdown
-# Domain Events — shared
-
-## 說明
-
-`shared` 是 Shared Kernel，本身不發出或訂閱業務領域事件。
-
-它提供的是**所有 BC 發出事件所需的基礎介面**：
-
-```typescript
-// 所有模組的領域事件都遵循此結構
-interface DomainEvent {
-  readonly type: string;        // "module.entity.action" 格式
-  readonly occurredAt: string;  // ISO 8601
-}
-```
-
-## 事件命名規範（全域）
-
-| 規則 | 範例 |
-|------|------|
-| 格式 | `<module>.<entity>.<action>` 或 `<module>.<action>` |
-| 大小寫 | 全小寫，底線分隔 |
-| 時態 | **過去式**（代表已發生的事實） |
-
-```typescript
-// ✅ 正確命名
-"knowledge.page_created"
-"workspace.member_joined"
-"workspace-flow.task_status_changed"
-
-// ❌ 錯誤命名
-"CreatePage"         // 現在式、大寫
-"PageCreatedEvent"   // 有 Event 後綴
-```
-````
-
-## File: modules/shared/domain-services.md
-````markdown
-# shared — Domain Services
-
-> **Canonical bounded context:** `shared`
-> **模組路徑:** `modules/shared/`
-> **Domain Type:** Shared Kernel
-
-本文件整理 `shared` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/shared/domain-services.md`
-- `../../../modules/shared/aggregates.md`
-````
-
-## File: modules/shared/domain/event-record.ts
-````typescript
-/**
- * modules/shared — domain: event store primitives
- * Moved from modules/event/domain/* during event module decomposition.
- *
- * NOTE: `EventRecord` is the rich event-store entity (id, eventName, payload, etc.).
- * It is distinct from the lightweight `DomainEvent` bus-message interface
- * already in modules/shared/domain/events.ts.
- */
-
-// ── Metadata value object ─────────────────────────────────────────────────────
-
-export interface EventMetadata {
-  correlationId?: string;
-  causationId?: string;
-  actorId?: string;
-  organizationId?: string;
-  workspaceId?: string;
-  traceId?: string;
-}
-
-// ── Payload ───────────────────────────────────────────────────────────────────
-
-export interface EventRecordPayload {
-  [key: string]: unknown;
-}
-
-// ── Entity ────────────────────────────────────────────────────────────────────
-
-export class EventRecord {
-  constructor(
-    public readonly id: string,
-    public readonly eventName: string,
-    public readonly aggregateType: string,
-    public readonly aggregateId: string,
-    public readonly occurredAt: Date,
-    public readonly payload: EventRecordPayload,
-    public readonly metadata: EventMetadata = {},
-    public dispatchedAt: Date | null = null,
-  ) {
-    if (!eventName.trim()) throw new Error('eventName is required');
-    if (!aggregateType.trim()) throw new Error('aggregateType is required');
-    if (!aggregateId.trim()) throw new Error('aggregateId is required');
-  }
-
-  markDispatched(dispatchedAt: Date = new Date()): void {
-    this.dispatchedAt = dispatchedAt;
-  }
-
-  get isDispatched(): boolean {
-    return this.dispatchedAt !== null;
-  }
-}
-
-// ── Repository ports ──────────────────────────────────────────────────────────
-
-export interface IEventStoreRepository {
-  save(event: EventRecord): Promise<void>;
-  findById(id: string): Promise<EventRecord | null>;
-  findByAggregate(aggregateType: string, aggregateId: string): Promise<EventRecord[]>;
-  findUndispatched(limit: number): Promise<EventRecord[]>;
-  markDispatched(id: string, dispatchedAt: Date): Promise<void>;
-}
-
-export interface IEventBusRepository {
-  publish(event: EventRecord): Promise<void>;
-}
-````
-
-## File: modules/shared/domain/events.ts
-````typescript
-/**
- * modules/shared — 跨模組共用的領域事件基礎介面。
- * 遵循奧卡姆剃刀：只定義跨領域事件所需的最小結構。
- */
-
-/** 所有領域事件的基礎介面。 */
-export interface DomainEvent {
-  /** 事件的唯一識別碼 */
-  readonly eventId: string;
-  /** 事件類型（格式：module.event-name，例如 content.block-updated） */
-  readonly type: string;
-  /** 觸發此事件的聚合根 ID */
-  readonly aggregateId: string;
-  /** 事件發生時間（ISO 8601） */
-  readonly occurredAt: string;
-}
-````
-
-## File: modules/shared/domain/events/knowledge-page-created.event.ts
-````typescript
-/**
- * modules/shared — domain event: KnowledgePageCreatedEvent
- *
- * Fired by the knowledge module whenever a new page is created.
- * Downstream modules can subscribe to build read models, indexing flows,
- * or future structure-aware capabilities for the new page.
- *
- * Follows Occam's Razor: minimal fields to drive downstream reactions.
- */
-
-import { v7 as generateId } from "@lib-uuid";
-
-import type { DomainEvent } from "../events";
-
-export const KNOWLEDGE_PAGE_CREATED_EVENT_TYPE = "knowledge.page_created" as const;
-
-export interface KnowledgePageCreatedEvent extends DomainEvent {
-  readonly type: typeof KNOWLEDGE_PAGE_CREATED_EVENT_TYPE;
-  /** ID of the newly created page */
-  readonly pageId: string;
-  /** Human-readable title of the page */
-  readonly title: string;
-  /** Account that owns the page */
-  readonly accountId: string;
-  /** Optional workspace the page belongs to */
-  readonly workspaceId?: string;
-  /** Optional parent page for hierarchy tracking */
-  readonly parentPageId?: string | null;
-  /** User who created the page */
-  readonly createdByUserId: string;
-}
-
-export function createKnowledgePageCreatedEvent(
-  pageId: string,
-  title: string,
-  accountId: string,
-  createdByUserId: string,
-  options?: { workspaceId?: string; parentPageId?: string | null },
-): KnowledgePageCreatedEvent {
-  return {
-    eventId: generateId(),
-    type: KNOWLEDGE_PAGE_CREATED_EVENT_TYPE,
-    aggregateId: pageId,
-    occurredAt: new Date().toISOString(),
-    pageId,
-    title,
-    accountId,
-    createdByUserId,
-    workspaceId: options?.workspaceId,
-    parentPageId: options?.parentPageId,
-  };
-}
-````
-
-## File: modules/shared/domain/events/knowledge-updated.event.ts
-````typescript
-/**
- * modules/shared — domain event: KnowledgeUpdatedEvent
- *
- * Fired by the content module whenever a block's content changes.
- * Knowledge and AI modules subscribe to this event to react
- * (link extraction, vector re-indexing, etc.).
- *
- * Follows Occam's Razor: minimal fields needed to drive downstream reactions.
- */
-
-import { v7 as generateId } from "@lib-uuid";
-
-import type { DomainEvent } from "../events";
-
-export const KNOWLEDGE_UPDATED_EVENT_TYPE = "knowledge.block-updated" as const;
-
-export interface KnowledgeUpdatedEvent extends DomainEvent {
-  readonly type: typeof KNOWLEDGE_UPDATED_EVENT_TYPE;
-  /** ID of the page that owns the block */
-  readonly pageId: string;
-  /** ID of the block that was updated */
-  readonly blockId: string;
-  /** The new plain-text content of the block */
-  readonly content: string;
-}
-
-export function createKnowledgeUpdatedEvent(
-  pageId: string,
-  blockId: string,
-  content: string,
-): KnowledgeUpdatedEvent {
-  return {
-    eventId: generateId(),
-    type: KNOWLEDGE_UPDATED_EVENT_TYPE,
-    aggregateId: blockId,
-    occurredAt: new Date().toISOString(),
-    pageId,
-    blockId,
-    content,
-  };
-}
-````
-
-## File: modules/shared/domain/slug-utils.ts
-````typescript
-/**
- * modules/shared — domain: slug utilities
- * Pure slug derivation and validation helpers shared across domains.
- * Moved from modules/namespace/domain/services/slug-policy.ts.
- */
-
-/**
- * Converts a human-readable display name into a slug candidate.
- * Pure function — no side effects.
- */
-export function deriveSlugCandidate(displayName: string): string {
-  return displayName
-    .toLowerCase()
-    .replace(/[\s_./\\]+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-{2,}/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 63);
-}
-
-/**
- * Returns true when the slug string passes namespace slug rules.
- * Pure function — no side effects.
- */
-export function isValidSlug(slug: string): boolean {
-  return /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(slug);
-}
-````
-
-## File: modules/shared/domain/types.ts
-````typescript
-/**
- * 共用領域類型 — 所有模組的基礎建構塊。
- * 遵循奧卡姆剃刀：只定義跨模組真正共用的最小集合。
- */
-
-import { z } from "@lib-zod";
-
-// ── 建立者摘要 ─────────────────────────────────────────────────────────────
-
-const CreatedBySchema = z.object({
-  /** 使用者 ID */
-  id: z.string(),
-  /** 顯示名稱 */
-  name: z.string(),
-  /** 頭像 URL（選填） */
-  avatarUrl: z.string().optional(),
-});
-
-// ── 基礎實體 Schema ────────────────────────────────────────────────────────
-
-/**
- * 所有領域物件共用的基礎欄位。
- * 包含租戶隔離（accountId / workspaceId）與稽核追蹤（createdBy）。
- */
-export const BaseEntitySchema = z.object({
-  /** 唯一識別碼 */
-  id: z.string(),
-  /** 建立時間（ISO 8601） */
-  createdAt: z.string(),
-  /** 最後更新時間（ISO 8601） */
-  updatedAt: z.string(),
-  /** 所屬工作區（專案） */
-  workspaceId: z.string(),
-  /** 所屬租戶（帳號），用於跨工作區聚合 */
-  accountId: z.string(),
-  /** 建立者摘要 */
-  createdBy: CreatedBySchema,
-});
-
-export type BaseEntity = z.infer<typeof BaseEntitySchema>;
-export type CreatedBy = z.infer<typeof CreatedBySchema>;
-
-// ── 查詢範圍 ────────────────────────────────────────────────────────────────
-
-/**
- * 支援帳號層級或工作區層級的查詢範圍過濾。
- * workspaceId 為空時，查詢涵蓋該租戶所有工作區。
- */
-export interface QueryScope {
-  /** 租戶 ID（必填） */
-  accountId: string;
-  /** 工作區 ID（選填，空則跨工作區聚合） */
-  workspaceId?: string;
-}
-````
-
-## File: modules/shared/index.ts
-````typescript
-/**
- * modules/shared — 跨模組共用的領域基礎類型。
- */
-export type { BaseEntity, CreatedBy, QueryScope } from "./domain/types";
-export { BaseEntitySchema } from "./domain/types";
-export type { DomainEvent } from "./domain/events";
-export type { KnowledgeUpdatedEvent } from "./domain/events/knowledge-updated.event";
-export {
-  KNOWLEDGE_UPDATED_EVENT_TYPE,
-  createKnowledgeUpdatedEvent,
-} from "./domain/events/knowledge-updated.event";
-export { SimpleEventBus } from "./infrastructure/SimpleEventBus";
-export type { EventHandler } from "./infrastructure/SimpleEventBus";
-
-// ── Slug utilities (moved from modules/namespace) ─────────────────────────────
-export { deriveSlugCandidate, isValidSlug } from "./domain/slug-utils";
-
-// ── Event-store primitives (moved from modules/event) ─────────────────────────
-export { EventRecord } from "./domain/event-record";
-export type {
-  EventRecordPayload,
-  EventMetadata,
-  IEventStoreRepository,
-  IEventBusRepository,
-} from "./domain/event-record";
-export { PublishDomainEventUseCase } from "./application/publish-domain-event";
-export type { PublishDomainEventDTO } from "./application/publish-domain-event";
-export { InMemoryEventStoreRepository } from "./infrastructure/InMemoryEventStoreRepository";
-export { NoopEventBusRepository } from "./infrastructure/NoopEventBusRepository";
-````
-
-## File: modules/shared/infrastructure/InMemoryEventStoreRepository.ts
-````typescript
-/**
- * modules/shared — infrastructure: InMemoryEventStoreRepository
- * Moved from modules/event/infrastructure/repositories/in-memory-event-store.repository.ts.
- *
- * In-memory adapter for the event store — used in local development and tests.
- */
-import type { EventRecord, IEventStoreRepository } from '../domain/event-record';
-
-export class InMemoryEventStoreRepository implements IEventStoreRepository {
-  private readonly events = new Map<string, EventRecord>();
-
-  async save(event: EventRecord): Promise<void> {
-    this.events.set(event.id, event);
-  }
-
-  async findById(id: string): Promise<EventRecord | null> {
-    return this.events.get(id) ?? null;
-  }
-
-  async findByAggregate(aggregateType: string, aggregateId: string): Promise<EventRecord[]> {
-    return [...this.events.values()]
-      .filter((e) => e.aggregateType === aggregateType && e.aggregateId === aggregateId)
-      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
-  }
-
-  async findUndispatched(limit: number): Promise<EventRecord[]> {
-    return [...this.events.values()]
-      .filter((e) => !e.isDispatched)
-      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime())
-      .slice(0, Math.max(limit, 0));
-  }
-
-  async markDispatched(id: string, dispatchedAt: Date): Promise<void> {
-    const event = this.events.get(id);
-    if (event) event.markDispatched(dispatchedAt);
-  }
-}
-````
-
-## File: modules/shared/infrastructure/NoopEventBusRepository.ts
-````typescript
-/**
- * modules/shared — infrastructure: NoopEventBusRepository
- * Moved from modules/event/infrastructure/repositories/noop-event-bus.repository.ts.
- *
- * No-op event bus adapter used in tests and scaffold before a real transport is wired.
- */
-import type { EventRecord, IEventBusRepository } from '../domain/event-record';
-
-export class NoopEventBusRepository implements IEventBusRepository {
-  async publish(_event: EventRecord): Promise<void> {
-    // Intentional no-op: replace with a real transport adapter when needed.
-  }
-}
-````
-
-## File: modules/shared/infrastructure/QStashEventBusRepository.ts
-````typescript
-/**
- * modules/shared — infrastructure: QStashEventBusRepository
- *
- * Publishes domain events to Upstash QStash using the REST API over native fetch.
- * No extra npm dependency required — uses the standard Web Fetch API available
- * in Node 18+ and Next.js edge/server runtimes.
- *
- * Required environment variables (set in .env.local or hosting config):
- *   QSTASH_URL    — target URL QStash will deliver to  (e.g. https://your-app.com/api/events/ingest)
- *   QSTASH_TOKEN  — Upstash QStash token  (starts with "qstash_")
- *
- * When env vars are absent the adapter logs a warning and silently skips publishing
- * (preserves NoopEventBus behaviour so the app does not crash in local dev without
- * QStash configured).
- */
-
-import type { EventRecord, IEventBusRepository } from "../domain/event-record";
-
-const QSTASH_ENDPOINT = "https://qstash.upstash.io/v2/publish/";
-
-export class QStashEventBusRepository implements IEventBusRepository {
-  constructor(
-    private readonly destinationUrl: string = process.env.QSTASH_DESTINATION_URL ?? "",
-    private readonly token: string = process.env.QSTASH_TOKEN ?? "",
-  ) {}
-
-  async publish(event: EventRecord): Promise<void> {
-    if (!this.destinationUrl || !this.token) {
-      // Not yet configured — degrade gracefully (same as Noop).
-      if (process.env.NODE_ENV !== "production") {
-        console.warn(
-          "[QStashEventBus] QSTASH_DESTINATION_URL or QSTASH_TOKEN not set. " +
-          `Skipping publish of event '${event.eventName}' (${event.id}).`,
-        );
-      }
-      return;
-    }
-
-    const body = JSON.stringify({
-      id: event.id,
-      eventName: event.eventName,
-      aggregateType: event.aggregateType,
-      aggregateId: event.aggregateId,
-      occurredAt: event.occurredAt.toISOString(),
-      payload: event.payload,
-      metadata: event.metadata,
-    });
-
-    const response = await fetch(`${QSTASH_ENDPOINT}${encodeURIComponent(this.destinationUrl)}`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${this.token}`,
-        "Content-Type": "application/json",
-        "Upstash-Retries": "3",
-        "Upstash-Delay": "0s",
-      },
-      body,
-    });
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => response.statusText);
-      throw new Error(
-        `QStashEventBus: failed to publish event '${event.eventName}'. ` +
-        `HTTP ${response.status}: ${text}`,
-      );
-    }
-
-    event.markDispatched();
-  }
-}
-````
-
-## File: modules/shared/infrastructure/SimpleEventBus.ts
-````typescript
-/**
- * modules/shared — infrastructure: SimpleEventBus
- *
- * A minimal in-memory pub/sub bus.  Follows Occam's Razor: the simplest
- * implementation that proves the event-driven flow works end-to-end.
- *
- * Usage:
- *   const bus = new SimpleEventBus();
- *   bus.subscribe("knowledge.block-updated", async (event) => { ... });
- *   await bus.publish(someEvent);
- */
-
-import type { DomainEvent } from "../domain/events";
-
-export type EventHandler<T extends DomainEvent = DomainEvent> = (event: T) => Promise<void>;
-
-export class SimpleEventBus {
-  private readonly handlers = new Map<string, EventHandler[]>();
-
-  /**
-   * Subscribe a handler to events of the given type.
-   * Multiple handlers for the same type are all called in registration order.
-   */
-  subscribe<T extends DomainEvent>(eventType: string, handler: EventHandler<T>): void {
-    const existing = this.handlers.get(eventType) ?? [];
-    this.handlers.set(eventType, [...existing, handler as EventHandler]);
-  }
-
-  /**
-   * Publish an event.  All registered handlers for the event's type are
-   * invoked sequentially and awaited.
-   */
-  async publish<T extends DomainEvent>(event: T): Promise<void> {
-    const relevant = this.handlers.get(event.type) ?? [];
-    for (const handler of relevant) {
-      await handler(event);
-    }
-  }
-
-  /** Remove all subscriptions (useful for test teardown). */
-  clear(): void {
-    this.handlers.clear();
-  }
-}
-````
-
-## File: modules/shared/README.md
-````markdown
-# shared — 共享核心上下文
-
-> **Domain Type:** Shared Kernel  
-> **模組路徑:** `modules/shared/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`shared` 不是獨立業務能力，而是多個 bounded context 共同依賴的 Shared Kernel。它提供穩定共享的事件、值物件與工具型別，目標是減少重複而不形成隱性大泥球。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 共享型別 | 提供跨模組穩定共用的事件與值物件基礎型別 |
-| 事件基礎語意 | 維持 `DomainEvent`、`EventRecord` 等跨域契約一致 |
-| 工具與通用值物件 | 提供 slug、識別碼與其他低變動共享能力 |
-
-## 與其他 Bounded Context 協作
-
-- 所有上下文都可能依賴 `shared`，但只能消費穩定共享核心，不能把業務邏輯堆入此模組。
-- `shared` 的變更需視為跨域契約變更處理。
-
-## 核心聚合 / 核心概念
-
-- **`DomainEvent`**
-- **`EventRecord`**
-- **`SlugUtils`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/shared/repositories.md
-````markdown
-# shared — Repositories
-
-> **Canonical bounded context:** `shared`
-> **模組路徑:** `modules/shared/`
-> **Domain Type:** Shared Kernel
-
-本文件整理 `shared` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- 目前沒有對應檔案。
-
-## Infrastructure Implementations
-
-- `infrastructure/InMemoryEventStoreRepository.ts`
-- `infrastructure/NoopEventBusRepository.ts`
-- `infrastructure/SimpleEventBus.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/shared/repositories.md`
-- `../../../modules/shared/aggregates.md`
-````
-
-## File: modules/shared/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — shared
-
-> **範圍：** 跨所有 BC 的共享基礎術語（Shared Kernel）
-
-## 術語定義
-
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 領域事件 | DomainEvent | 所有領域事件的基礎介面，含 `type` 和 `occurredAt` | `modules/shared/domain/events.ts` |
-| 事件記錄 | EventRecord | 稽核/追蹤用的事件記錄（`eventId`, `occurredAt`, `actorId`） | `modules/shared/domain/event-record.ts` |
-| 發生時間 | occurredAt | 事件發生時間，**ISO 8601 字串**格式（非 Date 物件） | `DomainEvent.occurredAt` |
-| Slug | Slug | URL-safe 的識別符字串 | `modules/shared/domain/slug-utils.ts` |
-
-## 關鍵規則
-
-`occurredAt` 必須是 **ISO 8601 字串**（`string`），不是 `Date`、`Timestamp` 或數字。所有繼承 `DomainEvent` 的事件介面都必須遵守此規範。
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `occurredAt` | `occurredAtISO`, `timestamp`, `createdAt`（作為事件時間戳） |
-| `DomainEvent` | `BaseEvent`, `Event` |
 ````
 
 ## File: modules/workspace/api/contracts.ts
@@ -23477,103 +23312,6 @@ create-workspace-created-event.ts
 事件名稱優先使用 `workspace.<verb_past_tense>` 風格，保持 published language 穩定。
 ````
 
-## File: modules/workspace/domain/events/workspace.events.ts
-````typescript
-import { v7 } from "@lib-uuid";
-import type { DomainEvent } from "@/modules/shared/api";
-
-import type {
-  WorkspaceLifecycleState,
-  WorkspaceVisibility,
-} from "../aggregates/Workspace";
-
-export const WORKSPACE_CREATED_EVENT_TYPE = "workspace.created" as const;
-export const WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE = "workspace.lifecycle_transitioned" as const;
-export const WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE = "workspace.visibility_changed" as const;
-
-interface WorkspaceEventBase extends DomainEvent {
-  readonly workspaceId: string;
-  readonly accountId: string;
-}
-
-export interface WorkspaceCreatedEvent extends WorkspaceEventBase {
-  readonly type: typeof WORKSPACE_CREATED_EVENT_TYPE;
-  readonly accountType: "user" | "organization";
-  readonly name: string;
-}
-
-export interface WorkspaceLifecycleTransitionedEvent extends WorkspaceEventBase {
-  readonly type: typeof WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE;
-  readonly fromState: WorkspaceLifecycleState;
-  readonly toState: WorkspaceLifecycleState;
-}
-
-export interface WorkspaceVisibilityChangedEvent extends WorkspaceEventBase {
-  readonly type: typeof WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE;
-  readonly fromVisibility: WorkspaceVisibility;
-  readonly toVisibility: WorkspaceVisibility;
-}
-
-export type WorkspaceDomainEvent =
-  | WorkspaceCreatedEvent
-  | WorkspaceLifecycleTransitionedEvent
-  | WorkspaceVisibilityChangedEvent;
-
-export function createWorkspaceCreatedEvent(input: {
-  workspaceId: string;
-  accountId: string;
-  accountType: "user" | "organization";
-  name: string;
-}): WorkspaceCreatedEvent {
-  return {
-    eventId: v7(),
-    type: WORKSPACE_CREATED_EVENT_TYPE,
-    aggregateId: input.workspaceId,
-    occurredAt: new Date().toISOString(),
-    workspaceId: input.workspaceId,
-    accountId: input.accountId,
-    accountType: input.accountType,
-    name: input.name,
-  };
-}
-
-export function createWorkspaceLifecycleTransitionedEvent(input: {
-  workspaceId: string;
-  accountId: string;
-  fromState: WorkspaceLifecycleState;
-  toState: WorkspaceLifecycleState;
-}): WorkspaceLifecycleTransitionedEvent {
-  return {
-    eventId: v7(),
-    type: WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
-    aggregateId: input.workspaceId,
-    occurredAt: new Date().toISOString(),
-    workspaceId: input.workspaceId,
-    accountId: input.accountId,
-    fromState: input.fromState,
-    toState: input.toState,
-  };
-}
-
-export function createWorkspaceVisibilityChangedEvent(input: {
-  workspaceId: string;
-  accountId: string;
-  fromVisibility: WorkspaceVisibility;
-  toVisibility: WorkspaceVisibility;
-}): WorkspaceVisibilityChangedEvent {
-  return {
-    eventId: v7(),
-    type: WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
-    aggregateId: input.workspaceId,
-    occurredAt: new Date().toISOString(),
-    workspaceId: input.workspaceId,
-    accountId: input.accountId,
-    fromVisibility: input.fromVisibility,
-    toVisibility: input.toVisibility,
-  };
-}
-````
-
 ## File: modules/workspace/domain/factories/AGENT.md
 ````markdown
 # domain/factories — Domain Factories（領域工廠）
@@ -24023,71 +23761,6 @@ infrastructure/events
 ```
 
 `infrastructure/events` **不可**依賴 `interfaces/`，也不應承擔 domain 決策。
-````
-
-## File: modules/workspace/infrastructure/events/SharedWorkspaceDomainEventPublisher.ts
-````typescript
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-  QStashEventBusRepository,
-} from "@/modules/shared/api";
-import type {
-  WorkspaceDomainEventPublisher,
-  WorkspaceEventPublishMetadata,
-} from "../../ports/output/WorkspaceDomainEventPublisher";
-import type { WorkspaceDomainEvent } from "../../domain/events/workspace.events";
-
-function toEventPayload(event: WorkspaceDomainEvent) {
-  const {
-    eventId: _eventId,
-    type: _type,
-    aggregateId: _aggregateId,
-    occurredAt: _occurredAt,
-    ...payload
-  } = event;
-
-  return payload as Record<string, unknown>;
-}
-
-export class SharedWorkspaceDomainEventPublisher
-  implements WorkspaceDomainEventPublisher
-{
-  private readonly publishDomainEventUseCase: PublishDomainEventUseCase;
-
-  constructor() {
-    const eventBus = process.env.QSTASH_TOKEN
-      ? new QStashEventBusRepository()
-      : new NoopEventBusRepository();
-
-    this.publishDomainEventUseCase = new PublishDomainEventUseCase(
-      new InMemoryEventStoreRepository(),
-      eventBus,
-    );
-  }
-
-  async publish(
-    event: WorkspaceDomainEvent,
-    metadata?: WorkspaceEventPublishMetadata,
-  ): Promise<void> {
-    try {
-      await this.publishDomainEventUseCase.execute({
-        id: event.eventId,
-        eventName: event.type,
-        aggregateType: "Workspace",
-        aggregateId: event.aggregateId,
-        occurredAt: new Date(event.occurredAt),
-        payload: toEventPayload(event),
-        metadata,
-      });
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[workspace.events] Failed to publish workspace domain event:", error);
-      }
-    }
-  }
-}
 ````
 
 ## File: modules/workspace/infrastructure/firebase/AGENT.md
@@ -27748,40 +27421,6 @@ export interface AuditRepository {
   findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]>;
   findByWorkspaceIds(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]>;
 }
-````
-
-## File: modules/workspace/subdomains/audit/domain/schema.ts
-````typescript
-/**
- * Audit subdomain schema — immutable operation records.
- */
-
-import { z } from "@lib-zod";
-import { BaseEntitySchema } from "@/modules/shared/domain/types";
-
-export const AUDIT_ACTIONS = ["create", "update", "delete", "login", "export"] as const;
-export type AuditAction = (typeof AUDIT_ACTIONS)[number];
-
-export const AUDIT_SEVERITIES = ["low", "medium", "high", "critical"] as const;
-export type AuditSeverity = (typeof AUDIT_SEVERITIES)[number];
-
-const ChangeRecordSchema = z.object({
-  field: z.string(),
-  oldValue: z.unknown(),
-  newValue: z.unknown(),
-});
-
-export type ChangeRecord = z.infer<typeof ChangeRecordSchema>;
-
-export const AuditLogSchema = BaseEntitySchema.extend({
-  action: z.enum(AUDIT_ACTIONS),
-  resourceType: z.string(),
-  resourceId: z.string(),
-  severity: z.enum(AUDIT_SEVERITIES),
-  changes: z.array(ChangeRecordSchema).optional(),
-});
-
-export type AuditLog = z.infer<typeof AuditLogSchema>;
 ````
 
 ## File: modules/workspace/subdomains/audit/infrastructure/.gitkeep
@@ -37834,78 +37473,6 @@ export const useAppStore = create<AppState>((set) => ({
   isLoading: false,
   setLoading: (loading) => set({ isLoading: loading }),
 }));
-````
-
-## File: packages/shared-types/index.ts
-````typescript
-// ─── Primitive types ──────────────────────────────────────────────────────────
-
-export type ID = string;
-
-export interface PaginationParams {
-  page: number;
-  limit: number;
-}
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
-// ─── Domain Error ─────────────────────────────────────────────────────────────
-
-/**
- * Structured domain error returned in CommandFailure.
- * Consumers MUST NOT use raw Error objects for command results.
- */
-export interface DomainError {
-  readonly code: string;
-  readonly message: string;
-  readonly context?: Record<string, unknown>;
-}
-
-// ─── Command Result Contract [R4] ─────────────────────────────────────────────
-
-export interface CommandSuccess {
-  readonly success: true;
-  readonly aggregateId: string;
-  readonly version: number;
-}
-
-export interface CommandFailure {
-  readonly success: false;
-  readonly error: DomainError;
-}
-
-/** Union returned by every Command Handler / use-case / _actions.ts export. */
-export type CommandResult = CommandSuccess | CommandFailure;
-
-export function commandSuccess(aggregateId: string, version: number): CommandSuccess {
-  return { success: true, aggregateId, version };
-}
-
-export function commandFailure(error: DomainError): CommandFailure {
-  return { success: false, error };
-}
-
-export function commandFailureFrom(
-  code: string,
-  message: string,
-  context?: Record<string, unknown>,
-): CommandFailure {
-  return commandFailure({ code, message, context });
-}
-
-// ─── Firestore Timestamp shim ─────────────────────────────────────────────────
-
-/** Opaque Firestore Timestamp — Domain only carries seconds/nanoseconds, no SDK types. */
-export interface Timestamp {
-  readonly seconds: number;
-  readonly nanoseconds: number;
-  toDate(): Date;
-}
 ````
 
 ## File: packages/shared-utils/index.test.ts
@@ -49053,75 +48620,6 @@ export default {
 } satisfies Config;
 ````
 
-## File: tsconfig.json
-````json
-{
-  "compilerOptions": {
-    "target": "ES2017",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "react-jsx",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "paths": {
-      "@/*": ["./*"],
-      "@shared-types": ["./packages/shared-types/index.ts"],
-      "@shared-utils": ["./packages/shared-utils/index.ts"],
-      "@shared-validators": ["./packages/shared-validators/index.ts"],
-      "@shared-constants": ["./packages/shared-constants/index.ts"],
-      "@shared-hooks": ["./packages/shared-hooks/index.ts"],
-      "@integration-firebase": ["./packages/integration-firebase/index.ts"],
-      "@integration-firebase/*": ["./packages/integration-firebase/*"],
-      "@integration-http": ["./packages/integration-http/index.ts"],
-      "@api-contracts": ["./packages/api-contracts/index.ts"],
-      "@ui-shadcn": ["./packages/ui-shadcn/index.ts"],
-      "@ui-shadcn/*": ["./packages/ui-shadcn/*"],
-      "@ui-vis": ["./packages/ui-vis/index.ts"],
-      "@lib-date-fns": ["./packages/lib-date-fns/index.ts"],
-      "@lib-zod": ["./packages/lib-zod/index.ts"],
-      "@lib-uuid": ["./packages/lib-uuid/index.ts"],
-      "@lib-zustand": ["./packages/lib-zustand/index.ts"],
-      "@lib-xstate": ["./packages/lib-xstate/index.ts"],
-      "@lib-tanstack": ["./packages/lib-tanstack/index.ts"],
-      "@lib-superjson": ["./packages/lib-superjson/index.ts"],
-      "@lib-dragdrop": ["./packages/lib-dragdrop/index.ts"],
-      "@lib-react-markdown": ["./packages/lib-react-markdown/index.ts"],
-      "@lib-remark-gfm": ["./packages/lib-remark-gfm/index.ts"],
-      "@lib-vis": ["./packages/lib-vis/index.ts"],
-      "@lib-vis/*": ["./packages/lib-vis/*"]
-    }
-  },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "**/*.mts"
-  ],
-  "exclude": [
-    "node_modules",
-    "functions"
-  ]
-}
-````
-
 ## File: vitest.config.ts
 ````typescript
 import { resolve } from "node:path";
@@ -52885,249 +52383,33 @@ export class UploadInitSourceFileUseCase {
 }
 ````
 
-## File: modules/notebooklm/subdomains/source/application/use-cases/wiki-library.helpers.ts
+## File: modules/notebooklm/subdomains/source/application/utils/slug-utils.ts
 ````typescript
 /**
- * Module: notebooklm/subdomains/source
- * Layer: application/use-cases
- * Purpose: Private helpers for wiki-library use cases.
- *
- * Extracted from use-cases file to keep business workflow readable.
- * Depends on @/modules/shared/api for slug utilities.
+ * notebooklm/subdomains/source — slug utilities
+ * Pure slug derivation and validation helpers for wiki library names.
  */
 
-import { deriveSlugCandidate, isValidSlug } from "@/modules/shared/api";
-import type { WikiLibrary } from "../../domain/entities/WikiLibrary";
-
-export function generateSourceId(): string {
-  const randomUUID = globalThis.crypto?.randomUUID;
-  if (typeof randomUUID === "function") {
-    return randomUUID.call(globalThis.crypto);
-  }
-  return `wbl_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
-}
-
-export function normalizeLibraryName(name: string): string {
-  const value = name.trim();
-  if (!value) throw new Error("library name is required");
-  return value.slice(0, 80);
-}
-
-export function normalizeFieldKey(key: string): string {
-  const normalized = key.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
-  if (!normalized) throw new Error("field key is required");
-  return normalized.slice(0, 48);
-}
-
-export function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiLibrary[]): string {
-  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "library-node";
-  const existing = new Set(libraries.map((lib) => lib.slug));
-  if (!existing.has(normalizedBase)) return normalizedBase;
-
-  let index = 2;
-  while (index < 5000) {
-    const candidate = `${normalizedBase}-${index}`;
-    if (!existing.has(candidate) && isValidSlug(candidate)) return candidate;
-    index += 1;
-  }
-  throw new Error("cannot allocate a unique slug for this library name");
-}
-
-export { deriveSlugCandidate };
-````
-
-## File: modules/notebooklm/subdomains/source/application/use-cases/wiki-library.use-cases.ts
-````typescript
 /**
- * Module: notebooklm/subdomains/source
- * Layer: application/use-cases
- * Use Cases: Wiki library management — create, add fields, add rows, list.
- *
- * Design notes:
- * - All functions take explicit repository injection (no module-scope singletons).
- * - Event publisher is created lazily to avoid import-time side effects.
- * - Event publishing uses @/modules/shared/api public boundary only.
+ * Converts a human-readable display name into a slug candidate.
+ * Pure function — no side effects.
  */
-
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-} from "@/modules/shared/api";
-
-import type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../../domain/entities/WikiLibrary";
-import type { IWikiLibraryRepository } from "../../domain/repositories/IWikiLibraryRepository";
-import {
-  generateSourceId,
-  normalizeLibraryName,
-  normalizeFieldKey,
-  ensureUniqueLibrarySlug,
-  deriveSlugCandidate,
-} from "./wiki-library.helpers";
-
-// Lazy event publisher — only instantiated on first event emit.
-let _eventPublisher: PublishDomainEventUseCase | undefined;
-
-function getEventPublisher(): PublishDomainEventUseCase {
-  if (!_eventPublisher) {
-    _eventPublisher = new PublishDomainEventUseCase(
-      new InMemoryEventStoreRepository(),
-      new NoopEventBusRepository(),
-    );
-  }
-  return _eventPublisher;
+export function deriveSlugCandidate(displayName: string): string {
+  return displayName
+    .toLowerCase()
+    .replace(/[\s_./\\]+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 63);
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-
-export async function listWikiLibraries(
-  accountId: string,
-  workspaceId: string | undefined,
-  libraryRepository: IWikiLibraryRepository,
-): Promise<WikiLibrary[]> {
-  if (!accountId) throw new Error("accountId is required");
-  const libraries = await libraryRepository.listByAccountId(accountId);
-  const activeLibraries = libraries.filter((lib) => lib.status === "active");
-  if (!workspaceId) return activeLibraries;
-  return activeLibraries.filter((lib) => lib.workspaceId === workspaceId);
-}
-
-export async function createWikiLibrary(
-  input: CreateWikiLibraryInput,
-  libraryRepository: IWikiLibraryRepository,
-): Promise<WikiLibrary> {
-  if (!input.accountId) throw new Error("accountId is required");
-
-  const name = normalizeLibraryName(input.name);
-  const libraries = await libraryRepository.listByAccountId(input.accountId);
-  const workspaceLibraries = libraries.filter(
-    (lib) => (lib.workspaceId ?? "") === (input.workspaceId ?? ""),
-  );
-
-  const slug = ensureUniqueLibrarySlug(deriveSlugCandidate(name), workspaceLibraries);
-  const now = new Date();
-  const library: WikiLibrary = {
-    id: generateSourceId(),
-    accountId: input.accountId,
-    workspaceId: input.workspaceId,
-    name,
-    slug,
-    status: "active",
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await libraryRepository.create(library);
-  await getEventPublisher().execute({
-    id: generateSourceId(),
-    eventName: "source.library_created",
-    aggregateType: "wiki-library",
-    aggregateId: library.id,
-    payload: {
-      accountId: library.accountId,
-      workspaceId: library.workspaceId,
-      slug: library.slug,
-    },
-  });
-
-  return library;
-}
-
-export async function addWikiLibraryField(
-  input: AddWikiLibraryFieldInput,
-  libraryRepository: IWikiLibraryRepository,
-): Promise<WikiLibraryField> {
-  const library = await libraryRepository.findById(input.accountId, input.libraryId);
-  if (!library) throw new Error("library not found");
-
-  const key = normalizeFieldKey(input.key);
-  const label = normalizeLibraryName(input.label);
-  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
-  if (fields.some((f) => f.key === key)) throw new Error(`field key "${key}" already exists`);
-
-  const field: WikiLibraryField = {
-    id: generateSourceId(),
-    libraryId: input.libraryId,
-    key,
-    label,
-    type: input.type,
-    required: input.required ?? false,
-    options: input.options,
-    createdAt: new Date(),
-  };
-
-  await libraryRepository.createField(input.accountId, field);
-  await getEventPublisher().execute({
-    id: generateSourceId(),
-    eventName: "source.library_field_added",
-    aggregateType: "wiki-library",
-    aggregateId: input.libraryId,
-    payload: { accountId: input.accountId, fieldKey: field.key, fieldType: field.type },
-  });
-
-  return field;
-}
-
-export async function createWikiLibraryRow(
-  input: CreateWikiLibraryRowInput,
-  libraryRepository: IWikiLibraryRepository,
-): Promise<WikiLibraryRow> {
-  const library = await libraryRepository.findById(input.accountId, input.libraryId);
-  if (!library) throw new Error("library not found");
-
-  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
-  for (const field of fields.filter((f) => f.required)) {
-    if (!(field.key in input.values)) throw new Error(`missing required field: ${field.key}`);
-  }
-
-  const now = new Date();
-  const row: WikiLibraryRow = {
-    id: generateSourceId(),
-    libraryId: input.libraryId,
-    values: input.values,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await libraryRepository.createRow(input.accountId, row);
-  await getEventPublisher().execute({
-    id: generateSourceId(),
-    eventName: "source.library_row_created",
-    aggregateType: "wiki-library",
-    aggregateId: input.libraryId,
-    payload: { accountId: input.accountId, rowId: row.id, fields: Object.keys(row.values) },
-  });
-
-  return row;
-}
-
-export interface WikiLibrarySnapshot {
-  readonly library: WikiLibrary;
-  readonly fields: WikiLibraryField[];
-  readonly rows: WikiLibraryRow[];
-}
-
-export async function getWikiLibrarySnapshot(
-  accountId: string,
-  libraryId: string,
-  libraryRepository: IWikiLibraryRepository,
-): Promise<WikiLibrarySnapshot> {
-  const library = await libraryRepository.findById(accountId, libraryId);
-  if (!library) throw new Error("library not found");
-
-  const [fields, rows] = await Promise.all([
-    libraryRepository.listFields(accountId, libraryId),
-    libraryRepository.listRows(accountId, libraryId),
-  ]);
-
-  return { library, fields, rows };
+/**
+ * Returns true when the slug string passes namespace slug rules.
+ * Pure function — no side effects.
+ */
+export function isValidSlug(slug: string): boolean {
+  return /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(slug);
 }
 ````
 
@@ -61186,136 +60468,137 @@ export {};
 - 父模組 public API（`@/modules/notion/api`）是跨模組進入點
 ````
 
-## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseContentBlockRepository.ts
+## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageReviewUseCases.ts
 ````typescript
 /**
  * Module: notion/subdomains/knowledge
- * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing IContentBlockRepository.
- * Firestore path: accounts/{accountId}/contentBlocks/{blockId}
+ * Layer: application/use-cases
+ * Purpose: Page review/wiki use cases — approve, verify, request review, assign owner.
  */
 
-import {
-  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
-  query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import { v7 as generateId } from "@lib-uuid";
-import { ContentBlock } from "../../domain/aggregates/ContentBlock";
-import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
-import type { IContentBlockRepository } from "../../domain/repositories/IContentBlockRepository";
-import type { BlockContent } from "../../../../core/domain/value-objects/BlockContent";
-import { BLOCK_TYPES } from "../../../../core/domain/value-objects/BlockContent";
 
-const VALID_TYPES = new Set<string>(BLOCK_TYPES);
-
-function blocksCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "contentBlocks");
-}
-function blockDoc(db: ReturnType<typeof getFirestore>, accountId: string, blockId: string) {
-  return doc(db, "accounts", accountId, "contentBlocks", blockId);
-}
-
-function toBlockContent(raw: unknown): BlockContent {
-  if (typeof raw !== "object" || raw === null) return { type: "text", richText: [] };
-  const obj = raw as Record<string, unknown>;
-  const type = typeof obj.type === "string" && VALID_TYPES.has(obj.type) ? (obj.type as BlockContent["type"]) : "text";
-  return {
-    type,
-    richText: Array.isArray(obj.richText) ? (obj.richText as BlockContent["richText"]) : [],
-    properties: typeof obj.properties === "object" && obj.properties !== null ? (obj.properties as Record<string, unknown>) : undefined,
-  };
-}
-
-function toSnapshot(id: string, d: Record<string, unknown>): ContentBlockSnapshot {
-  return {
-    id,
-    pageId: typeof d.pageId === "string" ? d.pageId : "",
-    accountId: typeof d.accountId === "string" ? d.accountId : "",
-    content: toBlockContent(d.content),
-    order: typeof d.order === "number" ? d.order : 0,
-    parentBlockId: typeof d.parentBlockId === "string" ? d.parentBlockId : null,
-    childBlockIds: Array.isArray(d.childBlockIds) ? (d.childBlockIds as string[]) : [],
-    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
-    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
-  };
-}
-
-export class FirebaseContentBlockRepository implements IContentBlockRepository {
-  private get db() { return getFirestore(firebaseClientApp); }
-
-  async save(block: ContentBlock): Promise<void> {
-    const snap = block.getSnapshot();
-    const ref = blockDoc(this.db, snap.accountId, snap.id);
-    const existing = await getDoc(ref);
-    const data: Record<string, unknown> = { ...snap, updatedAt: serverTimestamp() };
-    if (!existing.exists()) {
-      data.createdAt = serverTimestamp();
-      await setDoc(ref, data);
-    } else {
-      await updateDoc(ref, data);
-    }
-  }
-
-  async findById(accountId: string, blockId: string): Promise<ContentBlock | null> {
-    const snap = await getDoc(blockDoc(this.db, accountId, blockId));
-    if (!snap.exists()) return null;
-    return ContentBlock.reconstitute(toSnapshot(snap.id, snap.data() as Record<string, unknown>));
-  }
-
-  async listByPageId(accountId: string, pageId: string): Promise<ContentBlock[]> {
-    const snaps = await getDocs(
-      query(blocksCol(this.db, accountId), where("pageId", "==", pageId)),
-    );
-    return snaps.docs.map((d) => ContentBlock.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
-  }
-
-  async delete(accountId: string, blockId: string): Promise<void> {
-    await deleteDoc(blockDoc(this.db, accountId, blockId));
-  }
-
-  async nextOrder(accountId: string, pageId: string): Promise<number> {
-    const snaps = await getDocs(
-      query(blocksCol(this.db, accountId), where("pageId", "==", pageId)),
-    );
-    return snaps.size;
-  }
-
-  async countByPageId(accountId: string, pageId: string): Promise<number> {
-    const snaps = await getDocs(query(blocksCol(this.db, accountId), where("pageId", "==", pageId)));
-    return snaps.size;
-  }
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/_actions/knowledge-block.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { FirebaseContentBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
+import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
 import {
-  AddContentBlockUseCase,
-  UpdateContentBlockUseCase,
-  DeleteContentBlockUseCase,
-} from "../../application/use-cases/ContentBlockUseCases";
-import type { AddKnowledgeBlockDto as AddContentBlockDto, UpdateKnowledgeBlockDto as UpdateContentBlockDto, DeleteKnowledgeBlockDto as DeleteContentBlockDto } from "../../application/dto/ContentBlockDto";
+  PublishDomainEventUseCase,
+  type IEventStoreRepository,
+  type IEventBusRepository,
+} from "@shared-events";
+import {
+  ApproveKnowledgePageSchema,
+  type ApproveKnowledgePageDto,
+} from "../dto/KnowledgePageDto";
+import {
+  VerifyKnowledgePageSchema,
+  type VerifyKnowledgePageDto,
+  RequestPageReviewSchema,
+  type RequestPageReviewDto,
+  AssignPageOwnerSchema,
+  type AssignPageOwnerDto,
+} from "../dto/KnowledgeWikiDto";
 
-const makeBlockRepo = () => new FirebaseContentBlockRepository();
+export class ApproveKnowledgePageUseCase {
+  constructor(
+    private readonly repo: IKnowledgePageRepository,
+    private readonly eventStore: IEventStoreRepository,
+    private readonly eventBus: IEventBusRepository,
+  ) {}
 
-export async function addKnowledgeBlock(input: AddContentBlockDto): Promise<CommandResult> {
-  try { return await new AddContentBlockUseCase(makeBlockRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("BLOCK_ADD_FAILED", (e as Error)?.message ?? "Unknown"); }
+  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ApproveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const {
+      accountId,
+      pageId,
+      actorId,
+      causationId: inputCausationId,
+      extractedTasks,
+      extractedInvoices,
+      correlationId: inputCorrelationId,
+      workspaceId,
+    } = parsed.data;
+
+    const causationId = inputCausationId ?? generateId();
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    if (page.status === "archived") return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
+    if (page.approvalState === "approved") return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
+
+    const nowISO = new Date().toISOString();
+    page.approve(actorId, nowISO);
+    await this.repo.save(page);
+
+    const correlationId = inputCorrelationId ?? generateId();
+    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
+      id: generateId(),
+      eventName: "knowledge.page_approved",
+      aggregateType: "KnowledgePage",
+      aggregateId: pageId,
+      payload: {
+        pageId,
+        accountId,
+        workspaceId: workspaceId ?? page.workspaceId,
+        extractedTasks,
+        extractedInvoices,
+        actorId,
+        causationId: inputCausationId,
+        correlationId,
+      },
+      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
+    });
+
+    return commandSuccess(pageId, Date.now());
+  }
 }
 
-export async function updateKnowledgeBlock(input: UpdateContentBlockDto): Promise<CommandResult> {
-  try { return await new UpdateContentBlockUseCase(makeBlockRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("BLOCK_UPDATE_FAILED", (e as Error)?.message ?? "Unknown"); }
+export class VerifyKnowledgePageUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+    const parsed = VerifyKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.verify(verifiedByUserId, verificationExpiresAtISO);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
 }
 
-export async function deleteKnowledgeBlock(input: DeleteContentBlockDto): Promise<CommandResult> {
-  try { return await new DeleteContentBlockUseCase(makeBlockRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("BLOCK_DELETE_FAILED", (e as Error)?.message ?? "Unknown"); }
+export class RequestPageReviewUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
+    const parsed = RequestPageReviewSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, requestedByUserId } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.requestReview(requestedByUserId);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class AssignPageOwnerUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
+    const parsed = AssignPageOwnerSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, ownerId } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.assignOwner(ownerId);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
 }
 ````
 
@@ -61324,7 +60607,7 @@ export async function deleteKnowledgeBlock(input: DeleteContentBlockDto): Promis
 "use server";
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import type { IEventStoreRepository, IEventBusRepository } from "@/modules/shared/api";
+import type { IEventStoreRepository, IEventBusRepository } from "@shared-events";
 import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
 import {
   CreateKnowledgePageUseCase,
@@ -61428,78 +60711,6 @@ export async function updateKnowledgePageIcon(input: UpdatePageIconDto): Promise
 export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promise<CommandResult> {
   try { return await new UpdatePageCoverUseCase(makePageRepo()).execute(input); }
   catch (e) { return commandFailureFrom("PAGE_COVER_UPDATE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/components/BlockEditorView.tsx
-````typescript
-"use client";
-
-import { useEffect, useRef, useCallback } from "react";
-import { useBlockEditorStore } from "../store/block-editor.store";
-import { richTextToPlainText } from "../../../../core/domain/value-objects/BlockContent";
-
-/**
- * Notion knowledge subdomain — minimal block editor.
- * Full drag-and-drop and rich block types are in the extensions/ layer.
- */
-export function BlockEditorView() {
-  const { blocks, addBlock, updateBlock, deleteBlock } = useBlockEditorStore();
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>, blockId: string) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      addBlock(blockId);
-    }
-    if (e.key === "Backspace") {
-      const target = e.currentTarget;
-      if (target.textContent === "") {
-        e.preventDefault();
-        deleteBlock(blockId);
-      }
-    }
-  }
-
-  function handleInput(e: React.FormEvent<HTMLDivElement>, blockId: string) {
-    const text = (e.currentTarget as HTMLDivElement).textContent ?? "";
-    updateBlock(blockId, { type: "text", richText: [{ type: "text", plainText: text }] });
-  }
-
-  if (!blocks.length) {
-    return (
-      <div className="flex min-h-[200px] flex-col gap-1 rounded-lg border border-dashed p-4">
-        <div
-          contentEditable
-          suppressContentEditableWarning
-          className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") { e.preventDefault(); addBlock(null); }
-          }}
-          data-placeholder="開始輸入…"
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div ref={containerRef} className="flex flex-col gap-0.5">
-      {blocks.map((block) => {
-        const text = richTextToPlainText(block.content.richText);
-        return (
-          <div
-            key={block.id}
-            contentEditable
-            suppressContentEditableWarning
-            className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
-            onKeyDown={(e) => handleKeyDown(e, block.id)}
-            onInput={(e) => handleInput(e, block.id)}
-            dangerouslySetInnerHTML={{ __html: text }}
-          />
-        );
-      })}
-    </div>
-  );
 }
 ````
 
@@ -62119,70 +61330,6 @@ export function KnowledgeSidebarSection({
       )}
     </nav>
   );
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/queries/index.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: interfaces/queries
- * Purpose: Server-side read helpers for the knowledge subdomain.
- */
-
-import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
-import { FirebaseContentBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
-import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseKnowledgeCollectionRepository";
-import {
-  GetKnowledgePageUseCase,
-  ListKnowledgePagesUseCase,
-  ListKnowledgePagesByWorkspaceUseCase,
-  GetKnowledgePageTreeUseCase,
-  GetKnowledgePageTreeByWorkspaceUseCase,
-} from "../../application/use-cases/KnowledgePageUseCases";
-import { ListContentBlocksUseCase } from "../../application/use-cases/ContentBlockUseCases";
-import {
-  GetKnowledgeCollectionUseCase,
-  ListKnowledgeCollectionsUseCase,
-} from "../../application/use-cases/KnowledgeCollectionUseCases";
-import type { KnowledgePageSnapshot } from "../../domain/aggregates/KnowledgePage";
-import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
-import type { KnowledgeCollectionSnapshot } from "../../domain/aggregates/KnowledgeCollection";
-
-const makePageRepo = () => new FirebaseKnowledgePageRepository();
-const makeBlockRepo = () => new FirebaseContentBlockRepository();
-const makeCollRepo = () => new FirebaseKnowledgeCollectionRepository();
-
-export async function getKnowledgePage(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
-  return new GetKnowledgePageUseCase(makePageRepo()).execute(accountId, pageId);
-}
-
-export async function getKnowledgePages(accountId: string): Promise<KnowledgePageSnapshot[]> {
-  return new ListKnowledgePagesUseCase(makePageRepo()).execute(accountId);
-}
-
-export async function getKnowledgePagesByWorkspace(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
-  return new ListKnowledgePagesByWorkspaceUseCase(makePageRepo()).execute(accountId, workspaceId);
-}
-
-export async function getKnowledgePageTree(accountId: string) {
-  return new GetKnowledgePageTreeUseCase(makePageRepo()).execute(accountId);
-}
-
-export async function getKnowledgePageTreeByWorkspace(accountId: string, workspaceId: string) {
-  return new GetKnowledgePageTreeByWorkspaceUseCase(makePageRepo()).execute(accountId, workspaceId);
-}
-
-export async function getKnowledgeBlocks(accountId: string, pageId: string): Promise<ContentBlockSnapshot[]> {
-  return new ListContentBlocksUseCase(makeBlockRepo()).execute(accountId, pageId);
-}
-
-export async function getKnowledgeCollection(accountId: string, collectionId: string): Promise<KnowledgeCollectionSnapshot | null> {
-  return new GetKnowledgeCollectionUseCase(makeCollRepo()).execute(accountId, collectionId);
-}
-
-export async function getKnowledgeCollections(accountId: string): Promise<KnowledgeCollectionSnapshot[]> {
-  return new ListKnowledgeCollectionsUseCase(makeCollRepo()).execute(accountId);
 }
 ````
 
@@ -65984,611 +65131,113 @@ The **onboarding** subdomain manages initial setup and guided activation for new
 - `interfaces/_actions/update-onboarding-checklist.action.ts` — Server Action for checklist mutation
 ````
 
-## File: modules/platform/subdomains/organization/adapters/firebase/FirebaseOrganizationRepository.ts
+## File: modules/platform/subdomains/organization/adapters/organization-service.ts
 ````typescript
 /**
- * FirebaseOrganizationRepository — Infrastructure adapter for organization persistence.
- * Firebase SDK is isolated to this file and organization-mappers.ts.
- * Dual-write: `organizations` (primary) + `accounts` (for organization account profile).
+ * OrganizationService — Composition root for organization use cases.
  */
 
+import { FirebaseOrganizationRepository } from "./firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "./firebase/FirebaseOrgPolicyRepository";
 import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  getDocs,
-  addDoc,
-  arrayUnion,
-  arrayRemove,
-  onSnapshot,
-  serverTimestamp,
-  writeBatch,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { OrganizationRepository, Unsubscribe } from "../../domain/repositories/OrganizationRepository";
-import type {
-  OrganizationEntity,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  OrganizationRole,
-} from "../../domain/entities/Organization";
-import { toOrganizationEntity, toTeam, toPartnerInvite } from "./organization-mappers";
-
-export class FirebaseOrganizationRepository implements OrganizationRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private orgAccountRef(organizationId: string) {
-    return doc(this.db, "accounts", organizationId);
-  }
-
-  private buildAccountData(data: {
-    name?: string;
-    ownerId?: string;
-    email?: string;
-    photoURL?: string;
-    description?: string;
-    theme?: OrganizationEntity["theme"];
-    members?: MemberReference[];
-    memberIds?: string[];
-    teams?: Team[];
-    createdAt?: OrganizationEntity["createdAt"] | ReturnType<typeof serverTimestamp>;
-  }) {
-    return {
-      accountType: "organization" as const,
-      name: data.name ?? "",
-      ownerId: data.ownerId ?? "",
-      email: data.email ?? null,
-      photoURL: data.photoURL ?? null,
-      description: data.description ?? null,
-      theme: data.theme ?? null,
-      members: data.members ?? [],
-      memberIds: data.memberIds ?? [],
-      teams: data.teams ?? [],
-      createdAt: data.createdAt ?? serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-  }
-
-  async create(command: CreateOrganizationCommand): Promise<string> {
-    const orgRef = doc(collection(this.db, "organizations"));
-    const owner: MemberReference = {
-      id: command.ownerId,
-      name: command.ownerName,
-      email: command.ownerEmail,
-      role: "Owner",
-      presence: "active",
-    };
-    const createdAt = serverTimestamp();
-    const batch = writeBatch(this.db);
-    batch.set(orgRef, {
-      name: command.organizationName,
-      ownerId: command.ownerId,
-      members: [owner],
-      memberIds: [command.ownerId],
-      teams: [],
-      createdAt,
-    });
-    batch.set(
-      this.orgAccountRef(orgRef.id),
-      this.buildAccountData({
-        name: command.organizationName,
-        ownerId: command.ownerId,
-        members: [owner],
-        memberIds: [command.ownerId],
-        teams: [],
-        createdAt,
-      }),
-      { merge: true },
-    );
-    await batch.commit();
-    return orgRef.id;
-  }
-
-  async findById(id: string): Promise<OrganizationEntity | null> {
-    const snap = await getDoc(doc(this.db, "organizations", id));
-    if (!snap.exists()) return null;
-    return toOrganizationEntity(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async save(org: OrganizationEntity): Promise<void> {
-    const batch = writeBatch(this.db);
-    batch.set(doc(this.db, "organizations", org.id), {
-      name: org.name,
-      ownerId: org.ownerId,
-      members: org.members,
-      memberIds: org.memberIds,
-      teams: org.teams,
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.orgAccountRef(org.id),
-      this.buildAccountData({
-        name: org.name,
-        ownerId: org.ownerId,
-        email: org.email,
-        photoURL: org.photoURL,
-        description: org.description,
-        theme: org.theme,
-        members: org.members,
-        memberIds: org.memberIds,
-        teams: org.teams,
-        createdAt: org.createdAt,
-      }),
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void> {
-    const updates: Record<string, unknown> = {
-      accountType: "organization",
-      updatedAt: serverTimestamp(),
-    };
-    if (command.name !== undefined) updates.name = command.name;
-    if (command.description !== undefined) updates.description = command.description;
-    if (command.theme !== undefined) updates.theme = command.theme;
-    if (command.photoURL !== undefined) updates.photoURL = command.photoURL;
-    const batch = writeBatch(this.db);
-    batch.update(doc(this.db, "organizations", command.organizationId), updates);
-    batch.set(this.orgAccountRef(command.organizationId), updates, { merge: true });
-    await batch.commit();
-  }
-
-  async delete(organizationId: string): Promise<void> {
-    const batch = writeBatch(this.db);
-    batch.delete(doc(this.db, "organizations", organizationId));
-    batch.delete(this.orgAccountRef(organizationId));
-    await batch.commit();
-  }
-
-  async inviteMember(input: InviteMemberInput): Promise<string> {
-    const ref = await addDoc(collection(this.db, "organizations", input.organizationId, "invites"), {
-      email: input.email,
-      teamId: input.teamId,
-      role: input.role,
-      inviteState: "pending",
-      protocol: input.protocol,
-      invitedAt: serverTimestamp(),
-    });
-    return ref.id;
-  }
-
-  async recruitMember(organizationId: string, memberId: string, name: string, email: string): Promise<void> {
-    const member: MemberReference = { id: memberId, name, email, role: "Member", presence: "active" };
-    const batch = writeBatch(this.db);
-    batch.update(doc(this.db, "organizations", organizationId), {
-      members: arrayUnion(member),
-      memberIds: arrayUnion(memberId),
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(this.orgAccountRef(organizationId), { members: arrayUnion(member), memberIds: arrayUnion(memberId), updatedAt: serverTimestamp() }, { merge: true });
-    await batch.commit();
-  }
-
-  async removeMember(organizationId: string, memberId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "organizations", organizationId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const members = Array.isArray(data.members)
-      ? (data.members as MemberReference[]).filter((m) => m.id !== memberId)
-      : [];
-    const batch = writeBatch(this.db);
-    batch.update(doc(this.db, "organizations", organizationId), { members, memberIds: arrayRemove(memberId), updatedAt: serverTimestamp() });
-    batch.set(this.orgAccountRef(organizationId), { members, memberIds: arrayRemove(memberId), updatedAt: serverTimestamp() }, { merge: true });
-    await batch.commit();
-  }
-
-  async updateMemberRole(input: UpdateMemberRoleInput): Promise<void> {
-    const snap = await getDoc(doc(this.db, "organizations", input.organizationId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const members = Array.isArray(data.members)
-      ? (data.members as MemberReference[]).map((m) =>
-          m.id === input.memberId ? { ...m, role: input.role as OrganizationRole } : m,
-        )
-      : [];
-    const batch = writeBatch(this.db);
-    batch.update(doc(this.db, "organizations", input.organizationId), { members, updatedAt: serverTimestamp() });
-    batch.set(this.orgAccountRef(input.organizationId), { members, updatedAt: serverTimestamp() }, { merge: true });
-    await batch.commit();
-  }
-
-  async getMembers(organizationId: string): Promise<MemberReference[]> {
-    const snap = await getDoc(doc(this.db, "organizations", organizationId));
-    if (!snap.exists()) return [];
-    const data = snap.data() as Record<string, unknown>;
-    return Array.isArray(data.members) ? (data.members as MemberReference[]) : [];
-  }
-
-  subscribeToMembers(organizationId: string, onUpdate: (members: MemberReference[]) => void): Unsubscribe {
-    return onSnapshot(doc(this.db, "organizations", organizationId), (snap) => {
-      if (!snap.exists()) { onUpdate([]); return; }
-      const data = snap.data() as Record<string, unknown>;
-      onUpdate(Array.isArray(data.members) ? (data.members as MemberReference[]) : []);
-    });
-  }
-
-  async createTeam(input: CreateTeamInput): Promise<string> {
-    const teamRef = doc(collection(this.db, "organizations", input.organizationId, "teams"));
-    await setDoc(teamRef, {
-      name: input.name,
-      description: input.description,
-      type: input.type,
-      memberIds: [],
-      createdAt: serverTimestamp(),
-    });
-    return teamRef.id;
-  }
-
-  async deleteTeam(organizationId: string, teamId: string): Promise<void> {
-    await deleteDoc(doc(this.db, "organizations", organizationId, "teams", teamId));
-  }
-
-  async addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void> {
-    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
-      memberIds: arrayUnion(memberId),
-    });
-  }
-
-  async removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void> {
-    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
-      memberIds: arrayRemove(memberId),
-    });
-  }
-
-  async getTeams(organizationId: string): Promise<Team[]> {
-    const snaps = await getDocs(collection(this.db, "organizations", organizationId, "teams"));
-    return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
-  }
-
-  subscribeToTeams(organizationId: string, onUpdate: (teams: Team[]) => void): Unsubscribe {
-    return onSnapshot(collection(this.db, "organizations", organizationId, "teams"), (snap) => {
-      onUpdate(snap.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>)));
-    });
-  }
-
-  async sendPartnerInvite(organizationId: string, teamId: string, email: string): Promise<string> {
-    const ref = await addDoc(collection(this.db, "organizations", organizationId, "partnerInvites"), {
-      email,
-      teamId,
-      role: "Guest",
-      inviteState: "pending",
-      invitedAt: serverTimestamp(),
-    });
-    return ref.id;
-  }
-
-  async dismissPartnerMember(organizationId: string, teamId: string, memberId: string): Promise<void> {
-    await this.removeMemberFromTeam(organizationId, teamId, memberId);
-  }
-
-  async getPartnerInvites(organizationId: string): Promise<PartnerInvite[]> {
-    const snaps = await getDocs(collection(this.db, "organizations", organizationId, "partnerInvites"));
-    return snaps.docs.map((d) => toPartnerInvite(d.id, d.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/platform/subdomains/organization/adapters/firebase/FirebaseOrgPolicyRepository.ts
-````typescript
-/**
- * FirebaseOrgPolicyRepository — Infrastructure adapter for org-policy persistence.
- * OrgPolicy lives in top-level `orgPolicies` collection, independent of `organizations`.
- */
-
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "../application/use-cases/organization-lifecycle.use-cases";
 import {
-  getFirestore,
-  doc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  getDocs,
-  query,
-  where,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { OrgPolicyRepository } from "../../domain/repositories/OrgPolicyRepository";
-import type { OrgPolicy, CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
-import { toOrgPolicy } from "./organization-mappers";
-
-export class FirebaseOrgPolicyRepository implements OrgPolicyRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy> {
-    const now = new Date().toISOString();
-    const ref = await addDoc(collection(this.db, "orgPolicies"), {
-      orgId: input.orgId,
-      name: input.name,
-      description: input.description,
-      rules: input.rules,
-      scope: input.scope,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      _createdAt: serverTimestamp(),
-    });
-    return {
-      id: ref.id,
-      orgId: input.orgId,
-      name: input.name,
-      description: input.description,
-      rules: input.rules,
-      scope: input.scope,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-    };
-  }
-
-  async updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void> {
-    const updates: Record<string, unknown> = {
-      updatedAt: new Date().toISOString(),
-      _updatedAt: serverTimestamp(),
-    };
-    if (data.name !== undefined) updates.name = data.name;
-    if (data.description !== undefined) updates.description = data.description;
-    if (data.rules !== undefined) updates.rules = data.rules;
-    if (data.scope !== undefined) updates.scope = data.scope;
-    if (data.isActive !== undefined) updates.isActive = data.isActive;
-    await updateDoc(doc(this.db, "orgPolicies", policyId), updates);
-  }
-
-  async deletePolicy(policyId: string): Promise<void> {
-    await deleteDoc(doc(this.db, "orgPolicies", policyId));
-  }
-
-  async getPolicies(orgId: string): Promise<OrgPolicy[]> {
-    const q = query(collection(this.db, "orgPolicies"), where("orgId", "==", orgId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toOrgPolicy(d.id, d.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/platform/subdomains/organization/adapters/firebase/organization-mappers.ts
-````typescript
-import type {
-  OrganizationEntity,
-  MemberReference,
-  Team,
-  OrgPolicy,
-  PartnerInvite,
-} from "../../domain/entities/Organization";
-
-export function toOrganizationEntity(id: string, data: Record<string, unknown>): OrganizationEntity {
-  return {
-    id,
-    name: typeof data.name === "string" ? data.name : "",
-    ownerId: typeof data.ownerId === "string" ? data.ownerId : "",
-    email: typeof data.email === "string" ? data.email : undefined,
-    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
-    description: typeof data.description === "string" ? data.description : undefined,
-    theme: data.theme != null ? (data.theme as OrganizationEntity["theme"]) : undefined,
-    members: Array.isArray(data.members) ? (data.members as MemberReference[]) : [],
-    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
-    teams: Array.isArray(data.teams) ? (data.teams as Team[]) : [],
-    partnerInvites: Array.isArray(data.partnerInvites) ? (data.partnerInvites as PartnerInvite[]) : undefined,
-    createdAt: data.createdAt as OrganizationEntity["createdAt"],
-  };
-}
-
-export function toTeam(id: string, data: Record<string, unknown>): Team {
-  return {
-    id,
-    name: typeof data.name === "string" ? data.name : "",
-    description: typeof data.description === "string" ? data.description : "",
-    type: data.type === "external" ? "external" : "internal",
-    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
-  };
-}
-
-export function toPartnerInvite(id: string, data: Record<string, unknown>): PartnerInvite {
-  const VALID_STATES = new Set<PartnerInvite["inviteState"]>(["pending", "accepted", "expired"]);
-  return {
-    id,
-    email: typeof data.email === "string" ? data.email : "",
-    teamId: typeof data.teamId === "string" ? data.teamId : "",
-    role: (data.role as PartnerInvite["role"]) ?? "Guest",
-    inviteState: VALID_STATES.has(data.inviteState as PartnerInvite["inviteState"])
-      ? (data.inviteState as PartnerInvite["inviteState"])
-      : "pending",
-    invitedAt: data.invitedAt as PartnerInvite["invitedAt"],
-    protocol: typeof data.protocol === "string" ? data.protocol : "",
-  };
-}
-
-export function toOrgPolicy(id: string, data: Record<string, unknown>): OrgPolicy {
-  const VALID_SCOPES = new Set<OrgPolicy["scope"]>(["workspace", "member", "global"]);
-  return {
-    id,
-    orgId: typeof data.orgId === "string" ? data.orgId : "",
-    name: typeof data.name === "string" ? data.name : "",
-    description: typeof data.description === "string" ? data.description : "",
-    rules: Array.isArray(data.rules) ? (data.rules as OrgPolicy["rules"]) : [],
-    scope: VALID_SCOPES.has(data.scope as OrgPolicy["scope"]) ? (data.scope as OrgPolicy["scope"]) : "global",
-    isActive: data.isActive === true,
-    createdAt: typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString(),
-    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
-  };
-}
-````
-
-## File: modules/platform/subdomains/organization/adapters/index.ts
-````typescript
-export { organizationService } from "./organization-service";
-export { getOrganizationMembers, getOrganizationTeams, getOrgPolicies } from "./queries/organization.queries";
-export {
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-} from "./server-actions/organization.actions";
-export { createOrgPolicy, updateOrgPolicy, deleteOrgPolicy } from "./server-actions/organization-policy.actions";
-````
-
-## File: modules/platform/subdomains/organization/adapters/server-actions/organization-policy.actions.ts
-````typescript
-"use server";
-
-/**
- * Organization Policy Server Actions — thin adapters over use cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { organizationService } from "../organization-service";
-import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
-
-export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
-  try { return await organizationService.createOrgPolicy(input); }
-  catch (err) { return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function updateOrgPolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
-  try { return await organizationService.updateOrgPolicy(policyId, data); }
-  catch (err) { return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
-  try { return await organizationService.deleteOrgPolicy(policyId); }
-  catch (err) { return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-````
-
-## File: modules/platform/subdomains/organization/adapters/server-actions/organization.actions.ts
-````typescript
-"use server";
-
-/**
- * Organization Server Actions — thin adapters over use cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { organizationService } from "../organization-service";
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "../application/use-cases/organization-member.use-cases";
+import {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../application/use-cases/organization-team.use-cases";
+import { FirebaseTeamRepository } from "../subdomains/team/api";
+import {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "../application/use-cases/organization-partner.use-cases";
+import {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "../application/use-cases/organization-policy.use-cases";
 import type {
   CreateOrganizationCommand,
   UpdateOrganizationSettingsCommand,
   InviteMemberInput,
   UpdateMemberRoleInput,
-  CreateTeamInput,
-} from "../../domain/entities/Organization";
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../domain/entities/Organization";
+import type { CreateTeamInput } from "../subdomains/team/api";
+import type { CommandResult } from "@shared-types";
 
-export async function createOrganization(cmd: CreateOrganizationCommand): Promise<CommandResult> {
-  try { return await organizationService.createOrganization(cmd); }
-  catch (err) { return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+const orgRepo = new FirebaseOrganizationRepository();
+const policyRepo = new FirebaseOrgPolicyRepository();
+const teamRepo = new FirebaseTeamRepository();
 
-export async function createOrganizationWithTeam(
-  cmd: CreateOrganizationCommand,
-  teamName: string,
-  teamType: "internal" | "external" = "internal",
-): Promise<CommandResult> {
-  try { return await organizationService.createOrganizationWithTeam(cmd, teamName, teamType); }
-  catch (err) { return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+export const organizationService = {
+  createOrganization: (cmd: CreateOrganizationCommand): Promise<CommandResult> =>
+    new CreateOrganizationUseCase(orgRepo).execute(cmd),
 
-export async function updateOrganizationSettings(cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> {
-  try { return await organizationService.updateSettings(cmd); }
-  catch (err) { return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  createOrganizationWithTeam: (
+    cmd: CreateOrganizationCommand,
+    teamName: string,
+    teamType: "internal" | "external" = "internal",
+  ): Promise<CommandResult> =>
+    new CreateOrganizationWithTeamUseCase(orgRepo).execute(cmd, teamName, teamType),
 
-export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
-  try { return await organizationService.deleteOrganization(organizationId); }
-  catch (err) { return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  updateSettings: (cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> =>
+    new UpdateOrganizationSettingsUseCase(orgRepo).execute(cmd),
 
-export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
-  try { return await organizationService.inviteMember(input); }
-  catch (err) { return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  deleteOrganization: (orgId: string): Promise<CommandResult> =>
+    new DeleteOrganizationUseCase(orgRepo).execute(orgId),
 
-export async function recruitMember(
-  organizationId: string,
-  memberId: string,
-  name: string,
-  email: string,
-): Promise<CommandResult> {
-  try { return await organizationService.recruitMember(organizationId, memberId, name, email); }
-  catch (err) { return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  inviteMember: (input: InviteMemberInput): Promise<CommandResult> =>
+    new InviteMemberUseCase(orgRepo).execute(input),
 
-export async function dismissMember(organizationId: string, memberId: string): Promise<CommandResult> {
-  try { return await organizationService.removeMember(organizationId, memberId); }
-  catch (err) { return commandFailureFrom("REMOVE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  recruitMember: (orgId: string, memberId: string, name: string, email: string): Promise<CommandResult> =>
+    new RecruitMemberUseCase(orgRepo).execute(orgId, memberId, name, email),
 
-export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
-  try { return await organizationService.updateMemberRole(input); }
-  catch (err) { return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  removeMember: (orgId: string, memberId: string): Promise<CommandResult> =>
+    new RemoveMemberUseCase(orgRepo).execute(orgId, memberId),
 
-export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
-  try { return await organizationService.createTeam(input); }
-  catch (err) { return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  updateMemberRole: (input: UpdateMemberRoleInput): Promise<CommandResult> =>
+    new UpdateMemberRoleUseCase(orgRepo).execute(input),
 
-export async function deleteTeam(organizationId: string, teamId: string): Promise<CommandResult> {
-  try { return await organizationService.deleteTeam(organizationId, teamId); }
-  catch (err) { return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
+    new CreateTeamUseCase(teamRepo).execute(input),
 
-export async function updateTeamMembers(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-  action: "add" | "remove",
-): Promise<CommandResult> {
-  try { return await organizationService.updateTeamMembers(organizationId, teamId, memberId, action); }
-  catch (err) { return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
+    new DeleteTeamUseCase(teamRepo).execute(orgId, teamId),
 
-export async function createPartnerGroup(organizationId: string, groupName: string): Promise<CommandResult> {
-  try { return await organizationService.createPartnerGroup(organizationId, groupName); }
-  catch (err) { return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
+    new UpdateTeamMembersUseCase(teamRepo).execute(orgId, teamId, memberId, action),
 
-export async function sendPartnerInvite(
-  organizationId: string,
-  teamId: string,
-  email: string,
-): Promise<CommandResult> {
-  try { return await organizationService.sendPartnerInvite(organizationId, teamId, email); }
-  catch (err) { return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
+    new CreatePartnerGroupUseCase(orgRepo).execute(orgId, groupName),
 
-export async function dismissPartnerMember(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-): Promise<CommandResult> {
-  try { return await organizationService.dismissPartnerMember(organizationId, teamId, memberId); }
-  catch (err) { return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  sendPartnerInvite: (orgId: string, teamId: string, email: string): Promise<CommandResult> =>
+    new SendPartnerInviteUseCase(orgRepo).execute(orgId, teamId, email),
+
+  dismissPartnerMember: (orgId: string, teamId: string, memberId: string): Promise<CommandResult> =>
+    new DismissPartnerMemberUseCase(orgRepo).execute(orgId, teamId, memberId),
+
+  createOrgPolicy: (input: CreateOrgPolicyInput): Promise<CommandResult> =>
+    new CreateOrgPolicyUseCase(policyRepo).execute(input),
+
+  updateOrgPolicy: (policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> =>
+    new UpdateOrgPolicyUseCase(policyRepo).execute(policyId, data),
+
+  deleteOrgPolicy: (policyId: string): Promise<CommandResult> =>
+    new DeleteOrgPolicyUseCase(policyRepo).execute(policyId),
+};
 ````
 
 ## File: modules/platform/subdomains/organization/application/use-cases/organization-team.use-cases.ts
@@ -66604,6 +65253,13 @@ export {
   DeleteTeamUseCase,
   UpdateTeamMembersUseCase,
 } from "../../subdomains/team/api";
+````
+
+## File: modules/platform/subdomains/organization/index.ts
+````typescript
+export * from "./domain";
+export * from "./application";
+export * from "./adapters";export * from "./interfaces";
 ````
 
 ## File: modules/platform/subdomains/organization/interfaces/components/MembersPage.tsx
@@ -69063,6 +67719,168 @@ export type {
 } from "../value-objects/WorkspaceVisibility";
 ````
 
+## File: modules/workspace/domain/events/workspace.events.ts
+````typescript
+import { v7 } from "@lib-uuid";
+import type { DomainEvent } from "@shared-types";
+
+import type {
+  WorkspaceLifecycleState,
+  WorkspaceVisibility,
+} from "../aggregates/Workspace";
+
+export const WORKSPACE_CREATED_EVENT_TYPE = "workspace.created" as const;
+export const WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE = "workspace.lifecycle_transitioned" as const;
+export const WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE = "workspace.visibility_changed" as const;
+
+interface WorkspaceEventBase extends DomainEvent {
+  readonly workspaceId: string;
+  readonly accountId: string;
+}
+
+export interface WorkspaceCreatedEvent extends WorkspaceEventBase {
+  readonly type: typeof WORKSPACE_CREATED_EVENT_TYPE;
+  readonly accountType: "user" | "organization";
+  readonly name: string;
+}
+
+export interface WorkspaceLifecycleTransitionedEvent extends WorkspaceEventBase {
+  readonly type: typeof WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE;
+  readonly fromState: WorkspaceLifecycleState;
+  readonly toState: WorkspaceLifecycleState;
+}
+
+export interface WorkspaceVisibilityChangedEvent extends WorkspaceEventBase {
+  readonly type: typeof WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE;
+  readonly fromVisibility: WorkspaceVisibility;
+  readonly toVisibility: WorkspaceVisibility;
+}
+
+export type WorkspaceDomainEvent =
+  | WorkspaceCreatedEvent
+  | WorkspaceLifecycleTransitionedEvent
+  | WorkspaceVisibilityChangedEvent;
+
+export function createWorkspaceCreatedEvent(input: {
+  workspaceId: string;
+  accountId: string;
+  accountType: "user" | "organization";
+  name: string;
+}): WorkspaceCreatedEvent {
+  return {
+    eventId: v7(),
+    type: WORKSPACE_CREATED_EVENT_TYPE,
+    aggregateId: input.workspaceId,
+    occurredAt: new Date().toISOString(),
+    workspaceId: input.workspaceId,
+    accountId: input.accountId,
+    accountType: input.accountType,
+    name: input.name,
+  };
+}
+
+export function createWorkspaceLifecycleTransitionedEvent(input: {
+  workspaceId: string;
+  accountId: string;
+  fromState: WorkspaceLifecycleState;
+  toState: WorkspaceLifecycleState;
+}): WorkspaceLifecycleTransitionedEvent {
+  return {
+    eventId: v7(),
+    type: WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
+    aggregateId: input.workspaceId,
+    occurredAt: new Date().toISOString(),
+    workspaceId: input.workspaceId,
+    accountId: input.accountId,
+    fromState: input.fromState,
+    toState: input.toState,
+  };
+}
+
+export function createWorkspaceVisibilityChangedEvent(input: {
+  workspaceId: string;
+  accountId: string;
+  fromVisibility: WorkspaceVisibility;
+  toVisibility: WorkspaceVisibility;
+}): WorkspaceVisibilityChangedEvent {
+  return {
+    eventId: v7(),
+    type: WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
+    aggregateId: input.workspaceId,
+    occurredAt: new Date().toISOString(),
+    workspaceId: input.workspaceId,
+    accountId: input.accountId,
+    fromVisibility: input.fromVisibility,
+    toVisibility: input.toVisibility,
+  };
+}
+````
+
+## File: modules/workspace/infrastructure/events/SharedWorkspaceDomainEventPublisher.ts
+````typescript
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+  QStashEventBusRepository,
+} from "@shared-events";
+import type {
+  WorkspaceDomainEventPublisher,
+  WorkspaceEventPublishMetadata,
+} from "../../ports/output/WorkspaceDomainEventPublisher";
+import type { WorkspaceDomainEvent } from "../../domain/events/workspace.events";
+
+function toEventPayload(event: WorkspaceDomainEvent) {
+  const {
+    eventId: _eventId,
+    type: _type,
+    aggregateId: _aggregateId,
+    occurredAt: _occurredAt,
+    ...payload
+  } = event;
+
+  return payload as Record<string, unknown>;
+}
+
+export class SharedWorkspaceDomainEventPublisher
+  implements WorkspaceDomainEventPublisher
+{
+  private readonly publishDomainEventUseCase: PublishDomainEventUseCase;
+
+  constructor() {
+    const eventBus = process.env.QSTASH_TOKEN
+      ? new QStashEventBusRepository()
+      : new NoopEventBusRepository();
+
+    this.publishDomainEventUseCase = new PublishDomainEventUseCase(
+      new InMemoryEventStoreRepository(),
+      eventBus,
+    );
+  }
+
+  async publish(
+    event: WorkspaceDomainEvent,
+    metadata?: WorkspaceEventPublishMetadata,
+  ): Promise<void> {
+    try {
+      await this.publishDomainEventUseCase.execute({
+        id: event.eventId,
+        eventName: event.type,
+        aggregateType: "Workspace",
+        aggregateId: event.aggregateId,
+        occurredAt: new Date(event.occurredAt),
+        payload: toEventPayload(event),
+        metadata,
+      });
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[workspace.events] Failed to publish workspace domain event:", error);
+      }
+    }
+  }
+}
+````
+
 ## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
 ````typescript
 import type {
@@ -70698,6 +69516,40 @@ export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly Work
 }
 ````
 
+## File: modules/workspace/subdomains/audit/domain/schema.ts
+````typescript
+/**
+ * Audit subdomain schema — immutable operation records.
+ */
+
+import { z } from "@lib-zod";
+import { BaseEntitySchema } from "@shared-types";
+
+export const AUDIT_ACTIONS = ["create", "update", "delete", "login", "export"] as const;
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+export const AUDIT_SEVERITIES = ["low", "medium", "high", "critical"] as const;
+export type AuditSeverity = (typeof AUDIT_SEVERITIES)[number];
+
+const ChangeRecordSchema = z.object({
+  field: z.string(),
+  oldValue: z.unknown(),
+  newValue: z.unknown(),
+});
+
+export type ChangeRecord = z.infer<typeof ChangeRecordSchema>;
+
+export const AuditLogSchema = BaseEntitySchema.extend({
+  action: z.enum(AUDIT_ACTIONS),
+  resourceType: z.string(),
+  resourceId: z.string(),
+  severity: z.enum(AUDIT_SEVERITIES),
+  changes: z.array(ChangeRecordSchema).optional(),
+});
+
+export type AuditLog = z.infer<typeof AuditLogSchema>;
+````
+
 ## File: modules/workspace/subdomains/audit/README.md
 ````markdown
 ## workspace.audit subdomain
@@ -71631,97 +70483,6 @@ export interface KnowledgePageApprovedHandler {
 export type { PageApprovedEvent };
 ````
 
-## File: modules/workspace/subdomains/workflow/application/process-managers/knowledge-to-workflow-materializer.ts
-````typescript
-/**
- * @module workspace-flow/application/process-managers
- * @file knowledge-to-workflow-materializer.ts
- * @description Process Manager (Saga) that listens for `knowledge.page_approved`
- * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
- *
- * ## Responsibility
- * This class is the single entry point for the cross-module event-driven
- * integration between the `knowledge` and `workspace-flow` bounded contexts.
- *
- * ## Idempotency
- * The process manager tracks processed `causationId` values to prevent
- * duplicate materialization if the same event is delivered more than once.
- * The seen-set is in-memory by default; production implementations should
- * persist to Firestore at:
- *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
- * using a Firestore transaction to provide atomic idempotency guarantees.
- *
- * ## Placement
- * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
- *   `SimpleEventBus` subscriber registered at application startup.
- * - Alternative: `modules/shared/application/sagas/` for shared saga registry.
- *
- * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
- */
-
-import type { PageApprovedEvent } from "@/modules/notion/api";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { MaterializeTasksFromKnowledgeUseCase } from "../use-cases/materialize-tasks-from-knowledge.use-case";
-import type { SourceReference } from "../../domain/value-objects/SourceReference";
-
-export class KnowledgeToWorkflowMaterializer {
-  /**
-   * In-memory idempotency guard.
-   * Replace with a persistent store in production.
-   */
-  private readonly processedCausationIds = new Set<string>();
-
-  constructor(
-    private readonly taskRepository: TaskRepository,
-    private readonly invoiceRepository: InvoiceRepository,
-  ) {}
-
-  /**
-   * Handle a `knowledge.page_approved` event.
-   *
-   * @param event - The full event payload from the knowledge module's public API.
-   * @param workspaceId - Target workspace where Tasks/Invoices will be created.
-   *   Typically resolved from the event's `workspaceId` field if present.
-   * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
-   */
-  async handle(event: PageApprovedEvent, workspaceId: string): Promise<boolean> {
-    if (this.processedCausationIds.has(event.payload.causationId)) {
-      return false;
-    }
-
-    if (!workspaceId.trim()) return false;
-
-    const sourceReference: SourceReference = {
-      type: "KnowledgePage",
-      id: event.payload.pageId,
-      causationId: event.payload.causationId,
-      correlationId: event.payload.correlationId,
-    };
-
-    const useCase = new MaterializeTasksFromKnowledgeUseCase(
-      this.taskRepository,
-      this.invoiceRepository,
-    );
-
-    const result = await useCase.execute({
-      workspaceId,
-      knowledgePageId: event.payload.pageId,
-      sourceReference,
-      extractedTasks: event.payload.extractedTasks,
-      extractedInvoices: event.payload.extractedInvoices,
-    });
-
-    if (result.success) {
-      this.processedCausationIds.add(event.payload.causationId);
-      return true;
-    }
-
-    return false;
-  }
-}
-````
-
 ## File: next-env.d.ts
 ````typescript
 /// <reference types="next" />
@@ -71730,6 +70491,427 @@ import "./.next/types/routes.d.ts";
 
 // NOTE: This file should not be edited
 // see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+````
+
+## File: packages/shared-events/index.ts
+````typescript
+/**
+ * @shared-events — Cross-module event infrastructure primitives.
+ *
+ * Provides:
+ *   - EventRecord entity and repository port interfaces (event store)
+ *   - PublishDomainEventUseCase (write-side orchestration)
+ *   - InMemoryEventStoreRepository (dev / test adapter)
+ *   - NoopEventBusRepository (test / scaffold adapter)
+ *   - QStashEventBusRepository (production transport)
+ *   - SimpleEventBus (in-process pub/sub)
+ */
+
+import type { DomainEvent } from "@shared-types";
+
+// ── EventRecord ───────────────────────────────────────────────────────────────
+
+export interface EventMetadata {
+  correlationId?: string;
+  causationId?: string;
+  actorId?: string;
+  organizationId?: string;
+  workspaceId?: string;
+  traceId?: string;
+}
+
+export interface EventRecordPayload {
+  [key: string]: unknown;
+}
+
+export class EventRecord {
+  constructor(
+    public readonly id: string,
+    public readonly eventName: string,
+    public readonly aggregateType: string,
+    public readonly aggregateId: string,
+    public readonly occurredAt: Date,
+    public readonly payload: EventRecordPayload,
+    public readonly metadata: EventMetadata = {},
+    public dispatchedAt: Date | null = null,
+  ) {
+    if (!eventName.trim()) throw new Error("eventName is required");
+    if (!aggregateType.trim()) throw new Error("aggregateType is required");
+    if (!aggregateId.trim()) throw new Error("aggregateId is required");
+  }
+
+  markDispatched(dispatchedAt: Date = new Date()): void {
+    this.dispatchedAt = dispatchedAt;
+  }
+
+  get isDispatched(): boolean {
+    return this.dispatchedAt !== null;
+  }
+}
+
+// ── Repository ports ──────────────────────────────────────────────────────────
+
+export interface IEventStoreRepository {
+  save(event: EventRecord): Promise<void>;
+  findById(id: string): Promise<EventRecord | null>;
+  findByAggregate(aggregateType: string, aggregateId: string): Promise<EventRecord[]>;
+  findUndispatched(limit: number): Promise<EventRecord[]>;
+  markDispatched(id: string, dispatchedAt: Date): Promise<void>;
+}
+
+export interface IEventBusRepository {
+  publish(event: EventRecord): Promise<void>;
+}
+
+// ── PublishDomainEventUseCase ─────────────────────────────────────────────────
+
+export interface PublishDomainEventDTO {
+  id: string;
+  eventName: string;
+  aggregateType: string;
+  aggregateId: string;
+  payload: EventRecordPayload;
+  metadata?: EventMetadata;
+  occurredAt?: Date;
+}
+
+export class PublishDomainEventUseCase {
+  constructor(
+    private readonly eventStore: IEventStoreRepository,
+    private readonly eventBus: IEventBusRepository,
+  ) {}
+
+  async execute(dto: PublishDomainEventDTO): Promise<EventRecord> {
+    const event = new EventRecord(
+      dto.id,
+      dto.eventName,
+      dto.aggregateType,
+      dto.aggregateId,
+      dto.occurredAt ?? new Date(),
+      dto.payload,
+      dto.metadata,
+    );
+
+    await this.eventStore.save(event);
+    await this.eventBus.publish(event);
+    event.markDispatched(new Date());
+    await this.eventStore.markDispatched(event.id, event.dispatchedAt ?? new Date());
+
+    return event;
+  }
+}
+
+// ── InMemoryEventStoreRepository ──────────────────────────────────────────────
+
+export class InMemoryEventStoreRepository implements IEventStoreRepository {
+  private readonly events = new Map<string, EventRecord>();
+
+  async save(event: EventRecord): Promise<void> {
+    this.events.set(event.id, event);
+  }
+
+  async findById(id: string): Promise<EventRecord | null> {
+    return this.events.get(id) ?? null;
+  }
+
+  async findByAggregate(aggregateType: string, aggregateId: string): Promise<EventRecord[]> {
+    return [...this.events.values()]
+      .filter((e) => e.aggregateType === aggregateType && e.aggregateId === aggregateId)
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
+  }
+
+  async findUndispatched(limit: number): Promise<EventRecord[]> {
+    return [...this.events.values()]
+      .filter((e) => !e.isDispatched)
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime())
+      .slice(0, Math.max(limit, 0));
+  }
+
+  async markDispatched(id: string, dispatchedAt: Date): Promise<void> {
+    const event = this.events.get(id);
+    if (event) event.markDispatched(dispatchedAt);
+  }
+}
+
+// ── NoopEventBusRepository ────────────────────────────────────────────────────
+
+export class NoopEventBusRepository implements IEventBusRepository {
+  async publish(_event: EventRecord): Promise<void> {
+    // Intentional no-op: replace with a real transport adapter when needed.
+  }
+}
+
+// ── QStashEventBusRepository ──────────────────────────────────────────────────
+
+const QSTASH_ENDPOINT = "https://qstash.upstash.io/v2/publish/";
+
+export class QStashEventBusRepository implements IEventBusRepository {
+  constructor(
+    private readonly destinationUrl: string = process.env.QSTASH_DESTINATION_URL ?? "",
+    private readonly token: string = process.env.QSTASH_TOKEN ?? "",
+  ) {}
+
+  async publish(event: EventRecord): Promise<void> {
+    if (!this.destinationUrl || !this.token) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          "[QStashEventBus] QSTASH_DESTINATION_URL or QSTASH_TOKEN not set. " +
+            `Skipping publish of event '${event.eventName}' (${event.id}).`,
+        );
+      }
+      return;
+    }
+
+    const body = JSON.stringify({
+      id: event.id,
+      eventName: event.eventName,
+      aggregateType: event.aggregateType,
+      aggregateId: event.aggregateId,
+      occurredAt: event.occurredAt.toISOString(),
+      payload: event.payload,
+      metadata: event.metadata,
+    });
+
+    const response = await fetch(
+      `${QSTASH_ENDPOINT}${encodeURIComponent(this.destinationUrl)}`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          "Content-Type": "application/json",
+          "Upstash-Retries": "3",
+          "Upstash-Delay": "0s",
+        },
+        body,
+      },
+    );
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => response.statusText);
+      throw new Error(
+        `QStashEventBus: failed to publish event '${event.eventName}'. ` +
+          `HTTP ${response.status}: ${text}`,
+      );
+    }
+
+    event.markDispatched();
+  }
+}
+
+// ── SimpleEventBus ────────────────────────────────────────────────────────────
+
+export type EventHandler<T extends DomainEvent = DomainEvent> = (event: T) => Promise<void>;
+
+export class SimpleEventBus {
+  private readonly handlers = new Map<string, EventHandler[]>();
+
+  subscribe<T extends DomainEvent>(eventType: string, handler: EventHandler<T>): void {
+    const existing = this.handlers.get(eventType) ?? [];
+    this.handlers.set(eventType, [...existing, handler as EventHandler]);
+  }
+
+  async publish<T extends DomainEvent>(event: T): Promise<void> {
+    const relevant = this.handlers.get(event.type) ?? [];
+    for (const handler of relevant) {
+      await handler(event);
+    }
+  }
+
+  clear(): void {
+    this.handlers.clear();
+  }
+}
+````
+
+## File: packages/shared-types/index.ts
+````typescript
+import { z } from "@lib-zod";
+
+// ─── Domain Event base interface ─────────────────────────────────────────────
+
+/** All domain events must implement this interface. */
+export interface DomainEvent {
+  /** Unique event identifier */
+  readonly eventId: string;
+  /** Event type discriminant (e.g. "workspace.created") */
+  readonly type: string;
+  /** Aggregate root ID that triggered the event */
+  readonly aggregateId: string;
+  /** ISO 8601 occurrence timestamp */
+  readonly occurredAt: string;
+}
+
+// ─── Base entity schema ───────────────────────────────────────────────────────
+
+const CreatedBySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  avatarUrl: z.string().optional(),
+});
+
+/**
+ * Shared base fields for all domain entities.
+ * Includes tenant isolation (accountId / workspaceId) and audit trail (createdBy).
+ */
+export const BaseEntitySchema = z.object({
+  id: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  workspaceId: z.string(),
+  accountId: z.string(),
+  createdBy: CreatedBySchema,
+});
+
+export type BaseEntity = z.infer<typeof BaseEntitySchema>;
+export type CreatedBy = z.infer<typeof CreatedBySchema>;
+
+/**
+ * Query scope for account-level or workspace-level queries.
+ * When workspaceId is omitted, the query spans all workspaces for the tenant.
+ */
+export interface QueryScope {
+  accountId: string;
+  workspaceId?: string;
+}
+
+// ─── Primitive types ──────────────────────────────────────────────────────────
+
+export type ID = string;
+
+export interface PaginationParams {
+  page: number;
+  limit: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+// ─── Domain Error ─────────────────────────────────────────────────────────────
+
+/**
+ * Structured domain error returned in CommandFailure.
+ * Consumers MUST NOT use raw Error objects for command results.
+ */
+export interface DomainError {
+  readonly code: string;
+  readonly message: string;
+  readonly context?: Record<string, unknown>;
+}
+
+// ─── Command Result Contract [R4] ─────────────────────────────────────────────
+
+export interface CommandSuccess {
+  readonly success: true;
+  readonly aggregateId: string;
+  readonly version: number;
+}
+
+export interface CommandFailure {
+  readonly success: false;
+  readonly error: DomainError;
+}
+
+/** Union returned by every Command Handler / use-case / _actions.ts export. */
+export type CommandResult = CommandSuccess | CommandFailure;
+
+export function commandSuccess(aggregateId: string, version: number): CommandSuccess {
+  return { success: true, aggregateId, version };
+}
+
+export function commandFailure(error: DomainError): CommandFailure {
+  return { success: false, error };
+}
+
+export function commandFailureFrom(
+  code: string,
+  message: string,
+  context?: Record<string, unknown>,
+): CommandFailure {
+  return commandFailure({ code, message, context });
+}
+
+// ─── Firestore Timestamp shim ─────────────────────────────────────────────────
+
+/** Opaque Firestore Timestamp — Domain only carries seconds/nanoseconds, no SDK types. */
+export interface Timestamp {
+  readonly seconds: number;
+  readonly nanoseconds: number;
+  toDate(): Date;
+}
+````
+
+## File: tsconfig.json
+````json
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"],
+      "@shared-types": ["./packages/shared-types/index.ts"],
+      "@shared-events": ["./packages/shared-events/index.ts"],
+      "@shared-utils": ["./packages/shared-utils/index.ts"],
+      "@shared-validators": ["./packages/shared-validators/index.ts"],
+      "@shared-constants": ["./packages/shared-constants/index.ts"],
+      "@shared-hooks": ["./packages/shared-hooks/index.ts"],
+      "@integration-firebase": ["./packages/integration-firebase/index.ts"],
+      "@integration-firebase/*": ["./packages/integration-firebase/*"],
+      "@integration-http": ["./packages/integration-http/index.ts"],
+      "@api-contracts": ["./packages/api-contracts/index.ts"],
+      "@ui-shadcn": ["./packages/ui-shadcn/index.ts"],
+      "@ui-shadcn/*": ["./packages/ui-shadcn/*"],
+      "@ui-vis": ["./packages/ui-vis/index.ts"],
+      "@lib-date-fns": ["./packages/lib-date-fns/index.ts"],
+      "@lib-zod": ["./packages/lib-zod/index.ts"],
+      "@lib-uuid": ["./packages/lib-uuid/index.ts"],
+      "@lib-zustand": ["./packages/lib-zustand/index.ts"],
+      "@lib-xstate": ["./packages/lib-xstate/index.ts"],
+      "@lib-tanstack": ["./packages/lib-tanstack/index.ts"],
+      "@lib-superjson": ["./packages/lib-superjson/index.ts"],
+      "@lib-dragdrop": ["./packages/lib-dragdrop/index.ts"],
+      "@lib-react-markdown": ["./packages/lib-react-markdown/index.ts"],
+      "@lib-remark-gfm": ["./packages/lib-remark-gfm/index.ts"],
+      "@lib-vis": ["./packages/lib-vis/index.ts"],
+      "@lib-vis/*": ["./packages/lib-vis/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": [
+    "node_modules",
+    "functions"
+  ]
+}
 ````
 
 ## File: app/(shell)/ai-chat/page.tsx
@@ -73147,6 +72329,252 @@ export type SourceFileCommandErrorCode =
   | "FILE_INVALID_INPUT"
   | "FILE_DELETE_FAILED"
   | "FILE_RENAME_FAILED";
+````
+
+## File: modules/notebooklm/subdomains/source/application/use-cases/wiki-library.helpers.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Purpose: Private helpers for wiki-library use cases.
+ *
+ * Extracted from use-cases file to keep business workflow readable.
+ * Depends on local slug-utils for slug derivation and validation.
+ */
+
+import { deriveSlugCandidate, isValidSlug } from "../utils/slug-utils";
+import type { WikiLibrary } from "../../domain/entities/WikiLibrary";
+
+export function generateSourceId(): string {
+  const randomUUID = globalThis.crypto?.randomUUID;
+  if (typeof randomUUID === "function") {
+    return randomUUID.call(globalThis.crypto);
+  }
+  return `wbl_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+}
+
+export function normalizeLibraryName(name: string): string {
+  const value = name.trim();
+  if (!value) throw new Error("library name is required");
+  return value.slice(0, 80);
+}
+
+export function normalizeFieldKey(key: string): string {
+  const normalized = key.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+  if (!normalized) throw new Error("field key is required");
+  return normalized.slice(0, 48);
+}
+
+export function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiLibrary[]): string {
+  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "library-node";
+  const existing = new Set(libraries.map((lib) => lib.slug));
+  if (!existing.has(normalizedBase)) return normalizedBase;
+
+  let index = 2;
+  while (index < 5000) {
+    const candidate = `${normalizedBase}-${index}`;
+    if (!existing.has(candidate) && isValidSlug(candidate)) return candidate;
+    index += 1;
+  }
+  throw new Error("cannot allocate a unique slug for this library name");
+}
+
+export { deriveSlugCandidate };
+````
+
+## File: modules/notebooklm/subdomains/source/application/use-cases/wiki-library.use-cases.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Cases: Wiki library management — create, add fields, add rows, list.
+ *
+ * Design notes:
+ * - All functions take explicit repository injection (no module-scope singletons).
+ * - Event publisher is created lazily to avoid import-time side effects.
+ * - Event publishing uses @shared-events public boundary only.
+ */
+
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+} from "@shared-events";
+
+import type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../../domain/entities/WikiLibrary";
+import type { IWikiLibraryRepository } from "../../domain/repositories/IWikiLibraryRepository";
+import {
+  generateSourceId,
+  normalizeLibraryName,
+  normalizeFieldKey,
+  ensureUniqueLibrarySlug,
+  deriveSlugCandidate,
+} from "./wiki-library.helpers";
+
+// Lazy event publisher — only instantiated on first event emit.
+let _eventPublisher: PublishDomainEventUseCase | undefined;
+
+function getEventPublisher(): PublishDomainEventUseCase {
+  if (!_eventPublisher) {
+    _eventPublisher = new PublishDomainEventUseCase(
+      new InMemoryEventStoreRepository(),
+      new NoopEventBusRepository(),
+    );
+  }
+  return _eventPublisher;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
+export async function listWikiLibraries(
+  accountId: string,
+  workspaceId: string | undefined,
+  libraryRepository: IWikiLibraryRepository,
+): Promise<WikiLibrary[]> {
+  if (!accountId) throw new Error("accountId is required");
+  const libraries = await libraryRepository.listByAccountId(accountId);
+  const activeLibraries = libraries.filter((lib) => lib.status === "active");
+  if (!workspaceId) return activeLibraries;
+  return activeLibraries.filter((lib) => lib.workspaceId === workspaceId);
+}
+
+export async function createWikiLibrary(
+  input: CreateWikiLibraryInput,
+  libraryRepository: IWikiLibraryRepository,
+): Promise<WikiLibrary> {
+  if (!input.accountId) throw new Error("accountId is required");
+
+  const name = normalizeLibraryName(input.name);
+  const libraries = await libraryRepository.listByAccountId(input.accountId);
+  const workspaceLibraries = libraries.filter(
+    (lib) => (lib.workspaceId ?? "") === (input.workspaceId ?? ""),
+  );
+
+  const slug = ensureUniqueLibrarySlug(deriveSlugCandidate(name), workspaceLibraries);
+  const now = new Date();
+  const library: WikiLibrary = {
+    id: generateSourceId(),
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    name,
+    slug,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await libraryRepository.create(library);
+  await getEventPublisher().execute({
+    id: generateSourceId(),
+    eventName: "source.library_created",
+    aggregateType: "wiki-library",
+    aggregateId: library.id,
+    payload: {
+      accountId: library.accountId,
+      workspaceId: library.workspaceId,
+      slug: library.slug,
+    },
+  });
+
+  return library;
+}
+
+export async function addWikiLibraryField(
+  input: AddWikiLibraryFieldInput,
+  libraryRepository: IWikiLibraryRepository,
+): Promise<WikiLibraryField> {
+  const library = await libraryRepository.findById(input.accountId, input.libraryId);
+  if (!library) throw new Error("library not found");
+
+  const key = normalizeFieldKey(input.key);
+  const label = normalizeLibraryName(input.label);
+  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
+  if (fields.some((f) => f.key === key)) throw new Error(`field key "${key}" already exists`);
+
+  const field: WikiLibraryField = {
+    id: generateSourceId(),
+    libraryId: input.libraryId,
+    key,
+    label,
+    type: input.type,
+    required: input.required ?? false,
+    options: input.options,
+    createdAt: new Date(),
+  };
+
+  await libraryRepository.createField(input.accountId, field);
+  await getEventPublisher().execute({
+    id: generateSourceId(),
+    eventName: "source.library_field_added",
+    aggregateType: "wiki-library",
+    aggregateId: input.libraryId,
+    payload: { accountId: input.accountId, fieldKey: field.key, fieldType: field.type },
+  });
+
+  return field;
+}
+
+export async function createWikiLibraryRow(
+  input: CreateWikiLibraryRowInput,
+  libraryRepository: IWikiLibraryRepository,
+): Promise<WikiLibraryRow> {
+  const library = await libraryRepository.findById(input.accountId, input.libraryId);
+  if (!library) throw new Error("library not found");
+
+  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
+  for (const field of fields.filter((f) => f.required)) {
+    if (!(field.key in input.values)) throw new Error(`missing required field: ${field.key}`);
+  }
+
+  const now = new Date();
+  const row: WikiLibraryRow = {
+    id: generateSourceId(),
+    libraryId: input.libraryId,
+    values: input.values,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await libraryRepository.createRow(input.accountId, row);
+  await getEventPublisher().execute({
+    id: generateSourceId(),
+    eventName: "source.library_row_created",
+    aggregateType: "wiki-library",
+    aggregateId: input.libraryId,
+    payload: { accountId: input.accountId, rowId: row.id, fields: Object.keys(row.values) },
+  });
+
+  return row;
+}
+
+export interface WikiLibrarySnapshot {
+  readonly library: WikiLibrary;
+  readonly fields: WikiLibraryField[];
+  readonly rows: WikiLibraryRow[];
+}
+
+export async function getWikiLibrarySnapshot(
+  accountId: string,
+  libraryId: string,
+  libraryRepository: IWikiLibraryRepository,
+): Promise<WikiLibrarySnapshot> {
+  const library = await libraryRepository.findById(accountId, libraryId);
+  if (!library) throw new Error("library not found");
+
+  const [fields, rows] = await Promise.all([
+    libraryRepository.listFields(accountId, libraryId),
+    libraryRepository.listRows(accountId, libraryId),
+  ]);
+
+  return { library, fields, rows };
+}
 ````
 
 ## File: modules/notebooklm/subdomains/source/interfaces/_actions/source-file.actions.ts
@@ -75957,120 +75385,30 @@ export async function getNotificationsForRecipient(recipientId: string, maxCount
 }
 ````
 
-## File: modules/platform/subdomains/organization/adapters/organization-service.ts
+## File: modules/platform/subdomains/organization/adapters/queries/organization.queries.ts
 ````typescript
 /**
- * OrganizationService — Composition root for organization use cases.
+ * Organization Queries — direct repo reads for client-side data.
  */
 
-import { FirebaseOrganizationRepository } from "./firebase/FirebaseOrganizationRepository";
-import { FirebaseOrgPolicyRepository } from "./firebase/FirebaseOrgPolicyRepository";
-import {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-} from "../application/use-cases/organization-lifecycle.use-cases";
-import {
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-} from "../application/use-cases/organization-member.use-cases";
-import {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../application/use-cases/organization-team.use-cases";
-import { FirebaseTeamRepository } from "../subdomains/team/api";
-import {
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../application/use-cases/organization-partner.use-cases";
-import {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../application/use-cases/organization-policy.use-cases";
-import type {
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../domain/entities/Organization";
-import type { CreateTeamInput } from "../subdomains/team/api";
-import type { CommandResult } from "@shared-types";
+import { FirebaseOrganizationRepository } from "../firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "../firebase/FirebaseOrgPolicyRepository";
+import type { MemberReference, Team, OrgPolicy } from "../../domain/entities/Organization";
 
 const orgRepo = new FirebaseOrganizationRepository();
 const policyRepo = new FirebaseOrgPolicyRepository();
-const teamRepo = new FirebaseTeamRepository();
 
-export const organizationService = {
-  createOrganization: (cmd: CreateOrganizationCommand): Promise<CommandResult> =>
-    new CreateOrganizationUseCase(orgRepo).execute(cmd),
+export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
+  return orgRepo.getMembers(organizationId);
+}
 
-  createOrganizationWithTeam: (
-    cmd: CreateOrganizationCommand,
-    teamName: string,
-    teamType: "internal" | "external" = "internal",
-  ): Promise<CommandResult> =>
-    new CreateOrganizationWithTeamUseCase(orgRepo).execute(cmd, teamName, teamType),
+export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
+  return orgRepo.getTeams(organizationId);
+}
 
-  updateSettings: (cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> =>
-    new UpdateOrganizationSettingsUseCase(orgRepo).execute(cmd),
-
-  deleteOrganization: (orgId: string): Promise<CommandResult> =>
-    new DeleteOrganizationUseCase(orgRepo).execute(orgId),
-
-  inviteMember: (input: InviteMemberInput): Promise<CommandResult> =>
-    new InviteMemberUseCase(orgRepo).execute(input),
-
-  recruitMember: (orgId: string, memberId: string, name: string, email: string): Promise<CommandResult> =>
-    new RecruitMemberUseCase(orgRepo).execute(orgId, memberId, name, email),
-
-  removeMember: (orgId: string, memberId: string): Promise<CommandResult> =>
-    new RemoveMemberUseCase(orgRepo).execute(orgId, memberId),
-
-  updateMemberRole: (input: UpdateMemberRoleInput): Promise<CommandResult> =>
-    new UpdateMemberRoleUseCase(orgRepo).execute(input),
-
-  createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
-    new CreateTeamUseCase(teamRepo).execute(input),
-
-  deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
-    new DeleteTeamUseCase(teamRepo).execute(orgId, teamId),
-
-  updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
-    new UpdateTeamMembersUseCase(teamRepo).execute(orgId, teamId, memberId, action),
-
-  createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
-    new CreatePartnerGroupUseCase(orgRepo).execute(orgId, groupName),
-
-  sendPartnerInvite: (orgId: string, teamId: string, email: string): Promise<CommandResult> =>
-    new SendPartnerInviteUseCase(orgRepo).execute(orgId, teamId, email),
-
-  dismissPartnerMember: (orgId: string, teamId: string, memberId: string): Promise<CommandResult> =>
-    new DismissPartnerMemberUseCase(orgRepo).execute(orgId, teamId, memberId),
-
-  createOrgPolicy: (input: CreateOrgPolicyInput): Promise<CommandResult> =>
-    new CreateOrgPolicyUseCase(policyRepo).execute(input),
-
-  updateOrgPolicy: (policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> =>
-    new UpdateOrgPolicyUseCase(policyRepo).execute(policyId, data),
-
-  deleteOrgPolicy: (policyId: string): Promise<CommandResult> =>
-    new DeleteOrgPolicyUseCase(policyRepo).execute(policyId),
-};
-````
-
-## File: modules/platform/subdomains/organization/index.ts
-````typescript
-export * from "./domain";
-export * from "./application";
-export * from "./adapters";export * from "./interfaces";
+export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
+  return policyRepo.getPolicies(orgId);
+}
 ````
 
 ## File: modules/platform/subdomains/organization/interfaces/components/CreateOrganizationDialog.tsx
@@ -76827,6 +76165,97 @@ api/
 🔨 Migration-Pending — scaffold only
 ````
 
+## File: modules/workspace/subdomains/workflow/application/process-managers/knowledge-to-workflow-materializer.ts
+````typescript
+/**
+ * @module workspace-flow/application/process-managers
+ * @file knowledge-to-workflow-materializer.ts
+ * @description Process Manager (Saga) that listens for `knowledge.page_approved`
+ * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
+ *
+ * ## Responsibility
+ * This class is the single entry point for the cross-module event-driven
+ * integration between the `knowledge` and `workspace-flow` bounded contexts.
+ *
+ * ## Idempotency
+ * The process manager tracks processed `causationId` values to prevent
+ * duplicate materialization if the same event is delivered more than once.
+ * The seen-set is in-memory by default; production implementations should
+ * persist to Firestore at:
+ *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
+ * using a Firestore transaction to provide atomic idempotency guarantees.
+ *
+ * ## Placement
+ * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
+ *   `SimpleEventBus` subscriber registered at application startup.
+ * - Alternative: a shared saga registry if cross-module saga coordination is needed.
+ *
+ * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
+ */
+
+import type { PageApprovedEvent } from "@/modules/notion/api";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { MaterializeTasksFromKnowledgeUseCase } from "../use-cases/materialize-tasks-from-knowledge.use-case";
+import type { SourceReference } from "../../domain/value-objects/SourceReference";
+
+export class KnowledgeToWorkflowMaterializer {
+  /**
+   * In-memory idempotency guard.
+   * Replace with a persistent store in production.
+   */
+  private readonly processedCausationIds = new Set<string>();
+
+  constructor(
+    private readonly taskRepository: TaskRepository,
+    private readonly invoiceRepository: InvoiceRepository,
+  ) {}
+
+  /**
+   * Handle a `knowledge.page_approved` event.
+   *
+   * @param event - The full event payload from the knowledge module's public API.
+   * @param workspaceId - Target workspace where Tasks/Invoices will be created.
+   *   Typically resolved from the event's `workspaceId` field if present.
+   * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
+   */
+  async handle(event: PageApprovedEvent, workspaceId: string): Promise<boolean> {
+    if (this.processedCausationIds.has(event.payload.causationId)) {
+      return false;
+    }
+
+    if (!workspaceId.trim()) return false;
+
+    const sourceReference: SourceReference = {
+      type: "KnowledgePage",
+      id: event.payload.pageId,
+      causationId: event.payload.causationId,
+      correlationId: event.payload.correlationId,
+    };
+
+    const useCase = new MaterializeTasksFromKnowledgeUseCase(
+      this.taskRepository,
+      this.invoiceRepository,
+    );
+
+    const result = await useCase.execute({
+      workspaceId,
+      knowledgePageId: event.payload.pageId,
+      sourceReference,
+      extractedTasks: event.payload.extractedTasks,
+      extractedInvoices: event.payload.extractedInvoices,
+    });
+
+    if (result.success) {
+      this.processedCausationIds.add(event.payload.causationId);
+      return true;
+    }
+
+    return false;
+  }
+}
+````
+
 ## File: modules/workspace/subdomains/workflow/README.md
 ````markdown
 ## workspace.workflow subdomain
@@ -77503,485 +76932,6 @@ export default function WorkspacePage() {
 }
 ````
 
-## File: docs/decisions/0001-hexagonal-architecture.md
-````markdown
-# 0001 Hexagonal Architecture
-
-- Status: Accepted
-- Date: 2026-04-11
-
-## Context
-
-Context7 驗證的 DDD / Hexagonal 參考指出，模組應保持高凝聚、低耦合，外部世界只依賴公開介面，領域核心必須與框架與基礎設施分離。若沒有清楚的邊界與端口，模組內部規則會被外層技術細節污染，跨主域整合也會快速失控。
-
-## Decision
-
-採用主域導向的 Hexagonal Architecture 作為全域架構基線。
-
-- 每個主域內部遵守：driving adapters -> application orchestration -> domain core <- driven adapters。
-- 領域核心負責 invariants、值物件、聚合與領域規則。
-- 外部框架、IO、第三方服務、傳輸格式只能存在於邊界與 adapter。
-- 跨主域互動只能透過 published language、API 邊界或事件。
-- 公開 API 是跨主域依賴點，不是內部模組結構的鏡像暴露。
-
-## Consequences
-
-正面影響：
-
-- 主域邊界更清楚，重構內部結構時不必連帶破壞外部整合。
-- 領域語言可維持穩定，不會被 UI、HTTP 或基礎設施術語污染。
-- 後續若需要分拆部署或演進為更獨立的服務，代價較低。
-
-代價與限制：
-
-- 需要更多 API 契約、Local DTO、ACL 與轉換層。
-- 需要更嚴格的命名與文件治理，不可直接偷渡內部模型。
-
-## Conflict Resolution
-
-- 若任何文件暗示 domain 直接依賴 framework / infrastructure，以本 ADR 為準並判定為衝突。
-- 若任何文件把 index 或共享檔案當成跨主域真實邊界，以本 ADR 為準並改回公開 API / published language。
-
-## Rejected Anti-Patterns
-
-- Domain 直接依賴 framework、SDK、transport、database implementation。
-- Application service 直接呼叫 driven adapter，而不透過 port。
-- Interface adapter 直接承載核心業務規則。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 interfaces -> application -> domain <- infrastructure 的向內依賴方向。
-- 奧卡姆剃刀：若較少的 abstraction 已能保護邊界，就不要額外新增 port、service、facade 或 adapter。
-- 只有外部依賴或語義污染明確存在時，才建立 port 與 adapter。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Interfaces["Interfaces"] --> Application["Application"]
-	Application --> Domain["Domain"]
-	Infrastructure["Infrastructure"] --> Domain
-	Infrastructure -. implements .-> Ports["Ports"]
-	Application -. uses .-> Ports
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Request["Request"] --> Interfaces["Driving adapter"]
-	Interfaces --> Application["Application orchestration"]
-	Application --> Domain["Domain decision"]
-	Domain --> Ports["Port contract"]
-	Ports --> Infrastructure["Driven adapter"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
-- [0003-context-map.md](./0003-context-map.md)
-- [../architecture-overview.md](../architecture-overview.md)
-- [../integration-guidelines.md](../integration-guidelines.md)
-````
-
-## File: docs/decisions/0002-bounded-contexts.md
-````markdown
-# 0002 Bounded Contexts
-
-- Status: Accepted
-- Date: 2026-04-11
-
-## Context
-
-Context7 驗證的 bounded context 原則要求每個 context 只承載一組高凝聚、可自洽的語言與規則。如果沒有清楚主域與子域所有權，術語、責任與整合規則就會互相覆蓋，造成治理語言、內容語言與推理語言混雜。
-
-## Decision
-
-將系統的主域固定為四個主域：
-
-- workspace：協作容器與工作區範疇
-- platform：治理、身份、權益與營運支撐
-- notion：正典知識內容生命週期
-- notebooklm：對話、來源處理與推理輸出
-
-每個主域底下都有自己的子域集合。文件中必須明確區分：
-
-- baseline subdomains：此架構基線中已確立的核心子域
-- recommended gap subdomains：依 Context7 推導出的合理缺口子域
-
-## Consequences
-
-正面影響：
-
-- 所有權清楚，可避免 platform、workspace、notion、notebooklm 互相吞邊界。
-- 上層戰略文件與主域文件可共享同一個 decomposition 模型。
-
-代價與限制：
-
-- 需要承認 gap subdomains 是 architecture-first 建議，而不是 repo-inspected 現況事實。
-- 未來若要改主域切分，必須連動更新 strategic docs、ADR 與 context docs。
-
-## Conflict Resolution
-
-- 若任何文件出現超過四個主域的平級切分，以本 ADR 為準並視為衝突。
-- 若任何文件把 recommended gap subdomains 寫成已驗證現況，以本 ADR 為準並改回 architecture-first 表述。
-
-## Rejected Anti-Patterns
-
-- 讓多個主域同時聲稱同一正典所有權。
-- 用 UI、部署或資料表分組來取代 bounded context 切分。
-- 把 gap subdomain 寫成已落地事實，而不標示為架構缺口。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先判定需求屬於哪個主域與子域，再決定檔案位置與依賴方向。
-- 奧卡姆剃刀：若既有 bounded context 已可吸收需求，就不要新增平級主域或語意重疊子域。
-- 所有權不清楚時，先修正語言與 context map，再寫程式碼。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart TD
-	MainDomain["Main Domain"] --> Subdomain["Subdomain"]
-	Subdomain --> Application["Application"]
-	Application --> Domain["Domain"]
-	Infrastructure["Infrastructure"] --> Domain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Need["New requirement"] --> Ownership["Identify owning bounded context"]
-	Ownership --> Language["Align ubiquitous language"]
-	Language --> API["Choose boundary / API"]
-	API --> Code["Generate code in owning context"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md)
-- [0003-context-map.md](./0003-context-map.md)
-- [../bounded-contexts.md](../bounded-contexts.md)
-- [../subdomains.md](../subdomains.md)
-````
-
-## File: docs/decisions/0003-context-map.md
-````markdown
-# 0003 Context Map
-
-- Status: Accepted
-- Date: 2026-04-11
-
-## Context
-
-Context Mapper 文件指出，context map 是 bounded contexts 與其關係的中心表示。若關係方向不清楚，則 published language、ACL、supplier/customer 責任無法正確定義，文件之間也容易同時出現互相衝突的整合模型。
-
-## Decision
-
-在四個主域之間，只採用 directed upstream-downstream 關係作為主域級整合基線。
-
-主域關係如下：
-
-- platform -> workspace
-- platform -> notion
-- platform -> notebooklm
-- workspace -> notion
-- workspace -> notebooklm
-- notion -> notebooklm
-
-主域級不採用 Shared Kernel 或 Partnership。
-
-## Consequences
-
-正面影響：
-
-- 每個主域可以清楚知道誰是上游、誰是下游。
-- ACL、Published Language、Conformist 等模式才有明確適用位置。
-
-代價與限制：
-
-- 需要更多轉譯與 API 契約層，不能直接共享內部模型。
-- 若某些能力確實需要共用模型，必須先抽象成新的獨立 bounded context，而不是偷渡共享核心。
-
-## Conflict Resolution
-
-- 若任何文件同時宣稱兩個主域是 Partnership / Shared Kernel，又同時使用 ACL 或 Conformist，判定為衝突，以本 ADR 為準。
-- 若任何文件出現與上述方向相反的主域級關係，以本 ADR 為準。
-
-## Rejected Anti-Patterns
-
-- 把 directed upstream-downstream 與 symmetric relationship 混寫在同一主域關係。
-- 把 supplier / consumer 敘事寫反，造成上下游不明。
-- 直接共享內部模型來取代 published language。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先判定 upstream 與 downstream，再安排 API boundary、published language、ACL 或 Conformist。
-- 奧卡姆剃刀：若單一 published language 與單一 translation step 已足夠，就不要加第二條整合鏈。
-- 關係方向不清楚時，先停下修正文檔，不直接生成跨主域耦合程式碼。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Upstream["Upstream"] -->|PL / OHS| Downstream["Downstream"]
-	Downstream -->|ACL or Conformist| LocalModel["Local model"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Upstream["Upstream context"] -->|Published Language| Boundary["Downstream API client / boundary"]
-	Boundary --> Translation["ACL or local DTO"]
-	Translation --> Domain["Downstream domain"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
-- [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md)
-- [../context-map.md](../context-map.md)
-- [../integration-guidelines.md](../integration-guidelines.md)
-````
-
-## File: docs/decisions/0004-ubiquitous-language.md
-````markdown
-# 0004 Ubiquitous Language
-
-- Status: Accepted
-- Date: 2026-04-11
-
-## Context
-
-Context7 驗證的 DDD 參考指出，領域核心必須運作在自己清楚的 ubiquitous language 之上。若沒有共同語言，跨主域整合、ADR、戰略文件與子域文件會用不同詞指同一件事，或用同一詞指不同責任，進而造成長期衝突。
-
-## Decision
-
-建立兩層語言治理：
-
-- strategic ubiquitous language：定義四主域共用的戰略術語與整合術語
-- context-specific ubiquitous language：由各主域 context 文件定義更細的本地主域語言
-
-主域層的關鍵術語固定為：
-
-- platform：Actor、Tenant、Entitlement、Secret、Consent
-- workspace：Workspace、Membership、ShareScope、ActivityFeed、AuditTrail
-- notion：KnowledgeArtifact、Taxonomy、Relation、Publication
-- notebooklm：Notebook、Ingestion、Retrieval、Grounding、Synthesis、Evaluation
-
-## Consequences
-
-正面影響：
-
-- 戰略文件、主域文件與 ADR 可以共享同一套術語。
-- 語言衝突可以在文件層面先被攔住，而不是等到實作才暴露。
-
-代價與限制：
-
-- 命名自由度下降，需要持續維護 glossary。
-- 新概念若無法歸屬到既有語言，必須先做文件決策。
-
-## Conflict Resolution
-
-- 若戰略語言與主域語言衝突，先以更具邊界意義的主域語言為準，再回寫 strategic glossary。
-- 若兩個主域同時主張同一術語所有權，以 bounded contexts 與 context map 的所有權關係為準。
-
-## Rejected Anti-Patterns
-
-- 用同一個詞同時指涉治理、內容、推理三種不同責任。
-- 用舊產品術語覆蓋新的 bounded context 語言。
-- 讓實作便利性凌駕於 ubiquitous language 一致性。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先對齊 strategic term 與 context-specific term，再決定檔名、型別與 API 名稱。
-- 奧卡姆剃刀：若一個名詞已足夠表達邊界，就不要再堆疊第二個近義抽象詞。
-- 名稱若與現有語言衝突，先修正文檔與用語，再寫程式碼。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Strategic["Strategic language"] --> Context["Context language"]
-	Context --> Boundary["API / Published Language"]
-	Boundary --> Code["Generated code names"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Requirement["Requirement"] --> Term["Choose canonical term"]
-	Term --> Context["Map to owning context"]
-	Context --> Boundary["Expose through correct boundary"]
-	Boundary --> Code["Generate code"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
-- [../ubiquitous-language.md](../ubiquitous-language.md)
-- [../contexts/_template.md](../contexts/_template.md)
-````
-
-## File: docs/decisions/0005-anti-corruption-layer.md
-````markdown
-# 0005 Anti-Corruption Layer
-
-- Status: Accepted
-- Date: 2026-04-11
-
-## Context
-
-Context Mapper 明確指出 ACL 只能出現在 upstream-downstream 關係中，且只能由 downstream 採用；ACL 與 Conformist 互斥，且都不適用於 Shared Kernel 或 Partnership。若沒有這條規則，整合文件會同時宣稱保護語言與直接順從上游，造成自相矛盾。
-
-## Decision
-
-採用以下整合保護規則：
-
-- 主域級整合預設先使用 published language + local DTO。
-- 若上游語言會扭曲下游語言，下游必須使用 ACL。
-- 若上游語言與下游需求高度一致，下游才可選擇 Conformist。
-- ACL 與 Conformist 不能同時套用在同一關係。
-- 因本架構基線不採用主域級 Shared Kernel / Partnership，所以主域級不允許以對稱關係為由略過 ACL 判斷。
-
-## Consequences
-
-正面影響：
-
-- 下游主域可以保護自己的 ubiquitous language。
-- Integration guidelines 可以有單一、可判斷的模式選擇規則。
-
-代價與限制：
-
-- 需要維護更多轉譯器、Local DTO 與邊界測試。
-- 若每個整合都無條件使用 ACL，也會增加樣板成本，因此仍須做必要性判斷。
-
-## Conflict Resolution
-
-- 若任何文件把 ACL 寫成 upstream 的責任，判定為衝突，以本 ADR 為準。
-- 若任何文件同時要求 ACL 與 Conformist 套在同一整合，判定為衝突，以本 ADR 為準。
-- 若任何文件在對稱關係上使用 ACL / Conformist，判定為衝突，以本 ADR 為準。
-
-## Rejected Anti-Patterns
-
-- 把 ACL 當成 upstream 的工作。
-- 在同一關係同時宣稱 ACL 與 Conformist。
-- 用 Shared Kernel / Partnership 當理由跳過整合語義判斷。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先確認自己是 upstream 還是 downstream，再決定是否需要 ACL 或 Conformist。
-- 奧卡姆剃刀：若 published language 加 local DTO 已足夠，就不要額外新增第二層 ACL。
-- 只有在上游語言真的會污染本地語言時，才建立 ACL。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Upstream["Upstream"] -->|Published Language| DownstreamBoundary["Downstream boundary"]
-	DownstreamBoundary --> ACL["ACL if needed"]
-	DownstreamBoundary --> CF["Conformist if language matches"]
-	ACL --> LocalDomain["Local domain"]
-	CF --> LocalDomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Upstream["Upstream context"] -->|PL / OHS| Boundary["Downstream API client"]
-	Boundary --> Decision["Need protection?"]
-	Decision -->|Yes| ACL["ACL"]
-	Decision -->|No| CF["Conformist"]
-	ACL --> Domain["Downstream domain"]
-	CF --> Domain
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [0003-context-map.md](./0003-context-map.md)
-- [../context-map.md](../context-map.md)
-- [../integration-guidelines.md](../integration-guidelines.md)
-````
-
-## File: docs/decisions/README.md
-````markdown
-# Decisions
-
-本目錄是 architecture-first 的決策日誌。依 ADR 參考模式，每份 ADR 至少說明 context、decision、consequences 與 conflict resolution，讓後續戰略文件可以引用相同決策來源。
-
-## Decision Log
-
-| ADR | Title | Status | Scope |
-|---|---|---|---|
-| [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md) | Hexagonal Architecture | Accepted | 全域架構與邊界分層 |
-| [0002-bounded-contexts.md](./0002-bounded-contexts.md) | Bounded Contexts | Accepted | 四主域與子域切分 |
-| [0003-context-map.md](./0003-context-map.md) | Context Map | Accepted | 主域間依賴方向 |
-| [0004-ubiquitous-language.md](./0004-ubiquitous-language.md) | Ubiquitous Language | Accepted | 戰略術語治理 |
-| [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md) | Anti-Corruption Layer | Accepted | 邊界整合保護規則 |
-
-## How To Use This Directory
-
-- 先讀標題以取得整體脈絡。
-- 若某份戰略文件與 ADR 衝突，以 ADR 的 decision 與 conflict resolution 為準。
-- 若未來新增新的架構決策，應沿用同一結構補充，而不是覆寫舊決策歷史。
-
-## Anti-Pattern Coverage
-
-- 0001 禁止把 framework / infrastructure 滲入核心。
-- 0002 禁止主域與子域所有權漂移。
-- 0003 禁止上下游方向與對稱關係混寫。
-- 0004 禁止語言污染與同詞多義。
-- 0005 禁止錯置 ACL / Conformist 的責任位置。
-
-## Copilot Generation Rules
-
-- 生成程式碼前，先由 ADR 決定邊界、語言與整合責任，再下手實作。
-- 奧卡姆剃刀：若既有 ADR 已能解決當前判斷，就不要再堆疊新的臨時規則文件。
-- 新規則若會改變邊界，先補 ADR，再補戰略文件與 context docs。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	ADR["ADR"] --> Strategy["Strategic docs"]
-	Strategy --> Context["Context docs"]
-	Context --> Code["Generated code"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Question["Architecture question"] --> ADR["Check ADR"]
-	ADR --> Strategy["Align strategic docs"]
-	Strategy --> Context["Align context docs"]
-	Context --> Code["Generate boundary-safe code"]
-```
-
-## Document Network
-
-- [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md)
-- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
-- [0003-context-map.md](./0003-context-map.md)
-- [0004-ubiquitous-language.md](./0004-ubiquitous-language.md)
-- [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md)
-- [../README.md](../README.md)
-
-## Constraints
-
-- 本目錄在本次任務限制下，只依 Context7 架構參考重建。
-- 本目錄不是對既有 repo 內容做過語意比對後的歷史還原。
-````
-
 ## File: modules/notebooklm/subdomains/source/interfaces/components/FileProcessingDialog.tsx
 ````typescript
 "use client";
@@ -78371,32 +77321,6 @@ export async function getViews(accountId: string, databaseId: string): Promise<V
 
 export async function getAutomations(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
   return new FirebaseAutomationRepository().listByDatabase(accountId, databaseId);
-}
-````
-
-## File: modules/platform/subdomains/organization/adapters/queries/organization.queries.ts
-````typescript
-/**
- * Organization Queries — direct repo reads for client-side data.
- */
-
-import { FirebaseOrganizationRepository } from "../firebase/FirebaseOrganizationRepository";
-import { FirebaseOrgPolicyRepository } from "../firebase/FirebaseOrgPolicyRepository";
-import type { MemberReference, Team, OrgPolicy } from "../../domain/entities/Organization";
-
-const orgRepo = new FirebaseOrganizationRepository();
-const policyRepo = new FirebaseOrgPolicyRepository();
-
-export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
-  return orgRepo.getMembers(organizationId);
-}
-
-export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
-  return orgRepo.getTeams(organizationId);
-}
-
-export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
-  return policyRepo.getPolicies(orgId);
 }
 ````
 
@@ -78845,475 +77769,495 @@ flowchart LR
 - [../decisions/README.md](../decisions/README.md)
 ````
 
-## File: docs/contexts/notebooklm/README.md
+## File: docs/decisions/0001-hexagonal-architecture.md
 ````markdown
-# NotebookLM Context
+# 0001 Hexagonal Architecture
 
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+- Status: Accepted
+- Date: 2026-04-11
 
-## Purpose
+## Context
 
-notebooklm 是對話、來源處理與推理主域。它的責任是提供 notebook、conversation、source ingestion、retrieval、grounding、synthesis、evaluation 與 versioning 等語言，把來源材料轉成可對話、可追溯、可評估的衍生輸出。
+Context7 驗證的 DDD / Hexagonal 參考指出，模組應保持高凝聚、低耦合，外部世界只依賴公開介面，領域核心必須與框架與基礎設施分離。若沒有清楚的邊界與端口，模組內部規則會被外層技術細節污染，跨主域整合也會快速失控。
 
-## Why This Context Exists
+## Decision
 
-- 把推理流程與正典知識內容分離。
-- 把來源匯入、檢索、grounding 與 synthesis 統整成同一主域。
-- 提供可回流到其他主域、但本質上仍屬衍生輸出的能力邊界。
+採用主域導向的 Hexagonal Architecture 作為全域架構基線。
 
-## Context Summary
+- 每個主域內部遵守：driving adapters -> application orchestration -> domain core <- driven adapters。
+- 領域核心負責 invariants、值物件、聚合與領域規則。
+- 外部框架、IO、第三方服務、傳輸格式只能存在於邊界與 adapter。
+- 跨主域互動只能透過 published language、API 邊界或事件。
+- 公開 API 是跨主域依賴點，不是內部模組結構的鏡像暴露。
 
-| Aspect | Summary |
-|---|---|
-| Primary Role | 對話、來源處理、檢索與推理輸出 |
-| Upstream Dependency | platform 治理、workspace scope、notion 內容來源 |
-| Downstream Consumer | 無固定主域級 consumer；輸出可被其他主域吸收 |
-| Core Principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
+## Consequences
 
-## Baseline Subdomains
+正面影響：
 
-- ai
-- conversation
-- note
-- notebook
-- source
-- synthesis
-- versioning
+- 主域邊界更清楚，重構內部結構時不必連帶破壞外部整合。
+- 領域語言可維持穩定，不會被 UI、HTTP 或基礎設施術語污染。
+- 後續若需要分拆部署或演進為更獨立的服務，代價較低。
 
-## Recommended Gap Subdomains
+代價與限制：
 
-- ingestion
-- retrieval
-- grounding
-- evaluation
+- 需要更多 API 契約、Local DTO、ACL 與轉換層。
+- 需要更嚴格的命名與文件治理，不可直接偷渡內部模型。
 
-## Key Relationships
+## Conflict Resolution
 
-- 與 platform：notebooklm 消費 actor、organization、access、entitlement。
-- 與 workspace：notebooklm 消費 workspaceId、membership scope、share scope。
-- 與 notion：notebooklm 消費 knowledge artifact reference、attachment reference、taxonomy hint。
+- 若任何文件暗示 domain 直接依賴 framework / infrastructure，以本 ADR 為準並判定為衝突。
+- 若任何文件把 index 或共享檔案當成跨主域真實邊界，以本 ADR 為準並改回公開 API / published language。
 
-## Reading Order
+## Rejected Anti-Patterns
 
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- 跨主域只消費 published language、API boundary、events，不直接依賴他域內部模型。
-
-## Anti-Pattern Rules
-
-- 不把 notebooklm 的衍生輸出直接宣稱為 notion 的正典知識內容。
-- 不把 retrieval/grounding 降格成單純 UI 功能或模型提示細節。
-- 不把 ingestion 與 source reference 混成同一個不可拆分責任。
+- Domain 直接依賴 framework、SDK、transport、database implementation。
+- Application service 直接呼叫 driven adapter，而不透過 port。
+- Interface adapter 直接承載核心業務規則。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先保留 notebooklm 的衍生推理定位，再安排 retrieval、grounding、synthesis 的交互。
-- 奧卡姆剃刀：只在必要時引入 port、ACL、DTO；不要因為未來也許會有需求就預先堆疊抽象。
-- 優先產生一條清楚的 upstream input -> translation -> application -> domain -> output 流程，而不是多條重疊流程。
+- 生成程式碼時，先保留 interfaces -> application -> domain <- infrastructure 的向內依賴方向。
+- 奧卡姆剃刀：若較少的 abstraction 已能保護邊界，就不要額外新增 port、service、facade 或 adapter。
+- 只有外部依賴或語義污染明確存在時，才建立 port 與 adapter。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
+	Interfaces["Interfaces"] --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
+	Infrastructure -. implements .-> Ports["Ports"]
+	Application -. uses .-> Ports
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	Platform["platform"] --> Boundary["notebooklm boundary"]
-	Workspace["workspace"] --> Boundary
-	Notion["notion"] --> Boundary
-	Boundary --> Translation["DTO / ACL"]
-	Translation --> App["Application use case"]
-	App --> Domain["NotebookLM domain"]
-	Domain --> Output["Grounded answer / note / evaluation"]
+	Request["Request"] --> Interfaces["Driving adapter"]
+	Interfaces --> Application["Application orchestration"]
+	Application --> Domain["Domain decision"]
+	Domain --> Ports["Port contract"]
+	Ports --> Infrastructure["Driven adapter"]
 ```
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../README.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
+- [README.md](./README.md)
+- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
+- [0003-context-map.md](./0003-context-map.md)
+- [../architecture-overview.md](../architecture-overview.md)
+- [../integration-guidelines.md](../integration-guidelines.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)
 ````
 
-## File: docs/contexts/notion/README.md
+## File: docs/decisions/0002-bounded-contexts.md
 ````markdown
-# Notion Context
+# 0002 Bounded Contexts
 
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+- Status: Accepted
+- Date: 2026-04-11
 
-## Purpose
+## Context
 
-notion 是知識內容生命週期主域。它的責任是提供 knowledge artifact、authoring、database、taxonomy、relations、templates、publishing、versioning 與 collaboration 等內容語言，承接正式知識內容的正典狀態。
+Context7 驗證的 bounded context 原則要求每個 context 只承載一組高凝聚、可自洽的語言與規則。如果沒有清楚主域與子域所有權，術語、責任與整合規則就會互相覆蓋，造成治理語言、內容語言與推理語言混雜。
 
-## Why This Context Exists
+## Decision
 
-- 把知識內容正典與平台治理、工作區範疇、對話推理分離。
-- 讓內容建立、分類、關聯、交付與版本規則維持在同一個主域。
-- 提供 notebooklm 可引用、但不可直接改寫的知識來源。
+將系統的主域固定為四個主域：
 
-## Context Summary
+- workspace：協作容器與工作區範疇
+- platform：治理、身份、權益與營運支撐
+- notion：正典知識內容生命週期
+- notebooklm：對話、來源處理與推理輸出
 
-| Aspect | Summary |
-|---|---|
-| Primary Role | 正典知識內容生命週期 |
-| Upstream Dependency | platform 治理、workspace scope |
-| Downstream Consumer | notebooklm |
-| Core Principle | notion 擁有正式內容，不擁有治理或推理過程 |
+每個主域底下都有自己的子域集合。文件中必須明確區分：
 
-## Baseline Subdomains
+- baseline subdomains：此架構基線中已確立的核心子域
+- recommended gap subdomains：依 Context7 推導出的合理缺口子域
 
-- knowledge
-- authoring
-- collaboration
-- database
-- ai
-- analytics
-- attachments
-- automation
-- integration
-- notes
-- templates
-- versioning
+## Consequences
 
-## Recommended Gap Subdomains
+正面影響：
 
-- taxonomy
-- relations
-- publishing
+- 所有權清楚，可避免 platform、workspace、notion、notebooklm 互相吞邊界。
+- 上層戰略文件與主域文件可共享同一個 decomposition 模型。
 
-## Key Relationships
+代價與限制：
 
-- 與 platform：notion 消費 actor、organization、access、entitlement。
-- 與 workspace：notion 消費 workspaceId、membership scope、share scope。
-- 與 notebooklm：notion 向 notebooklm 提供 knowledge artifact reference 與 attachment reference。
+- 需要承認 gap subdomains 是 architecture-first 建議，而不是 repo-inspected 現況事實。
+- 未來若要改主域切分，必須連動更新 strategic docs、ADR 與 context docs。
 
-## Reading Order
+## Conflict Resolution
 
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+- 若任何文件出現超過四個主域的平級切分，以本 ADR 為準並視為衝突。
+- 若任何文件把 recommended gap subdomains 寫成已驗證現況，以本 ADR 為準並改回 architecture-first 表述。
 
-## Dependency Direction
+## Rejected Anti-Patterns
 
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- notion 對外只暴露 published language、API boundary、events，不暴露內部內容模型。
-
-## Anti-Pattern Rules
-
-- 不把 notebooklm 的衍生輸出直接當成 notion 正典內容。
-- 不把 taxonomy、relations、publishing 壓回單一 knowledge 編輯流程。
-- 不把 platform 的治理語言混成內容生命週期本身。
+- 讓多個主域同時聲稱同一正典所有權。
+- 用 UI、部署或資料表分組來取代 bounded context 切分。
+- 把 gap subdomain 寫成已落地事實，而不標示為架構缺口。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先保留 notion 的正典內容定位，再安排 authoring、knowledge、taxonomy、publishing 的交互。
-- 奧卡姆剃刀：不要預先新增第二套內容流程，只在既有內容邊界真的不夠時才補新抽象。
-- 優先讓同一條 input -> translation -> application -> domain -> publication 流程保持單純可追溯。
+- 生成程式碼時，先判定需求屬於哪個主域與子域，再決定檔案位置與依賴方向。
+- 奧卡姆剃刀：若既有 bounded context 已可吸收需求，就不要新增平級主域或語意重疊子域。
+- 所有權不清楚時，先修正語言與 context map，再寫程式碼。
 
 ## Dependency Direction Flow
 
 ```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
+flowchart TD
+	MainDomain["Main Domain"] --> Subdomain["Subdomain"]
+	Subdomain --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	Platform["platform"] --> Boundary["notion boundary"]
-	Workspace["workspace"] --> Boundary
-	Boundary --> Translation["DTO / ACL"]
-	Translation --> App["Application use case"]
-	App --> Domain["Notion domain"]
-	Domain --> Output["KnowledgeArtifact / Publication"]
-	Output --> NotebookLM["notebooklm consumer"]
+	Need["New requirement"] --> Ownership["Identify owning bounded context"]
+	Ownership --> Language["Align ubiquitous language"]
+	Language --> API["Choose boundary / API"]
+	API --> Code["Generate code in owning context"]
 ```
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../README.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
+- [README.md](./README.md)
+- [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md)
+- [0003-context-map.md](./0003-context-map.md)
+- [../bounded-contexts.md](../bounded-contexts.md)
+- [../subdomains.md](../subdomains.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)
 ````
 
-## File: docs/contexts/platform/README.md
+## File: docs/decisions/0003-context-map.md
 ````markdown
-# Platform Context
+# 0003 Context Map
 
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+- Status: Accepted
+- Date: 2026-04-11
 
-## Purpose
+## Context
 
-platform 是治理與營運支撐主域。它的責任是提供 actor、identity、organization、tenant、access、policy、entitlement、billing、notification、search、audit 與 observability 等跨切面語言，供其他主域穩定消費。
+Context Mapper 文件指出，context map 是 bounded contexts 與其關係的中心表示。若關係方向不清楚，則 published language、ACL、supplier/customer 責任無法正確定義，文件之間也容易同時出現互相衝突的整合模型。
 
-## Why This Context Exists
+## Decision
 
-- 把治理與營運支撐責任集中，避免滲入其他主域。
-- 讓其他主域只消費治理結果，而不是重建治理模型。
-- 以清楚的 published language 承接身份、權益、政策與營運能力。
+在四個主域之間，只採用 directed upstream-downstream 關係作為主域級整合基線。
 
-## Context Summary
+主域關係如下：
 
-| Aspect | Summary |
-|---|---|
-| Primary Role | 治理、身份、權益與營運支撐 |
-| Upstream Dependency | 無主域級上游；作為其他主域治理上游 |
-| Downstream Consumers | workspace、notion、notebooklm |
-| Core Principle | platform 輸出治理結果，不接管其他主域正典內容 |
+- platform -> workspace
+- platform -> notion
+- platform -> notebooklm
+- workspace -> notion
+- workspace -> notebooklm
+- notion -> notebooklm
 
-## Baseline Subdomains
+主域級不採用 Shared Kernel 或 Partnership。
 
-- identity
-- account
-- account-profile
-- organization
-- access-control
-- security-policy
-- platform-config
-- feature-flag
-- onboarding
-- compliance
-- billing
-- subscription
-- referral
-- integration
-- workflow
-- notification
-- background-job
-- content
-- search
-- audit-log
-- observability
-- analytics
-- support
+## Consequences
 
-## Recommended Gap Subdomains
+正面影響：
 
-- tenant
-- entitlement
-- secret-management
-- consent
+- 每個主域可以清楚知道誰是上游、誰是下游。
+- ACL、Published Language、Conformist 等模式才有明確適用位置。
 
-## Key Relationships
+代價與限制：
 
-- 對 workspace：提供 actor、organization、access、entitlement。
-- 對 notion：提供 actor、organization、access、entitlement。
-- 對 notebooklm：提供 actor、organization、access、entitlement。
+- 需要更多轉譯與 API 契約層，不能直接共享內部模型。
+- 若某些能力確實需要共用模型，必須先抽象成新的獨立 bounded context，而不是偷渡共享核心。
 
-## Reading Order
+## Conflict Resolution
 
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+- 若任何文件同時宣稱兩個主域是 Partnership / Shared Kernel，又同時使用 ACL 或 Conformist，判定為衝突，以本 ADR 為準。
+- 若任何文件出現與上述方向相反的主域級關係，以本 ADR 為準。
 
-## Dependency Direction
+## Rejected Anti-Patterns
 
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- platform 對外只輸出治理結果與 published language，不輸出內部治理模型細節。
-
-## Anti-Pattern Rules
-
-- 不把 platform 寫成內容主域或對話主域。
-- 不把 entitlement、consent、secret-management 混成同一個泛用設定區。
-- 不把其他主域對平台的依賴寫成可以直接存取其內部模型。
+- 把 directed upstream-downstream 與 symmetric relationship 混寫在同一主域關係。
+- 把 supplier / consumer 敘事寫反，造成上下游不明。
+- 直接共享內部模型來取代 published language。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先保留 platform 的治理定位，再安排 identity、access、entitlement、secret-management 的交互。
-- 奧卡姆剃刀：不要預先建立多餘 facade；能直接由既有治理邊界承接就維持單一路徑。
-- 優先讓 request -> orchestration -> domain decision -> published language 保持單純可追溯。
+- 生成程式碼時，先判定 upstream 與 downstream，再安排 API boundary、published language、ACL 或 Conformist。
+- 奧卡姆剃刀：若單一 published language 與單一 translation step 已足夠，就不要加第二條整合鏈。
+- 關係方向不清楚時，先停下修正文檔，不直接生成跨主域耦合程式碼。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
+	Upstream["Upstream"] -->|PL / OHS| Downstream["Downstream"]
+	Downstream -->|ACL or Conformist| LocalModel["Local model"]
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	Request["Actor / admin request"] --> Boundary["platform boundary"]
-	Boundary --> App["Application use case"]
-	App --> Domain["Platform domain"]
-	Domain --> Published["Published governance language"]
-	Published --> Consumers["workspace / notion / notebooklm"]
+	Upstream["Upstream context"] -->|Published Language| Boundary["Downstream API client / boundary"]
+	Boundary --> Translation["ACL or local DTO"]
+	Translation --> Domain["Downstream domain"]
 ```
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../README.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
+- [README.md](./README.md)
+- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
+- [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md)
+- [../context-map.md](../context-map.md)
+- [../integration-guidelines.md](../integration-guidelines.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)
 ````
 
-## File: docs/contexts/workspace/README.md
+## File: docs/decisions/0004-ubiquitous-language.md
 ````markdown
-# Workspace Context
+# 0004 Ubiquitous Language
 
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+- Status: Accepted
+- Date: 2026-04-11
 
-## Purpose
+## Context
 
-workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、稽核、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
+Context7 驗證的 DDD 參考指出，領域核心必須運作在自己清楚的 ubiquitous language 之上。若沒有共同語言，跨主域整合、ADR、戰略文件與子域文件會用不同詞指同一件事，或用同一詞指不同責任，進而造成長期衝突。
 
-## Why This Context Exists
+## Decision
 
-- 把工作區容器語意與平台治理語意分離。
-- 把工作區 scope 作為其他主域可依賴的 published language。
-- 把活動流、稽核、排程與流程協調收斂為同一主域內的高凝聚能力。
+建立兩層語言治理：
 
-## Context Summary
+- strategic ubiquitous language：定義四主域共用的戰略術語與整合術語
+- context-specific ubiquitous language：由各主域 context 文件定義更細的本地主域語言
 
-| Aspect | Summary |
-|---|---|
-| Primary Role | 協作容器與 workspace scope |
-| Upstream Dependency | platform 的 actor、organization、access、entitlement |
-| Downstream Consumers | notion、notebooklm |
-| Core Principle | workspace 暴露 scope，不接管治理或內容正典 |
+主域層的關鍵術語固定為：
 
-## Baseline Subdomains
+- platform：Actor、Tenant、Entitlement、Secret、Consent
+- workspace：Workspace、Membership、ShareScope、ActivityFeed、AuditTrail
+- notion：KnowledgeArtifact、Taxonomy、Relation、Publication
+- notebooklm：Notebook、Ingestion、Retrieval、Grounding、Synthesis、Evaluation
 
-- audit
-- feed
-- scheduling
-- workflow
+## Consequences
 
-## Recommended Gap Subdomains
+正面影響：
 
-- lifecycle
-- membership
-- sharing
-- presence
+- 戰略文件、主域文件與 ADR 可以共享同一套術語。
+- 語言衝突可以在文件層面先被攔住，而不是等到實作才暴露。
 
-## Key Relationships
+代價與限制：
 
-- 與 platform：workspace 是治理結果的 downstream consumer。
-- 與 notion：workspace 向 notion 提供 workspaceId、membership scope、share scope。
-- 與 notebooklm：workspace 向 notebooklm 提供 workspaceId、membership scope、share scope。
+- 命名自由度下降，需要持續維護 glossary。
+- 新概念若無法歸屬到既有語言，必須先做文件決策。
 
-## Reading Order
+## Conflict Resolution
 
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
+- 若戰略語言與主域語言衝突，先以更具邊界意義的主域語言為準，再回寫 strategic glossary。
+- 若兩個主域同時主張同一術語所有權，以 bounded contexts 與 context map 的所有權關係為準。
 
-## Dependency Direction
+## Rejected Anti-Patterns
 
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- workspace 對外只暴露 scope、published language、API boundary、events，不暴露內部實作。
-
-## Anti-Pattern Rules
-
-- 不把 workspace scope 寫成平台治理結果本身。
-- 不把 feed、audit、workflow 互相取代為單一泛用流程層。
-- 不把 notion 或 notebooklm 的內容與推理責任吸回 workspace。
+- 用同一個詞同時指涉治理、內容、推理三種不同責任。
+- 用舊產品術語覆蓋新的 bounded context 語言。
+- 讓實作便利性凌駕於 ubiquitous language 一致性。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先保留 workspace 的協作 scope 定位，再安排 lifecycle、membership、sharing、workflow 的交互。
-- 奧卡姆剃刀：不要預先建立第二條平行協作流程；只有既有 scope 邊界不夠時才補新抽象。
-- 優先讓 input -> translation -> application -> domain -> published scope 保持單純可追溯。
+- 生成程式碼時，先對齊 strategic term 與 context-specific term，再決定檔名、型別與 API 名稱。
+- 奧卡姆剃刀：若一個名詞已足夠表達邊界，就不要再堆疊第二個近義抽象詞。
+- 名稱若與現有語言衝突，先修正文檔與用語，再寫程式碼。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
+	Strategic["Strategic language"] --> Context["Context language"]
+	Context --> Boundary["API / Published Language"]
+	Boundary --> Code["Generated code names"]
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	Platform["platform"] --> Boundary["workspace boundary"]
-	Boundary --> Translation["DTO / ACL"]
-	Translation --> App["Application use case"]
-	App --> Domain["Workspace domain"]
-	Domain --> Scope["workspace scope"]
-	Scope --> Notion["notion"]
-	Scope --> NotebookLM["notebooklm"]
+	Requirement["Requirement"] --> Term["Choose canonical term"]
+	Term --> Context["Map to owning context"]
+	Context --> Boundary["Expose through correct boundary"]
+	Boundary --> Code["Generate code"]
 ```
 
 ## Document Network
 
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../README.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [README.md](./README.md)
+- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
+- [../ubiquitous-language.md](../ubiquitous-language.md)
+- [../contexts/_template.md](../contexts/_template.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)
+````
+
+## File: docs/decisions/0005-anti-corruption-layer.md
+````markdown
+# 0005 Anti-Corruption Layer
+
+- Status: Accepted
+- Date: 2026-04-11
+
+## Context
+
+Context Mapper 明確指出 ACL 只能出現在 upstream-downstream 關係中，且只能由 downstream 採用；ACL 與 Conformist 互斥，且都不適用於 Shared Kernel 或 Partnership。若沒有這條規則，整合文件會同時宣稱保護語言與直接順從上游，造成自相矛盾。
+
+## Decision
+
+採用以下整合保護規則：
+
+- 主域級整合預設先使用 published language + local DTO。
+- 若上游語言會扭曲下游語言，下游必須使用 ACL。
+- 若上游語言與下游需求高度一致，下游才可選擇 Conformist。
+- ACL 與 Conformist 不能同時套用在同一關係。
+- 因本架構基線不採用主域級 Shared Kernel / Partnership，所以主域級不允許以對稱關係為由略過 ACL 判斷。
+
+## Consequences
+
+正面影響：
+
+- 下游主域可以保護自己的 ubiquitous language。
+- Integration guidelines 可以有單一、可判斷的模式選擇規則。
+
+代價與限制：
+
+- 需要維護更多轉譯器、Local DTO 與邊界測試。
+- 若每個整合都無條件使用 ACL，也會增加樣板成本，因此仍須做必要性判斷。
+
+## Conflict Resolution
+
+- 若任何文件把 ACL 寫成 upstream 的責任，判定為衝突，以本 ADR 為準。
+- 若任何文件同時要求 ACL 與 Conformist 套在同一整合，判定為衝突，以本 ADR 為準。
+- 若任何文件在對稱關係上使用 ACL / Conformist，判定為衝突，以本 ADR 為準。
+
+## Rejected Anti-Patterns
+
+- 把 ACL 當成 upstream 的工作。
+- 在同一關係同時宣稱 ACL 與 Conformist。
+- 用 Shared Kernel / Partnership 當理由跳過整合語義判斷。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認自己是 upstream 還是 downstream，再決定是否需要 ACL 或 Conformist。
+- 奧卡姆剃刀：若 published language 加 local DTO 已足夠，就不要額外新增第二層 ACL。
+- 只有在上游語言真的會污染本地語言時，才建立 ACL。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream"] -->|Published Language| DownstreamBoundary["Downstream boundary"]
+	DownstreamBoundary --> ACL["ACL if needed"]
+	DownstreamBoundary --> CF["Conformist if language matches"]
+	ACL --> LocalDomain["Local domain"]
+	CF --> LocalDomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream context"] -->|PL / OHS| Boundary["Downstream API client"]
+	Boundary --> Decision["Need protection?"]
+	Decision -->|Yes| ACL["ACL"]
+	Decision -->|No| CF["Conformist"]
+	ACL --> Domain["Downstream domain"]
+	CF --> Domain
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [0003-context-map.md](./0003-context-map.md)
+- [../context-map.md](../context-map.md)
+- [../integration-guidelines.md](../integration-guidelines.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)
+````
+
+## File: docs/decisions/README.md
+````markdown
+# Decisions
+
+本目錄是 architecture-first 的決策日誌。依 ADR 參考模式，每份 ADR 至少說明 context、decision、consequences 與 conflict resolution，讓後續戰略文件可以引用相同決策來源。
+
+## Decision Log
+
+| ADR | Title | Status | Scope |
+|---|---|---|---|
+| [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md) | Hexagonal Architecture | Accepted | 全域架構與邊界分層 |
+| [0002-bounded-contexts.md](./0002-bounded-contexts.md) | Bounded Contexts | Accepted | 四主域與子域切分 |
+| [0003-context-map.md](./0003-context-map.md) | Context Map | Accepted | 主域間依賴方向 |
+| [0004-ubiquitous-language.md](./0004-ubiquitous-language.md) | Ubiquitous Language | Accepted | 戰略術語治理 |
+| [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md) | Anti-Corruption Layer | Accepted | 邊界整合保護規則 |
+
+## How To Use This Directory
+
+- 先讀標題以取得整體脈絡。
+- 若某份戰略文件與 ADR 衝突，以 ADR 的 decision 與 conflict resolution 為準。
+- 若未來新增新的架構決策，應沿用同一結構補充，而不是覆寫舊決策歷史。
+
+## Anti-Pattern Coverage
+
+- 0001 禁止把 framework / infrastructure 滲入核心。
+- 0002 禁止主域與子域所有權漂移。
+- 0003 禁止上下游方向與對稱關係混寫。
+- 0004 禁止語言污染與同詞多義。
+- 0005 禁止錯置 ACL / Conformist 的責任位置。
+
+## Copilot Generation Rules
+
+- 生成程式碼前，先由 ADR 決定邊界、語言與整合責任，再下手實作。
+- 奧卡姆剃刀：若既有 ADR 已能解決當前判斷，就不要再堆疊新的臨時規則文件。
+- 新規則若會改變邊界，先補 ADR，再補戰略文件與 context docs。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	ADR["ADR"] --> Strategy["Strategic docs"]
+	Strategy --> Context["Context docs"]
+	Context --> Code["Generated code"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Question["Architecture question"] --> ADR["Check ADR"]
+	ADR --> Strategy["Align strategic docs"]
+	Strategy --> Context["Align context docs"]
+	Context --> Code["Generate boundary-safe code"]
+```
+
+## Document Network
+
+- [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md)
+- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
+- [0003-context-map.md](./0003-context-map.md)
+- [0004-ubiquitous-language.md](./0004-ubiquitous-language.md)
+- [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)
+- [../README.md](../README.md)
 
 ## Constraints
 
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
+- 本目錄在本次任務限制下，只依 Context7 架構參考重建。
+- 本目錄不是對既有 repo 內容做過語意比對後的歷史還原。
 ````
 
 ## File: docs/integration-guidelines.md
@@ -80117,199 +79061,6 @@ export default function NotificationCenterPage() {
 }
 ````
 
-## File: docs/architecture-overview.md
-````markdown
-# Architecture Overview
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
-
-## System Shape
-
-系統以四個主域組成，每個主域都視為一個有自己語言與規則的 bounded context 族群：
-
-- workspace：協作容器與工作區範疇
-- platform：治理、身份、權益與營運支撐
-- notion：正典知識內容生命週期
-- notebooklm：對話、來源處理與推理輸出
-
-## Architectural Baseline
-
-- 主域內部採用 Hexagonal Architecture。
-- 主域之間只透過 published language、API 邊界或事件互動。
-- 領域核心不直接依賴 framework 與 infrastructure。
-- 主域級關係採用 directed upstream-downstream，不採用 Shared Kernel / Partnership。
-
-## Main Domains
-
-| Main Domain | Strategic Role | What It Owns |
-|---|---|---|
-| workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、workflow |
-| platform | 治理上游 | actor、tenant、access、policy、entitlement、billing、notification、audit-log |
-| notion | 正典內容 | knowledge artifact、taxonomy、relations、publication、versioning |
-| notebooklm | 推理輸出 | ingestion、retrieval、grounding、conversation、synthesis、evaluation |
-
-## Relationship Baseline
-
-| Upstream | Downstream | Reason |
-|---|---|---|
-| platform | workspace | 提供治理結果與權益判定 |
-| platform | notion | 提供治理結果與權益判定 |
-| platform | notebooklm | 提供治理結果與權益判定 |
-| workspace | notion | 提供 workspace scope 與 sharing scope |
-| workspace | notebooklm | 提供 workspace scope 與 sharing scope |
-| notion | notebooklm | 提供可引用的知識內容來源 |
-
-## Contradiction-Free Rules
-
-- 只有四個主域，不再引入其他平級主域。
-- 戰略文件若需要描述缺口，一律使用 recommended gap subdomains，而不是假裝它們已被實作驗證。
-- platform 是治理上游，不是內容或對話的正典擁有者。
-- notion 是正典內容擁有者，不是治理上游。
-- notebooklm 是衍生推理輸出擁有者，不是正典內容擁有者。
-
-## System-Wide Dependency Direction
-
-- 每個主域內部固定遵守 interfaces -> application -> domain <- infrastructure。
-- 跨主域依賴只能透過 published language、public API boundary、events。
-- 外部框架、SDK、傳輸與儲存細節只能停留在 adapter 邊界。
-
-## System-Wide Anti-Patterns
-
-- 把 domain 核心直接接上 framework、database、HTTP、queue 或 AI SDK。
-- 把主域內部模型直接共享給其他主域，取代 published language。
-- 把治理、內容、推理三種責任重新揉成單一平級主域。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先定位需求落在哪個主域，再定位到子域與層。
-- 奧卡姆剃刀：若既有主域、子域與 API boundary 已能承接需求，就不要再新增新的平級結構。
-- 優先維持單一清楚的 input -> boundary -> application -> domain -> output 路徑。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Interfaces["Interfaces"] --> Application["Application"]
-	Application --> Domain["Domain"]
-	Infrastructure["Infrastructure"] --> Domain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] --> Workspace["workspace"]
-	Platform --> Notion["notion"]
-	Platform --> NotebookLM["notebooklm"]
-	Workspace --> Notion
-	Workspace --> NotebookLM
-	Notion --> NotebookLM
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [integration-guidelines.md](./integration-guidelines.md)
-- [strategic-patterns.md](./strategic-patterns.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-
-## Reading Path
-
-1. [bounded-contexts.md](./bounded-contexts.md)
-2. [context-map.md](./context-map.md)
-3. [subdomains.md](./subdomains.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [integration-guidelines.md](./integration-guidelines.md)
-6. [strategic-patterns.md](./strategic-patterns.md)
-7. [decisions/README.md](./decisions/README.md)
-````
-
-## File: docs/bounded-contexts.md
-````markdown
-# Bounded Contexts
-
-本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 hexagonal architecture 原則重建，不主張反映現況實作。
-
-## Strategic Bounded Context Model
-
-系統固定由四個主域構成。每個主域下可再分成 baseline subdomains 與 recommended gap subdomains。
-
-## Main Domain Map
-
-| Main Domain | Strategic Role | Baseline Focus | Recommended Gap Focus |
-|---|---|---|---|
-| workspace | 協作容器與 scope | audit、feed、scheduling、workflow | lifecycle、membership、sharing、presence |
-| platform | 治理與營運支撐 | identity、organization、access、policy、billing、notification、observability | tenant、entitlement、secret-management、consent |
-| notion | 正典知識內容 | knowledge、authoring、collaboration、database、templates、versioning | taxonomy、relations、publishing |
-| notebooklm | 對話與推理 | ai、conversation、note、notebook、source、synthesis、versioning | ingestion、retrieval、grounding、evaluation |
-
-## Ownership Rules
-
-- workspace 擁有工作區範疇，不擁有平台治理或正典內容。
-- platform 擁有治理與權益，不擁有正典內容或推理輸出。
-- notion 擁有正典知識內容，不擁有治理或推理流程。
-- notebooklm 擁有推理流程與衍生輸出，不擁有正典知識內容。
-
-## Dependency Direction Guardrail
-
-- bounded context 所有權定義的是語言與規則邊界，不等於可直接穿透的實作邊界。
-- 每個主域內部仍必須遵守 interfaces -> application -> domain <- infrastructure。
-- 跨主域整合一律先經 API boundary、published language、events 或 local DTO。
-
-## Conflict Resolution
-
-- 若某子域同時被多個主域宣稱，依最能維持語言自洽與 context map 方向的主域保留所有權。
-- 若某能力同時像治理又像內容，先問它是否定義 actor / tenant / entitlement；若是，歸 platform。
-- 若某能力同時像內容又像推理輸出，先問它是否是正典內容狀態；若是，歸 notion，否則歸 notebooklm。
-
-## Forbidden Ownership Moves
-
-- 不得讓兩個主域同時宣稱同一正典模型所有權。
-- 不得用部署、資料表或 UI 分區來覆蓋 bounded context 所有權。
-- 不得把 gap subdomain 缺口視為可以任意分散到其他主域的理由。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先決定 owning bounded context，再決定檔案位置、命名與 boundary。
-- 奧卡姆剃刀：若既有 bounded context 可吸收需求，就不要為了命名好看而新增新的上下文。
-- 所有權模糊時，先修正文檔邊界，再寫程式碼。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart TD
-	MainDomain["Main domain"] --> Subdomain["Subdomain"]
-	Subdomain --> Application["Application"]
-	Application --> Domain["Domain"]
-	Infrastructure["Infrastructure"] --> Domain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Requirement["Requirement"] --> Ownership["Choose bounded context"]
-	Ownership --> Boundary["Choose API boundary"]
-	Boundary --> Language["Align local language"]
-	Language --> Code["Generate code"]
-```
-
-## Document Network
-
-- [architecture-overview.md](./architecture-overview.md)
-- [subdomains.md](./subdomains.md)
-- [context-map.md](./context-map.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
-````
-
 ## File: docs/context-map.md
 ````markdown
 # Context Map
@@ -80396,6 +79147,480 @@ flowchart LR
 - [project-delivery-milestones.md](./project-delivery-milestones.md)
 - [decisions/0003-context-map.md](./decisions/0003-context-map.md)
 - [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/contexts/notebooklm/README.md
+````markdown
+# NotebookLM Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+notebooklm 是對話、來源處理與推理主域。它的責任是提供 notebook、conversation、source ingestion、retrieval、grounding、synthesis、evaluation 與 conversation-versioning 等語言，把來源材料轉成可對話、可追溯、可評估的衍生輸出。
+
+## Why This Context Exists
+
+- 把推理流程與正典知識內容分離。
+- 把來源匯入、檢索、grounding 與 synthesis 統整成同一主域。
+- 提供可回流到其他主域、但本質上仍屬衍生輸出的能力邊界。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 對話、來源處理、檢索與推理輸出 |
+| Upstream Dependency | platform 治理、workspace scope、notion 內容來源 |
+| Downstream Consumer | 無固定主域級 consumer；輸出可被其他主域吸收 |
+| Core Principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
+
+## Baseline Subdomains
+
+- conversation
+- note
+- notebook
+- source
+- synthesis
+- conversation-versioning
+
+## Recommended Gap Subdomains
+
+- ingestion
+- retrieval
+- grounding
+- evaluation
+
+## Key Relationships
+
+- 與 platform：notebooklm 消費 actor、organization、access、entitlement、ai capability。
+- 與 workspace：notebooklm 消費 workspaceId、membership scope、share scope。
+- 與 notion：notebooklm 消費 knowledge artifact reference、attachment reference、taxonomy hint。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- 跨主域只消費 published language、API boundary、events，不直接依賴他域內部模型。
+
+## Anti-Pattern Rules
+
+- 不把 notebooklm 的衍生輸出直接宣稱為 notion 的正典知識內容。
+- 不把 retrieval/grounding 降格成單純 UI 功能或模型提示細節。
+- 不把 ingestion 與 source reference 混成同一個不可拆分責任。
+- 不把 platform.ai 的共享能力誤寫成 notebooklm 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notebooklm 的衍生推理定位，再安排 retrieval、grounding、synthesis 的交互。
+- 模型接入、配額、供應商策略若屬共享能力，先消費 platform.ai；notebooklm 保留 retrieval、grounding、synthesis、evaluation 的語義所有權。
+- 奧卡姆剃刀：只在必要時引入 port、ACL、DTO；不要因為未來也許會有需求就預先堆疊抽象。
+- 優先產生一條清楚的 upstream input -> translation -> application -> domain -> output 流程，而不是多條重疊流程。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Boundary["notebooklm boundary"]
+	Workspace["workspace"] --> Boundary
+	Notion["notion"] --> Boundary
+	Boundary --> Translation["DTO / ACL"]
+	Translation --> App["Application use case"]
+	App --> Domain["NotebookLM domain"]
+	Domain --> Output["Grounded answer / note / evaluation"]
+```
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../README.md](../../README.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
+````
+
+## File: docs/contexts/notion/README.md
+````markdown
+# Notion Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+notion 是知識內容生命週期主域。它的責任是提供 knowledge artifact、authoring、database、taxonomy、relations、templates、publishing、knowledge-versioning 與 collaboration 等內容語言，承接正式知識內容的正典狀態。
+
+## Why This Context Exists
+
+- 把知識內容正典與平台治理、工作區範疇、對話推理分離。
+- 讓內容建立、分類、關聯、交付與版本規則維持在同一個主域。
+- 提供 notebooklm 可引用、但不可直接改寫的知識來源。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 正典知識內容生命週期 |
+| Upstream Dependency | platform 治理、workspace scope |
+| Downstream Consumer | notebooklm |
+| Core Principle | notion 擁有正式內容，不擁有治理或推理過程 |
+
+## Baseline Subdomains
+
+- knowledge
+- authoring
+- collaboration
+- database
+- knowledge-analytics
+- attachments
+- automation
+- knowledge-integration
+- notes
+- templates
+- knowledge-versioning
+
+## Recommended Gap Subdomains
+
+- taxonomy
+- relations
+- publishing
+
+## Key Relationships
+
+- 與 platform：notion 消費 actor、organization、access、entitlement、ai capability。
+- 與 workspace：notion 消費 workspaceId、membership scope、share scope。
+- 與 notebooklm：notion 向 notebooklm 提供 knowledge artifact reference 與 attachment reference。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- notion 對外只暴露 published language、API boundary、events，不暴露內部內容模型。
+
+## Anti-Pattern Rules
+
+- 不把 notebooklm 的衍生輸出直接當成 notion 正典內容。
+- 不把 taxonomy、relations、publishing 壓回單一 knowledge 編輯流程。
+- 不把 platform 的治理語言混成內容生命週期本身。
+- 不把 platform.ai 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notion 的正典內容定位，再安排 authoring、knowledge、taxonomy、publishing 的交互。
+- 內容輔助、摘要與生成若只是內容 use case 的支援能力，優先由 knowledge / authoring use case 消費 `platform.ai`，而不是在 notion 再建一個 generic `ai` 子域。
+- 奧卡姆剃刀：不要預先新增第二套內容流程，只在既有內容邊界真的不夠時才補新抽象。
+- 優先讓同一條 input -> translation -> application -> domain -> publication 流程保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Boundary["notion boundary"]
+	Workspace["workspace"] --> Boundary
+	Boundary --> Translation["DTO / ACL"]
+	Translation --> App["Application use case"]
+	App --> Domain["Notion domain"]
+	Domain --> Output["KnowledgeArtifact / Publication"]
+	Output --> NotebookLM["notebooklm consumer"]
+```
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../README.md](../../README.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
+````
+
+## File: docs/contexts/platform/README.md
+````markdown
+# Platform Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+platform 是治理與營運支撐主域。它的責任是提供 actor、identity、organization、tenant、access、policy、entitlement、shared ai capability、billing、notification、search、audit 與 observability 等跨切面語言，供其他主域穩定消費。
+
+## Why This Context Exists
+
+- 把治理與營運支撐責任集中，避免滲入其他主域。
+- 讓其他主域只消費治理結果，而不是重建治理模型。
+- 以清楚的 published language 承接身份、權益、政策與營運能力。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 治理、身份、權益與營運支撐 |
+| Upstream Dependency | 無主域級上游；作為其他主域治理上游 |
+| Downstream Consumers | workspace、notion、notebooklm |
+| Core Principle | platform 輸出治理結果，不接管其他主域正典內容 |
+
+## Baseline Subdomains
+
+- identity
+- account
+- account-profile
+- organization
+- access-control
+- security-policy
+- platform-config
+- feature-flag
+- onboarding
+- compliance
+- billing
+- subscription
+- referral
+- ai
+- integration
+- workflow
+- notification
+- background-job
+- content
+- search
+- audit-log
+- observability
+- analytics
+- support
+
+## Recommended Gap Subdomains
+
+- tenant
+- entitlement
+- secret-management
+- consent
+
+## Key Relationships
+
+- 對 workspace：提供 actor、organization、access、entitlement。
+- 對 notion：提供 actor、organization、access、entitlement、ai capability。
+- 對 notebooklm：提供 actor、organization、access、entitlement、ai capability。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- platform 對外只輸出治理結果與 published language，不輸出內部治理模型細節。
+
+## Anti-Pattern Rules
+
+- 不把 platform 寫成內容主域或對話主域。
+- 不把 entitlement、consent、secret-management 混成同一個泛用設定區。
+- 不把其他主域對平台的依賴寫成可以直接存取其內部模型。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 platform 的治理定位，再安排 identity、access、entitlement、ai、secret-management 的交互。
+- 奧卡姆剃刀：不要預先建立多餘 facade；能直接由既有治理邊界承接就維持單一路徑。
+- 優先讓 request -> orchestration -> domain decision -> published language 保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Request["Actor / admin request"] --> Boundary["platform boundary"]
+	Boundary --> App["Application use case"]
+	App --> Domain["Platform domain"]
+	Domain --> Published["Published governance language"]
+	Published --> Consumers["workspace / notion / notebooklm"]
+```
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../README.md](../../README.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
+````
+
+## File: docs/contexts/workspace/README.md
+````markdown
+# Workspace Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、稽核、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
+
+## Why This Context Exists
+
+- 把工作區容器語意與平台治理語意分離。
+- 把工作區 scope 作為其他主域可依賴的 published language。
+- 把活動流、稽核、排程與流程協調收斂為同一主域內的高凝聚能力。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 協作容器與 workspace scope |
+| Upstream Dependency | platform 的 actor、organization、access、entitlement |
+| Downstream Consumers | notion、notebooklm |
+| Core Principle | workspace 暴露 scope，不接管治理或內容正典 |
+
+## Baseline Subdomains
+
+- audit
+- feed
+- scheduling
+- workspace-workflow
+
+## Recommended Gap Subdomains
+
+- lifecycle
+- membership
+- sharing
+- presence
+
+## Key Relationships
+
+- 與 platform：workspace 是治理結果的 downstream consumer。
+- 與 notion：workspace 向 notion 提供 workspaceId、membership scope、share scope。
+- 與 notebooklm：workspace 向 notebooklm 提供 workspaceId、membership scope、share scope。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- workspace 對外只暴露 scope、published language、API boundary、events，不暴露內部實作。
+
+## Anti-Pattern Rules
+
+- 不把 workspace scope 寫成平台治理結果本身。
+- 不把 feed、audit、workspace-workflow 互相取代為單一泛用流程層。
+- 不把 notion 或 notebooklm 的內容與推理責任吸回 workspace。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 workspace 的協作 scope 定位，再安排 lifecycle、membership、sharing、workspace-workflow 的交互。
+- 奧卡姆剃刀：不要預先建立第二條平行協作流程；只有既有 scope 邊界不夠時才補新抽象。
+- 優先讓 input -> translation -> application -> domain -> published scope 保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Boundary["workspace boundary"]
+	Boundary --> Translation["DTO / ACL"]
+	Translation --> App["Application use case"]
+	App --> Domain["Workspace domain"]
+	Domain --> Scope["workspace scope"]
+	Scope --> Notion["notion"]
+	Scope --> NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../README.md](../../README.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
 ## File: docs/README.md
@@ -80491,499 +79716,201 @@ flowchart LR
 - 本文件集沒有檢視任何既有專案內容，因此不應被解讀為 repo-inspected 現況描述。
 ````
 
-## File: docs/subdomains.md
+## File: docs/architecture-overview.md
 ````markdown
-# Subdomains
+# Architecture Overview
 
-本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 strategic design 原則重建，不主張反映現況實作。
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
 
-## Main Domain Inventory
+## System Shape
 
-| Main Domain | Baseline Subdomains | Recommended Gap Subdomains |
+系統以四個主域組成，每個主域都視為一個有自己語言與規則的 bounded context 族群：
+
+- workspace：協作容器與工作區範疇
+- platform：治理、身份、權益與營運支撐
+- notion：正典知識內容生命週期
+- notebooklm：對話、來源處理與推理輸出
+
+## Architectural Baseline
+
+- 主域內部採用 Hexagonal Architecture。
+- 主域之間只透過 published language、API 邊界或事件互動。
+- 領域核心不直接依賴 framework 與 infrastructure。
+- 主域級關係採用 directed upstream-downstream，不採用 Shared Kernel / Partnership。
+
+## Main Domains
+
+| Main Domain | Strategic Role | What It Owns |
 |---|---|---|
-| workspace | audit, feed, scheduling, workflow | lifecycle, membership, sharing, presence |
-| platform | identity, account, account-profile, organization, access-control, security-policy, platform-config, feature-flag, onboarding, compliance, billing, subscription, referral, integration, workflow, notification, background-job, content, search, audit-log, observability, analytics, support | tenant, entitlement, secret-management, consent |
-| notion | knowledge, authoring, collaboration, database, ai, analytics, attachments, automation, integration, notes, templates, versioning | taxonomy, relations, publishing |
-| notebooklm | ai, conversation, note, notebook, source, synthesis, versioning | ingestion, retrieval, grounding, evaluation |
+| workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、workspace-workflow |
+| platform | 治理上游 | actor、tenant、access、policy、entitlement、billing、ai capability、notification、audit-log |
+| notion | 正典內容 | knowledge artifact、taxonomy、relations、publication、knowledge-versioning |
+| notebooklm | 推理輸出 | ingestion、retrieval、grounding、conversation、synthesis、evaluation、conversation-versioning |
 
-## Strategic Notes
+## Relationship Baseline
 
-- baseline subdomains 代表本架構基線中已確立的核心切分。
-- recommended gap subdomains 代表依 Context7 推導出的合理補洞方向。
-- recommended gap subdomains 不等於已驗證現況實作。
+| Upstream | Downstream | Reason |
+|---|---|---|
+| platform | workspace | 提供治理結果與權益判定 |
+| platform | notion | 提供治理結果與權益判定 |
+| platform | notebooklm | 提供治理結果與權益判定 |
+| workspace | notion | 提供 workspace scope 與 sharing scope |
+| workspace | notebooklm | 提供 workspace scope 與 sharing scope |
+| notion | notebooklm | 提供可引用的知識內容來源 |
 
-## Ownership Summary
+## Contradiction-Free Rules
 
-- workspace 關心協作範疇。
-- platform 關心治理與權益。
-- notion 關心正典知識內容。
-- notebooklm 關心推理與衍生輸出。
+- 只有四個主域，不再引入其他平級主域。
+- 戰略文件若需要描述缺口，一律使用 recommended gap subdomains，而不是假裝它們已被實作驗證。
+- platform 是治理上游，不是內容或對話的正典擁有者。
+- platform 擁有 shared AI capability，但不擁有 notion 的正典內容語言或 notebooklm 的推理輸出語言。
+- notion 是正典內容擁有者，不是治理上游。
+- notebooklm 是衍生推理輸出擁有者，不是正典內容擁有者。
 
-## Subdomain Anti-Patterns
+## System-Wide Dependency Direction
 
-- 不把 baseline subdomains 與 recommended gap subdomains 混成同一種事實狀態。
-- 不把主域缺口直接分攤到別的主域，造成所有權漂移。
-- 不把子域名稱當成 UI 功能清單，而忽略其邊界責任。
+- 每個主域內部固定遵守 interfaces -> application -> domain <- infrastructure。
+- 跨主域依賴只能透過 published language、public API boundary、events。
+- 外部框架、SDK、傳輸與儲存細節只能停留在 adapter 邊界。
+
+## System-Wide Anti-Patterns
+
+- 把 domain 核心直接接上 framework、database、HTTP、queue 或 AI SDK。
+- 把主域內部模型直接共享給其他主域，取代 published language。
+- 把治理、內容、推理三種責任重新揉成單一平級主域。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先確認需求屬於哪個主域與子域，再決定實作位置。
-- 奧卡姆剃刀：能放進既有子域就不要創造新子域；能放進既有 use case 就不要新增第二條平行流程。
-- gap subdomain 只表示架構缺口，不表示一定要立刻實作。
+- 生成程式碼時，先定位需求落在哪個主域，再定位到子域與層。
+- 奧卡姆剃刀：若既有主域、子域與 API boundary 已能承接需求，就不要再新增新的平級結構。
+- 優先維持單一清楚的 input -> boundary -> application -> domain -> output 路徑。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Interfaces["Interfaces"] --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Workspace["workspace"]
+	Platform --> Notion["notion"]
+	Platform --> NotebookLM["notebooklm"]
+	Workspace --> Notion
+	Workspace --> NotebookLM
+	Notion --> NotebookLM
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [integration-guidelines.md](./integration-guidelines.md)
+- [strategic-patterns.md](./strategic-patterns.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
+
+## Reading Path
+
+1. [bounded-contexts.md](./bounded-contexts.md)
+2. [context-map.md](./context-map.md)
+3. [subdomains.md](./subdomains.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [integration-guidelines.md](./integration-guidelines.md)
+6. [strategic-patterns.md](./strategic-patterns.md)
+7. [decisions/README.md](./decisions/README.md)
+````
+
+## File: docs/bounded-contexts.md
+````markdown
+# Bounded Contexts
+
+本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 hexagonal architecture 原則重建，不主張反映現況實作。
+
+## Strategic Bounded Context Model
+
+系統固定由四個主域構成。每個主域下可再分成 baseline subdomains 與 recommended gap subdomains。
+
+## Main Domain Map
+
+| Main Domain | Strategic Role | Baseline Focus | Recommended Gap Focus |
+|---|---|---|---|
+| workspace | 協作容器與 scope | audit、feed、scheduling、workspace-workflow | lifecycle、membership、sharing、presence |
+| platform | 治理與營運支撐 | identity、organization、access、policy、billing、ai、notification、observability | tenant、entitlement、secret-management、consent |
+| notion | 正典知識內容 | knowledge、authoring、collaboration、database、templates、knowledge-versioning | taxonomy、relations、publishing |
+| notebooklm | 對話與推理 | conversation、note、notebook、source、synthesis、conversation-versioning | ingestion、retrieval、grounding、evaluation |
+
+## Ownership Rules
+
+- workspace 擁有工作區範疇，不擁有平台治理或正典內容。
+- platform 擁有治理與權益，不擁有正典內容或推理輸出。
+- notion 擁有正典知識內容，不擁有治理或推理流程。
+- notebooklm 擁有推理流程與衍生輸出，不擁有正典知識內容。
+
+## Dependency Direction Guardrail
+
+- bounded context 所有權定義的是語言與規則邊界，不等於可直接穿透的實作邊界。
+- 每個主域內部仍必須遵守 interfaces -> application -> domain <- infrastructure。
+- 跨主域整合一律先經 API boundary、published language、events 或 local DTO。
+
+## Conflict Resolution
+
+- 若某子域同時被多個主域宣稱，依最能維持語言自洽與 context map 方向的主域保留所有權。
+- 若某能力同時像治理又像內容，先問它是否定義 actor / tenant / entitlement；若是，歸 platform。
+- 若某能力同時像內容又像推理輸出，先問它是否是正典內容狀態；若是，歸 notion，否則歸 notebooklm。
+- generic `ai` 由 platform 擁有；notion 與 notebooklm 只能消費 platform 的 AI capability，不能再各自宣稱 `ai` 子域。
+- `workflow` 作為 generic 名稱只保留在 platform；workspace 使用 `workspace-workflow` 避免跨主域混名。
+
+## Forbidden Ownership Moves
+
+- 不得讓兩個主域同時宣稱同一正典模型所有權。
+- 不得用部署、資料表或 UI 分區來覆蓋 bounded context 所有權。
+- 不得把 gap subdomain 缺口視為可以任意分散到其他主域的理由。
+- 不得讓同一個 generic 子域名稱同時作為多個主域的 canonical ownership。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先決定 owning bounded context，再決定檔案位置、命名與 boundary。
+- 奧卡姆剃刀：若既有 bounded context 可吸收需求，就不要為了命名好看而新增新的上下文。
+- 所有權模糊時，先修正文檔邊界，再寫程式碼。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart TD
-	MainDomain["Main domain"] --> Baseline["Baseline subdomains"]
-	MainDomain --> Gap["Recommended gap subdomains"]
-	Baseline --> UseCase["Use case / boundary"]
+	MainDomain["Main domain"] --> Subdomain["Subdomain"]
+	Subdomain --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	Requirement["Requirement"] --> Domain["Choose main domain"]
-	Domain --> Subdomain["Choose owning subdomain"]
-	Subdomain --> Boundary["Choose boundary"]
-	Boundary --> Code["Generate code"]
+	Requirement["Requirement"] --> Ownership["Choose bounded context"]
+	Ownership --> Boundary["Choose API boundary"]
+	Boundary --> Language["Align local language"]
+	Language --> Code["Generate code"]
 ```
 
 ## Document Network
 
 - [architecture-overview.md](./architecture-overview.md)
-- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [context-map.md](./context-map.md)
 - [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
 - [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [contexts/workspace/subdomains.md](./contexts/workspace/subdomains.md)
-- [contexts/platform/subdomains.md](./contexts/platform/subdomains.md)
-- [contexts/notion/subdomains.md](./contexts/notion/subdomains.md)
-- [contexts/notebooklm/subdomains.md](./contexts/notebooklm/subdomains.md)
-````
-
-## File: docs/ubiquitous-language.md
-````markdown
-# Ubiquitous Language
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD ubiquitous language 原則重建，不主張反映現況實作。
-
-## Strategic Terms
-
-| Term | Meaning |
-|---|---|
-| Main Domain | 戰略層級的主要 bounded context 群組 |
-| Bounded Context | 一組高凝聚、可自洽的語言與規則邊界 |
-| Published Language | 跨邊界交換時使用的共同語言 |
-| Upstream | 關係中提供語言或能力的一方 |
-| Downstream | 關係中消費語言或能力的一方 |
-| Anti-Corruption Layer | downstream 用來保護本地語言的轉譯層 |
-| Conformist | downstream 直接接受 upstream 語言的整合選擇 |
-| Shared Kernel | 對稱共用模型關係 |
-| Partnership | 對稱共同成功 / 共同失敗關係 |
-
-## Domain Terms
-
-| Domain | Key Terms |
-|---|---|
-| platform | Actor, Tenant, Entitlement, Consent, Secret |
-| workspace | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail |
-| notion | KnowledgeArtifact, Taxonomy, Relation, Publication |
-| notebooklm | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
-
-## Naming Rules
-
-- 不用 User 混指 Actor 與 Membership。
-- 不用 Plan 混指 Subscription 與 Entitlement。
-- 不用 Wiki 混指 KnowledgeArtifact。
-- 不用 Chat 混指 Conversation。
-- 不用 Search 混指 Retrieval。
-
-## Naming Anti-Patterns
-
-- 用同一個詞同時代表平台治理語言與工作區參與語言。
-- 用內容產品舊名覆蓋 notion 的正典語言。
-- 用 Search 混指 notebooklm 的 Retrieval 與一般搜尋能力。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先對齊 strategic term，再對齊 context-specific term，最後才命名型別與 API。
-- 奧卡姆剃刀：若一個詞已足夠準確，就不要再加第二個近義詞製造歧義。
-- 名稱衝突時先回到 glossary，而不是直接在程式碼裡各自命名。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Strategic["Strategic terms"] --> Context["Context terms"]
-	Context --> Boundary["Published language / API"]
-	Boundary --> Code["Generated code names"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Requirement["Requirement"] --> Term["Select canonical term"]
-	Term --> Context["Map to owning context"]
-	Context --> Boundary["Expose via boundary"]
-	Boundary --> Code["Generate code"]
-```
-
-## Document Network
-
-- [contexts/workspace/ubiquitous-language.md](./contexts/workspace/ubiquitous-language.md)
-- [contexts/platform/ubiquitous-language.md](./contexts/platform/ubiquitous-language.md)
-- [contexts/notion/ubiquitous-language.md](./contexts/notion/ubiquitous-language.md)
-- [contexts/notebooklm/ubiquitous-language.md](./contexts/notebooklm/ubiquitous-language.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0004-ubiquitous-language.md](./decisions/0004-ubiquitous-language.md)
-
-## Conflict Resolution
-
-- 若 strategic term 與主域 term 衝突，優先維持主域語言不被污染，再回寫 strategic glossary。
-- 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
-````
-
-## File: docs/contexts/notebooklm/AGENT.md
-````markdown
-# NotebookLM Agent
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Mission
-
-保護 notebooklm 主域作為對話、來源處理、檢索、grounding 與 synthesis 邊界。任何變更都應維持 notebooklm 擁有衍生推理流程與可追溯輸出，而不是直接擁有正典知識內容。
-
-## Canonical Ownership
-
-- ingestion
-- source
-- retrieval
-- grounding
-- ai
-- notebook
-- conversation
-- note
-- synthesis
-- evaluation
-- versioning
-
-## Route Here When
-
-- 問題核心是 notebook、conversation、source ingestion、retrieval、grounding、synthesis。
-- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
-- 問題要把知識來源轉成可對話與可綜合的推理材料。
-
-## Route Elsewhere When
-
-- 正典知識頁面、內容分類、正式發布屬於 notion。
-- 身份、授權、權益、憑證治理屬於 platform。
-- 工作區生命週期、共享與存在感屬於 workspace。
-
-## Guardrails
-
-- notebooklm 的輸出是衍生產物，不直接等於正典知識內容。
-- retrieval 與 grounding 應作為獨立邊界，而不是隱含在 ai 或 source 裡。
-- ingestion 應與 source reference 分離，避免來源處理與來源語義耦合。
-- evaluation 應作為品質與回歸語言，而不只是分析儀表板指標。
-- 跨主域互動只經過 published language、API 邊界或事件。
-
-## Dependency Direction
-
-- notebooklm 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- application 只能透過 ports 協調 retrieval、grounding、ingestion、synthesis 所需的外部能力。
-- infrastructure 只實作 ports 與邊界轉譯，不反向定義 domain 語言。
-
-## Hard Prohibitions
-
-- 不得把 notion 的 KnowledgeArtifact 直接當成 notebooklm 的本地主域模型。
-- 不得讓 domain 或 application 直接依賴模型 SDK、向量儲存或外部檔案處理框架。
-- 不得讓 notebooklm 直接改寫 workspace 或 notion 的內部狀態，而繞過其 API 邊界。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先維持 notebooklm 作為 downstream 推理主域，不回推治理或正典內容所有權。
-- 奧卡姆剃刀：若較少的抽象已能保護邊界，就不要額外新增 port、ACL、DTO、subdomain 或 process manager。
-- 只有碰到外部依賴、語義污染或跨主域轉譯時，才建立 port、ACL 或 local DTO。
-- 任何跨主域互動都先走 API boundary / published language，再轉成本地主域語言。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
-	A --> D["NotebookLM Domain / Invariants"]
-	P["Ports / Domain-fit Contracts"] -. used by .-> A
-	X["Infrastructure / Driven Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform upstream"] -->|Published Language| Boundary["notebooklm API boundary"]
-	Workspace["workspace upstream"] -->|Published Language| Boundary
-	Notion["notion upstream"] -->|Published Language| Boundary
-	Boundary --> Translation["Local DTO / ACL when needed"]
-	Translation --> App["Application orchestration"]
-	App --> Domain["Conversation / Retrieval / Grounding / Synthesis"]
-	Domain --> Output["Grounded output / notes / evaluation"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/notebooklm/bounded-contexts.md
-````markdown
-# NotebookLM
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Domain Role
-
-notebooklm 是對話與推理主域。依 bounded context 原則，它應封裝來源匯入、檢索、grounding、對話、摘要、評估與版本化，使推理流程保持高凝聚且與正典知識內容邊界分離。
-
-## Baseline Bounded Contexts
-
-| Cluster | Subdomains |
-|---|---|
-| Interaction Core | notebook, conversation, note |
-| Reasoning Output | ai, source, synthesis, versioning |
-
-## Recommended Gap Bounded Contexts
-
-| Subdomain | Why It Should Exist | Gap If Missing |
-|---|---|---|
-| ingestion | 承接來源匯入、正規化與前處理 | source 會同時承載來源處理與來源語義 |
-| retrieval | 承接查詢、召回、排序與檢索策略 | synthesis 缺少清楚上游邊界 |
-| grounding | 承接 citation、evidence 對齊與答案可追溯性 | 引用語言無法形成正典邊界 |
-| evaluation | 承接品質評估、回歸比較與效果量測 | 品質語言只能散落在 analytics 或測試層 |
-
-## Domain Invariants
-
-- notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
-- grounding 應能把輸出對齊到來源證據。
-- retrieval 是 synthesis 的上游能力，不應與 source reference 混成同一層。
-- evaluation 應描述品質，而不是單純使用量。
-- 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
-
-## Dependency Direction
-
-- notebooklm 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
-- ingestion、retrieval、grounding 的外部整合必須由 adapter 實作，透過 port 注入到核心。
-- domain 不得向外依賴來源處理框架、模型供應商或傳輸協定。
-
-## Anti-Patterns
-
-- 把 retrieval、grounding、ingestion 重新塞回 ai 或 source，造成責任折疊。
-- 讓 synthesis 直接持有正典內容所有權，混淆 notion 與 notebooklm 邊界。
-- 讓 application service 直接呼叫外部 SDK，而不經過 port/adapter。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 retrieval、grounding、ingestion、evaluation 的獨立語義，再決定是否需要額外抽象。
-- 奧卡姆剃刀：不要為了形式上的對稱而新增子域；只有在責任、語義或演化速率不同時才拆分。
-- 若外部能力只服務單一明確邊界，優先用最小必要 port，而不是複製整套工具 API。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["NotebookLM bounded contexts"]
-	X["Infrastructure"] --> D
-	X -. adapter / provider .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	SourceInput["Source / governance / scope input"] --> Boundary["NotebookLM boundary"]
-	Boundary --> App["Use case orchestration"]
-	App --> Retrieval["Retrieval"]
-	Retrieval --> Grounding["Grounding"]
-	Grounding --> Synthesis["Synthesis"]
-	Synthesis --> Evaluation["Evaluation"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
-````
-
-## File: docs/contexts/notebooklm/context-map.md
-````markdown
-# NotebookLM
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Context Role
-
-notebooklm 消費 workspace scope、platform 治理與 notion 內容來源，並輸出可追溯的對話、洞察與 synthesis。依 Context Mapper 思維，它是多個上游語言的下游整合者，但仍需維持自己的對話與推理邊界。
-
-## Relationships
-
-| Related Domain | Relationship Type | NotebookLM Position | Published Language |
-|---|---|---|---|
-| platform | Upstream/Downstream | downstream | actor reference、organization scope、access decision、entitlement signal |
-| workspace | Upstream/Downstream | downstream | workspaceId、membership scope、share scope |
-| notion | Upstream/Downstream | downstream | knowledge artifact reference、attachment reference、taxonomy hint |
-
-## Mapping Rules
-
-- notebooklm 依賴 platform 的治理結果，但不重建 actor、policy 或 secret 模型。
-- notebooklm 在 workspace scope 內運作，但不定義 workspace 生命周期或 sharing 規則。
-- notion 是 notebooklm 的重要 source supplier，notebooklm 不能反向直接改寫 notion 正典內容。
-- synthesis、grounding、evaluation 是 notebooklm 對外輸出的核心能力語言。
-
-## Dependency Direction
-
-- notebooklm 只作為 platform、workspace、notion 的 downstream consumer，不反向宣稱治理或正典內容所有權。
-- ACL 或 Conformist 只能由 notebooklm 這個 downstream 端選擇，不能回推到上游。
-- 跨主域資料進入 notebooklm 時，先落在 published language 或 local DTO，再進入本地主域語言。
-
-## Anti-Patterns
-
-- 把 notebooklm 寫成 notion 或 workspace 的上游治理來源。
-- 在同一主域關係上同時聲稱 ACL 與 Conformist。
-- 直接共享 notebook、source 或 conversation 的內部模型給其他主域使用。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先維持 notebooklm 對 platform、workspace、notion 的 downstream 位置，再安排轉譯層。
-- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要額外發明第二層 mapper 或雙重 ACL。
-- 上游只提供 published language；本地主域保護由 downstream 完成。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Upstream["Upstream contexts"] -->|Published Language| Boundary["notebooklm boundary"]
-	Boundary --> Translation["Local DTO / ACL if needed"]
-	Translation --> App["Application"]
-	App --> Domain["Domain"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] -->|actor / access / entitlement| Boundary["notebooklm API boundary"]
-	Workspace["workspace"] -->|workspace scope| Boundary
-	Notion["notion"] -->|knowledge references| Boundary
-	Boundary --> ACL["ACL or local DTO"]
-	ACL --> Domain["NotebookLM domain"]
-	Domain --> Result["Grounded synthesis / conversation output"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [subdomains.md](./subdomains.md)
-- [../../context-map.md](../../context-map.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../strategic-patterns.md](../../strategic-patterns.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/notebooklm/subdomains.md
-````markdown
-# NotebookLM
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| ai | AI 模型調用與提示工程 |
-| conversation | 對話 Thread 與 Message 生命週期 |
-| note | 輕量筆記與知識連結 |
-| notebook | Notebook 組合與管理 |
-| source | 來源文件追蹤與引用 |
-| synthesis | RAG 合成、摘要與洞察生成 |
-| versioning | 對話版本與快照策略 |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Why Needed |
-|---|---|
-| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
-| retrieval | 建立查詢召回與排序策略的正典邊界 |
-| grounding | 建立引用對齊與可追溯證據的正典邊界 |
-| evaluation | 建立品質評估與回歸比較的正典邊界 |
-
-## Recommended Order
-
-1. retrieval
-2. grounding
-3. ingestion
-4. evaluation
-
-## Anti-Patterns
-
-- 不把 retrieval 與 grounding 併回 source 或 ai，否則推理鏈條失去清楚邊界。
-- 不把 evaluation 只當成 dashboard 指標，否則品質語言無法成為正典子域。
-- 不把 notebook、conversation、note 混成單一 UI 容器語意，否則無法維持聚合邊界。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先問新需求落在哪個既有子域；只有既有子域無法容納時才建立新子域。
-- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新增第二個平行子域。
-- 子域命名應反映責任與語義，不應只是頁面名稱或工具名稱。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case"]
-	UseCase --> Subdomain["Owning subdomain domain"]
-	Infra["Infra adapter"] --> Subdomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Ingestion["Ingestion"] --> Retrieval["Retrieval"]
-	Retrieval --> Grounding["Grounding"]
-	Grounding --> Synthesis["Synthesis"]
-	Synthesis --> Evaluation["Evaluation"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
+- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
+- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
 ````
 
 ## File: docs/contexts/notebooklm/ubiquitous-language.md
@@ -81068,354 +79995,6 @@ flowchart LR
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
 ````
 
-## File: docs/contexts/notion/AGENT.md
-````markdown
-# Notion Agent
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Mission
-
-保護 notion 主域作為知識內容生命週期邊界。任何變更都應維持 notion 擁有內容建立、分類、關聯、協作、模板、發布與版本化語言，而不是吸收平台治理或對話推理語言。
-
-## Canonical Ownership
-
-- knowledge
-- authoring
-- collaboration
-- database
-- taxonomy
-- relations
-- ai
-- analytics
-- attachments
-- automation
-- integration
-- notes
-- templates
-- publishing
-- versioning
-
-## Route Here When
-
-- 問題核心是知識頁面、文章、內容結構、分類、關聯、模板與發布。
-- 問題需要把輸入吸收成正式知識內容的正典狀態。
-- 問題需要定義內容版本、內容協作與內容交付。
-
-## Route Elsewhere When
-
-- 身份、租戶、授權、權益、憑證治理屬於 platform。
-- 工作區生命週期、共享、存在感與工作區流程屬於 workspace。
-- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
-
-## Guardrails
-
-- notion 的正典內容不等於 notebooklm 的衍生輸出。
-- taxonomy 與 relations 應作為內容語義邊界，而不是 UI 功能附屬物。
-- publishing 應與 authoring 分離，避免編輯語意與交付語意混用。
-- attachments 是內容資產語言，不是平台 secret 或一般檔案暫存語言。
-- 跨主域互動只經過 published language、API 邊界或事件。
-
-## Dependency Direction
-
-- notion 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- authoring、knowledge、database、publishing 對外部能力的依賴只能透過 ports 進入核心。
-- infrastructure 只負責儲存、傳輸、ACL 轉譯，不定義 KnowledgeArtifact 的正典語義。
-
-## Hard Prohibitions
-
-- 不得讓 notebooklm 的 Conversation、Synthesis 直接滲入 notion 作為正典內容模型。
-- 不得讓 domain 或 application 直接依賴 UI、HTTP、資料庫 SDK 或框架語言。
-- 不得讓 notion 直接接管 platform 的 actor、tenant、entitlement 治理責任。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 notion 作為正典內容主域，不讓治理或推理語言滲入核心。
-- 奧卡姆剃刀：若一個既有內容子域與一條清楚 use case 就能承接需求，不要再新增額外 service、mapper 或子域。
-- 只有在外部依賴或跨主域語義污染出現時，才建立 port、ACL 或 local DTO。
-- 對 notebooklm 或 workspace 的互動一律先經 published language / API boundary，再進入 notion 語言。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
-	A --> D["Notion Domain / Invariants"]
-	P["Ports / Domain-fit Contracts"] -. used by .-> A
-	X["Infrastructure / Driven Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform upstream"] -->|Published Language| Boundary["notion API boundary"]
-	Workspace["workspace upstream"] -->|Published Language| Boundary
-	Boundary --> Translation["Local DTO / ACL when needed"]
-	Translation --> App["Application orchestration"]
-	App --> Domain["Knowledge / Authoring / Relations / Publishing"]
-	Domain --> Output["KnowledgeArtifact / Publication / Reference"]
-	Output --> NotebookLM["notebooklm downstream"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/notion/bounded-contexts.md
-````markdown
-# Notion
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Domain Role
-
-notion 是知識內容主域。依 bounded context 原則，它應封裝內容建立、編輯、結構化、分類、關聯、版本化與對外發布的高凝聚規則。
-
-## Baseline Bounded Contexts
-
-| Cluster | Subdomains |
-|---|---|
-| Content Core | knowledge, authoring, database |
-| Collaboration and Change | collaboration, versioning, templates |
-| Intelligence and Extension | ai, analytics, attachments, automation, integration, notes |
-
-## Recommended Gap Bounded Contexts
-
-| Subdomain | Why It Should Exist | Gap If Missing |
-|---|---|---|
-| taxonomy | 承接標籤、分類、語義樹與主題治理 | authoring 與 database 會混入分類責任 |
-| relations | 承接內容之間的引用、backlink 與語義關聯 | 內容關係只能隱藏在欄位或 UI 裡 |
-| publishing | 承接發布流程、受眾可見性與正式交付 | 編輯語意與交付語意無法分離 |
-
-## Domain Invariants
-
-- 知識內容的正典狀態屬於 notion。
-- taxonomy 應獨立於具體 UI 視圖存在。
-- relations 應描述內容對內容的語義關係，而不是臨時連結。
-- publishing 只交付已被 notion 吸收的內容狀態。
-- 任何來自 notebooklm 的輸出，若要成為正典內容，必須先被 notion 吸收。
-
-## Dependency Direction
-
-- notion 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
-- content lifecycle 由 knowledge、authoring、database、publishing 等上下文在核心內協作，不由外層技術層直接驅動。
-- 外部內容輸入只能先經 API boundary 或 adapter 轉譯，再進入 notion 語言。
-
-## Anti-Patterns
-
-- 把 taxonomy 或 relations 當成純 UI 功能，而不是內容語義邊界。
-- 讓 publishing 直接等同 authoring，混淆編輯與交付責任。
-- 讓 notebooklm 或 platform 的語言直接取代 notion 的 KnowledgeArtifact 模型。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先決定需求屬於 content core、collaboration、還是 extension，再安排具體型別與流程。
-- 奧卡姆剃刀：不要為了看起來完整而新增抽象層；只在現有內容邊界真的失效時才拆更多上下文。
-- 外部能力若不影響正典內容語言，就不要把它抬升成新的內容核心抽象。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Notion bounded contexts"]
-	X["Infrastructure"] --> D
-	X -. adapter / provider .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Input["Governance / scope / author input"] --> Boundary["Notion boundary"]
-	Boundary --> App["Use case orchestration"]
-	App --> Knowledge["Knowledge / Authoring / Database"]
-	Knowledge --> Taxonomy["Taxonomy / Relations"]
-	Taxonomy --> Publishing["Publishing / Versioning"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
-````
-
-## File: docs/contexts/notion/context-map.md
-````markdown
-# Notion
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Context Role
-
-notion 對其他主域提供知識內容語言。依 Context Mapper 的 context map 思維，它消費 workspace scope 與 platform 治理，並向 notebooklm 提供可被引用的知識內容來源。
-
-## Relationships
-
-| Related Domain | Relationship Type | Notion Position | Published Language |
-|---|---|---|---|
-| platform | Upstream/Downstream | downstream | actor reference、organization scope、access decision、entitlement signal |
-| workspace | Upstream/Downstream | downstream | workspaceId、membership scope、share scope |
-| notebooklm | Upstream/Downstream | upstream | knowledge artifact reference、attachment reference、taxonomy hint |
-
-## Mapping Rules
-
-- notion 消費 platform 的治理結果，但不重建 actor、tenant、policy 模型。
-- notion 在 workspace scope 中運作，但不反向定義 workspace 生命週期。
-- notebooklm 可以消費 notion 的知識來源，但不得直接重寫 notion 正典內容。
-- publishing 是 notion 對外輸出正式內容狀態的邊界。
-
-## Dependency Direction
-
-- notion 對 platform、workspace 屬 downstream；對 notebooklm 屬 upstream 的內容 supplier。
-- ACL 或 Conformist 只能由 notion 作為 downstream 時選擇，不能要求上游替 notion 保護語言。
-- notion 對 notebooklm 輸出的是 published language，不是內部 aggregate 或 workflow 細節。
-
-## Anti-Patterns
-
-- 把 notion 與 notebooklm 寫成對稱 Shared Kernel，同時又要求 ACL。
-- 讓 notebooklm 直接回寫 notion 正典內容而不經 notion 邊界。
-- 把 workspace scope 語言錯寫成 notion 自己擁有的容器生命週期語言。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 notion 對 platform、workspace 的 downstream 位置與對 notebooklm 的 upstream 位置。
-- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要再建立第二個平行翻譯管線。
-- notion 向外提供的是內容語言，不是內部 aggregate、repository 或 UI projection。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Upstream["platform / workspace upstream"] -->|Published Language| Boundary["notion boundary"]
-	Boundary --> Translation["Local DTO / ACL if needed"]
-	Translation --> App["Application"]
-	App --> Domain["Domain"]
-	Domain --> PL["Published content language"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] -->|actor / access / entitlement| Boundary["notion API boundary"]
-	Workspace["workspace"] -->|workspace scope| Boundary
-	Boundary --> ACL["ACL or local DTO"]
-	ACL --> Domain["Notion domain"]
-	Domain --> Publication["Publication / KnowledgeArtifact reference"]
-	Publication --> NotebookLM["notebooklm"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [subdomains.md](./subdomains.md)
-- [../../context-map.md](../../context-map.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../strategic-patterns.md](../../strategic-patterns.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/notion/subdomains.md
-````markdown
-# Notion
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| knowledge | 頁面建立、組織、版本化與交付 |
-| authoring | 知識庫文章建立、驗證與分類 |
-| collaboration | 協作留言、細粒度權限與版本快照 |
-| database | 結構化資料多視圖管理 |
-| ai | AI 輔助頁面生成與摘要整合 |
-| analytics | 知識使用行為量測 |
-| attachments | 附件與媒體關聯儲存 |
-| automation | 知識事件觸發自動化動作 |
-| integration | 知識與外部系統雙向整合 |
-| notes | 個人輕量筆記與正式知識協作 |
-| templates | 頁面範本管理與套用 |
-| versioning | 全域版本快照策略管理 |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Why Needed |
-|---|---|
-| taxonomy | 建立分類法與語義組織的正典邊界 |
-| relations | 建立內容之間關聯與 backlink 的正典邊界 |
-| publishing | 建立正式發布與對外交付的正典邊界 |
-
-## Recommended Order
-
-1. taxonomy
-2. relations
-3. publishing
-
-## Anti-Patterns
-
-- 不把 taxonomy 混成 authoring 裡的附屬設定。
-- 不把 relations 混成單純 hyperlink 功能，失去語義關係邊界。
-- 不把 publishing 混成 UI 上的一個按鈕事件，而忽略正式交付語言。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先判斷需求屬於 knowledge、authoring、relations、publishing 哪一個內容責任。
-- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新建第二個概念接近的子域。
-- 子域命名要反映內容語義，不要退化成頁面或元件名稱。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case"]
-	UseCase --> Subdomain["Owning subdomain domain"]
-	Infra["Infra adapter"] --> Subdomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Authoring["Authoring"] --> Knowledge["Knowledge"]
-	Knowledge --> Taxonomy["Taxonomy"]
-	Knowledge --> Relations["Relations"]
-	Taxonomy --> Publishing["Publishing"]
-	Relations --> Publishing
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-````
-
 ## File: docs/contexts/notion/ubiquitous-language.md
 ````markdown
 # Notion
@@ -81496,376 +80075,6 @@ flowchart LR
 - [bounded-contexts.md](./bounded-contexts.md)
 - [../../ubiquitous-language.md](../../ubiquitous-language.md)
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
-````
-
-## File: docs/contexts/platform/AGENT.md
-````markdown
-# Platform Agent
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Mission
-
-保護 platform 主域作為治理、身份、組織、權益、策略與營運支撐邊界。任何變更都應維持 platform 對治理語言的所有權，不吸收 workspace、notion、notebooklm 的正典業務模型。
-
-## Canonical Ownership
-
-- identity
-- account
-- account-profile
-- organization
-- tenant
-- access-control
-- security-policy
-- platform-config
-- feature-flag
-- entitlement
-- onboarding
-- compliance
-- consent
-- billing
-- subscription
-- referral
-- integration
-- secret-management
-- workflow
-- notification
-- background-job
-- content
-- search
-- audit-log
-- observability
-- analytics
-- support
-
-## Route Here When
-
-- 問題核心是 actor、organization、tenant、access、policy、entitlement 或商業權益。
-- 問題核心是通知治理、背景任務、平台級搜尋、觀測與支援。
-- 問題需要提供其他主域共同消費的治理結果。
-
-## Route Elsewhere When
-
-- 工作區生命週期、成員關係、共享與存在感屬於 workspace。
-- 知識內容建立、分類、關聯與發布屬於 notion。
-- 對話、來源、retrieval、grounding、synthesis 屬於 notebooklm。
-
-## Guardrails
-
-- Actor 與 Identity 屬於 platform，不能在其他主域重定義。
-- entitlement 是 subscription、feature-flag、policy 的解算結果，不等於 plan 本身。
-- secret-management 應與 integration 分離，避免憑證語義擴散。
-- consent 與 compliance 有關，但不是同一個 bounded context。
-- 平台輸出治理信號，不接管其他主域的正典內容生命週期。
-
-## Dependency Direction
-
-- platform 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- access-control、entitlement、secret-management 等外部依賴只能透過 ports 進入核心。
-- infrastructure 只實作治理能力與外部整合，不反向定義 Actor、Tenant、Entitlement 語言。
-
-## Hard Prohibitions
-
-- 不得讓 platform 直接接管 workspace、notion、notebooklm 的正典業務流程。
-- 不得讓 domain 或 application 直接依賴第三方身份、通知、計費或 secret SDK。
-- 不得在其他主域重建 Actor、Tenant、Entitlement、Secret 的正典模型。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 platform 作為治理 upstream，而不是內容或推理 owner。
-- 奧卡姆剃刀：若既有治理子域與單一 use case 能承接需求，就不要新增第二層 policy service、flag service 或 entitlement facade。
-- 只有在外部依賴、敏感治理或跨主域轉譯明確存在時，才建立 port、ACL 或 local DTO。
-- 對 workspace、notion、notebooklm 的輸出應停在 published language / API boundary。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
-	A --> D["Platform Domain / Invariants"]
-	P["Ports / Domain-fit Contracts"] -. used by .-> A
-	X["Infrastructure / Driven Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Request["Actor / admin / system request"] --> Boundary["platform API boundary"]
-	Boundary --> App["Application orchestration"]
-	App --> Domain["Identity / Access / Entitlement / Secret"]
-	Domain --> PL["Published governance language"]
-	PL --> Workspace["workspace"]
-	PL --> Notion["notion"]
-	PL --> NotebookLM["notebooklm"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/platform/bounded-contexts.md
-````markdown
-# Platform
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Domain Role
-
-platform 是治理與營運支撐主域。依 bounded context 原則，它應把 actor、organization、access、policy、entitlement、billing 與 operational intelligence 封裝成清楚的上下文，而非讓這些責任滲入其他主域。
-
-## Baseline Bounded Contexts
-
-| Cluster | Subdomains |
-|---|---|
-| Identity and Organization | identity, account, account-profile, organization |
-| Governance | access-control, security-policy, platform-config, feature-flag, onboarding, compliance |
-| Commercial | billing, subscription, referral |
-| Delivery and Operations | integration, workflow, notification, background-job |
-| Intelligence and Audit | content, search, audit-log, observability, analytics, support |
-
-## Recommended Gap Bounded Contexts
-
-| Subdomain | Why It Should Exist | Gap If Missing |
-|---|---|---|
-| tenant | 承接多租戶隔離與 tenant-scoped 規則 | organization 無法完整覆蓋租戶隔離模型 |
-| entitlement | 承接有效權益與功能可用性解算 | subscription、feature-flag、policy 之間缺少統一決策點 |
-| secret-management | 承接憑證、token、rotation 與 secret audit | integration 容易承載過多敏感治理責任 |
-| consent | 承接同意、偏好、資料使用授權 | compliance 會被迫承接過細的使用者授權語意 |
-
-## Domain Invariants
-
-- actor identity 由 platform 正典擁有。
-- access decision 必須基於 platform 語言輸出，而不是由下游主域自創。
-- entitlement 必須是解算結果，不是任意 UI 標記。
-- billing event 與 subscription state 必須分離。
-- secret 不應作為一般 integration payload 傳播。
-
-## Dependency Direction
-
-- platform 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
-- identity、organization、billing、notification 等外部整合能力必須透過 port/adapter 進入核心。
-- domain 不得向外依賴 HTTP、Firebase、secret provider 或 message transport 細節。
-
-## Anti-Patterns
-
-- 把 entitlement 當成 subscription plan 名稱或 UI 開關。
-- 把 secret-management 混回 integration，使敏感治理責任失焦。
-- 讓 platform 直接持有其他主域的正典內容或推理模型。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先判斷需求落在 identity、organization、entitlement、secret-management 或其他既有治理責任。
-- 奧卡姆剃刀：不要為了形式上的完整而新增抽象；只有當既有治理邊界無法承接時才拆新上下文。
-- 對外部 provider 的抽象必須貼合 domain 需要，而不是複製供應商 API。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Platform bounded contexts"]
-	X["Infrastructure"] --> D
-	X -. adapter / provider .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Identity["Identity / Organization"] --> Access["Access / Policy"]
-	Access --> Entitlement["Entitlement"]
-	Entitlement --> Delivery["Notification / Job / Integration"]
-	Delivery --> Audit["Audit / Observability / Analytics"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
-````
-
-## File: docs/contexts/platform/context-map.md
-````markdown
-# Platform
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Context Role
-
-platform 是其他三個主域的治理上游。依 Context Mapper 的 upstream/downstream 關係，它向下游提供身份、組織、存取、權益與營運支撐語言。
-
-## Relationships
-
-| Related Domain | Relationship Type | Platform Position | Published Language |
-|---|---|---|---|
-| workspace | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal |
-| notion | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal |
-| notebooklm | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal |
-
-## Mapping Rules
-
-- platform 提供治理結果，但不直接擁有工作區、知識內容或對話內容。
-- workspace、notion、notebooklm 可以把平台輸出當作 supplier language，但不能穿透其內部模型。
-- audit-log 與 analytics 可消費其他主域的事件，但那不等於接管對方的主域責任。
-- tenant、entitlement、secret-management、consent 是平台應補齊的核心缺口邊界。
-
-## Dependency Direction
-
-- platform 是 workspace、notion、notebooklm 的治理 upstream，而不是它們的內容或流程 owner。
-- platform 對下游輸出 published language，不輸出內部 aggregate、repository 或 secret 結構。
-- 下游若需保護本地語言，ACL 由下游自行實作，不由 platform 代替選擇。
-
-## Anti-Patterns
-
-- 把 platform 與下游主域寫成 Shared Kernel，再同時保留 supplier/downstream 敘事。
-- 讓 platform 直接穿透下游主域內部模型，以治理名義接管業務邏輯。
-- 把審計或分析事件消費錯寫成平台擁有下游正典責任。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先維持 platform 作為 workspace、notion、notebooklm 的治理 upstream。
-- 奧卡姆剃刀：若 published language 已足夠，就不要對每個下游再額外建立一套專屬治理模型。
-- platform 的輸出應穩定、可被消費，但不應暴露其內部 aggregate 或 repository。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Domain["Platform domain"] --> PL["Published Language / OHS"]
-	PL --> Boundary["Downstream API clients"]
-	Boundary --> Local["Downstream local DTO / ACL"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] -->|actor / org / access / entitlement| Workspace["workspace"]
-	Platform -->|actor / org / access / entitlement| Notion["notion"]
-	Platform -->|actor / org / access / entitlement| NotebookLM["notebooklm"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [subdomains.md](./subdomains.md)
-- [../../context-map.md](../../context-map.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../strategic-patterns.md](../../strategic-patterns.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/platform/subdomains.md
-````markdown
-# Platform
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| identity | 已驗證主體與身份信號治理 |
-| account | 帳號聚合根與帳號生命週期 |
-| account-profile | 主體屬性、偏好與治理設定 |
-| organization | 組織、成員與角色邊界 |
-| access-control | 主體現在能做什麼的授權判定 |
-| security-policy | 安全規則定義、版本化與發佈 |
-| platform-config | 平台設定輪廓與配置管理 |
-| feature-flag | 功能開關策略與發佈節點 |
-| onboarding | 新主體初始設定與引導流程 |
-| compliance | 資料保留、稽核與法規執行 |
-| billing | 計費狀態、費率與財務證據 |
-| subscription | 方案、權益、配額與續期治理 |
-| referral | 推薦關係與獎勵追蹤 |
-| integration | 外部系統整合邊界與契約 |
-| workflow | 平台級流程編排與狀態驅動執行 |
-| notification | 通知路由、偏好與投遞 |
-| background-job | 背景任務提交、排程與監控 |
-| content | 平台級內容資產管理與發布 |
-| search | 跨域搜尋路由與查詢協調 |
-| audit-log | 永久稽核軌跡與不可否認證據 |
-| observability | 健康量測、追蹤與告警 |
-| analytics | 平台使用行為量測與分析 |
-| support | 客服工單、支援知識與處理流程 |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Why Needed |
-|---|---|
-| tenant | 建立多租戶隔離與 tenant-scoped 規則的正典邊界 |
-| entitlement | 建立有效權益與功能可用性的統一解算上下文 |
-| secret-management | 把憑證、token、rotation 從 integration 中切開 |
-| consent | 把同意與資料使用授權從 compliance 中切開 |
-
-## Recommended Order
-
-1. tenant
-2. entitlement
-3. secret-management
-4. consent
-
-## Anti-Patterns
-
-- 不把 tenant 與 organization 視為同義詞。
-- 不把 entitlement 混成 feature-flag 的別名。
-- 不把 secret-management 混成 integration 的一個欄位集合。
-- 不把 consent 混成一般 UI preference。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先確認需求屬於哪個治理責任，再決定 use case 與 boundary。
-- 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的治理子域。
-- 子域命名必須反映治理責任，不應退化成頁面或介面名稱。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case"]
-	UseCase --> Subdomain["Owning subdomain domain"]
-	Infra["Infra adapter"] --> Subdomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Identity["Identity"] --> Organization["Organization / Tenant"]
-	Organization --> Access["Access / Policy"]
-	Access --> Entitlement["Entitlement"]
-	Entitlement --> Secret["Secret / Integration / Delivery"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
 ````
 
 ## File: docs/contexts/platform/ubiquitous-language.md
@@ -81954,191 +80163,6 @@ flowchart LR
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
 ````
 
-## File: docs/contexts/workspace/AGENT.md
-````markdown
-# Workspace Agent
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Mission
-
-保護 workspace 主域作為協作容器、工作區範疇與 workspaceId 錨點。任何變更都應維持 workspace 擁有工作區生命週期、成員關係、共享、存在感、活動投影、稽核、排程與工作流，而不是吸收平台治理或知識內容正典。
-
-## Canonical Ownership
-
-- lifecycle
-- membership
-- sharing
-- presence
-- audit
-- feed
-- scheduling
-- workflow
-
-## Route Here When
-
-- 問題的中心是 workspaceId、工作區建立封存、工作區內角色與參與關係。
-- 問題的中心是工作區共享、存在感、活動流、排程與工作流執行。
-- 問題需要提供其他主域運作所需的 workspace scope。
-
-## Route Elsewhere When
-
-- 身份、組織、授權、權益、憑證、通知治理屬於 platform。
-- 知識頁面、文章、資料庫、分類、內容發布屬於 notion。
-- notebook、conversation、source、retrieval、synthesis 屬於 notebooklm。
-
-## Guardrails
-
-- workspace 的 Member 或 Membership 不等於 platform 的 Actor 或 Identity。
-- feed 是投影，不是工作區正典狀態來源。
-- audit 是不可否認追蹤，不等於使用者導向動態流。
-- sharing 定義暴露範圍，但不取代 platform entitlement 與 access-control。
-- 跨主域互動只經過 published language、API 邊界或事件。
-
-## Dependency Direction
-
-- workspace 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- membership、sharing、presence、workflow 所需外部能力只能透過 ports 進入核心。
-- infrastructure 只處理事件、儲存、同步與投影，不反向定義 Workspace 或 Membership 語言。
-
-## Hard Prohibitions
-
-- 不得把 platform 的 Actor 或 Identity 直接當成 workspace 的 Membership 模型。
-- 不得讓 feed 取代正典狀態來源，或讓 audit 退化成一般 UI 活動流。
-- 不得讓 workspace 直接接管 notion 內容生命週期或 notebooklm 推理流程。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 workspace 作為協作 scope 主域，而不是治理或內容 owner。
-- 奧卡姆剃刀：若既有 lifecycle、membership、sharing、presence 或 workflow 邊界已足夠，就不要額外新增平行協作抽象。
-- 只有在外部依賴、跨主域語義污染或 scope 轉譯明確存在時，才建立 port、ACL 或 local DTO。
-- 對 notion 與 notebooklm 的輸出應停在 workspace scope / membership scope / share scope。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
-	A --> D["Workspace Domain / Invariants"]
-	P["Ports / Domain-fit Contracts"] -. used by .-> A
-	X["Infrastructure / Driven Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform upstream"] -->|Published Language| Boundary["workspace API boundary"]
-	Boundary --> Translation["Local DTO / ACL when needed"]
-	Translation --> App["Application orchestration"]
-	App --> Domain["Lifecycle / Membership / Sharing / Workflow"]
-	Domain --> Scope["workspace scope / membership scope / share scope"]
-	Scope --> Notion["notion downstream"]
-	Scope --> NotebookLM["notebooklm downstream"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/workspace/bounded-contexts.md
-````markdown
-# Workspace
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Domain Role
-
-workspace 是協作與範疇主域。依 bounded context 原則，它應封裝高度凝聚的工作區規則，並以最小公開介面提供其他主域使用的 workspace scope。
-
-## Baseline Bounded Contexts
-
-| Subdomain | Owns | Excludes |
-|---|---|---|
-| audit | 工作區操作證據、可追溯紀錄 | 平台永久合規審計 |
-| feed | 面向使用者的工作區活動投影 | 正典狀態與不可變證據 |
-| scheduling | 工作區時間安排、提醒、期限 | 平台背景工作引擎 |
-| workflow | 工作區流程定義、執行、狀態推進 | 知識內容正典生命週期 |
-
-## Recommended Gap Bounded Contexts
-
-| Subdomain | Why It Should Exist | Gap If Missing |
-|---|---|---|
-| lifecycle | 承接 workspace 建立、封存、還原、移轉與狀態變化 | 主容器生命週期容易散落到 workflow 或 app 組裝層 |
-| membership | 承接 workspace 內邀請、席位、角色與參與關係 | 會把 organization 與 workspace participation 混為一談 |
-| sharing | 承接分享連結、外部可見性與公開暴露範圍 | 對外共享無獨立邊界，安全與責任不清 |
-| presence | 承接即時在線狀態、協作存在感與共同編輯訊號 | 即時協作能力無法形成可演化的本地模型 |
-
-## Domain Invariants
-
-- workspaceId 是工作區範疇錨點。
-- 工作區成員關係屬於 membership，而不是平台身份本身。
-- activity feed 只投影事實，不創造事實。
-- audit trail 一旦寫入即不可隨意覆蓋。
-- workflow 可跨工作區能力協調，但不能取代 lifecycle 與 membership 的正典責任。
-
-## Dependency Direction
-
-- workspace 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
-- lifecycle、membership、sharing、presence 等能力若需要外部服務，必須經過 port/adapter。
-- domain 不得依賴 UI 狀態、HTTP 傳輸、排程框架或儲存實作細節。
-
-## Anti-Patterns
-
-- 把 Membership 混成 Actor 身份本身。
-- 讓 ActivityFeed 直接創造工作區事實，而不是投影工作區事實。
-- 讓 Workflow 取代 Lifecycle、Membership、Sharing 的正典責任。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先判斷需求落在 lifecycle、membership、sharing、presence、audit、feed、scheduling、workflow 哪個責任。
-- 奧卡姆剃刀：若既有 workspace 邊界可以吸收需求，就不要額外新建平行容器或 scope 抽象。
-- 對外部能力的抽象必須貼合 workspace scope 的需求，而不是複製供應商 API。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Workspace bounded contexts"]
-	X["Infrastructure"] --> D
-	X -. adapter / provider .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Lifecycle["Lifecycle"] --> Membership["Membership"]
-	Membership --> Sharing["Sharing"]
-	Sharing --> Presence["Presence"]
-	Presence --> Workflow["Workflow / Scheduling"]
-	Workflow --> AuditFeed["Audit / Feed projections"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
-````
-
 ## File: docs/contexts/workspace/context-map.md
 ````markdown
 # Workspace
@@ -82216,80 +80240,6 @@ flowchart LR
 - [../../strategic-patterns.md](../../strategic-patterns.md)
 - [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
 - [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/workspace/subdomains.md
-````markdown
-# Workspace
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| audit | 工作區操作稽核與證據追蹤 |
-| feed | 工作區活動摘要與事件流呈現 |
-| scheduling | 工作區排程、時序與提醒協調 |
-| workflow | 工作區流程編排與執行治理 |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Why Needed |
-|---|---|
-| lifecycle | 把工作區容器生命週期獨立成正典邊界 |
-| membership | 把工作區參與關係從平台身份治理中切開 |
-| sharing | 把對外共享與可見性規則收斂到單一上下文 |
-| presence | 把即時協作存在感與共同編輯訊號形成本地語言 |
-
-## Recommended Order
-
-1. lifecycle
-2. membership
-3. sharing
-4. presence
-
-## Anti-Patterns
-
-- 不把 lifecycle 混進 workflow，使容器生命週期被流程編排吞沒。
-- 不把 membership 混成 organization 或 identity。
-- 不把 sharing 混成一般 permission 欄位集合。
-- 不把 presence 藏進 UI 狀態而失去獨立語言。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先確認需求屬於哪個 workspace 責任，再決定 use case 與 boundary。
-- 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的 scope 子域。
-- 子域命名必須反映工作區語義，不應退化成頁面或元件名稱。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case"]
-	UseCase --> Subdomain["Owning subdomain domain"]
-	Infra["Infra adapter"] --> Subdomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Lifecycle["Lifecycle"] --> Membership["Membership"]
-	Membership --> Sharing["Sharing"]
-	Sharing --> Presence["Presence"]
-	Presence --> Workflow["Workflow"]
-	Workflow --> Scheduling["Scheduling"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
 ````
 
 ## File: docs/contexts/workspace/ubiquitous-language.md
@@ -82372,6 +80322,179 @@ flowchart LR
 - [bounded-contexts.md](./bounded-contexts.md)
 - [../../ubiquitous-language.md](../../ubiquitous-language.md)
 - [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
+````
+
+## File: docs/subdomains.md
+````markdown
+# Subdomains
+
+本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 strategic design 原則重建，不主張反映現況實作。
+
+## Main Domain Inventory
+
+| Main Domain | Baseline Subdomains | Recommended Gap Subdomains |
+|---|---|---|
+| workspace | audit, feed, scheduling, workspace-workflow | lifecycle, membership, sharing, presence |
+| platform | identity, account, account-profile, organization, access-control, security-policy, platform-config, feature-flag, onboarding, compliance, billing, subscription, referral, ai, integration, workflow, notification, background-job, content, search, audit-log, observability, analytics, support | tenant, entitlement, secret-management, consent |
+| notion | knowledge, authoring, collaboration, database, knowledge-analytics, attachments, automation, knowledge-integration, notes, templates, knowledge-versioning | taxonomy, relations, publishing |
+| notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | ingestion, retrieval, grounding, evaluation |
+
+## Strategic Notes
+
+- baseline subdomains 代表本架構基線中已確立的核心切分。
+- recommended gap subdomains 代表依 Context7 推導出的合理補洞方向。
+- recommended gap subdomains 不等於已驗證現況實作。
+
+## Ownership Summary
+
+- workspace 關心協作範疇。
+- platform 關心治理與權益。
+- notion 關心正典知識內容。
+- notebooklm 關心推理與衍生輸出。
+
+## Cross-Domain Duplicate Resolution
+
+| Original Term | Resolution |
+|---|---|
+| ai | `platform` 擁有唯一 generic `ai` 子域；`notion` 與 `notebooklm` 改為 consumer，不再各自擁有 `ai` 子域 |
+| analytics | `platform` 保留 generic `analytics`；`notion` 改為 `knowledge-analytics` |
+| integration | `platform` 保留 generic `integration`；`notion` 改為 `knowledge-integration` |
+| versioning | `notion` 改為 `knowledge-versioning`；`notebooklm` 改為 `conversation-versioning` |
+| workflow | `platform` 保留 generic `workflow`；`workspace` 改為 `workspace-workflow` |
+
+## Subdomain Anti-Patterns
+
+- 不把 baseline subdomains 與 recommended gap subdomains 混成同一種事實狀態。
+- 不把主域缺口直接分攤到別的主域，造成所有權漂移。
+- 不把子域名稱當成 UI 功能清單，而忽略其邊界責任。
+- 不讓同一個 generic 子域名稱同時被多個主域擁有，造成 Copilot 與團隊語言歧義。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個主域與子域，再決定實作位置。
+- 奧卡姆剃刀：能放進既有子域就不要創造新子域；能放進既有 use case 就不要新增第二條平行流程。
+- gap subdomain 只表示架構缺口，不表示一定要立刻實作。
+- 遇到 generic 名稱時，先套用本文件的 duplicate resolution，再決定是否新增或改名。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart TD
+	MainDomain["Main domain"] --> Baseline["Baseline subdomains"]
+	MainDomain --> Gap["Recommended gap subdomains"]
+	Baseline --> UseCase["Use case / boundary"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Requirement["Requirement"] --> Domain["Choose main domain"]
+	Domain --> Subdomain["Choose owning subdomain"]
+	Subdomain --> Boundary["Choose boundary"]
+	Boundary --> Code["Generate code"]
+```
+
+## Document Network
+
+- [architecture-overview.md](./architecture-overview.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [contexts/workspace/subdomains.md](./contexts/workspace/subdomains.md)
+- [contexts/platform/subdomains.md](./contexts/platform/subdomains.md)
+- [contexts/notion/subdomains.md](./contexts/notion/subdomains.md)
+- [contexts/notebooklm/subdomains.md](./contexts/notebooklm/subdomains.md)
+````
+
+## File: docs/ubiquitous-language.md
+````markdown
+# Ubiquitous Language
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD ubiquitous language 原則重建，不主張反映現況實作。
+
+## Strategic Terms
+
+| Term | Meaning |
+|---|---|
+| Main Domain | 戰略層級的主要 bounded context 群組 |
+| Bounded Context | 一組高凝聚、可自洽的語言與規則邊界 |
+| Published Language | 跨邊界交換時使用的共同語言 |
+| Upstream | 關係中提供語言或能力的一方 |
+| Downstream | 關係中消費語言或能力的一方 |
+| Anti-Corruption Layer | downstream 用來保護本地語言的轉譯層 |
+| Conformist | downstream 直接接受 upstream 語言的整合選擇 |
+| Shared Kernel | 對稱共用模型關係 |
+| Partnership | 對稱共同成功 / 共同失敗關係 |
+
+## Domain Terms
+
+| Domain | Key Terms |
+|---|---|
+| platform | Actor, Tenant, Entitlement, Consent, Secret |
+| workspace | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail |
+| notion | KnowledgeArtifact, Taxonomy, Relation, Publication |
+| notebooklm | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
+
+## Naming Rules
+
+- 不用 User 混指 Actor 與 Membership。
+- 不用 Plan 混指 Subscription 與 Entitlement。
+- 不用 Wiki 混指 KnowledgeArtifact。
+- 不用 Chat 混指 Conversation。
+- 不用 Search 混指 Retrieval。
+- 不用 AI 混指 platform 的 shared AI capability 與 notion / notebooklm 的本地 use case。
+- 不用 Analytics 混指 platform analytics 與 notion 的 knowledge-analytics。
+- 不用 Integration 混指 platform integration 與 notion 的 knowledge-integration。
+- 不用 Versioning 混指 notion 的 knowledge-versioning 與 notebooklm 的 conversation-versioning。
+- 不用 Workflow 混指 platform workflow 與 workspace-workflow。
+
+## Naming Anti-Patterns
+
+- 用同一個詞同時代表平台治理語言與工作區參與語言。
+- 用內容產品舊名覆蓋 notion 的正典語言。
+- 用 Search 混指 notebooklm 的 Retrieval 與一般搜尋能力。
+- 用同一個 generic 子域名跨主域重複宣稱所有權，再期望 Copilot 自行猜對上下文。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先對齊 strategic term，再對齊 context-specific term，最後才命名型別與 API。
+- 奧卡姆剃刀：若一個詞已足夠準確，就不要再加第二個近義詞製造歧義。
+- 名稱衝突時先回到 glossary，而不是直接在程式碼裡各自命名。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic terms"] --> Context["Context terms"]
+	Context --> Boundary["Published language / API"]
+	Boundary --> Code["Generated code names"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Requirement["Requirement"] --> Term["Select canonical term"]
+	Term --> Context["Map to owning context"]
+	Context --> Boundary["Expose via boundary"]
+	Boundary --> Code["Generate code"]
+```
+
+## Document Network
+
+- [contexts/workspace/ubiquitous-language.md](./contexts/workspace/ubiquitous-language.md)
+- [contexts/platform/ubiquitous-language.md](./contexts/platform/ubiquitous-language.md)
+- [contexts/notion/ubiquitous-language.md](./contexts/notion/ubiquitous-language.md)
+- [contexts/notebooklm/ubiquitous-language.md](./contexts/notebooklm/ubiquitous-language.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0004-ubiquitous-language.md](./decisions/0004-ubiquitous-language.md)
+
+## Conflict Resolution
+
+- 若 strategic term 與主域 term 衝突，優先維持主域語言不被污染，再回寫 strategic glossary。
+- 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
 ````
 
 ## File: modules/notion/subdomains/database/api/index.ts
@@ -82659,4 +80782,1341 @@ export * from "../subdomains/background-job";
 
 // platform-level interfaces (HeaderControls, TranslationSwitcher)
 export * from "../interfaces";
+````
+
+## File: docs/contexts/notebooklm/AGENT.md
+````markdown
+# NotebookLM Agent
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Mission
+
+保護 notebooklm 主域作為對話、來源處理、檢索、grounding 與 synthesis 邊界。任何變更都應維持 notebooklm 擁有衍生推理流程與可追溯輸出，而不是直接擁有正典知識內容。
+
+## Canonical Ownership
+
+- ingestion
+- source
+- retrieval
+- grounding
+- notebook
+- conversation
+- note
+- synthesis
+- evaluation
+- conversation-versioning
+
+## Route Here When
+
+- 問題核心是 notebook、conversation、source ingestion、retrieval、grounding、synthesis。
+- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
+- 問題要把知識來源轉成可對話與可綜合的推理材料。
+
+## Route Elsewhere When
+
+- 正典知識頁面、內容分類、正式發布屬於 notion。
+- 身份、授權、權益、憑證治理屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
+- 工作區生命週期、共享與存在感屬於 workspace。
+
+## Guardrails
+
+- notebooklm 的輸出是衍生產物，不直接等於正典知識內容。
+- retrieval 與 grounding 應作為獨立邊界，而不是隱含在 platform.ai 接入或 source 裡。
+- ingestion 應與 source reference 分離，避免來源處理與來源語義耦合。
+- evaluation 應作為品質與回歸語言，而不只是分析儀表板指標。
+- 跨主域互動只經過 published language、API 邊界或事件。
+
+## Dependency Direction
+
+- notebooklm 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
+- application 只能透過 ports 協調 retrieval、grounding、ingestion、synthesis 所需的外部能力。
+- infrastructure 只實作 ports 與邊界轉譯，不反向定義 domain 語言。
+
+## Hard Prohibitions
+
+- 不得把 notion 的 KnowledgeArtifact 直接當成 notebooklm 的本地主域模型。
+- 不得讓 domain 或 application 直接依賴模型 SDK、向量儲存或外部檔案處理框架。
+- 不得讓 notebooklm 直接改寫 workspace 或 notion 的內部狀態，而繞過其 API 邊界。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先維持 notebooklm 作為 downstream 推理主域，不回推治理或正典內容所有權。
+- 共享模型能力若已由 platform.ai 提供，就不要在 notebooklm 再建立第二個 generic `ai` 子域。
+- 奧卡姆剃刀：若較少的抽象已能保護邊界，就不要額外新增 port、ACL、DTO、subdomain 或 process manager。
+- 只有碰到外部依賴、語義污染或跨主域轉譯時，才建立 port、ACL 或 local DTO。
+- 任何跨主域互動都先走 API boundary / published language，再轉成本地主域語言。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["NotebookLM Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform upstream"] -->|Published Language| Boundary["notebooklm API boundary"]
+	Workspace["workspace upstream"] -->|Published Language| Boundary
+	Notion["notion upstream"] -->|Published Language| Boundary
+	Boundary --> Translation["Local DTO / ACL when needed"]
+	Translation --> App["Application orchestration"]
+	App --> Domain["Conversation / Retrieval / Grounding / Synthesis"]
+	Domain --> Output["Grounded output / notes / evaluation"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/contexts/notebooklm/bounded-contexts.md
+````markdown
+# NotebookLM
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Domain Role
+
+notebooklm 是對話與推理主域。依 bounded context 原則，它應封裝來源匯入、檢索、grounding、對話、摘要、評估與版本化，使推理流程保持高凝聚且與正典知識內容邊界分離。
+
+## Baseline Bounded Contexts
+
+| Cluster | Subdomains |
+|---|---|
+| Interaction Core | notebook, conversation, note |
+| Reasoning Output | source, synthesis, conversation-versioning |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why It Should Exist | Gap If Missing |
+|---|---|---|
+| ingestion | 承接來源匯入、正規化與前處理 | source 會同時承載來源處理與來源語義 |
+| retrieval | 承接查詢、召回、排序與檢索策略 | synthesis 缺少清楚上游邊界 |
+| grounding | 承接 citation、evidence 對齊與答案可追溯性 | 引用語言無法形成正典邊界 |
+| evaluation | 承接品質評估、回歸比較與效果量測 | 品質語言只能散落在 analytics 或測試層 |
+
+## Domain Invariants
+
+- notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
+- shared AI capability 由 platform.ai 提供；notebooklm 擁有 retrieval、grounding、synthesis 的本地語義。
+- grounding 應能把輸出對齊到來源證據。
+- retrieval 是 synthesis 的上游能力，不應與 source reference 混成同一層。
+- evaluation 應描述品質，而不是單純使用量。
+- 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
+
+## Dependency Direction
+
+- notebooklm 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
+- ingestion、retrieval、grounding 的外部整合必須由 adapter 實作，透過 port 注入到核心。
+- domain 不得向外依賴來源處理框架、模型供應商或傳輸協定。
+
+## Anti-Patterns
+
+- 把 retrieval、grounding、ingestion 重新塞回 platform.ai 接入層或 source，造成責任折疊。
+- 讓 synthesis 直接持有正典內容所有權，混淆 notion 與 notebooklm 邊界。
+- 讓 application service 直接呼叫外部 SDK，而不經過 port/adapter。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 retrieval、grounding、ingestion、evaluation 的獨立語義，再決定是否需要額外抽象。
+- 奧卡姆剃刀：不要為了形式上的對稱而新增子域；只有在責任、語義或演化速率不同時才拆分。
+- 若外部能力只服務單一明確邊界，優先用最小必要 port，而不是複製整套工具 API。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["NotebookLM bounded contexts"]
+	X["Infrastructure"] --> D
+	X -. adapter / provider .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	SourceInput["Source / governance / scope input"] --> Boundary["NotebookLM boundary"]
+	Boundary --> App["Use case orchestration"]
+	App --> Retrieval["Retrieval"]
+	Retrieval --> Grounding["Grounding"]
+	Grounding --> Synthesis["Synthesis"]
+	Synthesis --> Evaluation["Evaluation"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+````
+
+## File: docs/contexts/notebooklm/context-map.md
+````markdown
+# NotebookLM
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Context Role
+
+notebooklm 消費 workspace scope、platform 治理與 notion 內容來源，並輸出可追溯的對話、洞察與 synthesis。依 Context Mapper 思維，它是多個上游語言的下游整合者，但仍需維持自己的對話與推理邊界。
+
+## Relationships
+
+| Related Domain | Relationship Type | NotebookLM Position | Published Language |
+|---|---|---|---|
+| platform | Upstream/Downstream | downstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
+| workspace | Upstream/Downstream | downstream | workspaceId、membership scope、share scope |
+| notion | Upstream/Downstream | downstream | knowledge artifact reference、attachment reference、taxonomy hint |
+
+## Mapping Rules
+
+- notebooklm 依賴 platform 的治理結果，但不重建 actor、policy 或 secret 模型。
+- notebooklm 可消費 platform.ai 作為共享模型能力，但不擁有 provider / policy 所有權。
+- notebooklm 在 workspace scope 內運作，但不定義 workspace 生命周期或 sharing 規則。
+- notion 是 notebooklm 的重要 source supplier，notebooklm 不能反向直接改寫 notion 正典內容。
+- synthesis、grounding、evaluation 是 notebooklm 對外輸出的核心能力語言。
+
+## Dependency Direction
+
+- notebooklm 只作為 platform、workspace、notion 的 downstream consumer，不反向宣稱治理或正典內容所有權。
+- ACL 或 Conformist 只能由 notebooklm 這個 downstream 端選擇，不能回推到上游。
+- 跨主域資料進入 notebooklm 時，先落在 published language 或 local DTO，再進入本地主域語言。
+
+## Anti-Patterns
+
+- 把 notebooklm 寫成 notion 或 workspace 的上游治理來源。
+- 在同一主域關係上同時聲稱 ACL 與 Conformist。
+- 直接共享 notebook、source 或 conversation 的內部模型給其他主域使用。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先維持 notebooklm 對 platform、workspace、notion 的 downstream 位置，再安排轉譯層。
+- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要額外發明第二層 mapper 或雙重 ACL。
+- 上游只提供 published language；本地主域保護由 downstream 完成。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream contexts"] -->|Published Language| Boundary["notebooklm boundary"]
+	Boundary --> Translation["Local DTO / ACL if needed"]
+	Translation --> App["Application"]
+	App --> Domain["Domain"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] -->|actor / access / entitlement / ai| Boundary["notebooklm API boundary"]
+	Workspace["workspace"] -->|workspace scope| Boundary
+	Notion["notion"] -->|knowledge references| Boundary
+	Boundary --> ACL["ACL or local DTO"]
+	ACL --> Domain["NotebookLM domain"]
+	Domain --> Result["Grounded synthesis / conversation output"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [../../context-map.md](../../context-map.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../strategic-patterns.md](../../strategic-patterns.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/contexts/notebooklm/subdomains.md
+````markdown
+# NotebookLM
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| conversation | 對話 Thread 與 Message 生命週期 |
+| note | 輕量筆記與知識連結 |
+| notebook | Notebook 組合與管理 |
+| source | 來源文件追蹤與引用 |
+| synthesis | RAG 合成、摘要與洞察生成 |
+| conversation-versioning | 對話版本與快照策略 |
+
+## Recommended Gap Subdomains
+
+| Subdomain | Why Needed |
+|---|---|
+| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
+| retrieval | 建立查詢召回與排序策略的正典邊界 |
+| grounding | 建立引用對齊與可追溯證據的正典邊界 |
+| evaluation | 建立品質評估與回歸比較的正典邊界 |
+
+## Recommended Order
+
+1. retrieval
+2. grounding
+3. ingestion
+4. evaluation
+
+## Anti-Patterns
+
+- 不把 retrieval 與 grounding 併回 source 或 platform.ai 接入層，否則推理鏈條失去清楚邊界。
+- 不把 evaluation 只當成 dashboard 指標，否則品質語言無法成為正典子域。
+- 不把 notebook、conversation、note 混成單一 UI 容器語意，否則無法維持聚合邊界。
+- 不把 platform.ai 的共享能力誤寫成 notebooklm 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先問新需求落在哪個既有子域；只有既有子域無法容納時才建立新子域。
+- 模型 provider、配額與安全護欄優先歸 platform.ai；notebooklm 保留 retrieval、grounding、synthesis、evaluation 的語義切分。
+- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新增第二個平行子域。
+- 子域命名應反映責任與語義，不應只是頁面名稱或工具名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Ingestion["Ingestion"] --> Retrieval["Retrieval"]
+	Retrieval --> Grounding["Grounding"]
+	Grounding --> Synthesis["Synthesis"]
+	Synthesis --> Evaluation["Evaluation"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+````
+
+## File: docs/contexts/notion/AGENT.md
+````markdown
+# Notion Agent
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Mission
+
+保護 notion 主域作為知識內容生命週期邊界。任何變更都應維持 notion 擁有內容建立、分類、關聯、協作、模板、發布與版本化語言，而不是吸收平台治理或對話推理語言。
+
+## Canonical Ownership
+
+- knowledge
+- authoring
+- collaboration
+- database
+- taxonomy
+- relations
+- knowledge-analytics
+- attachments
+- automation
+- knowledge-integration
+- notes
+- templates
+- publishing
+- knowledge-versioning
+
+## Route Here When
+
+- 問題核心是知識頁面、文章、內容結構、分類、關聯、模板與發布。
+- 問題需要把輸入吸收成正式知識內容的正典狀態。
+- 問題需要定義內容版本、內容協作與內容交付。
+
+## Route Elsewhere When
+
+- 身份、租戶、授權、權益、憑證治理屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
+- 工作區生命週期、共享、存在感與工作區流程屬於 workspace。
+- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
+
+## Guardrails
+
+- notion 的正典內容不等於 notebooklm 的衍生輸出。
+- taxonomy 與 relations 應作為內容語義邊界，而不是 UI 功能附屬物。
+- publishing 應與 authoring 分離，避免編輯語意與交付語意混用。
+- notion 可以消費 platform.ai，但不擁有 AI provider / policy 的正典邊界。
+- attachments 是內容資產語言，不是平台 secret 或一般檔案暫存語言。
+- 跨主域互動只經過 published language、API 邊界或事件。
+
+## Dependency Direction
+
+- notion 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
+- authoring、knowledge、database、publishing 對外部能力的依賴只能透過 ports 進入核心。
+- infrastructure 只負責儲存、傳輸、ACL 轉譯，不定義 KnowledgeArtifact 的正典語義。
+
+## Hard Prohibitions
+
+- 不得讓 notebooklm 的 Conversation、Synthesis 直接滲入 notion 作為正典內容模型。
+- 不得讓 domain 或 application 直接依賴 UI、HTTP、資料庫 SDK 或框架語言。
+- 不得讓 notion 直接接管 platform 的 actor、tenant、entitlement 治理責任。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notion 作為正典內容主域，不讓治理或推理語言滲入核心。
+- 內容輔助若只是支援 knowledge / authoring / publishing use case，先消費 platform.ai，而不是在 notion 內重建 generic `ai` 子域。
+- 奧卡姆剃刀：若一個既有內容子域與一條清楚 use case 就能承接需求，不要再新增額外 service、mapper 或子域。
+- 只有在外部依賴或跨主域語義污染出現時，才建立 port、ACL 或 local DTO。
+- 對 notebooklm 或 workspace 的互動一律先經 published language / API boundary，再進入 notion 語言。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["Notion Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform upstream"] -->|Published Language| Boundary["notion API boundary"]
+	Workspace["workspace upstream"] -->|Published Language| Boundary
+	Boundary --> Translation["Local DTO / ACL when needed"]
+	Translation --> App["Application orchestration"]
+	App --> Domain["Knowledge / Authoring / Relations / Publishing"]
+	Domain --> Output["KnowledgeArtifact / Publication / Reference"]
+	Output --> NotebookLM["notebooklm downstream"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/contexts/notion/bounded-contexts.md
+````markdown
+# Notion
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Domain Role
+
+notion 是知識內容主域。依 bounded context 原則，它應封裝內容建立、編輯、結構化、分類、關聯、版本化與對外發布的高凝聚規則。
+
+## Baseline Bounded Contexts
+
+| Cluster | Subdomains |
+|---|---|
+| Content Core | knowledge, authoring, database |
+| Collaboration and Change | collaboration, knowledge-versioning, templates |
+| Intelligence and Extension | knowledge-analytics, attachments, automation, knowledge-integration, notes |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why It Should Exist | Gap If Missing |
+|---|---|---|
+| taxonomy | 承接標籤、分類、語義樹與主題治理 | authoring 與 database 會混入分類責任 |
+| relations | 承接內容之間的引用、backlink 與語義關聯 | 內容關係只能隱藏在欄位或 UI 裡 |
+| publishing | 承接發布流程、受眾可見性與正式交付 | 編輯語意與交付語意無法分離 |
+
+## Domain Invariants
+
+- 知識內容的正典狀態屬於 notion。
+- taxonomy 應獨立於具體 UI 視圖存在。
+- relations 應描述內容對內容的語義關係，而不是臨時連結。
+- platform.ai 可被 notion use case 消費，但 AI provider / policy ownership 不屬於 notion。
+- publishing 只交付已被 notion 吸收的內容狀態。
+- 任何來自 notebooklm 的輸出，若要成為正典內容，必須先被 notion 吸收。
+
+## Dependency Direction
+
+- notion 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
+- content lifecycle 由 knowledge、authoring、database、publishing 等上下文在核心內協作，不由外層技術層直接驅動。
+- 外部內容輸入只能先經 API boundary 或 adapter 轉譯，再進入 notion 語言。
+
+## Anti-Patterns
+
+- 把 taxonomy 或 relations 當成純 UI 功能，而不是內容語義邊界。
+- 讓 publishing 直接等同 authoring，混淆編輯與交付責任。
+- 讓 notebooklm 或 platform 的語言直接取代 notion 的 KnowledgeArtifact 模型。
+- 把 platform.ai 共享能力提升成 notion 自己的 generic `ai` 子域所有權。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先決定需求屬於 content core、collaboration、還是 extension，再安排具體型別與流程。
+- 奧卡姆剃刀：不要為了看起來完整而新增抽象層；只在現有內容邊界真的失效時才拆更多上下文。
+- 外部能力若不影響正典內容語言，就不要把它抬升成新的內容核心抽象。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Notion bounded contexts"]
+	X["Infrastructure"] --> D
+	X -. adapter / provider .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Input["Governance / scope / author input"] --> Boundary["Notion boundary"]
+	Boundary --> App["Use case orchestration"]
+	App --> Knowledge["Knowledge / Authoring / Database"]
+	Knowledge --> Taxonomy["Taxonomy / Relations"]
+	Taxonomy --> Publishing["Publishing / Knowledge Versioning"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+````
+
+## File: docs/contexts/notion/context-map.md
+````markdown
+# Notion
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Context Role
+
+notion 對其他主域提供知識內容語言。依 Context Mapper 的 context map 思維，它消費 workspace scope 與 platform 治理，並向 notebooklm 提供可被引用的知識內容來源。
+
+## Relationships
+
+| Related Domain | Relationship Type | Notion Position | Published Language |
+|---|---|---|---|
+| platform | Upstream/Downstream | downstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
+| workspace | Upstream/Downstream | downstream | workspaceId、membership scope、share scope |
+| notebooklm | Upstream/Downstream | upstream | knowledge artifact reference、attachment reference、taxonomy hint |
+
+## Mapping Rules
+
+- notion 消費 platform 的治理結果，但不重建 actor、tenant、policy 模型。
+- notion 可消費 platform.ai 來支援內容 use case，但不擁有 AI provider / policy 所有權。
+- notion 在 workspace scope 中運作，但不反向定義 workspace 生命週期。
+- notebooklm 可以消費 notion 的知識來源，但不得直接重寫 notion 正典內容。
+- publishing 是 notion 對外輸出正式內容狀態的邊界。
+
+## Dependency Direction
+
+- notion 對 platform、workspace 屬 downstream；對 notebooklm 屬 upstream 的內容 supplier。
+- ACL 或 Conformist 只能由 notion 作為 downstream 時選擇，不能要求上游替 notion 保護語言。
+- notion 對 notebooklm 輸出的是 published language，不是內部 aggregate 或 workflow 細節。
+
+## Anti-Patterns
+
+- 把 notion 與 notebooklm 寫成對稱 Shared Kernel，同時又要求 ACL。
+- 讓 notebooklm 直接回寫 notion 正典內容而不經 notion 邊界。
+- 把 workspace scope 語言錯寫成 notion 自己擁有的容器生命週期語言。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notion 對 platform、workspace 的 downstream 位置與對 notebooklm 的 upstream 位置。
+- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要再建立第二個平行翻譯管線。
+- notion 向外提供的是內容語言，不是內部 aggregate、repository 或 UI projection。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["platform / workspace upstream"] -->|Published Language| Boundary["notion boundary"]
+	Boundary --> Translation["Local DTO / ACL if needed"]
+	Translation --> App["Application"]
+	App --> Domain["Domain"]
+	Domain --> PL["Published content language"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] -->|actor / access / entitlement / ai| Boundary["notion API boundary"]
+	Workspace["workspace"] -->|workspace scope| Boundary
+	Boundary --> ACL["ACL or local DTO"]
+	ACL --> Domain["Notion domain"]
+	Domain --> Publication["Publication / KnowledgeArtifact reference"]
+	Publication --> NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [../../context-map.md](../../context-map.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../strategic-patterns.md](../../strategic-patterns.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/contexts/notion/subdomains.md
+````markdown
+# Notion
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| knowledge | 頁面建立、組織、版本化與交付 |
+| authoring | 知識庫文章建立、驗證與分類 |
+| collaboration | 協作留言、細粒度權限與版本快照 |
+| database | 結構化資料多視圖管理 |
+| knowledge-analytics | 知識使用行為量測 |
+| attachments | 附件與媒體關聯儲存 |
+| automation | 知識事件觸發自動化動作 |
+| knowledge-integration | 知識與外部系統雙向整合 |
+| notes | 個人輕量筆記與正式知識協作 |
+| templates | 頁面範本管理與套用 |
+| knowledge-versioning | 全域版本快照策略管理 |
+
+## Recommended Gap Subdomains
+
+| Subdomain | Why Needed |
+|---|---|
+| taxonomy | 建立分類法與語義組織的正典邊界 |
+| relations | 建立內容之間關聯與 backlink 的正典邊界 |
+| publishing | 建立正式發布與對外交付的正典邊界 |
+
+## Recommended Order
+
+1. taxonomy
+2. relations
+3. publishing
+
+## Anti-Patterns
+
+- 不把 taxonomy 混成 authoring 裡的附屬設定。
+- 不把 relations 混成單純 hyperlink 功能，失去語義關係邊界。
+- 不把 publishing 混成 UI 上的一個按鈕事件，而忽略正式交付語言。
+- 不把 platform.ai 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先判斷需求屬於 knowledge、authoring、relations、publishing、knowledge-analytics、knowledge-integration、knowledge-versioning 哪一個內容責任。
+- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新建第二個概念接近的子域。
+- 子域命名要反映內容語義，不要退化成頁面或元件名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Authoring["Authoring"] --> Knowledge["Knowledge"]
+	Knowledge --> Taxonomy["Taxonomy"]
+	Knowledge --> Relations["Relations"]
+	Taxonomy --> Publishing["Publishing"]
+	Relations --> Publishing
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+````
+
+## File: docs/contexts/platform/AGENT.md
+````markdown
+# Platform Agent
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Mission
+
+保護 platform 主域作為治理、身份、組織、權益、策略與營運支撐邊界。任何變更都應維持 platform 對治理語言的所有權，不吸收 workspace、notion、notebooklm 的正典業務模型。
+
+## Canonical Ownership
+
+- identity
+- account
+- account-profile
+- organization
+- tenant
+- access-control
+- security-policy
+- platform-config
+- feature-flag
+- entitlement
+- onboarding
+- compliance
+- consent
+- billing
+- subscription
+- referral
+- ai
+- integration
+- secret-management
+- workflow
+- notification
+- background-job
+- content
+- search
+- audit-log
+- observability
+- analytics
+- support
+
+## Route Here When
+
+- 問題核心是 actor、organization、tenant、access、policy、entitlement 或商業權益。
+- 問題核心是通知治理、背景任務、平台級搜尋、觀測與支援。
+- 問題核心是共享 AI provider、模型政策、配額、安全護欄或下游主域共同消費的 AI capability。
+- 問題需要提供其他主域共同消費的治理結果。
+
+## Route Elsewhere When
+
+- 工作區生命週期、成員關係、共享與存在感屬於 workspace。
+- 知識內容建立、分類、關聯與發布屬於 notion。
+- 對話、來源、retrieval、grounding、synthesis 屬於 notebooklm。
+
+## Guardrails
+
+- Actor 與 Identity 屬於 platform，不能在其他主域重定義。
+- entitlement 是 subscription、feature-flag、policy 的解算結果，不等於 plan 本身。
+- ai 屬於 platform 的共享能力治理，不等於 notebooklm 的推理輸出所有權。
+- secret-management 應與 integration 分離，避免憑證語義擴散。
+- consent 與 compliance 有關，但不是同一個 bounded context。
+- 平台輸出治理信號，不接管其他主域的正典內容生命週期。
+
+## Dependency Direction
+
+- platform 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
+- access-control、entitlement、secret-management 等外部依賴只能透過 ports 進入核心。
+- infrastructure 只實作治理能力與外部整合，不反向定義 Actor、Tenant、Entitlement 語言。
+
+## Hard Prohibitions
+
+- 不得讓 platform 直接接管 workspace、notion、notebooklm 的正典業務流程。
+- 不得讓 domain 或 application 直接依賴第三方身份、通知、計費或 secret SDK。
+- 不得在其他主域重建 Actor、Tenant、Entitlement、Secret 的正典模型。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 platform 作為治理 upstream，而不是內容或推理 owner。
+- notion 與 notebooklm 若需要 AI 能力，先走 platform.ai 的 published language / API boundary。
+- 奧卡姆剃刀：若既有治理子域與單一 use case 能承接需求，就不要新增第二層 policy service、flag service 或 entitlement facade。
+- 只有在外部依賴、敏感治理或跨主域轉譯明確存在時，才建立 port、ACL 或 local DTO。
+- 對 workspace、notion、notebooklm 的輸出應停在 published language / API boundary。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["Platform Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Request["Actor / admin / system request"] --> Boundary["platform API boundary"]
+	Boundary --> App["Application orchestration"]
+	App --> Domain["Identity / Access / Entitlement / AI / Secret"]
+	Domain --> PL["Published governance language"]
+	PL --> Workspace["workspace"]
+	PL --> Notion["notion"]
+	PL --> NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/contexts/platform/bounded-contexts.md
+````markdown
+# Platform
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Domain Role
+
+platform 是治理與營運支撐主域。依 bounded context 原則，它應把 actor、organization、access、policy、entitlement、billing 與 operational intelligence 封裝成清楚的上下文，而非讓這些責任滲入其他主域。
+
+## Baseline Bounded Contexts
+
+| Cluster | Subdomains |
+|---|---|
+| Identity and Organization | identity, account, account-profile, organization |
+| Governance | access-control, security-policy, platform-config, feature-flag, onboarding, compliance |
+| Commercial | billing, subscription, referral |
+| Delivery and Operations | ai, integration, workflow, notification, background-job |
+| Intelligence and Audit | content, search, audit-log, observability, analytics, support |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why It Should Exist | Gap If Missing |
+|---|---|---|
+| tenant | 承接多租戶隔離與 tenant-scoped 規則 | organization 無法完整覆蓋租戶隔離模型 |
+| entitlement | 承接有效權益與功能可用性解算 | subscription、feature-flag、policy 之間缺少統一決策點 |
+| secret-management | 承接憑證、token、rotation 與 secret audit | integration 容易承載過多敏感治理責任 |
+| consent | 承接同意、偏好、資料使用授權 | compliance 會被迫承接過細的使用者授權語意 |
+
+## Domain Invariants
+
+- actor identity 由 platform 正典擁有。
+- access decision 必須基於 platform 語言輸出，而不是由下游主域自創。
+- entitlement 必須是解算結果，不是任意 UI 標記。
+- shared AI capability 由 platform 正典擁有；下游主域只能消費其 published language。
+- billing event 與 subscription state 必須分離。
+- secret 不應作為一般 integration payload 傳播。
+
+## Dependency Direction
+
+- platform 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
+- identity、organization、billing、notification 等外部整合能力必須透過 port/adapter 進入核心。
+- domain 不得向外依賴 HTTP、Firebase、secret provider 或 message transport 細節。
+
+## Anti-Patterns
+
+- 把 entitlement 當成 subscription plan 名稱或 UI 開關。
+- 把 secret-management 混回 integration，使敏感治理責任失焦。
+- 讓 platform 直接持有其他主域的正典內容或推理模型。
+- 把 platform.ai 與 notebooklm 的 retrieval / grounding / synthesis 混成同一個子域所有權。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先判斷需求落在 identity、organization、entitlement、ai、secret-management 或其他既有治理責任。
+- 奧卡姆剃刀：不要為了形式上的完整而新增抽象；只有當既有治理邊界無法承接時才拆新上下文。
+- 對外部 provider 的抽象必須貼合 domain 需要，而不是複製供應商 API。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Platform bounded contexts"]
+	X["Infrastructure"] --> D
+	X -. adapter / provider .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Identity["Identity / Organization"] --> Access["Access / Policy"]
+	Access --> Entitlement["Entitlement"]
+	Entitlement --> Delivery["AI / Notification / Job / Integration"]
+	Delivery --> Audit["Audit / Observability / Analytics"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+````
+
+## File: docs/contexts/platform/context-map.md
+````markdown
+# Platform
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Context Role
+
+platform 是其他三個主域的治理上游。依 Context Mapper 的 upstream/downstream 關係，它向下游提供身份、組織、存取、權益與營運支撐語言。
+
+## Relationships
+
+| Related Domain | Relationship Type | Platform Position | Published Language |
+|---|---|---|---|
+| workspace | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal |
+| notion | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
+| notebooklm | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
+
+## Mapping Rules
+
+- platform 提供治理結果，但不直接擁有工作區、知識內容或對話內容。
+- workspace、notion、notebooklm 可以把平台輸出當作 supplier language，但不能穿透其內部模型。
+- platform 擁有 shared AI capability，但 notion 與 notebooklm 仍各自擁有內容與推理語義。
+- audit-log 與 analytics 可消費其他主域的事件，但那不等於接管對方的主域責任。
+- tenant、entitlement、secret-management、consent 是平台應補齊的核心缺口邊界。
+
+## Dependency Direction
+
+- platform 是 workspace、notion、notebooklm 的治理 upstream，而不是它們的內容或流程 owner。
+- platform 對下游輸出 published language，不輸出內部 aggregate、repository 或 secret 結構。
+- 下游若需保護本地語言，ACL 由下游自行實作，不由 platform 代替選擇。
+
+## Anti-Patterns
+
+- 把 platform 與下游主域寫成 Shared Kernel，再同時保留 supplier/downstream 敘事。
+- 讓 platform 直接穿透下游主域內部模型，以治理名義接管業務邏輯。
+- 把審計或分析事件消費錯寫成平台擁有下游正典責任。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先維持 platform 作為 workspace、notion、notebooklm 的治理 upstream。
+- 奧卡姆剃刀：若 published language 已足夠，就不要對每個下游再額外建立一套專屬治理模型。
+- platform 的輸出應穩定、可被消費，但不應暴露其內部 aggregate 或 repository。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Domain["Platform domain"] --> PL["Published Language / OHS"]
+	PL --> Boundary["Downstream API clients"]
+	Boundary --> Local["Downstream local DTO / ACL"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] -->|actor / org / access / entitlement| Workspace["workspace"]
+	Platform -->|actor / org / access / entitlement / ai| Notion["notion"]
+	Platform -->|actor / org / access / entitlement / ai| NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [../../context-map.md](../../context-map.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../strategic-patterns.md](../../strategic-patterns.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/contexts/platform/subdomains.md
+````markdown
+# Platform
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| identity | 已驗證主體與身份信號治理 |
+| account | 帳號聚合根與帳號生命週期 |
+| account-profile | 主體屬性、偏好與治理設定 |
+| organization | 組織、成員與角色邊界 |
+| access-control | 主體現在能做什麼的授權判定 |
+| security-policy | 安全規則定義、版本化與發佈 |
+| platform-config | 平台設定輪廓與配置管理 |
+| feature-flag | 功能開關策略與發佈節點 |
+| onboarding | 新主體初始設定與引導流程 |
+| compliance | 資料保留、稽核與法規執行 |
+| billing | 計費狀態、費率與財務證據 |
+| subscription | 方案、權益、配額與續期治理 |
+| referral | 推薦關係與獎勵追蹤 |
+| ai | 共享 AI provider 路由、模型政策、配額與安全護欄 |
+| integration | 外部系統整合邊界與契約 |
+| workflow | 平台級流程編排與狀態驅動執行 |
+| notification | 通知路由、偏好與投遞 |
+| background-job | 背景任務提交、排程與監控 |
+| content | 平台級內容資產管理與發布 |
+| search | 跨域搜尋路由與查詢協調 |
+| audit-log | 永久稽核軌跡與不可否認證據 |
+| observability | 健康量測、追蹤與告警 |
+| analytics | 平台使用行為量測與分析 |
+| support | 客服工單、支援知識與處理流程 |
+
+## Recommended Gap Subdomains
+
+| Subdomain | Why Needed |
+|---|---|
+| tenant | 建立多租戶隔離與 tenant-scoped 規則的正典邊界 |
+| entitlement | 建立有效權益與功能可用性的統一解算上下文 |
+| secret-management | 把憑證、token、rotation 從 integration 中切開 |
+| consent | 把同意與資料使用授權從 compliance 中切開 |
+
+## Recommended Order
+
+1. tenant
+2. entitlement
+3. secret-management
+4. consent
+
+## Anti-Patterns
+
+- 不把 tenant 與 organization 視為同義詞。
+- 不把 entitlement 混成 feature-flag 的別名。
+- 不把 secret-management 混成 integration 的一個欄位集合。
+- 不把 consent 混成一般 UI preference。
+- 不把 platform 的 ai 混成 notebooklm synthesis 或 notion 內容輔助的本地所有權。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個治理責任，再決定 use case 與 boundary。
+- shared AI provider、模型政策、成本與安全護欄一律先歸 platform.ai 評估。
+- 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的治理子域。
+- 子域命名必須反映治理責任，不應退化成頁面或介面名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Identity["Identity"] --> Organization["Organization / Tenant"]
+	Organization --> Access["Access / Policy"]
+	Access --> Entitlement["Entitlement"]
+	Entitlement --> Secret["AI / Secret / Integration / Delivery"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+````
+
+## File: docs/contexts/workspace/AGENT.md
+````markdown
+# Workspace Agent
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Mission
+
+保護 workspace 主域作為協作容器、工作區範疇與 workspaceId 錨點。任何變更都應維持 workspace 擁有工作區生命週期、成員關係、共享、存在感、活動投影、稽核、排程與工作流，而不是吸收平台治理或知識內容正典。
+
+## Canonical Ownership
+
+- lifecycle
+- membership
+- sharing
+- presence
+- audit
+- feed
+- scheduling
+- workspace-workflow
+
+## Route Here When
+
+- 問題的中心是 workspaceId、工作區建立封存、工作區內角色與參與關係。
+- 問題的中心是工作區共享、存在感、活動流、排程與工作流執行。
+- 問題需要提供其他主域運作所需的 workspace scope。
+
+## Route Elsewhere When
+
+- 身份、組織、授權、權益、憑證、通知治理屬於 platform。
+- 知識頁面、文章、資料庫、分類、內容發布屬於 notion。
+- notebook、conversation、source、retrieval、synthesis 屬於 notebooklm。
+
+## Guardrails
+
+- workspace 的 Member 或 Membership 不等於 platform 的 Actor 或 Identity。
+- feed 是投影，不是工作區正典狀態來源。
+- audit 是不可否認追蹤，不等於使用者導向動態流。
+- sharing 定義暴露範圍，但不取代 platform entitlement 與 access-control。
+- 跨主域互動只經過 published language、API 邊界或事件。
+
+## Dependency Direction
+
+- workspace 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
+- membership、sharing、presence、workspace-workflow 所需外部能力只能透過 ports 進入核心。
+- infrastructure 只處理事件、儲存、同步與投影，不反向定義 Workspace 或 Membership 語言。
+
+## Hard Prohibitions
+
+- 不得把 platform 的 Actor 或 Identity 直接當成 workspace 的 Membership 模型。
+- 不得讓 feed 取代正典狀態來源，或讓 audit 退化成一般 UI 活動流。
+- 不得讓 workspace 直接接管 notion 內容生命週期或 notebooklm 推理流程。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 workspace 作為協作 scope 主域，而不是治理或內容 owner。
+- 奧卡姆剃刀：若既有 lifecycle、membership、sharing、presence 或 workspace-workflow 邊界已足夠，就不要額外新增平行協作抽象。
+- 只有在外部依賴、跨主域語義污染或 scope 轉譯明確存在時，才建立 port、ACL 或 local DTO。
+- 對 notion 與 notebooklm 的輸出應停在 workspace scope / membership scope / share scope。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["Workspace Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform upstream"] -->|Published Language| Boundary["workspace API boundary"]
+	Boundary --> Translation["Local DTO / ACL when needed"]
+	Translation --> App["Application orchestration"]
+	App --> Domain["Lifecycle / Membership / Sharing / Workspace Workflow"]
+	Domain --> Scope["workspace scope / membership scope / share scope"]
+	Scope --> Notion["notion downstream"]
+	Scope --> NotebookLM["notebooklm downstream"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/contexts/workspace/bounded-contexts.md
+````markdown
+# Workspace
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Domain Role
+
+workspace 是協作與範疇主域。依 bounded context 原則，它應封裝高度凝聚的工作區規則，並以最小公開介面提供其他主域使用的 workspace scope。
+
+## Baseline Bounded Contexts
+
+| Subdomain | Owns | Excludes |
+|---|---|---|
+| audit | 工作區操作證據、可追溯紀錄 | 平台永久合規審計 |
+| feed | 面向使用者的工作區活動投影 | 正典狀態與不可變證據 |
+| scheduling | 工作區時間安排、提醒、期限 | 平台背景工作引擎 |
+| workspace-workflow | 工作區流程定義、執行、狀態推進 | 知識內容正典生命週期 |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why It Should Exist | Gap If Missing |
+|---|---|---|
+| lifecycle | 承接 workspace 建立、封存、還原、移轉與狀態變化 | 主容器生命週期容易散落到 workflow 或 app 組裝層 |
+| membership | 承接 workspace 內邀請、席位、角色與參與關係 | 會把 organization 與 workspace participation 混為一談 |
+| sharing | 承接分享連結、外部可見性與公開暴露範圍 | 對外共享無獨立邊界，安全與責任不清 |
+| presence | 承接即時在線狀態、協作存在感與共同編輯訊號 | 即時協作能力無法形成可演化的本地模型 |
+
+## Domain Invariants
+
+- workspaceId 是工作區範疇錨點。
+- 工作區成員關係屬於 membership，而不是平台身份本身。
+- activity feed 只投影事實，不創造事實。
+- audit trail 一旦寫入即不可隨意覆蓋。
+- workspace-workflow 可跨工作區能力協調，但不能取代 lifecycle 與 membership 的正典責任。
+
+## Dependency Direction
+
+- workspace 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
+- lifecycle、membership、sharing、presence 等能力若需要外部服務，必須經過 port/adapter。
+- domain 不得依賴 UI 狀態、HTTP 傳輸、排程框架或儲存實作細節。
+
+## Anti-Patterns
+
+- 把 Membership 混成 Actor 身份本身。
+- 讓 ActivityFeed 直接創造工作區事實，而不是投影工作區事實。
+- 讓 Workspace Workflow 取代 Lifecycle、Membership、Sharing 的正典責任。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先判斷需求落在 lifecycle、membership、sharing、presence、audit、feed、scheduling、workspace-workflow 哪個責任。
+- 奧卡姆剃刀：若既有 workspace 邊界可以吸收需求，就不要額外新建平行容器或 scope 抽象。
+- 對外部能力的抽象必須貼合 workspace scope 的需求，而不是複製供應商 API。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Workspace bounded contexts"]
+	X["Infrastructure"] --> D
+	X -. adapter / provider .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Lifecycle["Lifecycle"] --> Membership["Membership"]
+	Membership --> Sharing["Sharing"]
+	Sharing --> Presence["Presence"]
+	Presence --> Workflow["Workspace Workflow / Scheduling"]
+	Workflow --> AuditFeed["Audit / Feed projections"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+````
+
+## File: docs/contexts/workspace/subdomains.md
+````markdown
+# Workspace
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| audit | 工作區操作稽核與證據追蹤 |
+| feed | 工作區活動摘要與事件流呈現 |
+| scheduling | 工作區排程、時序與提醒協調 |
+| workspace-workflow | 工作區流程編排與執行治理 |
+
+## Recommended Gap Subdomains
+
+| Subdomain | Why Needed |
+|---|---|
+| lifecycle | 把工作區容器生命週期獨立成正典邊界 |
+| membership | 把工作區參與關係從平台身份治理中切開 |
+| sharing | 把對外共享與可見性規則收斂到單一上下文 |
+| presence | 把即時協作存在感與共同編輯訊號形成本地語言 |
+
+## Recommended Order
+
+1. lifecycle
+2. membership
+3. sharing
+4. presence
+
+## Anti-Patterns
+
+- 不把 lifecycle 混進 workspace-workflow，使容器生命週期被流程編排吞沒。
+- 不把 membership 混成 organization 或 identity。
+- 不把 sharing 混成一般 permission 欄位集合。
+- 不把 presence 藏進 UI 狀態而失去獨立語言。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個 workspace 責任，再決定 use case 與 boundary。
+- 涉及工作區流程時一律使用 `workspace-workflow`，避免與 `platform.workflow` 混名。
+- 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的 scope 子域。
+- 子域命名必須反映工作區語義，不應退化成頁面或元件名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Lifecycle["Lifecycle"] --> Membership["Membership"]
+	Membership --> Sharing["Sharing"]
+	Sharing --> Presence["Presence"]
+	Presence --> Workflow["Workspace Workflow"]
+	Workflow --> Scheduling["Scheduling"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
 ````
