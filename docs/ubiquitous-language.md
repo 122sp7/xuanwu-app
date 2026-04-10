@@ -70,6 +70,8 @@ flowchart LR
 - [contexts/platform/ubiquitous-language.md](./contexts/platform/ubiquitous-language.md)
 - [contexts/notion/ubiquitous-language.md](./contexts/notion/ubiquitous-language.md)
 - [contexts/notebooklm/ubiquitous-language.md](./contexts/notebooklm/ubiquitous-language.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
 - [decisions/0004-ubiquitous-language.md](./decisions/0004-ubiquitous-language.md)
 
 ## Conflict Resolution

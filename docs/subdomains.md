@@ -59,6 +59,8 @@ flowchart LR
 
 - [architecture-overview.md](./architecture-overview.md)
 - [bounded-contexts.md](./bounded-contexts.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
 - [contexts/workspace/subdomains.md](./contexts/workspace/subdomains.md)
 - [contexts/platform/subdomains.md](./contexts/platform/subdomains.md)
 - [contexts/notion/subdomains.md](./contexts/notion/subdomains.md)

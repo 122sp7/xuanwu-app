@@ -93,6 +93,8 @@ flowchart LR
 - [subdomains.md](./subdomains.md)
 - [integration-guidelines.md](./integration-guidelines.md)
 - [strategic-patterns.md](./strategic-patterns.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
 - [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
 
 ## Reading Path

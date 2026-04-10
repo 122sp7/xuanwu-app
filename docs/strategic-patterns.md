@@ -68,6 +68,8 @@ flowchart LR
 - [architecture-overview.md](./architecture-overview.md)
 - [context-map.md](./context-map.md)
 - [integration-guidelines.md](./integration-guidelines.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
 - [decisions/0003-context-map.md](./decisions/0003-context-map.md)
 - [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
 
