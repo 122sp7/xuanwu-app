@@ -11,13 +11,14 @@ platform 是其他三個主域的治理上游。依 Context Mapper 的 upstream/
 | Related Domain | Relationship Type | Platform Position | Published Language |
 |---|---|---|---|
 | workspace | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal |
-| notion | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal |
-| notebooklm | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal |
+| notion | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
+| notebooklm | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
 
 ## Mapping Rules
 
 - platform 提供治理結果，但不直接擁有工作區、知識內容或對話內容。
 - workspace、notion、notebooklm 可以把平台輸出當作 supplier language，但不能穿透其內部模型。
+- platform 擁有 shared AI capability，但 notion 與 notebooklm 仍各自擁有內容與推理語義。
 - audit-log 與 analytics 可消費其他主域的事件，但那不等於接管對方的主域責任。
 - tenant、entitlement、secret-management、consent 是平台應補齊的核心缺口邊界。
 
@@ -53,8 +54,8 @@ flowchart LR
 ```mermaid
 flowchart LR
 	Platform["platform"] -->|actor / org / access / entitlement| Workspace["workspace"]
-	Platform -->|actor / org / access / entitlement| Notion["notion"]
-	Platform -->|actor / org / access / entitlement| NotebookLM["notebooklm"]
+	Platform -->|actor / org / access / entitlement / ai| Notion["notion"]
+	Platform -->|actor / org / access / entitlement / ai| NotebookLM["notebooklm"]
 ```
 
 ## Document Network

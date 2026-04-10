@@ -13,7 +13,7 @@ platform 是治理與營運支撐主域。依 bounded context 原則，它應把
 | Identity and Organization | identity, account, account-profile, organization |
 | Governance | access-control, security-policy, platform-config, feature-flag, onboarding, compliance |
 | Commercial | billing, subscription, referral |
-| Delivery and Operations | integration, workflow, notification, background-job |
+| Delivery and Operations | ai, integration, workflow, notification, background-job |
 | Intelligence and Audit | content, search, audit-log, observability, analytics, support |
 
 ## Recommended Gap Bounded Contexts
@@ -30,6 +30,7 @@ platform 是治理與營運支撐主域。依 bounded context 原則，它應把
 - actor identity 由 platform 正典擁有。
 - access decision 必須基於 platform 語言輸出，而不是由下游主域自創。
 - entitlement 必須是解算結果，不是任意 UI 標記。
+- shared AI capability 由 platform 正典擁有；下游主域只能消費其 published language。
 - billing event 與 subscription state 必須分離。
 - secret 不應作為一般 integration payload 傳播。
 
@@ -44,10 +45,11 @@ platform 是治理與營運支撐主域。依 bounded context 原則，它應把
 - 把 entitlement 當成 subscription plan 名稱或 UI 開關。
 - 把 secret-management 混回 integration，使敏感治理責任失焦。
 - 讓 platform 直接持有其他主域的正典內容或推理模型。
+- 把 platform.ai 與 notebooklm 的 retrieval / grounding / synthesis 混成同一個子域所有權。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先判斷需求落在 identity、organization、entitlement、secret-management 或其他既有治理責任。
+- 生成程式碼時，先判斷需求落在 identity、organization、entitlement、ai、secret-management 或其他既有治理責任。
 - 奧卡姆剃刀：不要為了形式上的完整而新增抽象；只有當既有治理邊界無法承接時才拆新上下文。
 - 對外部 provider 的抽象必須貼合 domain 需要，而不是複製供應商 API。
 
@@ -67,7 +69,7 @@ flowchart LR
 flowchart LR
 	Identity["Identity / Organization"] --> Access["Access / Policy"]
 	Access --> Entitlement["Entitlement"]
-	Entitlement --> Delivery["Notification / Job / Integration"]
+	Entitlement --> Delivery["AI / Notification / Job / Integration"]
 	Delivery --> Audit["Audit / Observability / Analytics"]
 ```
 

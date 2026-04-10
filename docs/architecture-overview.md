@@ -22,10 +22,10 @@
 
 | Main Domain | Strategic Role | What It Owns |
 |---|---|---|
-| workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、workflow |
-| platform | 治理上游 | actor、tenant、access、policy、entitlement、billing、notification、audit-log |
-| notion | 正典內容 | knowledge artifact、taxonomy、relations、publication、versioning |
-| notebooklm | 推理輸出 | ingestion、retrieval、grounding、conversation、synthesis、evaluation |
+| workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、workspace-workflow |
+| platform | 治理上游 | actor、tenant、access、policy、entitlement、billing、ai capability、notification、audit-log |
+| notion | 正典內容 | knowledge artifact、taxonomy、relations、publication、knowledge-versioning |
+| notebooklm | 推理輸出 | ingestion、retrieval、grounding、conversation、synthesis、evaluation、conversation-versioning |
 
 ## Relationship Baseline
 
@@ -43,6 +43,7 @@
 - 只有四個主域，不再引入其他平級主域。
 - 戰略文件若需要描述缺口，一律使用 recommended gap subdomains，而不是假裝它們已被實作驗證。
 - platform 是治理上游，不是內容或對話的正典擁有者。
+- platform 擁有 shared AI capability，但不擁有 notion 的正典內容語言或 notebooklm 的推理輸出語言。
 - notion 是正典內容擁有者，不是治理上游。
 - notebooklm 是衍生推理輸出擁有者，不是正典內容擁有者。
 

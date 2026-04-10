@@ -24,6 +24,7 @@
 - billing
 - subscription
 - referral
+- ai
 - integration
 - secret-management
 - workflow
@@ -40,6 +41,7 @@
 
 - 問題核心是 actor、organization、tenant、access、policy、entitlement 或商業權益。
 - 問題核心是通知治理、背景任務、平台級搜尋、觀測與支援。
+- 問題核心是共享 AI provider、模型政策、配額、安全護欄或下游主域共同消費的 AI capability。
 - 問題需要提供其他主域共同消費的治理結果。
 
 ## Route Elsewhere When
@@ -52,6 +54,7 @@
 
 - Actor 與 Identity 屬於 platform，不能在其他主域重定義。
 - entitlement 是 subscription、feature-flag、policy 的解算結果，不等於 plan 本身。
+- ai 屬於 platform 的共享能力治理，不等於 notebooklm 的推理輸出所有權。
 - secret-management 應與 integration 分離，避免憑證語義擴散。
 - consent 與 compliance 有關，但不是同一個 bounded context。
 - 平台輸出治理信號，不接管其他主域的正典內容生命週期。
@@ -71,6 +74,7 @@
 ## Copilot Generation Rules
 
 - 生成程式碼時，先保留 platform 作為治理 upstream，而不是內容或推理 owner。
+- notion 與 notebooklm 若需要 AI 能力，先走 platform.ai 的 published language / API boundary。
 - 奧卡姆剃刀：若既有治理子域與單一 use case 能承接需求，就不要新增第二層 policy service、flag service 或 entitlement facade。
 - 只有在外部依賴、敏感治理或跨主域轉譯明確存在時，才建立 port、ACL 或 local DTO。
 - 對 workspace、notion、notebooklm 的輸出應停在 published language / API boundary。
@@ -92,7 +96,7 @@ flowchart LR
 flowchart LR
 	Request["Actor / admin / system request"] --> Boundary["platform API boundary"]
 	Boundary --> App["Application orchestration"]
-	App --> Domain["Identity / Access / Entitlement / Secret"]
+	App --> Domain["Identity / Access / Entitlement / AI / Secret"]
 	Domain --> PL["Published governance language"]
 	PL --> Workspace["workspace"]
 	PL --> Notion["notion"]

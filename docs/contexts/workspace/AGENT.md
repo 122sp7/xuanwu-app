@@ -15,7 +15,7 @@
 - audit
 - feed
 - scheduling
-- workflow
+- workspace-workflow
 
 ## Route Here When
 
@@ -40,7 +40,7 @@
 ## Dependency Direction
 
 - workspace 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- membership、sharing、presence、workflow 所需外部能力只能透過 ports 進入核心。
+- membership、sharing、presence、workspace-workflow 所需外部能力只能透過 ports 進入核心。
 - infrastructure 只處理事件、儲存、同步與投影，不反向定義 Workspace 或 Membership 語言。
 
 ## Hard Prohibitions
@@ -52,7 +52,7 @@
 ## Copilot Generation Rules
 
 - 生成程式碼時，先保留 workspace 作為協作 scope 主域，而不是治理或內容 owner。
-- 奧卡姆剃刀：若既有 lifecycle、membership、sharing、presence 或 workflow 邊界已足夠，就不要額外新增平行協作抽象。
+- 奧卡姆剃刀：若既有 lifecycle、membership、sharing、presence 或 workspace-workflow 邊界已足夠，就不要額外新增平行協作抽象。
 - 只有在外部依賴、跨主域語義污染或 scope 轉譯明確存在時，才建立 port、ACL 或 local DTO。
 - 對 notion 與 notebooklm 的輸出應停在 workspace scope / membership scope / share scope。
 
@@ -74,7 +74,7 @@ flowchart LR
 	Platform["platform upstream"] -->|Published Language| Boundary["workspace API boundary"]
 	Boundary --> Translation["Local DTO / ACL when needed"]
 	Translation --> App["Application orchestration"]
-	App --> Domain["Lifecycle / Membership / Sharing / Workflow"]
+	App --> Domain["Lifecycle / Membership / Sharing / Workspace Workflow"]
 	Domain --> Scope["workspace scope / membership scope / share scope"]
 	Scope --> Notion["notion downstream"]
 	Scope --> NotebookLM["notebooklm downstream"]

@@ -19,6 +19,7 @@
 | billing | 計費狀態、費率與財務證據 |
 | subscription | 方案、權益、配額與續期治理 |
 | referral | 推薦關係與獎勵追蹤 |
+| ai | 共享 AI provider 路由、模型政策、配額與安全護欄 |
 | integration | 外部系統整合邊界與契約 |
 | workflow | 平台級流程編排與狀態驅動執行 |
 | notification | 通知路由、偏好與投遞 |
@@ -52,10 +53,12 @@
 - 不把 entitlement 混成 feature-flag 的別名。
 - 不把 secret-management 混成 integration 的一個欄位集合。
 - 不把 consent 混成一般 UI preference。
+- 不把 platform 的 ai 混成 notebooklm synthesis 或 notion 內容輔助的本地所有權。
 
 ## Copilot Generation Rules
 
 - 生成程式碼時，先確認需求屬於哪個治理責任，再決定 use case 與 boundary。
+- shared AI provider、模型政策、成本與安全護欄一律先歸 platform.ai 評估。
 - 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的治理子域。
 - 子域命名必須反映治理責任，不應退化成頁面或介面名稱。
 
@@ -75,7 +78,7 @@ flowchart LR
 	Identity["Identity"] --> Organization["Organization / Tenant"]
 	Organization --> Access["Access / Policy"]
 	Access --> Entitlement["Entitlement"]
-	Entitlement --> Secret["Secret / Integration / Delivery"]
+	Entitlement --> Secret["AI / Secret / Integration / Delivery"]
 ```
 
 ## Document Network

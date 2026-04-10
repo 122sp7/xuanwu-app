@@ -4,7 +4,7 @@
 
 ## Purpose
 
-platform 是治理與營運支撐主域。它的責任是提供 actor、identity、organization、tenant、access、policy、entitlement、billing、notification、search、audit 與 observability 等跨切面語言，供其他主域穩定消費。
+platform 是治理與營運支撐主域。它的責任是提供 actor、identity、organization、tenant、access、policy、entitlement、shared ai capability、billing、notification、search、audit 與 observability 等跨切面語言，供其他主域穩定消費。
 
 ## Why This Context Exists
 
@@ -36,6 +36,7 @@ platform 是治理與營運支撐主域。它的責任是提供 actor、identity
 - billing
 - subscription
 - referral
+- ai
 - integration
 - workflow
 - notification
@@ -57,8 +58,8 @@ platform 是治理與營運支撐主域。它的責任是提供 actor、identity
 ## Key Relationships
 
 - 對 workspace：提供 actor、organization、access、entitlement。
-- 對 notion：提供 actor、organization、access、entitlement。
-- 對 notebooklm：提供 actor、organization、access、entitlement。
+- 對 notion：提供 actor、organization、access、entitlement、ai capability。
+- 對 notebooklm：提供 actor、organization、access、entitlement、ai capability。
 
 ## Reading Order
 
@@ -81,7 +82,7 @@ platform 是治理與營運支撐主域。它的責任是提供 actor、identity
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先保留 platform 的治理定位，再安排 identity、access、entitlement、secret-management 的交互。
+- 生成程式碼時，先保留 platform 的治理定位，再安排 identity、access、entitlement、ai、secret-management 的交互。
 - 奧卡姆剃刀：不要預先建立多餘 facade；能直接由既有治理邊界承接就維持單一路徑。
 - 優先讓 request -> orchestration -> domain decision -> published language 保持單純可追溯。
 

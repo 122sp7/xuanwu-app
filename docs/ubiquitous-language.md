@@ -32,12 +32,18 @@
 - 不用 Wiki 混指 KnowledgeArtifact。
 - 不用 Chat 混指 Conversation。
 - 不用 Search 混指 Retrieval。
+- 不用 AI 混指 platform 的 shared AI capability 與 notion / notebooklm 的本地 use case。
+- 不用 Analytics 混指 platform analytics 與 notion 的 knowledge-analytics。
+- 不用 Integration 混指 platform integration 與 notion 的 knowledge-integration。
+- 不用 Versioning 混指 notion 的 knowledge-versioning 與 notebooklm 的 conversation-versioning。
+- 不用 Workflow 混指 platform workflow 與 workspace-workflow。
 
 ## Naming Anti-Patterns
 
 - 用同一個詞同時代表平台治理語言與工作區參與語言。
 - 用內容產品舊名覆蓋 notion 的正典語言。
 - 用 Search 混指 notebooklm 的 Retrieval 與一般搜尋能力。
+- 用同一個 generic 子域名跨主域重複宣稱所有權，再期望 Copilot 自行猜對上下文。
 
 ## Copilot Generation Rules
 

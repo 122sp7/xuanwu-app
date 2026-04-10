@@ -9,7 +9,7 @@
 | audit | 工作區操作稽核與證據追蹤 |
 | feed | 工作區活動摘要與事件流呈現 |
 | scheduling | 工作區排程、時序與提醒協調 |
-| workflow | 工作區流程編排與執行治理 |
+| workspace-workflow | 工作區流程編排與執行治理 |
 
 ## Recommended Gap Subdomains
 
@@ -29,7 +29,7 @@
 
 ## Anti-Patterns
 
-- 不把 lifecycle 混進 workflow，使容器生命週期被流程編排吞沒。
+- 不把 lifecycle 混進 workspace-workflow，使容器生命週期被流程編排吞沒。
 - 不把 membership 混成 organization 或 identity。
 - 不把 sharing 混成一般 permission 欄位集合。
 - 不把 presence 藏進 UI 狀態而失去獨立語言。
@@ -37,6 +37,7 @@
 ## Copilot Generation Rules
 
 - 生成程式碼時，先確認需求屬於哪個 workspace 責任，再決定 use case 與 boundary。
+- 涉及工作區流程時一律使用 `workspace-workflow`，避免與 `platform.workflow` 混名。
 - 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的 scope 子域。
 - 子域命名必須反映工作區語義，不應退化成頁面或元件名稱。
 
@@ -56,7 +57,7 @@ flowchart LR
 	Lifecycle["Lifecycle"] --> Membership["Membership"]
 	Membership --> Sharing["Sharing"]
 	Sharing --> Presence["Presence"]
-	Presence --> Workflow["Workflow"]
+	Presence --> Workflow["Workspace Workflow"]
 	Workflow --> Scheduling["Scheduling"]
 ```
 

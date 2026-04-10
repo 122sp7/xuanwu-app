@@ -10,10 +10,10 @@
 
 | Main Domain | Strategic Role | Baseline Focus | Recommended Gap Focus |
 |---|---|---|---|
-| workspace | 協作容器與 scope | audit、feed、scheduling、workflow | lifecycle、membership、sharing、presence |
-| platform | 治理與營運支撐 | identity、organization、access、policy、billing、notification、observability | tenant、entitlement、secret-management、consent |
-| notion | 正典知識內容 | knowledge、authoring、collaboration、database、templates、versioning | taxonomy、relations、publishing |
-| notebooklm | 對話與推理 | ai、conversation、note、notebook、source、synthesis、versioning | ingestion、retrieval、grounding、evaluation |
+| workspace | 協作容器與 scope | audit、feed、scheduling、workspace-workflow | lifecycle、membership、sharing、presence |
+| platform | 治理與營運支撐 | identity、organization、access、policy、billing、ai、notification、observability | tenant、entitlement、secret-management、consent |
+| notion | 正典知識內容 | knowledge、authoring、collaboration、database、templates、knowledge-versioning | taxonomy、relations、publishing |
+| notebooklm | 對話與推理 | conversation、note、notebook、source、synthesis、conversation-versioning | ingestion、retrieval、grounding、evaluation |
 
 ## Ownership Rules
 
@@ -33,12 +33,15 @@
 - 若某子域同時被多個主域宣稱，依最能維持語言自洽與 context map 方向的主域保留所有權。
 - 若某能力同時像治理又像內容，先問它是否定義 actor / tenant / entitlement；若是，歸 platform。
 - 若某能力同時像內容又像推理輸出，先問它是否是正典內容狀態；若是，歸 notion，否則歸 notebooklm。
+- generic `ai` 由 platform 擁有；notion 與 notebooklm 只能消費 platform 的 AI capability，不能再各自宣稱 `ai` 子域。
+- `workflow` 作為 generic 名稱只保留在 platform；workspace 使用 `workspace-workflow` 避免跨主域混名。
 
 ## Forbidden Ownership Moves
 
 - 不得讓兩個主域同時宣稱同一正典模型所有權。
 - 不得用部署、資料表或 UI 分區來覆蓋 bounded context 所有權。
 - 不得把 gap subdomain 缺口視為可以任意分散到其他主域的理由。
+- 不得讓同一個 generic 子域名稱同時作為多個主域的 canonical ownership。
 
 ## Copilot Generation Rules
 
