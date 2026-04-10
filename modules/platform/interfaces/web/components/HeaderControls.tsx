@@ -1,19 +1,17 @@
 "use client";
 
 /**
- * Module: header-controls.tsx
- * Purpose: compose shell header utility controls.
- * Responsibilities: language switch, theme toggle, and notification entry.
- * Constraints: presentation-only, no domain orchestration.
+ * HeaderControls – platform interfaces/web component.
+ * Composes shell header utility controls: language switch, theme toggle, notification bell.
  */
 
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/app/providers/auth-provider";
-import { NotificationBell } from "@/modules/platform/api";
+import { NotificationBell } from "../../../subdomains/notification/interfaces/components/NotificationBell";
 import { Button } from "@ui-shadcn/ui/button";
-import { TranslationSwitcher } from "./translation-switcher";
+import { TranslationSwitcher } from "./TranslationSwitcher";
 
 const THEME_KEY = "xuanwu_theme";
 

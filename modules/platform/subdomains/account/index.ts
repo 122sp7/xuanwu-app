@@ -18,3 +18,5 @@ export type {
   UpdatePolicyInput,
 } from "./domain/entities/AccountPolicy";
 export type { WalletBalanceSnapshot, Unsubscribe } from "./domain/repositories/AccountQueryRepository";
+export { HeaderUserAvatar } from "./interfaces/components/HeaderUserAvatar";
+export { NavUser } from "./interfaces/components/NavUser";

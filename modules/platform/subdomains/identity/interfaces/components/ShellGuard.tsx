@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * shell-guard.tsx
+ * ShellGuard – platform/identity interfaces component.
  * Client-side auth guard for the authenticated shell.
  *
  * Responsibilities:
@@ -14,7 +14,7 @@ import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/app/providers/auth-provider";
-import { useTokenRefreshListener } from "@/modules/platform/api";
+import { useTokenRefreshListener } from "../../adapters/hooks/useTokenRefreshListener";
 
 interface ShellGuardProps {
   children: ReactNode;

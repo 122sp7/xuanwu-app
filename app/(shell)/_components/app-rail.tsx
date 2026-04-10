@@ -27,7 +27,8 @@ import { useRouter } from "next/navigation";
 import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/platform/api";
-import { type WorkspaceEntity } from "@/modules/workspace/api";
+import { CreateOrganizationDialog } from "@/modules/platform/api";
+import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,8 +43,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@ui-shadcn/ui/tooltip";
-import { CreateOrganizationDialog } from "./create-organization-dialog";
-import { CreateWorkspaceDialogRail } from "./create-workspace-dialog-rail";
 
 interface AppRailProps {
   readonly pathname: string;
@@ -351,10 +350,10 @@ export function AppRail({
       <CreateWorkspaceDialogRail
         open={isCreateWorkspaceOpen}
         onOpenChange={setIsCreateWorkspaceOpen}
-        activeAccount={activeAccount}
-        isOrganizationAccount={isOrganizationAccount}
+        accountId={activeAccount?.id ?? null}
+        accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
         creatorUserId={user?.id}
-        onNavigate={(href) => { router.push(href); }}
+        onNavigate={(href: string) => { router.push(href); }}
       />
     </TooltipProvider>
   );

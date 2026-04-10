@@ -18,22 +18,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-import { createKnowledgePage } from "@/modules/notion/api";
-import { buildWorkspaceQuickAccessItems } from "@/modules/workspace/api";
-import { useAuth } from "@/app/providers/auth-provider";
+import { createKnowledgePage, KnowledgeSidebarSection } from "@/modules/notion/api";
 import {
+  buildWorkspaceQuickAccessItems,
   CustomizeNavigationDialog,
-  readNavPreferences,
-  type NavPreferences,
-} from "./customize-navigation-dialog";
-import { KnowledgeSidebarSection } from "./knowledge-sidebar-section";
-import {
   getWorkspaceIdFromPath,
   MAX_VISIBLE_RECENT_WORKSPACES,
+  readNavPreferences,
+  type NavPreferences,
   useRecentWorkspaces,
-} from "./use-recent-workspaces";
+  WorkspaceSidebarSection,
+} from "@/modules/workspace/api";
+import { useAuth } from "@/app/providers/auth-provider";
 import { useSidebarLocale } from "./use-sidebar-locale";
-import { WorkspaceSidebarSection } from "./workspace-sidebar-section";
 import {
   type DashboardSidebarProps,
   ORGANIZATION_MANAGEMENT_ITEMS,
@@ -443,6 +440,7 @@ export function DashboardSidebar({
                   workspacePathId={workspacePathId}
                   navPrefs={navPrefs}
                   localeBundle={localeBundle}
+                  getItemClassName={sidebarItemClass}
                 />
               ) : (
                 <div>

@@ -1,12 +1,8 @@
 "use client";
 
 /**
- * Module: customize-navigation-dialog.tsx
- * Purpose: Let users pick which nav items stay pinned in the secondary sidebar.
- * Responsibilities: dialog shell, section rendering, preference state management.
- * Constraints: UI-only; pure preference storage, no backend call.
- *   Data/constants/localStorage live in nav-preferences-data.ts.
- *   Row components live in nav-check-row.tsx.
+ * CustomizeNavigationDialog – workspace interfaces/web component.
+ * Lets users pick which nav items stay pinned in the secondary sidebar.
  */
 
 import { useMemo, useState, useEffect } from "react";
@@ -26,8 +22,8 @@ import { Input } from "@ui-shadcn/ui/input";
 import { Label } from "@ui-shadcn/ui/label";
 import { Separator } from "@ui-shadcn/ui/separator";
 
-import { CheckRow, WorkspaceCheckRow } from "./nav-check-row";
-import { type WorkspaceNavItem, WORKSPACE_NAV_ITEMS } from "@/modules/workspace/api";
+import { CheckRow, WorkspaceCheckRow } from "./NavCheckRow";
+import { type WorkspaceNavItem, WORKSPACE_NAV_ITEMS } from "../../navigation/workspace-nav-items";
 import {
   DIALOG_TEXT,
   ORGANIZATION_NAV_ITEMS,
@@ -36,10 +32,8 @@ import {
   writeNavPreferences,
   type NavPreferences,
   type SidebarLocaleBundle,
-} from "./nav-preferences-data";
+} from "../../navigation/nav-preferences-data";
 
-// Re-export the stable public surface so existing consumers (dashboard-sidebar,
-// workspace-sidebar-section) don't need to change their import paths.
 export type { NavPreferences };
 export { readNavPreferences };
 

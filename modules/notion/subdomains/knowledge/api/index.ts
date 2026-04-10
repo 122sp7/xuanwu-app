@@ -71,3 +71,6 @@ export type { KnowledgePageTreeNode } from "../domain/aggregates/KnowledgePage";
 
 // ── Domain events (published language — for cross-module event subscriptions) ─
 export type { PageApprovedEvent, PageApprovedPayload, ExtractedTask, ExtractedInvoice } from "../domain/events/KnowledgePageEvents";
+
+// ── Sidebar component ─────────────────────────────────────────────────────────
+export { KnowledgeSidebarSection } from "../interfaces/components/KnowledgeSidebarSection";

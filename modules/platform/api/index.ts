@@ -72,7 +72,13 @@ export {
   CreateOrgPolicyUseCase,
   UpdateOrgPolicyUseCase,
   DeleteOrgPolicyUseCase,
+  // UI components
+  AccountSwitcher,
+  CreateOrganizationDialog,
 } from "../subdomains/organization";
 
 // background-job — knowledge ingestion pipeline management
 export * from "../subdomains/background-job";
+
+// platform-level interfaces (HeaderControls, TranslationSwitcher)
+export * from "../interfaces";

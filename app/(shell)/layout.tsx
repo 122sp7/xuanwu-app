@@ -15,14 +15,16 @@ import { PanelLeftOpen, Search } from "lucide-react";
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
 import type { AccountEntity } from "@/modules/platform/api";
-import { AccountSwitcher } from "./_components/account-switcher";
+import {
+  AccountSwitcher,
+  HeaderControls,
+  HeaderUserAvatar,
+  ShellGuard,
+} from "@/modules/platform/api";
 import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
 import { AppRail } from "./_components/app-rail";
 import { DashboardSidebar } from "./_components/dashboard-sidebar";
 import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
-import { HeaderControls } from "./_components/header-controls";
-import { HeaderUserAvatar } from "./_components/header-user-avatar";
-import { ShellGuard } from "./_components/shell-guard";
 
 const routeTitles: Record<string, string> = {
   "/organization": "組織治理",

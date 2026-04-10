@@ -1,5 +1,5 @@
 /**
- * nav-preferences-data.ts
+ * nav-preferences-data.ts  (workspace BC – interfaces/web/navigation)
  * Owns: NavPreferences type, nav-item catalogs, default values,
  *   validation helpers, and localStorage read/write utilities.
  * Constraints: No React imports. No UI imports. Pure data / serialization.
@@ -8,24 +8,18 @@
 import {
   WORKSPACE_NAV_ITEMS,
   normalizeWorkspaceOrder,
-} from "@/modules/workspace/api";
+} from "./workspace-nav-items";
 
-// Re-export so existing consumers of this file (customize-navigation-dialog
-// via nav-preferences-data) keep working during the transition.
+// Re-export for consumers that import from this file directly.
 export { WORKSPACE_NAV_ITEMS, normalizeWorkspaceOrder };
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface NavPreferences {
-  /** IDs of personal nav items that are pinned */
   pinnedPersonal: string[];
-  /** IDs of workspace org-management items that are pinned */
   pinnedWorkspace: string[];
-  /** Whether to show a limited number of workspaces */
   showLimitedWorkspaces: boolean;
-  /** Max number of workspaces to show (when showLimitedWorkspaces = true) */
   maxWorkspaces: number;
-  /** Explicit display order of workspace items for sidebar and customize dialog */
   workspaceOrder: string[];
 }
 
@@ -44,9 +38,7 @@ export const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
   { id: "recent-workspaces", labelKey: "recentWorkspaces" },
 ];
 
-// ── Workspace / org-management items ──────────────────────────────────────
-// WORKSPACE_NAV_ITEMS is owned by modules/workspace/api (workspace BC).
-// It is re-exported above for backward-compatible consumers of this file.
+// ── Organization management items ─────────────────────────────────────────
 
 export const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
   { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
@@ -101,8 +93,6 @@ const VALID_WORKSPACE_ITEM_IDS = new Set([
   ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
   ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
 ]);
-// normalizeWorkspaceOrder is owned by modules/workspace/api (workspace BC).
-// It is re-exported above.
 
 function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
   if (!Array.isArray(ids)) return fallback;

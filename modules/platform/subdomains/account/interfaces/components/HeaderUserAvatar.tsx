@@ -1,10 +1,8 @@
 "use client";
 
 /**
- * Module: header-user-avatar.tsx
- * Purpose: render top-right signed-in user identity as avatar with quick actions.
- * Responsibilities: display user identity and expose sign-out action.
- * Constraints: keep header interaction lightweight and presentation-oriented.
+ * HeaderUserAvatar – platform/account interfaces component.
+ * Displays the signed-in user identity as an avatar with a sign-out action.
  */
 
 import { LogOut } from "lucide-react";
@@ -46,7 +44,6 @@ export function HeaderUserAvatar({ name, email, onSignOut }: HeaderUserAvatarPro
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        {/* Profile header */}
         <div className="flex flex-col items-center gap-2 px-4 py-4">
           <Avatar size="lg">
             <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
