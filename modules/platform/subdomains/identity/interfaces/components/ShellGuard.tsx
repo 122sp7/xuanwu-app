@@ -13,7 +13,7 @@
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
-import { useAuth } from "@/app/providers/auth-provider";
+import { useAuth } from "../providers/auth-provider";
 import { useTokenRefreshListener } from "../../adapters/hooks/useTokenRefreshListener";
 
 interface ShellGuardProps {

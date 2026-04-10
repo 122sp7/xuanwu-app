@@ -4,9 +4,9 @@ import { useState } from "react";
 import { AlertCircle, Loader2, Search } from "lucide-react";
 import { toast } from "sonner";
 
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { DEV_DEMO_ACCOUNT_EMAIL } from "@/app/providers/dev-demo-auth";
+import { useApp } from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+import { DEV_DEMO_ACCOUNT_EMAIL } from "@/modules/platform/api";
 import {
   Accordion,
   AccordionContent,
