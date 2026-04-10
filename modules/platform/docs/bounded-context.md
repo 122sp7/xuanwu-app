@@ -36,6 +36,10 @@ platform 這個 bounded context 負責回答五類問題：
 - `subscription`
 - `referral`
 
+### AI 與共享能力
+
+- `ai`
+
 ### 流程與交付
 
 - `integration`
@@ -117,7 +121,7 @@ platform 包含：
 
 ## Closed Inventory Boundary Rule
 
-這個 bounded context 以 23 個子域作為封閉 inventory。任何新需求預設都應被視為既有子域的責任延伸，而不是新增第 24 個子域。只有在既有 23 個子域無法吸收時，才允許重新打開 inventory。
+這個 bounded context 以 24 個子域作為封閉 inventory。任何新需求預設都應被視為既有子域的責任延伸，而不是新增第 25 個子域。只有在既有 24 個子域無法吸收時，才允許重新打開 inventory。
 
 ## 計畫吸收模組
 

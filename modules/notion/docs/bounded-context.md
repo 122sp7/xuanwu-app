@@ -24,10 +24,9 @@ notion 這個 bounded context 負責回答五類問題：
 - `database` — Database/Record/View 結構化資料引擎
 - `collaboration` — Comment、Permission、Version 協作基礎設施
 
-### AI 與分析
+### 分析
 
-- `ai` — AI 輔助生成、摘要與 RAG 攝入起點
-- `analytics` — 知識使用行為量測
+- `knowledge-analytics` — 知識使用行為量測
 
 ### 內容豐富與自動化
 
@@ -37,9 +36,9 @@ notion 這個 bounded context 負責回答五類問題：
 
 ### 整合與個人
 
-- `integration` — 外部系統（Notion、Confluence、Google Docs 等）整合
+- `knowledge-integration` — 外部系統（Notion、Confluence、Google Docs 等）整合
 - `notes` — 個人輕量筆記
-- `versioning` — 全域版本快照策略
+- `knowledge-versioning` — 全域版本快照策略
 
 ## 邊界包含什麼
 

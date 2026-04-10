@@ -24,10 +24,11 @@
 
 | 能力群 | 子域 |
 |---|---|
-| AI 推理核心 | `ai`、`synthesis` |
-| 對話管理 | `conversation`、`versioning` |
+| RAG 推理 | `synthesis` |
+| 對話管理 | `conversation`、`conversation-versioning` |
 | 知識組合 | `notebook`、`note` |
 | 來源管理 | `source` |
+| RAG 管線（gap 子域） | `ingestion`、`retrieval`、`grounding`、`evaluation` |
 
 ## Public Boundary
 
@@ -40,7 +41,8 @@
 
 此 context 的子域清單是 **closed inventory**：
 
-- 7 個子域（ai、conversation、note、notebook、source、synthesis、versioning）
+- 6 個基線子域（conversation、note、notebook、source、synthesis、conversation-versioning）
+- 4 個 gap 子域（ingestion、retrieval、grounding、evaluation）已在 `subdomains/` 建立
 - 後續開發必須先映射到既有子域，不能隨意新增
 - 若確實需要新增子域，先更新此文件與 `subdomains.md`
 
@@ -54,14 +56,18 @@ modules/notebooklm/
 ├── infrastructure/  # Driven adapters (AI SDKs, Firebase, etc.)
 ├── interfaces/      # Driving adapters (web, CLI)
 ├── ports/           # Input/output port contracts
-├── subdomains/      # 7 子域各自的邊界
-│   ├── ai/
+├── subdomains/      # 10 子域各自的邊界（含 gap 子域）
+│   ├── ai/                      # 🔄 Migration-pending → platform.ai
 │   ├── conversation/
+│   ├── conversation-versioning/
+│   ├── evaluation/              # gap 子域
+│   ├── grounding/               # gap 子域
+│   ├── ingestion/               # gap 子域
 │   ├── note/
 │   ├── notebook/
+│   ├── retrieval/               # gap 子域
 │   ├── source/
-│   ├── synthesis/
-│   └── versioning/
+│   └── synthesis/
 └── docs/            # 本文件集
 ```
 
