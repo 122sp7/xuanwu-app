@@ -1,5 +1,5 @@
 /**
- * Module: notebook
+ * Module: notebooklm/conversation
  * Layer: infrastructure/firebase
  * Firestore: accounts/{accountId}/threads/{threadId}
  *

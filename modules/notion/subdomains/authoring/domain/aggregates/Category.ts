@@ -4,7 +4,7 @@
  * Purpose: Category aggregate root — hierarchical article organisation.
  */
 
-import type { NotionDomainEvent } from "../../../../core/domain/events/NotionDomainEvent";
+import type { NotionDomainEvent } from "../events/NotionDomainEvent";
 
 export interface CategorySnapshot {
   readonly id: string;

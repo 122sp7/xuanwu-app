@@ -1,5 +1,5 @@
 /**
- * Module: notion/core
+ * Module: notion
  * Layer: domain/value-objects
  * Purpose: BlockContent value object — immutable typed content snapshot for a Block.
  *

@@ -4,7 +4,7 @@
  * Purpose: ContentBlock domain events.
  */
 
-import type { NotionDomainEvent } from "../../../../core/domain/events/NotionDomainEvent";
+import type { NotionDomainEvent } from "./NotionDomainEvent";
 
 export interface BlockAddedPayload {
   readonly blockId: string;

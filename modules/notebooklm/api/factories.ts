@@ -1,10 +1,2 @@
-import { FirebaseThreadRepository } from "../infrastructure/firebase/FirebaseThreadRepository";
-import { GenkitNotebookRepository } from "../infrastructure/genkit/GenkitNotebookRepository";
-
-export function makeThreadRepo() {
-  return new FirebaseThreadRepository();
-}
-
-export function makeNotebookRepo() {
-  return new GenkitNotebookRepository();
-}
+export { makeThreadRepo } from "../subdomains/conversation/api/factories";
+export { makeNotebookRepo } from "../subdomains/notebook/api/factories";

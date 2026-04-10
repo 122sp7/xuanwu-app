@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { useBlockEditorStore } from "../store/block-editor.store";
-import { richTextToPlainText } from "../../../../core/domain/value-objects/BlockContent";
+import { richTextToPlainText } from "../../domain/value-objects/BlockContent";
 
 /**
  * Notion knowledge subdomain — minimal block editor.

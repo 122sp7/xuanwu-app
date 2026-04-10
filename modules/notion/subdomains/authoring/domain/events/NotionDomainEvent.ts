@@ -1,7 +1,7 @@
 /**
- * Module: notion/core
+ * Module: notion/subdomains/authoring
  * Layer: domain/events
- * Purpose: Base interface for all Notion domain events.
+ * Purpose: Base interface for Notion Authoring domain events.
  */
 
 export interface NotionDomainEvent {
