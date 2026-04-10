@@ -78,3 +78,7 @@ export { KnowledgeSidebarSection } from "../interfaces/components/KnowledgeSideb
 // ── Page header widgets ───────────────────────────────────────────────────────
 export { TitleEditor, IconPicker, CoverEditor } from "../interfaces/components/KnowledgePageHeaderWidgets";
 export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../interfaces/components/KnowledgePageHeaderWidgets";
+
+// ── Route screen components ───────────────────────────────────────────────────
+export { KnowledgePageDetailPage } from "../interfaces/components/KnowledgePageDetailPage";
+export type { KnowledgePageDetailPageProps } from "../interfaces/components/KnowledgePageDetailPage";

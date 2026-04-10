@@ -96,3 +96,7 @@ export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
 export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
 export { KnowledgeDatabasesRouteScreen } from "../interfaces/components/KnowledgeDatabasesRouteScreen";
 export { AddFieldDialog, FIELD_TYPES } from "../interfaces/components/DatabaseAddFieldDialog";
+export { DatabaseDetailPage } from "../interfaces/components/DatabaseDetailPage";
+export type { DatabaseDetailPageProps } from "../interfaces/components/DatabaseDetailPage";
+export { DatabaseFormsPage } from "../interfaces/components/DatabaseFormsPage";
+export type { DatabaseFormsPageProps } from "../interfaces/components/DatabaseFormsPage";
