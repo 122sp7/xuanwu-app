@@ -41,13 +41,13 @@ const moduleElementTypeRules = [
   { from: ["main-domain-domain"], allow: [sameDomain("main-domain-domain")] },
   { from: ["main-domain-application"], allow: [sameDomain("main-domain-application"), sameDomain("main-domain-domain")] },
   { from: ["main-domain-infrastructure"], allow: [sameDomain("main-domain-infrastructure"), sameDomain("main-domain-application"), sameDomain("main-domain-domain")] },
-  { from: ["main-domain-interfaces"], allow: [sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api")] },
+  { from: ["main-domain-interfaces"], allow: [sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api"), "main-domain-api"] },
   { from: ["main-domain-api"], allow: [sameDomain("main-domain-api"), sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("main-domain-infrastructure"), sameDomain("subdomain-api")] },
   { from: ["subdomain-domain"], allow: [sameSubdomain("subdomain-domain")] },
   { from: ["subdomain-application"], allow: [sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain")] },
   { from: ["subdomain-infrastructure"], allow: [sameSubdomain("subdomain-infrastructure"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain")] },
-  { from: ["subdomain-interfaces"], allow: [sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain")] },
-  { from: ["subdomain-api"], allow: [sameSubdomain("subdomain-api"), sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameSubdomain("subdomain-infrastructure")] },
+  { from: ["subdomain-interfaces"], allow: [sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameSubdomain("subdomain-api"), "main-domain-api"] },
+  { from: ["subdomain-api"], allow: [sameSubdomain("subdomain-api"), sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameSubdomain("subdomain-infrastructure"), sameDomain("subdomain-api"), "main-domain-api"] },
 ];
 
 // ─── Restricted import patterns ───────────────────────────────────────────────
