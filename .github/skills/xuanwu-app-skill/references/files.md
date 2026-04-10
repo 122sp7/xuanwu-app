@@ -253,61 +253,6 @@ Deliver route-level UI slices with clear ownership and predictable data flow.
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
-## File: .github/agents/hexagonal-ddd-architect.agent.md
-````markdown
----
-name: Hexagonal DDD Architect
-description: Design and refactor modules with Hexagonal Architecture with Domain-Driven Design ownership, layer direction, and API-only cross-module boundaries.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Confirm Domain Ownership
-    agent: Domain Lead
-    prompt: Confirm the owning bounded context and the required public API boundary for this module refactor.
-  - label: Update Contracts
-    agent: TS Interface Writer
-    prompt: Update or review the public DTO and contract surface affected by this module refactor.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this module refactor for boundary regressions, compatibility risk, and missing validation.
-
----
-
-# Hexagonal DDD Architect
-
-## Target Scope
-
-- `modules/**`
-- `packages/shared-types/**`
-- `packages/api-contracts/**`
-
-## Mission
-
-Shape module structures without breaking bounded contexts.
-
-## Rules
-
-- Keep dependency direction: interfaces -> application -> domain <- infrastructure.
-- Cross-module access must go through modules target api only.
-- Keep domain framework-free.
-- Run lint and build when boundaries or exports move.
-
-## Module Lifecycle Operations
-
-- Support create/refactor/split/merge/delete with explicit ownership mapping.
-- Preserve public API compatibility or document migration steps in the same change.
-- Replace internal cross-module imports with API contracts or event-driven collaboration.
-
-## Output
-
-- Ownership decision
-- Boundary impact
-- Files changed
-- Validation evidence
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
 ## File: .github/agents/kb-architect.agent.md
 ````markdown
 ---
@@ -733,44 +678,6 @@ handoffs:
 - Coordinate contract changes with consumer updates in the same change.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/instructions/architecture-hexagonal-ddd.instructions.md
-````markdown
----
-description: 'Hexagonal Architecture with Domain-Driven Design rules for layer ownership and dependency direction.'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
----
-
-# Architecture Hexagonal DDD
-
-## Layer Direction
-
-- `interfaces -> application -> domain <- infrastructure`
-- Keep `domain/` framework-free.
-
-## Layer Constraints
-
-- `domain/` must not import Firebase SDK, React, HTTP clients, or runtime-specific adapters.
-- `application/` orchestrates use cases and coordinates domain abstractions.
-- `infrastructure/` implements domain ports and repository interfaces.
-- `interfaces/` handles UI, route handlers, API transport, and server action wiring.
-
-## Layer Ownership
-
-- `domain/`: entities, value objects, domain services, repository interfaces.
-- `application/`: use cases and DTO orchestration.
-- `infrastructure/`: adapters and external implementations.
-- `interfaces/`: UI, transport, and action wiring.
-- Module `api/` public entry is the only cross-module boundary.
-
-## Dependency Guardrails
-
-- Keep module dependency flow acyclic unless an explicit event contract documents the exception.
-- Do not reverse dependency direction for convenience during refactors.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
 ````
 
 ## File: .github/instructions/branching-strategy.instructions.md
@@ -1839,225 +1746,6 @@ Report vulnerabilities first with severity, reproduction notes, and concrete rem
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-development-contracts
-````
-
-## File: .github/prompts/serena-hexagonal-ddd-refactor.prompt.md
-````markdown
----
-
-name: serena-hexagonal-ddd-refactor
-description: Scan large files, refactor to follow Hexagonal Architecture with Domain-Driven Design without breaking functionality, then update Serena MCP memory and index.
-agent: copilot
-argument-hint: <project-root>
------------------------------
-
-# Serena Hexagonal DDD Refactor Prompt
-
-## Objective
-
-Identify oversized files in the project, verify whether they violate Hexagonal Architecture with Domain-Driven Design layering principles, refactor them without breaking functionality, then update Serena MCP memory and symbol index.
-
----
-
-# Step 1 — Start Serena MCP
-
-If Serena MCP is not running:
-
-```
-serena start-mcp-server
-```
-
-Activate project and load memory:
-
-```
-serena
-#use skill serena-mcp > activate_project
-list_memories
-read_memory
-#use skill xuanwu-app-markdown-skill
-#use skill xuanwu-app-skill
-#use skill context7
-```
-
----
-
-# Step 2 — Find Largest Files
-
-Run PowerShell to locate largest files:
-
-```
-$folders = @("app","modules","packages","py_fn\src")
-
-Get-ChildItem $folders -Recurse -File |
-Where-Object { $_.FullName -notmatch "node_modules|\.next|\.git|dist|build|__pycache__" } |
-Sort-Object Length -Descending |
-Select-Object -First 33 FullName, Length
-```
-
-Focus refactoring on these large files first.
-
----
-
-# Step 3 — Hexagonal DDD Refactor Rules
-
-Refactor files that violate these rules:
-
-## Application Service must NOT contain
-
-* Business logic
-* Repository query logic
-* DTO mapping logic
-* Entity creation logic
-* Infrastructure calls
-
-Application Service should only:
-
-```
-Receive request → Load Aggregate → Call Domain → Save Aggregate → Publish Event
-```
-
-## Aggregate must NOT contain
-
-* Repository
-* Firebase / Database
-* HTTP / API calls
-* UI / DTO
-* Infrastructure logic
-
-Aggregate should contain only:
-
-```
-Entities
-Value Objects
-Domain Logic
-Domain Events
-```
-
-## Repository must NOT contain
-
-* Business logic
-* Domain rules
-* Complex query logic
-* Application logic
-
-Repository should only:
-
-```
-Save
-Get
-Delete
-```
-
-## Domain Service usage
-
-Create Domain Service only when:
-
-* Logic does not belong to a single Entity
-* Requires multiple Aggregates
-* Pure business logic
-* No infrastructure dependency
-
----
-
-# Step 4 — File Splitting Structure
-
-When splitting large files, use this structure:
-
-```
-domain/
-  aggregates/
-  entities/
-  value-objects/
-  domain-events/
-  domain-services/
-
-application/
-  services/
-  commands/
-  queries/
-
-infrastructure/
-  repositories/
-  firebase/
-  external-services/
-
-interface/
-  controllers/
-  dto/
-  routes/
-```
-
----
-
-# Step 5 — File Size Guidelines
-
-Recommended file sizes:
-
-```
-Entity < 150 lines
-Aggregate < 300 lines
-Application Service < 150 lines
-Repository < 120 lines
-Controller < 120 lines
-Domain Service < 150 lines
-```
-
-Files exceeding ~300 lines likely indicate boundary or responsibility problems.
-
----
-
-# Step 6 — After Refactor Update Serena
-
-After modifications:
-
-```
-#sym:update_memory
-#sym:prune_index
-```
-
-Purpose:
-
-```
-update_memory → sync new architecture and symbols
-prune_index → remove outdated symbols
-```
-
----
-
-# Full Workflow Checklist
-
-```
-1. serena start-mcp-server
-2. activate_project
-3. list_memories
-4. read_memory
-5. Find largest files
-6. Check Hexagonal DDD violations
-7. Refactor and split files
-8. Ensure functionality still works
-9. #sym:update_memory
-10. #sym:prune_index
-```
-
----
-
-# Core Principle
-
-Hexagonal DDD refactoring goal is not smaller files, but correct boundaries:
-
-```
-Controller → Application Service → Domain → Repository
-```
-
-Domain layer must not depend on:
-
-```
-Database
-Firebase
-HTTP
-UI
-Framework
-```
 ````
 
 ## File: .github/prompts/write-docs.prompt.md
@@ -4067,6 +3755,31 @@ export { answerRagQuery, generateNotebookResponse } from "./_actions/notebook.ac
 
 ````
 
+## File: modules/notion/api/index.ts
+````typescript
+/**
+ * Module: notion
+ * Layer: api (top-level public boundary)
+ * Purpose: Unified ACL for all notion subdomains.
+ *          External consumers (app/, other modules) must only import from here.
+ */
+
+// ── knowledge subdomain ───────────────────────────────────────────────────────
+export * from "../subdomains/knowledge/api";
+
+// ── authoring subdomain ───────────────────────────────────────────────────────
+// Migration-Pending: full implementation from modules/knowledge-base/
+export * from "../subdomains/authoring/api";
+
+// ── collaboration subdomain ───────────────────────────────────────────────────
+// Migration-Pending: full implementation from modules/knowledge-collaboration/
+export * from "../subdomains/collaboration/api";
+
+// ── database subdomain ───────────────────────────────────────────────────────
+// Migration-Pending: full implementation from modules/knowledge-database/
+export * from "../subdomains/database/api";
+````
+
 ## File: modules/notion/core/adapters/.gitkeep
 ````
 
@@ -4630,109 +4343,6 @@ Block 快照，immutable。最多 100 個（具名版本除外）。
 - 跨子域（例如 D3 Promote 協議）必須透過事件訂閱，不可直接呼叫另一子域的 application
 ````
 
-## File: modules/notion/docs/bounded-context.md
-````markdown
-# Bounded Context — notion
-
-本文件定義 `notion` 這份本地藍圖的邊界。notion 的任務，是把 Xuanwu 的知識內容能力（頁面編輯、區塊管理、結構化資料庫、組織知識庫、協作留言、版本歷史）收斂成一個 **Hexagonal + DDD** 邊界，而不是把這些能力散落成沒有語言與責任的多個獨立模組。
-
-## Context Purpose
-
-notion 這個 bounded context 負責回答五類問題：
-
-- 知識頁面如何被建立、組織、演進與交付
-- 內容區塊如何被管理與排序
-- 結構化資料（Database/Record/View）如何以多視圖呈現
-- 組織知識文章如何被驗證、分類與維護
-- 協作者如何留言、管理存取與追蹤版本
-
-## Canonical Capability Groups
-
-### 核心知識內容
-
-- `knowledge` — 頁面、區塊、集合（Notion-like 核心頁面引擎）
-- `authoring` — 組織知識庫文章（Article、Category、驗證狀態）
-
-### 結構化與協作
-
-- `database` — Database/Record/View 結構化資料引擎
-- `collaboration` — Comment、Permission、Version 協作基礎設施
-
-### AI 與分析
-
-- `ai` — AI 輔助生成、摘要與 RAG 攝入起點
-- `analytics` — 知識使用行為量測
-
-### 內容豐富與自動化
-
-- `attachments` — 附件與媒體管理
-- `automation` — 知識事件觸發的自動化規則
-- `templates` — 頁面範本管理
-
-### 整合與個人
-
-- `integration` — 外部系統（Notion、Confluence、Google Docs 等）整合
-- `notes` — 個人輕量筆記
-- `versioning` — 全域版本快照策略
-
-## 邊界包含什麼
-
-notion 包含：
-
-- 可被 notion 通用語言描述的聚合、值物件、規則與事件
-- 可被 application layer 協調的 use cases、commands、queries 與 read models
-- 可被 ports 表達的輸入契約與外部依賴契約
-- 可被協作與版本管理需求追蹤的 published language
-
-## 邊界刻意不包含什麼
-
-- 平台主體治理（身份、帳號、組織）→ `platform`
-- 工作區層級的治理與成員歸屬 → `workspace`
-- AI 推理與 RAG 管線執行細節 → `ai` 模組 / `py_fn/`
-- 任何 UI 呈現細節本身
-- 直接綁定 HTTP、queue、webhook、SDK、資料庫的 adapter 細節
-
-## Hexagonal Layer Mapping
-
-| Layer / concept | notion 位置 | 說明 |
-|---|---|---|
-| Public boundary | `api/` | 對外公開的 cross-module boundary；只做投影與 re-export |
-| Driving adapters | `core/adapters/` | Web、CLI 等輸入端轉譯 |
-| Application | `core/application/` | use case orchestration、DTO、command/query 處理 |
-| Domain core | `core/domain/` | 聚合、值物件、domain services、domain events |
-| Input ports | `core/ports/input/` | 進入 application 的穩定契約 |
-| Output ports | `core/ports/output/` | repositories、stores、gateways |
-| Driven adapters | `core/infrastructure/` | 對 output ports 的具體實作 |
-| Subdomains | `subdomains/<name>/` | 各子域的本地 domain/application/adapters 能力 |
-
-## 計畫吸收模組
-
-以下四個現有獨立模組的能力**計畫在未來重構中合并進 notion**，成為對應子域的正式實作。在合并完成前，這些模組作為各自子域的前身實作繼續運作，notion blueprint 定義語言與 port 契約的規範形式。
-
-| 獨立模組 | 目標子域 | 現有核心概念 | 合并備注 |
-|---|---|---|---|
-| `modules/knowledge/` | `knowledge` | `KnowledgePage`, `ContentBlock`, `ContentVersion`, `KnowledgeCollection` | 保留 D1/D2/D3 決策語言；workspace-first scope 規則不變 |
-| `modules/knowledge-base/` | `authoring` | `Article`, `Category`, `VerificationState`, `Backlink` | Promote 協議（D3）由 `authoring` 子域接管業務規則 |
-| `modules/knowledge-collaboration/` | `collaboration` | `Comment`, `Permission`, `PermissionLevel`, `Version`, `NamedVersion` | `contentId` opaque reference 模式保持 |
-| `modules/knowledge-database/` | `database` | `Database`, `Field`, `Record`, `Property`, `View` | D1 決策：`database` 子域完整擁有 spaceType="database" 的 Schema+Record+View |
-
-**合并優先序：** `knowledge` → `database` → `collaboration` → `authoring`
-
-**合并後規則：**
-- 獨立模組應設為 deprecated，並把 `api/index.ts` 指向 `modules/notion/api`
-- Notion blueprint 的語言定義優先；若有術語歧異，以本文件與 `ubiquitous-language.md` 為準
-
-## 邊界測試問題
-
-1. 這個變更屬於哪個既有子域
-2. 它需要的是新語言、既有語言的細化，還是新的 port contract
-3. 它是 domain rule、application orchestration、adapter concern，還是 public boundary projection
-4. 它是否會破壞 closed inventory 或 dependency direction
-5. 若涉及四個計畫吸收模組，是否與合并方向一致
-
-若第 1 題答不出來，表示 notion 邊界尚未被正確理解。
-````
-
 ## File: modules/notion/docs/context-map.md
 ````markdown
 # Context Map — notion
@@ -5241,6 +4851,27 @@ authoring 子域
 
 ````
 
+## File: modules/notion/subdomains/authoring/index.ts
+````typescript
+/**
+ * notion/subdomains/authoring — barrel re-export
+ * Public surface is api/index.ts; this file is for internal tooling only.
+ */
+export * from "./api";
+````
+
+## File: modules/notion/subdomains/authoring/infrastructure/index.ts
+````typescript
+export * from "./firebase";
+````
+
+## File: modules/notion/subdomains/authoring/interfaces/store/index.ts
+````typescript
+// TODO: export useArticleEditorStore
+
+export {};
+````
+
 ## File: modules/notion/subdomains/authoring/README.md
 ````markdown
 # notion/subdomains/authoring
@@ -5300,6 +4931,61 @@ authoring 子域
 
 ````
 
+## File: modules/notion/subdomains/collaboration/domain/events/index.ts
+````typescript
+// TODO: export CollaborationEvents
+// knowledge-collaboration.comment_created | comment_resolved
+// knowledge-collaboration.permission_granted | permission_revoked
+// knowledge-collaboration.version_created | version_restored
+// knowledge-collaboration.page_locked
+
+export {};
+````
+
+## File: modules/notion/subdomains/collaboration/domain/index.ts
+````typescript
+export * from "./aggregates";
+export * from "./events";
+export * from "./repositories";
+export * from "./services";
+export * from "./value-objects";
+````
+
+## File: modules/notion/subdomains/collaboration/domain/services/index.ts
+````typescript
+// TODO: export PermissionResolutionService, VersionRetentionService
+
+export {};
+````
+
+## File: modules/notion/subdomains/collaboration/domain/value-objects/index.ts
+````typescript
+// TODO: export CommentId, PermissionId, VersionId, ContentId, PermissionLevel
+
+export {};
+````
+
+## File: modules/notion/subdomains/collaboration/index.ts
+````typescript
+/**
+ * notion/subdomains/collaboration — barrel re-export
+ * Public surface is api/index.ts; this file is for internal tooling only.
+ */
+export * from "./api";
+````
+
+## File: modules/notion/subdomains/collaboration/infrastructure/index.ts
+````typescript
+export * from "./firebase";
+````
+
+## File: modules/notion/subdomains/collaboration/interfaces/store/index.ts
+````typescript
+// TODO: export useCommentStore, usePermissionStore
+
+export {};
+````
+
 ## File: modules/notion/subdomains/collaboration/README.md
 ````markdown
 # notion/subdomains/collaboration
@@ -5351,6 +5037,63 @@ authoring 子域
 ## File: modules/notion/subdomains/database/.gitkeep
 ````
 
+````
+
+## File: modules/notion/subdomains/database/domain/events/index.ts
+````typescript
+// TODO: export DatabaseEvents
+// knowledge-database.database_created | database_renamed
+// knowledge-database.field_added | field_deleted
+// knowledge-database.record_added | record_updated | record_deleted | record_linked
+// knowledge-database.view_created | view_updated
+
+export {};
+````
+
+## File: modules/notion/subdomains/database/domain/index.ts
+````typescript
+export * from "./aggregates";
+export * from "./events";
+export * from "./repositories";
+export * from "./services";
+export * from "./value-objects";
+````
+
+## File: modules/notion/subdomains/database/domain/services/index.ts
+````typescript
+// TODO: export DatabaseQueryService (filter/sort/group evaluation)
+// TODO: export FormulaEvaluationService, RollupComputationService
+
+export {};
+````
+
+## File: modules/notion/subdomains/database/domain/value-objects/index.ts
+````typescript
+// TODO: export DatabaseId, RecordId, ViewId, FieldId
+// TODO: export FieldType, ViewType, FieldValue
+
+export {};
+````
+
+## File: modules/notion/subdomains/database/index.ts
+````typescript
+/**
+ * notion/subdomains/database — barrel re-export
+ * Public surface is api/index.ts; this file is for internal tooling only.
+ */
+export * from "./api";
+````
+
+## File: modules/notion/subdomains/database/infrastructure/index.ts
+````typescript
+export * from "./firebase";
+````
+
+## File: modules/notion/subdomains/database/interfaces/store/index.ts
+````typescript
+// TODO: export useDatabaseStore, useRecordStore
+
+export {};
 ````
 
 ## File: modules/notion/subdomains/database/README.md
@@ -10243,157 +9986,6 @@ application services 應回傳兩種結果之一：
 - query projection：為查詢或 UI 組裝的唯讀模型
 
 無論哪一種，application services 都不應回傳 adapter-specific payload。
-````
-
-## File: modules/platform/docs/bounded-context.md
-````markdown
-# Bounded Context — platform
-
-本文件定義 `platform` 這份本地藍圖的邊界。platform 的任務，是把平台級的主體治理、政策規則、能力啟用、外部交付、稽核與可觀測性收斂成一個 **Hexagonal + DDD** 邊界，而不是把這些能力散落成沒有語言與責任的共享雜物間。
-
-## Context Purpose
-
-platform 這個 bounded context 負責回答五類問題：
-
-- 誰是平台可治理的主體
-- 主體在什麼條件下可以做什麼
-- 哪些能力在當前方案、設定與安全政策下可用
-- 平台如何把事實轉成流程、外部交付與通知
-- 平台如何留下證據並暴露診斷訊號
-
-## Canonical Capability Groups
-
-### 主體與名錄
-
-- `identity`
-- `account`
-- `account-profile`
-- `organization`
-
-### 治理與安全
-
-- `access-control`
-- `security-policy`
-- `platform-config`
-- `feature-flag`
-- `onboarding`
-- `compliance`
-
-### 商業與權益
-
-- `billing`
-- `subscription`
-- `referral`
-
-### 流程與交付
-
-- `integration`
-- `workflow`
-- `notification`
-- `background-job`
-
-### 內容與檢索
-
-- `content`
-- `search`
-
-### 證據與診斷
-
-- `audit-log`
-- `observability`
-- `analytics`
-- `support`
-
-## 邊界包含什麼
-
-platform 包含：
-
-- 可被 platform 通用語言描述的聚合、值物件、規則與事件
-- 可被 application layer 協調的 use cases、commands、queries 與 read models
-- 可被 ports 表達的輸入契約與外部依賴契約
-- 可被稽核與可觀測性需求追蹤的 published language
-
-## 邊界刻意不包含什麼
-
-- 產品內容本身的建立、編排與發布策略
-- 檢索、推理、內容相關性或知識生成演算法
-- 任何 UI 呈現細節本身
-- 直接綁定 HTTP、queue、webhook、SDK、資料庫的 adapter 細節
-- 以「暫時先開個資料夾」為名的未定義能力
-
-## Hexagonal Layer Mapping
-
-| Layer / concept | platform 位置 | 說明 |
-|---|---|---|
-| Public boundary | `api/` | 對外公開的 cross-module boundary；只做投影與 re-export |
-| Driving adapters | `adapters/` | CLI、web、external ingress 等輸入端轉譯 |
-| Application | `application/` | use case orchestration、command/query handling |
-| Domain | `domain/` | 聚合、值物件、domain services、domain events |
-| Input ports | `ports/input/` | 進入 application 的穩定契約 |
-| Output ports | `ports/output/` | repository、store、gateway、sink 等依賴契約 |
-| Driven adapters | `infrastructure/` | 對 output ports 的具體技術實作 |
-
-## Layer Responsibilities
-
-### Domain
-
-- 擁有聚合、值物件、domain services、domain events
-- 維持不變數與 published language
-- 不直接理解 repository implementation、HTTP、DB、queue 或 SDK
-
-### Application
-
-- 實作 use case handlers 與 input port 語言
-- 協調 aggregates、domain services 與 output ports
-- 在持久化成功後拉取並發布 domain events
-
-### Ports
-
-- input ports：命令、查詢、事件匯入入口
-- output ports：repositories、support stores、gateways、sinks
-- 由 core/application 擁有，不以 `api/` 為型別真實來源
-
-### Adapters / Infrastructure
-
-- driving adapters：把 HTTP、CLI、scheduler、webhook、queue ingress 翻譯成 input port 語言
-- driven adapters：把 repository、event publishing、notification、telemetry、external delivery 實作成具體技術方案
-
-## Public Boundary Rule
-
-- `api/` 是 platform 對其他模組的正式 public boundary
-- `index.ts` 只作 aggregate export convenience，不應被當成邊界設計來源
-- `ports/` 的契約來源在 `application/` 與 `domain/`，不是 `api/`
-
-## Closed Inventory Boundary Rule
-
-這個 bounded context 以 23 個子域作為封閉 inventory。任何新需求預設都應被視為既有子域的責任延伸，而不是新增第 24 個子域。只有在既有 23 個子域無法吸收時，才允許重新打開 inventory。
-
-## 計畫吸收模組
-
-以下四個現有獨立模組的能力**計畫在未來重構中合并進 platform**，成為對應子域的正式實作。在合并完成前，這些模組作為各自子域的前身實作繼續運作，platform blueprint 定義語言與 port 契約的規範形式。
-
-| 獨立模組 | 目標子域 | 現有核心概念 | 合并備注 |
-|---|---|---|---|
-| `modules/identity/` | `identity` | `Identity`, `uid`, `TokenRefreshSignal`, `IdentityRepository`, `TokenRefreshRepository` | 提供 `AuthenticatedSubject` 與 `IdentitySignal` 的前身語意 |
-| `modules/account/` | `account` + `account-profile` | `Account`, `AccountPolicy`, `AccountProfile`, `AccountRepository`, `AccountQueryRepository`, `AccountPolicyRepository` | `account` 承接帳號聚合根；`account-profile` 承接可治理輪廓屬性 |
-| `modules/organization/` | `organization` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`, `OrganizationRepository`, `OrgPolicyRepository` | 提供 `MembershipBoundary` 與 `RoleAssignment` 的前身語意 |
-| `modules/notification/` | `notification` | `NotificationEntity`, `NotificationRepository`，conformist 消費者 | 提供 `NotificationDispatch` 與 `NotificationRoute` 的前身語意 |
-
-**合并優先序：** `identity` → `account` → `organization` → `notification`（按語意依賴順序）
-
-**合并後規則：**
-- 獨立模組應設為 deprecated，並把 `api/index.ts` 指向 `modules/platform/api`
-- Platform blueprint 的語言定義優先；若有術語歧異，以本文件與 `ubiquitous-language.md` 為準
-
-## 邊界測試問題
-
-1. 這個變更屬於哪個既有子域
-2. 它需要的是新語言、既有語言的細化，還是新的 port contract
-3. 它是 domain rule、application orchestration、adapter concern，還是 public boundary projection
-4. 它是否會破壞 closed inventory 或 dependency direction
-5. 若涉及 identity / account / organization / notification，是否與計畫吸收方向一致
-
-若第 1 題答不出來，表示 platform 邊界尚未被正確理解。
 ````
 
 ## File: modules/platform/docs/context-map.md
@@ -16031,6 +15623,78 @@ export {
 } from "./server-actions/account-policy.actions";
 ````
 
+## File: modules/platform/subdomains/account/adapters/queries/account.queries.ts
+````typescript
+/**
+ * Account Read Queries — thin wrappers over the AccountQueryRepository port.
+ * NOT Server Actions — callable from React components/hooks directly.
+ */
+
+import { FirebaseAccountQueryRepository } from "../firebase/FirebaseAccountQueryRepository";
+import type { AccountEntity, WalletTransaction, AccountRoleRecord } from "../../domain/entities/Account";
+import type { WalletBalanceSnapshot, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
+import type { AccountPolicy } from "../../domain/entities/AccountPolicy";
+
+const accountQueryRepo = new FirebaseAccountQueryRepository();
+
+export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
+  return accountQueryRepo.getUserProfile(userId);
+}
+
+export function subscribeToUserProfile(
+  userId: string,
+  onUpdate: (profile: AccountEntity | null) => void,
+): Unsubscribe {
+  return accountQueryRepo.subscribeToUserProfile(userId, onUpdate);
+}
+
+export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
+  return accountQueryRepo.getWalletBalance(accountId);
+}
+
+export function subscribeToWalletBalance(
+  accountId: string,
+  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
+): Unsubscribe {
+  return accountQueryRepo.subscribeToWalletBalance(accountId, onUpdate);
+}
+
+export function subscribeToWalletTransactions(
+  accountId: string,
+  maxCount: number,
+  onUpdate: (txs: WalletTransaction[]) => void,
+): Unsubscribe {
+  return accountQueryRepo.subscribeToWalletTransactions(accountId, maxCount, onUpdate);
+}
+
+export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
+  return accountQueryRepo.getAccountRole(accountId);
+}
+
+export function subscribeToAccountRoles(
+  accountId: string,
+  onUpdate: (record: AccountRoleRecord | null) => void,
+): Unsubscribe {
+  return accountQueryRepo.subscribeToAccountRoles(accountId, onUpdate);
+}
+
+export function subscribeToAccountsForUser(
+  userId: string,
+  onUpdate: (accounts: Record<string, AccountEntity>) => void,
+): Unsubscribe {
+  return accountQueryRepo.subscribeToAccountsForUser(userId, onUpdate);
+}
+
+export async function getAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
+  // Policy reads are server-side only; keep client bundles free of policy repo deps.
+  return [];
+}
+
+export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
+  return [];
+}
+````
+
 ## File: modules/platform/subdomains/account/adapters/server-actions/account-policy.actions.ts
 ````typescript
 "use server";
@@ -16615,6 +16279,27 @@ export type { AccountPolicyRepository } from "./repositories/AccountPolicyReposi
 export type { TokenRefreshPort, TokenRefreshSignalInput } from "./ports/TokenRefreshPort";
 ````
 
+## File: modules/platform/subdomains/account/domain/ports/TokenRefreshPort.ts
+````typescript
+/**
+ * TokenRefreshPort — Driven port for emitting token-refresh signals.
+ * Decouples account application layer from the identity subdomain.
+ * Platform identity adapter implements this port.
+ */
+
+export type TokenRefreshReason = "role:changed" | "policy:changed";
+
+export interface TokenRefreshSignalInput {
+  accountId: string;
+  reason: TokenRefreshReason;
+  traceId?: string;
+}
+
+export interface TokenRefreshPort {
+  emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void>;
+}
+````
+
 ## File: modules/platform/subdomains/account/domain/repositories/AccountPolicyRepository.ts
 ````typescript
 /**
@@ -16771,6 +16456,167 @@ export interface AccountRepository {
 ## File: modules/platform/subdomains/background-job/domain/.gitkeep
 ````
 
+````
+
+## File: modules/platform/subdomains/background-job/domain/entities/IngestionChunk.ts
+````typescript
+/**
+ * IngestionChunk — value-like entity representing a text segment produced
+ * by the chunking stage of the ingestion pipeline.
+ *
+ * Produced downstream from the Python `py_fn` worker; tracked by the
+ * platform layer for audit and retrieval-quality accounting.
+ */
+
+export interface IngestionChunkMetadata {
+  readonly sourceDocId: string;
+  readonly section?: string;
+  readonly pageNumber?: number;
+}
+
+export interface IngestionChunk {
+  readonly id: string;
+  readonly documentId: string;
+  readonly chunkIndex: number;
+  readonly content: string;
+  readonly metadata: IngestionChunkMetadata;
+}
+````
+
+## File: modules/platform/subdomains/background-job/domain/entities/IngestionDocument.ts
+````typescript
+/**
+ * IngestionDocument — value-like entity representing a source document
+ * submitted for RAG pipeline processing.
+ *
+ * Immutable snapshot attached to an IngestionJob; updated only when the
+ * underlying source file metadata changes (e.g. title rename, MIME reclassification).
+ */
+
+export interface IngestionDocument {
+  readonly id: string;
+  readonly organizationId: string;
+  readonly workspaceId: string;
+  readonly sourceFileId: string;
+  readonly title: string;
+  readonly mimeType: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+````
+
+## File: modules/platform/subdomains/background-job/domain/entities/IngestionJob.ts
+````typescript
+/**
+ * IngestionJob — aggregate entity tracking a document through the RAG
+ * ingestion pipeline.
+ *
+ * The embedded state machine enforces strict one-way status transitions,
+ * keeping invalid states impossible at the domain level.
+ *
+ * Lifecycle (happy path):
+ *   uploaded → parsing → chunking → embedding → indexed
+ *
+ * Repair paths:
+ *   indexed  → stale → re-indexing → parsing
+ *   failed   → re-indexing → parsing
+ */
+
+import type { IngestionDocument } from "./IngestionDocument";
+
+// ── Status ────────────────────────────────────────────────────────────────────
+
+export type IngestionStatus =
+  | "uploaded"
+  | "parsing"
+  | "chunking"
+  | "embedding"
+  | "indexed"
+  | "stale"
+  | "re-indexing"
+  | "failed";
+
+const ALLOWED_TRANSITIONS: Readonly<Record<IngestionStatus, readonly IngestionStatus[]>> = {
+  uploaded:      ["parsing",    "failed"],
+  parsing:       ["chunking",   "failed"],
+  chunking:      ["embedding",  "failed"],
+  embedding:     ["indexed",    "failed"],
+  indexed:       ["stale",      "re-indexing"],
+  stale:         ["re-indexing"],
+  "re-indexing": ["parsing",    "failed"],
+  failed:        ["re-indexing"],
+};
+
+/**
+ * Domain guard: returns true only when the requested transition is permitted
+ * by the state machine contract.
+ */
+export function canTransitionIngestionStatus(
+  from: IngestionStatus,
+  to: IngestionStatus,
+): boolean {
+  return ALLOWED_TRANSITIONS[from].includes(to);
+}
+
+// ── Aggregate ─────────────────────────────────────────────────────────────────
+
+export interface IngestionJob {
+  /** Unique job identifier (UUID). */
+  readonly id: string;
+  /** Immutable document snapshot attached to this job. */
+  readonly document: IngestionDocument;
+  /** Current pipeline stage. */
+  readonly status: IngestionStatus;
+  /** Optional human-readable message describing the current stage or failure reason. */
+  readonly statusMessage?: string;
+  /** ISO-8601 timestamp of job creation. */
+  readonly createdAtISO: string;
+  /** ISO-8601 timestamp of last status update. */
+  readonly updatedAtISO: string;
+}
+````
+
+## File: modules/platform/subdomains/background-job/domain/index.ts
+````typescript
+export type { IngestionDocument } from "./entities/IngestionDocument";
+export type { IngestionChunk, IngestionChunkMetadata } from "./entities/IngestionChunk";
+export type { IngestionJob, IngestionStatus } from "./entities/IngestionJob";
+export { canTransitionIngestionStatus } from "./entities/IngestionJob";
+export type { IIngestionJobRepository } from "./repositories/IIngestionJobRepository";
+````
+
+## File: modules/platform/subdomains/background-job/domain/repositories/IIngestionJobRepository.ts
+````typescript
+/**
+ * IIngestionJobRepository — output port (driven port) for ingestion job persistence.
+ *
+ * Implementations live in the adapters layer (InMemoryIngestionJobRepository,
+ * FirebaseIngestionJobRepository, …). The domain core depends only on this interface.
+ */
+
+import type { IngestionJob, IngestionStatus } from "../entities/IngestionJob";
+
+export interface IIngestionJobRepository {
+  /** Retrieve a job by its associated document id. Returns null if not found. */
+  findByDocumentId(documentId: string): Promise<IngestionJob | null>;
+
+  /** List all jobs scoped to a specific workspace. */
+  listByWorkspace(input: {
+    readonly organizationId: string;
+    readonly workspaceId: string;
+  }): Promise<readonly IngestionJob[]>;
+
+  /** Persist a new ingestion job. */
+  save(job: IngestionJob): Promise<void>;
+
+  /** Advance job status; returns the updated job, or null if the document was not found. */
+  updateStatus(input: {
+    readonly documentId: string;
+    readonly status: IngestionStatus;
+    readonly statusMessage?: string;
+    readonly updatedAtISO: string;
+  }): Promise<IngestionJob | null>;
+}
 ````
 
 ## File: modules/platform/subdomains/billing/adapters/.gitkeep
@@ -17701,6 +17547,22 @@ export const notificationService = {
 };
 ````
 
+## File: modules/platform/subdomains/notification/adapters/queries/notification.queries.ts
+````typescript
+/**
+ * Notification Queries — direct repo reads for client-side data.
+ */
+
+import { FirebaseNotificationRepository } from "../firebase/FirebaseNotificationRepository";
+import type { NotificationEntity } from "../../domain/entities/Notification";
+
+const notificationRepo = new FirebaseNotificationRepository();
+
+export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
+  return notificationRepo.findByRecipient(recipientId, maxCount);
+}
+````
+
 ## File: modules/platform/subdomains/notification/adapters/server-actions/notification.actions.ts
 ````typescript
 "use server";
@@ -17753,6 +17615,57 @@ export {
   MarkNotificationReadUseCase,
   MarkAllNotificationsReadUseCase,
 } from "./use-cases/notification.use-cases";
+````
+
+## File: modules/platform/subdomains/notification/application/use-cases/notification.use-cases.ts
+````typescript
+/**
+ * Notification Application Use Cases — orchestrate domain intent without framework concerns.
+ */
+
+import { commandSuccess, commandFailureFrom } from "@shared-types";
+import type { CommandResult } from "@shared-types";
+import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
+import type { DispatchNotificationInput } from "../../domain/entities/Notification";
+
+export class DispatchNotificationUseCase {
+  constructor(private readonly repo: NotificationRepository) {}
+
+  async execute(input: DispatchNotificationInput): Promise<CommandResult> {
+    try {
+      const notification = await this.repo.dispatch(input);
+      return commandSuccess(notification.id, 1);
+    } catch (err) {
+      return commandFailureFrom("DISPATCH_NOTIFICATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
+    }
+  }
+}
+
+export class MarkNotificationReadUseCase {
+  constructor(private readonly repo: NotificationRepository) {}
+
+  async execute(notificationId: string, recipientId: string): Promise<CommandResult> {
+    try {
+      await this.repo.markAsRead(notificationId, recipientId);
+      return commandSuccess(notificationId, 1);
+    } catch (err) {
+      return commandFailureFrom("MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
+    }
+  }
+}
+
+export class MarkAllNotificationsReadUseCase {
+  constructor(private readonly repo: NotificationRepository) {}
+
+  async execute(recipientId: string): Promise<CommandResult> {
+    try {
+      await this.repo.markAllAsRead(recipientId);
+      return commandSuccess(recipientId, 1);
+    } catch (err) {
+      return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
+    }
+  }
+}
 ````
 
 ## File: modules/platform/subdomains/notification/domain/.gitkeep
@@ -18543,6 +18456,32 @@ export {
   dismissPartnerMember,
 } from "./server-actions/organization.actions";
 export { createOrgPolicy, updateOrgPolicy, deleteOrgPolicy } from "./server-actions/organization-policy.actions";
+````
+
+## File: modules/platform/subdomains/organization/adapters/queries/organization.queries.ts
+````typescript
+/**
+ * Organization Queries — direct repo reads for client-side data.
+ */
+
+import { FirebaseOrganizationRepository } from "../firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "../firebase/FirebaseOrgPolicyRepository";
+import type { MemberReference, Team, OrgPolicy } from "../../domain/entities/Organization";
+
+const orgRepo = new FirebaseOrganizationRepository();
+const policyRepo = new FirebaseOrgPolicyRepository();
+
+export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
+  return orgRepo.getMembers(organizationId);
+}
+
+export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
+  return orgRepo.getTeams(organizationId);
+}
+
+export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
+  return policyRepo.getPolicies(orgId);
+}
 ````
 
 ## File: modules/platform/subdomains/organization/adapters/server-actions/organization-policy.actions.ts
@@ -41135,6 +41074,61 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
+## File: .github/agents/hexagonal-ddd-architect.agent.md
+````markdown
+---
+name: Hexagonal DDD Architect
+description: Design and refactor modules with Hexagonal Architecture with Domain-Driven Design ownership, layer direction, and API-only cross-module boundaries.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Confirm Domain Ownership
+    agent: Domain Lead
+    prompt: Confirm the owning bounded context and the required public API boundary for this module refactor.
+  - label: Update Contracts
+    agent: TS Interface Writer
+    prompt: Update or review the public DTO and contract surface affected by this module refactor.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this module refactor for boundary regressions, compatibility risk, and missing validation.
+
+---
+
+# Hexagonal DDD Architect
+
+## Target Scope
+
+- `modules/**`
+- `packages/shared-types/**`
+- `packages/api-contracts/**`
+
+## Mission
+
+Shape module structures without breaking bounded contexts.
+
+## Rules
+
+- Keep dependency direction: interfaces -> application -> domain <- infrastructure.
+- Cross-module access must go through modules target api only.
+- Keep domain framework-free.
+- Run lint and build when boundaries or exports move.
+
+## Module Lifecycle Operations
+
+- Support create/refactor/split/merge/delete with explicit ownership mapping.
+- Preserve public API compatibility or document migration steps in the same change.
+- Replace internal cross-module imports with API contracts or event-driven collaboration.
+
+## Output
+
+- Ownership decision
+- Boundary impact
+- Files changed
+- Validation evidence
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
 ## File: .github/agents/rag-lead.agent.md
 ````markdown
 ---
@@ -41213,6 +41207,44 @@ applyTo: '{app,modules,packages,providers,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 
 - Use `eslint.config.mjs` restricted-import and boundary rules as the enforcement source.
 - Re-check changed imports for `@/modules/` to confirm API-only access.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
+## File: .github/instructions/architecture-hexagonal-ddd.instructions.md
+````markdown
+---
+description: 'Hexagonal Architecture with Domain-Driven Design rules for layer ownership and dependency direction.'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Architecture Hexagonal DDD
+
+## Layer Direction
+
+- `interfaces -> application -> domain <- infrastructure`
+- Keep `domain/` framework-free.
+
+## Layer Constraints
+
+- `domain/` must not import Firebase SDK, React, HTTP clients, or runtime-specific adapters.
+- `application/` orchestrates use cases and coordinates domain abstractions.
+- `infrastructure/` implements domain ports and repository interfaces.
+- `interfaces/` handles UI, route handlers, API transport, and server action wiring.
+
+## Layer Ownership
+
+- `domain/`: entities, value objects, domain services, repository interfaces.
+- `application/`: use cases and DTO orchestration.
+- `infrastructure/`: adapters and external implementations.
+- `interfaces/`: UI, transport, and action wiring.
+- Module `api/` public entry is the only cross-module boundary.
+
+## Dependency Guardrails
+
+- Keep module dependency flow acyclic unless an explicit event contract documents the exception.
+- Do not reverse dependency direction for convenience during refactors.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
@@ -41699,6 +41731,225 @@ argument-hint: Provide change summary, touched files, and known risk areas.
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill vscode-typescript-workbench
+````
+
+## File: .github/prompts/serena-hexagonal-ddd-refactor.prompt.md
+````markdown
+---
+
+name: serena-hexagonal-ddd-refactor
+description: Scan large files, refactor to follow Hexagonal Architecture with Domain-Driven Design without breaking functionality, then update Serena MCP memory and index.
+agent: copilot
+argument-hint: <project-root>
+-----------------------------
+
+# Serena Hexagonal DDD Refactor Prompt
+
+## Objective
+
+Identify oversized files in the project, verify whether they violate Hexagonal Architecture with Domain-Driven Design layering principles, refactor them without breaking functionality, then update Serena MCP memory and symbol index.
+
+---
+
+# Step 1 — Start Serena MCP
+
+If Serena MCP is not running:
+
+```
+serena start-mcp-server
+```
+
+Activate project and load memory:
+
+```
+serena
+#use skill serena-mcp > activate_project
+list_memories
+read_memory
+#use skill xuanwu-app-markdown-skill
+#use skill xuanwu-app-skill
+#use skill context7
+```
+
+---
+
+# Step 2 — Find Largest Files
+
+Run PowerShell to locate largest files:
+
+```
+$folders = @("app","modules","packages","py_fn\src")
+
+Get-ChildItem $folders -Recurse -File |
+Where-Object { $_.FullName -notmatch "node_modules|\.next|\.git|dist|build|__pycache__" } |
+Sort-Object Length -Descending |
+Select-Object -First 33 FullName, Length
+```
+
+Focus refactoring on these large files first.
+
+---
+
+# Step 3 — Hexagonal DDD Refactor Rules
+
+Refactor files that violate these rules:
+
+## Application Service must NOT contain
+
+* Business logic
+* Repository query logic
+* DTO mapping logic
+* Entity creation logic
+* Infrastructure calls
+
+Application Service should only:
+
+```
+Receive request → Load Aggregate → Call Domain → Save Aggregate → Publish Event
+```
+
+## Aggregate must NOT contain
+
+* Repository
+* Firebase / Database
+* HTTP / API calls
+* UI / DTO
+* Infrastructure logic
+
+Aggregate should contain only:
+
+```
+Entities
+Value Objects
+Domain Logic
+Domain Events
+```
+
+## Repository must NOT contain
+
+* Business logic
+* Domain rules
+* Complex query logic
+* Application logic
+
+Repository should only:
+
+```
+Save
+Get
+Delete
+```
+
+## Domain Service usage
+
+Create Domain Service only when:
+
+* Logic does not belong to a single Entity
+* Requires multiple Aggregates
+* Pure business logic
+* No infrastructure dependency
+
+---
+
+# Step 4 — File Splitting Structure
+
+When splitting large files, use this structure:
+
+```
+domain/
+  aggregates/
+  entities/
+  value-objects/
+  domain-events/
+  domain-services/
+
+application/
+  services/
+  commands/
+  queries/
+
+infrastructure/
+  repositories/
+  firebase/
+  external-services/
+
+interface/
+  controllers/
+  dto/
+  routes/
+```
+
+---
+
+# Step 5 — File Size Guidelines
+
+Recommended file sizes:
+
+```
+Entity < 150 lines
+Aggregate < 300 lines
+Application Service < 150 lines
+Repository < 120 lines
+Controller < 120 lines
+Domain Service < 150 lines
+```
+
+Files exceeding ~300 lines likely indicate boundary or responsibility problems.
+
+---
+
+# Step 6 — After Refactor Update Serena
+
+After modifications:
+
+```
+#sym:update_memory
+#sym:prune_index
+```
+
+Purpose:
+
+```
+update_memory → sync new architecture and symbols
+prune_index → remove outdated symbols
+```
+
+---
+
+# Full Workflow Checklist
+
+```
+1. serena start-mcp-server
+2. activate_project
+3. list_memories
+4. read_memory
+5. Find largest files
+6. Check Hexagonal DDD violations
+7. Refactor and split files
+8. Ensure functionality still works
+9. #sym:update_memory
+10. #sym:prune_index
+```
+
+---
+
+# Core Principle
+
+Hexagonal DDD refactoring goal is not smaller files, but correct boundaries:
+
+```
+Controller → Application Service → Domain → Repository
+```
+
+Domain layer must not depend on:
+
+```
+Database
+Firebase
+HTTP
+UI
+Framework
+```
 ````
 
 ## File: app/(public)/page.tsx
@@ -42810,90 +43061,6 @@ export { GenkitNotebookRepository } from "../infrastructure/genkit/GenkitNoteboo
 
 // Q&A subdomain — AnswerRagQueryUseCase factory (replaces @/modules/search/api/server)
 export { createAnswerRagQueryUseCase } from "../subdomains/ai/qa/server";
-````
-
-## File: modules/notebooklm/docs/bounded-context.md
-````markdown
-# Bounded Context — notebooklm
-
-## 責任邊界
-
-`notebooklm` 擁有 Xuanwu 的 AI 對話與知識合成能力。它是 Supporting Subdomain，為使用者提供 NotebookLM-like 的 AI 推理體驗。
-
-### 這個 context 擁有
-
-- AI 對話 Thread 與 Message 的持久化與生命週期
-- AI 模型調用的提示工程、路由與回應封裝
-- Notebook 容器的組合、管理與版本策略
-- 來源文件的追蹤、引用與引用一致性
-- RAG 合成、摘要與洞察的生成
-- 對話衍生的輕量筆記與知識連結
-
-### 這個 context 不擁有
-
-- 知識內容的建立與管理（→ `notion`）
-- 組織與帳號治理（→ `platform`）
-- 工作區生命週期（→ `workspace`）
-- 向量索引的建立與語意搜尋查詢（→ AI/RAG 管道）
-
-## 能力分組
-
-| 能力群 | 子域 |
-|---|---|
-| AI 推理核心 | `ai`、`synthesis` |
-| 對話管理 | `conversation`、`versioning` |
-| 知識組合 | `notebook`、`note` |
-| 來源管理 | `source` |
-
-## Public Boundary
-
-`modules/notebooklm/api/` 是對外的 public boundary：
-
-- 跨模組存取只能透過 `@/modules/notebooklm/api` import
-- 禁止直接 import `domain/`、`application/`、`infrastructure/` 或 `subdomains/` 內部
-
-## 封板規則
-
-此 context 的子域清單是 **closed inventory**：
-
-- 7 個子域（ai、conversation、note、notebook、source、synthesis、versioning）
-- 後續開發必須先映射到既有子域，不能隨意新增
-- 若確實需要新增子域，先更新此文件與 `subdomains.md`
-
-## 層次結構
-
-```
-modules/notebooklm/
-├── api/             # Public boundary
-├── application/     # Use case orchestration
-├── domain/          # Aggregates, value objects, domain events
-├── infrastructure/  # Driven adapters (AI SDKs, Firebase, etc.)
-├── interfaces/      # Driving adapters (web, CLI)
-├── ports/           # Input/output port contracts
-├── subdomains/      # 7 子域各自的邊界
-│   ├── ai/
-│   ├── conversation/
-│   ├── note/
-│   ├── notebook/
-│   ├── source/
-│   ├── synthesis/
-│   └── versioning/
-└── docs/            # 本文件集
-```
-
-## 上游依賴
-
-| 上游 | 協作方式 | 說明 |
-|---|---|---|
-| `notion` | API 查詢 | 知識頁面與文章作為合成來源 |
-| `platform` | API 查詢 | 身份認證與租戶治理 |
-| `workspace` | API 查詢 | `workspaceId` 範疇錨點 |
-
-## 下游消費者
-
-| 下游 | 協作方式 | 說明 |
-|---|---|---|
-| `app/(shell)/ai-chat` | Server Action → `notebooklm/api` | AI 對話 UI 介面 |
 ````
 
 ## File: modules/notebooklm/docs/README.md
@@ -48141,29 +48308,106 @@ export async function getWorkspaceRagDocuments(
 | [docs/domain-services.md](./docs/domain-services.md) | Domain services |
 ````
 
-## File: modules/notion/api/index.ts
-````typescript
-/**
- * Module: notion
- * Layer: api (top-level public boundary)
- * Purpose: Unified ACL for all notion subdomains.
- *          External consumers (app/, other modules) must only import from here.
- */
+## File: modules/notion/docs/bounded-context.md
+````markdown
+# Bounded Context — notion
 
-// ── knowledge subdomain ───────────────────────────────────────────────────────
-export * from "../subdomains/knowledge/api";
+本文件定義 `notion` 這份本地藍圖的邊界。notion 的任務，是把 Xuanwu 的知識內容能力（頁面編輯、區塊管理、結構化資料庫、組織知識庫、協作留言、版本歷史）收斂成一個 **Hexagonal + DDD** 邊界，而不是把這些能力散落成沒有語言與責任的多個獨立模組。
 
-// ── authoring subdomain ───────────────────────────────────────────────────────
-// Migration-Pending: full implementation from modules/knowledge-base/
-export * from "../subdomains/authoring/api";
+## Context Purpose
 
-// ── collaboration subdomain ───────────────────────────────────────────────────
-// Migration-Pending: full implementation from modules/knowledge-collaboration/
-export * from "../subdomains/collaboration/api";
+notion 這個 bounded context 負責回答五類問題：
 
-// ── database subdomain ───────────────────────────────────────────────────────
-// Migration-Pending: full implementation from modules/knowledge-database/
-export * from "../subdomains/database/api";
+- 知識頁面如何被建立、組織、演進與交付
+- 內容區塊如何被管理與排序
+- 結構化資料（Database/Record/View）如何以多視圖呈現
+- 組織知識文章如何被驗證、分類與維護
+- 協作者如何留言、管理存取與追蹤版本
+
+## Canonical Capability Groups
+
+### 核心知識內容
+
+- `knowledge` — 頁面、區塊、集合（Notion-like 核心頁面引擎）
+- `authoring` — 組織知識庫文章（Article、Category、驗證狀態）
+
+### 結構化與協作
+
+- `database` — Database/Record/View 結構化資料引擎
+- `collaboration` — Comment、Permission、Version 協作基礎設施
+
+### 分析
+
+- `knowledge-analytics` — 知識使用行為量測
+
+### 內容豐富與自動化
+
+- `attachments` — 附件與媒體管理
+- `automation` — 知識事件觸發的自動化規則
+- `templates` — 頁面範本管理
+
+### 整合與個人
+
+- `knowledge-integration` — 外部系統（Notion、Confluence、Google Docs 等）整合
+- `notes` — 個人輕量筆記
+- `knowledge-versioning` — 全域版本快照策略
+
+## 邊界包含什麼
+
+notion 包含：
+
+- 可被 notion 通用語言描述的聚合、值物件、規則與事件
+- 可被 application layer 協調的 use cases、commands、queries 與 read models
+- 可被 ports 表達的輸入契約與外部依賴契約
+- 可被協作與版本管理需求追蹤的 published language
+
+## 邊界刻意不包含什麼
+
+- 平台主體治理（身份、帳號、組織）→ `platform`
+- 工作區層級的治理與成員歸屬 → `workspace`
+- AI 推理與 RAG 管線執行細節 → `ai` 模組 / `py_fn/`
+- 任何 UI 呈現細節本身
+- 直接綁定 HTTP、queue、webhook、SDK、資料庫的 adapter 細節
+
+## Hexagonal Layer Mapping
+
+| Layer / concept | notion 位置 | 說明 |
+|---|---|---|
+| Public boundary | `api/` | 對外公開的 cross-module boundary；只做投影與 re-export |
+| Driving adapters | `core/adapters/` | Web、CLI 等輸入端轉譯 |
+| Application | `core/application/` | use case orchestration、DTO、command/query 處理 |
+| Domain core | `core/domain/` | 聚合、值物件、domain services、domain events |
+| Input ports | `core/ports/input/` | 進入 application 的穩定契約 |
+| Output ports | `core/ports/output/` | repositories、stores、gateways |
+| Driven adapters | `core/infrastructure/` | 對 output ports 的具體實作 |
+| Subdomains | `subdomains/<name>/` | 各子域的本地 domain/application/adapters 能力 |
+
+## 計畫吸收模組
+
+以下四個現有獨立模組的能力**計畫在未來重構中合并進 notion**，成為對應子域的正式實作。在合并完成前，這些模組作為各自子域的前身實作繼續運作，notion blueprint 定義語言與 port 契約的規範形式。
+
+| 獨立模組 | 目標子域 | 現有核心概念 | 合并備注 |
+|---|---|---|---|
+| `modules/knowledge/` | `knowledge` | `KnowledgePage`, `ContentBlock`, `ContentVersion`, `KnowledgeCollection` | 保留 D1/D2/D3 決策語言；workspace-first scope 規則不變 |
+| `modules/knowledge-base/` | `authoring` | `Article`, `Category`, `VerificationState`, `Backlink` | Promote 協議（D3）由 `authoring` 子域接管業務規則 |
+| `modules/knowledge-collaboration/` | `collaboration` | `Comment`, `Permission`, `PermissionLevel`, `Version`, `NamedVersion` | `contentId` opaque reference 模式保持 |
+| `modules/knowledge-database/` | `database` | `Database`, `Field`, `Record`, `Property`, `View` | D1 決策：`database` 子域完整擁有 spaceType="database" 的 Schema+Record+View |
+
+**合并優先序：** `knowledge` → `database` → `collaboration` → `authoring`
+
+**合并後規則：**
+- 獨立模組應設為 deprecated，並把 `api/index.ts` 指向 `modules/notion/api`
+- Notion blueprint 的語言定義優先；若有術語歧異，以本文件與 `ubiquitous-language.md` 為準
+
+## 邊界測試問題
+
+1. 這個變更屬於哪個既有子域
+2. 它需要的是新語言、既有語言的細化，還是新的 port contract
+3. 它是 domain rule、application orchestration、adapter concern，還是 public boundary projection
+4. 它是否會破壞 closed inventory 或 dependency direction
+5. 若涉及四個計畫吸收模組，是否與合并方向一致
+
+若第 1 題答不出來，表示 notion 邊界尚未被正確理解。
 ````
 
 ## File: modules/notion/docs/subdomains.md
@@ -48500,6 +48744,54 @@ export const DeleteCategorySchema = z.object({
 });
 ````
 
+## File: modules/notion/subdomains/authoring/application/dto/index.ts
+````typescript
+export {
+  CreateArticleSchema,
+  UpdateArticleSchema,
+  PublishArticleSchema,
+  ArchiveArticleSchema,
+  DeleteArticleSchema,
+  VerifyArticleSchema,
+  RequestArticleReviewSchema,
+} from "./ArticleDto";
+
+export {
+  CreateCategorySchema,
+  RenameCategorySchema,
+  MoveCategorySchema,
+  DeleteCategorySchema,
+} from "./CategoryDto";
+````
+
+## File: modules/notion/subdomains/authoring/application/use-cases/index.ts
+````typescript
+// TODO: export CreateArticleUseCase, UpdateArticleUseCase, PublishArticleUseCase
+// TODO: export ArchiveArticleUseCase, PromotePageToArticleUseCase
+// TODO: export CreateCategoryUseCase, MoveCategoryUseCase
+
+export {
+  CreateArticleUseCase,
+  UpdateArticleUseCase,
+  ArchiveArticleUseCase,
+  DeleteArticleUseCase,
+} from "./ArticleLifecycleUseCases";
+
+export { PublishArticleUseCase } from "./ArticlePublicationUseCases";
+
+export {
+  VerifyArticleUseCase,
+  RequestArticleReviewUseCase,
+} from "./ArticleVerificationUseCases";
+
+export {
+  CreateCategoryUseCase,
+  RenameCategoryUseCase,
+  MoveCategoryUseCase,
+  DeleteCategoryUseCase,
+} from "./CategoryUseCases";
+````
+
 ## File: modules/notion/subdomains/authoring/domain/aggregates/Article.ts
 ````typescript
 /**
@@ -48743,6 +49035,14 @@ export class Category {
 }
 ````
 
+## File: modules/notion/subdomains/authoring/domain/aggregates/index.ts
+````typescript
+export { Article } from "./Article";
+export type { ArticleSnapshot, ArticleStatus, ArticleVerificationState, CreateArticleInput } from "./Article";
+export { Category } from "./Category";
+export type { CategorySnapshot, CreateCategoryInput } from "./Category";
+````
+
 ## File: modules/notion/subdomains/authoring/domain/events/AuthoringEvents.ts
 ````typescript
 /**
@@ -48783,6 +49083,29 @@ export interface AuthoringArticleArchivedEvent {
     readonly accountId: string;
   };
 }
+````
+
+## File: modules/notion/subdomains/authoring/domain/events/index.ts
+````typescript
+// Domain events are inlined in the Article aggregate as NotionDomainEvent payloads.
+// Event types surfaced here for listener/consumer use.
+
+export type { AuthoringArticleCreatedEvent } from "./AuthoringEvents";
+export type { AuthoringArticlePublishedEvent } from "./AuthoringEvents";
+export type { AuthoringArticleArchivedEvent } from "./AuthoringEvents";
+
+
+export {};
+````
+
+## File: modules/notion/subdomains/authoring/domain/index.ts
+````typescript
+export * from "./aggregates";
+export * from "./events";
+export * from "./repositories";
+export * from "./value-objects";
+
+export * from "./value-objects";
 ````
 
 ## File: modules/notion/subdomains/authoring/domain/repositories/IArticleRepository.ts
@@ -48828,13 +49151,25 @@ export interface ICategoryRepository {
 }
 ````
 
-## File: modules/notion/subdomains/authoring/index.ts
+## File: modules/notion/subdomains/authoring/domain/repositories/index.ts
 ````typescript
-/**
- * notion/subdomains/authoring — barrel re-export
- * Public surface is api/index.ts; this file is for internal tooling only.
- */
-export * from "./api";
+// TODO: export IArticleRepository, ICategoryRepository
+
+export type { IArticleRepository } from "./IArticleRepository";
+export type { ICategoryRepository } from "./ICategoryRepository";
+````
+
+## File: modules/notion/subdomains/authoring/domain/services/index.ts
+````typescript
+// No domain services required for initial authoring subdomain scope.
+export {};
+````
+
+## File: modules/notion/subdomains/authoring/domain/value-objects/index.ts
+````typescript
+// Value types are co-located in aggregates (Article.ts, Category.ts).
+// Re-export for convenience:
+export type { ArticleStatus, ArticleVerificationState } from "../aggregates/Article";
 ````
 
 ## File: modules/notion/subdomains/authoring/infrastructure/firebase/FirebaseArticleRepository.ts
@@ -49041,9 +49376,12 @@ export class FirebaseCategoryRepository implements ICategoryRepository {
 }
 ````
 
-## File: modules/notion/subdomains/authoring/infrastructure/index.ts
+## File: modules/notion/subdomains/authoring/infrastructure/firebase/index.ts
 ````typescript
-export * from "./firebase";
+// TODO: export FirebaseArticleRepository, FirebaseCategoryRepository
+
+export { FirebaseArticleRepository } from "./FirebaseArticleRepository";
+export { FirebaseCategoryRepository } from "./FirebaseCategoryRepository";
 ````
 
 ## File: modules/notion/subdomains/authoring/interfaces/_actions/article.actions.ts
@@ -49204,6 +49542,29 @@ export async function deleteCategory(input: z.infer<typeof DeleteCategorySchema>
     return commandFailureFrom("CATEGORY_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
   }
 }
+````
+
+## File: modules/notion/subdomains/authoring/interfaces/_actions/index.ts
+````typescript
+// TODO: export server actions: createArticle, updateArticle, publishArticle, archiveArticle
+// TODO: export createCategory, moveCategory
+
+export {
+  createArticle,
+  updateArticle,
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+  deleteArticle,
+} from "./article.actions";
+
+export {
+  createCategory,
+  renameCategory,
+  moveCategory,
+  deleteCategory,
+} from "./category.actions";
 ````
 
 ## File: modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx
@@ -49852,11 +50213,48 @@ function CategoryNodeRow({ node, selectedId, onSelect }: CategoryNodeRowProps) {
 }
 ````
 
-## File: modules/notion/subdomains/authoring/interfaces/store/index.ts
+## File: modules/notion/subdomains/authoring/interfaces/components/index.ts
 ````typescript
-// TODO: export useArticleEditorStore
+// TODO: export ArticleEditorView, ArticleListView, CategoryTreeView
 
-export {};
+export { ArticleDialog } from "./ArticleDialog";
+````
+
+## File: modules/notion/subdomains/authoring/interfaces/queries/index.ts
+````typescript
+// TODO: export getArticle, getArticlesByWorkspace, getCategoryTree
+
+/**
+ * Module: notion/subdomains/authoring
+ * Layer: interfaces/queries
+ * Purpose: Direct-instantiation query functions (read-side).
+ */
+
+import { FirebaseArticleRepository } from "../../infrastructure/firebase/FirebaseArticleRepository";
+import { FirebaseCategoryRepository } from "../../infrastructure/firebase/FirebaseCategoryRepository";
+import type { ArticleSnapshot, ArticleStatus } from "../../domain/aggregates/Article";
+import type { CategorySnapshot } from "../../domain/aggregates/Category";
+
+export async function getArticles(params: {
+  accountId: string;
+  workspaceId: string;
+  categoryId?: string;
+  status?: ArticleStatus;
+}): Promise<ArticleSnapshot[]> {
+  return new FirebaseArticleRepository().list(params);
+}
+
+export async function getArticle(accountId: string, articleId: string): Promise<ArticleSnapshot | null> {
+  return new FirebaseArticleRepository().getById(accountId, articleId);
+}
+
+export async function getCategories(accountId: string, workspaceId: string): Promise<CategorySnapshot[]> {
+  return new FirebaseCategoryRepository().listByWorkspace(accountId, workspaceId);
+}
+
+export async function getBacklinks(accountId: string, articleId: string): Promise<ArticleSnapshot[]> {
+  return new FirebaseArticleRepository().listByLinkedArticleId(accountId, articleId);
+}
 ````
 
 ## File: modules/notion/subdomains/automation/README.md
@@ -49988,6 +50386,20 @@ export const RevokePermissionSchema = z.object({
 export type RevokePermissionDto = z.infer<typeof RevokePermissionSchema>;
 ````
 
+## File: modules/notion/subdomains/collaboration/application/dto/index.ts
+````typescript
+export type {
+  CreateCommentDto, UpdateCommentDto, ResolveCommentDto, DeleteCommentDto,
+  CreateVersionDto, DeleteVersionDto,
+  GrantPermissionDto, RevokePermissionDto,
+} from "./CollaborationDto";
+export {
+  CreateCommentSchema, UpdateCommentSchema, ResolveCommentSchema, DeleteCommentSchema,
+  CreateVersionSchema, DeleteVersionSchema,
+  GrantPermissionSchema, RevokePermissionSchema,
+} from "./CollaborationDto";
+````
+
 ## File: modules/notion/subdomains/collaboration/application/use-cases/CommentUseCases.ts
 ````typescript
 /**
@@ -50066,6 +50478,13 @@ export class ListCommentsUseCase {
     return this.repo.listByContent(accountId, contentId);
   }
 }
+````
+
+## File: modules/notion/subdomains/collaboration/application/use-cases/index.ts
+````typescript
+export { CreateCommentUseCase, UpdateCommentUseCase, ResolveCommentUseCase, DeleteCommentUseCase, ListCommentsUseCase } from "./CommentUseCases";
+export { CreateVersionUseCase, DeleteVersionUseCase } from "./VersionUseCases";
+export { GrantPermissionUseCase, RevokePermissionUseCase } from "./PermissionUseCases";
 ````
 
 ## File: modules/notion/subdomains/collaboration/application/use-cases/PermissionUseCases.ts
@@ -50194,6 +50613,13 @@ export interface CommentSnapshot {
 export type CommentId = string;
 ````
 
+## File: modules/notion/subdomains/collaboration/domain/aggregates/index.ts
+````typescript
+export type { CommentSnapshot, CommentId, SelectionRange, ContentType } from "./Comment";
+export type { VersionSnapshot, VersionId } from "./Version";
+export type { PermissionSnapshot, PermissionId, PermissionLevel, PrincipalType } from "./Permission";
+````
+
 ## File: modules/notion/subdomains/collaboration/domain/aggregates/Permission.ts
 ````typescript
 /**
@@ -50253,26 +50679,6 @@ export interface VersionSnapshot {
 export type VersionId = string;
 ````
 
-## File: modules/notion/subdomains/collaboration/domain/events/index.ts
-````typescript
-// TODO: export CollaborationEvents
-// knowledge-collaboration.comment_created | comment_resolved
-// knowledge-collaboration.permission_granted | permission_revoked
-// knowledge-collaboration.version_created | version_restored
-// knowledge-collaboration.page_locked
-
-export {};
-````
-
-## File: modules/notion/subdomains/collaboration/domain/index.ts
-````typescript
-export * from "./aggregates";
-export * from "./events";
-export * from "./repositories";
-export * from "./services";
-export * from "./value-objects";
-````
-
 ## File: modules/notion/subdomains/collaboration/domain/repositories/ICommentRepository.ts
 ````typescript
 /**
@@ -50324,6 +50730,13 @@ export interface ICommentRepository {
     onUpdate: (comments: CommentSnapshot[]) => void,
   ): CommentUnsubscribe;
 }
+````
+
+## File: modules/notion/subdomains/collaboration/domain/repositories/index.ts
+````typescript
+export type { ICommentRepository, CreateCommentInput, UpdateCommentInput, ResolveCommentInput, CommentUnsubscribe } from "./ICommentRepository";
+export type { IVersionRepository, CreateVersionInput } from "./IVersionRepository";
+export type { IPermissionRepository, GrantPermissionInput } from "./IPermissionRepository";
 ````
 
 ## File: modules/notion/subdomains/collaboration/domain/repositories/IPermissionRepository.ts
@@ -50384,29 +50797,6 @@ export interface IVersionRepository {
   findById(accountId: string, versionId: string): Promise<VersionSnapshot | null>;
   listByContent(accountId: string, contentId: string): Promise<VersionSnapshot[]>;
 }
-````
-
-## File: modules/notion/subdomains/collaboration/domain/services/index.ts
-````typescript
-// TODO: export PermissionResolutionService, VersionRetentionService
-
-export {};
-````
-
-## File: modules/notion/subdomains/collaboration/domain/value-objects/index.ts
-````typescript
-// TODO: export CommentId, PermissionId, VersionId, ContentId, PermissionLevel
-
-export {};
-````
-
-## File: modules/notion/subdomains/collaboration/index.ts
-````typescript
-/**
- * notion/subdomains/collaboration — barrel re-export
- * Public surface is api/index.ts; this file is for internal tooling only.
- */
-export * from "./api";
 ````
 
 ## File: modules/notion/subdomains/collaboration/infrastructure/firebase/FirebaseCommentRepository.ts
@@ -50724,9 +51114,11 @@ export class FirebaseVersionRepository implements IVersionRepository {
 }
 ````
 
-## File: modules/notion/subdomains/collaboration/infrastructure/index.ts
+## File: modules/notion/subdomains/collaboration/infrastructure/firebase/index.ts
 ````typescript
-export * from "./firebase";
+export { FirebaseCommentRepository } from "./FirebaseCommentRepository";
+export { FirebaseVersionRepository } from "./FirebaseVersionRepository";
+export { FirebasePermissionRepository } from "./FirebasePermissionRepository";
 ````
 
 ## File: modules/notion/subdomains/collaboration/interfaces/_actions/comment.actions.ts
@@ -50803,6 +51195,13 @@ export async function deleteComment(input: DeleteCommentDto): Promise<CommandRes
     return commandFailureFrom("COMMENT_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
+````
+
+## File: modules/notion/subdomains/collaboration/interfaces/_actions/index.ts
+````typescript
+export { createComment, updateComment, resolveComment, deleteComment } from "./comment.actions";
+export { createVersion, deleteVersion } from "./version.actions";
+export { grantPermission, revokePermission } from "./permission.actions";
 ````
 
 ## File: modules/notion/subdomains/collaboration/interfaces/_actions/permission.actions.ts
@@ -51023,6 +51422,12 @@ export function CommentPanel({ accountId, workspaceId, contentId, contentType, c
 }
 ````
 
+## File: modules/notion/subdomains/collaboration/interfaces/components/index.ts
+````typescript
+export { CommentPanel } from "./CommentPanel";
+export { VersionHistoryPanel } from "./VersionHistoryPanel";
+````
+
 ## File: modules/notion/subdomains/collaboration/interfaces/components/VersionHistoryPanel.tsx
 ````typescript
 "use client";
@@ -51123,9 +51528,18 @@ export function VersionHistoryPanel({ accountId, contentId, currentUserId }: Ver
 }
 ````
 
-## File: modules/notion/subdomains/collaboration/interfaces/store/index.ts
+## File: modules/notion/subdomains/database/application/dto/index.ts
 ````typescript
-// TODO: export useCommentStore, usePermissionStore
+export type {
+  CreateDatabaseDto, UpdateDatabaseDto, AddFieldDto, ArchiveDatabaseDto, GetDatabaseDto, ListDatabasesDto,
+  CreateRecordDto, UpdateRecordDto, DeleteRecordDto, ListRecordsDto,
+  CreateViewDto, UpdateViewDto, DeleteViewDto, ListViewsDto,
+} from "./DatabaseDto";
+export {
+  CreateDatabaseSchema, UpdateDatabaseSchema, AddFieldSchema, ArchiveDatabaseSchema, GetDatabaseSchema, ListDatabasesSchema,
+  CreateRecordSchema, UpdateRecordSchema, DeleteRecordSchema, ListRecordsSchema,
+  CreateViewSchema, UpdateViewSchema, DeleteViewSchema, ListViewsSchema,
+} from "./DatabaseDto";
 
 export {};
 ````
@@ -51304,6 +51718,14 @@ export interface DatabaseRecordSnapshot {
 export type RecordId = string;
 ````
 
+## File: modules/notion/subdomains/database/domain/aggregates/index.ts
+````typescript
+export type { DatabaseSnapshot, Field, FieldType, DatabaseId, FieldId } from "./Database";
+export type { DatabaseRecordSnapshot, RecordId } from "./DatabaseRecord";
+export type { ViewSnapshot, ViewType, FilterRule, SortRule, ViewId } from "./View";
+export type { DatabaseAutomationSnapshot, AutomationTrigger, AutomationActionType, AutomationCondition, AutomationAction, AutomationId } from "./DatabaseAutomation";
+````
+
 ## File: modules/notion/subdomains/database/domain/aggregates/View.ts
 ````typescript
 /**
@@ -51347,26 +51769,6 @@ export interface ViewSnapshot {
 }
 
 export type ViewId = string;
-````
-
-## File: modules/notion/subdomains/database/domain/events/index.ts
-````typescript
-// TODO: export DatabaseEvents
-// knowledge-database.database_created | database_renamed
-// knowledge-database.field_added | field_deleted
-// knowledge-database.record_added | record_updated | record_deleted | record_linked
-// knowledge-database.view_created | view_updated
-
-export {};
-````
-
-## File: modules/notion/subdomains/database/domain/index.ts
-````typescript
-export * from "./aggregates";
-export * from "./events";
-export * from "./repositories";
-export * from "./services";
-export * from "./value-objects";
 ````
 
 ## File: modules/notion/subdomains/database/domain/repositories/IAutomationRepository.ts
@@ -51531,31 +51933,6 @@ export interface IViewRepository {
 }
 ````
 
-## File: modules/notion/subdomains/database/domain/services/index.ts
-````typescript
-// TODO: export DatabaseQueryService (filter/sort/group evaluation)
-// TODO: export FormulaEvaluationService, RollupComputationService
-
-export {};
-````
-
-## File: modules/notion/subdomains/database/domain/value-objects/index.ts
-````typescript
-// TODO: export DatabaseId, RecordId, ViewId, FieldId
-// TODO: export FieldType, ViewType, FieldValue
-
-export {};
-````
-
-## File: modules/notion/subdomains/database/index.ts
-````typescript
-/**
- * notion/subdomains/database — barrel re-export
- * Public surface is api/index.ts; this file is for internal tooling only.
- */
-export * from "./api";
-````
-
 ## File: modules/notion/subdomains/database/infrastructure/firebase/FirebaseAutomationRepository.ts
 ````typescript
 /**
@@ -51676,11 +52053,6 @@ export class FirebaseAutomationRepository implements IAutomationRepository {
     return snaps.docs.map((d) => toAutomation(d.id, d.data() as Record<string, unknown>));
   }
 }
-````
-
-## File: modules/notion/subdomains/database/infrastructure/index.ts
-````typescript
-export * from "./firebase";
 ````
 
 ## File: modules/notion/subdomains/database/interfaces/components/DatabaseAddFieldDialog.tsx
@@ -53472,11 +53844,16 @@ export function DatabaseTableView({ database, accountId, workspaceId, currentUse
 }
 ````
 
-## File: modules/notion/subdomains/database/interfaces/store/index.ts
+## File: modules/notion/subdomains/database/interfaces/components/index.ts
 ````typescript
-// TODO: export useDatabaseStore, useRecordStore
-
-export {};
+export { DatabaseDialog } from "./DatabaseDialog";
+export { DatabaseTableView } from "./DatabaseTableView";
+export { DatabaseBoardView } from "./DatabaseBoardView";
+export { DatabaseListView } from "./DatabaseListView";
+export { DatabaseCalendarView } from "./DatabaseCalendarView";
+export { DatabaseGalleryView } from "./DatabaseGalleryView";
+export { DatabaseFormView } from "./DatabaseFormView";
+export { DatabaseAutomationView } from "./DatabaseAutomationView";
 ````
 
 ## File: modules/notion/subdomains/knowledge-analytics/.gitkeep
@@ -54921,6 +55298,161 @@ export interface AuthUser {
 // AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
 import type { AccountEntity } from "../subdomains/account";
 export type ActiveAccount = AccountEntity | AuthUser;
+````
+
+## File: modules/platform/docs/bounded-context.md
+````markdown
+# Bounded Context — platform
+
+本文件定義 `platform` 這份本地藍圖的邊界。platform 的任務，是把平台級的主體治理、政策規則、能力啟用、外部交付、稽核與可觀測性收斂成一個 **Hexagonal + DDD** 邊界，而不是把這些能力散落成沒有語言與責任的共享雜物間。
+
+## Context Purpose
+
+platform 這個 bounded context 負責回答五類問題：
+
+- 誰是平台可治理的主體
+- 主體在什麼條件下可以做什麼
+- 哪些能力在當前方案、設定與安全政策下可用
+- 平台如何把事實轉成流程、外部交付與通知
+- 平台如何留下證據並暴露診斷訊號
+
+## Canonical Capability Groups
+
+### 主體與名錄
+
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+
+### 治理與安全
+
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+
+### 商業與權益
+
+- `billing`
+- `subscription`
+- `referral`
+
+### AI 與共享能力
+
+- `ai`
+
+### 流程與交付
+
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+
+### 內容與檢索
+
+- `content`
+- `search`
+
+### 證據與診斷
+
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
+
+## 邊界包含什麼
+
+platform 包含：
+
+- 可被 platform 通用語言描述的聚合、值物件、規則與事件
+- 可被 application layer 協調的 use cases、commands、queries 與 read models
+- 可被 ports 表達的輸入契約與外部依賴契約
+- 可被稽核與可觀測性需求追蹤的 published language
+
+## 邊界刻意不包含什麼
+
+- 產品內容本身的建立、編排與發布策略
+- 檢索、推理、內容相關性或知識生成演算法
+- 任何 UI 呈現細節本身
+- 直接綁定 HTTP、queue、webhook、SDK、資料庫的 adapter 細節
+- 以「暫時先開個資料夾」為名的未定義能力
+
+## Hexagonal Layer Mapping
+
+| Layer / concept | platform 位置 | 說明 |
+|---|---|---|
+| Public boundary | `api/` | 對外公開的 cross-module boundary；只做投影與 re-export |
+| Driving adapters | `adapters/` | CLI、web、external ingress 等輸入端轉譯 |
+| Application | `application/` | use case orchestration、command/query handling |
+| Domain | `domain/` | 聚合、值物件、domain services、domain events |
+| Input ports | `ports/input/` | 進入 application 的穩定契約 |
+| Output ports | `ports/output/` | repository、store、gateway、sink 等依賴契約 |
+| Driven adapters | `infrastructure/` | 對 output ports 的具體技術實作 |
+
+## Layer Responsibilities
+
+### Domain
+
+- 擁有聚合、值物件、domain services、domain events
+- 維持不變數與 published language
+- 不直接理解 repository implementation、HTTP、DB、queue 或 SDK
+
+### Application
+
+- 實作 use case handlers 與 input port 語言
+- 協調 aggregates、domain services 與 output ports
+- 在持久化成功後拉取並發布 domain events
+
+### Ports
+
+- input ports：命令、查詢、事件匯入入口
+- output ports：repositories、support stores、gateways、sinks
+- 由 core/application 擁有，不以 `api/` 為型別真實來源
+
+### Adapters / Infrastructure
+
+- driving adapters：把 HTTP、CLI、scheduler、webhook、queue ingress 翻譯成 input port 語言
+- driven adapters：把 repository、event publishing、notification、telemetry、external delivery 實作成具體技術方案
+
+## Public Boundary Rule
+
+- `api/` 是 platform 對其他模組的正式 public boundary
+- `index.ts` 只作 aggregate export convenience，不應被當成邊界設計來源
+- `ports/` 的契約來源在 `application/` 與 `domain/`，不是 `api/`
+
+## Closed Inventory Boundary Rule
+
+這個 bounded context 以 24 個子域作為封閉 inventory。任何新需求預設都應被視為既有子域的責任延伸，而不是新增第 25 個子域。只有在既有 24 個子域無法吸收時，才允許重新打開 inventory。
+
+## 計畫吸收模組
+
+以下四個現有獨立模組的能力**計畫在未來重構中合并進 platform**，成為對應子域的正式實作。在合并完成前，這些模組作為各自子域的前身實作繼續運作，platform blueprint 定義語言與 port 契約的規範形式。
+
+| 獨立模組 | 目標子域 | 現有核心概念 | 合并備注 |
+|---|---|---|---|
+| `modules/identity/` | `identity` | `Identity`, `uid`, `TokenRefreshSignal`, `IdentityRepository`, `TokenRefreshRepository` | 提供 `AuthenticatedSubject` 與 `IdentitySignal` 的前身語意 |
+| `modules/account/` | `account` + `account-profile` | `Account`, `AccountPolicy`, `AccountProfile`, `AccountRepository`, `AccountQueryRepository`, `AccountPolicyRepository` | `account` 承接帳號聚合根；`account-profile` 承接可治理輪廓屬性 |
+| `modules/organization/` | `organization` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`, `OrganizationRepository`, `OrgPolicyRepository` | 提供 `MembershipBoundary` 與 `RoleAssignment` 的前身語意 |
+| `modules/notification/` | `notification` | `NotificationEntity`, `NotificationRepository`，conformist 消費者 | 提供 `NotificationDispatch` 與 `NotificationRoute` 的前身語意 |
+
+**合并優先序：** `identity` → `account` → `organization` → `notification`（按語意依賴順序）
+
+**合并後規則：**
+- 獨立模組應設為 deprecated，並把 `api/index.ts` 指向 `modules/platform/api`
+- Platform blueprint 的語言定義優先；若有術語歧異，以本文件與 `ubiquitous-language.md` 為準
+
+## 邊界測試問題
+
+1. 這個變更屬於哪個既有子域
+2. 它需要的是新語言、既有語言的細化，還是新的 port contract
+3. 它是 domain rule、application orchestration、adapter concern，還是 public boundary projection
+4. 它是否會破壞 closed inventory 或 dependency direction
+5. 若涉及 identity / account / organization / notification，是否與計畫吸收方向一致
+
+若第 1 題答不出來，表示 platform 邊界尚未被正確理解。
 ````
 
 ## File: modules/platform/docs/subdomains.md
@@ -56602,99 +57134,6 @@ Manage the human-facing attributes of an account: display name, avatar, locale p
 🔨 Migration-Pending — scaffold only
 ````
 
-## File: modules/platform/subdomains/account/adapters/queries/account.queries.ts
-````typescript
-/**
- * Account Read Queries — thin wrappers over the AccountQueryRepository port.
- * NOT Server Actions — callable from React components/hooks directly.
- */
-
-import { FirebaseAccountQueryRepository } from "../firebase/FirebaseAccountQueryRepository";
-import type { AccountEntity, WalletTransaction, AccountRoleRecord } from "../../domain/entities/Account";
-import type { WalletBalanceSnapshot, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
-import type { AccountPolicy } from "../../domain/entities/AccountPolicy";
-
-const accountQueryRepo = new FirebaseAccountQueryRepository();
-
-export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
-  return accountQueryRepo.getUserProfile(userId);
-}
-
-export function subscribeToUserProfile(
-  userId: string,
-  onUpdate: (profile: AccountEntity | null) => void,
-): Unsubscribe {
-  return accountQueryRepo.subscribeToUserProfile(userId, onUpdate);
-}
-
-export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
-  return accountQueryRepo.getWalletBalance(accountId);
-}
-
-export function subscribeToWalletBalance(
-  accountId: string,
-  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
-): Unsubscribe {
-  return accountQueryRepo.subscribeToWalletBalance(accountId, onUpdate);
-}
-
-export function subscribeToWalletTransactions(
-  accountId: string,
-  maxCount: number,
-  onUpdate: (txs: WalletTransaction[]) => void,
-): Unsubscribe {
-  return accountQueryRepo.subscribeToWalletTransactions(accountId, maxCount, onUpdate);
-}
-
-export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
-  return accountQueryRepo.getAccountRole(accountId);
-}
-
-export function subscribeToAccountRoles(
-  accountId: string,
-  onUpdate: (record: AccountRoleRecord | null) => void,
-): Unsubscribe {
-  return accountQueryRepo.subscribeToAccountRoles(accountId, onUpdate);
-}
-
-export function subscribeToAccountsForUser(
-  userId: string,
-  onUpdate: (accounts: Record<string, AccountEntity>) => void,
-): Unsubscribe {
-  return accountQueryRepo.subscribeToAccountsForUser(userId, onUpdate);
-}
-
-export async function getAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
-  // Policy reads are server-side only; keep client bundles free of policy repo deps.
-  return [];
-}
-
-export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
-  return [];
-}
-````
-
-## File: modules/platform/subdomains/account/domain/ports/TokenRefreshPort.ts
-````typescript
-/**
- * TokenRefreshPort — Driven port for emitting token-refresh signals.
- * Decouples account application layer from the identity subdomain.
- * Platform identity adapter implements this port.
- */
-
-export type TokenRefreshReason = "role:changed" | "policy:changed";
-
-export interface TokenRefreshSignalInput {
-  accountId: string;
-  reason: TokenRefreshReason;
-  traceId?: string;
-}
-
-export interface TokenRefreshPort {
-  emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void>;
-}
-````
-
 ## File: modules/platform/subdomains/account/index.ts
 ````typescript
 export * from "./application";
@@ -57340,167 +57779,6 @@ export class ListWorkspaceIngestionJobsUseCase {
   async execute(input: ListWorkspaceIngestionJobsInput): Promise<readonly IngestionJob[]> {
     return this.repo.listByWorkspace(input);
   }
-}
-````
-
-## File: modules/platform/subdomains/background-job/domain/entities/IngestionChunk.ts
-````typescript
-/**
- * IngestionChunk — value-like entity representing a text segment produced
- * by the chunking stage of the ingestion pipeline.
- *
- * Produced downstream from the Python `py_fn` worker; tracked by the
- * platform layer for audit and retrieval-quality accounting.
- */
-
-export interface IngestionChunkMetadata {
-  readonly sourceDocId: string;
-  readonly section?: string;
-  readonly pageNumber?: number;
-}
-
-export interface IngestionChunk {
-  readonly id: string;
-  readonly documentId: string;
-  readonly chunkIndex: number;
-  readonly content: string;
-  readonly metadata: IngestionChunkMetadata;
-}
-````
-
-## File: modules/platform/subdomains/background-job/domain/entities/IngestionDocument.ts
-````typescript
-/**
- * IngestionDocument — value-like entity representing a source document
- * submitted for RAG pipeline processing.
- *
- * Immutable snapshot attached to an IngestionJob; updated only when the
- * underlying source file metadata changes (e.g. title rename, MIME reclassification).
- */
-
-export interface IngestionDocument {
-  readonly id: string;
-  readonly organizationId: string;
-  readonly workspaceId: string;
-  readonly sourceFileId: string;
-  readonly title: string;
-  readonly mimeType: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-````
-
-## File: modules/platform/subdomains/background-job/domain/entities/IngestionJob.ts
-````typescript
-/**
- * IngestionJob — aggregate entity tracking a document through the RAG
- * ingestion pipeline.
- *
- * The embedded state machine enforces strict one-way status transitions,
- * keeping invalid states impossible at the domain level.
- *
- * Lifecycle (happy path):
- *   uploaded → parsing → chunking → embedding → indexed
- *
- * Repair paths:
- *   indexed  → stale → re-indexing → parsing
- *   failed   → re-indexing → parsing
- */
-
-import type { IngestionDocument } from "./IngestionDocument";
-
-// ── Status ────────────────────────────────────────────────────────────────────
-
-export type IngestionStatus =
-  | "uploaded"
-  | "parsing"
-  | "chunking"
-  | "embedding"
-  | "indexed"
-  | "stale"
-  | "re-indexing"
-  | "failed";
-
-const ALLOWED_TRANSITIONS: Readonly<Record<IngestionStatus, readonly IngestionStatus[]>> = {
-  uploaded:      ["parsing",    "failed"],
-  parsing:       ["chunking",   "failed"],
-  chunking:      ["embedding",  "failed"],
-  embedding:     ["indexed",    "failed"],
-  indexed:       ["stale",      "re-indexing"],
-  stale:         ["re-indexing"],
-  "re-indexing": ["parsing",    "failed"],
-  failed:        ["re-indexing"],
-};
-
-/**
- * Domain guard: returns true only when the requested transition is permitted
- * by the state machine contract.
- */
-export function canTransitionIngestionStatus(
-  from: IngestionStatus,
-  to: IngestionStatus,
-): boolean {
-  return ALLOWED_TRANSITIONS[from].includes(to);
-}
-
-// ── Aggregate ─────────────────────────────────────────────────────────────────
-
-export interface IngestionJob {
-  /** Unique job identifier (UUID). */
-  readonly id: string;
-  /** Immutable document snapshot attached to this job. */
-  readonly document: IngestionDocument;
-  /** Current pipeline stage. */
-  readonly status: IngestionStatus;
-  /** Optional human-readable message describing the current stage or failure reason. */
-  readonly statusMessage?: string;
-  /** ISO-8601 timestamp of job creation. */
-  readonly createdAtISO: string;
-  /** ISO-8601 timestamp of last status update. */
-  readonly updatedAtISO: string;
-}
-````
-
-## File: modules/platform/subdomains/background-job/domain/index.ts
-````typescript
-export type { IngestionDocument } from "./entities/IngestionDocument";
-export type { IngestionChunk, IngestionChunkMetadata } from "./entities/IngestionChunk";
-export type { IngestionJob, IngestionStatus } from "./entities/IngestionJob";
-export { canTransitionIngestionStatus } from "./entities/IngestionJob";
-export type { IIngestionJobRepository } from "./repositories/IIngestionJobRepository";
-````
-
-## File: modules/platform/subdomains/background-job/domain/repositories/IIngestionJobRepository.ts
-````typescript
-/**
- * IIngestionJobRepository — output port (driven port) for ingestion job persistence.
- *
- * Implementations live in the adapters layer (InMemoryIngestionJobRepository,
- * FirebaseIngestionJobRepository, …). The domain core depends only on this interface.
- */
-
-import type { IngestionJob, IngestionStatus } from "../entities/IngestionJob";
-
-export interface IIngestionJobRepository {
-  /** Retrieve a job by its associated document id. Returns null if not found. */
-  findByDocumentId(documentId: string): Promise<IngestionJob | null>;
-
-  /** List all jobs scoped to a specific workspace. */
-  listByWorkspace(input: {
-    readonly organizationId: string;
-    readonly workspaceId: string;
-  }): Promise<readonly IngestionJob[]>;
-
-  /** Persist a new ingestion job. */
-  save(job: IngestionJob): Promise<void>;
-
-  /** Advance job status; returns the updated job, or null if the document was not found. */
-  updateStatus(input: {
-    readonly documentId: string;
-    readonly status: IngestionStatus;
-    readonly statusMessage?: string;
-    readonly updatedAtISO: string;
-  }): Promise<IngestionJob | null>;
 }
 ````
 
@@ -58352,73 +58630,6 @@ import { FindIntegrationUseCase } from '@/modules/platform/subdomains/integratio
 - [`context-map.md`](./context-map.md) — Cross-context boundaries
 ````
 
-## File: modules/platform/subdomains/notification/adapters/queries/notification.queries.ts
-````typescript
-/**
- * Notification Queries — direct repo reads for client-side data.
- */
-
-import { FirebaseNotificationRepository } from "../firebase/FirebaseNotificationRepository";
-import type { NotificationEntity } from "../../domain/entities/Notification";
-
-const notificationRepo = new FirebaseNotificationRepository();
-
-export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
-  return notificationRepo.findByRecipient(recipientId, maxCount);
-}
-````
-
-## File: modules/platform/subdomains/notification/application/use-cases/notification.use-cases.ts
-````typescript
-/**
- * Notification Application Use Cases — orchestrate domain intent without framework concerns.
- */
-
-import { commandSuccess, commandFailureFrom } from "@shared-types";
-import type { CommandResult } from "@shared-types";
-import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
-import type { DispatchNotificationInput } from "../../domain/entities/Notification";
-
-export class DispatchNotificationUseCase {
-  constructor(private readonly repo: NotificationRepository) {}
-
-  async execute(input: DispatchNotificationInput): Promise<CommandResult> {
-    try {
-      const notification = await this.repo.dispatch(input);
-      return commandSuccess(notification.id, 1);
-    } catch (err) {
-      return commandFailureFrom("DISPATCH_NOTIFICATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
-    }
-  }
-}
-
-export class MarkNotificationReadUseCase {
-  constructor(private readonly repo: NotificationRepository) {}
-
-  async execute(notificationId: string, recipientId: string): Promise<CommandResult> {
-    try {
-      await this.repo.markAsRead(notificationId, recipientId);
-      return commandSuccess(notificationId, 1);
-    } catch (err) {
-      return commandFailureFrom("MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
-    }
-  }
-}
-
-export class MarkAllNotificationsReadUseCase {
-  constructor(private readonly repo: NotificationRepository) {}
-
-  async execute(recipientId: string): Promise<CommandResult> {
-    try {
-      await this.repo.markAllAsRead(recipientId);
-      return commandSuccess(recipientId, 1);
-    } catch (err) {
-      return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
-    }
-  }
-}
-````
-
 ## File: modules/platform/subdomains/notification/index.ts
 ````typescript
 export * from "./application";
@@ -58897,32 +59108,6 @@ export const organizationService = {
   deleteOrgPolicy: (policyId: string): Promise<CommandResult> =>
     new DeleteOrgPolicyUseCase(policyRepo).execute(policyId),
 };
-````
-
-## File: modules/platform/subdomains/organization/adapters/queries/organization.queries.ts
-````typescript
-/**
- * Organization Queries — direct repo reads for client-side data.
- */
-
-import { FirebaseOrganizationRepository } from "../firebase/FirebaseOrganizationRepository";
-import { FirebaseOrgPolicyRepository } from "../firebase/FirebaseOrgPolicyRepository";
-import type { MemberReference, Team, OrgPolicy } from "../../domain/entities/Organization";
-
-const orgRepo = new FirebaseOrganizationRepository();
-const policyRepo = new FirebaseOrgPolicyRepository();
-
-export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
-  return orgRepo.getMembers(organizationId);
-}
-
-export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
-  return orgRepo.getTeams(organizationId);
-}
-
-export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
-  return policyRepo.getPolicies(orgId);
-}
 ````
 
 ## File: modules/platform/subdomains/organization/application/use-cases/organization-team.use-cases.ts
@@ -72012,6 +72197,96 @@ Application layer 只負責：
 - 與 application layer 有關的模組內就地文件：`../../../modules/notebooklm/application-services.md`
 ````
 
+## File: modules/notebooklm/docs/bounded-context.md
+````markdown
+# Bounded Context — notebooklm
+
+## 責任邊界
+
+`notebooklm` 擁有 Xuanwu 的 AI 對話與知識合成能力。它是 Supporting Subdomain，為使用者提供 NotebookLM-like 的 AI 推理體驗。
+
+### 這個 context 擁有
+
+- AI 對話 Thread 與 Message 的持久化與生命週期
+- AI 模型調用的提示工程、路由與回應封裝
+- Notebook 容器的組合、管理與版本策略
+- 來源文件的追蹤、引用與引用一致性
+- RAG 合成、摘要與洞察的生成
+- 對話衍生的輕量筆記與知識連結
+
+### 這個 context 不擁有
+
+- 知識內容的建立與管理（→ `notion`）
+- 組織與帳號治理（→ `platform`）
+- 工作區生命週期（→ `workspace`）
+- 向量索引的建立與語意搜尋查詢（→ AI/RAG 管道）
+
+## 能力分組
+
+| 能力群 | 子域 |
+|---|---|
+| RAG 推理 | `synthesis` |
+| 對話管理 | `conversation`、`conversation-versioning` |
+| 知識組合 | `notebook`、`note` |
+| 來源管理 | `source` |
+| RAG 管線（gap 子域） | `ingestion`、`retrieval`、`grounding`、`evaluation` |
+
+## Public Boundary
+
+`modules/notebooklm/api/` 是對外的 public boundary：
+
+- 跨模組存取只能透過 `@/modules/notebooklm/api` import
+- 禁止直接 import `domain/`、`application/`、`infrastructure/` 或 `subdomains/` 內部
+
+## 封板規則
+
+此 context 的子域清單是 **closed inventory**：
+
+- 6 個基線子域（conversation、note、notebook、source、synthesis、conversation-versioning）
+- 4 個 gap 子域（ingestion、retrieval、grounding、evaluation）已在 `subdomains/` 建立
+- 後續開發必須先映射到既有子域，不能隨意新增
+- 若確實需要新增子域，先更新此文件與 `subdomains.md`
+
+## 層次結構
+
+```
+modules/notebooklm/
+├── api/             # Public boundary
+├── application/     # Use case orchestration
+├── domain/          # Aggregates, value objects, domain events
+├── infrastructure/  # Driven adapters (AI SDKs, Firebase, etc.)
+├── interfaces/      # Driving adapters (web, CLI)
+├── ports/           # Input/output port contracts
+├── subdomains/      # 10 子域各自的邊界（含 gap 子域）
+│   ├── ai/                      # 🔄 Migration-pending → platform.ai
+│   ├── conversation/
+│   ├── conversation-versioning/
+│   ├── evaluation/              # gap 子域
+│   ├── grounding/               # gap 子域
+│   ├── ingestion/               # gap 子域
+│   ├── note/
+│   ├── notebook/
+│   ├── retrieval/               # gap 子域
+│   ├── source/
+│   └── synthesis/
+└── docs/            # 本文件集
+```
+
+## 上游依賴
+
+| 上游 | 協作方式 | 說明 |
+|---|---|---|
+| `notion` | API 查詢 | 知識頁面與文章作為合成來源 |
+| `platform` | API 查詢 | 身份認證與租戶治理 |
+| `workspace` | API 查詢 | `workspaceId` 範疇錨點 |
+
+## 下游消費者
+
+| 下游 | 協作方式 | 說明 |
+|---|---|---|
+| `app/(shell)/ai-chat` | Server Action → `notebooklm/api` | AI 對話 UI 介面 |
+````
+
 ## File: modules/notebooklm/docs/context-map.md
 ````markdown
 # Context Map — notebooklm
@@ -73190,144 +73465,6 @@ export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
 }
 ````
 
-## File: modules/notion/subdomains/authoring/application/dto/index.ts
-````typescript
-export {
-  CreateArticleSchema,
-  UpdateArticleSchema,
-  PublishArticleSchema,
-  ArchiveArticleSchema,
-  DeleteArticleSchema,
-  VerifyArticleSchema,
-  RequestArticleReviewSchema,
-} from "./ArticleDto";
-
-export {
-  CreateCategorySchema,
-  RenameCategorySchema,
-  MoveCategorySchema,
-  DeleteCategorySchema,
-} from "./CategoryDto";
-````
-
-## File: modules/notion/subdomains/authoring/application/use-cases/index.ts
-````typescript
-// TODO: export CreateArticleUseCase, UpdateArticleUseCase, PublishArticleUseCase
-// TODO: export ArchiveArticleUseCase, PromotePageToArticleUseCase
-// TODO: export CreateCategoryUseCase, MoveCategoryUseCase
-
-export {
-  CreateArticleUseCase,
-  UpdateArticleUseCase,
-  ArchiveArticleUseCase,
-  DeleteArticleUseCase,
-} from "./ArticleLifecycleUseCases";
-
-export { PublishArticleUseCase } from "./ArticlePublicationUseCases";
-
-export {
-  VerifyArticleUseCase,
-  RequestArticleReviewUseCase,
-} from "./ArticleVerificationUseCases";
-
-export {
-  CreateCategoryUseCase,
-  RenameCategoryUseCase,
-  MoveCategoryUseCase,
-  DeleteCategoryUseCase,
-} from "./CategoryUseCases";
-````
-
-## File: modules/notion/subdomains/authoring/domain/aggregates/index.ts
-````typescript
-export { Article } from "./Article";
-export type { ArticleSnapshot, ArticleStatus, ArticleVerificationState, CreateArticleInput } from "./Article";
-export { Category } from "./Category";
-export type { CategorySnapshot, CreateCategoryInput } from "./Category";
-````
-
-## File: modules/notion/subdomains/authoring/domain/events/index.ts
-````typescript
-// Domain events are inlined in the Article aggregate as NotionDomainEvent payloads.
-// Event types surfaced here for listener/consumer use.
-
-export type { AuthoringArticleCreatedEvent } from "./AuthoringEvents";
-export type { AuthoringArticlePublishedEvent } from "./AuthoringEvents";
-export type { AuthoringArticleArchivedEvent } from "./AuthoringEvents";
-
-
-export {};
-````
-
-## File: modules/notion/subdomains/authoring/domain/index.ts
-````typescript
-export * from "./aggregates";
-export * from "./events";
-export * from "./repositories";
-export * from "./value-objects";
-
-export * from "./value-objects";
-````
-
-## File: modules/notion/subdomains/authoring/domain/repositories/index.ts
-````typescript
-// TODO: export IArticleRepository, ICategoryRepository
-
-export type { IArticleRepository } from "./IArticleRepository";
-export type { ICategoryRepository } from "./ICategoryRepository";
-````
-
-## File: modules/notion/subdomains/authoring/domain/services/index.ts
-````typescript
-// No domain services required for initial authoring subdomain scope.
-export {};
-````
-
-## File: modules/notion/subdomains/authoring/domain/value-objects/index.ts
-````typescript
-// Value types are co-located in aggregates (Article.ts, Category.ts).
-// Re-export for convenience:
-export type { ArticleStatus, ArticleVerificationState } from "../aggregates/Article";
-````
-
-## File: modules/notion/subdomains/authoring/infrastructure/firebase/index.ts
-````typescript
-// TODO: export FirebaseArticleRepository, FirebaseCategoryRepository
-
-export { FirebaseArticleRepository } from "./FirebaseArticleRepository";
-export { FirebaseCategoryRepository } from "./FirebaseCategoryRepository";
-````
-
-## File: modules/notion/subdomains/authoring/interfaces/_actions/index.ts
-````typescript
-// TODO: export server actions: createArticle, updateArticle, publishArticle, archiveArticle
-// TODO: export createCategory, moveCategory
-
-export {
-  createArticle,
-  updateArticle,
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-  deleteArticle,
-} from "./article.actions";
-
-export {
-  createCategory,
-  renameCategory,
-  moveCategory,
-  deleteCategory,
-} from "./category.actions";
-````
-
-## File: modules/notion/subdomains/authoring/interfaces/components/index.ts
-````typescript
-// TODO: export ArticleEditorView, ArticleListView, CategoryTreeView
-
-export { ArticleDialog } from "./ArticleDialog";
-````
-
 ## File: modules/notion/subdomains/authoring/interfaces/components/KnowledgeBaseArticlesRouteScreen.tsx
 ````typescript
 "use client";
@@ -73531,96 +73668,76 @@ export function KnowledgeBaseArticlesRouteScreen() {
 }
 ````
 
-## File: modules/notion/subdomains/authoring/interfaces/queries/index.ts
+## File: modules/notion/subdomains/collaboration/api/index.ts
 ````typescript
-// TODO: export getArticle, getArticlesByWorkspace, getCategoryTree
-
 /**
- * Module: notion/subdomains/authoring
- * Layer: interfaces/queries
- * Purpose: Direct-instantiation query functions (read-side).
+ * Module: notion/subdomains/collaboration
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
  */
 
-import { FirebaseArticleRepository } from "../../infrastructure/firebase/FirebaseArticleRepository";
-import { FirebaseCategoryRepository } from "../../infrastructure/firebase/FirebaseCategoryRepository";
-import type { ArticleSnapshot, ArticleStatus } from "../../domain/aggregates/Article";
-import type { CategorySnapshot } from "../../domain/aggregates/Category";
+// Aggregate snapshot types
+export type { CommentSnapshot, SelectionRange, ContentType, CommentId } from "../domain/aggregates/Comment";
+export type { CommentUnsubscribe } from "../domain/repositories/ICommentRepository";
+export type { VersionSnapshot, VersionId } from "../domain/aggregates/Version";
+export type { PermissionSnapshot, PermissionLevel, PrincipalType, PermissionId } from "../domain/aggregates/Permission";
 
-export async function getArticles(params: {
-  accountId: string;
-  workspaceId: string;
-  categoryId?: string;
-  status?: ArticleStatus;
-}): Promise<ArticleSnapshot[]> {
-  return new FirebaseArticleRepository().list(params);
-}
-
-export async function getArticle(accountId: string, articleId: string): Promise<ArticleSnapshot | null> {
-  return new FirebaseArticleRepository().getById(accountId, articleId);
-}
-
-export async function getCategories(accountId: string, workspaceId: string): Promise<CategorySnapshot[]> {
-  return new FirebaseCategoryRepository().listByWorkspace(accountId, workspaceId);
-}
-
-export async function getBacklinks(accountId: string, articleId: string): Promise<ArticleSnapshot[]> {
-  return new FirebaseArticleRepository().listByLinkedArticleId(accountId, articleId);
-}
-````
-
-## File: modules/notion/subdomains/collaboration/application/dto/index.ts
-````typescript
+// DTOs
 export type {
   CreateCommentDto, UpdateCommentDto, ResolveCommentDto, DeleteCommentDto,
   CreateVersionDto, DeleteVersionDto,
   GrantPermissionDto, RevokePermissionDto,
-} from "./CollaborationDto";
-export {
-  CreateCommentSchema, UpdateCommentSchema, ResolveCommentSchema, DeleteCommentSchema,
-  CreateVersionSchema, DeleteVersionSchema,
-  GrantPermissionSchema, RevokePermissionSchema,
-} from "./CollaborationDto";
+} from "../application/dto/CollaborationDto";
+
+// Server actions
+export { createComment, updateComment, resolveComment, deleteComment } from "../interfaces/_actions/comment.actions";
+export { createVersion, deleteVersion } from "../interfaces/_actions/version.actions";
+export { grantPermission, revokePermission } from "../interfaces/_actions/permission.actions";
+
+// Queries
+export { getComments, getVersions, getPermissions, subscribeComments } from "../interfaces/queries/index";
+
+// UI components
+export { CommentPanel } from "../interfaces/components/CommentPanel";
+export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
 ````
 
-## File: modules/notion/subdomains/collaboration/application/use-cases/index.ts
+## File: modules/notion/subdomains/collaboration/interfaces/queries/index.ts
 ````typescript
-export { CreateCommentUseCase, UpdateCommentUseCase, ResolveCommentUseCase, DeleteCommentUseCase, ListCommentsUseCase } from "./CommentUseCases";
-export { CreateVersionUseCase, DeleteVersionUseCase } from "./VersionUseCases";
-export { GrantPermissionUseCase, RevokePermissionUseCase } from "./PermissionUseCases";
-````
+/**
+ * Module: notion/subdomains/collaboration
+ * Layer: interfaces/queries
+ * Purpose: Read-side queries for comment, version, and permission data.
+ */
 
-## File: modules/notion/subdomains/collaboration/domain/aggregates/index.ts
-````typescript
-export type { CommentSnapshot, CommentId, SelectionRange, ContentType } from "./Comment";
-export type { VersionSnapshot, VersionId } from "./Version";
-export type { PermissionSnapshot, PermissionId, PermissionLevel, PrincipalType } from "./Permission";
-````
+import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
+import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
+import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
+import type { CommentSnapshot } from "../../domain/aggregates/Comment";
+import type { CommentUnsubscribe } from "../../domain/repositories/ICommentRepository";
+import type { VersionSnapshot } from "../../domain/aggregates/Version";
+import type { PermissionSnapshot } from "../../domain/aggregates/Permission";
 
-## File: modules/notion/subdomains/collaboration/domain/repositories/index.ts
-````typescript
-export type { ICommentRepository, CreateCommentInput, UpdateCommentInput, ResolveCommentInput, CommentUnsubscribe } from "./ICommentRepository";
-export type { IVersionRepository, CreateVersionInput } from "./IVersionRepository";
-export type { IPermissionRepository, GrantPermissionInput } from "./IPermissionRepository";
-````
+export async function getComments(accountId: string, contentId: string): Promise<CommentSnapshot[]> {
+  return new FirebaseCommentRepository().listByContent(accountId, contentId);
+}
 
-## File: modules/notion/subdomains/collaboration/infrastructure/firebase/index.ts
-````typescript
-export { FirebaseCommentRepository } from "./FirebaseCommentRepository";
-export { FirebaseVersionRepository } from "./FirebaseVersionRepository";
-export { FirebasePermissionRepository } from "./FirebasePermissionRepository";
-````
+export async function getVersions(accountId: string, contentId: string): Promise<VersionSnapshot[]> {
+  return new FirebaseVersionRepository().listByContent(accountId, contentId);
+}
 
-## File: modules/notion/subdomains/collaboration/interfaces/_actions/index.ts
-````typescript
-export { createComment, updateComment, resolveComment, deleteComment } from "./comment.actions";
-export { createVersion, deleteVersion } from "./version.actions";
-export { grantPermission, revokePermission } from "./permission.actions";
-````
+export async function getPermissions(accountId: string, subjectId: string): Promise<PermissionSnapshot[]> {
+  return new FirebasePermissionRepository().listBySubject(accountId, subjectId);
+}
 
-## File: modules/notion/subdomains/collaboration/interfaces/components/index.ts
-````typescript
-export { CommentPanel } from "./CommentPanel";
-export { VersionHistoryPanel } from "./VersionHistoryPanel";
+export function subscribeComments(
+  accountId: string,
+  contentId: string,
+  onUpdate: (comments: CommentSnapshot[]) => void,
+): CommentUnsubscribe {
+  return new FirebaseCommentRepository().subscribe(accountId, contentId, onUpdate);
+}
 ````
 
 ## File: modules/notion/subdomains/database/application/dto/DatabaseDto.ts
@@ -73757,22 +73874,6 @@ export const ListViewsSchema = z.object({
 export type ListViewsDto = z.infer<typeof ListViewsSchema>;
 ````
 
-## File: modules/notion/subdomains/database/application/dto/index.ts
-````typescript
-export type {
-  CreateDatabaseDto, UpdateDatabaseDto, AddFieldDto, ArchiveDatabaseDto, GetDatabaseDto, ListDatabasesDto,
-  CreateRecordDto, UpdateRecordDto, DeleteRecordDto, ListRecordsDto,
-  CreateViewDto, UpdateViewDto, DeleteViewDto, ListViewsDto,
-} from "./DatabaseDto";
-export {
-  CreateDatabaseSchema, UpdateDatabaseSchema, AddFieldSchema, ArchiveDatabaseSchema, GetDatabaseSchema, ListDatabasesSchema,
-  CreateRecordSchema, UpdateRecordSchema, DeleteRecordSchema, ListRecordsSchema,
-  CreateViewSchema, UpdateViewSchema, DeleteViewSchema, ListViewsSchema,
-} from "./DatabaseDto";
-
-export {};
-````
-
 ## File: modules/notion/subdomains/database/application/use-cases/DatabaseUseCases.ts
 ````typescript
 /**
@@ -73844,6 +73945,14 @@ export class ListDatabasesUseCase {
     return this.repo.listByWorkspace(parsed.data.accountId, parsed.data.workspaceId);
   }
 }
+````
+
+## File: modules/notion/subdomains/database/application/use-cases/index.ts
+````typescript
+export { CreateDatabaseUseCase, UpdateDatabaseUseCase, AddFieldUseCase, ArchiveDatabaseUseCase, GetDatabaseUseCase, ListDatabasesUseCase } from "./DatabaseUseCases";
+export { CreateRecordUseCase, UpdateRecordUseCase, DeleteRecordUseCase, ListRecordsUseCase } from "./RecordUseCases";
+export { CreateViewUseCase, UpdateViewUseCase, DeleteViewUseCase, ListViewsUseCase } from "./ViewUseCases";
+export { CreateAutomationUseCase, UpdateAutomationUseCase, DeleteAutomationUseCase, ListAutomationsUseCase } from "./AutomationUseCases";
 ````
 
 ## File: modules/notion/subdomains/database/application/use-cases/RecordUseCases.ts
@@ -73954,12 +74063,12 @@ export class ListViewsUseCase {
 }
 ````
 
-## File: modules/notion/subdomains/database/domain/aggregates/index.ts
+## File: modules/notion/subdomains/database/domain/repositories/index.ts
 ````typescript
-export type { DatabaseSnapshot, Field, FieldType, DatabaseId, FieldId } from "./Database";
-export type { DatabaseRecordSnapshot, RecordId } from "./DatabaseRecord";
-export type { ViewSnapshot, ViewType, FilterRule, SortRule, ViewId } from "./View";
-export type { DatabaseAutomationSnapshot, AutomationTrigger, AutomationActionType, AutomationCondition, AutomationAction, AutomationId } from "./DatabaseAutomation";
+export type { IDatabaseRepository, CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "./IDatabaseRepository";
+export type { IDatabaseRecordRepository, CreateRecordInput, UpdateRecordInput } from "./IDatabaseRecordRepository";
+export type { IViewRepository, CreateViewInput, UpdateViewInput } from "./IViewRepository";
+export type { IAutomationRepository, CreateAutomationInput, UpdateAutomationInput } from "./IAutomationRepository";
 ````
 
 ## File: modules/notion/subdomains/database/infrastructure/firebase/FirebaseDatabaseRecordRepository.ts
@@ -74341,6 +74450,14 @@ export class FirebaseViewRepository implements IViewRepository {
 }
 ````
 
+## File: modules/notion/subdomains/database/infrastructure/firebase/index.ts
+````typescript
+export { FirebaseDatabaseRepository } from "./FirebaseDatabaseRepository";
+export { FirebaseDatabaseRecordRepository } from "./FirebaseDatabaseRecordRepository";
+export { FirebaseViewRepository } from "./FirebaseViewRepository";
+export { FirebaseAutomationRepository } from "./FirebaseAutomationRepository";
+````
+
 ## File: modules/notion/subdomains/database/interfaces/_actions/database.actions.ts
 ````typescript
 "use server";
@@ -74498,16 +74615,23 @@ export async function deleteAutomation(id: string, accountId: string, databaseId
 }
 ````
 
-## File: modules/notion/subdomains/database/interfaces/components/index.ts
+## File: modules/notion/subdomains/database/interfaces/_actions/index.ts
 ````typescript
-export { DatabaseDialog } from "./DatabaseDialog";
-export { DatabaseTableView } from "./DatabaseTableView";
-export { DatabaseBoardView } from "./DatabaseBoardView";
-export { DatabaseListView } from "./DatabaseListView";
-export { DatabaseCalendarView } from "./DatabaseCalendarView";
-export { DatabaseGalleryView } from "./DatabaseGalleryView";
-export { DatabaseFormView } from "./DatabaseFormView";
-export { DatabaseAutomationView } from "./DatabaseAutomationView";
+export {
+  createDatabase,
+  updateDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  createRecord,
+  updateRecord,
+  deleteRecord,
+  createView,
+  updateView,
+  deleteView,
+  createAutomation,
+  updateAutomation,
+  deleteAutomation,
+} from "./database.actions";
 ````
 
 ## File: modules/notion/subdomains/database/interfaces/components/KnowledgeDatabasesRouteScreen.tsx
@@ -74657,6 +74781,44 @@ export function KnowledgeDatabasesRouteScreen() {
       )}
     </div>
   );
+}
+````
+
+## File: modules/notion/subdomains/database/interfaces/queries/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/queries
+ * Purpose: Read-side queries for database, record, view, and automation data.
+ */
+
+import { FirebaseDatabaseRepository } from "../../infrastructure/firebase/FirebaseDatabaseRepository";
+import { FirebaseDatabaseRecordRepository } from "../../infrastructure/firebase/FirebaseDatabaseRecordRepository";
+import { FirebaseViewRepository } from "../../infrastructure/firebase/FirebaseViewRepository";
+import { FirebaseAutomationRepository } from "../../infrastructure/firebase/FirebaseAutomationRepository";
+import type { DatabaseSnapshot } from "../../domain/aggregates/Database";
+import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
+import type { ViewSnapshot } from "../../domain/aggregates/View";
+import type { DatabaseAutomationSnapshot } from "../../domain/aggregates/DatabaseAutomation";
+
+export async function getDatabases(accountId: string, workspaceId: string): Promise<DatabaseSnapshot[]> {
+  return new FirebaseDatabaseRepository().listByWorkspace(accountId, workspaceId);
+}
+
+export async function getDatabase(accountId: string, databaseId: string): Promise<DatabaseSnapshot | null> {
+  return new FirebaseDatabaseRepository().findById(databaseId, accountId);
+}
+
+export async function getRecords(accountId: string, databaseId: string): Promise<DatabaseRecordSnapshot[]> {
+  return new FirebaseDatabaseRecordRepository().listByDatabase(accountId, databaseId);
+}
+
+export async function getViews(accountId: string, databaseId: string): Promise<ViewSnapshot[]> {
+  return new FirebaseViewRepository().listByDatabase(accountId, databaseId);
+}
+
+export async function getAutomations(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
+  return new FirebaseAutomationRepository().listByDatabase(accountId, databaseId);
 }
 ````
 
@@ -76591,157 +76753,49 @@ export function FileProcessingDialog({
 }
 ````
 
-## File: modules/notion/subdomains/collaboration/api/index.ts
+## File: modules/notion/subdomains/authoring/api/index.ts
 ````typescript
 /**
- * Module: notion/subdomains/collaboration
+ * Module: notion/subdomains/authoring
  * Layer: api (public boundary)
  * Purpose: Exposes only what external consumers need.
  *          All cross-module access must go through this file only.
  */
 
-// Aggregate snapshot types
-export type { CommentSnapshot, SelectionRange, ContentType, CommentId } from "../domain/aggregates/Comment";
-export type { CommentUnsubscribe } from "../domain/repositories/ICommentRepository";
-export type { VersionSnapshot, VersionId } from "../domain/aggregates/Version";
-export type { PermissionSnapshot, PermissionLevel, PrincipalType, PermissionId } from "../domain/aggregates/Permission";
+// ─── Read contracts ────────────────────────────────────────────────────────────
+export type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../domain/aggregates/Article";
+export type { CategorySnapshot } from "../domain/aggregates/Category";
 
-// DTOs
-export type {
-  CreateCommentDto, UpdateCommentDto, ResolveCommentDto, DeleteCommentDto,
-  CreateVersionDto, DeleteVersionDto,
-  GrantPermissionDto, RevokePermissionDto,
-} from "../application/dto/CollaborationDto";
+// ─── Identifiers used by other BCs ────────────────────────────────────────────
+export type ArticleId = string;
+export type CategoryId = string;
 
-// Server actions
-export { createComment, updateComment, resolveComment, deleteComment } from "../interfaces/_actions/comment.actions";
-export { createVersion, deleteVersion } from "../interfaces/_actions/version.actions";
-export { grantPermission, revokePermission } from "../interfaces/_actions/permission.actions";
-
-// Queries
-export { getComments, getVersions, getPermissions, subscribeComments } from "../interfaces/queries/index";
-
-// UI components
-export { CommentPanel } from "../interfaces/components/CommentPanel";
-export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
-````
-
-## File: modules/notion/subdomains/collaboration/interfaces/queries/index.ts
-````typescript
-/**
- * Module: notion/subdomains/collaboration
- * Layer: interfaces/queries
- * Purpose: Read-side queries for comment, version, and permission data.
- */
-
-import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
-import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
-import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
-import type { CommentSnapshot } from "../../domain/aggregates/Comment";
-import type { CommentUnsubscribe } from "../../domain/repositories/ICommentRepository";
-import type { VersionSnapshot } from "../../domain/aggregates/Version";
-import type { PermissionSnapshot } from "../../domain/aggregates/Permission";
-
-export async function getComments(accountId: string, contentId: string): Promise<CommentSnapshot[]> {
-  return new FirebaseCommentRepository().listByContent(accountId, contentId);
-}
-
-export async function getVersions(accountId: string, contentId: string): Promise<VersionSnapshot[]> {
-  return new FirebaseVersionRepository().listByContent(accountId, contentId);
-}
-
-export async function getPermissions(accountId: string, subjectId: string): Promise<PermissionSnapshot[]> {
-  return new FirebasePermissionRepository().listBySubject(accountId, subjectId);
-}
-
-export function subscribeComments(
-  accountId: string,
-  contentId: string,
-  onUpdate: (comments: CommentSnapshot[]) => void,
-): CommentUnsubscribe {
-  return new FirebaseCommentRepository().subscribe(accountId, contentId, onUpdate);
-}
-````
-
-## File: modules/notion/subdomains/database/application/use-cases/index.ts
-````typescript
-export { CreateDatabaseUseCase, UpdateDatabaseUseCase, AddFieldUseCase, ArchiveDatabaseUseCase, GetDatabaseUseCase, ListDatabasesUseCase } from "./DatabaseUseCases";
-export { CreateRecordUseCase, UpdateRecordUseCase, DeleteRecordUseCase, ListRecordsUseCase } from "./RecordUseCases";
-export { CreateViewUseCase, UpdateViewUseCase, DeleteViewUseCase, ListViewsUseCase } from "./ViewUseCases";
-export { CreateAutomationUseCase, UpdateAutomationUseCase, DeleteAutomationUseCase, ListAutomationsUseCase } from "./AutomationUseCases";
-````
-
-## File: modules/notion/subdomains/database/domain/repositories/index.ts
-````typescript
-export type { IDatabaseRepository, CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "./IDatabaseRepository";
-export type { IDatabaseRecordRepository, CreateRecordInput, UpdateRecordInput } from "./IDatabaseRecordRepository";
-export type { IViewRepository, CreateViewInput, UpdateViewInput } from "./IViewRepository";
-export type { IAutomationRepository, CreateAutomationInput, UpdateAutomationInput } from "./IAutomationRepository";
-````
-
-## File: modules/notion/subdomains/database/infrastructure/firebase/index.ts
-````typescript
-export { FirebaseDatabaseRepository } from "./FirebaseDatabaseRepository";
-export { FirebaseDatabaseRecordRepository } from "./FirebaseDatabaseRecordRepository";
-export { FirebaseViewRepository } from "./FirebaseViewRepository";
-export { FirebaseAutomationRepository } from "./FirebaseAutomationRepository";
-````
-
-## File: modules/notion/subdomains/database/interfaces/_actions/index.ts
-````typescript
+// ─── Server Actions (write-side) ──────────────────────────────────────────────
 export {
-  createDatabase,
-  updateDatabase,
-  addDatabaseField,
-  archiveDatabase,
-  createRecord,
-  updateRecord,
-  deleteRecord,
-  createView,
-  updateView,
-  deleteView,
-  createAutomation,
-  updateAutomation,
-  deleteAutomation,
-} from "./database.actions";
-````
+  createArticle,
+  updateArticle,
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+  deleteArticle,
+} from "../interfaces/_actions/article.actions";
 
-## File: modules/notion/subdomains/database/interfaces/queries/index.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/queries
- * Purpose: Read-side queries for database, record, view, and automation data.
- */
+export {
+  createCategory,
+  renameCategory,
+  moveCategory,
+  deleteCategory,
+} from "../interfaces/_actions/category.actions";
 
-import { FirebaseDatabaseRepository } from "../../infrastructure/firebase/FirebaseDatabaseRepository";
-import { FirebaseDatabaseRecordRepository } from "../../infrastructure/firebase/FirebaseDatabaseRecordRepository";
-import { FirebaseViewRepository } from "../../infrastructure/firebase/FirebaseViewRepository";
-import { FirebaseAutomationRepository } from "../../infrastructure/firebase/FirebaseAutomationRepository";
-import type { DatabaseSnapshot } from "../../domain/aggregates/Database";
-import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
-import type { ViewSnapshot } from "../../domain/aggregates/View";
-import type { DatabaseAutomationSnapshot } from "../../domain/aggregates/DatabaseAutomation";
+// ─── Queries (read-side) ──────────────────────────────────────────────────────
+export { getArticles, getArticle, getCategories, getBacklinks } from "../interfaces/queries/index";
 
-export async function getDatabases(accountId: string, workspaceId: string): Promise<DatabaseSnapshot[]> {
-  return new FirebaseDatabaseRepository().listByWorkspace(accountId, workspaceId);
-}
-
-export async function getDatabase(accountId: string, databaseId: string): Promise<DatabaseSnapshot | null> {
-  return new FirebaseDatabaseRepository().findById(databaseId, accountId);
-}
-
-export async function getRecords(accountId: string, databaseId: string): Promise<DatabaseRecordSnapshot[]> {
-  return new FirebaseDatabaseRecordRepository().listByDatabase(accountId, databaseId);
-}
-
-export async function getViews(accountId: string, databaseId: string): Promise<ViewSnapshot[]> {
-  return new FirebaseViewRepository().listByDatabase(accountId, databaseId);
-}
-
-export async function getAutomations(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
-  return new FirebaseAutomationRepository().listByDatabase(accountId, databaseId);
-}
+// ─── UI Components ────────────────────────────────────────────────────────────
+export { ArticleDialog } from "../interfaces/components/ArticleDialog";
+export { KnowledgeBaseArticlesRouteScreen } from "../interfaces/components/KnowledgeBaseArticlesRouteScreen";
+export { ArticleDetailPage } from "../interfaces/components/ArticleDetailPage";
+export type { ArticleDetailPageProps } from "../interfaces/components/ArticleDetailPage";
 ````
 
 ## File: modules/platform/subdomains/organization/interfaces/components/AccountSwitcher.tsx
@@ -78173,51 +78227,6 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
 }
 ````
 
-## File: modules/notion/subdomains/authoring/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/authoring
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- */
-
-// ─── Read contracts ────────────────────────────────────────────────────────────
-export type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../domain/aggregates/Article";
-export type { CategorySnapshot } from "../domain/aggregates/Category";
-
-// ─── Identifiers used by other BCs ────────────────────────────────────────────
-export type ArticleId = string;
-export type CategoryId = string;
-
-// ─── Server Actions (write-side) ──────────────────────────────────────────────
-export {
-  createArticle,
-  updateArticle,
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-  deleteArticle,
-} from "../interfaces/_actions/article.actions";
-
-export {
-  createCategory,
-  renameCategory,
-  moveCategory,
-  deleteCategory,
-} from "../interfaces/_actions/category.actions";
-
-// ─── Queries (read-side) ──────────────────────────────────────────────────────
-export { getArticles, getArticle, getCategories, getBacklinks } from "../interfaces/queries/index";
-
-// ─── UI Components ────────────────────────────────────────────────────────────
-export { ArticleDialog } from "../interfaces/components/ArticleDialog";
-export { KnowledgeBaseArticlesRouteScreen } from "../interfaces/components/KnowledgeBaseArticlesRouteScreen";
-export { ArticleDetailPage } from "../interfaces/components/ArticleDetailPage";
-export type { ArticleDetailPageProps } from "../interfaces/components/ArticleDetailPage";
-````
-
 ## File: modules/notion/subdomains/authoring/application/use-cases/ArticleLifecycleUseCases.ts
 ````typescript
 /**
@@ -78486,6 +78495,99 @@ export class DeleteCategoryUseCase {
     return commandSuccess(parsed.data.id, 0);
   }
 }
+````
+
+## File: modules/platform/api/index.ts
+````typescript
+/**
+ * platform public API boundary.
+ *
+ * account is listed before organization to establish canonical definitions for
+ * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
+ * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
+ */
+
+export * from "./contracts";
+export * from "./facade";
+export * from "../subdomains/identity";
+export * from "../subdomains/account";
+export * from "../subdomains/notification";
+
+// organization — explicit to avoid re-export conflicts with account subdomain
+export type {
+  OrganizationEntity,
+  Presence,
+  InviteState,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  OrgPolicy,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+  OrganizationRepository,
+  OrgPolicyRepository,
+} from "../subdomains/organization";
+export {
+  organizationService,
+  getOrganizationMembers,
+  getOrganizationTeams,
+  getOrgPolicies,
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+  createOrgPolicy,
+  updateOrgPolicy,
+  deleteOrgPolicy,
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+  // UI components
+  AccountSwitcher,
+  CreateOrganizationDialog,
+  MembersPage,
+  TeamsPage,
+  PermissionsPage,
+  OrganizationAuditPage,
+} from "../subdomains/organization";
+export type { MembersPageProps, TeamsPageProps, PermissionsPageProps, OrganizationAuditPageProps } from "../subdomains/organization";
+
+// background-job — knowledge ingestion pipeline management
+export * from "../subdomains/background-job";
+
+// platform-level interfaces (HeaderControls, TranslationSwitcher)
+export * from "../interfaces";
 ````
 
 ## File: modules/platform/interfaces/web/index.ts
@@ -79310,6 +79412,112 @@ flowchart LR
 - 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
+## File: modules/notion/subdomains/database/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ *
+ * Open Host Service contracts:
+ *   - getDatabaseById  — consumed by knowledge subdomain (opaque reference resolution)
+ */
+
+// Domain types
+export type {
+  DatabaseSnapshot,
+  DatabaseSnapshot as Database,
+  Field,
+  FieldType,
+  DatabaseId,
+  FieldId,
+} from "../domain/aggregates/Database";
+
+export type {
+  DatabaseRecordSnapshot,
+  RecordId,
+} from "../domain/aggregates/DatabaseRecord";
+
+export type {
+  ViewSnapshot,
+  ViewType,
+  FilterRule,
+  SortRule,
+  ViewId,
+} from "../domain/aggregates/View";
+
+export type {
+  DatabaseAutomationSnapshot,
+  AutomationTrigger,
+  AutomationActionType,
+  AutomationCondition,
+  AutomationAction,
+} from "../domain/aggregates/DatabaseAutomation";
+
+// Repository input types
+export type {
+  CreateAutomationInput,
+  UpdateAutomationInput,
+} from "../domain/repositories/IAutomationRepository";
+
+// Application DTOs
+export type {
+  CreateDatabaseDto,
+  UpdateDatabaseDto,
+  AddFieldDto,
+  ArchiveDatabaseDto,
+  CreateRecordDto,
+  UpdateRecordDto,
+  DeleteRecordDto,
+  CreateViewDto,
+  UpdateViewDto,
+  DeleteViewDto,
+} from "../application/dto/DatabaseDto";
+
+// Server actions
+export {
+  createDatabase,
+  updateDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  createRecord,
+  updateRecord,
+  deleteRecord,
+  createView,
+  updateView,
+  deleteView,
+  createAutomation,
+  updateAutomation,
+  deleteAutomation,
+} from "../interfaces/_actions/database.actions";
+
+// Queries
+export {
+  getDatabases,
+  getDatabase,
+  getRecords,
+  getViews,
+  getAutomations,
+} from "../interfaces/queries/index";
+
+// UI components
+export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
+export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
+export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
+export { DatabaseListView } from "../interfaces/components/DatabaseListView";
+export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarView";
+export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
+export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
+export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
+export { KnowledgeDatabasesRouteScreen } from "../interfaces/components/KnowledgeDatabasesRouteScreen";
+export { AddFieldDialog, FIELD_TYPES } from "../interfaces/components/DatabaseAddFieldDialog";
+export { DatabaseDetailPage } from "../interfaces/components/DatabaseDetailPage";
+export type { DatabaseDetailPageProps } from "../interfaces/components/DatabaseDetailPage";
+export { DatabaseFormsPage } from "../interfaces/components/DatabaseFormsPage";
+export type { DatabaseFormsPageProps } from "../interfaces/components/DatabaseFormsPage";
+````
+
 ## File: modules/notion/subdomains/knowledge/api/index.ts
 ````typescript
 /**
@@ -79396,99 +79604,6 @@ export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../int
 // ── Route screen components ───────────────────────────────────────────────────
 export { KnowledgePageDetailPage } from "../interfaces/components/KnowledgePageDetailPage";
 export type { KnowledgePageDetailPageProps } from "../interfaces/components/KnowledgePageDetailPage";
-````
-
-## File: modules/platform/api/index.ts
-````typescript
-/**
- * platform public API boundary.
- *
- * account is listed before organization to establish canonical definitions for
- * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
- * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
- */
-
-export * from "./contracts";
-export * from "./facade";
-export * from "../subdomains/identity";
-export * from "../subdomains/account";
-export * from "../subdomains/notification";
-
-// organization — explicit to avoid re-export conflicts with account subdomain
-export type {
-  OrganizationEntity,
-  Presence,
-  InviteState,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  OrgPolicy,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-  OrganizationRepository,
-  OrgPolicyRepository,
-} from "../subdomains/organization";
-export {
-  organizationService,
-  getOrganizationMembers,
-  getOrganizationTeams,
-  getOrgPolicies,
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-  createOrgPolicy,
-  updateOrgPolicy,
-  deleteOrgPolicy,
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-  // UI components
-  AccountSwitcher,
-  CreateOrganizationDialog,
-  MembersPage,
-  TeamsPage,
-  PermissionsPage,
-  OrganizationAuditPage,
-} from "../subdomains/organization";
-export type { MembersPageProps, TeamsPageProps, PermissionsPageProps, OrganizationAuditPageProps } from "../subdomains/organization";
-
-// background-job — knowledge ingestion pipeline management
-export * from "../subdomains/background-job";
-
-// platform-level interfaces (HeaderControls, TranslationSwitcher)
-export * from "../interfaces";
 ````
 
 ## File: docs/architecture-overview.md
@@ -80364,112 +80479,6 @@ flowchart LR
 
 - 若 strategic term 與主域 term 衝突，優先維持主域語言不被污染，再回寫 strategic glossary。
 - 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
-````
-
-## File: modules/notion/subdomains/database/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- *
- * Open Host Service contracts:
- *   - getDatabaseById  — consumed by knowledge subdomain (opaque reference resolution)
- */
-
-// Domain types
-export type {
-  DatabaseSnapshot,
-  DatabaseSnapshot as Database,
-  Field,
-  FieldType,
-  DatabaseId,
-  FieldId,
-} from "../domain/aggregates/Database";
-
-export type {
-  DatabaseRecordSnapshot,
-  RecordId,
-} from "../domain/aggregates/DatabaseRecord";
-
-export type {
-  ViewSnapshot,
-  ViewType,
-  FilterRule,
-  SortRule,
-  ViewId,
-} from "../domain/aggregates/View";
-
-export type {
-  DatabaseAutomationSnapshot,
-  AutomationTrigger,
-  AutomationActionType,
-  AutomationCondition,
-  AutomationAction,
-} from "../domain/aggregates/DatabaseAutomation";
-
-// Repository input types
-export type {
-  CreateAutomationInput,
-  UpdateAutomationInput,
-} from "../domain/repositories/IAutomationRepository";
-
-// Application DTOs
-export type {
-  CreateDatabaseDto,
-  UpdateDatabaseDto,
-  AddFieldDto,
-  ArchiveDatabaseDto,
-  CreateRecordDto,
-  UpdateRecordDto,
-  DeleteRecordDto,
-  CreateViewDto,
-  UpdateViewDto,
-  DeleteViewDto,
-} from "../application/dto/DatabaseDto";
-
-// Server actions
-export {
-  createDatabase,
-  updateDatabase,
-  addDatabaseField,
-  archiveDatabase,
-  createRecord,
-  updateRecord,
-  deleteRecord,
-  createView,
-  updateView,
-  deleteView,
-  createAutomation,
-  updateAutomation,
-  deleteAutomation,
-} from "../interfaces/_actions/database.actions";
-
-// Queries
-export {
-  getDatabases,
-  getDatabase,
-  getRecords,
-  getViews,
-  getAutomations,
-} from "../interfaces/queries/index";
-
-// UI components
-export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
-export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
-export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
-export { DatabaseListView } from "../interfaces/components/DatabaseListView";
-export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarView";
-export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
-export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
-export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
-export { KnowledgeDatabasesRouteScreen } from "../interfaces/components/KnowledgeDatabasesRouteScreen";
-export { AddFieldDialog, FIELD_TYPES } from "../interfaces/components/DatabaseAddFieldDialog";
-export { DatabaseDetailPage } from "../interfaces/components/DatabaseDetailPage";
-export type { DatabaseDetailPageProps } from "../interfaces/components/DatabaseDetailPage";
-export { DatabaseFormsPage } from "../interfaces/components/DatabaseFormsPage";
-export type { DatabaseFormsPageProps } from "../interfaces/components/DatabaseFormsPage";
 ````
 
 ## File: docs/contexts/notebooklm/AGENT.md

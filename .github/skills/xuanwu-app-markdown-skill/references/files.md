@@ -238,61 +238,6 @@ Deliver route-level UI slices with clear ownership and predictable data flow.
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
-## File: .github/agents/hexagonal-ddd-architect.agent.md
-````markdown
----
-name: Hexagonal DDD Architect
-description: Design and refactor modules with Hexagonal Architecture with Domain-Driven Design ownership, layer direction, and API-only cross-module boundaries.
-tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
-model: 'GPT-5.3-Codex'
-handoffs:
-  - label: Confirm Domain Ownership
-    agent: Domain Lead
-    prompt: Confirm the owning bounded context and the required public API boundary for this module refactor.
-  - label: Update Contracts
-    agent: TS Interface Writer
-    prompt: Update or review the public DTO and contract surface affected by this module refactor.
-  - label: Run Quality Review
-    agent: Quality Lead
-    prompt: Review this module refactor for boundary regressions, compatibility risk, and missing validation.
-
----
-
-# Hexagonal DDD Architect
-
-## Target Scope
-
-- `modules/**`
-- `packages/shared-types/**`
-- `packages/api-contracts/**`
-
-## Mission
-
-Shape module structures without breaking bounded contexts.
-
-## Rules
-
-- Keep dependency direction: interfaces -> application -> domain <- infrastructure.
-- Cross-module access must go through modules target api only.
-- Keep domain framework-free.
-- Run lint and build when boundaries or exports move.
-
-## Module Lifecycle Operations
-
-- Support create/refactor/split/merge/delete with explicit ownership mapping.
-- Preserve public API compatibility or document migration steps in the same change.
-- Replace internal cross-module imports with API contracts or event-driven collaboration.
-
-## Output
-
-- Ownership decision
-- Boundary impact
-- Files changed
-- Validation evidence
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
 ## File: .github/agents/kb-architect.agent.md
 ````markdown
 ---
@@ -718,44 +663,6 @@ handoffs:
 - Coordinate contract changes with consumer updates in the same change.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/instructions/architecture-hexagonal-ddd.instructions.md
-````markdown
----
-description: 'Hexagonal Architecture with Domain-Driven Design rules for layer ownership and dependency direction.'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
----
-
-# Architecture Hexagonal DDD
-
-## Layer Direction
-
-- `interfaces -> application -> domain <- infrastructure`
-- Keep `domain/` framework-free.
-
-## Layer Constraints
-
-- `domain/` must not import Firebase SDK, React, HTTP clients, or runtime-specific adapters.
-- `application/` orchestrates use cases and coordinates domain abstractions.
-- `infrastructure/` implements domain ports and repository interfaces.
-- `interfaces/` handles UI, route handlers, API transport, and server action wiring.
-
-## Layer Ownership
-
-- `domain/`: entities, value objects, domain services, repository interfaces.
-- `application/`: use cases and DTO orchestration.
-- `infrastructure/`: adapters and external implementations.
-- `interfaces/`: UI, transport, and action wiring.
-- Module `api/` public entry is the only cross-module boundary.
-
-## Dependency Guardrails
-
-- Keep module dependency flow acyclic unless an explicit event contract documents the exception.
-- Do not reverse dependency direction for convenience during refactors.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
 ````
 
 ## File: .github/instructions/branching-strategy.instructions.md
@@ -1826,225 +1733,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-development-contracts
 ````
 
-## File: .github/prompts/serena-hexagonal-ddd-refactor.prompt.md
-````markdown
----
-
-name: serena-hexagonal-ddd-refactor
-description: Scan large files, refactor to follow Hexagonal Architecture with Domain-Driven Design without breaking functionality, then update Serena MCP memory and index.
-agent: copilot
-argument-hint: <project-root>
------------------------------
-
-# Serena Hexagonal DDD Refactor Prompt
-
-## Objective
-
-Identify oversized files in the project, verify whether they violate Hexagonal Architecture with Domain-Driven Design layering principles, refactor them without breaking functionality, then update Serena MCP memory and symbol index.
-
----
-
-# Step 1 — Start Serena MCP
-
-If Serena MCP is not running:
-
-```
-serena start-mcp-server
-```
-
-Activate project and load memory:
-
-```
-serena
-#use skill serena-mcp > activate_project
-list_memories
-read_memory
-#use skill xuanwu-app-markdown-skill
-#use skill xuanwu-app-skill
-#use skill context7
-```
-
----
-
-# Step 2 — Find Largest Files
-
-Run PowerShell to locate largest files:
-
-```
-$folders = @("app","modules","packages","py_fn\src")
-
-Get-ChildItem $folders -Recurse -File |
-Where-Object { $_.FullName -notmatch "node_modules|\.next|\.git|dist|build|__pycache__" } |
-Sort-Object Length -Descending |
-Select-Object -First 33 FullName, Length
-```
-
-Focus refactoring on these large files first.
-
----
-
-# Step 3 — Hexagonal DDD Refactor Rules
-
-Refactor files that violate these rules:
-
-## Application Service must NOT contain
-
-* Business logic
-* Repository query logic
-* DTO mapping logic
-* Entity creation logic
-* Infrastructure calls
-
-Application Service should only:
-
-```
-Receive request → Load Aggregate → Call Domain → Save Aggregate → Publish Event
-```
-
-## Aggregate must NOT contain
-
-* Repository
-* Firebase / Database
-* HTTP / API calls
-* UI / DTO
-* Infrastructure logic
-
-Aggregate should contain only:
-
-```
-Entities
-Value Objects
-Domain Logic
-Domain Events
-```
-
-## Repository must NOT contain
-
-* Business logic
-* Domain rules
-* Complex query logic
-* Application logic
-
-Repository should only:
-
-```
-Save
-Get
-Delete
-```
-
-## Domain Service usage
-
-Create Domain Service only when:
-
-* Logic does not belong to a single Entity
-* Requires multiple Aggregates
-* Pure business logic
-* No infrastructure dependency
-
----
-
-# Step 4 — File Splitting Structure
-
-When splitting large files, use this structure:
-
-```
-domain/
-  aggregates/
-  entities/
-  value-objects/
-  domain-events/
-  domain-services/
-
-application/
-  services/
-  commands/
-  queries/
-
-infrastructure/
-  repositories/
-  firebase/
-  external-services/
-
-interface/
-  controllers/
-  dto/
-  routes/
-```
-
----
-
-# Step 5 — File Size Guidelines
-
-Recommended file sizes:
-
-```
-Entity < 150 lines
-Aggregate < 300 lines
-Application Service < 150 lines
-Repository < 120 lines
-Controller < 120 lines
-Domain Service < 150 lines
-```
-
-Files exceeding ~300 lines likely indicate boundary or responsibility problems.
-
----
-
-# Step 6 — After Refactor Update Serena
-
-After modifications:
-
-```
-#sym:update_memory
-#sym:prune_index
-```
-
-Purpose:
-
-```
-update_memory → sync new architecture and symbols
-prune_index → remove outdated symbols
-```
-
----
-
-# Full Workflow Checklist
-
-```
-1. serena start-mcp-server
-2. activate_project
-3. list_memories
-4. read_memory
-5. Find largest files
-6. Check Hexagonal DDD violations
-7. Refactor and split files
-8. Ensure functionality still works
-9. #sym:update_memory
-10. #sym:prune_index
-```
-
----
-
-# Core Principle
-
-Hexagonal DDD refactoring goal is not smaller files, but correct boundaries:
-
-```
-Controller → Application Service → Domain → Repository
-```
-
-Domain layer must not depend on:
-
-```
-Database
-Firebase
-HTTP
-UI
-Framework
-```
-````
-
 ## File: .github/prompts/write-docs.prompt.md
 ````markdown
 ---
@@ -2519,109 +2207,6 @@ Block 快照，immutable。最多 100 個（具名版本除外）。
 - query use cases 回傳 DTO，不暴露 domain entity
 - 每個 use case 對應一個 Server Action 入口（`interfaces/_actions/`）
 - 跨子域（例如 D3 Promote 協議）必須透過事件訂閱，不可直接呼叫另一子域的 application
-````
-
-## File: modules/notion/docs/bounded-context.md
-````markdown
-# Bounded Context — notion
-
-本文件定義 `notion` 這份本地藍圖的邊界。notion 的任務，是把 Xuanwu 的知識內容能力（頁面編輯、區塊管理、結構化資料庫、組織知識庫、協作留言、版本歷史）收斂成一個 **Hexagonal + DDD** 邊界，而不是把這些能力散落成沒有語言與責任的多個獨立模組。
-
-## Context Purpose
-
-notion 這個 bounded context 負責回答五類問題：
-
-- 知識頁面如何被建立、組織、演進與交付
-- 內容區塊如何被管理與排序
-- 結構化資料（Database/Record/View）如何以多視圖呈現
-- 組織知識文章如何被驗證、分類與維護
-- 協作者如何留言、管理存取與追蹤版本
-
-## Canonical Capability Groups
-
-### 核心知識內容
-
-- `knowledge` — 頁面、區塊、集合（Notion-like 核心頁面引擎）
-- `authoring` — 組織知識庫文章（Article、Category、驗證狀態）
-
-### 結構化與協作
-
-- `database` — Database/Record/View 結構化資料引擎
-- `collaboration` — Comment、Permission、Version 協作基礎設施
-
-### AI 與分析
-
-- `ai` — AI 輔助生成、摘要與 RAG 攝入起點
-- `analytics` — 知識使用行為量測
-
-### 內容豐富與自動化
-
-- `attachments` — 附件與媒體管理
-- `automation` — 知識事件觸發的自動化規則
-- `templates` — 頁面範本管理
-
-### 整合與個人
-
-- `integration` — 外部系統（Notion、Confluence、Google Docs 等）整合
-- `notes` — 個人輕量筆記
-- `versioning` — 全域版本快照策略
-
-## 邊界包含什麼
-
-notion 包含：
-
-- 可被 notion 通用語言描述的聚合、值物件、規則與事件
-- 可被 application layer 協調的 use cases、commands、queries 與 read models
-- 可被 ports 表達的輸入契約與外部依賴契約
-- 可被協作與版本管理需求追蹤的 published language
-
-## 邊界刻意不包含什麼
-
-- 平台主體治理（身份、帳號、組織）→ `platform`
-- 工作區層級的治理與成員歸屬 → `workspace`
-- AI 推理與 RAG 管線執行細節 → `ai` 模組 / `py_fn/`
-- 任何 UI 呈現細節本身
-- 直接綁定 HTTP、queue、webhook、SDK、資料庫的 adapter 細節
-
-## Hexagonal Layer Mapping
-
-| Layer / concept | notion 位置 | 說明 |
-|---|---|---|
-| Public boundary | `api/` | 對外公開的 cross-module boundary；只做投影與 re-export |
-| Driving adapters | `core/adapters/` | Web、CLI 等輸入端轉譯 |
-| Application | `core/application/` | use case orchestration、DTO、command/query 處理 |
-| Domain core | `core/domain/` | 聚合、值物件、domain services、domain events |
-| Input ports | `core/ports/input/` | 進入 application 的穩定契約 |
-| Output ports | `core/ports/output/` | repositories、stores、gateways |
-| Driven adapters | `core/infrastructure/` | 對 output ports 的具體實作 |
-| Subdomains | `subdomains/<name>/` | 各子域的本地 domain/application/adapters 能力 |
-
-## 計畫吸收模組
-
-以下四個現有獨立模組的能力**計畫在未來重構中合并進 notion**，成為對應子域的正式實作。在合并完成前，這些模組作為各自子域的前身實作繼續運作，notion blueprint 定義語言與 port 契約的規範形式。
-
-| 獨立模組 | 目標子域 | 現有核心概念 | 合并備注 |
-|---|---|---|---|
-| `modules/knowledge/` | `knowledge` | `KnowledgePage`, `ContentBlock`, `ContentVersion`, `KnowledgeCollection` | 保留 D1/D2/D3 決策語言；workspace-first scope 規則不變 |
-| `modules/knowledge-base/` | `authoring` | `Article`, `Category`, `VerificationState`, `Backlink` | Promote 協議（D3）由 `authoring` 子域接管業務規則 |
-| `modules/knowledge-collaboration/` | `collaboration` | `Comment`, `Permission`, `PermissionLevel`, `Version`, `NamedVersion` | `contentId` opaque reference 模式保持 |
-| `modules/knowledge-database/` | `database` | `Database`, `Field`, `Record`, `Property`, `View` | D1 決策：`database` 子域完整擁有 spaceType="database" 的 Schema+Record+View |
-
-**合并優先序：** `knowledge` → `database` → `collaboration` → `authoring`
-
-**合并後規則：**
-- 獨立模組應設為 deprecated，並把 `api/index.ts` 指向 `modules/notion/api`
-- Notion blueprint 的語言定義優先；若有術語歧異，以本文件與 `ubiquitous-language.md` 為準
-
-## 邊界測試問題
-
-1. 這個變更屬於哪個既有子域
-2. 它需要的是新語言、既有語言的細化，還是新的 port contract
-3. 它是 domain rule、application orchestration、adapter concern，還是 public boundary projection
-4. 它是否會破壞 closed inventory 或 dependency direction
-5. 若涉及四個計畫吸收模組，是否與合并方向一致
-
-若第 1 題答不出來，表示 notion 邊界尚未被正確理解。
 ````
 
 ## File: modules/notion/docs/context-map.md
@@ -3606,157 +3191,6 @@ application services 應回傳兩種結果之一：
 - query projection：為查詢或 UI 組裝的唯讀模型
 
 無論哪一種，application services 都不應回傳 adapter-specific payload。
-````
-
-## File: modules/platform/docs/bounded-context.md
-````markdown
-# Bounded Context — platform
-
-本文件定義 `platform` 這份本地藍圖的邊界。platform 的任務，是把平台級的主體治理、政策規則、能力啟用、外部交付、稽核與可觀測性收斂成一個 **Hexagonal + DDD** 邊界，而不是把這些能力散落成沒有語言與責任的共享雜物間。
-
-## Context Purpose
-
-platform 這個 bounded context 負責回答五類問題：
-
-- 誰是平台可治理的主體
-- 主體在什麼條件下可以做什麼
-- 哪些能力在當前方案、設定與安全政策下可用
-- 平台如何把事實轉成流程、外部交付與通知
-- 平台如何留下證據並暴露診斷訊號
-
-## Canonical Capability Groups
-
-### 主體與名錄
-
-- `identity`
-- `account`
-- `account-profile`
-- `organization`
-
-### 治理與安全
-
-- `access-control`
-- `security-policy`
-- `platform-config`
-- `feature-flag`
-- `onboarding`
-- `compliance`
-
-### 商業與權益
-
-- `billing`
-- `subscription`
-- `referral`
-
-### 流程與交付
-
-- `integration`
-- `workflow`
-- `notification`
-- `background-job`
-
-### 內容與檢索
-
-- `content`
-- `search`
-
-### 證據與診斷
-
-- `audit-log`
-- `observability`
-- `analytics`
-- `support`
-
-## 邊界包含什麼
-
-platform 包含：
-
-- 可被 platform 通用語言描述的聚合、值物件、規則與事件
-- 可被 application layer 協調的 use cases、commands、queries 與 read models
-- 可被 ports 表達的輸入契約與外部依賴契約
-- 可被稽核與可觀測性需求追蹤的 published language
-
-## 邊界刻意不包含什麼
-
-- 產品內容本身的建立、編排與發布策略
-- 檢索、推理、內容相關性或知識生成演算法
-- 任何 UI 呈現細節本身
-- 直接綁定 HTTP、queue、webhook、SDK、資料庫的 adapter 細節
-- 以「暫時先開個資料夾」為名的未定義能力
-
-## Hexagonal Layer Mapping
-
-| Layer / concept | platform 位置 | 說明 |
-|---|---|---|
-| Public boundary | `api/` | 對外公開的 cross-module boundary；只做投影與 re-export |
-| Driving adapters | `adapters/` | CLI、web、external ingress 等輸入端轉譯 |
-| Application | `application/` | use case orchestration、command/query handling |
-| Domain | `domain/` | 聚合、值物件、domain services、domain events |
-| Input ports | `ports/input/` | 進入 application 的穩定契約 |
-| Output ports | `ports/output/` | repository、store、gateway、sink 等依賴契約 |
-| Driven adapters | `infrastructure/` | 對 output ports 的具體技術實作 |
-
-## Layer Responsibilities
-
-### Domain
-
-- 擁有聚合、值物件、domain services、domain events
-- 維持不變數與 published language
-- 不直接理解 repository implementation、HTTP、DB、queue 或 SDK
-
-### Application
-
-- 實作 use case handlers 與 input port 語言
-- 協調 aggregates、domain services 與 output ports
-- 在持久化成功後拉取並發布 domain events
-
-### Ports
-
-- input ports：命令、查詢、事件匯入入口
-- output ports：repositories、support stores、gateways、sinks
-- 由 core/application 擁有，不以 `api/` 為型別真實來源
-
-### Adapters / Infrastructure
-
-- driving adapters：把 HTTP、CLI、scheduler、webhook、queue ingress 翻譯成 input port 語言
-- driven adapters：把 repository、event publishing、notification、telemetry、external delivery 實作成具體技術方案
-
-## Public Boundary Rule
-
-- `api/` 是 platform 對其他模組的正式 public boundary
-- `index.ts` 只作 aggregate export convenience，不應被當成邊界設計來源
-- `ports/` 的契約來源在 `application/` 與 `domain/`，不是 `api/`
-
-## Closed Inventory Boundary Rule
-
-這個 bounded context 以 23 個子域作為封閉 inventory。任何新需求預設都應被視為既有子域的責任延伸，而不是新增第 24 個子域。只有在既有 23 個子域無法吸收時，才允許重新打開 inventory。
-
-## 計畫吸收模組
-
-以下四個現有獨立模組的能力**計畫在未來重構中合并進 platform**，成為對應子域的正式實作。在合并完成前，這些模組作為各自子域的前身實作繼續運作，platform blueprint 定義語言與 port 契約的規範形式。
-
-| 獨立模組 | 目標子域 | 現有核心概念 | 合并備注 |
-|---|---|---|---|
-| `modules/identity/` | `identity` | `Identity`, `uid`, `TokenRefreshSignal`, `IdentityRepository`, `TokenRefreshRepository` | 提供 `AuthenticatedSubject` 與 `IdentitySignal` 的前身語意 |
-| `modules/account/` | `account` + `account-profile` | `Account`, `AccountPolicy`, `AccountProfile`, `AccountRepository`, `AccountQueryRepository`, `AccountPolicyRepository` | `account` 承接帳號聚合根；`account-profile` 承接可治理輪廓屬性 |
-| `modules/organization/` | `organization` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`, `OrganizationRepository`, `OrgPolicyRepository` | 提供 `MembershipBoundary` 與 `RoleAssignment` 的前身語意 |
-| `modules/notification/` | `notification` | `NotificationEntity`, `NotificationRepository`，conformist 消費者 | 提供 `NotificationDispatch` 與 `NotificationRoute` 的前身語意 |
-
-**合并優先序：** `identity` → `account` → `organization` → `notification`（按語意依賴順序）
-
-**合并後規則：**
-- 獨立模組應設為 deprecated，並把 `api/index.ts` 指向 `modules/platform/api`
-- Platform blueprint 的語言定義優先；若有術語歧異，以本文件與 `ubiquitous-language.md` 為準
-
-## 邊界測試問題
-
-1. 這個變更屬於哪個既有子域
-2. 它需要的是新語言、既有語言的細化，還是新的 port contract
-3. 它是 domain rule、application orchestration、adapter concern，還是 public boundary projection
-4. 它是否會破壞 closed inventory 或 dependency direction
-5. 若涉及 identity / account / organization / notification，是否與計畫吸收方向一致
-
-若第 1 題答不出來，表示 platform 邊界尚未被正確理解。
 ````
 
 ## File: modules/platform/docs/context-map.md
@@ -6023,6 +5457,61 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
+## File: .github/agents/hexagonal-ddd-architect.agent.md
+````markdown
+---
+name: Hexagonal DDD Architect
+description: Design and refactor modules with Hexagonal Architecture with Domain-Driven Design ownership, layer direction, and API-only cross-module boundaries.
+tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
+model: 'GPT-5.3-Codex'
+handoffs:
+  - label: Confirm Domain Ownership
+    agent: Domain Lead
+    prompt: Confirm the owning bounded context and the required public API boundary for this module refactor.
+  - label: Update Contracts
+    agent: TS Interface Writer
+    prompt: Update or review the public DTO and contract surface affected by this module refactor.
+  - label: Run Quality Review
+    agent: Quality Lead
+    prompt: Review this module refactor for boundary regressions, compatibility risk, and missing validation.
+
+---
+
+# Hexagonal DDD Architect
+
+## Target Scope
+
+- `modules/**`
+- `packages/shared-types/**`
+- `packages/api-contracts/**`
+
+## Mission
+
+Shape module structures without breaking bounded contexts.
+
+## Rules
+
+- Keep dependency direction: interfaces -> application -> domain <- infrastructure.
+- Cross-module access must go through modules target api only.
+- Keep domain framework-free.
+- Run lint and build when boundaries or exports move.
+
+## Module Lifecycle Operations
+
+- Support create/refactor/split/merge/delete with explicit ownership mapping.
+- Preserve public API compatibility or document migration steps in the same change.
+- Replace internal cross-module imports with API contracts or event-driven collaboration.
+
+## Output
+
+- Ownership decision
+- Boundary impact
+- Files changed
+- Validation evidence
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
 ## File: .github/agents/rag-lead.agent.md
 ````markdown
 ---
@@ -6101,6 +5590,44 @@ applyTo: '{app,modules,packages,providers,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 
 - Use `eslint.config.mjs` restricted-import and boundary rules as the enforcement source.
 - Re-check changed imports for `@/modules/` to confirm API-only access.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
+## File: .github/instructions/architecture-hexagonal-ddd.instructions.md
+````markdown
+---
+description: 'Hexagonal Architecture with Domain-Driven Design rules for layer ownership and dependency direction.'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Architecture Hexagonal DDD
+
+## Layer Direction
+
+- `interfaces -> application -> domain <- infrastructure`
+- Keep `domain/` framework-free.
+
+## Layer Constraints
+
+- `domain/` must not import Firebase SDK, React, HTTP clients, or runtime-specific adapters.
+- `application/` orchestrates use cases and coordinates domain abstractions.
+- `infrastructure/` implements domain ports and repository interfaces.
+- `interfaces/` handles UI, route handlers, API transport, and server action wiring.
+
+## Layer Ownership
+
+- `domain/`: entities, value objects, domain services, repository interfaces.
+- `application/`: use cases and DTO orchestration.
+- `infrastructure/`: adapters and external implementations.
+- `interfaces/`: UI, transport, and action wiring.
+- Module `api/` public entry is the only cross-module boundary.
+
+## Dependency Guardrails
+
+- Keep module dependency flow acyclic unless an explicit event contract documents the exception.
+- Do not reverse dependency direction for convenience during refactors.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
@@ -6589,6 +6116,225 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-typescript-workbench
 ````
 
+## File: .github/prompts/serena-hexagonal-ddd-refactor.prompt.md
+````markdown
+---
+
+name: serena-hexagonal-ddd-refactor
+description: Scan large files, refactor to follow Hexagonal Architecture with Domain-Driven Design without breaking functionality, then update Serena MCP memory and index.
+agent: copilot
+argument-hint: <project-root>
+-----------------------------
+
+# Serena Hexagonal DDD Refactor Prompt
+
+## Objective
+
+Identify oversized files in the project, verify whether they violate Hexagonal Architecture with Domain-Driven Design layering principles, refactor them without breaking functionality, then update Serena MCP memory and symbol index.
+
+---
+
+# Step 1 — Start Serena MCP
+
+If Serena MCP is not running:
+
+```
+serena start-mcp-server
+```
+
+Activate project and load memory:
+
+```
+serena
+#use skill serena-mcp > activate_project
+list_memories
+read_memory
+#use skill xuanwu-app-markdown-skill
+#use skill xuanwu-app-skill
+#use skill context7
+```
+
+---
+
+# Step 2 — Find Largest Files
+
+Run PowerShell to locate largest files:
+
+```
+$folders = @("app","modules","packages","py_fn\src")
+
+Get-ChildItem $folders -Recurse -File |
+Where-Object { $_.FullName -notmatch "node_modules|\.next|\.git|dist|build|__pycache__" } |
+Sort-Object Length -Descending |
+Select-Object -First 33 FullName, Length
+```
+
+Focus refactoring on these large files first.
+
+---
+
+# Step 3 — Hexagonal DDD Refactor Rules
+
+Refactor files that violate these rules:
+
+## Application Service must NOT contain
+
+* Business logic
+* Repository query logic
+* DTO mapping logic
+* Entity creation logic
+* Infrastructure calls
+
+Application Service should only:
+
+```
+Receive request → Load Aggregate → Call Domain → Save Aggregate → Publish Event
+```
+
+## Aggregate must NOT contain
+
+* Repository
+* Firebase / Database
+* HTTP / API calls
+* UI / DTO
+* Infrastructure logic
+
+Aggregate should contain only:
+
+```
+Entities
+Value Objects
+Domain Logic
+Domain Events
+```
+
+## Repository must NOT contain
+
+* Business logic
+* Domain rules
+* Complex query logic
+* Application logic
+
+Repository should only:
+
+```
+Save
+Get
+Delete
+```
+
+## Domain Service usage
+
+Create Domain Service only when:
+
+* Logic does not belong to a single Entity
+* Requires multiple Aggregates
+* Pure business logic
+* No infrastructure dependency
+
+---
+
+# Step 4 — File Splitting Structure
+
+When splitting large files, use this structure:
+
+```
+domain/
+  aggregates/
+  entities/
+  value-objects/
+  domain-events/
+  domain-services/
+
+application/
+  services/
+  commands/
+  queries/
+
+infrastructure/
+  repositories/
+  firebase/
+  external-services/
+
+interface/
+  controllers/
+  dto/
+  routes/
+```
+
+---
+
+# Step 5 — File Size Guidelines
+
+Recommended file sizes:
+
+```
+Entity < 150 lines
+Aggregate < 300 lines
+Application Service < 150 lines
+Repository < 120 lines
+Controller < 120 lines
+Domain Service < 150 lines
+```
+
+Files exceeding ~300 lines likely indicate boundary or responsibility problems.
+
+---
+
+# Step 6 — After Refactor Update Serena
+
+After modifications:
+
+```
+#sym:update_memory
+#sym:prune_index
+```
+
+Purpose:
+
+```
+update_memory → sync new architecture and symbols
+prune_index → remove outdated symbols
+```
+
+---
+
+# Full Workflow Checklist
+
+```
+1. serena start-mcp-server
+2. activate_project
+3. list_memories
+4. read_memory
+5. Find largest files
+6. Check Hexagonal DDD violations
+7. Refactor and split files
+8. Ensure functionality still works
+9. #sym:update_memory
+10. #sym:prune_index
+```
+
+---
+
+# Core Principle
+
+Hexagonal DDD refactoring goal is not smaller files, but correct boundaries:
+
+```
+Controller → Application Service → Domain → Repository
+```
+
+Domain layer must not depend on:
+
+```
+Database
+Firebase
+HTTP
+UI
+Framework
+```
+````
+
 ## File: docs/project-delivery-milestones.md
 ````markdown
 # Project Delivery Milestones
@@ -6686,90 +6432,6 @@ flowchart LR
 - 本里程碑文件是 architecture-first 的交付路線，不代表任何既有 repo 已依此順序演進。
 - 里程碑是交付順序指引，不是 waterfall 式一次性階段牆；必要時可以小步迭代，但不可跳過核心決策產物。
 - 若需求很小，可以在同一次交付內完成多個相鄰里程碑，但仍需保留對應產物。
-````
-
-## File: modules/notebooklm/docs/bounded-context.md
-````markdown
-# Bounded Context — notebooklm
-
-## 責任邊界
-
-`notebooklm` 擁有 Xuanwu 的 AI 對話與知識合成能力。它是 Supporting Subdomain，為使用者提供 NotebookLM-like 的 AI 推理體驗。
-
-### 這個 context 擁有
-
-- AI 對話 Thread 與 Message 的持久化與生命週期
-- AI 模型調用的提示工程、路由與回應封裝
-- Notebook 容器的組合、管理與版本策略
-- 來源文件的追蹤、引用與引用一致性
-- RAG 合成、摘要與洞察的生成
-- 對話衍生的輕量筆記與知識連結
-
-### 這個 context 不擁有
-
-- 知識內容的建立與管理（→ `notion`）
-- 組織與帳號治理（→ `platform`）
-- 工作區生命週期（→ `workspace`）
-- 向量索引的建立與語意搜尋查詢（→ AI/RAG 管道）
-
-## 能力分組
-
-| 能力群 | 子域 |
-|---|---|
-| AI 推理核心 | `ai`、`synthesis` |
-| 對話管理 | `conversation`、`versioning` |
-| 知識組合 | `notebook`、`note` |
-| 來源管理 | `source` |
-
-## Public Boundary
-
-`modules/notebooklm/api/` 是對外的 public boundary：
-
-- 跨模組存取只能透過 `@/modules/notebooklm/api` import
-- 禁止直接 import `domain/`、`application/`、`infrastructure/` 或 `subdomains/` 內部
-
-## 封板規則
-
-此 context 的子域清單是 **closed inventory**：
-
-- 7 個子域（ai、conversation、note、notebook、source、synthesis、versioning）
-- 後續開發必須先映射到既有子域，不能隨意新增
-- 若確實需要新增子域，先更新此文件與 `subdomains.md`
-
-## 層次結構
-
-```
-modules/notebooklm/
-├── api/             # Public boundary
-├── application/     # Use case orchestration
-├── domain/          # Aggregates, value objects, domain events
-├── infrastructure/  # Driven adapters (AI SDKs, Firebase, etc.)
-├── interfaces/      # Driving adapters (web, CLI)
-├── ports/           # Input/output port contracts
-├── subdomains/      # 7 子域各自的邊界
-│   ├── ai/
-│   ├── conversation/
-│   ├── note/
-│   ├── notebook/
-│   ├── source/
-│   ├── synthesis/
-│   └── versioning/
-└── docs/            # 本文件集
-```
-
-## 上游依賴
-
-| 上游 | 協作方式 | 說明 |
-|---|---|---|
-| `notion` | API 查詢 | 知識頁面與文章作為合成來源 |
-| `platform` | API 查詢 | 身份認證與租戶治理 |
-| `workspace` | API 查詢 | `workspaceId` 範疇錨點 |
-
-## 下游消費者
-
-| 下游 | 協作方式 | 說明 |
-|---|---|---|
-| `app/(shell)/ai-chat` | Server Action → `notebooklm/api` | AI 對話 UI 介面 |
 ````
 
 ## File: modules/notebooklm/docs/README.md
@@ -7336,6 +6998,108 @@ modules/notebooklm/
 | [docs/repositories.md](./docs/repositories.md) | Port 契約 |
 | [docs/application-services.md](./docs/application-services.md) | Use cases |
 | [docs/domain-services.md](./docs/domain-services.md) | Domain services |
+````
+
+## File: modules/notion/docs/bounded-context.md
+````markdown
+# Bounded Context — notion
+
+本文件定義 `notion` 這份本地藍圖的邊界。notion 的任務，是把 Xuanwu 的知識內容能力（頁面編輯、區塊管理、結構化資料庫、組織知識庫、協作留言、版本歷史）收斂成一個 **Hexagonal + DDD** 邊界，而不是把這些能力散落成沒有語言與責任的多個獨立模組。
+
+## Context Purpose
+
+notion 這個 bounded context 負責回答五類問題：
+
+- 知識頁面如何被建立、組織、演進與交付
+- 內容區塊如何被管理與排序
+- 結構化資料（Database/Record/View）如何以多視圖呈現
+- 組織知識文章如何被驗證、分類與維護
+- 協作者如何留言、管理存取與追蹤版本
+
+## Canonical Capability Groups
+
+### 核心知識內容
+
+- `knowledge` — 頁面、區塊、集合（Notion-like 核心頁面引擎）
+- `authoring` — 組織知識庫文章（Article、Category、驗證狀態）
+
+### 結構化與協作
+
+- `database` — Database/Record/View 結構化資料引擎
+- `collaboration` — Comment、Permission、Version 協作基礎設施
+
+### 分析
+
+- `knowledge-analytics` — 知識使用行為量測
+
+### 內容豐富與自動化
+
+- `attachments` — 附件與媒體管理
+- `automation` — 知識事件觸發的自動化規則
+- `templates` — 頁面範本管理
+
+### 整合與個人
+
+- `knowledge-integration` — 外部系統（Notion、Confluence、Google Docs 等）整合
+- `notes` — 個人輕量筆記
+- `knowledge-versioning` — 全域版本快照策略
+
+## 邊界包含什麼
+
+notion 包含：
+
+- 可被 notion 通用語言描述的聚合、值物件、規則與事件
+- 可被 application layer 協調的 use cases、commands、queries 與 read models
+- 可被 ports 表達的輸入契約與外部依賴契約
+- 可被協作與版本管理需求追蹤的 published language
+
+## 邊界刻意不包含什麼
+
+- 平台主體治理（身份、帳號、組織）→ `platform`
+- 工作區層級的治理與成員歸屬 → `workspace`
+- AI 推理與 RAG 管線執行細節 → `ai` 模組 / `py_fn/`
+- 任何 UI 呈現細節本身
+- 直接綁定 HTTP、queue、webhook、SDK、資料庫的 adapter 細節
+
+## Hexagonal Layer Mapping
+
+| Layer / concept | notion 位置 | 說明 |
+|---|---|---|
+| Public boundary | `api/` | 對外公開的 cross-module boundary；只做投影與 re-export |
+| Driving adapters | `core/adapters/` | Web、CLI 等輸入端轉譯 |
+| Application | `core/application/` | use case orchestration、DTO、command/query 處理 |
+| Domain core | `core/domain/` | 聚合、值物件、domain services、domain events |
+| Input ports | `core/ports/input/` | 進入 application 的穩定契約 |
+| Output ports | `core/ports/output/` | repositories、stores、gateways |
+| Driven adapters | `core/infrastructure/` | 對 output ports 的具體實作 |
+| Subdomains | `subdomains/<name>/` | 各子域的本地 domain/application/adapters 能力 |
+
+## 計畫吸收模組
+
+以下四個現有獨立模組的能力**計畫在未來重構中合并進 notion**，成為對應子域的正式實作。在合并完成前，這些模組作為各自子域的前身實作繼續運作，notion blueprint 定義語言與 port 契約的規範形式。
+
+| 獨立模組 | 目標子域 | 現有核心概念 | 合并備注 |
+|---|---|---|---|
+| `modules/knowledge/` | `knowledge` | `KnowledgePage`, `ContentBlock`, `ContentVersion`, `KnowledgeCollection` | 保留 D1/D2/D3 決策語言；workspace-first scope 規則不變 |
+| `modules/knowledge-base/` | `authoring` | `Article`, `Category`, `VerificationState`, `Backlink` | Promote 協議（D3）由 `authoring` 子域接管業務規則 |
+| `modules/knowledge-collaboration/` | `collaboration` | `Comment`, `Permission`, `PermissionLevel`, `Version`, `NamedVersion` | `contentId` opaque reference 模式保持 |
+| `modules/knowledge-database/` | `database` | `Database`, `Field`, `Record`, `Property`, `View` | D1 決策：`database` 子域完整擁有 spaceType="database" 的 Schema+Record+View |
+
+**合并優先序：** `knowledge` → `database` → `collaboration` → `authoring`
+
+**合并後規則：**
+- 獨立模組應設為 deprecated，並把 `api/index.ts` 指向 `modules/notion/api`
+- Notion blueprint 的語言定義優先；若有術語歧異，以本文件與 `ubiquitous-language.md` 為準
+
+## 邊界測試問題
+
+1. 這個變更屬於哪個既有子域
+2. 它需要的是新語言、既有語言的細化，還是新的 port contract
+3. 它是 domain rule、application orchestration、adapter concern，還是 public boundary projection
+4. 它是否會破壞 closed inventory 或 dependency direction
+5. 若涉及四個計畫吸收模組，是否與合并方向一致
+
+若第 1 題答不出來，表示 notion 邊界尚未被正確理解。
 ````
 
 ## File: modules/notion/docs/subdomains.md
@@ -8091,6 +7855,161 @@ platform 的正式子域清單已固定為：
 4. `api/` 是否仍只是 public boundary，而不是核心契約來源？
 5. 子域或 handler 提到的 ports，是否都已在 `docs/repositories.md` 明確定義？
 6. 新增術語、事件、決策物件是否都已在 `docs/ubiquitous-language.md` 與 `docs/domain-events.md` 完整落地？
+````
+
+## File: modules/platform/docs/bounded-context.md
+````markdown
+# Bounded Context — platform
+
+本文件定義 `platform` 這份本地藍圖的邊界。platform 的任務，是把平台級的主體治理、政策規則、能力啟用、外部交付、稽核與可觀測性收斂成一個 **Hexagonal + DDD** 邊界，而不是把這些能力散落成沒有語言與責任的共享雜物間。
+
+## Context Purpose
+
+platform 這個 bounded context 負責回答五類問題：
+
+- 誰是平台可治理的主體
+- 主體在什麼條件下可以做什麼
+- 哪些能力在當前方案、設定與安全政策下可用
+- 平台如何把事實轉成流程、外部交付與通知
+- 平台如何留下證據並暴露診斷訊號
+
+## Canonical Capability Groups
+
+### 主體與名錄
+
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+
+### 治理與安全
+
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+
+### 商業與權益
+
+- `billing`
+- `subscription`
+- `referral`
+
+### AI 與共享能力
+
+- `ai`
+
+### 流程與交付
+
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+
+### 內容與檢索
+
+- `content`
+- `search`
+
+### 證據與診斷
+
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
+
+## 邊界包含什麼
+
+platform 包含：
+
+- 可被 platform 通用語言描述的聚合、值物件、規則與事件
+- 可被 application layer 協調的 use cases、commands、queries 與 read models
+- 可被 ports 表達的輸入契約與外部依賴契約
+- 可被稽核與可觀測性需求追蹤的 published language
+
+## 邊界刻意不包含什麼
+
+- 產品內容本身的建立、編排與發布策略
+- 檢索、推理、內容相關性或知識生成演算法
+- 任何 UI 呈現細節本身
+- 直接綁定 HTTP、queue、webhook、SDK、資料庫的 adapter 細節
+- 以「暫時先開個資料夾」為名的未定義能力
+
+## Hexagonal Layer Mapping
+
+| Layer / concept | platform 位置 | 說明 |
+|---|---|---|
+| Public boundary | `api/` | 對外公開的 cross-module boundary；只做投影與 re-export |
+| Driving adapters | `adapters/` | CLI、web、external ingress 等輸入端轉譯 |
+| Application | `application/` | use case orchestration、command/query handling |
+| Domain | `domain/` | 聚合、值物件、domain services、domain events |
+| Input ports | `ports/input/` | 進入 application 的穩定契約 |
+| Output ports | `ports/output/` | repository、store、gateway、sink 等依賴契約 |
+| Driven adapters | `infrastructure/` | 對 output ports 的具體技術實作 |
+
+## Layer Responsibilities
+
+### Domain
+
+- 擁有聚合、值物件、domain services、domain events
+- 維持不變數與 published language
+- 不直接理解 repository implementation、HTTP、DB、queue 或 SDK
+
+### Application
+
+- 實作 use case handlers 與 input port 語言
+- 協調 aggregates、domain services 與 output ports
+- 在持久化成功後拉取並發布 domain events
+
+### Ports
+
+- input ports：命令、查詢、事件匯入入口
+- output ports：repositories、support stores、gateways、sinks
+- 由 core/application 擁有，不以 `api/` 為型別真實來源
+
+### Adapters / Infrastructure
+
+- driving adapters：把 HTTP、CLI、scheduler、webhook、queue ingress 翻譯成 input port 語言
+- driven adapters：把 repository、event publishing、notification、telemetry、external delivery 實作成具體技術方案
+
+## Public Boundary Rule
+
+- `api/` 是 platform 對其他模組的正式 public boundary
+- `index.ts` 只作 aggregate export convenience，不應被當成邊界設計來源
+- `ports/` 的契約來源在 `application/` 與 `domain/`，不是 `api/`
+
+## Closed Inventory Boundary Rule
+
+這個 bounded context 以 24 個子域作為封閉 inventory。任何新需求預設都應被視為既有子域的責任延伸，而不是新增第 25 個子域。只有在既有 24 個子域無法吸收時，才允許重新打開 inventory。
+
+## 計畫吸收模組
+
+以下四個現有獨立模組的能力**計畫在未來重構中合并進 platform**，成為對應子域的正式實作。在合并完成前，這些模組作為各自子域的前身實作繼續運作，platform blueprint 定義語言與 port 契約的規範形式。
+
+| 獨立模組 | 目標子域 | 現有核心概念 | 合并備注 |
+|---|---|---|---|
+| `modules/identity/` | `identity` | `Identity`, `uid`, `TokenRefreshSignal`, `IdentityRepository`, `TokenRefreshRepository` | 提供 `AuthenticatedSubject` 與 `IdentitySignal` 的前身語意 |
+| `modules/account/` | `account` + `account-profile` | `Account`, `AccountPolicy`, `AccountProfile`, `AccountRepository`, `AccountQueryRepository`, `AccountPolicyRepository` | `account` 承接帳號聚合根；`account-profile` 承接可治理輪廓屬性 |
+| `modules/organization/` | `organization` | `Organization`, `MemberReference`, `Team`, `PartnerInvite`, `OrganizationRepository`, `OrgPolicyRepository` | 提供 `MembershipBoundary` 與 `RoleAssignment` 的前身語意 |
+| `modules/notification/` | `notification` | `NotificationEntity`, `NotificationRepository`，conformist 消費者 | 提供 `NotificationDispatch` 與 `NotificationRoute` 的前身語意 |
+
+**合并優先序：** `identity` → `account` → `organization` → `notification`（按語意依賴順序）
+
+**合并後規則：**
+- 獨立模組應設為 deprecated，並把 `api/index.ts` 指向 `modules/platform/api`
+- Platform blueprint 的語言定義優先；若有術語歧異，以本文件與 `ubiquitous-language.md` 為準
+
+## 邊界測試問題
+
+1. 這個變更屬於哪個既有子域
+2. 它需要的是新語言、既有語言的細化，還是新的 port contract
+3. 它是 domain rule、application orchestration、adapter concern，還是 public boundary projection
+4. 它是否會破壞 closed inventory 或 dependency direction
+5. 若涉及 identity / account / organization / notification，是否與計畫吸收方向一致
+
+若第 1 題答不出來，表示 platform 邊界尚未被正確理解。
 ````
 
 ## File: modules/platform/docs/subdomains.md
@@ -11654,6 +11573,96 @@ Application layer 只負責：
 - 模組 README：`../../../modules/notebooklm/README.md`
 - 模組 AGENT：`../../../modules/notebooklm/AGENT.md`
 - 與 application layer 有關的模組內就地文件：`../../../modules/notebooklm/application-services.md`
+````
+
+## File: modules/notebooklm/docs/bounded-context.md
+````markdown
+# Bounded Context — notebooklm
+
+## 責任邊界
+
+`notebooklm` 擁有 Xuanwu 的 AI 對話與知識合成能力。它是 Supporting Subdomain，為使用者提供 NotebookLM-like 的 AI 推理體驗。
+
+### 這個 context 擁有
+
+- AI 對話 Thread 與 Message 的持久化與生命週期
+- AI 模型調用的提示工程、路由與回應封裝
+- Notebook 容器的組合、管理與版本策略
+- 來源文件的追蹤、引用與引用一致性
+- RAG 合成、摘要與洞察的生成
+- 對話衍生的輕量筆記與知識連結
+
+### 這個 context 不擁有
+
+- 知識內容的建立與管理（→ `notion`）
+- 組織與帳號治理（→ `platform`）
+- 工作區生命週期（→ `workspace`）
+- 向量索引的建立與語意搜尋查詢（→ AI/RAG 管道）
+
+## 能力分組
+
+| 能力群 | 子域 |
+|---|---|
+| RAG 推理 | `synthesis` |
+| 對話管理 | `conversation`、`conversation-versioning` |
+| 知識組合 | `notebook`、`note` |
+| 來源管理 | `source` |
+| RAG 管線（gap 子域） | `ingestion`、`retrieval`、`grounding`、`evaluation` |
+
+## Public Boundary
+
+`modules/notebooklm/api/` 是對外的 public boundary：
+
+- 跨模組存取只能透過 `@/modules/notebooklm/api` import
+- 禁止直接 import `domain/`、`application/`、`infrastructure/` 或 `subdomains/` 內部
+
+## 封板規則
+
+此 context 的子域清單是 **closed inventory**：
+
+- 6 個基線子域（conversation、note、notebook、source、synthesis、conversation-versioning）
+- 4 個 gap 子域（ingestion、retrieval、grounding、evaluation）已在 `subdomains/` 建立
+- 後續開發必須先映射到既有子域，不能隨意新增
+- 若確實需要新增子域，先更新此文件與 `subdomains.md`
+
+## 層次結構
+
+```
+modules/notebooklm/
+├── api/             # Public boundary
+├── application/     # Use case orchestration
+├── domain/          # Aggregates, value objects, domain events
+├── infrastructure/  # Driven adapters (AI SDKs, Firebase, etc.)
+├── interfaces/      # Driving adapters (web, CLI)
+├── ports/           # Input/output port contracts
+├── subdomains/      # 10 子域各自的邊界（含 gap 子域）
+│   ├── ai/                      # 🔄 Migration-pending → platform.ai
+│   ├── conversation/
+│   ├── conversation-versioning/
+│   ├── evaluation/              # gap 子域
+│   ├── grounding/               # gap 子域
+│   ├── ingestion/               # gap 子域
+│   ├── note/
+│   ├── notebook/
+│   ├── retrieval/               # gap 子域
+│   ├── source/
+│   └── synthesis/
+└── docs/            # 本文件集
+```
+
+## 上游依賴
+
+| 上游 | 協作方式 | 說明 |
+|---|---|---|
+| `notion` | API 查詢 | 知識頁面與文章作為合成來源 |
+| `platform` | API 查詢 | 身份認證與租戶治理 |
+| `workspace` | API 查詢 | `workspaceId` 範疇錨點 |
+
+## 下游消費者
+
+| 下游 | 協作方式 | 說明 |
+|---|---|---|
+| `app/(shell)/ai-chat` | Server Action → `notebooklm/api` | AI 對話 UI 介面 |
 ````
 
 ## File: modules/notebooklm/docs/context-map.md
