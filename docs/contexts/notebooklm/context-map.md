@@ -1,28 +1,22 @@
 # NotebookLM
 
-本文件描述 notebooklm 主域與其餘三個主域的協作關係。全域主域地圖見 [../../context-map.md](../../context-map.md)；本文件只關注 notebooklm 主域視角下的上下游與衍生產物邊界。
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
-## Role
+## Context Role
 
-notebooklm 是 Supporting Domain，負責 AI 對話、來源追蹤、Notebook 管理與 synthesis。它不擁有正典知識頁面的生命週期，也不擁有身份與工作區治理；它的主要責任是把來源材料轉化為可追溯、可對話、可綜合的衍生產物。
+notebooklm 消費 workspace scope、platform 治理與 notion 內容來源，並輸出可追溯的對話、洞察與 synthesis。依 Context Mapper 思維，它是多個上游語言的下游整合者，但仍需維持自己的對話與推理邊界。
 
-## Cross-Domain Map
+## Relationships
 
-| Related Domain | Relationship | Published Language | Boundary Rule |
+| Related Domain | Relationship Type | NotebookLM Position | Published Language |
 |---|---|---|---|
-| workspace | Upstream Supplier | workspaceId、member references、collaboration scope | notebooklm 在 workspace 範疇內運作，但不擁有 workspace 容器生命週期 |
-| platform | Upstream Supplier | actor identity、organization context、access decisions、policy signals、quota constraints | notebooklm 消費平台治理結果，但不重建身份、授權或商業模型 |
-| notion | Upstream / Peer Supplier | knowledge references、attachment references、structured content references | notebooklm 消費 notion 知識內容作為 source，但 notion 仍是正典內容來源 |
+| platform | Upstream/Downstream | downstream | actor reference、organization scope、access decision、entitlement signal |
+| workspace | Upstream/Downstream | downstream | workspaceId、membership scope、share scope |
+| notion | Upstream/Downstream | downstream | knowledge artifact reference、attachment reference、taxonomy hint |
 
-## Intra-Domain Collaboration
+## Mapping Rules
 
-- notebook 是主工作單位，承載 conversation、source、note 與 synthesis 關係。
-- conversation 管理對話流程與 message 順序。
-- source 管理被引用材料及其可追溯性；ai 與 synthesis 在此基礎上產生輸出。
-- note 保存輕量洞察；versioning 保存 notebook 與 conversation 的歷史狀態。
-
-## Anti-Corruption Rules
-
-- 來自 notion 的 Knowledge Page、Article、Database 在 notebooklm 中只能以 source references 或 content references 形式存在，不改寫內容所有權。
-- 來自 workspace 的 workspaceId 與 member references 只作為作用範疇與參與資訊，不重建 workspace 模型。
-- 來自 platform 的 Actor、Organization、Access Control、Subscription 保持上游治理語意，不在 notebooklm 中重新定義。
+- notebooklm 依賴 platform 的治理結果，但不重建 actor、policy 或 secret 模型。
+- notebooklm 在 workspace scope 內運作，但不定義 workspace 生命周期或 sharing 規則。
+- notion 是 notebooklm 的重要 source supplier，notebooklm 不能反向直接改寫 notion 正典內容。
+- synthesis、grounding、evaluation 是 notebooklm 對外輸出的核心能力語言。

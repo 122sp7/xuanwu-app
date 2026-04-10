@@ -1,40 +1,41 @@
 # NotebookLM Agent
 
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
 ## Mission
 
-保護 notebooklm 主域作為 AI 對話、來源追蹤與 synthesis 邊界。任何變更都必須維持 notebooklm 對衍生產物的所有權，同時避免把 notion 正典內容或 platform 治理語言直接吸入對話模型。
+保護 notebooklm 主域作為對話、來源處理、檢索、grounding 與 synthesis 邊界。任何變更都應維持 notebooklm 擁有衍生推理流程與可追溯輸出，而不是直接擁有正典知識內容。
 
-## Owns
+## Canonical Ownership
 
+- ingestion
+- source
+- retrieval
+- grounding
 - ai
+- notebook
 - conversation
 - note
-- notebook
-- source
 - synthesis
+- evaluation
 - versioning
 
 ## Route Here When
 
-- 問題是 notebook、conversation、message、source、citation、note 或 synthesis。
-- 問題是 AI 對話流程、多來源摘要、引用追溯或推理輸出。
-- 問題需要把外部知識內容作為 source 使用，而不是直接成為正典知識頁面。
+- 問題核心是 notebook、conversation、source ingestion、retrieval、grounding、synthesis。
+- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
+- 問題要把知識來源轉成可對話與可綜合的推理材料。
 
 ## Route Elsewhere When
 
-- Knowledge Page、Article、Database、Template、Attachment 屬於 notion。
-- 身份、帳號、組織、授權、政策、方案與通知屬於 platform。
-- workspace 容器、活動流、排程與工作區流程屬於 workspace。
+- 正典知識頁面、內容分類、正式發布屬於 notion。
+- 身份、授權、權益、憑證治理屬於 platform。
+- 工作區生命週期、共享與存在感屬於 workspace。
 
-## Working Rules
+## Guardrails
 
-- 先保護 source、conversation、synthesis 的語言一致性，再談 UI 或流程整合。
-- 衍生產物可以回流到 notion 或 workspace，但 notebooklm 不直接宣稱其為正典內容。
-- 跨主域協作只透過 published language、事件或 API 邊界。
-- 新增跨子域術語時，先更新 [ubiquitous-language.md](./ubiquitous-language.md)。
-
-## Documentation Checklist
-
-- 子域變更時，同步更新 [subdomains.md](./subdomains.md)。
-- 邊界變更時，同步更新 [bounded-contexts.md](./bounded-contexts.md) 與 [context-map.md](./context-map.md)。
-- 新增或調整跨子域術語時，同步更新 [ubiquitous-language.md](./ubiquitous-language.md)。
+- notebooklm 的輸出是衍生產物，不直接等於正典知識內容。
+- retrieval 與 grounding 應作為獨立邊界，而不是隱含在 ai 或 source 裡。
+- ingestion 應與 source reference 分離，避免來源處理與來源語義耦合。
+- evaluation 應作為品質與回歸語言，而不只是分析儀表板指標。
+- 跨主域互動只經過 published language、API 邊界或事件。

@@ -1,10 +1,10 @@
 # Notion
 
-本文件依 Context7 參考 DDD / Hexagonal 模組邊界與責任分離原則整理。以下缺口子域依本次任務前提，視為目前專案尚未落地但主域設計上應補齊的子域。
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
-## Current Subdomains
+## Baseline Subdomains
 
-| Subdomain | Role |
+| Subdomain | Responsibility |
 |---|---|
 | knowledge | 頁面建立、組織、版本化與交付 |
 | authoring | 知識庫文章建立、驗證與分類 |
@@ -19,13 +19,13 @@
 | templates | 頁面範本管理與套用 |
 | versioning | 全域版本快照策略管理 |
 
-## Missing Gap Subdomains
+## Recommended Gap Subdomains
 
-| Proposed Subdomain | Why Needed | Gap If Missing |
-|---|---|---|
-| taxonomy | 承接標籤、分類、主題樹與語義分類法 | authoring 與 database 會被迫混入分類治理，知識查找與組織語言不穩定 |
-| relations | 承接 backlinks、references、content-to-content 關聯與語義連結 | 知識內容之間的關係只能隱含在 UI 或資料欄位中，無法形成正典邊界 |
-| publishing | 承接發布流程、受眾可見性、公開交付與內容落版 | authoring 只能停在編輯面，正式交付與對外呈現沒有獨立語言 |
+| Subdomain | Why Needed |
+|---|---|
+| taxonomy | 建立分類法與語義組織的正典邊界 |
+| relations | 建立內容之間關聯與 backlink 的正典邊界 |
+| publishing | 建立正式發布與對外交付的正典邊界 |
 
 ## Recommended Order
 

@@ -1,29 +1,33 @@
 # Workspace
 
-本文件整理 workspace 主域內部的本地 bounded contexts。全域四主域地圖見 [../../bounded-contexts.md](../../bounded-contexts.md)；本文件只描述 workspace 主域之下的子域切分與邊界。
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
 ## Domain Role
 
-workspace 是 Generic 主域，專注於協作容器與工作區範疇。它的中心責任是提供 workspaceId 錨點與協作環境，而不是承接平台治理或知識內容語意。
+workspace 是協作與範疇主域。依 bounded context 原則，它應封裝高度凝聚的工作區規則，並以最小公開介面提供其他主域使用的 workspace scope。
 
-## Local Bounded Context Inventory
+## Baseline Bounded Contexts
 
-| Local Bounded Context | Owns | Does Not Own |
+| Subdomain | Owns | Excludes |
 |---|---|---|
-| audit | 工作區操作稽核、追溯證據、調查依據 | 平台層永久合規審計、身份治理 |
-| feed | 工作區活動摘要、動態流與使用者可見更新 | 正典業務狀態、知識內容定義 |
-| scheduling | 工作區時間安排、提醒與期限協調 | 背景任務執行引擎、計費排程 |
-| workflow | 工作區流程定義、執行與狀態推進 | 平台治理流程、知識或 notebook 正典生命週期 |
+| audit | 工作區操作證據、可追溯紀錄 | 平台永久合規審計 |
+| feed | 面向使用者的工作區活動投影 | 正典狀態與不可變證據 |
+| scheduling | 工作區時間安排、提醒、期限 | 平台背景工作引擎 |
+| workflow | 工作區流程定義、執行、狀態推進 | 知識內容正典生命週期 |
 
-## Boundary Rules
+## Recommended Gap Bounded Contexts
 
-- workspace 擁有 workspaceId 與工作區生命週期。
-- workspace 中的 Member 是 workspace 參與關係，不是平台主體本身；主體身份與授權來源屬於 platform。
-- notion 與 notebooklm 可以在 workspace 範疇中運作，但各自內容生命週期不屬於 workspace。
-- 子域之間的協作透過 published language、事件或 API 契約，不直接穿透彼此內部模型。
+| Subdomain | Why It Should Exist | Gap If Missing |
+|---|---|---|
+| lifecycle | 承接 workspace 建立、封存、還原、移轉與狀態變化 | 主容器生命週期容易散落到 workflow 或 app 組裝層 |
+| membership | 承接 workspace 內邀請、席位、角色與參與關係 | 會把 organization 與 workspace participation 混為一談 |
+| sharing | 承接分享連結、外部可見性與公開暴露範圍 | 對外共享無獨立邊界，安全與責任不清 |
+| presence | 承接即時在線狀態、協作存在感與共同編輯訊號 | 即時協作能力無法形成可演化的本地模型 |
 
-## Ownership Guardrails
+## Domain Invariants
 
-- 任何身份、組織、政策、帳務、通知偏好等能力，應路由到 platform。
-- 任何 Knowledge Page、Article、Database、Template 等知識內容能力，應路由到 notion。
-- 任何 Notebook、Conversation、Source、Synthesis 等 AI 對話能力，應路由到 notebooklm。
+- workspaceId 是工作區範疇錨點。
+- 工作區成員關係屬於 membership，而不是平台身份本身。
+- activity feed 只投影事實，不創造事實。
+- audit trail 一旦寫入即不可隨意覆蓋。
+- workflow 可跨工作區能力協調，但不能取代 lifecycle 與 membership 的正典責任。

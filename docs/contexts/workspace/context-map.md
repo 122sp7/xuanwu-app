@@ -1,28 +1,22 @@
 # Workspace
 
-本文件描述 workspace 主域與其餘三個主域的協作關係。全域主域地圖見 [../../context-map.md](../../context-map.md)；本文件只關注 workspace 主域視角下的上下游與邊界。
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
-## Role
+## Context Role
 
-workspace 是協作容器主域。它提供 workspaceId 範疇、工作區生命週期、活動流、稽核、排程與流程協作能力，但不擁有跨平台身份治理，也不擁有知識內容或 AI 對話產物的正典生命週期。
+workspace 對其他主域提供工作區範疇。依 Context Mapper 的 context map 思維，workspace 應只暴露 scope、membership scope 與協作容器語言，而不暴露內部實作。
 
-## Cross-Domain Map
+## Relationships
 
-| Related Domain | Relationship | Published Language | Boundary Rule |
+| Related Domain | Relationship Type | Workspace Position | Published Language |
 |---|---|---|---|
-| platform | Upstream Supplier | actor identity、organization context、access decisions、policy signals | workspace 消費平台治理結果，但不重建身份、組織或授權模型 |
-| notion | Downstream / Peer Consumer | workspaceId、member references、workspace lifecycle facts | notion 在 workspace 範疇內運作知識內容，但知識內容生命週期仍屬 notion |
-| notebooklm | Downstream / Peer Consumer | workspaceId、member references、collaboration scope | notebooklm 在 workspace 範疇內運作 notebook 與 conversation，但對話與 synthesis 生命週期仍屬 notebooklm |
+| platform | Upstream/Downstream | downstream | actor reference、organization scope、access decision、entitlement signal |
+| notion | Upstream/Downstream | upstream | workspaceId、membership scope、share scope |
+| notebooklm | Upstream/Downstream | upstream | workspaceId、membership scope、share scope |
 
-## Intra-Domain Collaboration
+## Mapping Rules
 
-- audit 接收工作區事實，負責證據保存與追蹤，不負責使用者導向排序與摘要。
-- feed 以使用者視角投影活動，不作為正典狀態來源。
-- scheduling 管理時間意圖與時序安排，不取代 workflow 的執行語意。
-- workflow 管理可執行流程與步驟推進，必要時依賴 scheduling 提供時間條件。
-
-## Anti-Corruption Rules
-
-- 來自 platform 的 Actor、Organization、Access Control 必須保留其上游語意，不在 workspace 內重新定義。
-- 來自 notion 的 Knowledge Page、Article、Database 只作為 workspace 內承載內容，不進入 workspace 的正典模型。
-- 來自 notebooklm 的 Notebook、Conversation、Synthesis 只作為掛載在 workspace 範疇中的產物，不變成 workspace 自有模型。
+- workspace 消費 platform 的治理結果，但不重建 identity、policy 或 entitlement 模型。
+- notion 與 notebooklm 可以在 workspace scope 內運作，但不反向定義 workspace 生命週期。
+- sharing 與 membership 是 workspace 對內容與對話主域輸出的核心 published language。
+- 與其他主域的整合優先使用 API 邊界或事件，而不是直接模型滲透。

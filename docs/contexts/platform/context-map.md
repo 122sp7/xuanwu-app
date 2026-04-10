@@ -1,29 +1,22 @@
 # Platform
 
-本文件描述 platform 主域與其餘三個主域的協作關係。全域主域地圖見 [../../context-map.md](../../context-map.md)；本文件只關注 platform 主域視角下的上下游與治理輸出。
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
-## Role
+## Context Role
 
-platform 是跨切面治理主域。它向其他主域提供身份、組織、授權、政策、商業、通知、搜尋與觀測能力，同時消費其他主域釋出的事件以支撐 audit-log、analytics、support 等橫切能力。
+platform 是其他三個主域的治理上游。依 Context Mapper 的 upstream/downstream 關係，它向下游提供身份、組織、存取、權益與營運支撐語言。
 
-## Cross-Domain Map
+## Relationships
 
-| Related Domain | Relationship | Published Language | Boundary Rule |
+| Related Domain | Relationship Type | Platform Position | Published Language |
 |---|---|---|---|
-| workspace | Downstream Customer | actor identity、organization context、access decisions、notification routing | platform 提供治理能力，但不接管 workspace 容器生命週期 |
-| notion | Downstream Customer | actor identity、organization context、policy signals、subscription constraints | platform 提供治理與商業能力，但不接管知識內容生命週期 |
-| notebooklm | Downstream Customer | actor identity、organization context、policy signals、quota and entitlement constraints | platform 提供治理與配額能力，但不接管 notebook 與 synthesis 正典狀態 |
+| workspace | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal |
+| notion | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal |
+| notebooklm | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal |
 
-## Intra-Domain Collaboration
+## Mapping Rules
 
-- identity、account、account-profile、organization 形成主體與名錄基礎。
-- access-control、security-policy、platform-config、feature-flag 組成治理與風險控制層。
-- billing、subscription、referral 處理商業權益與財務事實。
-- workflow、notification、background-job、integration 提供平台級協調與投遞能力。
-- content、search、audit-log、observability、analytics、support 提供橫切營運與診斷能力。
-
-## Anti-Corruption Rules
-
-- 其他主域傳入 platform 的事件必須維持來源主域語意，不得被 platform 重新命名成其內部正典模型。
-- platform 不直接吸收 workspace 的容器語言，也不吸收 notion 的知識語言或 notebooklm 的對話語言。
-- 跨主域協作時，platform 提供治理信號與決策，不直接持有其他主域的正典內容狀態。
+- platform 提供治理結果，但不直接擁有工作區、知識內容或對話內容。
+- workspace、notion、notebooklm 可以把平台輸出當作 supplier language，但不能穿透其內部模型。
+- audit-log 與 analytics 可消費其他主域的事件，但那不等於接管對方的主域責任。
+- tenant、entitlement、secret-management、consent 是平台應補齊的核心缺口邊界。

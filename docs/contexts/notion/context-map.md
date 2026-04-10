@@ -1,28 +1,22 @@
 # Notion
 
-本文件描述 notion 主域與其餘三個主域的協作關係。全域主域地圖見 [../../context-map.md](../../context-map.md)；本文件只關注 notion 主域視角下的上下游與內容所有權。
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
-## Role
+## Context Role
 
-notion 是核心知識內容主域。它擁有知識內容的建立、結構化、協作、模板化、版本化與事件驅動演化語意。其他主域可以提供範疇、治理或推理能力，但不取代 notion 對知識內容生命週期的所有權。
+notion 對其他主域提供知識內容語言。依 Context Mapper 的 context map 思維，它消費 workspace scope 與 platform 治理，並向 notebooklm 提供可被引用的知識內容來源。
 
-## Cross-Domain Map
+## Relationships
 
-| Related Domain | Relationship | Published Language | Boundary Rule |
+| Related Domain | Relationship Type | Notion Position | Published Language |
 |---|---|---|---|
-| workspace | Upstream Supplier | workspaceId、member references、workspace scope | notion 在 workspace 範疇內運作知識內容，但不擁有 workspace 容器生命週期 |
-| platform | Upstream Supplier | actor identity、organization context、access decisions、policy signals、subscription constraints | notion 消費平台治理結果，但不重建身份、組織或商業模型 |
-| notebooklm | Peer / Supporting Collaborator | knowledge references、source references、synthesis outputs、note references | notion 提供知識內容作為來源；notebooklm 可回傳衍生洞察，但正典知識狀態仍屬 notion |
+| platform | Upstream/Downstream | downstream | actor reference、organization scope、access decision、entitlement signal |
+| workspace | Upstream/Downstream | downstream | workspaceId、membership scope、share scope |
+| notebooklm | Upstream/Downstream | upstream | knowledge artifact reference、attachment reference、taxonomy hint |
 
-## Intra-Domain Collaboration
+## Mapping Rules
 
-- knowledge 負責正典頁面生命週期，是 notion 主域的中心內容語意。
-- authoring、collaboration、database 分別處理撰寫流程、協作討論與結構化資料視角。
-- ai、automation、templates、versioning 支撐知識內容的生成、規則化演化與版本治理。
-- attachments、integration、notes、analytics 提供內容延伸、外部整合、輕量記錄與量測能力。
-
-## Anti-Corruption Rules
-
-- 來自 workspace 的 workspaceId 與 member references 只作為範疇與參與資訊，不改寫 notion 內容語意。
-- 來自 platform 的 Actor、Organization、Access Control 保留其上游治理語意，不在 notion 內重新定義。
-- 來自 notebooklm 的 synthesis、conversation、source 只能以 published language 接入；若要成為正典知識，必須經過 notion 的內容語言重新吸收。
+- notion 消費 platform 的治理結果，但不重建 actor、tenant、policy 模型。
+- notion 在 workspace scope 中運作，但不反向定義 workspace 生命週期。
+- notebooklm 可以消費 notion 的知識來源，但不得直接重寫 notion 正典內容。
+- publishing 是 notion 對外輸出正式內容狀態的邊界。
