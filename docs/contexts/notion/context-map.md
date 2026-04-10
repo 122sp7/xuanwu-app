@@ -10,13 +10,14 @@ notion 對其他主域提供知識內容語言。依 Context Mapper 的 context 
 
 | Related Domain | Relationship Type | Notion Position | Published Language |
 |---|---|---|---|
-| platform | Upstream/Downstream | downstream | actor reference、organization scope、access decision、entitlement signal |
+| platform | Upstream/Downstream | downstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
 | workspace | Upstream/Downstream | downstream | workspaceId、membership scope、share scope |
 | notebooklm | Upstream/Downstream | upstream | knowledge artifact reference、attachment reference、taxonomy hint |
 
 ## Mapping Rules
 
 - notion 消費 platform 的治理結果，但不重建 actor、tenant、policy 模型。
+- notion 可消費 platform.ai 來支援內容 use case，但不擁有 AI provider / policy 所有權。
 - notion 在 workspace scope 中運作，但不反向定義 workspace 生命週期。
 - notebooklm 可以消費 notion 的知識來源，但不得直接重寫 notion 正典內容。
 - publishing 是 notion 對外輸出正式內容狀態的邊界。
@@ -54,7 +55,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-	Platform["platform"] -->|actor / access / entitlement| Boundary["notion API boundary"]
+	Platform["platform"] -->|actor / access / entitlement / ai| Boundary["notion API boundary"]
 	Workspace["workspace"] -->|workspace scope| Boundary
 	Boundary --> ACL["ACL or local DTO"]
 	ACL --> Domain["Notion domain"]

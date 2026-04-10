@@ -10,14 +10,13 @@
 | authoring | 知識庫文章建立、驗證與分類 |
 | collaboration | 協作留言、細粒度權限與版本快照 |
 | database | 結構化資料多視圖管理 |
-| ai | AI 輔助頁面生成與摘要整合 |
-| analytics | 知識使用行為量測 |
+| knowledge-analytics | 知識使用行為量測 |
 | attachments | 附件與媒體關聯儲存 |
 | automation | 知識事件觸發自動化動作 |
-| integration | 知識與外部系統雙向整合 |
+| knowledge-integration | 知識與外部系統雙向整合 |
 | notes | 個人輕量筆記與正式知識協作 |
 | templates | 頁面範本管理與套用 |
-| versioning | 全域版本快照策略管理 |
+| knowledge-versioning | 全域版本快照策略管理 |
 
 ## Recommended Gap Subdomains
 
@@ -38,10 +37,11 @@
 - 不把 taxonomy 混成 authoring 裡的附屬設定。
 - 不把 relations 混成單純 hyperlink 功能，失去語義關係邊界。
 - 不把 publishing 混成 UI 上的一個按鈕事件，而忽略正式交付語言。
+- 不把 platform.ai 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先判斷需求屬於 knowledge、authoring、relations、publishing 哪一個內容責任。
+- 生成程式碼時，先判斷需求屬於 knowledge、authoring、relations、publishing、knowledge-analytics、knowledge-integration、knowledge-versioning 哪一個內容責任。
 - 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新建第二個概念接近的子域。
 - 子域命名要反映內容語義，不要退化成頁面或元件名稱。
 

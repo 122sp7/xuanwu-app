@@ -12,13 +12,12 @@
 - source
 - retrieval
 - grounding
-- ai
 - notebook
 - conversation
 - note
 - synthesis
 - evaluation
-- versioning
+- conversation-versioning
 
 ## Route Here When
 
@@ -30,12 +29,13 @@
 
 - 正典知識頁面、內容分類、正式發布屬於 notion。
 - 身份、授權、權益、憑證治理屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
 - 工作區生命週期、共享與存在感屬於 workspace。
 
 ## Guardrails
 
 - notebooklm 的輸出是衍生產物，不直接等於正典知識內容。
-- retrieval 與 grounding 應作為獨立邊界，而不是隱含在 ai 或 source 裡。
+- retrieval 與 grounding 應作為獨立邊界，而不是隱含在 platform.ai 接入或 source 裡。
 - ingestion 應與 source reference 分離，避免來源處理與來源語義耦合。
 - evaluation 應作為品質與回歸語言，而不只是分析儀表板指標。
 - 跨主域互動只經過 published language、API 邊界或事件。
@@ -55,6 +55,7 @@
 ## Copilot Generation Rules
 
 - 生成程式碼時，先維持 notebooklm 作為 downstream 推理主域，不回推治理或正典內容所有權。
+- 共享模型能力若已由 platform.ai 提供，就不要在 notebooklm 再建立第二個 generic `ai` 子域。
 - 奧卡姆剃刀：若較少的抽象已能保護邊界，就不要額外新增 port、ACL、DTO、subdomain 或 process manager。
 - 只有碰到外部依賴、語義污染或跨主域轉譯時，才建立 port、ACL 或 local DTO。
 - 任何跨主域互動都先走 API boundary / published language，再轉成本地主域語言。

@@ -4,7 +4,7 @@
 
 ## Purpose
 
-notebooklm 是對話、來源處理與推理主域。它的責任是提供 notebook、conversation、source ingestion、retrieval、grounding、synthesis、evaluation 與 versioning 等語言，把來源材料轉成可對話、可追溯、可評估的衍生輸出。
+notebooklm 是對話、來源處理與推理主域。它的責任是提供 notebook、conversation、source ingestion、retrieval、grounding、synthesis、evaluation 與 conversation-versioning 等語言，把來源材料轉成可對話、可追溯、可評估的衍生輸出。
 
 ## Why This Context Exists
 
@@ -23,13 +23,12 @@ notebooklm 是對話、來源處理與推理主域。它的責任是提供 noteb
 
 ## Baseline Subdomains
 
-- ai
 - conversation
 - note
 - notebook
 - source
 - synthesis
-- versioning
+- conversation-versioning
 
 ## Recommended Gap Subdomains
 
@@ -40,7 +39,7 @@ notebooklm 是對話、來源處理與推理主域。它的責任是提供 noteb
 
 ## Key Relationships
 
-- 與 platform：notebooklm 消費 actor、organization、access、entitlement。
+- 與 platform：notebooklm 消費 actor、organization、access、entitlement、ai capability。
 - 與 workspace：notebooklm 消費 workspaceId、membership scope、share scope。
 - 與 notion：notebooklm 消費 knowledge artifact reference、attachment reference、taxonomy hint。
 
@@ -62,10 +61,12 @@ notebooklm 是對話、來源處理與推理主域。它的責任是提供 noteb
 - 不把 notebooklm 的衍生輸出直接宣稱為 notion 的正典知識內容。
 - 不把 retrieval/grounding 降格成單純 UI 功能或模型提示細節。
 - 不把 ingestion 與 source reference 混成同一個不可拆分責任。
+- 不把 platform.ai 的共享能力誤寫成 notebooklm 自己擁有的 `ai` 子域。
 
 ## Copilot Generation Rules
 
 - 生成程式碼時，先保留 notebooklm 的衍生推理定位，再安排 retrieval、grounding、synthesis 的交互。
+- 模型接入、配額、供應商策略若屬共享能力，先消費 platform.ai；notebooklm 保留 retrieval、grounding、synthesis、evaluation 的語義所有權。
 - 奧卡姆剃刀：只在必要時引入 port、ACL、DTO；不要因為未來也許會有需求就預先堆疊抽象。
 - 優先產生一條清楚的 upstream input -> translation -> application -> domain -> output 流程，而不是多條重疊流程。
 
