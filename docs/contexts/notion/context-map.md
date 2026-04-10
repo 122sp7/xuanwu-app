@@ -32,3 +32,44 @@ notion 對其他主域提供知識內容語言。依 Context Mapper 的 context 
 - 把 notion 與 notebooklm 寫成對稱 Shared Kernel，同時又要求 ACL。
 - 讓 notebooklm 直接回寫 notion 正典內容而不經 notion 邊界。
 - 把 workspace scope 語言錯寫成 notion 自己擁有的容器生命週期語言。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notion 對 platform、workspace 的 downstream 位置與對 notebooklm 的 upstream 位置。
+- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要再建立第二個平行翻譯管線。
+- notion 向外提供的是內容語言，不是內部 aggregate、repository 或 UI projection。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["platform / workspace upstream"] -->|Published Language| Boundary["notion boundary"]
+	Boundary --> Translation["Local DTO / ACL if needed"]
+	Translation --> App["Application"]
+	App --> Domain["Domain"]
+	Domain --> PL["Published content language"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] -->|actor / access / entitlement| Boundary["notion API boundary"]
+	Workspace["workspace"] -->|workspace scope| Boundary
+	Boundary --> ACL["ACL or local DTO"]
+	ACL --> Domain["Notion domain"]
+	Domain --> Publication["Publication / KnowledgeArtifact reference"]
+	Publication --> NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [../../context-map.md](../../context-map.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../strategic-patterns.md](../../strategic-patterns.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)

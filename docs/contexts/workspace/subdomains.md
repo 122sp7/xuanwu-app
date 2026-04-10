@@ -33,3 +33,38 @@
 - 不把 membership 混成 organization 或 identity。
 - 不把 sharing 混成一般 permission 欄位集合。
 - 不把 presence 藏進 UI 狀態而失去獨立語言。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個 workspace 責任，再決定 use case 與 boundary。
+- 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的 scope 子域。
+- 子域命名必須反映工作區語義，不應退化成頁面或元件名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Lifecycle["Lifecycle"] --> Membership["Membership"]
+	Membership --> Sharing["Sharing"]
+	Sharing --> Presence["Presence"]
+	Presence --> Workflow["Workflow"]
+	Workflow --> Scheduling["Scheduling"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)

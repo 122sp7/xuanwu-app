@@ -67,3 +67,47 @@
 - 不得讓 platform 直接接管 workspace、notion、notebooklm 的正典業務流程。
 - 不得讓 domain 或 application 直接依賴第三方身份、通知、計費或 secret SDK。
 - 不得在其他主域重建 Actor、Tenant、Entitlement、Secret 的正典模型。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 platform 作為治理 upstream，而不是內容或推理 owner。
+- 奧卡姆剃刀：若既有治理子域與單一 use case 能承接需求，就不要新增第二層 policy service、flag service 或 entitlement facade。
+- 只有在外部依賴、敏感治理或跨主域轉譯明確存在時，才建立 port、ACL 或 local DTO。
+- 對 workspace、notion、notebooklm 的輸出應停在 published language / API boundary。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["Platform Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Request["Actor / admin / system request"] --> Boundary["platform API boundary"]
+	Boundary --> App["Application orchestration"]
+	App --> Domain["Identity / Access / Entitlement / Secret"]
+	Domain --> PL["Published governance language"]
+	PL --> Workspace["workspace"]
+	PL --> Notion["notion"]
+	PL --> NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)

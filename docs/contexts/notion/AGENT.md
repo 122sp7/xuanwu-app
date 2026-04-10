@@ -55,3 +55,47 @@
 - 不得讓 notebooklm 的 Conversation、Synthesis 直接滲入 notion 作為正典內容模型。
 - 不得讓 domain 或 application 直接依賴 UI、HTTP、資料庫 SDK 或框架語言。
 - 不得讓 notion 直接接管 platform 的 actor、tenant、entitlement 治理責任。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notion 作為正典內容主域，不讓治理或推理語言滲入核心。
+- 奧卡姆剃刀：若一個既有內容子域與一條清楚 use case 就能承接需求，不要再新增額外 service、mapper 或子域。
+- 只有在外部依賴或跨主域語義污染出現時，才建立 port、ACL 或 local DTO。
+- 對 notebooklm 或 workspace 的互動一律先經 published language / API boundary，再進入 notion 語言。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["Notion Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform upstream"] -->|Published Language| Boundary["notion API boundary"]
+	Workspace["workspace upstream"] -->|Published Language| Boundary
+	Boundary --> Translation["Local DTO / ACL when needed"]
+	Translation --> App["Application orchestration"]
+	App --> Domain["Knowledge / Authoring / Relations / Publishing"]
+	Domain --> Output["KnowledgeArtifact / Publication / Reference"]
+	Output --> NotebookLM["notebooklm downstream"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)

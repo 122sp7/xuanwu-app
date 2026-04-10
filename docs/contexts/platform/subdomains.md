@@ -52,3 +52,37 @@
 - 不把 entitlement 混成 feature-flag 的別名。
 - 不把 secret-management 混成 integration 的一個欄位集合。
 - 不把 consent 混成一般 UI preference。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個治理責任，再決定 use case 與 boundary。
+- 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的治理子域。
+- 子域命名必須反映治理責任，不應退化成頁面或介面名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Identity["Identity"] --> Organization["Organization / Tenant"]
+	Organization --> Access["Access / Policy"]
+	Access --> Entitlement["Entitlement"]
+	Entitlement --> Secret["Secret / Integration / Delivery"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)

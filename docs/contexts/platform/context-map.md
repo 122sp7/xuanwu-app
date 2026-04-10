@@ -32,3 +32,39 @@ platform 是其他三個主域的治理上游。依 Context Mapper 的 upstream/
 - 把 platform 與下游主域寫成 Shared Kernel，再同時保留 supplier/downstream 敘事。
 - 讓 platform 直接穿透下游主域內部模型，以治理名義接管業務邏輯。
 - 把審計或分析事件消費錯寫成平台擁有下游正典責任。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先維持 platform 作為 workspace、notion、notebooklm 的治理 upstream。
+- 奧卡姆剃刀：若 published language 已足夠，就不要對每個下游再額外建立一套專屬治理模型。
+- platform 的輸出應穩定、可被消費，但不應暴露其內部 aggregate 或 repository。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Domain["Platform domain"] --> PL["Published Language / OHS"]
+	PL --> Boundary["Downstream API clients"]
+	Boundary --> Local["Downstream local DTO / ACL"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] -->|actor / org / access / entitlement| Workspace["workspace"]
+	Platform -->|actor / org / access / entitlement| Notion["notion"]
+	Platform -->|actor / org / access / entitlement| NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [../../context-map.md](../../context-map.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../strategic-patterns.md](../../strategic-patterns.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)

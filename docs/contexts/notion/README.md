@@ -67,6 +67,46 @@ notion 是知識內容生命週期主域。它的責任是提供 knowledge artif
 - 不把 taxonomy、relations、publishing 壓回單一 knowledge 編輯流程。
 - 不把 platform 的治理語言混成內容生命週期本身。
 
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notion 的正典內容定位，再安排 authoring、knowledge、taxonomy、publishing 的交互。
+- 奧卡姆剃刀：不要預先新增第二套內容流程，只在既有內容邊界真的不夠時才補新抽象。
+- 優先讓同一條 input -> translation -> application -> domain -> publication 流程保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Boundary["notion boundary"]
+	Workspace["workspace"] --> Boundary
+	Boundary --> Translation["DTO / ACL"]
+	Translation --> App["Application use case"]
+	App --> Domain["Notion domain"]
+	Domain --> Output["KnowledgeArtifact / Publication"]
+	Output --> NotebookLM["notebooklm consumer"]
+```
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../README.md](../../README.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+
 ## Constraints
 
 - 本文件是 architecture-first 版本。

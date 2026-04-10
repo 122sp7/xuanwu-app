@@ -35,3 +35,37 @@
 - 不把 retrieval 與 grounding 併回 source 或 ai，否則推理鏈條失去清楚邊界。
 - 不把 evaluation 只當成 dashboard 指標，否則品質語言無法成為正典子域。
 - 不把 notebook、conversation、note 混成單一 UI 容器語意，否則無法維持聚合邊界。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先問新需求落在哪個既有子域；只有既有子域無法容納時才建立新子域。
+- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新增第二個平行子域。
+- 子域命名應反映責任與語義，不應只是頁面名稱或工具名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Ingestion["Ingestion"] --> Retrieval["Retrieval"]
+	Retrieval --> Grounding["Grounding"]
+	Grounding --> Synthesis["Synthesis"]
+	Synthesis --> Evaluation["Evaluation"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)

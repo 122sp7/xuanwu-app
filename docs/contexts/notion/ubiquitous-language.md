@@ -42,3 +42,37 @@
 - 不用 Tagging 混指 Taxonomy。
 - 不用 Link 混指 Relation。
 - 不用 Publish Action 混指 Publication 狀態與整個交付邊界。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，名稱先對齊 KnowledgeArtifact、Taxonomy、Relation、Publication，再決定類別與檔名。
+- 奧卡姆剃刀：若一個正確名詞已能表達邊界，就不要再堆疊第二個近義抽象名稱。
+- 命名先保護內容語義，再考慮實作便利。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic language"] --> Context["Notion language"]
+	Context --> API["Published language / API boundary"]
+	API --> Code["Generated code"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Knowledge["KnowledgeArtifact"] --> Taxonomy["Taxonomy"]
+	Knowledge --> Relation["Relation"]
+	Relation --> Publication["Publication"]
+	Taxonomy --> Publication
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [../../ubiquitous-language.md](../../ubiquitous-language.md)
+- [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)

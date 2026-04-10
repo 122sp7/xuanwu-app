@@ -44,3 +44,40 @@ platform 是治理與營運支撐主域。依 bounded context 原則，它應把
 - 把 entitlement 當成 subscription plan 名稱或 UI 開關。
 - 把 secret-management 混回 integration，使敏感治理責任失焦。
 - 讓 platform 直接持有其他主域的正典內容或推理模型。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先判斷需求落在 identity、organization、entitlement、secret-management 或其他既有治理責任。
+- 奧卡姆剃刀：不要為了形式上的完整而新增抽象；只有當既有治理邊界無法承接時才拆新上下文。
+- 對外部 provider 的抽象必須貼合 domain 需要，而不是複製供應商 API。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Platform bounded contexts"]
+	X["Infrastructure"] --> D
+	X -. adapter / provider .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Identity["Identity / Organization"] --> Access["Access / Policy"]
+	Access --> Entitlement["Entitlement"]
+	Entitlement --> Delivery["Notification / Job / Integration"]
+	Delivery --> Audit["Audit / Observability / Analytics"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
