@@ -1,4 +1,4 @@
-import { BookOpen, Brain, Database, Files, FileText, FolderOpen, Home, Users } from "lucide-react";
+import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Users } from "lucide-react";
 import type { ReactNode } from "react";
 
 export interface WorkspaceQuickAccessMatcherOptions {
@@ -57,13 +57,6 @@ const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
     icon: <Brain className="size-3.5" />,
     isActive: (pathname: string) =>
       pathname === "/notebook/rag-query" || pathname.startsWith("/notebook/rag-query/"),
-  },
-  {
-    href: "/source/documents?workspaceId={workspaceId}",
-    label: "文件",
-    icon: <Files className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/source/documents" || pathname.startsWith("/source/documents/"),
   },
   {
     href: "/source/libraries?workspaceId={workspaceId}",

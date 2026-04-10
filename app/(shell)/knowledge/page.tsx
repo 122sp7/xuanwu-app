@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
+import { BookOpen, Brain, Building2, Database, FolderKanban, MessageSquare } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
@@ -25,12 +25,6 @@ const QUICK_ACCESS = [
     title: "Libraries",
     description: "維持 schema / table 型知識資產。",
     icon: Database,
-  },
-  {
-    href: "/source/documents",
-    title: "Documents",
-    description: "來源文件、upload 與 ingest 狀態檢視。",
-    icon: BookOpen,
   },
   {
     href: "/knowledge-base/articles",
@@ -265,8 +259,8 @@ export default function KnowledgeHubPage() {
                         <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>知識頁面</Link>
                       </Button>
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
-                          Knowledge
+                        <Link href={`/workspace/${workspace.workspaceId}?tab=Files`}>
+                          Files
                         </Link>
                       </Button>
                       <Button asChild size="sm" variant="outline">

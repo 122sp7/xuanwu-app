@@ -19,7 +19,6 @@ const NAV_ITEMS = [
   { href: "/knowledge", label: "Knowledge Hub", group: "導覽" },
   { href: "/knowledge-base/articles", label: "Knowledge Base", group: "導覽" },
   { href: "/knowledge-database/databases", label: "Knowledge Database", group: "導覽" },
-  { href: "/source/documents", label: "Source Documents", group: "導覽" },
   { href: "/notebook/rag-query", label: "Notebook / AI", group: "導覽" },
   { href: "/ai-chat", label: "AI Chat", group: "導覽" },
   { href: "/knowledge/pages", label: "頁面管理", group: "Knowledge" },

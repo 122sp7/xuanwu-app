@@ -517,7 +517,6 @@ export function DashboardSidebar({
             <SimpleNavLinks
               title="來源文件"
               items={[
-                { href: "/source/documents", label: "Documents" },
                 { href: "/source/libraries", label: "Libraries" },
               ]}
               isActiveRoute={isActiveRoute}
