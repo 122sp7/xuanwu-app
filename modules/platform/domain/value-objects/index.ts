@@ -17,6 +17,16 @@ export const PLATFORM_DOMAIN_VALUE_OBJECT_TYPES = [
 	"AuditClassification",
 	"PlanConstraint",
 	"DeliveryAllowance",
+	"BillingState",
+	"ContractState",
+	"EffectivePeriod",
+	"EndpointRef",
+	"IntegrationContractId",
+	"PlatformContextId",
+	"PlatformLifecycleState",
+	"PolicyCatalogId",
+	"SecretReference",
+	"SubscriptionAgreementId",
 ] as const;
 
 export type PlatformDomainValueObjectType = (typeof PLATFORM_DOMAIN_VALUE_OBJECT_TYPES)[number];

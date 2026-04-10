@@ -23,7 +23,7 @@ import type {
 	SubscriptionEntitlementsView,
 	WorkflowPolicyView,
 } from "./contracts";
-import type { PlatformCommandPort, PlatformQueryPort } from "../ports/input";
+import type { PlatformCommandPort, PlatformQueryPort } from "../domain/ports/input";
 
 export interface PlatformFacade {
 	registerPlatformContext(input: RegisterPlatformContextInput): Promise<PlatformCommandResult>;
