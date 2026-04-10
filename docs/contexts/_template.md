@@ -101,6 +101,12 @@
 - 不得把 Shared Kernel / Partnership 與 ACL / Conformist 混用在同一關係敘事。
 - 不得把其他主域的正典模型直接拿來當成本地主域模型。
 
+## Copilot Generation Rules
+
+- 先決定 owning context、語言、邊界與依賴方向，再生成程式碼。
+- 奧卡姆剃刀：若較少的抽象已能保護邊界與可測試性，就不要額外新增 port、ACL、DTO、subdomain、service 或流程節點。
+- 任何新文件都應沿用同一套規則、流程圖與文件網絡章節。
+
 ## Occam Guardrail
 
 - 若較少的抽象已能保護邊界與可測試性，就不要額外新增 port、ACL、DTO、subdomain、service 或流程節點。
@@ -121,3 +127,14 @@ flowchart LR
 	Translation --> Application["Application"]
 	Application --> Domain["Domain"]
 ```
+
+## Document Network
+
+- [../README.md](../README.md)
+- [../architecture-overview.md](../architecture-overview.md)
+- [../bounded-contexts.md](../bounded-contexts.md)
+- [../context-map.md](../context-map.md)
+- [../integration-guidelines.md](../integration-guidelines.md)
+- [../subdomains.md](../subdomains.md)
+- [../ubiquitous-language.md](../ubiquitous-language.md)
+- [../decisions/README.md](../decisions/README.md)
