@@ -4,7 +4,7 @@ import { type FormEvent, useState } from "react";
 
 import type { AuthUser } from "@/modules/platform/api";
 import type { AccountEntity } from "../../../../api";
-import { createOrganization } from "../../adapters/server-actions/organization.actions";
+import { createOrganization } from "../_actions/organization.actions";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Dialog,

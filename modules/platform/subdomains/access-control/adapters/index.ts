@@ -1,1 +1,0 @@
-﻿// Purpose: Adapter layer placeholder for platform subdomain 'access-control'.

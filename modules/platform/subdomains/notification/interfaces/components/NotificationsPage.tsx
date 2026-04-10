@@ -12,7 +12,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   getNotificationsForRecipient,
-} from "../../adapters";
+} from "../../infrastructure";
 import type { NotificationEntity } from "../../domain/entities/Notification";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";

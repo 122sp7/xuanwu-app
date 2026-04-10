@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 import type { AccountEntity, AuthUser } from "../../../../api";
 import { useApp } from "../../../../api";
-import { createOrganization } from "../../adapters/server-actions/organization.actions";
+import { createOrganization } from "../_actions/organization.actions";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Dialog,

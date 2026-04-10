@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { dismissMember, getOrganizationMembers, inviteMember } from "../../adapters";
+import { dismissMember, getOrganizationMembers, inviteMember } from "../";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {

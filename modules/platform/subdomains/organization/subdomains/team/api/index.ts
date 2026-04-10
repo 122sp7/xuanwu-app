@@ -12,4 +12,4 @@ export {
   DeleteTeamUseCase,
   UpdateTeamMembersUseCase,
 } from "../application/use-cases/team.use-cases";
-export { FirebaseTeamRepository } from "../adapters/firebase/FirebaseTeamRepository";
+export { FirebaseTeamRepository } from "../infrastructure/firebase/FirebaseTeamRepository";
