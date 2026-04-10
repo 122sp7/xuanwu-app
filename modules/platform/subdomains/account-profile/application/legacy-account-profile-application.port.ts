@@ -1,4 +1,4 @@
-import { getUserProfile, subscribeToUserProfile } from "../../account";
+import type { getUserProfile, subscribeToUserProfile } from "../../account";
 
 /**
  * Temporary compatibility port during migration from account profile concerns.

@@ -32,7 +32,7 @@ export {
 } from "../interfaces/_actions/category.actions";
 
 // ─── Queries (read-side) ──────────────────────────────────────────────────────
-export { getArticles, getArticle, getCategories, getBacklinks } from "../interfaces/queries/index";
+export { getArticles, getArticle, getCategories, getBacklinks } from "../interfaces/queries";
 
 // ─── UI Components ────────────────────────────────────────────────────────────
 export { ArticleDialog } from "../interfaces/components/ArticleDialog";

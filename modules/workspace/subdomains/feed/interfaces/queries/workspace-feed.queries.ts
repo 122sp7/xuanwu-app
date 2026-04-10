@@ -4,13 +4,13 @@ import {
   ListAccountWorkspaceFeedUseCase,
   ListWorkspaceFeedUseCase,
 } from "../../application/use-cases/workspace-feed.use-cases";
-import { FirebaseWorkspaceFeedPostRepository } from "../../infrastructure";
+import { makeWorkspaceFeedPostRepo } from "../../api/factories";
 
 export async function getWorkspaceFeedPost(
   accountId: string,
   postId: string,
 ): Promise<WorkspaceFeedPost | null> {
-  return new GetWorkspaceFeedPostUseCase(new FirebaseWorkspaceFeedPostRepository()).execute(
+  return new GetWorkspaceFeedPostUseCase(makeWorkspaceFeedPostRepo()).execute(
     accountId,
     postId,
   );
@@ -21,7 +21,7 @@ export async function getWorkspaceFeed(
   workspaceId: string,
   limit = 50,
 ): Promise<WorkspaceFeedPost[]> {
-  return new ListWorkspaceFeedUseCase(new FirebaseWorkspaceFeedPostRepository()).execute({
+  return new ListWorkspaceFeedUseCase(makeWorkspaceFeedPostRepo()).execute({
     accountId,
     workspaceId,
     limit,
@@ -29,7 +29,7 @@ export async function getWorkspaceFeed(
 }
 
 export async function getAccountWorkspaceFeed(accountId: string, limit = 50): Promise<WorkspaceFeedPost[]> {
-  return new ListAccountWorkspaceFeedUseCase(new FirebaseWorkspaceFeedPostRepository()).execute({
+  return new ListAccountWorkspaceFeedUseCase(makeWorkspaceFeedPostRepo()).execute({
     accountId,
     limit,
   });

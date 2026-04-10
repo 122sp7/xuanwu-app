@@ -9,15 +9,14 @@
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { WorkspaceFlowTaskFacade } from "../../api/workspace-flow-task.facade";
-import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
-import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
+import { makeIssueRepo, makeTaskRepo } from "../../api/factories";
 import type { CreateTaskDto } from "../../application/dto/create-task.dto";
 import type { UpdateTaskDto } from "../../application/dto/update-task.dto";
 
 function makeFacade(): WorkspaceFlowTaskFacade {
   return new WorkspaceFlowTaskFacade(
-    new FirebaseTaskRepository(),
-    new FirebaseIssueRepository(),
+    makeTaskRepo(),
+    makeIssueRepo(),
   );
 }
 

@@ -15,11 +15,10 @@ import type {
   RegisterUploadedRagDocumentOutputDto,
   RegisterUploadedRagDocumentResult,
 } from "../../application/dto/rag-document.dto";
+import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../../api/factories";
 import { UploadInitSourceFileUseCase } from "../../application/use-cases/upload-init-source-file.use-case";
 import { UploadCompleteSourceFileUseCase } from "../../application/use-cases/upload-complete-source-file.use-case";
 import { RegisterUploadedRagDocumentUseCase } from "../../application/use-cases/register-rag-document.use-case";
-import { FirebaseSourceFileAdapter } from "../../infrastructure/firebase/FirebaseSourceFileAdapter";
-import { FirebaseRagDocumentAdapter } from "../../infrastructure/firebase/FirebaseRagDocumentAdapter";
 import type { SourceFileCommandResult } from "../contracts/source-command-result";
 
 function createCommandId(idempotencyKey?: string): string {
@@ -31,7 +30,7 @@ export async function uploadInitFile(
   input: UploadInitFileInputDto,
 ): Promise<SourceFileCommandResult<UploadInitFileOutputDto>> {
   const commandId = createCommandId(input.idempotencyKey);
-  const useCase = new UploadInitSourceFileUseCase(new FirebaseSourceFileAdapter());
+  const useCase = new UploadInitSourceFileUseCase(makeSourceFileAdapter());
   const result = await useCase.execute(input);
   return { ...result, commandId };
 }
@@ -40,8 +39,8 @@ export async function uploadCompleteFile(
   input: UploadCompleteFileInputDto,
 ): Promise<SourceFileCommandResult<UploadCompleteFileOutputDto>> {
   const commandId = createCommandId(input.versionId);
-  const fileAdapter = new FirebaseSourceFileAdapter();
-  const useCase = new UploadCompleteSourceFileUseCase(fileAdapter, new FirebaseRagDocumentAdapter());
+  const fileAdapter = makeSourceFileAdapter();
+  const useCase = new UploadCompleteSourceFileUseCase(fileAdapter, makeRagDocumentAdapter());
   const result = await useCase.execute(input);
   return { ...result, commandId };
 }
@@ -50,7 +49,7 @@ export async function registerUploadedRagDocument(
   input: RegisterUploadedRagDocumentInputDto,
 ): Promise<RegisterUploadedRagDocumentResult> {
   const commandId = createCommandId(input.storagePath);
-  const useCase = new RegisterUploadedRagDocumentUseCase(new FirebaseRagDocumentAdapter());
+  const useCase = new RegisterUploadedRagDocumentUseCase(makeRagDocumentAdapter());
   const result = await useCase.execute(input);
   return { ...result, commandId };
 }

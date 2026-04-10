@@ -1,5 +1,5 @@
 /**
- * @shared-events — Cross-module event infrastructure primitives.
+ * Shared events — cross-module event infrastructure primitives.
  *
  * Provides:
  *   - EventRecord entity and repository port interfaces (event store)

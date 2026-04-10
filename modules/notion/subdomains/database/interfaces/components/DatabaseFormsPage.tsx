@@ -9,7 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
 
-import { getDatabase } from "../queries/index";
+import { getDatabase } from "../queries";
 import { DatabaseFormView } from "./DatabaseFormView";
 import type { DatabaseSnapshot as Database } from "../../domain/aggregates/Database";
 import { Button } from "@ui-shadcn/ui/button";

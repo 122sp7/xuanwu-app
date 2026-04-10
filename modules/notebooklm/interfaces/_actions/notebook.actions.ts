@@ -8,17 +8,12 @@ import type { Thread } from "../../domain/entities/thread";
 import type { AnswerRagQueryInput, AnswerRagQueryResult } from "../../subdomains/ai/qa";
 import { createAnswerRagQueryUseCase } from "../../subdomains/ai/qa/server";
 import { GenerateNotebookResponseUseCase } from "../../application/use-cases/generate-agent-response.use-case";
-import { GenkitNotebookRepository } from "../../infrastructure/genkit/GenkitNotebookRepository";
-import { FirebaseThreadRepository } from "../../infrastructure/firebase/FirebaseThreadRepository";
-
-function makeThreadRepo() {
-  return new FirebaseThreadRepository();
-}
+import { makeNotebookRepo, makeThreadRepo } from "../../api/factories";
 
 export async function generateNotebookResponse(
   input: GenerateNotebookResponseInput,
 ): Promise<GenerateNotebookResponseResult> {
-  const useCase = new GenerateNotebookResponseUseCase(new GenkitNotebookRepository());
+  const useCase = new GenerateNotebookResponseUseCase(makeNotebookRepo());
   return useCase.execute(input);
 }
 

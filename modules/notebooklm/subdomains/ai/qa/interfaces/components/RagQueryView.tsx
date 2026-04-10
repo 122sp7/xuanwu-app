@@ -24,7 +24,7 @@ import {
 } from "@ui-shadcn/ui/card";
 import { Textarea } from "@ui-shadcn/ui/textarea";
 
-import { runWikiRagQuery, type WikiCitation } from "../../index";
+import { runWikiRagQuery, type WikiCitation } from "../..";
 
 interface RagQueryViewProps {
   readonly workspaceId?: string;

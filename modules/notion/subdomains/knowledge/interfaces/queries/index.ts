@@ -4,9 +4,7 @@
  * Purpose: Server-side read helpers for the knowledge subdomain.
  */
 
-import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
-import { FirebaseContentBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
-import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseKnowledgeCollectionRepository";
+import { makeBlockRepo, makeCollectionRepo, makePageRepo } from "../../api/factories";
 import {
   GetKnowledgePageUseCase,
   ListKnowledgePagesUseCase,
@@ -22,10 +20,6 @@ import {
 import type { KnowledgePageSnapshot } from "../../domain/aggregates/KnowledgePage";
 import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
 import type { KnowledgeCollectionSnapshot } from "../../domain/aggregates/KnowledgeCollection";
-
-const makePageRepo = () => new FirebaseKnowledgePageRepository();
-const makeBlockRepo = () => new FirebaseContentBlockRepository();
-const makeCollRepo = () => new FirebaseKnowledgeCollectionRepository();
 
 export async function getKnowledgePage(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
   return new GetKnowledgePageUseCase(makePageRepo()).execute(accountId, pageId);
@@ -52,9 +46,9 @@ export async function getKnowledgeBlocks(accountId: string, pageId: string): Pro
 }
 
 export async function getKnowledgeCollection(accountId: string, collectionId: string): Promise<KnowledgeCollectionSnapshot | null> {
-  return new GetKnowledgeCollectionUseCase(makeCollRepo()).execute(accountId, collectionId);
+  return new GetKnowledgeCollectionUseCase(makeCollectionRepo()).execute(accountId, collectionId);
 }
 
 export async function getKnowledgeCollections(accountId: string): Promise<KnowledgeCollectionSnapshot[]> {
-  return new ListKnowledgeCollectionsUseCase(makeCollRepo()).execute(accountId);
+  return new ListKnowledgeCollectionsUseCase(makeCollectionRepo()).execute(accountId);
 }

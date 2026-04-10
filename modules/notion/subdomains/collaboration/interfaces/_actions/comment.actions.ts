@@ -8,21 +8,19 @@
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { dispatchNotification } from "@/modules/platform/api";
+import { makeCommentRepo } from "../../api/factories";
 import {
   CreateCommentUseCase,
   UpdateCommentUseCase,
   ResolveCommentUseCase,
   DeleteCommentUseCase,
 } from "../../application/use-cases/CommentUseCases";
-import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
 import type {
   CreateCommentDto,
   UpdateCommentDto,
   ResolveCommentDto,
   DeleteCommentDto,
 } from "../../application/dto/CollaborationDto";
-
-function makeCommentRepo() { return new FirebaseCommentRepository(); }
 
 export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
   try {

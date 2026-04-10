@@ -8,7 +8,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import type { DatabaseAutomationSnapshot, AutomationTrigger, AutomationActionType } from "../../domain/aggregates/DatabaseAutomation";
-import { getAutomations } from "../queries/index";
+import { getAutomations } from "../queries";
 import { createAutomation, updateAutomation, deleteAutomation } from "../_actions/database.actions";
 
 interface Props {

@@ -7,11 +7,9 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { makePermissionRepo } from "../../api/factories";
 import { GrantPermissionUseCase, RevokePermissionUseCase } from "../../application/use-cases/PermissionUseCases";
-import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
 import type { GrantPermissionDto, RevokePermissionDto } from "../../application/dto/CollaborationDto";
-
-function makePermissionRepo() { return new FirebasePermissionRepository(); }
 
 export async function grantPermission(input: GrantPermissionDto): Promise<CommandResult> {
   try {

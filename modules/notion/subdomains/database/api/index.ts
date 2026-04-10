@@ -83,7 +83,7 @@ export {
   getRecords,
   getViews,
   getAutomations,
-} from "../interfaces/queries/index";
+} from "../interfaces/queries";
 
 // UI components
 export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";

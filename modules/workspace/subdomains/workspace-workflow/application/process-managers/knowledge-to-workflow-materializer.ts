@@ -24,11 +24,21 @@
  * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
  */
 
-import type { PageApprovedEvent } from "@/modules/notion/api";
 import type { TaskRepository } from "../../domain/repositories/TaskRepository";
 import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
 import { MaterializeTasksFromKnowledgeUseCase } from "../use-cases/materialize-tasks-from-knowledge.use-case";
+import type { ExtractedInvoiceItem, ExtractedTaskItem } from "../dto/materialize-from-knowledge.dto";
 import type { SourceReference } from "../../domain/value-objects/SourceReference";
+
+interface PageApprovedEvent {
+  payload: {
+    pageId: string;
+    causationId: string;
+    correlationId: string;
+    extractedTasks: ReadonlyArray<ExtractedTaskItem>;
+    extractedInvoices: ReadonlyArray<ExtractedInvoiceItem>;
+  };
+}
 
 export class KnowledgeToWorkflowMaterializer {
   /**

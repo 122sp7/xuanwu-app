@@ -1,15 +1,13 @@
 "use server";
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { FirebaseContentBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
+import { makeBlockRepo } from "../../api/factories";
 import {
   AddContentBlockUseCase,
   UpdateContentBlockUseCase,
   DeleteContentBlockUseCase,
 } from "../../application/use-cases/ContentBlockUseCases";
 import type { AddKnowledgeBlockDto as AddContentBlockDto, UpdateKnowledgeBlockDto as UpdateContentBlockDto, DeleteKnowledgeBlockDto as DeleteContentBlockDto } from "../../application/dto/ContentBlockDto";
-
-const makeBlockRepo = () => new FirebaseContentBlockRepository();
 
 export async function addKnowledgeBlock(input: AddContentBlockDto): Promise<CommandResult> {
   try { return await new AddContentBlockUseCase(makeBlockRepo()).execute(input); }

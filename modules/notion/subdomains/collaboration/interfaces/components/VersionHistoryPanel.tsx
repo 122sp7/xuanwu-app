@@ -7,7 +7,7 @@ import { Button } from "@ui-shadcn/ui/button";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 import { Badge } from "@ui-shadcn/ui/badge";
 
-import { getVersions } from "../queries/index";
+import { getVersions } from "../queries";
 import { deleteVersion } from "../_actions/version.actions";
 import type { VersionSnapshot } from "../../domain/aggregates/Version";
 

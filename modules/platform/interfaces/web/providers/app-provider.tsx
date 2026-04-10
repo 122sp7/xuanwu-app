@@ -18,16 +18,18 @@ import {
   type ReactNode,
 } from "react";
 
-import { subscribeToAccountsForUser, type AccountEntity } from "../../../subdomains/account";
-import { subscribeToWorkspacesForAccount } from "@/modules/workspace/api";
 import {
+  subscribeToAccountsForUser,
+  type AccountEntity,
+} from "../../../subdomains/account";
+import { type AuthUser, useAuth } from "../../../subdomains/identity";
+import {
+  subscribeToWorkspacesForAccount,
   getWorkspaceStorageKey,
   toWorkspaceMap,
 } from "@/modules/workspace/api";
 
 import { AppContext, type AppState, type AppAction } from "./app-context";
-import type { AuthUser } from "../../../subdomains/identity/interfaces/contexts/auth-context";
-import { useAuth } from "../../../subdomains/identity/interfaces/providers/auth-provider";
 
 // -- Initial State -----------------------------------------------------------
 
