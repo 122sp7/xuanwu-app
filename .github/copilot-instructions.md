@@ -40,6 +40,8 @@ Strategic DDD root maps are owned by `docs/subdomains.md` and `docs/bounded-cont
 |-------|-------------------|
 | Strategic subdomain classification | [`docs/subdomains.md`](../docs/subdomains.md) |
 | Bounded Context boundaries / module map | [`docs/bounded-contexts.md`](../docs/bounded-contexts.md) |
+| Bounded Context + Subdomain delivery template | [`docs/bounded-context-subdomain-template.md`](../docs/bounded-context-subdomain-template.md) |
+| Project milestones from zero to delivery | [`docs/project-delivery-milestones.md`](../docs/project-delivery-milestones.md) |
 | Context terminology | `modules/<context>/ubiquitous-language.md` |
 | Context aggregates / entities / value objects | `modules/<context>/aggregates.md` |
 | Context domain events | `modules/<context>/domain-events.md` |
@@ -61,6 +63,8 @@ Any architecture/design update must stay consistent across this triad.
 ## Workspace-Wide Operating Rules
 
 - Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
+- When scaffolding a new bounded context or subdomain tree, read `docs/bounded-context-subdomain-template.md` before generating directories or files.
+- When sequencing architecture-first delivery, read `docs/project-delivery-milestones.md` before turning planning gaps into implementation work.
 - Treat the approved plan as the execution contract; stay within scope and update docs when boundaries or public APIs change.
 - Search and read before editing. Prefer existing instructions, prompts, and skills over ad hoc restatement.
 - Keep changes minimal, local, and boundary-safe.
