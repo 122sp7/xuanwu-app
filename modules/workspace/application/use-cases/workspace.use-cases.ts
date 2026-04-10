@@ -2,7 +2,7 @@
  * Module: workspace
  * Layer: application/use-cases
  * Purpose: Re-export barrel for all workspace use cases.
- *          Split by subdomain for IDDD single-responsibility:
+ *          Split by subdomain for Hexagonal DDD single-responsibility:
  *  - workspace-lifecycle.use-cases.ts  (create, update, delete)
  *  - workspace-capabilities.use-cases.ts (mount capabilities)
  *  - workspace-access.use-cases.ts      (team grants, individual grants, locations)

@@ -152,7 +152,7 @@ export default defineConfig([
     },
   },
 
-  // File-size guardrails per MDDD layer
+  // File-size guardrails per Hexagonal DDD layer
   { files: ["modules/*/interfaces/**/*.{ts,tsx}"],    rules: { "max-lines": [WARN, { max: 300, skipBlankLines: true, skipComments: true }] } },
   { files: ["modules/*/application/**/*.{ts,tsx}"],   rules: { "max-lines": [WARN, { max: 300, skipBlankLines: true, skipComments: true }] } },
   { files: ["modules/*/infrastructure/**/*.{ts,tsx}"],rules: { "max-lines": [WARN, { max: 400, skipBlankLines: true, skipComments: true }] } },
