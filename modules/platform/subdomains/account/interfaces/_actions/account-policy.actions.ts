@@ -5,7 +5,7 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { accountService } from "../account-service";
+import { accountService } from "../../infrastructure/account-service";
 import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
 
 export async function createAccountPolicy(input: CreatePolicyInput): Promise<CommandResult> {

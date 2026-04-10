@@ -11,8 +11,8 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import {
   markAllNotificationsRead,
   markNotificationRead,
-  getNotificationsForRecipient,
-} from "../../infrastructure";
+} from "../_actions/notification.actions";
+import { getNotificationsForRecipient } from "../queries/notification.queries";
 import type { NotificationEntity } from "../../domain/entities/Notification";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";

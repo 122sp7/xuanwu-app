@@ -1,4 +1,4 @@
-import type { WorkspaceGrant } from "../../domain/aggregates/Workspace";
+import type { WorkspaceGrant } from "../../aggregates/Workspace";
 
 export interface WorkspaceAccessRepository {
   grantTeamAccess(workspaceId: string, teamId: string): Promise<void>;

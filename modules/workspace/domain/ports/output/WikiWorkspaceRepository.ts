@@ -5,7 +5,7 @@
  *          Wiki content-tree use-case.
  */
 
-import type { WikiWorkspaceRef } from "../../domain/entities/WikiContentTree";
+import type { WikiWorkspaceRef } from "../../entities/WikiContentTree";
 
 export interface WikiWorkspaceRepository {
   listByAccountId(accountId: string): Promise<WikiWorkspaceRef[]>;

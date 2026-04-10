@@ -18,7 +18,7 @@ import type {
   WorkspaceEventPublishMetadata,
   WorkspaceLocationRepository,
   WorkspaceRepository,
-} from "../../ports";
+} from "../../domain/ports";
 import type {
   Capability,
   CreateWorkspaceCommand,

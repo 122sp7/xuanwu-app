@@ -2,8 +2,8 @@
  * Organization Queries — direct repo reads for client-side data.
  */
 
-import { FirebaseOrganizationRepository } from "../firebase/FirebaseOrganizationRepository";
-import { FirebaseOrgPolicyRepository } from "../firebase/FirebaseOrgPolicyRepository";
+import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "../../infrastructure/firebase/FirebaseOrgPolicyRepository";
 import type { MemberReference, Team, OrgPolicy } from "../../domain/entities/Organization";
 
 const orgRepo = new FirebaseOrganizationRepository();

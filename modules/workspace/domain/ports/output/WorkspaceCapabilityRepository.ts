@@ -1,4 +1,4 @@
-import type { Capability } from "../../domain/aggregates/Workspace";
+import type { Capability } from "../../aggregates/Workspace";
 
 export interface WorkspaceCapabilityRepository {
   mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void>;

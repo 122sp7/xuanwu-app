@@ -2,7 +2,7 @@
  * Notification Queries — direct repo reads for client-side data.
  */
 
-import { FirebaseNotificationRepository } from "../firebase/FirebaseNotificationRepository";
+import { FirebaseNotificationRepository } from "../../infrastructure/firebase/FirebaseNotificationRepository";
 import type { NotificationEntity } from "../../domain/entities/Notification";
 
 const notificationRepo = new FirebaseNotificationRepository();

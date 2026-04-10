@@ -3,7 +3,7 @@
  */
 
 import type { PlatformCommandResult } from "../input";
-import type { PlatformDomainEvent } from "../../domain/events";
+import type { PlatformDomainEvent } from "../../events";
 
 export interface PlatformContextRepository {
 	findById(contextId: string): Promise<unknown | null>;

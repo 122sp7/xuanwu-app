@@ -6,7 +6,7 @@ import type {
   UpdateWorkspaceSettingsCommand,
   WorkspaceGrant,
   WorkspaceLocation,
-} from "../../domain/aggregates/Workspace";
+} from "../../aggregates/Workspace";
 
 export interface WorkspaceCommandPort {
   createWorkspace(command: CreateWorkspaceCommand): Promise<CommandResult>;

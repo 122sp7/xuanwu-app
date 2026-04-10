@@ -2,7 +2,7 @@
  * platform input ports.
  */
 
-import type { PlatformDomainEvent } from "../../domain/events";
+import type { PlatformDomainEvent } from "../../events";
 
 export type PlatformCommandName =
 	| "registerPlatformContext"
