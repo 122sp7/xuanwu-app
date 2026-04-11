@@ -6,7 +6,7 @@ import { AccessPolicy } from "../../domain/aggregates/AccessPolicy";
 import {
   allowDecision,
   denyDecision,
-} from "../../domain/value-objects/PermissionDecision";
+} from "../../../../domain/value-objects/PermissionDecision";
 import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
 import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
 import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
@@ -35,17 +35,17 @@ export class EvaluatePermissionUseCase {
         (p) => p.effect === "deny" && p.actions.includes(input.action),
       );
       if (hasDeny) {
-        return commandSuccess(denyDecision("Explicit deny policy matched"), Date.now());
+        return commandSuccess(JSON.stringify(denyDecision("Explicit deny policy matched")), Date.now());
       }
 
       const hasAllow = policies.some(
         (p) => p.effect === "allow" && p.actions.includes(input.action),
       );
       if (hasAllow) {
-        return commandSuccess(allowDecision("Allow policy matched"), Date.now());
+        return commandSuccess(JSON.stringify(allowDecision("Allow policy matched")), Date.now());
       }
 
-      return commandSuccess(denyDecision("No matching allow policy"), Date.now());
+      return commandSuccess(JSON.stringify(denyDecision("No matching allow policy")), Date.now());
     } catch (err) {
       return commandFailureFrom(
         "EVALUATE_PERMISSION_FAILED",

@@ -88,7 +88,7 @@ export class ResolveEntitlementsUseCase {
     try {
       const snapshots = await this.repo.findByContextId(contextId);
       const active = snapshots.filter((s) => s.status === "active");
-      return commandSuccess(active, Date.now());
+      return commandSuccess(JSON.stringify(active), Date.now());
     } catch (err) {
       return commandFailureFrom(
         "RESOLVE_ENTITLEMENTS_FAILED",
@@ -106,7 +106,7 @@ export class CheckFeatureEntitlementUseCase {
   async execute(contextId: string, featureKey: string): Promise<CommandResult> {
     try {
       const snapshot = await this.repo.findActiveByContextAndFeature(contextId, featureKey);
-      return commandSuccess({ entitled: snapshot !== null, snapshot }, Date.now());
+      return commandSuccess(JSON.stringify({ entitled: snapshot !== null, snapshot }), Date.now());
     } catch (err) {
       return commandFailureFrom(
         "CHECK_ENTITLEMENT_FAILED",
