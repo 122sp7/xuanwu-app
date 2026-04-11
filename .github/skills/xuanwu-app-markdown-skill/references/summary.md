@@ -39,20 +39,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-127 files | 7,128 lines
+201 files | 9,381 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 127 | 7,128 |
+| Markdown | 201 | 9,381 |
 
 **Largest files:**
 - `py_fn/README.md` (265 lines)
+- `docs/bounded-context-subdomain-template.md` (216 lines)
 - `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
+- `docs/bounded-contexts.md` (190 lines)
+- `docs/subdomains.md` (189 lines)
 - `.github/prompts/playwright-mcp-inspect.prompt.md` (163 lines)
-- `docs/bounded-context-subdomain-template.md` (154 lines)
+- `CLAUDE.md` (152 lines)
 - `docs/contexts/_template.md` (144 lines)
 - `.github/prompts/playwright-mcp-test.prompt.md` (127 lines)
 - `docs/contexts/platform/README.md` (125 lines)
-- `.github/instructions/domain-modeling.instructions.md` (124 lines)
-- `docs/contexts/platform/AGENT.md` (117 lines)
-- `docs/contexts/notion/README.md` (115 lines)

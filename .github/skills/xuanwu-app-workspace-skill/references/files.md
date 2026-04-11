@@ -1,5 +1,243 @@
 # Files
 
+## File: modules/workspace/api/contracts.ts
+````typescript
+/**
+ * workspace api/contracts.ts
+ *
+ * Canonical public type surface for the workspace bounded context.
+ * Cross-module and app-layer consumers should import types from here.
+ *
+ * Internal source: interfaces/api/contracts/
+ */
+
+export type {
+  Address,
+  AddressInput,
+  Capability,
+  CapabilitySpec,
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceEntity,
+  WorkspaceGrant,
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+  WorkspaceLocation,
+  WorkspaceName,
+  WorkspaceNameInput,
+  WorkspacePersonnel,
+  WorkspacePersonnelCustomRole,
+  WorkspaceVisibility,
+  WorkspaceVisibilityInput,
+} from "../domain/aggregates/Workspace";
+
+export type {
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberAccessSource,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../domain/entities/WorkspaceMemberView";
+
+export type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiAccountType,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+  WikiWorkspaceRef,
+} from "../domain/entities/WikiContentTree";
+
+export {
+  WORKSPACE_LIFECYCLE_STATES,
+  WORKSPACE_VISIBILITIES,
+  createAddress,
+  createWorkspaceLifecycleState,
+  createWorkspaceName,
+  createWorkspaceVisibility,
+  formatAddress,
+  isTerminalWorkspaceLifecycleState,
+  isWorkspaceVisible,
+  workspaceNameEquals,
+} from "../domain/value-objects";
+
+export type {
+  WorkspaceCreatedEvent,
+  WorkspaceDomainEvent,
+  WorkspaceLifecycleTransitionedEvent,
+  WorkspaceVisibilityChangedEvent,
+} from "../domain/events/workspace.events";
+
+export {
+  WORKSPACE_CREATED_EVENT_TYPE,
+  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
+  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
+  createWorkspaceCreatedEvent,
+  createWorkspaceLifecycleTransitionedEvent,
+  createWorkspaceVisibilityChangedEvent,
+} from "../domain/events/workspace.events";
+
+export type {
+  AuditAction,
+  AuditLog,
+  AuditLogEntity,
+  AuditLogSource,
+  AuditSeverity,
+  ChangeRecord,
+} from "../subdomains/audit/api";
+
+export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../subdomains/audit/api";
+
+export type {
+  WorkspaceFeedPost,
+  WorkspaceFeedPostType,
+} from "../subdomains/feed/api";
+
+export { WORKSPACE_FEED_POST_TYPES } from "../subdomains/feed/api";
+
+export type {
+  AssignWorkDemandCommand,
+  CreateWorkDemandCommand,
+  DemandPriority,
+  DemandStatus,
+  WorkDemand,
+  WorkDemandDomainEvent,
+} from "../subdomains/scheduling/api";
+
+export {
+  DEMAND_PRIORITIES,
+  DEMAND_PRIORITY_LABELS,
+  DEMAND_STATUSES,
+  DEMAND_STATUS_LABELS,
+} from "../subdomains/scheduling/api";
+
+export type {
+  Task,
+  Issue,
+  Invoice,
+  InvoiceItem,
+  TaskStatus,
+  IssueStatus,
+  IssueStage,
+  InvoiceStatus,
+  TaskSummary,
+  IssueSummary,
+  InvoiceSummary,
+  InvoiceItemSummary,
+  CreateTaskDto,
+  UpdateTaskDto,
+  OpenIssueDto,
+  ResolveIssueDto,
+  AddInvoiceItemDto,
+  UpdateInvoiceItemDto,
+  RemoveInvoiceItemDto,
+  TaskQueryDto,
+  IssueQueryDto,
+  InvoiceQueryDto,
+  PaginationDto,
+  PagedResult,
+  CommandResult,
+} from "../subdomains/workspace-workflow/api";
+
+export {
+  TASK_STATUSES,
+  ISSUE_STATUSES,
+  ISSUE_STAGES,
+  INVOICE_STATUSES,
+  toTaskSummary,
+  toIssueSummary,
+  toInvoiceSummary,
+  toInvoiceItemSummary,
+} from "../subdomains/workspace-workflow/api";
+````
+
+## File: modules/workspace/api/facade.ts
+````typescript
+/**
+ * workspace api/facade.ts
+ *
+ * Canonical public behavior surface for the workspace bounded context.
+ * Cross-module and app-layer consumers invoke commands and queries from here.
+ *
+ * Internal source: interfaces/api/facades/
+ */
+
+export {
+  getWorkspacesForAccount,
+  subscribeToWorkspacesForAccount,
+  getWorkspaceById,
+  getWorkspaceByIdForAccount,
+  buildWikiContentTree,
+  authorizeWorkspaceTeam,
+  createWorkspace,
+  createWorkspaceLocation,
+  createWorkspaceWithCapabilities,
+  deleteWorkspace,
+  grantIndividualWorkspaceAccess,
+  mountCapabilities,
+  updateWorkspaceSettings,
+} from "../interfaces/api/facades/workspace.facade";
+
+export {
+  getWorkspaceMembers,
+} from "../interfaces/api/facades/workspace-member.facade";
+
+export {
+  getOrganizationAuditLogs,
+  getWorkspaceAuditLogs,
+} from "../subdomains/audit/api";
+
+export {
+  workspaceFeedFacade,
+  WorkspaceFeedFacade,
+  getAccountWorkspaceFeed,
+  getWorkspaceFeed,
+  getWorkspaceFeedPost,
+  bookmarkWorkspaceFeedPost,
+  createWorkspaceFeedPost,
+  likeWorkspaceFeedPost,
+  replyWorkspaceFeedPost,
+  repostWorkspaceFeedPost,
+  shareWorkspaceFeedPost,
+  viewWorkspaceFeedPost,
+} from "../subdomains/feed/api";
+
+export type {
+  CreateWorkspaceFeedPostParams,
+  ReplyWorkspaceFeedPostParams,
+  RepostWorkspaceFeedPostParams,
+  WorkspaceFeedInteractionParams,
+} from "../subdomains/feed/api";
+
+export {
+  assignWorkDemand,
+  getAccountDemands,
+  getWorkspaceDemands,
+  submitWorkDemand,
+} from "../subdomains/scheduling/api";
+
+export type {
+  AssignMemberInput,
+  CreateDemandInput,
+} from "../subdomains/scheduling/api";
+
+export {
+  WorkspaceFlowFacade,
+  WorkspaceFlowTaskFacade,
+  WorkspaceFlowIssueFacade,
+  WorkspaceFlowInvoiceFacade,
+  getWorkspaceFlowTasks,
+  getWorkspaceFlowTask,
+  getWorkspaceFlowIssues,
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowInvoiceItems,
+  createKnowledgeToWorkflowListener,
+} from "../subdomains/workspace-workflow/api";
+
+export type {
+  KnowledgePageApprovedHandler,
+} from "../subdomains/workspace-workflow/api";
+````
+
 ## File: modules/workspace/api/index.ts
 ````typescript
 /**
@@ -24,6 +262,35 @@ export * from "./facade";
 export * from "./ui";
 ````
 
+## File: modules/workspace/api/runtime/factories.ts
+````typescript
+import { SharedWorkspaceDomainEventPublisher } from "../../infrastructure/events/SharedWorkspaceDomainEventPublisher";
+import { FirebaseWikiWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
+import { FirebaseWorkspaceQueryRepository } from "../../infrastructure/firebase/FirebaseWorkspaceQueryRepository";
+import { FirebaseWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWorkspaceRepository";
+
+interface OrganizationDirectoryGateway {
+  getOrganizationMembers(organizationId: string): Promise<{ id: string; name: string; email?: string; role?: string }[]>;
+  getOrganizationTeams(organizationId: string): Promise<{ id: string; name: string; memberIds: string[] }[]>;
+}
+
+export function makeWorkspaceRepo() {
+  return new FirebaseWorkspaceRepository();
+}
+
+export function makeWorkspaceQueryRepo(gateway: OrganizationDirectoryGateway) {
+  return new FirebaseWorkspaceQueryRepository(gateway);
+}
+
+export function makeWikiWorkspaceRepo() {
+  return new FirebaseWikiWorkspaceRepository();
+}
+
+export function makeWorkspaceDomainEventPublisher() {
+  return new SharedWorkspaceDomainEventPublisher();
+}
+````
+
 ## File: modules/workspace/application/dtos/wiki-content-tree.dto.ts
 ````typescript
 export type {
@@ -44,6 +311,332 @@ export type {
   WorkspaceMemberPresence,
   WorkspaceMemberView,
 } from "../../domain/entities/WorkspaceMemberView";
+````
+
+## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Build the workspace content-tree from account/workspace seeds.
+ *          Lives in workspace because it aggregates workspace-scoped content nodes.
+ */
+
+import type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+} from "../../domain/entities/WikiContentTree";
+import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
+
+function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {
+  return [
+    { key: "spaces", label: "Workspace", href: `/workspace/${workspaceId}`, enabled: true },
+    { key: "pages", label: "Knowledge Pages", href: `/knowledge/pages?workspaceId=${workspaceId}`, enabled: true },
+    { key: "libraries", label: "Libraries", href: `/source/libraries?workspaceId=${workspaceId}`, enabled: true },
+    { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
+    { key: "vector-index", label: "Vector Index", href: "/knowledge", enabled: false },
+    { key: "rag", label: "RAG", href: `/notebook/rag-query?workspaceId=${workspaceId}`, enabled: true },
+    { key: "ai-tools", label: "AI Tools", href: `/ai-chat?workspaceId=${workspaceId}`, enabled: true },
+  ];
+}
+
+function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiWorkspaceContentNode {
+  return {
+    workspaceId,
+    workspaceName,
+    href: `/workspace/${workspaceId}`,
+    contentBaseItems: buildContentBaseItems(workspaceId),
+  };
+}
+
+export async function buildWikiContentTree(
+  seeds: WikiAccountSeed[],
+  workspaceRepository: WikiWorkspaceRepository,
+): Promise<WikiAccountContentNode[]> {
+  const accountNodes = await Promise.all(
+    seeds.map(async (seed) => {
+      const workspaces = await workspaceRepository.listByAccountId(seed.accountId);
+      return {
+        accountId: seed.accountId,
+        accountName: seed.accountName,
+        accountType: seed.accountType,
+        isActive: seed.isActive,
+        membersHref: seed.accountType === "organization" ? "/organization/members" : undefined,
+        teamsHref: seed.accountType === "organization" ? "/organization/teams" : undefined,
+        workspaces: workspaces.map((workspace) => buildWorkspaceNode(workspace.id, workspace.name)),
+      } satisfies WikiAccountContentNode;
+    }),
+  );
+
+  return accountNodes.sort((a, b) => {
+    if (a.accountType !== b.accountType) {
+      return a.accountType === "personal" ? -1 : 1;
+    }
+    return a.accountName.localeCompare(b.accountName, "zh-Hant");
+  });
+}
+````
+
+## File: modules/workspace/application/use-cases/workspace-access.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Workspace access use cases — team grants, individual grants, locations.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceAccessRepository } from "../../domain/ports/output/WorkspaceAccessRepository";
+import type { WorkspaceLocationRepository } from "../../domain/ports/output/WorkspaceLocationRepository";
+import type { WorkspaceGrant, WorkspaceLocation } from "../../domain/aggregates/Workspace";
+
+// ─── Grant Team Access ────────────────────────────────────────────────────────
+
+export class GrantTeamAccessUseCase {
+  constructor(private readonly workspaceAccessRepo: WorkspaceAccessRepository) {}
+
+  async execute(workspaceId: string, teamId: string): Promise<CommandResult> {
+    try {
+      await this.workspaceAccessRepo.grantTeamAccess(workspaceId, teamId);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_TEAM_GRANT_FAILED",
+        err instanceof Error ? err.message : "Failed to grant team access",
+      );
+    }
+  }
+}
+
+// ─── Grant Individual Access ──────────────────────────────────────────────────
+
+export class GrantIndividualAccessUseCase {
+  constructor(private readonly workspaceAccessRepo: WorkspaceAccessRepository) {}
+
+  async execute(workspaceId: string, grant: WorkspaceGrant): Promise<CommandResult> {
+    try {
+      await this.workspaceAccessRepo.grantIndividualAccess(workspaceId, grant);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_GRANT_FAILED",
+        err instanceof Error ? err.message : "Failed to grant individual access",
+      );
+    }
+  }
+}
+
+// ─── Create Location ──────────────────────────────────────────────────────────
+
+export class CreateWorkspaceLocationUseCase {
+  constructor(private readonly workspaceLocationRepo: WorkspaceLocationRepository) {}
+
+  async execute(
+    workspaceId: string,
+    location: Omit<WorkspaceLocation, "locationId">,
+  ): Promise<CommandResult> {
+    try {
+      const locationId = await this.workspaceLocationRepo.createLocation(workspaceId, location);
+      return commandSuccess(locationId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_LOCATION_CREATE_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace location",
+      );
+    }
+  }
+}
+````
+
+## File: modules/workspace/application/use-cases/workspace-capabilities.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Workspace capabilities use case — mount feature flags.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceCapabilityRepository } from "../../domain/ports/output/WorkspaceCapabilityRepository";
+import type { Capability } from "../../domain/aggregates/Workspace";
+
+// ─── Mount Capabilities ───────────────────────────────────────────────────────
+
+export class MountCapabilitiesUseCase {
+  constructor(private readonly capabilityRepo: WorkspaceCapabilityRepository) {}
+
+  async execute(workspaceId: string, capabilities: Capability[]): Promise<CommandResult> {
+    try {
+      await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CAPABILITIES_MOUNT_FAILED",
+        err instanceof Error ? err.message : "Failed to mount capabilities",
+      );
+    }
+  }
+}
+````
+
+## File: modules/workspace/application/use-cases/workspace-lifecycle.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Workspace lifecycle use cases — create and delete.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
+import type { WorkspaceCapabilityRepository } from "../../domain/ports/output/WorkspaceCapabilityRepository";
+import type {
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  Capability,
+} from "../../domain/aggregates/Workspace";
+import {
+  createWorkspaceAggregate,
+  reconstituteWorkspaceAggregate,
+  toWorkspaceSnapshot,
+} from "../../domain/factories/WorkspaceFactory";
+import type { Workspace } from "../../domain/aggregates/Workspace";
+
+function sanitizeWorkspaceSettingsCommand(
+  workspace: Workspace,
+  command: UpdateWorkspaceSettingsCommand,
+): UpdateWorkspaceSettingsCommand {
+  workspace.applySettings(command);
+
+  return {
+    workspaceId: command.workspaceId,
+    accountId: command.accountId,
+    name: command.name !== undefined ? workspace.name : undefined,
+    visibility: command.visibility !== undefined ? workspace.visibility : undefined,
+    lifecycleState:
+      command.lifecycleState !== undefined ? workspace.lifecycleState : undefined,
+    address: command.address !== undefined ? workspace.address : undefined,
+    personnel: command.personnel !== undefined ? workspace.personnel : undefined,
+  };
+}
+
+// ─── Create Workspace ─────────────────────────────────────────────────────────
+
+export class CreateWorkspaceUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
+    try {
+      const workspace = createWorkspaceAggregate(command);
+      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_CREATE_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace",
+      );
+    }
+  }
+}
+
+// ─── Create Workspace with Capabilities ──────────────────────────────────────
+
+export class CreateWorkspaceWithCapabilitiesUseCase {
+  constructor(
+    private readonly workspaceRepo: WorkspaceRepository,
+    private readonly capabilityRepo: WorkspaceCapabilityRepository,
+  ) {}
+
+  async execute(
+    command: CreateWorkspaceCommand,
+    capabilities: Capability[] = [],
+  ): Promise<CommandResult> {
+    try {
+      const workspace = createWorkspaceAggregate(command);
+      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
+      if (capabilities.length > 0) {
+        await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
+      }
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_CREATE_WITH_CAPABILITIES_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace with capabilities",
+      );
+    }
+  }
+}
+
+// ─── Update Settings ──────────────────────────────────────────────────────────
+
+export class UpdateWorkspaceSettingsUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
+    try {
+      const workspace = await this.workspaceRepo.findByIdForAccount(
+        command.accountId,
+        command.workspaceId,
+      );
+      if (!workspace) {
+        return commandFailureFrom(
+          "WORKSPACE_NOT_FOUND",
+          `Workspace ${command.workspaceId} not found`,
+        );
+      }
+      await this.workspaceRepo.updateSettings(
+        sanitizeWorkspaceSettingsCommand(
+          reconstituteWorkspaceAggregate(workspace),
+          command,
+        ),
+      );
+      return commandSuccess(command.workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_UPDATE_FAILED",
+        err instanceof Error ? err.message : "Failed to update workspace settings",
+      );
+    }
+  }
+}
+
+// ─── Delete Workspace ─────────────────────────────────────────────────────────
+
+export class DeleteWorkspaceUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(workspaceId: string): Promise<CommandResult> {
+    try {
+      const workspace = await this.workspaceRepo.findById(workspaceId);
+      if (!workspace) {
+        return commandFailureFrom("WORKSPACE_NOT_FOUND", `Workspace ${workspaceId} not found`);
+      }
+      await this.workspaceRepo.delete(workspaceId);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_DELETE_FAILED",
+        err instanceof Error ? err.message : "Failed to delete workspace",
+      );
+    }
+  }
+}
+````
+
+## File: modules/workspace/application/use-cases/workspace-member.use-cases.ts
+````typescript
+import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMemberView";
+import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
+
+export class FetchWorkspaceMembersUseCase {
+  constructor(private readonly workspaceQueryRepo: WorkspaceQueryRepository) {}
+
+  execute(workspaceId: string): Promise<WorkspaceMemberView[]> {
+    return this.workspaceQueryRepo.getWorkspaceMembers(workspaceId);
+  }
+}
 ````
 
 ## File: modules/workspace/domain/aggregates/Workspace.test.ts
@@ -714,6 +1307,39 @@ export function toWorkspaceSnapshot(workspace: Workspace): WorkspaceEntity {
 }
 ````
 
+## File: modules/workspace/domain/ports/index.ts
+````typescript
+/**
+ * Workspace Ports Surface
+ *
+ * This folder is the explicit hexagonal port entry for the workspace BC.
+ * Keep ports as interfaces only; implementations must stay in infrastructure/.
+ */
+
+// Driven ports (domain/application core -> outside)
+export type { WorkspaceCommandPort } from "./input/WorkspaceCommandPort";
+export type {
+  WorkspaceQueryPort,
+  WorkspaceQuerySubscription,
+} from "./input/WorkspaceQueryPort";
+
+export type { WorkspaceRepository } from "./output/WorkspaceRepository";
+export type { WorkspaceCapabilityRepository } from "./output/WorkspaceCapabilityRepository";
+export type { WorkspaceAccessRepository } from "./output/WorkspaceAccessRepository";
+export type { WorkspaceLocationRepository } from "./output/WorkspaceLocationRepository";
+export type {
+  WorkspaceQueryRepository,
+  Unsubscribe as WorkspaceQueryUnsubscribe,
+} from "./output/WorkspaceQueryRepository";
+export type { WikiWorkspaceRepository } from "./output/WikiWorkspaceRepository";
+
+// Domain event publishing port
+export type {
+  WorkspaceDomainEventPublisher,
+  WorkspaceEventPublishMetadata,
+} from "./output/WorkspaceDomainEventPublisher";
+````
+
 ## File: modules/workspace/domain/value-objects/Address.ts
 ````typescript
 import { z } from "@lib-zod";
@@ -928,6 +1554,579 @@ export function createWorkspaceVisibility(
 
 export function isWorkspaceVisible(visibility: WorkspaceVisibility): boolean {
   return visibility === "visible";
+}
+````
+
+## File: modules/workspace/infrastructure/events/SharedWorkspaceDomainEventPublisher.ts
+````typescript
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+  QStashEventBusRepository,
+} from "@shared-events";
+import type {
+  WorkspaceDomainEventPublisher,
+  WorkspaceEventPublishMetadata,
+} from "../../domain/ports/output/WorkspaceDomainEventPublisher";
+import type { WorkspaceDomainEvent } from "../../domain/events/workspace.events";
+
+function toEventPayload(event: WorkspaceDomainEvent) {
+  const {
+    eventId: _eventId,
+    type: _type,
+    aggregateId: _aggregateId,
+    occurredAt: _occurredAt,
+    ...payload
+  } = event;
+
+  return payload as Record<string, unknown>;
+}
+
+export class SharedWorkspaceDomainEventPublisher
+  implements WorkspaceDomainEventPublisher
+{
+  private readonly publishDomainEventUseCase: PublishDomainEventUseCase;
+
+  constructor() {
+    const eventBus = process.env.QSTASH_TOKEN
+      ? new QStashEventBusRepository()
+      : new NoopEventBusRepository();
+
+    this.publishDomainEventUseCase = new PublishDomainEventUseCase(
+      new InMemoryEventStoreRepository(),
+      eventBus,
+    );
+  }
+
+  async publish(
+    event: WorkspaceDomainEvent,
+    metadata?: WorkspaceEventPublishMetadata,
+  ): Promise<void> {
+    try {
+      await this.publishDomainEventUseCase.execute({
+        id: event.eventId,
+        eventName: event.type,
+        aggregateType: "Workspace",
+        aggregateId: event.aggregateId,
+        occurredAt: new Date(event.occurredAt),
+        payload: toEventPayload(event),
+        metadata,
+      });
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[workspace.events] Failed to publish workspace domain event:", error);
+      }
+    }
+  }
+}
+````
+
+## File: modules/workspace/infrastructure/firebase/FirebaseWikiWorkspaceRepository.ts
+````typescript
+import { FirebaseWorkspaceRepository } from "./FirebaseWorkspaceRepository";
+
+import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
+import type { WikiWorkspaceRef } from "../../domain/entities/WikiContentTree";
+
+const workspaceRepo = new FirebaseWorkspaceRepository();
+
+export class FirebaseWikiWorkspaceRepository implements WikiWorkspaceRepository {
+  async listByAccountId(accountId: string): Promise<WikiWorkspaceRef[]> {
+    const workspaces = await workspaceRepo.findAllByAccountId(accountId);
+    return workspaces.map((workspace) => ({
+      id: workspace.id,
+      name: workspace.name,
+    }));
+  }
+}
+````
+
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
+````typescript
+import type {
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../../domain/entities/WorkspaceMemberView";
+import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
+import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
+
+const personnelLabels = {
+  managerId: "Manager",
+  supervisorId: "Supervisor",
+  safetyOfficerId: "Safety officer",
+} as const;
+
+const personnelLabelEntries = Object.entries(personnelLabels) as Array<
+  [keyof typeof personnelLabels, string]
+>;
+
+interface OrganizationMemberReference {
+  id: string;
+  name: string;
+  email?: string;
+  role?: string;
+  presence?: string;
+  isExternal?: boolean;
+}
+
+interface OrganizationTeam {
+  id: string;
+  name: string;
+  memberIds: string[];
+}
+
+interface OrganizationDirectoryGateway {
+  getOrganizationMembers(organizationId: string): Promise<OrganizationMemberReference[]>;
+  getOrganizationTeams(organizationId: string): Promise<OrganizationTeam[]>;
+}
+
+const defaultOrganizationDirectoryGateway: OrganizationDirectoryGateway = {
+  async getOrganizationMembers() {
+    return [];
+  },
+  async getOrganizationTeams() {
+    return [];
+  },
+};
+
+function toPresence(value: OrganizationMemberReference["presence"] | undefined): WorkspaceMemberPresence {
+  if (value === "active" || value === "away" || value === "offline") {
+    return value;
+  }
+
+  return "unknown";
+}
+
+function createFallbackMember(id: string): WorkspaceMemberView {
+  return {
+    id,
+    displayName: id,
+    presence: "unknown",
+    isExternal: false,
+    accessChannels: [],
+  };
+}
+
+export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
+  constructor(
+    private readonly organizationDirectoryGateway: OrganizationDirectoryGateway = defaultOrganizationDirectoryGateway,
+  ) {}
+
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
+
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ) {
+    const normalizedAccountId = accountId.trim();
+    if (!normalizedAccountId) {
+      onUpdate([]);
+      return () => {};
+    }
+
+    const q = query(
+      collection(this.db, "workspaces"),
+      where("accountId", "==", normalizedAccountId),
+    );
+
+    return onSnapshot(q, (snap) => {
+      const workspaces = snap.docs.map((docSnap) =>
+        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
+      );
+      onUpdate(workspaces);
+    });
+  }
+
+  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
+    const workspace = await this.workspaceRepo.findById(workspaceId);
+    if (!workspace) {
+      return [];
+    }
+
+    const members = new Map<string, WorkspaceMemberView>();
+    const memberChannelKeys = new Map<string, Set<string>>();
+
+    const mergeMember = (
+      memberId: string,
+      channel: WorkspaceMemberAccessChannel,
+      orgMember?: OrganizationMemberReference,
+    ) => {
+      const current = members.get(memberId) ?? createFallbackMember(memberId);
+      const channelKey = [
+        channel.source,
+        channel.label,
+        channel.role ?? "",
+        channel.protocol ?? "",
+        channel.teamId ?? "",
+      ].join("::");
+      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
+      memberChannelKeys.set(memberId, knownChannelKeys);
+      const hasSameChannel = knownChannelKeys.has(channelKey);
+      if (!hasSameChannel) {
+        knownChannelKeys.add(channelKey);
+      }
+
+      members.set(memberId, {
+        id: memberId,
+        displayName: orgMember?.name || current.displayName,
+        email: orgMember?.email ?? current.email,
+        organizationRole: orgMember?.role ?? current.organizationRole,
+        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
+        isExternal: orgMember?.isExternal ?? current.isExternal,
+        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
+      });
+    };
+
+    if (workspace.accountType === "organization") {
+      const [organizationMembers, teams] = await Promise.all([
+        this.organizationDirectoryGateway.getOrganizationMembers(workspace.accountId),
+        this.organizationDirectoryGateway.getOrganizationTeams(workspace.accountId),
+      ]);
+
+      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
+      const teamMap = new Map(teams.map((team) => [team.id, team]));
+
+      const mergeTeam = (team: OrganizationTeam, role?: string, protocol?: string) => {
+        const label = team.name || team.id;
+        team.memberIds.forEach((memberId: string) => {
+          mergeMember(
+            memberId,
+            {
+              source: "team",
+              label,
+              role,
+              protocol,
+              teamId: team.id,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        });
+      };
+
+      workspace.teamIds.forEach((teamId) => {
+        const team = teamMap.get(teamId);
+        if (team) {
+          mergeTeam(team);
+        }
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(
+            grant.userId,
+            {
+              source: "direct",
+              label: "Direct access",
+              role: grant.role,
+              protocol: grant.protocol,
+            },
+            organizationMemberMap.get(grant.userId),
+          );
+        }
+
+        if (grant.teamId) {
+          const team = teamMap.get(grant.teamId);
+          if (team) {
+            mergeTeam(team, grant.role, grant.protocol);
+          }
+        }
+      });
+
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
+        if (memberId) {
+          mergeMember(
+            memberId,
+            {
+              source: "personnel",
+              label,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        }
+      });
+    } else {
+      mergeMember(workspace.accountId, {
+        source: "owner",
+        label: "Workspace owner",
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(grant.userId, {
+            source: "direct",
+            label: "Direct access",
+            role: grant.role,
+            protocol: grant.protocol,
+          });
+        }
+      });
+
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
+        if (memberId) {
+          mergeMember(memberId, {
+            source: "personnel",
+            label,
+          });
+        }
+      });
+    }
+
+    return Array.from(members.values()).sort((left, right) =>
+      left.displayName.localeCompare(right.displayName),
+    );
+  }
+}
+````
+
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
+````typescript
+/**
+ * FirebaseWorkspaceRepository — Infrastructure adapter for workspace persistence.
+ * Translates Firestore documents ↔ Domain WorkspaceEntity.
+ * Firebase SDK only exists in this file.
+ */
+
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  query,
+  where,
+  documentId,
+  arrayUnion,
+  arrayRemove,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
+import type { WorkspaceCapabilityRepository } from "../../domain/ports/output/WorkspaceCapabilityRepository";
+import type { WorkspaceAccessRepository } from "../../domain/ports/output/WorkspaceAccessRepository";
+import type { WorkspaceLocationRepository } from "../../domain/ports/output/WorkspaceLocationRepository";
+import type {
+  WorkspaceEntity,
+  Capability,
+  WorkspaceGrant,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceLocation,
+} from "../../domain/aggregates/Workspace";
+import { createAddress } from "../../domain/value-objects/Address";
+import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
+import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
+import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
+
+// ─── Mapper ───────────────────────────────────────────────────────────────────
+
+const VALID_ACCOUNT_TYPES = new Set<WorkspaceEntity["accountType"]>(["user", "organization"]);
+
+export function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity {
+  const accountType = VALID_ACCOUNT_TYPES.has(data.accountType as WorkspaceEntity["accountType"])
+    ? (data.accountType as WorkspaceEntity["accountType"])
+    : "user";
+
+  return {
+    id,
+    name: createWorkspaceName(typeof data.name === "string" ? data.name : "Untitled workspace"),
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    accountType,
+    lifecycleState: createWorkspaceLifecycleState(
+      data.lifecycleState === "active" ||
+        data.lifecycleState === "stopped" ||
+        data.lifecycleState === "preparatory"
+        ? data.lifecycleState
+        : "preparatory",
+    ),
+    visibility: createWorkspaceVisibility(
+      data.visibility === "hidden" || data.visibility === "visible"
+        ? data.visibility
+        : "visible",
+    ),
+    capabilities: Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [],
+    grants: Array.isArray(data.grants) ? (data.grants as WorkspaceGrant[]) : [],
+    teamIds: Array.isArray(data.teamIds) ? (data.teamIds as string[]) : [],
+    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
+    address: data.address != null ? createAddress(data.address as NonNullable<UpdateWorkspaceSettingsCommand["address"]>) : undefined,
+    locations: Array.isArray(data.locations) ? (data.locations as WorkspaceLocation[]) : undefined,
+    personnel: data.personnel != null ? (data.personnel as WorkspaceEntity["personnel"]) : undefined,
+    createdAt: data.createdAt as WorkspaceEntity["createdAt"],
+  };
+}
+
+// ─── Repository ───────────────────────────────────────────────────────────────
+
+export class FirebaseWorkspaceRepository
+  implements
+    WorkspaceRepository,
+    WorkspaceCapabilityRepository,
+    WorkspaceAccessRepository,
+    WorkspaceLocationRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async findById(id: string): Promise<WorkspaceEntity | null> {
+    const snap = await getDoc(doc(this.db, "workspaces", id));
+    if (!snap.exists()) return null;
+    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
+    const q = query(
+      collection(this.db, "workspaces"),
+      where("accountId", "==", accountId),
+      where(documentId(), "==", workspaceId),
+    );
+    const snaps = await getDocs(q);
+    const snap = snaps.docs[0];
+    if (!snap) return null;
+    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]> {
+    const q = query(collection(this.db, "workspaces"), where("accountId", "==", accountId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toWorkspaceEntity(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async save(workspace: WorkspaceEntity): Promise<string> {
+    const ref = doc(this.db, "workspaces", workspace.id);
+    const payload: Record<string, unknown> = {
+      name: workspace.name,
+      accountId: workspace.accountId,
+      accountType: workspace.accountType,
+      lifecycleState: workspace.lifecycleState,
+      visibility: workspace.visibility,
+      capabilities: workspace.capabilities,
+      grants: workspace.grants,
+      teamIds: workspace.teamIds,
+      createdAt: serverTimestamp(),
+    };
+
+    if (workspace.photoURL !== undefined) payload.photoURL = workspace.photoURL;
+    if (workspace.address !== undefined) payload.address = workspace.address;
+    if (workspace.locations !== undefined) payload.locations = workspace.locations;
+    if (workspace.personnel !== undefined) payload.personnel = workspace.personnel;
+
+    await setDoc(ref, payload);
+    return workspace.id;
+  }
+
+  async updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void> {
+    const updates: Record<string, unknown> = { updatedAt: serverTimestamp() };
+    if (command.name !== undefined) updates.name = command.name;
+    if (command.visibility !== undefined) updates.visibility = command.visibility;
+    if (command.lifecycleState !== undefined) updates.lifecycleState = command.lifecycleState;
+    if (command.address !== undefined) updates.address = command.address;
+    if (command.personnel !== undefined) updates.personnel = command.personnel;
+    await updateDoc(doc(this.db, "workspaces", command.workspaceId), updates);
+  }
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(this.db, "workspaces", id));
+  }
+
+  async mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void> {
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      capabilities: arrayUnion(...capabilities),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async unmountCapability(workspaceId: string, capabilityId: string): Promise<void> {
+    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const caps = ((data.capabilities as Capability[]) ?? []).filter((c) => c.id !== capabilityId);
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      capabilities: caps,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async grantTeamAccess(workspaceId: string, teamId: string): Promise<void> {
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      teamIds: arrayUnion(teamId),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async revokeTeamAccess(workspaceId: string, teamId: string): Promise<void> {
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      teamIds: arrayRemove(teamId),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void> {
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      grants: arrayUnion(grant),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async revokeIndividualAccess(workspaceId: string, userId: string): Promise<void> {
+    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const grants = ((data.grants as WorkspaceGrant[]) ?? []).filter((g) => g.userId !== userId);
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      grants,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async createLocation(
+    workspaceId: string,
+    location: Omit<WorkspaceLocation, "locationId">,
+  ): Promise<string> {
+    const locationId = crypto.randomUUID();
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      locations: arrayUnion({ ...location, locationId }),
+      updatedAt: serverTimestamp(),
+    });
+    return locationId;
+  }
+
+  async updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void> {
+    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const locations = ((data.locations as WorkspaceLocation[]) ?? []).map((l) =>
+      l.locationId === location.locationId ? location : l,
+    );
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      locations,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async deleteLocation(workspaceId: string, locationId: string): Promise<void> {
+    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const locations = ((data.locations as WorkspaceLocation[]) ?? []).filter(
+      (l) => l.locationId !== locationId,
+    );
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      locations,
+      updatedAt: serverTimestamp(),
+    });
+  }
 }
 ````
 
@@ -4628,51 +5827,12 @@ export function getWorkspaceGovernanceSummary(
 }
 ````
 
-## File: modules/workspace/subdomains/audit/api/index.ts
+## File: modules/workspace/subdomains/audit/api/factories.ts
 ````typescript
-/**
- * workspace/subdomains/audit API boundary.
- */
+import { FirebaseAuditRepository } from "../infrastructure/firebase/FirebaseAuditRepository";
 
-export type { AuditLogEntity, AuditLogSource } from "../domain/entities/AuditLog";
-
-export type {
-  AuditLog,
-  AuditAction,
-  AuditSeverity,
-  ChangeRecord,
-} from "../domain/schema";
-
-export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../domain/schema";
-
-export {
-  getOrganizationAuditLogs,
-  getWorkspaceAuditLogs,
-} from "../interfaces/queries/audit.queries";
-
-export { WorkspaceAuditTab } from "../interfaces/components/WorkspaceAuditTab";
-export { AuditStream } from "../interfaces/components/AuditStream";
-````
-
-## File: modules/workspace/subdomains/audit/application/use-cases/list-audit-logs.use-cases.ts
-````typescript
-import type { AuditLogEntity } from "../../domain/entities/AuditLog";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-
-export class ListWorkspaceAuditLogsUseCase {
-  constructor(private readonly auditRepo: AuditRepository) {}
-
-  execute(workspaceId: string): Promise<AuditLogEntity[]> {
-    return this.auditRepo.findByWorkspaceId(workspaceId);
-  }
-}
-
-export class ListOrganizationAuditLogsUseCase {
-  constructor(private readonly auditRepo: AuditRepository) {}
-
-  execute(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]> {
-    return this.auditRepo.findByWorkspaceIds(workspaceIds, maxCount);
-  }
+export function makeAuditRepo() {
+  return new FirebaseAuditRepository();
 }
 ````
 
@@ -4688,16 +5848,6 @@ export interface AuditLogEntity {
   readonly detail: string;
   readonly source: AuditLogSource;
   readonly occurredAtISO: string;
-}
-````
-
-## File: modules/workspace/subdomains/audit/domain/repositories/AuditRepository.ts
-````typescript
-import type { AuditLogEntity } from "../entities/AuditLog";
-
-export interface AuditRepository {
-  findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]>;
-  findByWorkspaceIds(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]>;
 }
 ````
 
@@ -4735,95 +5885,17 @@ export const AuditLogSchema = BaseEntitySchema.extend({
 export type AuditLog = z.infer<typeof AuditLogSchema>;
 ````
 
-## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
+## File: modules/workspace/subdomains/feed/api/factories.ts
 ````typescript
-import {
-  collection,
-  getDocs,
-  getFirestore,
-  limit,
-  query,
-  where,
-} from "firebase/firestore";
+import { FirebaseWorkspaceFeedInteractionRepository } from "../infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository";
+import { FirebaseWorkspaceFeedPostRepository } from "../infrastructure/firebase/FirebaseWorkspaceFeedPostRepository";
 
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-
-const VALID_AUDIT_LOG_SOURCES = new Set<AuditLogSource>([
-  "workspace",
-  "finance",
-  "notification",
-  "system",
-]);
-
-function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity {
-  const source = VALID_AUDIT_LOG_SOURCES.has(data.source as AuditLogSource)
-    ? (data.source as AuditLogSource)
-    : "workspace";
-
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    actorId: typeof data.actorId === "string" ? data.actorId : "system",
-    action: typeof data.action === "string" ? data.action : "unknown",
-    detail: typeof data.detail === "string" ? data.detail : "",
-    source,
-    occurredAtISO:
-      typeof data.occurredAtISO === "string"
-        ? data.occurredAtISO
-        : "",
-  };
+export function makeWorkspaceFeedPostRepo() {
+  return new FirebaseWorkspaceFeedPostRepository();
 }
 
-export class FirebaseAuditRepository implements AuditRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]> {
-    const snaps = await getDocs(
-      query(collection(this.db, "auditLogs"), where("workspaceId", "==", workspaceId)),
-    );
-
-    return snaps.docs
-      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
-      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO));
-  }
-
-  async findByWorkspaceIds(
-    workspaceIds: string[],
-    maxCount = 200,
-  ): Promise<AuditLogEntity[]> {
-    if (workspaceIds.length === 0) {
-      return [];
-    }
-
-    const chunks: string[][] = [];
-    for (let index = 0; index < workspaceIds.length; index += 10) {
-      chunks.push(workspaceIds.slice(index, index + 10));
-    }
-
-    const perChunkLimit = Math.max(1, Math.ceil(maxCount / chunks.length));
-
-    const snapshots = await Promise.all(
-      chunks.map((chunk) =>
-        getDocs(
-          query(
-            collection(this.db, "auditLogs"),
-            where("workspaceId", "in", chunk),
-            limit(perChunkLimit),
-          ),
-        ),
-      ),
-    );
-
-    return snapshots
-      .flatMap((snapshot) => snapshot.docs)
-      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
-      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO))
-      .slice(0, maxCount);
-  }
+export function makeWorkspaceFeedInteractionRepo() {
+  return new FirebaseWorkspaceFeedInteractionRepository();
 }
 ````
 
@@ -5105,117 +6177,6 @@ export class ShareWorkspaceFeedPostUseCase {
     await this.interactionRepo.share(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
     await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { shareDelta: 1 });
     return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-````
-
-## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed-post.use-cases.ts
-````typescript
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
-import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
-import {
-  CreateWorkspaceFeedPostSchema,
-  type CreateWorkspaceFeedPostDto,
-  ListAccountFeedSchema,
-  type ListAccountFeedDto,
-  ListWorkspaceFeedSchema,
-  type ListWorkspaceFeedDto,
-  ReplyWorkspaceFeedPostSchema,
-  type ReplyWorkspaceFeedPostDto,
-  RepostWorkspaceFeedPostSchema,
-  type RepostWorkspaceFeedPostDto,
-} from "../dto/workspace-feed.dto";
-
-export class CreateWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = CreateWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.repo.createPost(parsed.data);
-    return commandSuccess(post.id, Date.now());
-  }
-}
-
-export class ReplyWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = ReplyWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const parent = await this.repo.findById(parsed.data.accountId, parsed.data.parentPostId);
-    if (!parent) {
-      return commandFailureFrom("WORKSPACE_FEED_PARENT_NOT_FOUND", "Parent post not found.");
-    }
-    if (parent.workspaceId !== parsed.data.workspaceId) {
-      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Parent post is in another workspace.");
-    }
-
-    const reply = await this.repo.createReply(parsed.data);
-    return commandSuccess(reply.id, Date.now());
-  }
-}
-
-export class RepostWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = RepostWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const source = await this.repo.findById(parsed.data.accountId, parsed.data.sourcePostId);
-    if (!source) {
-      return commandFailureFrom("WORKSPACE_FEED_SOURCE_NOT_FOUND", "Source post not found.");
-    }
-    if (source.workspaceId !== parsed.data.workspaceId) {
-      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Source post is in another workspace.");
-    }
-
-    const repost = await this.repo.createRepost(parsed.data);
-    if (!repost) {
-      return commandFailureFrom("WORKSPACE_FEED_REPOST_FAILED", "Failed to create repost.");
-    }
-
-    return commandSuccess(repost.id, Date.now());
-  }
-}
-
-export class GetWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
-    if (!accountId.trim() || !postId.trim()) return null;
-    return this.repo.findById(accountId, postId);
-  }
-}
-
-export class ListWorkspaceFeedUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ListWorkspaceFeedDto): Promise<WorkspaceFeedPost[]> {
-    const parsed = ListWorkspaceFeedSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByWorkspaceId(parsed.data.accountId, parsed.data.workspaceId, parsed.data.limit ?? 50);
-  }
-}
-
-export class ListAccountWorkspaceFeedUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ListAccountFeedDto): Promise<WorkspaceFeedPost[]> {
-    const parsed = ListAccountFeedSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByAccountId(parsed.data.accountId, parsed.data.limit ?? 50);
   }
 }
 ````
@@ -5707,6 +6668,127 @@ export { FirebaseWorkspaceFeedPostRepository } from "./firebase/FirebaseWorkspac
 export { FirebaseWorkspaceFeedInteractionRepository } from "./firebase/FirebaseWorkspaceFeedInteractionRepository";
 ````
 
+## File: modules/workspace/subdomains/feed/interfaces/_actions/workspace-feed.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+
+import type {
+  CreateWorkspaceFeedPostDto,
+  FeedInteractionDto,
+  ReplyWorkspaceFeedPostDto,
+  RepostWorkspaceFeedPostDto,
+} from "../../application/dto/workspace-feed.dto";
+import {
+  makeWorkspaceFeedInteractionRepo,
+  makeWorkspaceFeedPostRepo,
+} from "../../api/factories";
+import {
+  BookmarkWorkspaceFeedPostUseCase,
+  CreateWorkspaceFeedPostUseCase,
+  LikeWorkspaceFeedPostUseCase,
+  ReplyWorkspaceFeedPostUseCase,
+  RepostWorkspaceFeedPostUseCase,
+  ShareWorkspaceFeedPostUseCase,
+  ViewWorkspaceFeedPostUseCase,
+} from "../../application/use-cases/workspace-feed.use-cases";
+
+function makePostRepo() {
+  return makeWorkspaceFeedPostRepo();
+}
+
+function makeInteractionRepo() {
+  return makeWorkspaceFeedInteractionRepo();
+}
+
+export async function createWorkspaceFeedPost(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
+  try {
+    return await new CreateWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_CREATE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function replyWorkspaceFeedPost(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
+  try {
+    return await new ReplyWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_REPLY_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function repostWorkspaceFeedPost(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
+  try {
+    return await new RepostWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_REPOST_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function likeWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
+  try {
+    return await new LikeWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_LIKE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function viewWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
+  try {
+    return await new ViewWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_VIEW_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function bookmarkWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
+  try {
+    return await new BookmarkWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_BOOKMARK_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function shareWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
+  try {
+    return await new ShareWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "WORKSPACE_FEED_SHARE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/api/factories.ts
+````typescript
+import { FirebaseDemandRepository } from "../infrastructure/firebase/FirebaseDemandRepository";
+
+export function makeDemandRepo() {
+  return new FirebaseDemandRepository();
+}
+````
+
 ## File: modules/workspace/subdomains/scheduling/api/index.ts
 ````typescript
 /**
@@ -5778,6 +6860,95 @@ export const AssignMemberSchema = z.object({
 });
 
 export type AssignMemberInput = z.infer<typeof AssignMemberSchema>;
+````
+
+## File: modules/workspace/subdomains/scheduling/application/work-demand.use-cases.ts
+````typescript
+/**
+ * Module: workspace/subdomains/scheduling
+ * Layer: application/use-cases
+ * Purpose: Application services — orchestrate domain logic.
+ */
+
+import type { CommandResult } from "@shared-types";
+import { commandFailureFrom, commandSuccess } from "@shared-types";
+
+import type { WorkDemand } from "../domain/types";
+import type { IDemandRepository } from "../domain/repository";
+import type { AssignMemberInput, CreateDemandInput } from "./dto/work-demand.dto";
+
+export class SubmitWorkDemandUseCase {
+  constructor(private readonly repo: IDemandRepository) {}
+
+  async execute(input: CreateDemandInput): Promise<CommandResult> {
+    try {
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const demand: WorkDemand = {
+        id,
+        workspaceId: input.workspaceId,
+        accountId: input.accountId,
+        requesterId: input.requesterId,
+        title: input.title,
+        description: input.description ?? "",
+        priority: input.priority,
+        scheduledAt: input.scheduledAt,
+        status: "open",
+        createdAtISO: now,
+        updatedAtISO: now,
+      };
+      await this.repo.save(demand);
+      return commandSuccess(id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORK_DEMAND_SUBMIT_FAILED",
+        err instanceof Error ? err.message : "Failed to submit work demand",
+      );
+    }
+  }
+}
+
+export class AssignWorkDemandUseCase {
+  constructor(private readonly repo: IDemandRepository) {}
+
+  async execute(input: AssignMemberInput): Promise<CommandResult> {
+    try {
+      const demand = await this.repo.findById(input.demandId);
+      if (!demand) {
+        return commandFailureFrom("DEMAND_NOT_FOUND", `Demand ${input.demandId} not found`);
+      }
+      const updated: WorkDemand = {
+        ...demand,
+        assignedUserId: input.userId,
+        status: "in_progress",
+        updatedAtISO: new Date().toISOString(),
+      };
+      await this.repo.update(updated);
+      return commandSuccess(input.demandId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORK_DEMAND_ASSIGN_FAILED",
+        err instanceof Error ? err.message : "Failed to assign work demand",
+      );
+    }
+  }
+}
+
+export class ListWorkspaceDemandsUseCase {
+  constructor(private readonly repo: IDemandRepository) {}
+
+  async execute(workspaceId: string): Promise<WorkDemand[]> {
+    return this.repo.listByWorkspace(workspaceId);
+  }
+}
+
+export class ListAccountDemandsUseCase {
+  constructor(private readonly repo: IDemandRepository) {}
+
+  async execute(accountId: string): Promise<WorkDemand[]> {
+    return this.repo.listByAccount(accountId);
+  }
+}
 ````
 
 ## File: modules/workspace/subdomains/scheduling/domain/repository.ts
@@ -6043,3576 +7214,6 @@ export class MockDemandRepository implements IDemandRepository {
 }
 ````
 
-## File: modules/workspace/api/contracts.ts
-````typescript
-/**
- * workspace api/contracts.ts
- *
- * Canonical public type surface for the workspace bounded context.
- * Cross-module and app-layer consumers should import types from here.
- *
- * Internal source: interfaces/api/contracts/
- */
-
-export type {
-  Address,
-  AddressInput,
-  Capability,
-  CapabilitySpec,
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceEntity,
-  WorkspaceGrant,
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-  WorkspaceLocation,
-  WorkspaceName,
-  WorkspaceNameInput,
-  WorkspacePersonnel,
-  WorkspacePersonnelCustomRole,
-  WorkspaceVisibility,
-  WorkspaceVisibilityInput,
-} from "../domain/aggregates/Workspace";
-
-export type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberAccessSource,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../domain/entities/WorkspaceMemberView";
-
-export type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiAccountType,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-  WikiWorkspaceRef,
-} from "../domain/entities/WikiContentTree";
-
-export {
-  WORKSPACE_LIFECYCLE_STATES,
-  WORKSPACE_VISIBILITIES,
-  createAddress,
-  createWorkspaceLifecycleState,
-  createWorkspaceName,
-  createWorkspaceVisibility,
-  formatAddress,
-  isTerminalWorkspaceLifecycleState,
-  isWorkspaceVisible,
-  workspaceNameEquals,
-} from "../domain/value-objects";
-
-export type {
-  WorkspaceCreatedEvent,
-  WorkspaceDomainEvent,
-  WorkspaceLifecycleTransitionedEvent,
-  WorkspaceVisibilityChangedEvent,
-} from "../domain/events/workspace.events";
-
-export {
-  WORKSPACE_CREATED_EVENT_TYPE,
-  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
-  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
-  createWorkspaceCreatedEvent,
-  createWorkspaceLifecycleTransitionedEvent,
-  createWorkspaceVisibilityChangedEvent,
-} from "../domain/events/workspace.events";
-
-export type {
-  AuditAction,
-  AuditLog,
-  AuditLogEntity,
-  AuditLogSource,
-  AuditSeverity,
-  ChangeRecord,
-} from "../subdomains/audit/api";
-
-export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../subdomains/audit/api";
-
-export type {
-  WorkspaceFeedPost,
-  WorkspaceFeedPostType,
-} from "../subdomains/feed/api";
-
-export { WORKSPACE_FEED_POST_TYPES } from "../subdomains/feed/api";
-
-export type {
-  AssignWorkDemandCommand,
-  CreateWorkDemandCommand,
-  DemandPriority,
-  DemandStatus,
-  WorkDemand,
-  WorkDemandDomainEvent,
-} from "../subdomains/scheduling/api";
-
-export {
-  DEMAND_PRIORITIES,
-  DEMAND_PRIORITY_LABELS,
-  DEMAND_STATUSES,
-  DEMAND_STATUS_LABELS,
-} from "../subdomains/scheduling/api";
-
-export type {
-  Task,
-  Issue,
-  Invoice,
-  InvoiceItem,
-  TaskStatus,
-  IssueStatus,
-  IssueStage,
-  InvoiceStatus,
-  TaskSummary,
-  IssueSummary,
-  InvoiceSummary,
-  InvoiceItemSummary,
-  CreateTaskDto,
-  UpdateTaskDto,
-  OpenIssueDto,
-  ResolveIssueDto,
-  AddInvoiceItemDto,
-  UpdateInvoiceItemDto,
-  RemoveInvoiceItemDto,
-  TaskQueryDto,
-  IssueQueryDto,
-  InvoiceQueryDto,
-  PaginationDto,
-  PagedResult,
-  CommandResult,
-} from "../subdomains/workspace-workflow/api";
-
-export {
-  TASK_STATUSES,
-  ISSUE_STATUSES,
-  ISSUE_STAGES,
-  INVOICE_STATUSES,
-  toTaskSummary,
-  toIssueSummary,
-  toInvoiceSummary,
-  toInvoiceItemSummary,
-} from "../subdomains/workspace-workflow/api";
-````
-
-## File: modules/workspace/api/facade.ts
-````typescript
-/**
- * workspace api/facade.ts
- *
- * Canonical public behavior surface for the workspace bounded context.
- * Cross-module and app-layer consumers invoke commands and queries from here.
- *
- * Internal source: interfaces/api/facades/
- */
-
-export {
-  getWorkspacesForAccount,
-  subscribeToWorkspacesForAccount,
-  getWorkspaceById,
-  getWorkspaceByIdForAccount,
-  buildWikiContentTree,
-  authorizeWorkspaceTeam,
-  createWorkspace,
-  createWorkspaceLocation,
-  createWorkspaceWithCapabilities,
-  deleteWorkspace,
-  grantIndividualWorkspaceAccess,
-  mountCapabilities,
-  updateWorkspaceSettings,
-} from "../interfaces/api/facades/workspace.facade";
-
-export {
-  getWorkspaceMembers,
-} from "../interfaces/api/facades/workspace-member.facade";
-
-export {
-  getOrganizationAuditLogs,
-  getWorkspaceAuditLogs,
-} from "../subdomains/audit/api";
-
-export {
-  workspaceFeedFacade,
-  WorkspaceFeedFacade,
-  getAccountWorkspaceFeed,
-  getWorkspaceFeed,
-  getWorkspaceFeedPost,
-  bookmarkWorkspaceFeedPost,
-  createWorkspaceFeedPost,
-  likeWorkspaceFeedPost,
-  replyWorkspaceFeedPost,
-  repostWorkspaceFeedPost,
-  shareWorkspaceFeedPost,
-  viewWorkspaceFeedPost,
-} from "../subdomains/feed/api";
-
-export type {
-  CreateWorkspaceFeedPostParams,
-  ReplyWorkspaceFeedPostParams,
-  RepostWorkspaceFeedPostParams,
-  WorkspaceFeedInteractionParams,
-} from "../subdomains/feed/api";
-
-export {
-  assignWorkDemand,
-  getAccountDemands,
-  getWorkspaceDemands,
-  submitWorkDemand,
-} from "../subdomains/scheduling/api";
-
-export type {
-  AssignMemberInput,
-  CreateDemandInput,
-} from "../subdomains/scheduling/api";
-
-export {
-  WorkspaceFlowFacade,
-  WorkspaceFlowTaskFacade,
-  WorkspaceFlowIssueFacade,
-  WorkspaceFlowInvoiceFacade,
-  getWorkspaceFlowTasks,
-  getWorkspaceFlowTask,
-  getWorkspaceFlowIssues,
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowInvoiceItems,
-  createKnowledgeToWorkflowListener,
-} from "../subdomains/workspace-workflow/api";
-
-export type {
-  KnowledgePageApprovedHandler,
-} from "../subdomains/workspace-workflow/api";
-````
-
-## File: modules/workspace/api/runtime/factories.ts
-````typescript
-import { SharedWorkspaceDomainEventPublisher } from "../../infrastructure/events/SharedWorkspaceDomainEventPublisher";
-import { FirebaseWikiWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
-import { FirebaseWorkspaceQueryRepository } from "../../infrastructure/firebase/FirebaseWorkspaceQueryRepository";
-import { FirebaseWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWorkspaceRepository";
-
-interface OrganizationDirectoryGateway {
-  getOrganizationMembers(organizationId: string): Promise<{ id: string; name: string; email?: string; role?: string }[]>;
-  getOrganizationTeams(organizationId: string): Promise<{ id: string; name: string; memberIds: string[] }[]>;
-}
-
-export function makeWorkspaceRepo() {
-  return new FirebaseWorkspaceRepository();
-}
-
-export function makeWorkspaceQueryRepo(gateway: OrganizationDirectoryGateway) {
-  return new FirebaseWorkspaceQueryRepository(gateway);
-}
-
-export function makeWikiWorkspaceRepo() {
-  return new FirebaseWikiWorkspaceRepository();
-}
-
-export function makeWorkspaceDomainEventPublisher() {
-  return new SharedWorkspaceDomainEventPublisher();
-}
-````
-
-## File: modules/workspace/application/dtos/workspace-interfaces.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for workspace root interfaces.
- * Interfaces must import from here, not from domain/ directly.
- */
-
-// --- Aggregate types ---
-export type {
-  Address,
-  AddressInput,
-  Capability,
-  CapabilitySpec,
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceEntity,
-  WorkspaceGrant,
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-  WorkspaceLocation,
-  WorkspaceName,
-  WorkspaceNameInput,
-  WorkspacePersonnel,
-  WorkspacePersonnelCustomRole,
-  WorkspaceVisibility,
-  WorkspaceVisibilityInput,
-} from "../../domain/aggregates/Workspace";
-
-// --- Value-object helpers (values, not just types) ---
-export {
-  WORKSPACE_LIFECYCLE_STATES,
-  WORKSPACE_VISIBILITIES,
-  createAddress,
-  createWorkspaceLifecycleState,
-  createWorkspaceName,
-  createWorkspaceVisibility,
-  formatAddress,
-  isTerminalWorkspaceLifecycleState,
-  isWorkspaceVisible,
-  workspaceNameEquals,
-} from "../../domain/value-objects";
-
-// --- Domain events ---
-export type {
-  WorkspaceCreatedEvent,
-  WorkspaceDomainEvent,
-  WorkspaceLifecycleTransitionedEvent,
-  WorkspaceVisibilityChangedEvent,
-} from "../../domain/events/workspace.events";
-
-export {
-  WORKSPACE_CREATED_EVENT_TYPE,
-  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
-  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
-  createWorkspaceCreatedEvent,
-  createWorkspaceLifecycleTransitionedEvent,
-  createWorkspaceVisibilityChangedEvent,
-} from "../../domain/events/workspace.events";
-
-// --- Ports ---
-export type { WorkspaceCommandPort } from "../../domain/ports/input/WorkspaceCommandPort";
-export type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";
-````
-
-## File: modules/workspace/application/services/WorkspaceQueryApplicationService.ts
-````typescript
-import type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-} from "../../domain/entities/WikiContentTree";
-import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMemberView";
-import {
-  GetWorkspaceByIdForAccountUseCase,
-  GetWorkspaceByIdUseCase,
-  ListWorkspacesForAccountUseCase,
-  SubscribeToWorkspacesForAccountUseCase,
-} from "../use-cases/workspace-query.use-cases";
-import { FetchWorkspaceMembersUseCase } from "../use-cases/workspace-member.use-cases";
-import { buildWikiContentTree } from "../use-cases/wiki-content-tree.use-case";
-import type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";
-import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
-import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
-import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
-
-interface WorkspaceQueryApplicationServiceDependencies {
-  workspaceRepo: WorkspaceRepository;
-  workspaceQueryRepo: WorkspaceQueryRepository;
-  wikiWorkspaceRepo: WikiWorkspaceRepository;
-}
-
-export class WorkspaceQueryApplicationService implements WorkspaceQueryPort {
-  constructor(
-    private readonly dependencies: WorkspaceQueryApplicationServiceDependencies,
-  ) {}
-
-  getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]> {
-    return new ListWorkspacesForAccountUseCase(this.dependencies.workspaceRepo).execute(accountId);
-  }
-
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ) {
-    return new SubscribeToWorkspacesForAccountUseCase(
-      this.dependencies.workspaceQueryRepo,
-    ).execute(accountId, onUpdate);
-  }
-
-  getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null> {
-    return new GetWorkspaceByIdUseCase(this.dependencies.workspaceRepo).execute(workspaceId);
-  }
-
-  getWorkspaceByIdForAccount(
-    accountId: string,
-    workspaceId: string,
-  ): Promise<WorkspaceEntity | null> {
-    return new GetWorkspaceByIdForAccountUseCase(this.dependencies.workspaceRepo).execute(
-      accountId,
-      workspaceId,
-    );
-  }
-
-  getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    return new FetchWorkspaceMembersUseCase(this.dependencies.workspaceQueryRepo).execute(workspaceId);
-  }
-
-  buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {
-    return buildWikiContentTree(seeds, this.dependencies.wikiWorkspaceRepo);
-  }
-}
-````
-
-## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Build the workspace content-tree from account/workspace seeds.
- *          Lives in workspace because it aggregates workspace-scoped content nodes.
- */
-
-import type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-} from "../../domain/entities/WikiContentTree";
-import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
-
-function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {
-  return [
-    { key: "spaces", label: "Workspace", href: `/workspace/${workspaceId}`, enabled: true },
-    { key: "pages", label: "Knowledge Pages", href: `/knowledge/pages?workspaceId=${workspaceId}`, enabled: true },
-    { key: "libraries", label: "Libraries", href: `/source/libraries?workspaceId=${workspaceId}`, enabled: true },
-    { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
-    { key: "vector-index", label: "Vector Index", href: "/knowledge", enabled: false },
-    { key: "rag", label: "RAG", href: `/notebook/rag-query?workspaceId=${workspaceId}`, enabled: true },
-    { key: "ai-tools", label: "AI Tools", href: `/ai-chat?workspaceId=${workspaceId}`, enabled: true },
-  ];
-}
-
-function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiWorkspaceContentNode {
-  return {
-    workspaceId,
-    workspaceName,
-    href: `/workspace/${workspaceId}`,
-    contentBaseItems: buildContentBaseItems(workspaceId),
-  };
-}
-
-export async function buildWikiContentTree(
-  seeds: WikiAccountSeed[],
-  workspaceRepository: WikiWorkspaceRepository,
-): Promise<WikiAccountContentNode[]> {
-  const accountNodes = await Promise.all(
-    seeds.map(async (seed) => {
-      const workspaces = await workspaceRepository.listByAccountId(seed.accountId);
-      return {
-        accountId: seed.accountId,
-        accountName: seed.accountName,
-        accountType: seed.accountType,
-        isActive: seed.isActive,
-        membersHref: seed.accountType === "organization" ? "/organization/members" : undefined,
-        teamsHref: seed.accountType === "organization" ? "/organization/teams" : undefined,
-        workspaces: workspaces.map((workspace) => buildWorkspaceNode(workspace.id, workspace.name)),
-      } satisfies WikiAccountContentNode;
-    }),
-  );
-
-  return accountNodes.sort((a, b) => {
-    if (a.accountType !== b.accountType) {
-      return a.accountType === "personal" ? -1 : 1;
-    }
-    return a.accountName.localeCompare(b.accountName, "zh-Hant");
-  });
-}
-````
-
-## File: modules/workspace/application/use-cases/workspace-access.use-cases.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Workspace access use cases — team grants, individual grants, locations.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceAccessRepository } from "../../domain/ports/output/WorkspaceAccessRepository";
-import type { WorkspaceLocationRepository } from "../../domain/ports/output/WorkspaceLocationRepository";
-import type { WorkspaceGrant, WorkspaceLocation } from "../../domain/aggregates/Workspace";
-
-// ─── Grant Team Access ────────────────────────────────────────────────────────
-
-export class GrantTeamAccessUseCase {
-  constructor(private readonly workspaceAccessRepo: WorkspaceAccessRepository) {}
-
-  async execute(workspaceId: string, teamId: string): Promise<CommandResult> {
-    try {
-      await this.workspaceAccessRepo.grantTeamAccess(workspaceId, teamId);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_TEAM_GRANT_FAILED",
-        err instanceof Error ? err.message : "Failed to grant team access",
-      );
-    }
-  }
-}
-
-// ─── Grant Individual Access ──────────────────────────────────────────────────
-
-export class GrantIndividualAccessUseCase {
-  constructor(private readonly workspaceAccessRepo: WorkspaceAccessRepository) {}
-
-  async execute(workspaceId: string, grant: WorkspaceGrant): Promise<CommandResult> {
-    try {
-      await this.workspaceAccessRepo.grantIndividualAccess(workspaceId, grant);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_GRANT_FAILED",
-        err instanceof Error ? err.message : "Failed to grant individual access",
-      );
-    }
-  }
-}
-
-// ─── Create Location ──────────────────────────────────────────────────────────
-
-export class CreateWorkspaceLocationUseCase {
-  constructor(private readonly workspaceLocationRepo: WorkspaceLocationRepository) {}
-
-  async execute(
-    workspaceId: string,
-    location: Omit<WorkspaceLocation, "locationId">,
-  ): Promise<CommandResult> {
-    try {
-      const locationId = await this.workspaceLocationRepo.createLocation(workspaceId, location);
-      return commandSuccess(locationId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_LOCATION_CREATE_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace location",
-      );
-    }
-  }
-}
-````
-
-## File: modules/workspace/application/use-cases/workspace-capabilities.use-cases.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Workspace capabilities use case — mount feature flags.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceCapabilityRepository } from "../../domain/ports/output/WorkspaceCapabilityRepository";
-import type { Capability } from "../../domain/aggregates/Workspace";
-
-// ─── Mount Capabilities ───────────────────────────────────────────────────────
-
-export class MountCapabilitiesUseCase {
-  constructor(private readonly capabilityRepo: WorkspaceCapabilityRepository) {}
-
-  async execute(workspaceId: string, capabilities: Capability[]): Promise<CommandResult> {
-    try {
-      await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CAPABILITIES_MOUNT_FAILED",
-        err instanceof Error ? err.message : "Failed to mount capabilities",
-      );
-    }
-  }
-}
-````
-
-## File: modules/workspace/application/use-cases/workspace-lifecycle.use-cases.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Workspace lifecycle use cases — create and delete.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
-import type { WorkspaceCapabilityRepository } from "../../domain/ports/output/WorkspaceCapabilityRepository";
-import type {
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  Capability,
-} from "../../domain/aggregates/Workspace";
-import {
-  createWorkspaceAggregate,
-  reconstituteWorkspaceAggregate,
-  toWorkspaceSnapshot,
-} from "../../domain/factories/WorkspaceFactory";
-import type { Workspace } from "../../domain/aggregates/Workspace";
-
-function sanitizeWorkspaceSettingsCommand(
-  workspace: Workspace,
-  command: UpdateWorkspaceSettingsCommand,
-): UpdateWorkspaceSettingsCommand {
-  workspace.applySettings(command);
-
-  return {
-    workspaceId: command.workspaceId,
-    accountId: command.accountId,
-    name: command.name !== undefined ? workspace.name : undefined,
-    visibility: command.visibility !== undefined ? workspace.visibility : undefined,
-    lifecycleState:
-      command.lifecycleState !== undefined ? workspace.lifecycleState : undefined,
-    address: command.address !== undefined ? workspace.address : undefined,
-    personnel: command.personnel !== undefined ? workspace.personnel : undefined,
-  };
-}
-
-// ─── Create Workspace ─────────────────────────────────────────────────────────
-
-export class CreateWorkspaceUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
-    try {
-      const workspace = createWorkspaceAggregate(command);
-      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace",
-      );
-    }
-  }
-}
-
-// ─── Create Workspace with Capabilities ──────────────────────────────────────
-
-export class CreateWorkspaceWithCapabilitiesUseCase {
-  constructor(
-    private readonly workspaceRepo: WorkspaceRepository,
-    private readonly capabilityRepo: WorkspaceCapabilityRepository,
-  ) {}
-
-  async execute(
-    command: CreateWorkspaceCommand,
-    capabilities: Capability[] = [],
-  ): Promise<CommandResult> {
-    try {
-      const workspace = createWorkspaceAggregate(command);
-      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
-      if (capabilities.length > 0) {
-        await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
-      }
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_WITH_CAPABILITIES_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace with capabilities",
-      );
-    }
-  }
-}
-
-// ─── Update Settings ──────────────────────────────────────────────────────────
-
-export class UpdateWorkspaceSettingsUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
-    try {
-      const workspace = await this.workspaceRepo.findByIdForAccount(
-        command.accountId,
-        command.workspaceId,
-      );
-      if (!workspace) {
-        return commandFailureFrom(
-          "WORKSPACE_NOT_FOUND",
-          `Workspace ${command.workspaceId} not found`,
-        );
-      }
-      await this.workspaceRepo.updateSettings(
-        sanitizeWorkspaceSettingsCommand(
-          reconstituteWorkspaceAggregate(workspace),
-          command,
-        ),
-      );
-      return commandSuccess(command.workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_UPDATE_FAILED",
-        err instanceof Error ? err.message : "Failed to update workspace settings",
-      );
-    }
-  }
-}
-
-// ─── Delete Workspace ─────────────────────────────────────────────────────────
-
-export class DeleteWorkspaceUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(workspaceId: string): Promise<CommandResult> {
-    try {
-      const workspace = await this.workspaceRepo.findById(workspaceId);
-      if (!workspace) {
-        return commandFailureFrom("WORKSPACE_NOT_FOUND", `Workspace ${workspaceId} not found`);
-      }
-      await this.workspaceRepo.delete(workspaceId);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_DELETE_FAILED",
-        err instanceof Error ? err.message : "Failed to delete workspace",
-      );
-    }
-  }
-}
-````
-
-## File: modules/workspace/application/use-cases/workspace-member.use-cases.ts
-````typescript
-import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMemberView";
-import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
-
-export class FetchWorkspaceMembersUseCase {
-  constructor(private readonly workspaceQueryRepo: WorkspaceQueryRepository) {}
-
-  execute(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    return this.workspaceQueryRepo.getWorkspaceMembers(workspaceId);
-  }
-}
-````
-
-## File: modules/workspace/application/use-cases/workspace-query.use-cases.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Workspace read use cases — thin query orchestration.
- */
-
-import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
-import type {
-  Unsubscribe,
-  WorkspaceQueryRepository,
-} from "../../domain/ports/output/WorkspaceQueryRepository";
-
-export class ListWorkspacesForAccountUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(accountId: string): Promise<WorkspaceEntity[]> {
-    const normalizedAccountId = accountId.trim();
-    if (!normalizedAccountId) {
-      return [];
-    }
-
-    return this.workspaceRepo.findAllByAccountId(normalizedAccountId);
-  }
-}
-
-export class SubscribeToWorkspacesForAccountUseCase {
-  constructor(private readonly workspaceQueryRepo: WorkspaceQueryRepository) {}
-
-  execute(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ): Unsubscribe {
-    const normalizedAccountId = accountId.trim();
-    if (!normalizedAccountId) {
-      onUpdate([]);
-      return () => {};
-    }
-
-    return this.workspaceQueryRepo.subscribeToWorkspacesForAccount(
-      normalizedAccountId,
-      onUpdate,
-    );
-  }
-}
-
-export class GetWorkspaceByIdUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(workspaceId: string): Promise<WorkspaceEntity | null> {
-    const normalizedWorkspaceId = workspaceId.trim();
-    if (!normalizedWorkspaceId) {
-      return null;
-    }
-
-    return this.workspaceRepo.findById(normalizedWorkspaceId);
-  }
-}
-
-export class GetWorkspaceByIdForAccountUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
-    const normalizedAccountId = accountId.trim();
-    const normalizedWorkspaceId = workspaceId.trim();
-    if (!normalizedAccountId || !normalizedWorkspaceId) {
-      return null;
-    }
-
-    return this.workspaceRepo.findByIdForAccount(
-      normalizedAccountId,
-      normalizedWorkspaceId,
-    );
-  }
-}
-````
-
-## File: modules/workspace/application/use-cases/workspace.use-cases.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Re-export barrel for all workspace use cases.
- *          Split by subdomain for Hexagonal DDD single-responsibility:
- *  - workspace-lifecycle.use-cases.ts  (create, update, delete)
- *  - workspace-capabilities.use-cases.ts (mount capabilities)
- *  - workspace-access.use-cases.ts      (team grants, individual grants, locations)
- */
-
-export {
-  CreateWorkspaceUseCase,
-  CreateWorkspaceWithCapabilitiesUseCase,
-  UpdateWorkspaceSettingsUseCase,
-  DeleteWorkspaceUseCase,
-} from "./workspace-lifecycle.use-cases";
-
-export { MountCapabilitiesUseCase } from "./workspace-capabilities.use-cases";
-
-export {
-  GrantTeamAccessUseCase,
-  GrantIndividualAccessUseCase,
-  CreateWorkspaceLocationUseCase,
-} from "./workspace-access.use-cases";
-
-export {
-  GetWorkspaceByIdForAccountUseCase,
-  GetWorkspaceByIdUseCase,
-  ListWorkspacesForAccountUseCase,
-  SubscribeToWorkspacesForAccountUseCase,
-} from "./workspace-query.use-cases";
-````
-
-## File: modules/workspace/domain/ports/index.ts
-````typescript
-/**
- * Workspace Ports Surface
- *
- * This folder is the explicit hexagonal port entry for the workspace BC.
- * Keep ports as interfaces only; implementations must stay in infrastructure/.
- */
-
-// Driven ports (domain/application core -> outside)
-export type { WorkspaceCommandPort } from "./input/WorkspaceCommandPort";
-export type {
-  WorkspaceQueryPort,
-  WorkspaceQuerySubscription,
-} from "./input/WorkspaceQueryPort";
-
-export type { WorkspaceRepository } from "./output/WorkspaceRepository";
-export type { WorkspaceCapabilityRepository } from "./output/WorkspaceCapabilityRepository";
-export type { WorkspaceAccessRepository } from "./output/WorkspaceAccessRepository";
-export type { WorkspaceLocationRepository } from "./output/WorkspaceLocationRepository";
-export type {
-  WorkspaceQueryRepository,
-  Unsubscribe as WorkspaceQueryUnsubscribe,
-} from "./output/WorkspaceQueryRepository";
-export type { WikiWorkspaceRepository } from "./output/WikiWorkspaceRepository";
-
-// Domain event publishing port
-export type {
-  WorkspaceDomainEventPublisher,
-  WorkspaceEventPublishMetadata,
-} from "./output/WorkspaceDomainEventPublisher";
-````
-
-## File: modules/workspace/infrastructure/events/SharedWorkspaceDomainEventPublisher.ts
-````typescript
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-  QStashEventBusRepository,
-} from "@shared-events";
-import type {
-  WorkspaceDomainEventPublisher,
-  WorkspaceEventPublishMetadata,
-} from "../../domain/ports/output/WorkspaceDomainEventPublisher";
-import type { WorkspaceDomainEvent } from "../../domain/events/workspace.events";
-
-function toEventPayload(event: WorkspaceDomainEvent) {
-  const {
-    eventId: _eventId,
-    type: _type,
-    aggregateId: _aggregateId,
-    occurredAt: _occurredAt,
-    ...payload
-  } = event;
-
-  return payload as Record<string, unknown>;
-}
-
-export class SharedWorkspaceDomainEventPublisher
-  implements WorkspaceDomainEventPublisher
-{
-  private readonly publishDomainEventUseCase: PublishDomainEventUseCase;
-
-  constructor() {
-    const eventBus = process.env.QSTASH_TOKEN
-      ? new QStashEventBusRepository()
-      : new NoopEventBusRepository();
-
-    this.publishDomainEventUseCase = new PublishDomainEventUseCase(
-      new InMemoryEventStoreRepository(),
-      eventBus,
-    );
-  }
-
-  async publish(
-    event: WorkspaceDomainEvent,
-    metadata?: WorkspaceEventPublishMetadata,
-  ): Promise<void> {
-    try {
-      await this.publishDomainEventUseCase.execute({
-        id: event.eventId,
-        eventName: event.type,
-        aggregateType: "Workspace",
-        aggregateId: event.aggregateId,
-        occurredAt: new Date(event.occurredAt),
-        payload: toEventPayload(event),
-        metadata,
-      });
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[workspace.events] Failed to publish workspace domain event:", error);
-      }
-    }
-  }
-}
-````
-
-## File: modules/workspace/infrastructure/firebase/FirebaseWikiWorkspaceRepository.ts
-````typescript
-import { FirebaseWorkspaceRepository } from "./FirebaseWorkspaceRepository";
-
-import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
-import type { WikiWorkspaceRef } from "../../domain/entities/WikiContentTree";
-
-const workspaceRepo = new FirebaseWorkspaceRepository();
-
-export class FirebaseWikiWorkspaceRepository implements WikiWorkspaceRepository {
-  async listByAccountId(accountId: string): Promise<WikiWorkspaceRef[]> {
-    const workspaces = await workspaceRepo.findAllByAccountId(accountId);
-    return workspaces.map((workspace) => ({
-      id: workspace.id,
-      name: workspace.name,
-    }));
-  }
-}
-````
-
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
-````typescript
-/**
- * FirebaseWorkspaceRepository — Infrastructure adapter for workspace persistence.
- * Translates Firestore documents ↔ Domain WorkspaceEntity.
- * Firebase SDK only exists in this file.
- */
-
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  query,
-  where,
-  documentId,
-  arrayUnion,
-  arrayRemove,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
-import type { WorkspaceCapabilityRepository } from "../../domain/ports/output/WorkspaceCapabilityRepository";
-import type { WorkspaceAccessRepository } from "../../domain/ports/output/WorkspaceAccessRepository";
-import type { WorkspaceLocationRepository } from "../../domain/ports/output/WorkspaceLocationRepository";
-import type {
-  WorkspaceEntity,
-  Capability,
-  WorkspaceGrant,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceLocation,
-} from "../../domain/aggregates/Workspace";
-import { createAddress } from "../../domain/value-objects/Address";
-import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
-import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
-import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
-
-// ─── Mapper ───────────────────────────────────────────────────────────────────
-
-const VALID_ACCOUNT_TYPES = new Set<WorkspaceEntity["accountType"]>(["user", "organization"]);
-
-export function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity {
-  const accountType = VALID_ACCOUNT_TYPES.has(data.accountType as WorkspaceEntity["accountType"])
-    ? (data.accountType as WorkspaceEntity["accountType"])
-    : "user";
-
-  return {
-    id,
-    name: createWorkspaceName(typeof data.name === "string" ? data.name : "Untitled workspace"),
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    accountType,
-    lifecycleState: createWorkspaceLifecycleState(
-      data.lifecycleState === "active" ||
-        data.lifecycleState === "stopped" ||
-        data.lifecycleState === "preparatory"
-        ? data.lifecycleState
-        : "preparatory",
-    ),
-    visibility: createWorkspaceVisibility(
-      data.visibility === "hidden" || data.visibility === "visible"
-        ? data.visibility
-        : "visible",
-    ),
-    capabilities: Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [],
-    grants: Array.isArray(data.grants) ? (data.grants as WorkspaceGrant[]) : [],
-    teamIds: Array.isArray(data.teamIds) ? (data.teamIds as string[]) : [],
-    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
-    address: data.address != null ? createAddress(data.address as NonNullable<UpdateWorkspaceSettingsCommand["address"]>) : undefined,
-    locations: Array.isArray(data.locations) ? (data.locations as WorkspaceLocation[]) : undefined,
-    personnel: data.personnel != null ? (data.personnel as WorkspaceEntity["personnel"]) : undefined,
-    createdAt: data.createdAt as WorkspaceEntity["createdAt"],
-  };
-}
-
-// ─── Repository ───────────────────────────────────────────────────────────────
-
-export class FirebaseWorkspaceRepository
-  implements
-    WorkspaceRepository,
-    WorkspaceCapabilityRepository,
-    WorkspaceAccessRepository,
-    WorkspaceLocationRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async findById(id: string): Promise<WorkspaceEntity | null> {
-    const snap = await getDoc(doc(this.db, "workspaces", id));
-    if (!snap.exists()) return null;
-    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
-    const q = query(
-      collection(this.db, "workspaces"),
-      where("accountId", "==", accountId),
-      where(documentId(), "==", workspaceId),
-    );
-    const snaps = await getDocs(q);
-    const snap = snaps.docs[0];
-    if (!snap) return null;
-    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]> {
-    const q = query(collection(this.db, "workspaces"), where("accountId", "==", accountId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toWorkspaceEntity(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async save(workspace: WorkspaceEntity): Promise<string> {
-    const ref = doc(this.db, "workspaces", workspace.id);
-    const payload: Record<string, unknown> = {
-      name: workspace.name,
-      accountId: workspace.accountId,
-      accountType: workspace.accountType,
-      lifecycleState: workspace.lifecycleState,
-      visibility: workspace.visibility,
-      capabilities: workspace.capabilities,
-      grants: workspace.grants,
-      teamIds: workspace.teamIds,
-      createdAt: serverTimestamp(),
-    };
-
-    if (workspace.photoURL !== undefined) payload.photoURL = workspace.photoURL;
-    if (workspace.address !== undefined) payload.address = workspace.address;
-    if (workspace.locations !== undefined) payload.locations = workspace.locations;
-    if (workspace.personnel !== undefined) payload.personnel = workspace.personnel;
-
-    await setDoc(ref, payload);
-    return workspace.id;
-  }
-
-  async updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void> {
-    const updates: Record<string, unknown> = { updatedAt: serverTimestamp() };
-    if (command.name !== undefined) updates.name = command.name;
-    if (command.visibility !== undefined) updates.visibility = command.visibility;
-    if (command.lifecycleState !== undefined) updates.lifecycleState = command.lifecycleState;
-    if (command.address !== undefined) updates.address = command.address;
-    if (command.personnel !== undefined) updates.personnel = command.personnel;
-    await updateDoc(doc(this.db, "workspaces", command.workspaceId), updates);
-  }
-
-  async delete(id: string): Promise<void> {
-    await deleteDoc(doc(this.db, "workspaces", id));
-  }
-
-  async mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      capabilities: arrayUnion(...capabilities),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async unmountCapability(workspaceId: string, capabilityId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const caps = ((data.capabilities as Capability[]) ?? []).filter((c) => c.id !== capabilityId);
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      capabilities: caps,
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async grantTeamAccess(workspaceId: string, teamId: string): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      teamIds: arrayUnion(teamId),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async revokeTeamAccess(workspaceId: string, teamId: string): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      teamIds: arrayRemove(teamId),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      grants: arrayUnion(grant),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async revokeIndividualAccess(workspaceId: string, userId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const grants = ((data.grants as WorkspaceGrant[]) ?? []).filter((g) => g.userId !== userId);
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      grants,
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async createLocation(
-    workspaceId: string,
-    location: Omit<WorkspaceLocation, "locationId">,
-  ): Promise<string> {
-    const locationId = crypto.randomUUID();
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      locations: arrayUnion({ ...location, locationId }),
-      updatedAt: serverTimestamp(),
-    });
-    return locationId;
-  }
-
-  async updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const locations = ((data.locations as WorkspaceLocation[]) ?? []).map((l) =>
-      l.locationId === location.locationId ? location : l,
-    );
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      locations,
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async deleteLocation(workspaceId: string, locationId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const locations = ((data.locations as WorkspaceLocation[]) ?? []).filter(
-      (l) => l.locationId !== locationId,
-    );
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      locations,
-      updatedAt: serverTimestamp(),
-    });
-  }
-}
-````
-
-## File: modules/workspace/interfaces/api/contracts/wiki-content.contract.ts
-````typescript
-export type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiAccountType,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-  WikiWorkspaceRef,
-} from "../../../application/dtos/wiki-content-tree.dto";
-````
-
-## File: modules/workspace/interfaces/api/contracts/workspace-member.contract.ts
-````typescript
-export type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberAccessSource,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../../../application/dtos/workspace-member-view.dto";
-````
-
-## File: modules/workspace/interfaces/api/contracts/workspace.contract.ts
-````typescript
-export type {
-  Address,
-  AddressInput,
-  Capability,
-  CapabilitySpec,
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceEntity,
-  WorkspaceGrant,
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-  WorkspaceLocation,
-  WorkspaceName,
-  WorkspaceNameInput,
-  WorkspacePersonnel,
-  WorkspacePersonnelCustomRole,
-  WorkspaceVisibility,
-  WorkspaceVisibilityInput,
-} from "../../../application/dtos/workspace-interfaces.dto";
-
-export {
-  WORKSPACE_LIFECYCLE_STATES,
-  WORKSPACE_VISIBILITIES,
-  createAddress,
-  createWorkspaceLifecycleState,
-  createWorkspaceName,
-  createWorkspaceVisibility,
-  formatAddress,
-  isTerminalWorkspaceLifecycleState,
-  isWorkspaceVisible,
-  workspaceNameEquals,
-} from "../../../application/dtos/workspace-interfaces.dto";
-
-export type {
-  WorkspaceCreatedEvent,
-  WorkspaceDomainEvent,
-  WorkspaceLifecycleTransitionedEvent,
-  WorkspaceVisibilityChangedEvent,
-} from "../../../application/dtos/workspace-interfaces.dto";
-
-export {
-  WORKSPACE_CREATED_EVENT_TYPE,
-  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
-  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
-  createWorkspaceCreatedEvent,
-  createWorkspaceLifecycleTransitionedEvent,
-  createWorkspaceVisibilityChangedEvent,
-} from "../../../application/dtos/workspace-interfaces.dto";
-````
-
-## File: modules/workspace/interfaces/web/components/layout/WorkspaceQuickAccessRow.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { Settings } from "lucide-react";
-import { useRef } from "react";
-
-import type { WorkspaceQuickAccessItem } from "../navigation/workspace-quick-access";
-
-interface WorkspaceQuickAccessRowProps {
-  items: WorkspaceQuickAccessItem[];
-  pathname: string;
-  currentPanel: string | null;
-  currentWorkspaceTab: string | null;
-  workspaceSettingsHref: string;
-  isActiveRoute: (href: string) => boolean;
-}
-
-export function WorkspaceQuickAccessRow({
-  items,
-  pathname,
-  currentPanel,
-  currentWorkspaceTab,
-  workspaceSettingsHref,
-  isActiveRoute,
-}: WorkspaceQuickAccessRowProps) {
-  const quickAccessDragStateRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startScrollLeft: number;
-    didDrag: boolean;
-  } | null>(null);
-
-  const suppressQuickAccessClickRef = useRef(false);
-
-  if (items.length === 0) {
-    return null;
-  }
-
-  function handleQuickAccessPointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    if (event.pointerType !== "mouse") {
-      return;
-    }
-
-    const container = event.currentTarget;
-    if (container.scrollWidth <= container.clientWidth) {
-      return;
-    }
-
-    quickAccessDragStateRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startScrollLeft: container.scrollLeft,
-      didDrag: false,
-    };
-  }
-
-  function handleQuickAccessPointerMove(event: React.PointerEvent<HTMLDivElement>) {
-    const dragState = quickAccessDragStateRef.current;
-    if (!dragState || dragState.pointerId !== event.pointerId) {
-      return;
-    }
-
-    const deltaX = event.clientX - dragState.startX;
-    if (!dragState.didDrag && Math.abs(deltaX) > 4) {
-      dragState.didDrag = true;
-      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }
-    }
-
-    if (!dragState.didDrag) {
-      return;
-    }
-
-    event.preventDefault();
-    event.currentTarget.scrollLeft = dragState.startScrollLeft - deltaX;
-  }
-
-  function finishQuickAccessPointer(event: React.PointerEvent<HTMLDivElement>) {
-    const dragState = quickAccessDragStateRef.current;
-    if (!dragState || dragState.pointerId !== event.pointerId) {
-      return;
-    }
-
-    if (dragState.didDrag) {
-      suppressQuickAccessClickRef.current = true;
-      window.setTimeout(() => {
-        suppressQuickAccessClickRef.current = false;
-      }, 0);
-    }
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-
-    quickAccessDragStateRef.current = null;
-  }
-
-  function handleQuickAccessItemClick(event: React.MouseEvent<HTMLAnchorElement>) {
-    if (!suppressQuickAccessClickRef.current) {
-      return;
-    }
-
-    suppressQuickAccessClickRef.current = false;
-    event.preventDefault();
-    event.stopPropagation();
-  }
-
-  function handleQuickAccessDragStart(event: React.DragEvent<HTMLAnchorElement>) {
-    event.preventDefault();
-  }
-
-  return (
-    <div className="shrink-0 border-b border-border/30 px-2 py-2">
-      <div className="flex items-center gap-1">
-        <div
-          className="min-w-0 flex-1 cursor-grab overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden active:cursor-grabbing"
-          onPointerDown={handleQuickAccessPointerDown}
-          onPointerMove={handleQuickAccessPointerMove}
-          onPointerUp={finishQuickAccessPointer}
-          onPointerCancel={finishQuickAccessPointer}
-        >
-          <div className="flex w-max items-center gap-1 pr-1 select-none">
-            {items.map((item) => {
-              const active = item.isActive?.(pathname, {
-                panel: currentPanel,
-                tab: currentWorkspaceTab,
-              }) ?? isActiveRoute(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  aria-label={item.label}
-                  aria-current={active ? "page" : undefined}
-                  onClick={handleQuickAccessItemClick}
-                  onDragStart={handleQuickAccessDragStart}
-                  draggable={false}
-                  className={`flex size-7 shrink-0 items-center justify-center rounded-md transition ${
-                    active
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                  }`}
-                >
-                  {item.icon}
-                  <span className="sr-only">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-        {workspaceSettingsHref ? (
-          <Link
-            href={workspaceSettingsHref}
-            aria-label="工作區設定"
-            aria-current={currentPanel === "settings" ? "page" : undefined}
-            onClick={handleQuickAccessItemClick}
-            onDragStart={handleQuickAccessDragStart}
-            draggable={false}
-            className={`ml-auto flex size-7 items-center justify-center rounded-md transition ${
-              currentPanel === "settings"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-            }`}
-          >
-            <Settings className="size-3.5" />
-            <span className="sr-only">工作區設定</span>
-          </Link>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/layout/WorkspaceSectionContent.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-
-import type { NavPreferences, SidebarLocaleBundle } from "../../navigation/nav-preferences-data";
-import { WorkspaceSidebarSection } from "./WorkspaceSidebarSection";
-
-interface RecentWorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-
-interface WorkspaceSectionContentProps {
-  workspacePathId: string | null;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-  showRecentWorkspaces: boolean;
-  visibleRecentWorkspaceLinks: RecentWorkspaceLink[];
-  hasOverflow: boolean;
-  isExpanded: boolean;
-  activeWorkspaceId: string | null;
-  isActiveRoute: (href: string) => boolean;
-  onSelectWorkspace: (workspaceId: string | null) => void;
-  onToggleExpanded: () => void;
-  getItemClassName: (isActive: boolean) => string;
-  sectionTitleClassName: string;
-}
-
-export function WorkspaceSectionContent({
-  workspacePathId,
-  navPrefs,
-  localeBundle,
-  showRecentWorkspaces,
-  visibleRecentWorkspaceLinks,
-  hasOverflow,
-  isExpanded,
-  activeWorkspaceId,
-  isActiveRoute,
-  onSelectWorkspace,
-  onToggleExpanded,
-  getItemClassName,
-  sectionTitleClassName,
-}: WorkspaceSectionContentProps) {
-  if (workspacePathId) {
-    return (
-      <WorkspaceSidebarSection
-        workspacePathId={workspacePathId}
-        navPrefs={navPrefs}
-        localeBundle={localeBundle}
-        getItemClassName={getItemClassName}
-      />
-    );
-  }
-
-  if (!showRecentWorkspaces) {
-    return null;
-  }
-
-  return (
-    <div className="space-y-0.5">
-      <p className={sectionTitleClassName}>最近工作區</p>
-      {visibleRecentWorkspaceLinks.length === 0 ? (
-        <p className="px-2 py-2 text-[11px] text-muted-foreground">尚無最近開啟的工作區。</p>
-      ) : (
-        visibleRecentWorkspaceLinks.map((workspace) => (
-          <Link
-            key={workspace.id}
-            href={workspace.href}
-            onClick={() => {
-              onSelectWorkspace(workspace.id);
-            }}
-            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-              activeWorkspaceId === workspace.id || isActiveRoute(workspace.href)
-                ? "border border-primary/30 bg-primary/10 text-primary"
-                : "border border-transparent text-foreground/80 hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
-            }`}
-            title={workspace.name}
-          >
-            <span className="truncate">{workspace.name}</span>
-          </Link>
-        ))
-      )}
-      {hasOverflow && (
-        <button
-          type="button"
-          onClick={onToggleExpanded}
-          className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
-        >
-          {isExpanded ? "收起" : "顯示更多"}
-        </button>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/layout/WorkspaceSidebarSection.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabsByGroup,
-  WORKSPACE_TAB_SIDEBAR_GROUP_ORDER,
-  getWorkspaceTabStatus,
-  isWorkspaceTabValue,
-  type WorkspaceTabGroup,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-
-export interface WorkspaceSidebarLocaleBundle {
-  workspace?: {
-    tabLabels?: Record<string, string>;
-  };
-}
-
-export interface WorkspaceNavigationPreferences {
-  pinnedWorkspace: string[];
-  workspaceOrder: string[];
-}
-
-interface TabLinkItem {
-  value: WorkspaceTabValue;
-  label: string;
-}
-
-function createWorkspaceLinkItems(group: WorkspaceTabGroup): TabLinkItem[] {
-  return getWorkspaceTabsByGroup(group).map((value) => ({
-    value,
-    label: getWorkspaceTabLabel(value),
-  }));
-}
-
-const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
-const WORKSPACE_LINK_ITEMS_BY_GROUP: Record<WorkspaceTabGroup, readonly TabLinkItem[]> = {
-  primary: WORKSPACE_PRIMARY_LINK_ITEMS,
-  modules: createWorkspaceLinkItems("modules"),
-  spaces: createWorkspaceLinkItems("spaces"),
-  databases: createWorkspaceLinkItems("databases"),
-  library: createWorkspaceLinkItems("library"),
-};
-
-function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue): string {
-  return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
-}
-
-function tTab(
-  tab: WorkspaceTabValue,
-  fallback: string,
-  localeBundle: WorkspaceSidebarLocaleBundle | null,
-): string {
-  return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
-}
-
-function tTabWithDevStatus(
-  tab: WorkspaceTabValue,
-  fallback: string,
-  localeBundle: WorkspaceSidebarLocaleBundle | null,
-): string {
-  const label = tTab(tab, fallback, localeBundle);
-  const status = getWorkspaceTabStatus(tab);
-  return `${status} ${label}`;
-}
-
-function getPrefId(tabValue: string): string {
-  return getWorkspaceTabPrefId(tabValue as WorkspaceTabValue) ?? tabValue;
-}
-
-function isItemEnabled(prefId: string, navPrefs: WorkspaceNavigationPreferences): boolean {
-  return navPrefs.pinnedWorkspace.includes(prefId);
-}
-
-function getItemOrder(prefId: string, navPrefs: WorkspaceNavigationPreferences): number {
-  const index = navPrefs.workspaceOrder.indexOf(prefId);
-  return index === -1 ? 999 : index;
-}
-
-function sortByPreferenceOrder<T extends { value: string }>(
-  items: readonly T[],
-  navPrefs: WorkspaceNavigationPreferences,
-): T[] {
-  return [...items].sort(
-    (left, right) =>
-      getItemOrder(getPrefId(left.value), navPrefs) -
-      getItemOrder(getPrefId(right.value), navPrefs),
-  );
-}
-
-interface WorkspaceSidebarSectionProps {
-  workspacePathId: string;
-  navPrefs: WorkspaceNavigationPreferences;
-  localeBundle: WorkspaceSidebarLocaleBundle | null;
-  getItemClassName: (isActive: boolean) => string;
-}
-
-export function WorkspaceSidebarSection({
-  workspacePathId,
-  navPrefs,
-  localeBundle,
-  getItemClassName,
-}: WorkspaceSidebarSectionProps) {
-  const searchParams = useSearchParams();
-  const rawTab = searchParams.get("tab") ?? "Overview";
-  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawTab) ? rawTab : "Overview";
-
-  const groups: Array<{ key: WorkspaceTabGroup; items: readonly TabLinkItem[] }> =
-    WORKSPACE_TAB_SIDEBAR_GROUP_ORDER.map((groupKey) => ({
-      key: groupKey,
-      items: WORKSPACE_LINK_ITEMS_BY_GROUP[groupKey],
-    }));
-
-  const visibleGroups = groups
-    .map((g) => ({
-      key: g.key,
-      visible: sortByPreferenceOrder(g.items, navPrefs).filter((item) =>
-        isItemEnabled(getPrefId(item.value), navPrefs),
-      ),
-    }))
-    .filter((g) => g.visible.length > 0);
-
-  return (
-    <nav className="space-y-0.5" aria-label="Workspace navigation">
-      {visibleGroups.map((group, groupIndex) => (
-        <div key={group.key}>
-          {groupIndex > 0 && <div className="my-1.5 border-t border-border/40" />}
-          <div className="space-y-0.5">
-            {group.visible.map((item) => {
-              const isActive = activeWorkspaceTab === item.value;
-              return (
-                <Link
-                  key={item.value}
-                  href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={getItemClassName(isActive)}
-                >
-                  {tTabWithDevStatus(item.value, item.label, localeBundle)}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </nav>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useMemo, useState } from "react";
-
-import {
-  Card,
-  CardContent,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { WorkspaceAuditTab } from "@/modules/workspace/api";
-import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
-import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
-import { WorkspaceFlowTab } from "@/modules/workspace/api";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
-import { useApp } from "@/modules/platform/api";
-
-import {
-  createSettingsDraft,
-  type WorkspaceSettingsDraft,
-} from "../../state/workspace-settings";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
-import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
-import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
-import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
-
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-  readonly initialOverviewPanel?: string;
-}
-
-export function WorkspaceDetailScreen({
-  workspaceId,
-  accountId,
-  accountsHydrated,
-  initialTab,
-  initialOverviewPanel,
-}: WorkspaceDetailScreenProps) {
-  const { state: appState, dispatch } = useApp();
-  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
-    workspaceId,
-    accountId,
-    accountsHydrated,
-  );
-  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
-  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
-
-  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
-    workspace,
-    accountId,
-    onSaved: (updated) => {
-      setWorkspace(updated);
-      setSettingsDraft(createSettingsDraft(updated));
-      setIsEditWorkspaceOpen(false);
-    },
-  });
-
-  const personnelEntries = useMemo(() => {
-    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
-  }, [workspace]);
-
-  const addressLines = useMemo(() => {
-    return workspace ? getWorkspaceAddressLines(workspace) : [];
-  }, [workspace]);
-
-  function renderTabContent(tab: WorkspaceTabValue) {
-    if (!workspace) return null;
-
-    switch (tab) {
-      case "Overview":
-        return (
-          <WorkspaceOverviewTab
-            workspace={workspace}
-            activeWorkspaceId={appState.activeWorkspaceId}
-            personnelEntries={personnelEntries}
-            addressLines={addressLines}
-            showSettingsPanel={initialOverviewPanel === "settings"}
-            onEditClick={() => {
-              setSettingsDraft(createSettingsDraft(workspace));
-              clearSaveError();
-              setIsEditWorkspaceOpen(true);
-            }}
-            onSetActiveWorkspace={() =>
-              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
-            }
-          />
-        );
-      case "Members":
-        return <WorkspaceMembersTab workspace={workspace} />;
-      case "Daily":
-        return <WorkspaceDailyTab workspace={workspace} />;
-      case "Files":
-        return <WorkspaceFilesTab workspace={workspace} />;
-      case "Schedule":
-        return (
-          <WorkspaceSchedulingTab
-            workspace={workspace}
-            accountId={accountId ?? workspace.accountId}
-            currentUserId={accountId ?? "anonymous"}
-          />
-        );
-      case "Audit":
-        return <WorkspaceAuditTab workspaceId={workspace.id} />;
-      case "Tasks":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="tasks"
-          />
-        );
-      case "TaskQa":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="qa"
-          />
-        );
-      case "TaskAcceptance":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="acceptance"
-          />
-        );
-      case "TaskIssues":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="issues"
-          />
-        );
-      case "TaskFinance":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="invoices"
-          />
-        );
-      case "Feed":
-        return (
-          <WorkspaceFeedWorkspaceView
-            accountId={accountId ?? workspace.accountId}
-            workspaceId={workspace.id}
-            workspaceName={workspace.name}
-          />
-        );
-      default:
-        return null;
-    }
-  }
-
-  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
-    ? initialTab
-    : "Overview";
-
-  return (
-    <div className="space-y-6">
-      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
-        ← 返回 Workspace Hub
-      </Link>
-
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          正在同步帳號內容…
-        </div>
-      )}
-
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            Loading workspace detail…
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入工作區資料，請返回清單後重試。
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "loaded" && !workspace && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            找不到此工作區。
-          </CardContent>
-        </Card>
-      )}
-
-      {workspace && (
-        <div className="space-y-6">
-          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
-          <nav
-            aria-label="Workspace tab navigation"
-            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
-          >
-            <div className="flex min-w-max items-center gap-0.5">
-              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
-                const tabs = getWorkspaceTabsByGroup(group);
-                const links = tabs.map((tab) => {
-                  const isActive = resolvedTab === tab;
-                  return (
-                    <Link
-                      key={tab}
-                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
-                      aria-current={isActive ? "page" : undefined}
-                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {getWorkspaceTabLabel(tab)}
-                    </Link>
-                  );
-                });
-                if (groupIndex > 0) {
-                  return [
-                    <div
-                      key={`sep-${group}`}
-                      aria-hidden="true"
-                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
-                    />,
-                    ...links,
-                  ];
-                }
-                return links;
-              })}
-            </div>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
-          </div>
-          {renderTabContent(resolvedTab)}
-        </div>
-      )}
-
-      <WorkspaceSettingsDialog
-        open={isEditWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsEditWorkspaceOpen(open);
-          if (!open) {
-            clearSaveError();
-            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
-          }
-        }}
-        settingsDraft={settingsDraft}
-        setSettingsDraft={setSettingsDraft}
-        isSaving={isSavingWorkspace}
-        saveError={saveError}
-        onSubmit={(event) => void handleSave(event, settingsDraft)}
-      />
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
-````typescript
-/**
- * nav-preferences-data.ts  (workspace BC – interfaces/web/navigation)
- * Owns: NavPreferences type, nav-item catalogs, default values,
- *   validation helpers, and localStorage read/write utilities.
- * Constraints: No React imports. No UI imports. Pure data / serialization.
- */
-
-import {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "./workspace-nav-items";
-
-// Re-export for consumers that import from this file directly.
-export { WORKSPACE_NAV_ITEMS, normalizeWorkspaceOrder };
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export interface NavPreferences {
-  pinnedPersonal: string[];
-  pinnedWorkspace: string[];
-  showLimitedWorkspaces: boolean;
-  maxWorkspaces: number;
-  workspaceOrder: string[];
-}
-
-export interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
-
-const STORAGE_KEY = "xuanwu:nav-preferences";
-
-// ── Personal nav items ─────────────────────────────────────────────────────
-
-export const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
-  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
-];
-
-// ── Organization management items ─────────────────────────────────────────
-
-export const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
-  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
-  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
-  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
-];
-
-export const DIALOG_TEXT = {
-  zh: {
-    title: "Customize navigation",
-    description:
-      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
-    sectionPersonal: "個人",
-    sectionWorkspace: "工作區",
-    sectionOrganization: "組織管理",
-    sectionDisplay: "顯示設定",
-    limitedLabel: "側欄僅顯示固定數量的最近工作區",
-    limitedInputLabel: "工作區數量",
-    done: "完成",
-    recentWorkspaces: "最近工作區",
-  },
-  en: {
-    title: "Customize navigation",
-    description:
-      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
-    sectionPersonal: "Personal",
-    sectionWorkspace: "Workspace",
-    sectionOrganization: "Organization",
-    sectionDisplay: "Display",
-    limitedLabel: "Show a limited number of recent workspaces in sidebar",
-    limitedInputLabel: "Number of workspaces",
-    done: "Done",
-    recentWorkspaces: "Recent workspaces",
-  },
-} as const;
-
-// ── Defaults + validation ──────────────────────────────────────────────────
-
-export const DEFAULT_PREFS: NavPreferences = {
-  pinnedPersonal: ["recent-workspaces"],
-  pinnedWorkspace: [
-    ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
-    ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
-  ],
-  showLimitedWorkspaces: true,
-  maxWorkspaces: 10,
-  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
-};
-
-const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
-const VALID_WORKSPACE_ITEM_IDS = new Set([
-  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
-  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
-]);
-
-const WORKFLOW_PIN_MIGRATION_IDS = [
-  "task-qa",
-  "task-acceptance",
-  "task-issues",
-  "task-finance",
-] as const;
-
-function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
-  if (!Array.isArray(ids)) return fallback;
-  const normalized = ids
-    .filter((id): id is string => typeof id === "string")
-    .filter((id) => validSet.has(id));
-  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
-}
-
-function migrateWorkflowPins(ids: string[]): string[] {
-  if (!ids.includes("tasks")) return ids;
-  const next = [...ids];
-  for (const id of WORKFLOW_PIN_MIGRATION_IDS) {
-    if (!next.includes(id) && VALID_WORKSPACE_ITEM_IDS.has(id)) {
-      next.push(id);
-    }
-  }
-  return next;
-}
-
-// ── localStorage helpers ───────────────────────────────────────────────────
-
-export function readNavPreferences(): NavPreferences {
-  if (typeof window === "undefined") return DEFAULT_PREFS;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_PREFS;
-    const parsed = JSON.parse(raw) as Partial<NavPreferences>;
-    const normalizedWorkspacePinned = normalizePinnedIds(
-      parsed.pinnedWorkspace,
-      VALID_WORKSPACE_ITEM_IDS,
-      DEFAULT_PREFS.pinnedWorkspace,
-    );
-    return {
-      pinnedPersonal: normalizePinnedIds(
-        parsed.pinnedPersonal,
-        VALID_PERSONAL_ITEM_IDS,
-        DEFAULT_PREFS.pinnedPersonal,
-      ),
-      pinnedWorkspace: migrateWorkflowPins(normalizedWorkspacePinned),
-      showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
-      maxWorkspaces:
-        typeof parsed.maxWorkspaces === "number"
-          ? parsed.maxWorkspaces
-          : DEFAULT_PREFS.maxWorkspaces,
-      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
-    };
-  } catch {
-    return DEFAULT_PREFS;
-  }
-}
-
-export function writeNavPreferences(prefs: NavPreferences): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-}
-````
-
-## File: modules/workspace/subdomains/audit/api/factories.ts
-````typescript
-import { FirebaseAuditRepository } from "../infrastructure/firebase/FirebaseAuditRepository";
-
-export function makeAuditRepo() {
-  return new FirebaseAuditRepository();
-}
-````
-
-## File: modules/workspace/subdomains/audit/application/dto/audit.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the audit subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
-export type { AuditSeverity } from "../../domain/schema";
-````
-
-## File: modules/workspace/subdomains/audit/domain/aggregates/AuditEntry.ts
-````typescript
-import type { AuditLogSource } from "../entities/AuditLog";
-import type { AuditDomainEventType } from "../events";
-import type { AuditAction } from "../schema";
-import type { AuditSeverity } from "../value-objects";
-import type { ChangeRecord } from "../schema";
-
-export interface AuditEntrySnapshot {
-	readonly id: string;
-	readonly workspaceId: string;
-	readonly actorId: string;
-	readonly action: AuditAction;
-	readonly resourceType: string;
-	readonly resourceId: string;
-	readonly severity: AuditSeverity;
-	readonly detail: string;
-	readonly source: AuditLogSource;
-	readonly changes: readonly ChangeRecord[];
-	readonly recordedAtISO: string;
-}
-
-export interface RecordAuditEntryInput {
-	readonly workspaceId: string;
-	readonly actorId: string;
-	readonly action: string;
-	readonly resourceType: string;
-	readonly resourceId: string;
-	readonly severity: string;
-	readonly detail: string;
-	readonly source: AuditLogSource;
-	readonly changes?: readonly ChangeRecord[];
-}
-
-/**
- * AuditEntry — Immutable aggregate root for audit records.
- *
- * Audit entries are write-once: once recorded they cannot be modified or deleted.
- * All mutation methods are intentionally absent.
- */
-export class AuditEntry {
-	private readonly _domainEvents: AuditDomainEventType[] = [];
-
-	private constructor(private readonly _props: AuditEntrySnapshot) {}
-
-	/**
-	 * Record a new audit entry. This is the only way to create an AuditEntry.
-	 * Validates action and severity via Zod branded types.
-	 */
-	static record(id: string, input: RecordAuditEntryInput): AuditEntry {
-		// Import dynamically is not possible in domain — validate via type narrowing
-		// The caller is responsible for passing valid action/severity strings;
-		// Zod validation happens at the value-object layer boundary.
-		const now = new Date().toISOString();
-		const entry = new AuditEntry({
-			id,
-			workspaceId: input.workspaceId,
-			actorId: input.actorId,
-			action: input.action as AuditAction,
-			resourceType: input.resourceType,
-			resourceId: input.resourceId,
-			severity: input.severity as AuditSeverity,
-			detail: input.detail,
-			source: input.source,
-			changes: input.changes ?? [],
-			recordedAtISO: now,
-		});
-		entry._domainEvents.push({
-			type: "workspace.audit.entry_recorded",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				auditId: id,
-				workspaceId: input.workspaceId,
-				actorId: input.actorId,
-				action: input.action,
-				resourceType: input.resourceType,
-				resourceId: input.resourceId,
-				severity: input.severity,
-			},
-		});
-
-		// Auto-escalation: critical entries emit an additional alert event
-		if (entry.isCritical()) {
-			entry._domainEvents.push({
-				type: "workspace.audit.critical_detected",
-				eventId: crypto.randomUUID(),
-				occurredAt: now,
-				payload: {
-					auditId: id,
-					workspaceId: input.workspaceId,
-					actorId: input.actorId,
-					action: input.action,
-					resourceType: input.resourceType,
-				},
-			});
-		}
-
-		return entry;
-	}
-
-	static reconstitute(snapshot: AuditEntrySnapshot): AuditEntry {
-		return new AuditEntry({ ...snapshot });
-	}
-
-	// ── Query methods (audit is immutable — no mutation) ─────────────────────
-
-	/** Returns true when severity is "critical". */
-	isCritical(): boolean {
-		return this._props.severity === ("critical" as AuditSeverity);
-	}
-
-	/** Returns true when severity is "critical" or "high". */
-	isHighSeverity(): boolean {
-		return (
-			this._props.severity === ("critical" as AuditSeverity) ||
-			this._props.severity === ("high" as AuditSeverity)
-		);
-	}
-
-	// ── Getters ──────────────────────────────────────────────────────────────
-
-	get id(): string {
-		return this._props.id;
-	}
-
-	get workspaceId(): string {
-		return this._props.workspaceId;
-	}
-
-	get actorId(): string {
-		return this._props.actorId;
-	}
-
-	get action(): AuditAction {
-		return this._props.action;
-	}
-
-	get resourceType(): string {
-		return this._props.resourceType;
-	}
-
-	get resourceId(): string {
-		return this._props.resourceId;
-	}
-
-	get severity(): AuditSeverity {
-		return this._props.severity;
-	}
-
-	get detail(): string {
-		return this._props.detail;
-	}
-
-	get source(): AuditLogSource {
-		return this._props.source;
-	}
-
-	get changes(): readonly ChangeRecord[] {
-		return this._props.changes;
-	}
-
-	get recordedAtISO(): string {
-		return this._props.recordedAtISO;
-	}
-
-	getSnapshot(): Readonly<AuditEntrySnapshot> {
-		return Object.freeze({ ...this._props });
-	}
-
-	pullDomainEvents(): AuditDomainEventType[] {
-		const events = [...this._domainEvents];
-		(this._domainEvents as AuditDomainEventType[]).length = 0;
-		return events;
-	}
-}
-````
-
-## File: modules/workspace/subdomains/audit/domain/aggregates/index.ts
-````typescript
-export { AuditEntry } from "./AuditEntry";
-export type { AuditEntrySnapshot, RecordAuditEntryInput } from "./AuditEntry";
-````
-
-## File: modules/workspace/subdomains/audit/domain/events/AuditDomainEvent.ts
-````typescript
-export interface AuditDomainEvent {
-	readonly eventId: string;
-	readonly occurredAt: string;
-	readonly type: string;
-	readonly payload: object;
-}
-
-export interface AuditEntryRecordedEvent extends AuditDomainEvent {
-	readonly type: "workspace.audit.entry_recorded";
-	readonly payload: {
-		readonly auditId: string;
-		readonly workspaceId: string;
-		readonly actorId: string;
-		readonly action: string;
-		readonly resourceType: string;
-		readonly resourceId: string;
-		readonly severity: string;
-	};
-}
-
-export interface CriticalAuditDetectedEvent extends AuditDomainEvent {
-	readonly type: "workspace.audit.critical_detected";
-	readonly payload: {
-		readonly auditId: string;
-		readonly workspaceId: string;
-		readonly actorId: string;
-		readonly action: string;
-		readonly resourceType: string;
-	};
-}
-
-export type AuditDomainEventType = AuditEntryRecordedEvent | CriticalAuditDetectedEvent;
-````
-
-## File: modules/workspace/subdomains/audit/domain/events/index.ts
-````typescript
-export type {
-	AuditDomainEvent,
-	AuditEntryRecordedEvent,
-	CriticalAuditDetectedEvent,
-	AuditDomainEventType,
-} from "./AuditDomainEvent";
-````
-
-## File: modules/workspace/subdomains/audit/domain/ports/index.ts
-````typescript
-/**
- * workspace/audit domain/ports — driven port interfaces for the audit subdomain.
- *
- * Re-exports the repository contract from domain/repositories/, making the Ports layer
- * explicitly visible in the directory structure.
- */
-export type { AuditRepository as IAuditPort } from "../repositories/AuditRepository";
-````
-
-## File: modules/workspace/subdomains/audit/domain/services/AuditRecordingService.ts
-````typescript
-import { AuditEntry } from "../aggregates/AuditEntry";
-import type { RecordAuditEntryInput } from "../aggregates/AuditEntry";
-import { createAuditAction } from "../value-objects/AuditAction";
-import { createAuditSeverity } from "../value-objects/AuditSeverity";
-import { createActorId } from "../value-objects/ActorId";
-
-/**
- * AuditRecordingService — Stateless domain service for recording audit entries.
- *
- * Validates inputs via value-object constructors and delegates to AuditEntry.record().
- * Critical-severity escalation is handled by the aggregate itself.
- */
-export class AuditRecordingService {
-	/**
-	 * Record a new audit entry with full input validation.
-	 *
-	 * @throws ZodError if action, severity, or actorId is invalid
-	 */
-	record(id: string, input: RecordAuditEntryInput): AuditEntry {
-		// Validate through branded value objects (throws on invalid input)
-		createAuditAction(input.action);
-		createAuditSeverity(input.severity);
-		createActorId(input.actorId);
-
-		return AuditEntry.record(id, input);
-	}
-}
-````
-
-## File: modules/workspace/subdomains/audit/domain/services/index.ts
-````typescript
-export { AuditRecordingService } from "./AuditRecordingService";
-````
-
-## File: modules/workspace/subdomains/audit/domain/value-objects/ActorId.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const ActorIdSchema = z.string().min(1).brand("ActorId");
-
-export type ActorId = z.infer<typeof ActorIdSchema>;
-
-export function createActorId(raw: string): ActorId {
-	return ActorIdSchema.parse(raw);
-}
-
-export function unsafeActorId(raw: string): ActorId {
-	return raw as ActorId;
-}
-````
-
-## File: modules/workspace/subdomains/audit/domain/value-objects/AuditAction.ts
-````typescript
-import { z } from "@lib-zod";
-
-import { AUDIT_ACTIONS } from "../schema";
-
-export const AuditActionSchema = z.enum(AUDIT_ACTIONS).brand("AuditAction");
-
-export type AuditAction = z.infer<typeof AuditActionSchema>;
-
-export function createAuditAction(raw: string): AuditAction {
-  return AuditActionSchema.parse(raw);
-}
-
-export function unsafeAuditAction(raw: string): AuditAction {
-  return raw as AuditAction;
-}
-````
-
-## File: modules/workspace/subdomains/audit/domain/value-objects/AuditSeverity.ts
-````typescript
-import { z } from "@lib-zod";
-
-import { AUDIT_SEVERITIES } from "../schema";
-
-export const AuditSeveritySchema = z.enum(AUDIT_SEVERITIES).brand("AuditSeverity");
-
-export type AuditSeverity = z.infer<typeof AuditSeveritySchema>;
-
-export function createAuditSeverity(raw: string): AuditSeverity {
-	return AuditSeveritySchema.parse(raw);
-}
-
-export function unsafeAuditSeverity(raw: string): AuditSeverity {
-	return raw as AuditSeverity;
-}
-
-const SEVERITY_LEVELS: Record<string, number> = {
-	low: 0,
-	medium: 1,
-	high: 2,
-	critical: 3,
-};
-
-/** Numeric level for ordering/comparison (low=0, medium=1, high=2, critical=3). */
-export function severityLevel(severity: AuditSeverity): number {
-	return SEVERITY_LEVELS[severity] ?? 0;
-}
-
-/** Returns true when `severity` is at or above the given threshold. */
-export function isAtLeast(severity: AuditSeverity, threshold: AuditSeverity): boolean {
-	return severityLevel(severity) >= severityLevel(threshold);
-}
-````
-
-## File: modules/workspace/subdomains/audit/domain/value-objects/index.ts
-````typescript
-export { AuditActionSchema, createAuditAction, unsafeAuditAction } from "./AuditAction";
-export type { AuditAction } from "./AuditAction";
-
-export { AuditSeveritySchema, createAuditSeverity, unsafeAuditSeverity, severityLevel, isAtLeast } from "./AuditSeverity";
-export type { AuditSeverity } from "./AuditSeverity";
-
-export { ActorIdSchema, createActorId, unsafeActorId } from "./ActorId";
-export type { ActorId } from "./ActorId";
-````
-
-## File: modules/workspace/subdomains/audit/interfaces/components/AuditStream.tsx
-````typescript
-"use client";
-
-import { format } from "date-fns";
-import { zhTW } from "date-fns/locale/zh-TW";
-import { ShieldAlert } from "lucide-react";
-
-import { Badge } from "@ui-shadcn/ui/badge";
-import { ScrollArea } from "@ui-shadcn/ui/scroll-area";
-
-import type { AuditLogEntity, AuditLogSource } from "../../application/dto/audit.dto";
-import type { AuditSeverity } from "../../application/dto/audit.dto";
-
-interface AuditStreamItem {
-  id: string;
-  actorName: string;
-  action: string;
-  resourceType: string;
-  detail: string;
-  severity: AuditSeverity;
-  workspaceId: string;
-  occurredAtISO: string;
-}
-
-const SOURCE_SEVERITY: Record<AuditLogSource, AuditSeverity> = {
-  workspace: "low",
-  finance: "high",
-  notification: "low",
-  system: "medium",
-};
-
-function toStreamItem(entity: AuditLogEntity): AuditStreamItem {
-  return {
-    id: entity.id,
-    actorName: entity.actorId,
-    action: entity.action,
-    resourceType: entity.source,
-    detail: entity.detail,
-    severity: SOURCE_SEVERITY[entity.source] ?? "low",
-    workspaceId: entity.workspaceId,
-    occurredAtISO: entity.occurredAtISO,
-  };
-}
-
-const SEVERITY_DOT: Record<AuditSeverity, string> = {
-  low: "bg-muted-foreground/40",
-  medium: "bg-blue-500",
-  high: "bg-orange-500",
-  critical: "bg-destructive",
-};
-
-const SEVERITY_LABEL: Record<AuditSeverity, string> = {
-  low: "低",
-  medium: "中",
-  high: "高",
-  critical: "嚴重",
-};
-
-interface AuditRowProps {
-  item: AuditStreamItem;
-}
-
-function AuditRow({ item }: AuditRowProps) {
-  const timeLabel = (() => {
-    try {
-      return format(new Date(item.occurredAtISO), "yyyy-MM-dd HH:mm:ss", { locale: zhTW });
-    } catch {
-      return item.occurredAtISO;
-    }
-  })();
-
-  return (
-    <div className="mb-6 ml-6 relative group">
-      <span
-        className={`absolute -left-[1.85rem] flex h-3.5 w-3.5 items-center justify-center rounded-full ring-2 ring-background ${SEVERITY_DOT[item.severity]}`}
-      />
-
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1">
-        <div className="space-y-0.5 min-w-0">
-          <div className="flex flex-wrap items-center gap-1.5 text-sm">
-            <span className="font-semibold truncate max-w-[120px]">{item.actorName}</span>
-            <span className="text-muted-foreground">執行了</span>
-            <Badge variant="outline" className="text-xs uppercase px-1.5 py-0">
-              {item.action}
-            </Badge>
-            <span className="text-muted-foreground">於</span>
-            <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">
-              {item.resourceType}
-            </code>
-            {item.severity === "critical" && (
-              <ShieldAlert className="h-3.5 w-3.5 text-destructive shrink-0" />
-            )}
-          </div>
-
-          {item.detail && (
-            <p className="text-xs text-muted-foreground">{item.detail}</p>
-          )}
-
-          <div className="flex items-center gap-2 mt-1">
-            <Badge variant="secondary" className="text-xs px-1.5 py-0">
-              {SEVERITY_LABEL[item.severity]}
-            </Badge>
-            <span className="text-xs text-muted-foreground">@{item.workspaceId}</span>
-          </div>
-        </div>
-
-        <time className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-          {timeLabel}
-        </time>
-      </div>
-    </div>
-  );
-}
-
-interface AuditStreamProps {
-  logs: readonly AuditLogEntity[];
-  height?: number;
-}
-
-export function AuditStream({ logs, height = 500 }: AuditStreamProps) {
-  if (logs.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        目前尚無稽核紀錄。
-      </p>
-    );
-  }
-
-  const items = logs.map(toStreamItem);
-
-  return (
-    <ScrollArea className="w-full rounded-md border" style={{ height }}>
-      <div className="p-4">
-        <div className="relative border-l border-border/60 ml-1.5">
-          {items.map((item) => (
-            <AuditRow key={item.id} item={item} />
-          ))}
-        </div>
-      </div>
-    </ScrollArea>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/audit/interfaces/components/WorkspaceAuditTab.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import type { AuditLogEntity } from "../../application/dto/audit.dto";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { getWorkspaceAuditLogs } from "../queries/audit.queries";
-
-function formatAuditDate(value: string) {
-  if (!value) {
-    return "—";
-  }
-
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(value));
-  } catch {
-    return value;
-  }
-}
-
-interface WorkspaceAuditTabProps {
-  readonly workspaceId: string;
-}
-
-export function WorkspaceAuditTab({ workspaceId }: WorkspaceAuditTabProps) {
-  const [logs, setLogs] = useState<AuditLogEntity[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadLogs() {
-      setLoadState("loading");
-
-      try {
-        const nextLogs = await getWorkspaceAuditLogs(workspaceId);
-        if (cancelled) {
-          return;
-        }
-
-        setLogs(nextLogs);
-        setLoadState("loaded");
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[WorkspaceAuditTab] Failed to load audit logs:", error);
-        }
-
-        if (!cancelled) {
-          setLogs([]);
-          setLoadState("error");
-        }
-      }
-    }
-
-    void loadLogs();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [workspaceId]);
-
-  return (
-    <Card className="border border-border/50">
-      <CardHeader>
-        <CardTitle>Audit</CardTitle>
-        <CardDescription>
-          工作區相關行為紀錄、來源與時間軸。
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {loadState === "loading" && (
-          <p className="text-sm text-muted-foreground">Loading audit log…</p>
-        )}
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">
-            無法載入 audit log，請重新整理頁面或稍後再試。
-          </p>
-        )}
-
-        {loadState === "loaded" && logs.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            目前尚未記錄這個工作區的 audit entries。
-          </p>
-        )}
-
-        {loadState === "loaded" && logs.length > 0 && (
-          <div className="space-y-3">
-            {logs.map((log) => (
-              <div
-                key={log.id}
-                className="rounded-xl border border-border/40 px-4 py-4"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground">{log.action}</p>
-                      <Badge variant="outline">{log.source}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{log.detail || "—"}</p>
-                    <p className="text-xs text-muted-foreground">Actor: {log.actorId}</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {formatAuditDate(log.occurredAtISO)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/feed/api/factories.ts
-````typescript
-import { FirebaseWorkspaceFeedInteractionRepository } from "../infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository";
-import { FirebaseWorkspaceFeedPostRepository } from "../infrastructure/firebase/FirebaseWorkspaceFeedPostRepository";
-
-export function makeWorkspaceFeedPostRepo() {
-  return new FirebaseWorkspaceFeedPostRepository();
-}
-
-export function makeWorkspaceFeedInteractionRepo() {
-  return new FirebaseWorkspaceFeedInteractionRepository();
-}
-````
-
-## File: modules/workspace/subdomains/feed/application/dto/workspace-feed.dto.ts
-````typescript
-import { z } from "@lib-zod";
-
-/**
- * Application-layer DTO re-exports for the feed subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
-
-const AccountScopeSchema = z.object({
-  accountId: z.string().min(1),
-});
-
-const WorkspaceScopeSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1),
-});
-
-export const FeedLimitSchema = z.number().int().min(1).max(200).default(50);
-
-export const CreateWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
-  authorAccountId: z.string().min(1),
-  content: z.string().trim().min(1).max(5000),
-});
-
-export type CreateWorkspaceFeedPostDto = z.infer<typeof CreateWorkspaceFeedPostSchema>;
-
-export const ReplyWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
-  parentPostId: z.string().min(1),
-  authorAccountId: z.string().min(1),
-  content: z.string().trim().min(1).max(5000),
-});
-
-export type ReplyWorkspaceFeedPostDto = z.infer<typeof ReplyWorkspaceFeedPostSchema>;
-
-export const RepostWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
-  sourcePostId: z.string().min(1),
-  actorAccountId: z.string().min(1),
-  comment: z.string().trim().max(1000).optional(),
-});
-
-export type RepostWorkspaceFeedPostDto = z.infer<typeof RepostWorkspaceFeedPostSchema>;
-
-export const FeedInteractionSchema = AccountScopeSchema.extend({
-  postId: z.string().min(1),
-  actorAccountId: z.string().min(1),
-});
-
-export type FeedInteractionDto = z.infer<typeof FeedInteractionSchema>;
-
-export const ListWorkspaceFeedSchema = WorkspaceScopeSchema.extend({
-  limit: FeedLimitSchema.optional(),
-});
-
-export type ListWorkspaceFeedDto = z.infer<typeof ListWorkspaceFeedSchema>;
-
-export const ListAccountFeedSchema = AccountScopeSchema.extend({
-  limit: FeedLimitSchema.optional(),
-});
-
-export type ListAccountFeedDto = z.infer<typeof ListAccountFeedSchema>;
-````
-
-## File: modules/workspace/subdomains/feed/domain/index.ts
-````typescript
-export type {
-  WorkspaceFeedPost,
-  WorkspaceFeedPostType,
-  CreateWorkspaceFeedPostInput,
-  CreateWorkspaceFeedReplyInput,
-  CreateWorkspaceFeedRepostInput,
-  WorkspaceFeedCounterPatch,
-} from "./entities/workspace-feed-post.entity";
-
-export { WORKSPACE_FEED_POST_TYPES } from "./entities/workspace-feed-post.entity";
-
-export type {
-  WorkspaceFeedDomainEvent,
-  WorkspaceFeedPostCreatedEvent,
-  WorkspaceFeedReplyCreatedEvent,
-  WorkspaceFeedRepostCreatedEvent,
-  WorkspaceFeedPostLikedEvent,
-  WorkspaceFeedPostViewedEvent,
-  WorkspaceFeedPostBookmarkedEvent,
-  WorkspaceFeedPostSharedEvent,
-} from "./events/workspace-feed.events";
-
-export { WORKSPACE_FEED_EVENT_TYPES } from "./events/workspace-feed.events";
-
-export type {
-  WorkspaceFeedPostRepository,
-  WorkspaceFeedInteractionRepository,
-} from "./repositories/workspace-feed.repositories";
-
-// ── Ports layer ──────────────────────────────────────────────────────────────
-export type { IWorkspaceFeedPostPort, IWorkspaceFeedInteractionPort } from "./ports";
-````
-
-## File: modules/workspace/subdomains/feed/domain/ports/index.ts
-````typescript
-/**
- * workspace/feed domain/ports — driven port interfaces for the feed subdomain.
- *
- * Re-exports repository contracts from domain/repositories/, making the Ports layer
- * explicitly visible in the directory structure.
- */
-export type {
-  WorkspaceFeedPostRepository as IWorkspaceFeedPostPort,
-  WorkspaceFeedInteractionRepository as IWorkspaceFeedInteractionPort,
-} from "../repositories/workspace-feed.repositories";
-````
-
-## File: modules/workspace/subdomains/feed/interfaces/_actions/workspace-feed.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-
-import type {
-  CreateWorkspaceFeedPostDto,
-  FeedInteractionDto,
-  ReplyWorkspaceFeedPostDto,
-  RepostWorkspaceFeedPostDto,
-} from "../../application/dto/workspace-feed.dto";
-import {
-  makeWorkspaceFeedInteractionRepo,
-  makeWorkspaceFeedPostRepo,
-} from "../../api/factories";
-import {
-  BookmarkWorkspaceFeedPostUseCase,
-  CreateWorkspaceFeedPostUseCase,
-  LikeWorkspaceFeedPostUseCase,
-  ReplyWorkspaceFeedPostUseCase,
-  RepostWorkspaceFeedPostUseCase,
-  ShareWorkspaceFeedPostUseCase,
-  ViewWorkspaceFeedPostUseCase,
-} from "../../application/use-cases/workspace-feed.use-cases";
-
-function makePostRepo() {
-  return makeWorkspaceFeedPostRepo();
-}
-
-function makeInteractionRepo() {
-  return makeWorkspaceFeedInteractionRepo();
-}
-
-export async function createWorkspaceFeedPost(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
-  try {
-    return await new CreateWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_CREATE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function replyWorkspaceFeedPost(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
-  try {
-    return await new ReplyWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_REPLY_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function repostWorkspaceFeedPost(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
-  try {
-    return await new RepostWorkspaceFeedPostUseCase(makePostRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_REPOST_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function likeWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
-  try {
-    return await new LikeWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_LIKE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function viewWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
-  try {
-    return await new ViewWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_VIEW_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function bookmarkWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
-  try {
-    return await new BookmarkWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_BOOKMARK_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function shareWorkspaceFeedPost(input: FeedInteractionDto): Promise<CommandResult> {
-  try {
-    return await new ShareWorkspaceFeedPostUseCase(makePostRepo(), makeInteractionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "WORKSPACE_FEED_SHARE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-````
-
-## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedAccountView.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { Eye, Heart, MessageCircle, Repeat2, Share2, Star } from "lucide-react";
-
-import { useApp } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
-import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto";
-
-interface WorkspaceFeedAccountViewProps {
-  readonly accountId: string;
-}
-
-export function WorkspaceFeedAccountView({ accountId }: WorkspaceFeedAccountViewProps) {
-  const { state: appState } = useApp();
-  const actorId = appState.activeAccount?.id ?? accountId;
-
-  const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
-  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
-  const [activeReplyPostId, setActiveReplyPostId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [actingPostId, setActingPostId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const refreshFeed = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const rows = await workspaceFeedFacade.getAccountFeed(accountId, 80);
-      setPosts(rows);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "載入 account feed 失敗");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accountId]);
-
-  useEffect(() => {
-    void refreshFeed();
-  }, [refreshFeed]);
-
-  async function handleAction(post: WorkspaceFeedPost, action: "like" | "view" | "bookmark" | "share" | "repost") {
-    setActingPostId(post.id);
-    setError(null);
-    try {
-      if (action === "like") {
-        await workspaceFeedFacade.like({ accountId, postId: post.id, actorAccountId: actorId });
-      }
-      if (action === "view") {
-        await workspaceFeedFacade.view({ accountId, postId: post.id, actorAccountId: actorId });
-      }
-      if (action === "bookmark") {
-        await workspaceFeedFacade.bookmark({ accountId, postId: post.id, actorAccountId: actorId });
-      }
-      if (action === "share") {
-        await workspaceFeedFacade.share({ accountId, postId: post.id, actorAccountId: actorId });
-      }
-      if (action === "repost") {
-        await workspaceFeedFacade.repost({
-          accountId,
-          workspaceId: post.workspaceId,
-          sourcePostId: post.id,
-          actorAccountId: actorId,
-        });
-      }
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "互動失敗");
-    } finally {
-      setActingPostId(null);
-    }
-  }
-
-  async function handleReply(post: WorkspaceFeedPost) {
-    const content = replyDrafts[post.id]?.trim() ?? "";
-    if (!content) return;
-
-    setActingPostId(post.id);
-    setError(null);
-    try {
-      await workspaceFeedFacade.reply({
-        accountId,
-        workspaceId: post.workspaceId,
-        parentPostId: post.id,
-        authorAccountId: actorId,
-        content,
-      });
-      setReplyDrafts((prev) => ({ ...prev, [post.id]: "" }));
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "回覆失敗");
-    } finally {
-      setActingPostId(null);
-    }
-  }
-
-  return (
-    <>
-      {error && (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
-      )}
-
-      <div className="space-y-3">
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">載入 account feed 中...</p>
-        ) : posts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">目前沒有任何 workspace 貼文。</p>
-        ) : (
-          posts.map((post) => (
-            <article key={post.id} className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {post.type.toUpperCase()} · workspace {post.workspaceId} · {new Date(post.createdAtISO).toLocaleString()}
-                </p>
-                <p className="text-xs text-muted-foreground">by {post.authorAccountId}</p>
-              </div>
-
-              <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant={activeReplyPostId === post.id ? "default" : "outline"}
-                  onClick={() => setActiveReplyPostId((current) => (current === post.id ? null : post.id))}
-                >
-                  <MessageCircle className="mr-1 h-4 w-4" />
-                  Reply {post.replyCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "repost")} disabled={actingPostId === post.id}>
-                  <Repeat2 className="mr-1 h-4 w-4" />
-                  Repost {post.repostCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "like")} disabled={actingPostId === post.id}>
-                  <Heart className="mr-1 h-4 w-4" />
-                  Like {post.likeCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "view")} disabled={actingPostId === post.id}>
-                  <Eye className="mr-1 h-4 w-4" />
-                  View {post.viewCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "bookmark")} disabled={actingPostId === post.id}>
-                  <Star className="mr-1 h-4 w-4" />
-                  bookmark {post.bookmarkCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "share")} disabled={actingPostId === post.id}>
-                  <Share2 className="mr-1 h-4 w-4" />
-                  share {post.shareCount}
-                </Button>
-              </div>
-
-              {activeReplyPostId === post.id && (
-                <div className="space-y-2 rounded-xl border border-border/40 p-3">
-                  <Textarea
-                    value={replyDrafts[post.id] ?? ""}
-                    onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
-                    placeholder="回覆這則貼文..."
-                    rows={2}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" type="button" variant="ghost" onClick={() => setActiveReplyPostId(null)}>
-                      取消
-                    </Button>
-                    <Button
-                      size="sm"
-                      type="button"
-                      onClick={() => void handleReply(post)}
-                      disabled={actingPostId === post.id || !(replyDrafts[post.id] ?? "").trim()}
-                    >
-                      回覆
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </article>
-          ))
-        )}
-      </div>
-    </>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedWorkspaceView.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Eye, Heart, MessageCircle, Repeat2, Send, Share2, Star } from "lucide-react";
-
-import { useApp } from "@/modules/platform/api";
-import { Avatar, AvatarFallback, AvatarImage } from "@ui-shadcn/ui/avatar";
-import { Button } from "@ui-shadcn/ui/button";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
-import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto";
-
-interface WorkspaceFeedWorkspaceViewProps {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly workspaceName: string;
-}
-
-export function WorkspaceFeedWorkspaceView({
-  accountId,
-  workspaceId,
-  workspaceName,
-}: WorkspaceFeedWorkspaceViewProps) {
-  const { state: appState } = useApp();
-  const actor = appState.activeAccount;
-  const actorId = actor?.id ?? accountId;
-
-  const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
-  const [composer, setComposer] = useState("");
-  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
-  const [activeReplyPostId, setActiveReplyPostId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [actingPostId, setActingPostId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const actorName = actor?.name ?? "未知";
-  const actorAvatar = "photoURL" in (actor ?? {}) ? (actor as { photoURL?: string }).photoURL : undefined;
-  const actorInitial = actorName.charAt(0).toUpperCase();
-
-  const canPublish = useMemo(() => composer.trim().length > 0, [composer]);
-
-  const refreshFeed = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const rows = await workspaceFeedFacade.getWorkspaceFeed(accountId, workspaceId, 50);
-      setPosts(rows);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "載入 feed 失敗");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => {
-    void refreshFeed();
-  }, [refreshFeed]);
-
-  async function handlePublish() {
-    if (!canPublish || isPublishing) return;
-    setIsPublishing(true);
-    setError(null);
-    try {
-      const createdId = await workspaceFeedFacade.createPost({
-        accountId,
-        workspaceId,
-        authorAccountId: actorId,
-        content: composer.trim(),
-      });
-      if (!createdId) {
-        setError("建立貼文失敗");
-        return;
-      }
-      setComposer("");
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "建立貼文失敗");
-    } finally {
-      setIsPublishing(false);
-    }
-  }
-
-  async function handleAction(postId: string, action: "like" | "view" | "bookmark" | "share" | "repost") {
-    setActingPostId(postId);
-    setError(null);
-    try {
-      if (action === "like") {
-        await workspaceFeedFacade.like({ accountId, postId, actorAccountId: actorId });
-      }
-      if (action === "view") {
-        await workspaceFeedFacade.view({ accountId, postId, actorAccountId: actorId });
-      }
-      if (action === "bookmark") {
-        await workspaceFeedFacade.bookmark({ accountId, postId, actorAccountId: actorId });
-      }
-      if (action === "share") {
-        await workspaceFeedFacade.share({ accountId, postId, actorAccountId: actorId });
-      }
-      if (action === "repost") {
-        const current = posts.find((row) => row.id === postId);
-        if (!current) return;
-        await workspaceFeedFacade.repost({
-          accountId,
-          workspaceId: current.workspaceId,
-          sourcePostId: postId,
-          actorAccountId: actorId,
-        });
-      }
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "互動失敗");
-    } finally {
-      setActingPostId(null);
-    }
-  }
-
-  async function handleReply(postId: string) {
-    const text = replyDrafts[postId]?.trim() ?? "";
-    if (!text) return;
-    setActingPostId(postId);
-    setError(null);
-    try {
-      const current = posts.find((row) => row.id === postId);
-      if (!current) return;
-      await workspaceFeedFacade.reply({
-        accountId,
-        workspaceId: current.workspaceId,
-        parentPostId: postId,
-        authorAccountId: actorId,
-        content: text,
-      });
-      setReplyDrafts((prev) => ({ ...prev, [postId]: "" }));
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "回覆失敗");
-    } finally {
-      setActingPostId(null);
-    }
-  }
-
-  return (
-    <section className="mx-auto max-w-3xl space-y-6 rounded-3xl border border-border/60 bg-card/50 p-6">
-      <header className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-12 w-12 shrink-0">
-            <AvatarImage src={actorAvatar} alt={actorName} />
-            <AvatarFallback className="text-sm font-bold">{actorInitial}</AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="text-sm font-semibold">{workspaceName} Feed</p>
-            <p className="text-xs text-muted-foreground">workspaceId: {workspaceId}</p>
-          </div>
-        </div>
-        <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-          live
-        </div>
-      </header>
-
-      <div className="space-y-3 rounded-2xl border border-border/60 bg-background/80 p-4">
-        <Textarea
-          value={composer}
-          onChange={(event) => setComposer(event.target.value)}
-          placeholder="發佈你的想法到 workspace feed..."
-          rows={4}
-        />
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">actor: {actorName} / account: {accountId}</p>
-          <Button type="button" onClick={handlePublish} disabled={!canPublish || isPublishing}>
-            <Send className="mr-2 h-4 w-4" />
-            {isPublishing ? "送出中..." : "發佈"}
-          </Button>
-        </div>
-      </div>
-
-      {error && (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
-      )}
-
-      <div className="space-y-3">
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">載入 feed 中...</p>
-        ) : posts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">目前還沒有貼文，發佈第一則吧。</p>
-        ) : (
-          posts.map((post) => (
-            <article key={post.id} className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {post.type.toUpperCase()} · {post.workspaceId} · {new Date(post.createdAtISO).toLocaleString()}
-                </p>
-                <p className="text-xs text-muted-foreground">by {post.authorAccountId}</p>
-              </div>
-              <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant={activeReplyPostId === post.id ? "default" : "outline"}
-                  onClick={() => setActiveReplyPostId((current) => (current === post.id ? null : post.id))}
-                >
-                  <MessageCircle className="mr-1 h-4 w-4" />
-                  Reply {post.replyCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "repost")} disabled={actingPostId === post.id}>
-                  <Repeat2 className="mr-1 h-4 w-4" />
-                  Repost {post.repostCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "like")} disabled={actingPostId === post.id}>
-                  <Heart className="mr-1 h-4 w-4" />
-                  Like {post.likeCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "view")} disabled={actingPostId === post.id}>
-                  <Eye className="mr-1 h-4 w-4" />
-                  View {post.viewCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "bookmark")} disabled={actingPostId === post.id}>
-                  <Star className="mr-1 h-4 w-4" />
-                  bookmark {post.bookmarkCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "share")} disabled={actingPostId === post.id}>
-                  <Share2 className="mr-1 h-4 w-4" />
-                  share {post.shareCount}
-                </Button>
-              </div>
-
-              {activeReplyPostId === post.id && (
-                <div className="space-y-2 rounded-xl border border-border/40 p-3">
-                  <Textarea
-                    value={replyDrafts[post.id] ?? ""}
-                    onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
-                    placeholder="回覆這則貼文..."
-                    rows={2}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" type="button" variant="ghost" onClick={() => setActiveReplyPostId(null)}>
-                      取消
-                    </Button>
-                    <Button
-                      size="sm"
-                      type="button"
-                      onClick={() => void handleReply(post.id)}
-                      disabled={actingPostId === post.id || !(replyDrafts[post.id] ?? "").trim()}
-                    >
-                      回覆
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </article>
-          ))
-        )}
-      </div>
-    </section>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/lifecycle/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/workspace/subdomains/lifecycle/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for workspace subdomain 'lifecycle'.
-````
-
-## File: modules/workspace/subdomains/lifecycle/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for workspace subdomain 'lifecycle'.
-````
-
-## File: modules/workspace/subdomains/lifecycle/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for workspace subdomain 'lifecycle'.
-````
-
-## File: modules/workspace/subdomains/membership/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/workspace/subdomains/membership/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for workspace subdomain 'membership'.
-````
-
-## File: modules/workspace/subdomains/membership/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for workspace subdomain 'membership'.
-````
-
-## File: modules/workspace/subdomains/membership/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for workspace subdomain 'membership'.
-````
-
-## File: modules/workspace/subdomains/presence/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/workspace/subdomains/presence/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for workspace subdomain 'presence'.
-````
-
-## File: modules/workspace/subdomains/presence/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for workspace subdomain 'presence'.
-````
-
-## File: modules/workspace/subdomains/presence/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for workspace subdomain 'presence'.
-````
-
-## File: modules/workspace/subdomains/scheduling/api/factories.ts
-````typescript
-import { FirebaseDemandRepository } from "../infrastructure/firebase/FirebaseDemandRepository";
-
-export function makeDemandRepo() {
-  return new FirebaseDemandRepository();
-}
-````
-
 ## File: modules/workspace/subdomains/scheduling/interfaces/_actions/work-demand.actions.ts
 ````typescript
 "use server";
@@ -9661,857 +7262,6 @@ export async function assignWorkDemand(raw: AssignMemberInput): Promise<CommandR
     );
   }
 }
-````
-
-## File: modules/workspace/subdomains/scheduling/interfaces/AccountSchedulingView.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { Users } from "lucide-react";
-
-import type { WorkDemand } from "../application/dto/work-demand.dto";
-import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../application/dto/work-demand.dto";
-import { assignWorkDemand } from "./_actions/work-demand.actions";
-import { getAccountDemands } from "./queries/work-demand.queries";
-
-export interface AccountMember {
-  id: string;
-  name: string;
-}
-
-const PRIORITY_DOT: Record<WorkDemand["priority"], string> = {
-  low: "bg-green-400",
-  medium: "bg-amber-400",
-  high: "bg-red-500",
-};
-
-const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "outline" | "destructive"> = {
-  draft: "outline",
-  open: "secondary",
-  in_progress: "default",
-  completed: "default",
-};
-
-interface AccountSchedulingViewProps {
-  readonly accountId: string;
-  readonly currentUserId: string;
-  readonly availableMembers?: AccountMember[];
-}
-
-export function AccountSchedulingView({
-  accountId,
-  currentUserId,
-  availableMembers = [],
-}: AccountSchedulingViewProps) {
-  const [demands, setDemands] = useState<WorkDemand[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [pendingAssign, setPendingAssign] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const loadDemands = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const data = await getAccountDemands(accountId);
-      setDemands(data);
-      setLoadState("loaded");
-    } catch {
-      setLoadState("error");
-    }
-  }, [accountId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      if (!cancelled) await loadDemands();
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadDemands]);
-
-  async function handleAssign(demandId: string, userId: string) {
-    setPendingAssign(demandId);
-    setActionError(null);
-    try {
-      const result = await assignWorkDemand({
-        demandId,
-        userId,
-        assignedBy: currentUserId,
-      });
-      if (!result.success) {
-        setActionError(result.error.message);
-        return;
-      }
-      await loadDemands();
-    } finally {
-      setPendingAssign(null);
-    }
-  }
-
-  const byWorkspace = demands.reduce<Record<string, WorkDemand[]>>((acc, d) => {
-    if (!acc[d.workspaceId]) acc[d.workspaceId] = [];
-    acc[d.workspaceId].push(d);
-    return acc;
-  }, {});
-
-  const workspaceEntries = Object.entries(byWorkspace);
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Users className="h-5 w-5 text-primary" />
-        <div>
-          <h2 className="text-lg font-semibold">工作需求總覽</h2>
-          <p className="text-sm text-muted-foreground">
-            顯示名下所有 Workspace 提出的需求，可在此指派成員。
-          </p>
-        </div>
-      </div>
-
-      {actionError && (
-        <p role="alert" className="text-sm text-destructive">
-          {actionError}
-        </p>
-      )}
-
-      {loadState === "loading" && (
-        <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
-          載入中…
-        </div>
-      )}
-
-      {loadState === "error" && (
-        <p className="text-sm text-destructive">載入失敗，請重新整理。</p>
-      )}
-
-      {loadState === "loaded" && demands.length === 0 && (
-        <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          目前名下所有 Workspace 均無工作需求。
-        </div>
-      )}
-
-      {loadState === "loaded" && workspaceEntries.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {workspaceEntries.map(([wsId, wsDemands]) => (
-            <Card key={wsId} className="flex flex-col">
-              <CardHeader className="bg-muted/40 pb-3">
-                <CardTitle className="text-sm font-semibold truncate">
-                  Workspace: <span className="font-mono text-xs">{wsId.slice(0, 8)}…</span>
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  {wsDemands.length} 筆需求
-                </p>
-              </CardHeader>
-              <CardContent className="flex-1 space-y-3 p-4">
-                {wsDemands.map((demand) => (
-                  <div
-                    key={demand.id}
-                    className="rounded-md border border-border/60 bg-background p-3 shadow-sm"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-medium leading-snug flex-1 min-w-0 truncate">
-                        {demand.title}
-                      </p>
-                      <span
-                        title={DEMAND_PRIORITY_LABELS[demand.priority]}
-                        className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${PRIORITY_DOT[demand.priority]}`}
-                      />
-                    </div>
-
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <Badge variant={STATUS_VARIANT[demand.status]} className="text-[10px]">
-                        {DEMAND_STATUS_LABELS[demand.status]}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {demand.scheduledAt}
-                      </span>
-                    </div>
-
-                    {availableMembers.length > 0 && (
-                      <div className="mt-2.5">
-                        <p className="mb-1 text-[10px] text-muted-foreground">指派給</p>
-                        <Select
-                          value={demand.assignedUserId ?? ""}
-                          onValueChange={(userId) => {
-                            if (userId) void handleAssign(demand.id, userId);
-                          }}
-                          disabled={pendingAssign === demand.id}
-                        >
-                          <SelectTrigger className="h-7 text-xs">
-                            <SelectValue placeholder="選擇成員…" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableMembers.map((member) => (
-                              <SelectItem key={member.id} value={member.id}>
-                                {member.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    {availableMembers.length === 0 && demand.assignedUserId && (
-                      <p className="mt-1.5 text-xs text-muted-foreground">
-                        已指派：{demand.assignedUserId}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {loadState === "loaded" && (
-        <div className="flex justify-end">
-          <Button variant="ghost" size="sm" onClick={loadDemands}>
-            重新整理
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/scheduling/interfaces/components/CalendarWidget.tsx
-````typescript
-"use client";
-
-import { useMemo, useState } from "react";
-
-import {
-  addMonths,
-  eachDayOfInterval,
-  endOfMonth,
-  format,
-  getDay,
-  isSameMonth,
-  isToday,
-  startOfMonth,
-  subMonths,
-} from "@lib-date-fns";
-import { Button } from "@ui-shadcn/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-
-import type { WorkDemand } from "../../application/dto/work-demand.dto";
-import { DEMAND_STATUS_LABELS } from "../../application/dto/work-demand.dto";
-
-interface CalendarWidgetProps {
-  demands: WorkDemand[];
-  onDayClick?: (date: Date) => void;
-}
-
-const DAY_HEADERS = ["日", "一", "二", "三", "四", "五", "六"] as const;
-
-const STATUS_DOT_CLASSES: Record<WorkDemand["status"], string> = {
-  draft: "bg-muted-foreground",
-  open: "bg-blue-500",
-  in_progress: "bg-amber-500",
-  completed: "bg-green-500",
-};
-
-function CalendarDayCell({
-  day,
-  isCurrentMonth,
-  dayDemands,
-  onDayClick,
-}: {
-  day: Date;
-  isCurrentMonth: boolean;
-  dayDemands: WorkDemand[];
-  onDayClick?: (date: Date) => void;
-}) {
-  const today = isToday(day);
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={format(day, "yyyy-MM-dd")}
-      onClick={() => onDayClick?.(day)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") onDayClick?.(day);
-      }}
-      className={[
-        "relative min-h-[72px] rounded-lg border p-1.5 text-sm transition-colors",
-        isCurrentMonth
-          ? "border-border/50 bg-card hover:bg-accent/40 cursor-pointer"
-          : "border-transparent bg-muted/20 text-muted-foreground cursor-default",
-        today ? "ring-2 ring-primary ring-offset-1" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      <span
-        className={[
-          "flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium",
-          today ? "bg-primary text-primary-foreground" : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
-      >
-        {format(day, "d")}
-      </span>
-
-      <div className="mt-1 space-y-0.5">
-        {dayDemands.slice(0, 3).map((d) => (
-          <div
-            key={d.id}
-            title={`${d.title} (${DEMAND_STATUS_LABELS[d.status]})`}
-            className="flex items-center gap-1 truncate"
-          >
-            <span
-              className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT_CLASSES[d.status]}`}
-            />
-            <span className="truncate text-[10px] leading-none text-foreground/80">
-              {d.title}
-            </span>
-          </div>
-        ))}
-        {dayDemands.length > 3 && (
-          <span className="text-[10px] text-muted-foreground">
-            +{dayDemands.length - 3} more
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export function CalendarWidget({ demands, onDayClick }: CalendarWidgetProps) {
-  const [currentMonth, setCurrentMonth] = useState<Date>(startOfMonth(new Date()));
-
-  const monthDays = useMemo(
-    () =>
-      eachDayOfInterval({
-        start: startOfMonth(currentMonth),
-        end: endOfMonth(currentMonth),
-      }),
-    [currentMonth],
-  );
-
-  const leadingBlanks = useMemo(() => getDay(startOfMonth(currentMonth)), [currentMonth]);
-
-  const demandsByDate = useMemo(() => {
-    const map = new Map<string, WorkDemand[]>();
-    for (const d of demands) {
-      const key = d.scheduledAt.slice(0, 10);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(d);
-    }
-    return map;
-  }, [demands]);
-
-  function getDayDemands(day: Date): WorkDemand[] {
-    return demandsByDate.get(format(day, "yyyy-MM-dd")) ?? [];
-  }
-
-  const legendEntries: { status: WorkDemand["status"]; label: string }[] = [
-    { status: "open", label: DEMAND_STATUS_LABELS.open },
-    { status: "in_progress", label: DEMAND_STATUS_LABELS.in_progress },
-    { status: "completed", label: DEMAND_STATUS_LABELS.completed },
-    { status: "draft", label: DEMAND_STATUS_LABELS.draft },
-  ];
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold">
-          {format(currentMonth, "yyyy 年 M 月")}
-        </h2>
-        <div className="flex gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="上個月"
-            onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentMonth(startOfMonth(new Date()))}
-          >
-            今天
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="下個月"
-            onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-3">
-        {legendEntries.map(({ status, label }) => (
-          <div key={status} className="flex items-center gap-1.5">
-            <span
-              className={`h-2 w-2 rounded-full ${STATUS_DOT_CLASSES[status]}`}
-            />
-            <span className="text-xs text-muted-foreground">{label}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-7 gap-1">
-        {DAY_HEADERS.map((h) => (
-          <div
-            key={h}
-            className="pb-1 text-center text-xs font-medium text-muted-foreground"
-          >
-            {h}
-          </div>
-        ))}
-
-        {Array.from({ length: leadingBlanks }).map((_, i) => (
-          <div key={`blank-${i}`} />
-        ))}
-
-        {monthDays.map((day) => (
-          <CalendarDayCell
-            key={day.toISOString()}
-            day={day}
-            isCurrentMonth={isSameMonth(day, currentMonth)}
-            dayDemands={getDayDemands(day)}
-            onDayClick={isSameMonth(day, currentMonth) ? onDayClick : undefined}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/scheduling/interfaces/components/CreateDemandForm.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import { format } from "@lib-date-fns";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import { DEMAND_PRIORITY_LABELS } from "../../application/dto/work-demand.dto";
-import type { DemandPriority } from "../../application/dto/work-demand.dto";
-
-export interface CreateDemandFormValues {
-  title: string;
-  description: string;
-  priority: DemandPriority;
-  scheduledAt: string;
-}
-
-interface CreateDemandFormProps {
-  open: boolean;
-  initialDate?: Date;
-  onClose: () => void;
-  onSubmit: (values: CreateDemandFormValues) => Promise<void>;
-}
-
-export function CreateDemandForm({
-  open,
-  initialDate,
-  onClose,
-  onSubmit,
-}: CreateDemandFormProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState<DemandPriority>("medium");
-  const [scheduledAt, setScheduledAt] = useState(
-    initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleOpen = (isOpen: boolean) => {
-    if (isOpen && initialDate) {
-      setScheduledAt(format(initialDate, "yyyy-MM-dd"));
-    }
-    if (!isOpen) handleClose();
-  };
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setPriority("medium");
-    setScheduledAt(initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"));
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) {
-      setError("請輸入需求標題。");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      await onSubmit({ title: t, description: description.trim(), priority, scheduledAt });
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "提交失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>建立工作需求</DialogTitle>
-          <DialogDescription>
-            填寫需求詳情後送出，Account 管理員將收到通知並指派成員。
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="demand-title">標題 *</Label>
-            <Input
-              id="demand-title"
-              placeholder="需要完成什麼工作？"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              autoFocus
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="demand-description">描述（選填）</Label>
-            <Textarea
-              id="demand-description"
-              placeholder="詳細說明需求背景或驗收條件…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="demand-priority">優先級</Label>
-              <Select
-                value={priority}
-                onValueChange={(v) => setPriority(v as DemandPriority)}
-                disabled={submitting}
-              >
-                <SelectTrigger id="demand-priority">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(["low", "medium", "high"] as const).map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {DEMAND_PRIORITY_LABELS[p]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="demand-date">排程日期 *</Label>
-              <Input
-                id="demand-date"
-                type="date"
-                value={scheduledAt}
-                onChange={(e) => setScheduledAt(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-          </div>
-
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
-              取消
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "提交中…" : "建立需求"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/scheduling/interfaces/WorkspaceSchedulingTab.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Plus } from "lucide-react";
-
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-
-import type { WorkDemand } from "../application/dto/work-demand.dto";
-import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../application/dto/work-demand.dto";
-import { submitWorkDemand } from "./_actions/work-demand.actions";
-import { getWorkspaceDemands } from "./queries/work-demand.queries";
-import { CalendarWidget } from "./components/CalendarWidget";
-import { CreateDemandForm } from "./components/CreateDemandForm";
-import type { CreateDemandFormValues } from "./components/CreateDemandForm";
-
-const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "outline" | "destructive"> = {
-  draft: "outline",
-  open: "secondary",
-  in_progress: "default",
-  completed: "default",
-};
-
-const PRIORITY_CLASS: Record<WorkDemand["priority"], string> = {
-  low: "text-muted-foreground",
-  medium: "text-amber-600",
-  high: "text-red-600",
-};
-
-interface WorkspaceSchedulingTabProps {
-  readonly workspace: WorkspaceEntity;
-  readonly accountId: string;
-  readonly currentUserId: string;
-}
-
-export function WorkspaceSchedulingTab({
-  workspace,
-  accountId,
-  currentUserId,
-}: WorkspaceSchedulingTabProps) {
-  const [demands, setDemands] = useState<WorkDemand[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [formOpen, setFormOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const loadDemands = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const data = await getWorkspaceDemands(workspace.id);
-      setDemands(data);
-      setLoadState("loaded");
-    } catch {
-      setLoadState("error");
-    }
-  }, [workspace.id]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      if (!cancelled) await loadDemands();
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadDemands]);
-
-  function handleDayClick(date: Date) {
-    setSelectedDate(date);
-    setFormOpen(true);
-  }
-
-  function handleNewDemand() {
-    setSelectedDate(undefined);
-    setFormOpen(true);
-  }
-
-  async function handleSubmit(values: CreateDemandFormValues) {
-    setActionError(null);
-    const result = await submitWorkDemand({
-      workspaceId: workspace.id,
-      accountId,
-      requesterId: currentUserId,
-      title: values.title,
-      description: values.description,
-      priority: values.priority,
-      scheduledAt: values.scheduledAt,
-    });
-    if (!result.success) {
-      throw new Error(result.error.message);
-    }
-    await loadDemands();
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">{workspace.name} — 工作規劃</h2>
-          <p className="text-sm text-muted-foreground">
-            點擊日期或「新增需求」快速建立工作需求。
-          </p>
-        </div>
-        <Button size="sm" onClick={handleNewDemand}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          新增需求
-        </Button>
-      </div>
-
-      {actionError && (
-        <p role="alert" className="text-sm text-destructive">
-          {actionError}
-        </p>
-      )}
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">排程日曆</CardTitle>
-          <CardDescription className="text-xs">
-            點擊日期快速排程新需求
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loadState === "loading" ? (
-            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-              載入中…
-            </div>
-          ) : (
-            <CalendarWidget demands={demands} onDayClick={handleDayClick} />
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          需求列表 ({demands.length})
-        </h3>
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">載入失敗，請重新整理。</p>
-        )}
-
-        {loadState === "loaded" && demands.length === 0 && (
-          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            目前尚無需求。點擊日曆日期或「新增需求」開始排程。
-          </div>
-        )}
-
-        {demands.map((demand) => (
-          <div
-            key={demand.id}
-            className="flex items-start justify-between rounded-lg border border-border/60 bg-card px-4 py-3"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium text-sm">{demand.title}</p>
-              {demand.description && (
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {demand.description}
-                </p>
-              )}
-              <p className="mt-1 text-xs text-muted-foreground">
-                排程日期：{demand.scheduledAt}
-              </p>
-            </div>
-            <div className="ml-4 flex shrink-0 flex-col items-end gap-1.5">
-              <Badge variant={STATUS_VARIANT[demand.status]}>
-                {DEMAND_STATUS_LABELS[demand.status]}
-              </Badge>
-              <span className={`text-xs font-medium ${PRIORITY_CLASS[demand.priority]}`}>
-                {DEMAND_PRIORITY_LABELS[demand.priority]}優先
-              </span>
-              {demand.assignedUserId && (
-                <span className="text-xs text-muted-foreground">已指派</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <CreateDemandForm
-        open={formOpen}
-        initialDate={selectedDate}
-        onClose={() => setFormOpen(false)}
-        onSubmit={handleSubmit}
-      />
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/sharing/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/workspace/subdomains/sharing/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for workspace subdomain 'sharing'.
-````
-
-## File: modules/workspace/subdomains/sharing/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for workspace subdomain 'sharing'.
-````
-
-## File: modules/workspace/subdomains/sharing/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for workspace subdomain 'sharing'.
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/api/contracts.ts
@@ -11463,21 +8213,6 @@ export interface UpdateTaskDto {
 }
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/workflow.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the workspace-workflow subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type { Task } from "../../domain/entities/Task";
-export type { Issue } from "../../domain/entities/Issue";
-export type { Invoice } from "../../domain/entities/Invoice";
-export type { InvoiceItem } from "../../domain/entities/InvoiceItem";
-export type { TaskStatus } from "../../domain/value-objects/TaskStatus";
-export type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-export type { IssueStage } from "../../domain/value-objects/IssueStage";
-````
-
 ## File: modules/workspace/subdomains/workspace-workflow/application/ports/InvoiceService.ts
 ````typescript
 /**
@@ -11551,6 +8286,107 @@ export interface TaskService {
   transitionStatus(taskId: string, to: TaskStatus): Promise<Task>;
   listTasks(query: TaskQueryDto): Promise<Task[]>;
   getTask(taskId: string): Promise<Task | null>;
+}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/application/process-managers/knowledge-to-workflow-materializer.ts
+````typescript
+/**
+ * @module workspace-flow/application/process-managers
+ * @file knowledge-to-workflow-materializer.ts
+ * @description Process Manager (Saga) that listens for `knowledge.page_approved`
+ * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
+ *
+ * ## Responsibility
+ * This class is the single entry point for the cross-module event-driven
+ * integration between the `knowledge` and `workspace-flow` bounded contexts.
+ *
+ * ## Idempotency
+ * The process manager tracks processed `causationId` values to prevent
+ * duplicate materialization if the same event is delivered more than once.
+ * The seen-set is in-memory by default; production implementations should
+ * persist to Firestore at:
+ *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
+ * using a Firestore transaction to provide atomic idempotency guarantees.
+ *
+ * ## Placement
+ * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
+ *   `SimpleEventBus` subscriber registered at application startup.
+ * - Alternative: a shared saga registry if cross-module saga coordination is needed.
+ *
+ * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
+ */
+
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { MaterializeTasksFromKnowledgeUseCase } from "../use-cases/materialize-tasks-from-knowledge.use-case";
+import type { ExtractedInvoiceItem, ExtractedTaskItem } from "../dto/materialize-from-knowledge.dto";
+import type { SourceReference } from "../../domain/value-objects/SourceReference";
+
+interface PageApprovedEvent {
+  payload: {
+    pageId: string;
+    causationId: string;
+    correlationId: string;
+    extractedTasks: ReadonlyArray<ExtractedTaskItem>;
+    extractedInvoices: ReadonlyArray<ExtractedInvoiceItem>;
+  };
+}
+
+export class KnowledgeToWorkflowMaterializer {
+  /**
+   * In-memory idempotency guard.
+   * Replace with a persistent store in production.
+   */
+  private readonly processedCausationIds = new Set<string>();
+
+  constructor(
+    private readonly taskRepository: TaskRepository,
+    private readonly invoiceRepository: InvoiceRepository,
+  ) {}
+
+  /**
+   * Handle a `knowledge.page_approved` event.
+   *
+   * @param event - The full event payload from the knowledge module's public API.
+   * @param workspaceId - Target workspace where Tasks/Invoices will be created.
+   *   Typically resolved from the event's `workspaceId` field if present.
+   * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
+   */
+  async handle(event: PageApprovedEvent, workspaceId: string): Promise<boolean> {
+    if (this.processedCausationIds.has(event.payload.causationId)) {
+      return false;
+    }
+
+    if (!workspaceId.trim()) return false;
+
+    const sourceReference: SourceReference = {
+      type: "KnowledgePage",
+      id: event.payload.pageId,
+      causationId: event.payload.causationId,
+      correlationId: event.payload.correlationId,
+    };
+
+    const useCase = new MaterializeTasksFromKnowledgeUseCase(
+      this.taskRepository,
+      this.invoiceRepository,
+    );
+
+    const result = await useCase.execute({
+      workspaceId,
+      knowledgePageId: event.payload.pageId,
+      sourceReference,
+      extractedTasks: event.payload.extractedTasks,
+      extractedInvoices: event.payload.extractedInvoices,
+    });
+
+    if (result.success) {
+      this.processedCausationIds.add(event.payload.causationId);
+      return true;
+    }
+
+    return false;
+  }
 }
 ````
 
@@ -13182,44 +10018,6 @@ export type TaskEvent =
   | TaskStatusChangedEvent;
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/domain/index.ts
-````typescript
-/**
- * workspace/workspace-workflow domain — public exports.
- */
-export type { InvoiceRepository } from "./repositories/InvoiceRepository";
-export type { IssueRepository } from "./repositories/IssueRepository";
-export type { TaskRepository } from "./repositories/TaskRepository";
-export * from "./events/TaskEvent";
-export * from "./events/IssueEvent";
-export * from "./events/InvoiceEvent";
-export * from "./value-objects/InvoiceId";
-export * from "./value-objects/InvoiceItemId";
-export * from "./value-objects/InvoiceStatus";
-export * from "./value-objects/IssueId";
-export * from "./value-objects/IssueStage";
-export * from "./value-objects/IssueStatus";
-export * from "./value-objects/SourceReference";
-export * from "./value-objects/TaskId";
-export * from "./value-objects/TaskStatus";
-export * from "./value-objects/UserId";
-// Ports layer — driven port aliases
-export type { IInvoicePort, IIssuePort, ITaskPort } from "./ports";
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/ports/index.ts
-````typescript
-/**
- * workspace/workspace-workflow domain/ports — driven port interfaces for the workflow subdomain.
- *
- * Re-exports repository contracts from domain/repositories/, making the Ports layer
- * explicitly visible in the directory structure.
- */
-export type { InvoiceRepository as IInvoicePort } from "../repositories/InvoiceRepository";
-export type { IssueRepository as IIssuePort } from "../repositories/IssueRepository";
-export type { TaskRepository as ITaskPort } from "../repositories/TaskRepository";
-````
-
 ## File: modules/workspace/subdomains/workspace-workflow/domain/repositories/InvoiceRepository.ts
 ````typescript
 /**
@@ -14656,1520 +11454,6 @@ export class FirebaseTaskRepository implements TaskRepository {
 }
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow.actions.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow.actions.ts
- * @description Re-export barrel for all workspace-flow Server Actions.
- *              Each sub-file carries its own "use server" directive; this barrel
- *              must NOT repeat it — Turbopack cannot resolve re-exports from a
- *              "use server" barrel that itself re-exports other "use server" files.
- *  - workspace-flow-task.actions.ts    (create, update, assign, qa, approve, archive)
- *  - workspace-flow-issue.actions.ts   (open, start, fix, retest, resolve, close)
- *  - workspace-flow-invoice.actions.ts (create, add/update/remove item, submit, review, approve, reject, pay, close)
- */
-
-export {
-  wfCreateTask,
-  wfUpdateTask,
-  wfAssignTask,
-  wfSubmitTaskToQa,
-  wfPassTaskQa,
-  wfApproveTaskAcceptance,
-  wfArchiveTask,
-} from "./workspace-flow-task.actions";
-
-export {
-  wfOpenIssue,
-  wfStartIssue,
-  wfFixIssue,
-  wfSubmitIssueRetest,
-  wfPassIssueRetest,
-  wfFailIssueRetest,
-  wfResolveIssue,
-  wfCloseIssue,
-} from "./workspace-flow-issue.actions";
-
-export {
-  wfCreateInvoice,
-  wfAddInvoiceItem,
-  wfUpdateInvoiceItem,
-  wfRemoveInvoiceItem,
-  wfSubmitInvoice,
-  wfReviewInvoice,
-  wfApproveInvoice,
-  wfRejectInvoice,
-  wfPayInvoice,
-  wfCloseInvoice,
-} from "./workspace-flow-invoice.actions";
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/AssignTaskDialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-
-import { wfAssignTask } from "../_actions/workspace-flow.actions";
-
-export interface AssignTaskDialogProps {
-  open: boolean;
-  taskId: string;
-  onClose: () => void;
-  onDone: () => void;
-}
-
-export function AssignTaskDialog({ open, taskId, onClose, onDone }: AssignTaskDialogProps) {
-  const [assigneeId, setAssigneeId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setAssigneeId("");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const a = assigneeId.trim();
-    if (!a) { setError("請輸入指派人 ID。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfAssignTask(taskId, a);
-      if (!result.success) { setError(result.error.message ?? "指派失敗"); return; }
-      onDone();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "指派失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>指派任務</DialogTitle>
-          <DialogDescription>填入負責人 ID，任務將進入進行中。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="assignee-id">指派人 ID *</Label>
-            <Input
-              id="assignee-id"
-              placeholder="用戶 ID"
-              value={assigneeId}
-              onChange={(e) => setAssigneeId(e.target.value)}
-              disabled={submitting}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "指派中…" : "指派"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/CreateTaskDialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import { wfCreateTask } from "../_actions/workspace-flow.actions";
-
-export interface CreateTaskDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onCreated: () => void;
-  workspaceId: string;
-}
-
-export function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: CreateTaskDialogProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
-  const [dueDateISO, setDueDateISO] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setAssigneeId("");
-    setDueDateISO("");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) { setError("請輸入任務標題。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfCreateTask({
-        workspaceId,
-        title: t,
-        description: description.trim() || undefined,
-        assigneeId: assigneeId.trim() || undefined,
-        dueDateISO: dueDateISO || undefined,
-      });
-      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
-      onCreated();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>建立任務</DialogTitle>
-          <DialogDescription>新增一個工作任務到此工作區。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="task-title">標題 *</Label>
-            <Input
-              id="task-title"
-              placeholder="任務名稱"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="task-description">描述（選填）</Label>
-            <Textarea
-              id="task-description"
-              placeholder="任務詳情或驗收條件…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="task-assignee">指派人 ID（選填）</Label>
-              <Input
-                id="task-assignee"
-                placeholder="用戶 ID"
-                value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="task-due">截止日期（選填）</Label>
-              <Input
-                id="task-due"
-                type="date"
-                value={dueDateISO}
-                onChange={(e) => setDueDateISO(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "建立任務"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/workspace/AGENT.md
-````markdown
-# Workspace Agent
-
-> Strategic agent documentation: [docs/contexts/workspace/AGENT.md](../../docs/contexts/workspace/AGENT.md)
-
-## Mission
-
-保護 workspace 主域作為協作容器、工作區範疇與 workspaceId 錨點。
-
-## Route Here When
-
-- 問題的中心是 workspaceId、工作區建立封存、工作區內角色與參與關係。
-- 問題的中心是工作區共享、存在感、活動流、排程與工作流執行。
-- 問題需要提供其他主域運作所需的 workspace scope。
-
-## Route Elsewhere When
-
-- 身份、組織、授權、權益、憑證、通知治理屬於 platform。
-- 知識頁面、文章、資料庫、分類、內容發布屬於 notion。
-- notebook、conversation、source、retrieval、synthesis 屬於 notebooklm。
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order (Strangler Pattern)
-
-New features:
-1. Define Domain (entities, value objects, aggregates, events)
-2. Define Application (use cases, DTOs)
-3. Define Ports (only if boundary isolation needed)
-4. Implement Infrastructure (adapters, persistence)
-5. Implement Interfaces (UI, actions, hooks)
-
-Legacy migration:
-1. Find a Use Case to extract
-2. Build Domain model for that use case
-3. Converge Application layer
-4. Isolate legacy via Ports
-5. Replace Infrastructure adapter
-````
-
-## File: modules/workspace/api/ui.ts
-````typescript
-/**
- * workspace api/ui.ts
- *
- * Canonical public web UI surface for the workspace bounded context.
- * App-layer consumers that need workspace UI components, hooks, and
- * navigation utilities should import from here.
- *
- * Internal source: interfaces/web/
- */
-
-// ── Screen components ────────────────────────────────────────────────────────
-
-export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
-export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
-export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
-export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
-
-// ── Card components ──────────────────────────────────────────────────────────
-
-export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
-
-// ── Tab components ───────────────────────────────────────────────────────────
-
-export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
-
-// ── Layout components ────────────────────────────────────────────────────────
-
-export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
-export { WorkspaceQuickAccessRow } from "../interfaces/web/components/layout/WorkspaceQuickAccessRow";
-export { WorkspaceSectionContent } from "../interfaces/web/components/layout/WorkspaceSectionContent";
-
-// ── Rail components ──────────────────────────────────────────────────────────
-
-export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
-
-// ── Navigation ────────────────────────────────────────────────────────────────
-
-export type {
-  WorkspaceTabDevStatus,
-  WorkspaceTabGroup,
-  WorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
-
-export {
-  WORKSPACE_TAB_GROUPS,
-  WORKSPACE_TAB_META,
-  WORKSPACE_TAB_VALUES,
-  getWorkspaceTabLabel,
-  getWorkspaceTabMeta,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
-
-export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
-export {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "../interfaces/web/navigation/workspace-nav-items";
-
-// ── Quick-access navigation ───────────────────────────────────────────────────
-
-export type {
-  WorkspaceQuickAccessItem,
-  WorkspaceQuickAccessMatcherOptions,
-} from "../interfaces/web/components/navigation/workspace-quick-access";
-
-export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
-
-// ── State helpers ─────────────────────────────────────────────────────────────
-
-export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
-
-// ── Map utilities ─────────────────────────────────────────────────────────────
-
-export {
-  resolveWorkspaceFromMap,
-  toWorkspaceMap,
-} from "../interfaces/web/utils/workspace-map";
-
-// ── Hooks ─────────────────────────────────────────────────────────────────────
-
-export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
-export {
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  getWorkspaceIdFromPath,
-  useRecentWorkspaces,
-} from "../interfaces/web/hooks/useRecentWorkspaces";
-
-// ── Navigation preferences ────────────────────────────────────────────────────
-
-export type { NavPreferences, SidebarLocaleBundle } from "../interfaces/web/navigation/nav-preferences-data";
-export {
-  PERSONAL_ITEMS,
-  ORGANIZATION_NAV_ITEMS,
-  DIALOG_TEXT,
-  DEFAULT_PREFS,
-  readNavPreferences,
-  writeNavPreferences,
-} from "../interfaces/web/navigation/nav-preferences-data";
-
-// ── Sidebar locale ────────────────────────────────────────────────────────────
-
-export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-locale";
-
-// ── Navigation customize dialog ───────────────────────────────────────────────
-
-export { CustomizeNavigationDialog } from "../interfaces/web/components/dialogs/CustomizeNavigationDialog";
-export { CheckRow, WorkspaceCheckRow } from "../interfaces/web/components/dialogs/NavCheckRow";
-
-export {
-  AuditStream,
-  WorkspaceAuditTab,
-} from "../subdomains/audit/api";
-
-export {
-  WorkspaceFeedAccountView,
-  WorkspaceFeedWorkspaceView,
-} from "../subdomains/feed/api";
-
-export type { AccountMember } from "../subdomains/scheduling/api";
-export {
-  AccountSchedulingView,
-  WorkspaceSchedulingTab,
-} from "../subdomains/scheduling/api";
-
-export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
-````
-
-## File: modules/workspace/application/services/WorkspaceCommandApplicationService.ts
-````typescript
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-
-import {
-  CreateWorkspaceUseCase,
-  CreateWorkspaceWithCapabilitiesUseCase,
-  UpdateWorkspaceSettingsUseCase,
-  DeleteWorkspaceUseCase,
-  MountCapabilitiesUseCase,
-  GrantTeamAccessUseCase,
-  GrantIndividualAccessUseCase,
-  CreateWorkspaceLocationUseCase,
-} from "../use-cases/workspace.use-cases";
-import type { WorkspaceCommandPort } from "../../domain/ports/input/WorkspaceCommandPort";
-import type {
-  WorkspaceAccessRepository,
-  WorkspaceCapabilityRepository,
-  WorkspaceDomainEventPublisher,
-  WorkspaceEventPublishMetadata,
-  WorkspaceLocationRepository,
-  WorkspaceRepository,
-} from "../../domain/ports";
-import type {
-  Capability,
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceGrant,
-  WorkspaceLocation,
-} from "../../domain/aggregates/Workspace";
-import {
-  createWorkspaceCreatedEvent,
-  createWorkspaceLifecycleTransitionedEvent,
-  createWorkspaceVisibilityChangedEvent,
-  type WorkspaceDomainEvent,
-} from "../../domain/events/workspace.events";
-
-interface WorkspaceCommandApplicationServiceDependencies {
-  workspaceRepo: WorkspaceRepository;
-  workspaceCapabilityRepo: WorkspaceCapabilityRepository;
-  workspaceAccessRepo: WorkspaceAccessRepository;
-  workspaceLocationRepo: WorkspaceLocationRepository;
-  workspaceDomainEventPublisher: WorkspaceDomainEventPublisher;
-}
-
-export class WorkspaceCommandApplicationService implements WorkspaceCommandPort {
-  constructor(
-    private readonly dependencies: WorkspaceCommandApplicationServiceDependencies,
-  ) {}
-
-  async createWorkspace(command: CreateWorkspaceCommand): Promise<CommandResult> {
-    try {
-      const result = await new CreateWorkspaceUseCase(this.dependencies.workspaceRepo).execute(command);
-      if (result.success) {
-        await this.publishWorkspaceDomainEvent(
-          createWorkspaceCreatedEvent({
-            workspaceId: result.aggregateId,
-            accountId: command.accountId,
-            accountType: command.accountType,
-            name: command.name,
-          }),
-          this.createWorkspaceEventMetadata(
-            result.aggregateId,
-            command.accountId,
-            command.accountType,
-          ),
-        );
-      }
-      return result;
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_FAILED",
-        err instanceof Error ? err.message : "Unexpected error",
-      );
-    }
-  }
-
-  async createWorkspaceWithCapabilities(
-    command: CreateWorkspaceCommand,
-    capabilities: Capability[],
-  ): Promise<CommandResult> {
-    try {
-      const result = await new CreateWorkspaceWithCapabilitiesUseCase(
-        this.dependencies.workspaceRepo,
-        this.dependencies.workspaceCapabilityRepo,
-      ).execute(command, capabilities);
-      if (result.success) {
-        await this.publishWorkspaceDomainEvent(
-          createWorkspaceCreatedEvent({
-            workspaceId: result.aggregateId,
-            accountId: command.accountId,
-            accountType: command.accountType,
-            name: command.name,
-          }),
-          this.createWorkspaceEventMetadata(
-            result.aggregateId,
-            command.accountId,
-            command.accountType,
-          ),
-        );
-      }
-      return result;
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_FAILED",
-        err instanceof Error ? err.message : "Unexpected error",
-      );
-    }
-  }
-
-  async updateWorkspaceSettings(
-    command: UpdateWorkspaceSettingsCommand,
-  ): Promise<CommandResult> {
-    try {
-      const previous = await this.dependencies.workspaceRepo.findByIdForAccount(
-        command.accountId,
-        command.workspaceId,
-      );
-      const result = await new UpdateWorkspaceSettingsUseCase(this.dependencies.workspaceRepo).execute(
-        command,
-      );
-
-      if (result.success && previous) {
-        if (
-          command.lifecycleState !== undefined &&
-          command.lifecycleState !== previous.lifecycleState
-        ) {
-          await this.publishWorkspaceDomainEvent(
-            createWorkspaceLifecycleTransitionedEvent({
-              workspaceId: command.workspaceId,
-              accountId: command.accountId,
-              fromState: previous.lifecycleState,
-              toState: command.lifecycleState,
-            }),
-            this.createWorkspaceEventMetadata(
-              command.workspaceId,
-              command.accountId,
-              previous.accountType,
-            ),
-          );
-        }
-
-        if (command.visibility !== undefined && command.visibility !== previous.visibility) {
-          await this.publishWorkspaceDomainEvent(
-            createWorkspaceVisibilityChangedEvent({
-              workspaceId: command.workspaceId,
-              accountId: command.accountId,
-              fromVisibility: previous.visibility,
-              toVisibility: command.visibility,
-            }),
-            this.createWorkspaceEventMetadata(
-              command.workspaceId,
-              command.accountId,
-              previous.accountType,
-            ),
-          );
-        }
-      }
-
-      return result;
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_UPDATE_FAILED",
-        err instanceof Error ? err.message : "Unexpected error",
-      );
-    }
-  }
-
-  async deleteWorkspace(workspaceId: string): Promise<CommandResult> {
-    try {
-      return await new DeleteWorkspaceUseCase(this.dependencies.workspaceRepo).execute(workspaceId);
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_DELETE_FAILED",
-        err instanceof Error ? err.message : "Unexpected error",
-      );
-    }
-  }
-
-  async mountCapabilities(
-    workspaceId: string,
-    capabilities: Capability[],
-  ): Promise<CommandResult> {
-    try {
-      return await new MountCapabilitiesUseCase(this.dependencies.workspaceCapabilityRepo).execute(
-        workspaceId,
-        capabilities,
-      );
-    } catch (err) {
-      return commandFailureFrom(
-        "CAPABILITIES_MOUNT_FAILED",
-        err instanceof Error ? err.message : "Unexpected error",
-      );
-    }
-  }
-
-  async authorizeWorkspaceTeam(workspaceId: string, teamId: string): Promise<CommandResult> {
-    try {
-      return await new GrantTeamAccessUseCase(this.dependencies.workspaceAccessRepo).execute(
-        workspaceId,
-        teamId,
-      );
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_TEAM_AUTHORIZE_FAILED",
-        err instanceof Error ? err.message : "Unexpected error",
-      );
-    }
-  }
-
-  async grantIndividualWorkspaceAccess(
-    workspaceId: string,
-    grant: WorkspaceGrant,
-  ): Promise<CommandResult> {
-    try {
-      return await new GrantIndividualAccessUseCase(this.dependencies.workspaceAccessRepo).execute(
-        workspaceId,
-        grant,
-      );
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_GRANT_FAILED",
-        err instanceof Error ? err.message : "Unexpected error",
-      );
-    }
-  }
-
-  async createWorkspaceLocation(
-    workspaceId: string,
-    location: Omit<WorkspaceLocation, "locationId">,
-  ): Promise<CommandResult> {
-    try {
-      return await new CreateWorkspaceLocationUseCase(this.dependencies.workspaceLocationRepo).execute(
-        workspaceId,
-        location,
-      );
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_LOCATION_CREATE_FAILED",
-        err instanceof Error ? err.message : "Unexpected error",
-      );
-    }
-  }
-
-  private async publishWorkspaceDomainEvent(
-    event: WorkspaceDomainEvent,
-    metadata?: WorkspaceEventPublishMetadata,
-  ): Promise<void> {
-    await this.dependencies.workspaceDomainEventPublisher.publish(event, metadata);
-  }
-
-  private createWorkspaceEventMetadata(
-    workspaceId: string,
-    accountId: string,
-    accountType?: "user" | "organization",
-  ): WorkspaceEventPublishMetadata {
-    return {
-      workspaceId,
-      organizationId: accountType === "organization" ? accountId : undefined,
-    };
-  }
-}
-````
-
-## File: modules/workspace/docs/README.md
-````markdown
-# Workspace Documentation
-
-Implementation-level documentation for the workspace bounded context.
-
-## Strategic Documentation (Authority)
-
-Strategic architecture documentation lives in `docs/contexts/workspace/`:
-
-- [README.md](../../../docs/contexts/workspace/README.md) — Context overview
-- [subdomains.md](../../../docs/contexts/workspace/subdomains.md) — Subdomain inventory
-- [bounded-contexts.md](../../../docs/contexts/workspace/bounded-contexts.md) — Ownership map
-- [context-map.md](../../../docs/contexts/workspace/context-map.md) — Relationships
-- [ubiquitous-language.md](../../../docs/contexts/workspace/ubiquitous-language.md) — Terminology
-
-## Architecture Reference
-
-- [Bounded Context Template](../../../docs/bounded-context-subdomain-template.md) — Standard structure
-- [Architecture Overview](../../../docs/architecture-overview.md) — System-wide architecture
-- [Integration Guidelines](../../../docs/integration-guidelines.md) — Cross-context rules
-
-## Conflict Resolution
-
-- Strategic docs in `docs/contexts/workspace/` are the authority for naming, ownership, and boundaries.
-- This `docs/` folder is for implementation-aligned detail only.
-````
-
-## File: modules/workspace/domain/ports/input/WorkspaceCommandPort.ts
-````typescript
-import type { CommandResult } from "@shared-types";
-
-import type {
-  Capability,
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceGrant,
-  WorkspaceLocation,
-} from "../../aggregates/Workspace";
-
-export interface WorkspaceCommandPort {
-  createWorkspace(command: CreateWorkspaceCommand): Promise<CommandResult>;
-  createWorkspaceWithCapabilities(
-    command: CreateWorkspaceCommand,
-    capabilities: Capability[],
-  ): Promise<CommandResult>;
-  updateWorkspaceSettings(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult>;
-  deleteWorkspace(workspaceId: string): Promise<CommandResult>;
-  mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<CommandResult>;
-  authorizeWorkspaceTeam(workspaceId: string, teamId: string): Promise<CommandResult>;
-  grantIndividualWorkspaceAccess(
-    workspaceId: string,
-    grant: WorkspaceGrant,
-  ): Promise<CommandResult>;
-  createWorkspaceLocation(
-    workspaceId: string,
-    location: Omit<WorkspaceLocation, "locationId">,
-  ): Promise<CommandResult>;
-}
-````
-
-## File: modules/workspace/domain/ports/input/WorkspaceQueryPort.ts
-````typescript
-import type { WorkspaceEntity } from "../../aggregates/Workspace";
-import type { WorkspaceMemberView } from "../../entities/WorkspaceMemberView";
-import type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-} from "../../entities/WikiContentTree";
-
-export type WorkspaceQuerySubscription = () => void;
-
-export interface WorkspaceQueryPort {
-  getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]>;
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ): WorkspaceQuerySubscription;
-  getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null>;
-  getWorkspaceByIdForAccount(
-    accountId: string,
-    workspaceId: string,
-  ): Promise<WorkspaceEntity | null>;
-  getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]>;
-  buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]>;
-}
-````
-
-## File: modules/workspace/domain/ports/output/WikiWorkspaceRepository.ts
-````typescript
-/**
- * Module: workspace
- * Layer: ports/output
- * Purpose: Repository port for fetching workspace refs used by the
- *          Wiki content-tree use-case.
- */
-
-import type { WikiWorkspaceRef } from "../../entities/WikiContentTree";
-
-export interface WikiWorkspaceRepository {
-  listByAccountId(accountId: string): Promise<WikiWorkspaceRef[]>;
-}
-````
-
-## File: modules/workspace/domain/ports/output/WorkspaceAccessRepository.ts
-````typescript
-import type { WorkspaceGrant } from "../../aggregates/Workspace";
-
-export interface WorkspaceAccessRepository {
-  grantTeamAccess(workspaceId: string, teamId: string): Promise<void>;
-  revokeTeamAccess(workspaceId: string, teamId: string): Promise<void>;
-  grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void>;
-  revokeIndividualAccess(workspaceId: string, userId: string): Promise<void>;
-}
-````
-
-## File: modules/workspace/domain/ports/output/WorkspaceCapabilityRepository.ts
-````typescript
-import type { Capability } from "../../aggregates/Workspace";
-
-export interface WorkspaceCapabilityRepository {
-  mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void>;
-  unmountCapability(workspaceId: string, capabilityId: string): Promise<void>;
-}
-````
-
-## File: modules/workspace/domain/ports/output/WorkspaceDomainEventPublisher.ts
-````typescript
-import type { WorkspaceDomainEvent } from "../../events/workspace.events";
-
-export interface WorkspaceEventPublishMetadata {
-  readonly workspaceId?: string;
-  readonly organizationId?: string;
-}
-
-export interface WorkspaceDomainEventPublisher {
-  publish(
-    event: WorkspaceDomainEvent,
-    metadata?: WorkspaceEventPublishMetadata,
-  ): Promise<void>;
-}
-````
-
-## File: modules/workspace/domain/ports/output/WorkspaceLocationRepository.ts
-````typescript
-import type { WorkspaceLocation } from "../../aggregates/Workspace";
-
-export interface WorkspaceLocationRepository {
-  createLocation(workspaceId: string, location: Omit<WorkspaceLocation, "locationId">): Promise<string>;
-  updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void>;
-  deleteLocation(workspaceId: string, locationId: string): Promise<void>;
-}
-````
-
-## File: modules/workspace/domain/ports/output/WorkspaceQueryRepository.ts
-````typescript
-/**
- * WorkspaceQueryRepository — Port for workspace read projections.
- */
-
-import type { WorkspaceMemberView } from "../../entities/WorkspaceMemberView";
-import type { WorkspaceEntity } from "../../aggregates/Workspace";
-
-export type Unsubscribe = () => void;
-
-export interface WorkspaceQueryRepository {
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ): Unsubscribe;
-  getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]>;
-}
-````
-
-## File: modules/workspace/domain/ports/output/WorkspaceRepository.ts
-````typescript
-/**
- * WorkspaceRepository — Port for workspace persistence.
- */
-
-import type {
-  WorkspaceEntity,
-  UpdateWorkspaceSettingsCommand,
-} from "../../aggregates/Workspace";
-
-export interface WorkspaceRepository {
-  findById(id: string): Promise<WorkspaceEntity | null>;
-  findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null>;
-  findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]>;
-  save(workspace: WorkspaceEntity): Promise<string>;
-  updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void>;
-  delete(id: string): Promise<void>;
-}
-````
-
-## File: modules/workspace/interfaces/api/runtime/workspace-session-context.ts
-````typescript
-import type { WorkspaceCommandPort } from "../../../application/dtos/workspace-interfaces.dto";
-import type { WorkspaceQueryPort } from "../../../application/dtos/workspace-interfaces.dto";
-
-export interface WorkspaceSessionContext {
-  readonly workspaceCommandPort: WorkspaceCommandPort;
-  readonly workspaceQueryPort: WorkspaceQueryPort;
-}
-
-export function createWorkspaceSessionContext(
-  workspaceCommandPort: WorkspaceCommandPort,
-  workspaceQueryPort: WorkspaceQueryPort,
-): WorkspaceSessionContext {
-  return {
-    workspaceCommandPort,
-    workspaceQueryPort,
-  };
-}
-````
-
-## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
-````typescript
-export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
-
-export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
-
-export const WORKSPACE_TAB_SIDEBAR_GROUP_ORDER: readonly WorkspaceTabGroup[] = [
-  "primary",
-  "modules",
-  "spaces",
-  "databases",
-  "library",
-];
-
-export const WORKSPACE_TAB_VALUES = [
-  "Overview",
-  "Members",
-  "Daily",
-  "Files",
-  "Schedule",
-  "Audit",
-  "Tasks",
-  "TaskQa",
-  "TaskAcceptance",
-  "TaskIssues",
-  "TaskFinance",
-  "Feed",
-] as const;
-
-export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
-
-interface WorkspaceTabMeta {
-  readonly label: string;
-  readonly prefId: string;
-  readonly group: WorkspaceTabGroup;
-  readonly status: WorkspaceTabDevStatus;
-}
-
-export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
-  Overview: { label: "Home", prefId: "home", group: "primary", status: "🏗️" },
-  Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
-  Daily: { label: "Daily", prefId: "daily", group: "modules", status: "✅" },
-  Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
-  Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
-  Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
-  Tasks: { label: "任務", prefId: "tasks", group: "modules", status: "🏗️" },
-  TaskQa: { label: "質檢", prefId: "task-qa", group: "modules", status: "🏗️" },
-  TaskAcceptance: { label: "驗收", prefId: "task-acceptance", group: "modules", status: "🏗️" },
-  TaskIssues: { label: "問題單", prefId: "task-issues", group: "modules", status: "🏗️" },
-  TaskFinance: { label: "財務", prefId: "task-finance", group: "modules", status: "🏗️" },
-  Feed: { label: "Feed", prefId: "feed", group: "modules", status: "🏗️" },
-};
-
-export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
-  primary: ["Overview"],
-  spaces: [],
-  databases: [],
-  library: ["Files", "Members"],
-  modules: [
-    "Daily",
-    "Schedule",
-    "Audit",
-    "Tasks",
-    "TaskQa",
-    "TaskAcceptance",
-    "TaskIssues",
-    "TaskFinance",
-    "Feed",
-  ],
-};
-
-const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);
-
-export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue {
-  return WORKSPACE_TAB_VALUE_SET.has(value);
-}
-
-export function getWorkspaceTabMeta(tab: WorkspaceTabValue) {
-  return WORKSPACE_TAB_META[tab];
-}
-
-export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus {
-  return WORKSPACE_TAB_META[tab].status;
-}
-
-export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string {
-  return WORKSPACE_TAB_META[tab].label;
-}
-
-export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
-  return WORKSPACE_TAB_META[tab].prefId;
-}
-
-export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
-  return WORKSPACE_TAB_GROUPS[group];
-}
-
-export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[] {
-  return WORKSPACE_TAB_SIDEBAR_GROUP_ORDER.flatMap((group) => getWorkspaceTabsByGroup(group));
-}
-````
-
-## File: modules/workspace/subdomains/audit/domain/index.ts
-````typescript
-// ── Existing domain types ────────────────────────────────────────────────────
-export type { AuditLogEntity, AuditLogSource } from "./entities/AuditLog";
-export type { AuditLog, AuditAction, AuditSeverity, ChangeRecord } from "./schema";
-export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "./schema";
-export type { AuditRepository } from "./repositories/AuditRepository";
-
-// ── Rich DDD additions ──────────────────────────────────────────────────────
-export * from "./aggregates";
-export * from "./events";
-export * from "./services";
-export * from "./value-objects";
-
-// ── Ports layer ──────────────────────────────────────────────────────────────
-export type { IAuditPort } from "./ports";
-````
-
-## File: modules/workspace/subdomains/audit/interfaces/queries/audit.queries.ts
-````typescript
-import type { AuditLogEntity } from "../../application/dto/audit.dto";
-import {
-  ListOrganizationAuditLogsUseCase,
-  ListWorkspaceAuditLogsUseCase,
-} from "../../application/use-cases/list-audit-logs.use-cases";
-import { makeAuditRepo } from "../../api/factories";
-
-const auditRepo = makeAuditRepo();
-const listWorkspaceAuditLogsUseCase = new ListWorkspaceAuditLogsUseCase(auditRepo);
-const listOrganizationAuditLogsUseCase = new ListOrganizationAuditLogsUseCase(auditRepo);
-
-export async function getWorkspaceAuditLogs(
-  workspaceId: string,
-): Promise<AuditLogEntity[]> {
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedWorkspaceId) {
-    return [];
-  }
-
-  return listWorkspaceAuditLogsUseCase.execute(normalizedWorkspaceId);
-}
-
-export async function getOrganizationAuditLogs(
-  workspaceIds: string[],
-  maxCount = 200,
-): Promise<AuditLogEntity[]> {
-  const normalizedWorkspaceIds = workspaceIds
-    .map((workspaceId) => workspaceId.trim())
-    .filter(Boolean);
-
-  if (normalizedWorkspaceIds.length === 0) {
-    return [];
-  }
-
-  return listOrganizationAuditLogsUseCase.execute(normalizedWorkspaceIds, maxCount);
-}
-````
-
-## File: modules/workspace/subdomains/audit/README.md
-````markdown
-# Audit
-
-Audit trail and accountability tracking for workspace actions.
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/workspace/subdomains/feed/interfaces/queries/workspace-feed.queries.ts
-````typescript
-import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto";
-import {
-  GetWorkspaceFeedPostUseCase,
-  ListAccountWorkspaceFeedUseCase,
-  ListWorkspaceFeedUseCase,
-} from "../../application/use-cases/workspace-feed.use-cases";
-import { makeWorkspaceFeedPostRepo } from "../../api/factories";
-
-export async function getWorkspaceFeedPost(
-  accountId: string,
-  postId: string,
-): Promise<WorkspaceFeedPost | null> {
-  return new GetWorkspaceFeedPostUseCase(makeWorkspaceFeedPostRepo()).execute(
-    accountId,
-    postId,
-  );
-}
-
-export async function getWorkspaceFeed(
-  accountId: string,
-  workspaceId: string,
-  limit = 50,
-): Promise<WorkspaceFeedPost[]> {
-  return new ListWorkspaceFeedUseCase(makeWorkspaceFeedPostRepo()).execute({
-    accountId,
-    workspaceId,
-    limit,
-  });
-}
-
-export async function getAccountWorkspaceFeed(accountId: string, limit = 50): Promise<WorkspaceFeedPost[]> {
-  return new ListAccountWorkspaceFeedUseCase(makeWorkspaceFeedPostRepo()).execute({
-    accountId,
-    limit,
-  });
-}
-````
-
-## File: modules/workspace/subdomains/feed/README.md
-````markdown
-# Feed
-
-Activity feed projections for workspace events.
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/workspace/subdomains/lifecycle/README.md
-````markdown
-# Lifecycle
-
-把工作區容器生命週期獨立成正典邊界。
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/workspace/subdomains/membership/README.md
-````markdown
-# Membership
-
-把工作區參與關係從平台身份治理中切開。
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/workspace/subdomains/presence/README.md
-````markdown
-# Presence
-
-把即時協作存在感與共同編輯訊號形成本地語言。
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/workspace/subdomains/scheduling/application/dto/work-demand.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the scheduling subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type { WorkDemand, DemandPriority } from "../../domain/types";
-export { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../../domain/types";
-
-import type { DemandPriority } from "../../domain/types";
-
-export interface CreateDemandInput {
-  workspaceId: string;
-  accountId: string;
-  requesterId: string;
-  title: string;
-  description?: string;
-  priority: DemandPriority;
-  scheduledAt: string;
-}
-
-export interface AssignMemberInput {
-  demandId: string;
-  userId: string;
-  assignedBy: string;
-}
-````
-
-## File: modules/workspace/subdomains/scheduling/application/work-demand.use-cases.ts
-````typescript
-/**
- * Module: workspace/subdomains/scheduling
- * Layer: application/use-cases
- * Purpose: Application services — orchestrate domain logic.
- */
-
-import type { CommandResult } from "@shared-types";
-import { commandFailureFrom, commandSuccess } from "@shared-types";
-
-import type { WorkDemand } from "../domain/types";
-import type { IDemandRepository } from "../domain/repository";
-import type { AssignMemberInput, CreateDemandInput } from "./dto/work-demand.dto";
-
-export class SubmitWorkDemandUseCase {
-  constructor(private readonly repo: IDemandRepository) {}
-
-  async execute(input: CreateDemandInput): Promise<CommandResult> {
-    try {
-      const id = crypto.randomUUID();
-      const now = new Date().toISOString();
-      const demand: WorkDemand = {
-        id,
-        workspaceId: input.workspaceId,
-        accountId: input.accountId,
-        requesterId: input.requesterId,
-        title: input.title,
-        description: input.description ?? "",
-        priority: input.priority,
-        scheduledAt: input.scheduledAt,
-        status: "open",
-        createdAtISO: now,
-        updatedAtISO: now,
-      };
-      await this.repo.save(demand);
-      return commandSuccess(id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORK_DEMAND_SUBMIT_FAILED",
-        err instanceof Error ? err.message : "Failed to submit work demand",
-      );
-    }
-  }
-}
-
-export class AssignWorkDemandUseCase {
-  constructor(private readonly repo: IDemandRepository) {}
-
-  async execute(input: AssignMemberInput): Promise<CommandResult> {
-    try {
-      const demand = await this.repo.findById(input.demandId);
-      if (!demand) {
-        return commandFailureFrom("DEMAND_NOT_FOUND", `Demand ${input.demandId} not found`);
-      }
-      const updated: WorkDemand = {
-        ...demand,
-        assignedUserId: input.userId,
-        status: "in_progress",
-        updatedAtISO: new Date().toISOString(),
-      };
-      await this.repo.update(updated);
-      return commandSuccess(input.demandId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORK_DEMAND_ASSIGN_FAILED",
-        err instanceof Error ? err.message : "Failed to assign work demand",
-      );
-    }
-  }
-}
-
-export class ListWorkspaceDemandsUseCase {
-  constructor(private readonly repo: IDemandRepository) {}
-
-  async execute(workspaceId: string): Promise<WorkDemand[]> {
-    return this.repo.listByWorkspace(workspaceId);
-  }
-}
-
-export class ListAccountDemandsUseCase {
-  constructor(private readonly repo: IDemandRepository) {}
-
-  async execute(accountId: string): Promise<WorkDemand[]> {
-    return this.repo.listByAccount(accountId);
-  }
-}
-````
-
-## File: modules/workspace/subdomains/scheduling/README.md
-````markdown
-# Scheduling
-
-Scheduling and demand management within workspaces.
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/workspace/subdomains/sharing/README.md
-````markdown
-# Sharing
-
-把對外共享與可見性規則收斂到單一上下文。
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/process-managers/knowledge-to-workflow-materializer.ts
-````typescript
-/**
- * @module workspace-flow/application/process-managers
- * @file knowledge-to-workflow-materializer.ts
- * @description Process Manager (Saga) that listens for `knowledge.page_approved`
- * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
- *
- * ## Responsibility
- * This class is the single entry point for the cross-module event-driven
- * integration between the `knowledge` and `workspace-flow` bounded contexts.
- *
- * ## Idempotency
- * The process manager tracks processed `causationId` values to prevent
- * duplicate materialization if the same event is delivered more than once.
- * The seen-set is in-memory by default; production implementations should
- * persist to Firestore at:
- *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
- * using a Firestore transaction to provide atomic idempotency guarantees.
- *
- * ## Placement
- * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
- *   `SimpleEventBus` subscriber registered at application startup.
- * - Alternative: a shared saga registry if cross-module saga coordination is needed.
- *
- * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
- */
-
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { MaterializeTasksFromKnowledgeUseCase } from "../use-cases/materialize-tasks-from-knowledge.use-case";
-import type { ExtractedInvoiceItem, ExtractedTaskItem } from "../dto/materialize-from-knowledge.dto";
-import type { SourceReference } from "../../domain/value-objects/SourceReference";
-
-interface PageApprovedEvent {
-  payload: {
-    pageId: string;
-    causationId: string;
-    correlationId: string;
-    extractedTasks: ReadonlyArray<ExtractedTaskItem>;
-    extractedInvoices: ReadonlyArray<ExtractedInvoiceItem>;
-  };
-}
-
-export class KnowledgeToWorkflowMaterializer {
-  /**
-   * In-memory idempotency guard.
-   * Replace with a persistent store in production.
-   */
-  private readonly processedCausationIds = new Set<string>();
-
-  constructor(
-    private readonly taskRepository: TaskRepository,
-    private readonly invoiceRepository: InvoiceRepository,
-  ) {}
-
-  /**
-   * Handle a `knowledge.page_approved` event.
-   *
-   * @param event - The full event payload from the knowledge module's public API.
-   * @param workspaceId - Target workspace where Tasks/Invoices will be created.
-   *   Typically resolved from the event's `workspaceId` field if present.
-   * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
-   */
-  async handle(event: PageApprovedEvent, workspaceId: string): Promise<boolean> {
-    if (this.processedCausationIds.has(event.payload.causationId)) {
-      return false;
-    }
-
-    if (!workspaceId.trim()) return false;
-
-    const sourceReference: SourceReference = {
-      type: "KnowledgePage",
-      id: event.payload.pageId,
-      causationId: event.payload.causationId,
-      correlationId: event.payload.correlationId,
-    };
-
-    const useCase = new MaterializeTasksFromKnowledgeUseCase(
-      this.taskRepository,
-      this.invoiceRepository,
-    );
-
-    const result = await useCase.execute({
-      workspaceId,
-      knowledgePageId: event.payload.pageId,
-      sourceReference,
-      extractedTasks: event.payload.extractedTasks,
-      extractedInvoices: event.payload.extractedInvoices,
-    });
-
-    if (result.success) {
-      this.processedCausationIds.add(event.payload.causationId);
-      return true;
-    }
-
-    return false;
-  }
-}
-````
-
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow-invoice.actions.ts
 ````typescript
 "use server";
@@ -16442,6 +11726,4632 @@ export async function wfArchiveTask(taskId: string, invoiceStatus?: string): Pro
     return commandFailureFrom("WF_TASK_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow.actions.ts
+````typescript
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow.actions.ts
+ * @description Re-export barrel for all workspace-flow Server Actions.
+ *              Each sub-file carries its own "use server" directive; this barrel
+ *              must NOT repeat it — Turbopack cannot resolve re-exports from a
+ *              "use server" barrel that itself re-exports other "use server" files.
+ *  - workspace-flow-task.actions.ts    (create, update, assign, qa, approve, archive)
+ *  - workspace-flow-issue.actions.ts   (open, start, fix, retest, resolve, close)
+ *  - workspace-flow-invoice.actions.ts (create, add/update/remove item, submit, review, approve, reject, pay, close)
+ */
+
+export {
+  wfCreateTask,
+  wfUpdateTask,
+  wfAssignTask,
+  wfSubmitTaskToQa,
+  wfPassTaskQa,
+  wfApproveTaskAcceptance,
+  wfArchiveTask,
+} from "./workspace-flow-task.actions";
+
+export {
+  wfOpenIssue,
+  wfStartIssue,
+  wfFixIssue,
+  wfSubmitIssueRetest,
+  wfPassIssueRetest,
+  wfFailIssueRetest,
+  wfResolveIssue,
+  wfCloseIssue,
+} from "./workspace-flow-issue.actions";
+
+export {
+  wfCreateInvoice,
+  wfAddInvoiceItem,
+  wfUpdateInvoiceItem,
+  wfRemoveInvoiceItem,
+  wfSubmitInvoice,
+  wfReviewInvoice,
+  wfApproveInvoice,
+  wfRejectInvoice,
+  wfPayInvoice,
+  wfCloseInvoice,
+} from "./workspace-flow-invoice.actions";
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/AssignTaskDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+
+import { wfAssignTask } from "../_actions/workspace-flow.actions";
+
+export interface AssignTaskDialogProps {
+  open: boolean;
+  taskId: string;
+  onClose: () => void;
+  onDone: () => void;
+}
+
+export function AssignTaskDialog({ open, taskId, onClose, onDone }: AssignTaskDialogProps) {
+  const [assigneeId, setAssigneeId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setAssigneeId("");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const a = assigneeId.trim();
+    if (!a) { setError("請輸入指派人 ID。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfAssignTask(taskId, a);
+      if (!result.success) { setError(result.error.message ?? "指派失敗"); return; }
+      onDone();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "指派失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>指派任務</DialogTitle>
+          <DialogDescription>填入負責人 ID，任務將進入進行中。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="assignee-id">指派人 ID *</Label>
+            <Input
+              id="assignee-id"
+              placeholder="用戶 ID"
+              value={assigneeId}
+              onChange={(e) => setAssigneeId(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "指派中…" : "指派"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/CreateTaskDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import { wfCreateTask } from "../_actions/workspace-flow.actions";
+
+export interface CreateTaskDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+  workspaceId: string;
+}
+
+export function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: CreateTaskDialogProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [dueDateISO, setDueDateISO] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setAssigneeId("");
+    setDueDateISO("");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) { setError("請輸入任務標題。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfCreateTask({
+        workspaceId,
+        title: t,
+        description: description.trim() || undefined,
+        assigneeId: assigneeId.trim() || undefined,
+        dueDateISO: dueDateISO || undefined,
+      });
+      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
+      onCreated();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>建立任務</DialogTitle>
+          <DialogDescription>新增一個工作任務到此工作區。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="task-title">標題 *</Label>
+            <Input
+              id="task-title"
+              placeholder="任務名稱"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="task-description">描述（選填）</Label>
+            <Textarea
+              id="task-description"
+              placeholder="任務詳情或驗收條件…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="task-assignee">指派人 ID（選填）</Label>
+              <Input
+                id="task-assignee"
+                placeholder="用戶 ID"
+                value={assigneeId}
+                onChange={(e) => setAssigneeId(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="task-due">截止日期（選填）</Label>
+              <Input
+                id="task-due"
+                type="date"
+                value={dueDateISO}
+                onChange={(e) => setDueDateISO(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "建立任務"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace/api/ui.ts
+````typescript
+/**
+ * workspace api/ui.ts
+ *
+ * Canonical public web UI surface for the workspace bounded context.
+ * App-layer consumers that need workspace UI components, hooks, and
+ * navigation utilities should import from here.
+ *
+ * Internal source: interfaces/web/
+ */
+
+// ── Screen components ────────────────────────────────────────────────────────
+
+export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
+export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
+
+// ── Card components ──────────────────────────────────────────────────────────
+
+export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
+
+// ── Tab components ───────────────────────────────────────────────────────────
+
+export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
+
+// ── Layout components ────────────────────────────────────────────────────────
+
+export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
+export { WorkspaceQuickAccessRow } from "../interfaces/web/components/layout/WorkspaceQuickAccessRow";
+export { WorkspaceSectionContent } from "../interfaces/web/components/layout/WorkspaceSectionContent";
+
+// ── Rail components ──────────────────────────────────────────────────────────
+
+export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+export type {
+  WorkspaceTabDevStatus,
+  WorkspaceTabGroup,
+  WorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export {
+  WORKSPACE_TAB_GROUPS,
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_VALUES,
+  getWorkspaceTabLabel,
+  getWorkspaceTabMeta,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
+export {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "../interfaces/web/navigation/workspace-nav-items";
+
+// ── Quick-access navigation ───────────────────────────────────────────────────
+
+export type {
+  WorkspaceQuickAccessItem,
+  WorkspaceQuickAccessMatcherOptions,
+} from "../interfaces/web/components/navigation/workspace-quick-access";
+
+export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
+
+// ── State helpers ─────────────────────────────────────────────────────────────
+
+export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
+
+// ── Map utilities ─────────────────────────────────────────────────────────────
+
+export {
+  resolveWorkspaceFromMap,
+  toWorkspaceMap,
+} from "../interfaces/web/utils/workspace-map";
+
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+
+export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
+export {
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  getWorkspaceIdFromPath,
+  useRecentWorkspaces,
+} from "../interfaces/web/hooks/useRecentWorkspaces";
+
+// ── Navigation preferences ────────────────────────────────────────────────────
+
+export type { NavPreferences, SidebarLocaleBundle } from "../interfaces/web/navigation/nav-preferences-data";
+export {
+  PERSONAL_ITEMS,
+  ORGANIZATION_NAV_ITEMS,
+  DIALOG_TEXT,
+  DEFAULT_PREFS,
+  readNavPreferences,
+  writeNavPreferences,
+} from "../interfaces/web/navigation/nav-preferences-data";
+
+// ── Sidebar locale ────────────────────────────────────────────────────────────
+
+export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-locale";
+
+// ── Navigation customize dialog ───────────────────────────────────────────────
+
+export { CustomizeNavigationDialog } from "../interfaces/web/components/dialogs/CustomizeNavigationDialog";
+export { CheckRow, WorkspaceCheckRow } from "../interfaces/web/components/dialogs/NavCheckRow";
+
+export {
+  AuditStream,
+  WorkspaceAuditTab,
+} from "../subdomains/audit/api";
+
+export {
+  WorkspaceFeedAccountView,
+  WorkspaceFeedWorkspaceView,
+} from "../subdomains/feed/api";
+
+export type { AccountMember } from "../subdomains/scheduling/api";
+export {
+  AccountSchedulingView,
+  WorkspaceSchedulingTab,
+} from "../subdomains/scheduling/api";
+
+export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
+````
+
+## File: modules/workspace/application/dtos/workspace-interfaces.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for workspace root interfaces.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+
+// --- Aggregate types ---
+export type {
+  Address,
+  AddressInput,
+  Capability,
+  CapabilitySpec,
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceEntity,
+  WorkspaceGrant,
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+  WorkspaceLocation,
+  WorkspaceName,
+  WorkspaceNameInput,
+  WorkspacePersonnel,
+  WorkspacePersonnelCustomRole,
+  WorkspaceVisibility,
+  WorkspaceVisibilityInput,
+} from "../../domain/aggregates/Workspace";
+
+// --- Value-object helpers (values, not just types) ---
+export {
+  WORKSPACE_LIFECYCLE_STATES,
+  WORKSPACE_VISIBILITIES,
+  createAddress,
+  createWorkspaceLifecycleState,
+  createWorkspaceName,
+  createWorkspaceVisibility,
+  formatAddress,
+  isTerminalWorkspaceLifecycleState,
+  isWorkspaceVisible,
+  workspaceNameEquals,
+} from "../../domain/value-objects";
+
+// --- Domain events ---
+export type {
+  WorkspaceCreatedEvent,
+  WorkspaceDomainEvent,
+  WorkspaceLifecycleTransitionedEvent,
+  WorkspaceVisibilityChangedEvent,
+} from "../../domain/events/workspace.events";
+
+export {
+  WORKSPACE_CREATED_EVENT_TYPE,
+  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
+  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
+  createWorkspaceCreatedEvent,
+  createWorkspaceLifecycleTransitionedEvent,
+  createWorkspaceVisibilityChangedEvent,
+} from "../../domain/events/workspace.events";
+
+// --- Ports ---
+export type { WorkspaceCommandPort } from "../../domain/ports/input/WorkspaceCommandPort";
+export type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";
+````
+
+## File: modules/workspace/application/queries/workspace.queries.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Workspace read use cases — thin query orchestration.
+ */
+
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
+import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
+import type {
+  Unsubscribe,
+  WorkspaceQueryRepository,
+} from "../../domain/ports/output/WorkspaceQueryRepository";
+
+export class ListWorkspacesForAccountUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(accountId: string): Promise<WorkspaceEntity[]> {
+    const normalizedAccountId = accountId.trim();
+    if (!normalizedAccountId) {
+      return [];
+    }
+
+    return this.workspaceRepo.findAllByAccountId(normalizedAccountId);
+  }
+}
+
+export class SubscribeToWorkspacesForAccountUseCase {
+  constructor(private readonly workspaceQueryRepo: WorkspaceQueryRepository) {}
+
+  execute(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ): Unsubscribe {
+    const normalizedAccountId = accountId.trim();
+    if (!normalizedAccountId) {
+      onUpdate([]);
+      return () => {};
+    }
+
+    return this.workspaceQueryRepo.subscribeToWorkspacesForAccount(
+      normalizedAccountId,
+      onUpdate,
+    );
+  }
+}
+
+export class GetWorkspaceByIdUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(workspaceId: string): Promise<WorkspaceEntity | null> {
+    const normalizedWorkspaceId = workspaceId.trim();
+    if (!normalizedWorkspaceId) {
+      return null;
+    }
+
+    return this.workspaceRepo.findById(normalizedWorkspaceId);
+  }
+}
+
+export class GetWorkspaceByIdForAccountUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
+    const normalizedAccountId = accountId.trim();
+    const normalizedWorkspaceId = workspaceId.trim();
+    if (!normalizedAccountId || !normalizedWorkspaceId) {
+      return null;
+    }
+
+    return this.workspaceRepo.findByIdForAccount(
+      normalizedAccountId,
+      normalizedWorkspaceId,
+    );
+  }
+}
+````
+
+## File: modules/workspace/application/services/WorkspaceCommandApplicationService.ts
+````typescript
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+
+import {
+  CreateWorkspaceUseCase,
+  CreateWorkspaceWithCapabilitiesUseCase,
+  UpdateWorkspaceSettingsUseCase,
+  DeleteWorkspaceUseCase,
+  MountCapabilitiesUseCase,
+  GrantTeamAccessUseCase,
+  GrantIndividualAccessUseCase,
+  CreateWorkspaceLocationUseCase,
+} from "../use-cases/workspace.use-cases";
+import type { WorkspaceCommandPort } from "../../domain/ports/input/WorkspaceCommandPort";
+import type {
+  WorkspaceAccessRepository,
+  WorkspaceCapabilityRepository,
+  WorkspaceDomainEventPublisher,
+  WorkspaceEventPublishMetadata,
+  WorkspaceLocationRepository,
+  WorkspaceRepository,
+} from "../../domain/ports";
+import type {
+  Capability,
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceGrant,
+  WorkspaceLocation,
+} from "../../domain/aggregates/Workspace";
+import {
+  createWorkspaceCreatedEvent,
+  createWorkspaceLifecycleTransitionedEvent,
+  createWorkspaceVisibilityChangedEvent,
+  type WorkspaceDomainEvent,
+} from "../../domain/events/workspace.events";
+
+interface WorkspaceCommandApplicationServiceDependencies {
+  workspaceRepo: WorkspaceRepository;
+  workspaceCapabilityRepo: WorkspaceCapabilityRepository;
+  workspaceAccessRepo: WorkspaceAccessRepository;
+  workspaceLocationRepo: WorkspaceLocationRepository;
+  workspaceDomainEventPublisher: WorkspaceDomainEventPublisher;
+}
+
+export class WorkspaceCommandApplicationService implements WorkspaceCommandPort {
+  constructor(
+    private readonly dependencies: WorkspaceCommandApplicationServiceDependencies,
+  ) {}
+
+  async createWorkspace(command: CreateWorkspaceCommand): Promise<CommandResult> {
+    try {
+      const result = await new CreateWorkspaceUseCase(this.dependencies.workspaceRepo).execute(command);
+      if (result.success) {
+        await this.publishWorkspaceDomainEvent(
+          createWorkspaceCreatedEvent({
+            workspaceId: result.aggregateId,
+            accountId: command.accountId,
+            accountType: command.accountType,
+            name: command.name,
+          }),
+          this.createWorkspaceEventMetadata(
+            result.aggregateId,
+            command.accountId,
+            command.accountType,
+          ),
+        );
+      }
+      return result;
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_CREATE_FAILED",
+        err instanceof Error ? err.message : "Unexpected error",
+      );
+    }
+  }
+
+  async createWorkspaceWithCapabilities(
+    command: CreateWorkspaceCommand,
+    capabilities: Capability[],
+  ): Promise<CommandResult> {
+    try {
+      const result = await new CreateWorkspaceWithCapabilitiesUseCase(
+        this.dependencies.workspaceRepo,
+        this.dependencies.workspaceCapabilityRepo,
+      ).execute(command, capabilities);
+      if (result.success) {
+        await this.publishWorkspaceDomainEvent(
+          createWorkspaceCreatedEvent({
+            workspaceId: result.aggregateId,
+            accountId: command.accountId,
+            accountType: command.accountType,
+            name: command.name,
+          }),
+          this.createWorkspaceEventMetadata(
+            result.aggregateId,
+            command.accountId,
+            command.accountType,
+          ),
+        );
+      }
+      return result;
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_CREATE_FAILED",
+        err instanceof Error ? err.message : "Unexpected error",
+      );
+    }
+  }
+
+  async updateWorkspaceSettings(
+    command: UpdateWorkspaceSettingsCommand,
+  ): Promise<CommandResult> {
+    try {
+      const previous = await this.dependencies.workspaceRepo.findByIdForAccount(
+        command.accountId,
+        command.workspaceId,
+      );
+      const result = await new UpdateWorkspaceSettingsUseCase(this.dependencies.workspaceRepo).execute(
+        command,
+      );
+
+      if (result.success && previous) {
+        if (
+          command.lifecycleState !== undefined &&
+          command.lifecycleState !== previous.lifecycleState
+        ) {
+          await this.publishWorkspaceDomainEvent(
+            createWorkspaceLifecycleTransitionedEvent({
+              workspaceId: command.workspaceId,
+              accountId: command.accountId,
+              fromState: previous.lifecycleState,
+              toState: command.lifecycleState,
+            }),
+            this.createWorkspaceEventMetadata(
+              command.workspaceId,
+              command.accountId,
+              previous.accountType,
+            ),
+          );
+        }
+
+        if (command.visibility !== undefined && command.visibility !== previous.visibility) {
+          await this.publishWorkspaceDomainEvent(
+            createWorkspaceVisibilityChangedEvent({
+              workspaceId: command.workspaceId,
+              accountId: command.accountId,
+              fromVisibility: previous.visibility,
+              toVisibility: command.visibility,
+            }),
+            this.createWorkspaceEventMetadata(
+              command.workspaceId,
+              command.accountId,
+              previous.accountType,
+            ),
+          );
+        }
+      }
+
+      return result;
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_UPDATE_FAILED",
+        err instanceof Error ? err.message : "Unexpected error",
+      );
+    }
+  }
+
+  async deleteWorkspace(workspaceId: string): Promise<CommandResult> {
+    try {
+      return await new DeleteWorkspaceUseCase(this.dependencies.workspaceRepo).execute(workspaceId);
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_DELETE_FAILED",
+        err instanceof Error ? err.message : "Unexpected error",
+      );
+    }
+  }
+
+  async mountCapabilities(
+    workspaceId: string,
+    capabilities: Capability[],
+  ): Promise<CommandResult> {
+    try {
+      return await new MountCapabilitiesUseCase(this.dependencies.workspaceCapabilityRepo).execute(
+        workspaceId,
+        capabilities,
+      );
+    } catch (err) {
+      return commandFailureFrom(
+        "CAPABILITIES_MOUNT_FAILED",
+        err instanceof Error ? err.message : "Unexpected error",
+      );
+    }
+  }
+
+  async authorizeWorkspaceTeam(workspaceId: string, teamId: string): Promise<CommandResult> {
+    try {
+      return await new GrantTeamAccessUseCase(this.dependencies.workspaceAccessRepo).execute(
+        workspaceId,
+        teamId,
+      );
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_TEAM_AUTHORIZE_FAILED",
+        err instanceof Error ? err.message : "Unexpected error",
+      );
+    }
+  }
+
+  async grantIndividualWorkspaceAccess(
+    workspaceId: string,
+    grant: WorkspaceGrant,
+  ): Promise<CommandResult> {
+    try {
+      return await new GrantIndividualAccessUseCase(this.dependencies.workspaceAccessRepo).execute(
+        workspaceId,
+        grant,
+      );
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_GRANT_FAILED",
+        err instanceof Error ? err.message : "Unexpected error",
+      );
+    }
+  }
+
+  async createWorkspaceLocation(
+    workspaceId: string,
+    location: Omit<WorkspaceLocation, "locationId">,
+  ): Promise<CommandResult> {
+    try {
+      return await new CreateWorkspaceLocationUseCase(this.dependencies.workspaceLocationRepo).execute(
+        workspaceId,
+        location,
+      );
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_LOCATION_CREATE_FAILED",
+        err instanceof Error ? err.message : "Unexpected error",
+      );
+    }
+  }
+
+  private async publishWorkspaceDomainEvent(
+    event: WorkspaceDomainEvent,
+    metadata?: WorkspaceEventPublishMetadata,
+  ): Promise<void> {
+    await this.dependencies.workspaceDomainEventPublisher.publish(event, metadata);
+  }
+
+  private createWorkspaceEventMetadata(
+    workspaceId: string,
+    accountId: string,
+    accountType?: "user" | "organization",
+  ): WorkspaceEventPublishMetadata {
+    return {
+      workspaceId,
+      organizationId: accountType === "organization" ? accountId : undefined,
+    };
+  }
+}
+````
+
+## File: modules/workspace/application/services/WorkspaceQueryApplicationService.ts
+````typescript
+import type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+} from "../../domain/entities/WikiContentTree";
+import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMemberView";
+import {
+  GetWorkspaceByIdForAccountUseCase,
+  GetWorkspaceByIdUseCase,
+  ListWorkspacesForAccountUseCase,
+  SubscribeToWorkspacesForAccountUseCase,
+} from "../queries/workspace.queries";
+import { FetchWorkspaceMembersUseCase } from "../use-cases/workspace-member.use-cases";
+import { buildWikiContentTree } from "../use-cases/wiki-content-tree.use-case";
+import type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
+import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
+import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
+import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
+
+interface WorkspaceQueryApplicationServiceDependencies {
+  workspaceRepo: WorkspaceRepository;
+  workspaceQueryRepo: WorkspaceQueryRepository;
+  wikiWorkspaceRepo: WikiWorkspaceRepository;
+}
+
+export class WorkspaceQueryApplicationService implements WorkspaceQueryPort {
+  constructor(
+    private readonly dependencies: WorkspaceQueryApplicationServiceDependencies,
+  ) {}
+
+  getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]> {
+    return new ListWorkspacesForAccountUseCase(this.dependencies.workspaceRepo).execute(accountId);
+  }
+
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ) {
+    return new SubscribeToWorkspacesForAccountUseCase(
+      this.dependencies.workspaceQueryRepo,
+    ).execute(accountId, onUpdate);
+  }
+
+  getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null> {
+    return new GetWorkspaceByIdUseCase(this.dependencies.workspaceRepo).execute(workspaceId);
+  }
+
+  getWorkspaceByIdForAccount(
+    accountId: string,
+    workspaceId: string,
+  ): Promise<WorkspaceEntity | null> {
+    return new GetWorkspaceByIdForAccountUseCase(this.dependencies.workspaceRepo).execute(
+      accountId,
+      workspaceId,
+    );
+  }
+
+  getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
+    return new FetchWorkspaceMembersUseCase(this.dependencies.workspaceQueryRepo).execute(workspaceId);
+  }
+
+  buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {
+    return buildWikiContentTree(seeds, this.dependencies.wikiWorkspaceRepo);
+  }
+}
+````
+
+## File: modules/workspace/application/use-cases/workspace.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Re-export barrel for all workspace use cases.
+ *          Split by subdomain for Hexagonal DDD single-responsibility:
+ *  - workspace-lifecycle.use-cases.ts  (create, update, delete)
+ *  - workspace-capabilities.use-cases.ts (mount capabilities)
+ *  - workspace-access.use-cases.ts      (team grants, individual grants, locations)
+ */
+
+export {
+  CreateWorkspaceUseCase,
+  CreateWorkspaceWithCapabilitiesUseCase,
+  UpdateWorkspaceSettingsUseCase,
+  DeleteWorkspaceUseCase,
+} from "./workspace-lifecycle.use-cases";
+
+export { MountCapabilitiesUseCase } from "./workspace-capabilities.use-cases";
+
+export {
+  GrantTeamAccessUseCase,
+  GrantIndividualAccessUseCase,
+  CreateWorkspaceLocationUseCase,
+} from "./workspace-access.use-cases";
+
+export {
+  GetWorkspaceByIdForAccountUseCase,
+  GetWorkspaceByIdUseCase,
+  ListWorkspacesForAccountUseCase,
+  SubscribeToWorkspacesForAccountUseCase,
+} from "../queries/workspace.queries";
+````
+
+## File: modules/workspace/domain/domain-modeling.instructions.md
+````markdown
+---
+description: 'Workspace domain tactical modeling rules (local mirror of root domain-modeling guidance).'
+applyTo: '*.{ts,tsx}'
+---
+
+# Domain Modeling (Workspace Local)
+
+Use this local file as execution guardrails for `modules/workspace/domain/*`.
+For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/contexts/workspace/*`.
+
+## Core Rules
+
+- Keep aggregate invariants inside aggregate methods.
+- Use immutable value objects with Zod schemas and inferred types.
+- Keep domain framework-free (no Firebase/React/transport imports).
+- Emit domain events on state transitions and publish via application orchestration.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
+## File: modules/workspace/domain/ports/input/WorkspaceCommandPort.ts
+````typescript
+import type { CommandResult } from "@shared-types";
+
+import type {
+  Capability,
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceGrant,
+  WorkspaceLocation,
+} from "../../aggregates/Workspace";
+
+export interface WorkspaceCommandPort {
+  createWorkspace(command: CreateWorkspaceCommand): Promise<CommandResult>;
+  createWorkspaceWithCapabilities(
+    command: CreateWorkspaceCommand,
+    capabilities: Capability[],
+  ): Promise<CommandResult>;
+  updateWorkspaceSettings(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult>;
+  deleteWorkspace(workspaceId: string): Promise<CommandResult>;
+  mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<CommandResult>;
+  authorizeWorkspaceTeam(workspaceId: string, teamId: string): Promise<CommandResult>;
+  grantIndividualWorkspaceAccess(
+    workspaceId: string,
+    grant: WorkspaceGrant,
+  ): Promise<CommandResult>;
+  createWorkspaceLocation(
+    workspaceId: string,
+    location: Omit<WorkspaceLocation, "locationId">,
+  ): Promise<CommandResult>;
+}
+````
+
+## File: modules/workspace/domain/ports/input/WorkspaceQueryPort.ts
+````typescript
+import type { WorkspaceEntity } from "../../aggregates/Workspace";
+import type { WorkspaceMemberView } from "../../entities/WorkspaceMemberView";
+import type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+} from "../../entities/WikiContentTree";
+
+export type WorkspaceQuerySubscription = () => void;
+
+export interface WorkspaceQueryPort {
+  getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]>;
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ): WorkspaceQuerySubscription;
+  getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null>;
+  getWorkspaceByIdForAccount(
+    accountId: string,
+    workspaceId: string,
+  ): Promise<WorkspaceEntity | null>;
+  getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]>;
+  buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]>;
+}
+````
+
+## File: modules/workspace/domain/ports/output/WikiWorkspaceRepository.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: ports/output
+ * Purpose: Repository port for fetching workspace refs used by the
+ *          Wiki content-tree use-case.
+ */
+
+import type { WikiWorkspaceRef } from "../../entities/WikiContentTree";
+
+export interface WikiWorkspaceRepository {
+  listByAccountId(accountId: string): Promise<WikiWorkspaceRef[]>;
+}
+````
+
+## File: modules/workspace/domain/ports/output/WorkspaceAccessRepository.ts
+````typescript
+import type { WorkspaceGrant } from "../../aggregates/Workspace";
+
+export interface WorkspaceAccessRepository {
+  grantTeamAccess(workspaceId: string, teamId: string): Promise<void>;
+  revokeTeamAccess(workspaceId: string, teamId: string): Promise<void>;
+  grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void>;
+  revokeIndividualAccess(workspaceId: string, userId: string): Promise<void>;
+}
+````
+
+## File: modules/workspace/domain/ports/output/WorkspaceCapabilityRepository.ts
+````typescript
+import type { Capability } from "../../aggregates/Workspace";
+
+export interface WorkspaceCapabilityRepository {
+  mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void>;
+  unmountCapability(workspaceId: string, capabilityId: string): Promise<void>;
+}
+````
+
+## File: modules/workspace/domain/ports/output/WorkspaceDomainEventPublisher.ts
+````typescript
+import type { WorkspaceDomainEvent } from "../../events/workspace.events";
+
+export interface WorkspaceEventPublishMetadata {
+  readonly workspaceId?: string;
+  readonly organizationId?: string;
+}
+
+export interface WorkspaceDomainEventPublisher {
+  publish(
+    event: WorkspaceDomainEvent,
+    metadata?: WorkspaceEventPublishMetadata,
+  ): Promise<void>;
+}
+````
+
+## File: modules/workspace/domain/ports/output/WorkspaceLocationRepository.ts
+````typescript
+import type { WorkspaceLocation } from "../../aggregates/Workspace";
+
+export interface WorkspaceLocationRepository {
+  createLocation(workspaceId: string, location: Omit<WorkspaceLocation, "locationId">): Promise<string>;
+  updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void>;
+  deleteLocation(workspaceId: string, locationId: string): Promise<void>;
+}
+````
+
+## File: modules/workspace/domain/ports/output/WorkspaceQueryRepository.ts
+````typescript
+/**
+ * WorkspaceQueryRepository — Port for workspace read projections.
+ */
+
+import type { WorkspaceMemberView } from "../../entities/WorkspaceMemberView";
+import type { WorkspaceEntity } from "../../aggregates/Workspace";
+
+export type Unsubscribe = () => void;
+
+export interface WorkspaceQueryRepository {
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ): Unsubscribe;
+  getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]>;
+}
+````
+
+## File: modules/workspace/domain/ports/output/WorkspaceRepository.ts
+````typescript
+/**
+ * WorkspaceRepository — Port for workspace persistence.
+ */
+
+import type {
+  WorkspaceEntity,
+  UpdateWorkspaceSettingsCommand,
+} from "../../aggregates/Workspace";
+
+export interface WorkspaceRepository {
+  findById(id: string): Promise<WorkspaceEntity | null>;
+  findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null>;
+  findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]>;
+  save(workspace: WorkspaceEntity): Promise<string>;
+  updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+````
+
+## File: modules/workspace/interfaces/api/contracts/wiki-content.contract.ts
+````typescript
+export type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiAccountType,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+  WikiWorkspaceRef,
+} from "../../../application/dtos/wiki-content-tree.dto";
+````
+
+## File: modules/workspace/interfaces/api/contracts/workspace-member.contract.ts
+````typescript
+export type {
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberAccessSource,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../../../application/dtos/workspace-member-view.dto";
+````
+
+## File: modules/workspace/interfaces/api/contracts/workspace.contract.ts
+````typescript
+export type {
+  Address,
+  AddressInput,
+  Capability,
+  CapabilitySpec,
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceEntity,
+  WorkspaceGrant,
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+  WorkspaceLocation,
+  WorkspaceName,
+  WorkspaceNameInput,
+  WorkspacePersonnel,
+  WorkspacePersonnelCustomRole,
+  WorkspaceVisibility,
+  WorkspaceVisibilityInput,
+} from "../../../application/dtos/workspace-interfaces.dto";
+
+export {
+  WORKSPACE_LIFECYCLE_STATES,
+  WORKSPACE_VISIBILITIES,
+  createAddress,
+  createWorkspaceLifecycleState,
+  createWorkspaceName,
+  createWorkspaceVisibility,
+  formatAddress,
+  isTerminalWorkspaceLifecycleState,
+  isWorkspaceVisible,
+  workspaceNameEquals,
+} from "../../../application/dtos/workspace-interfaces.dto";
+
+export type {
+  WorkspaceCreatedEvent,
+  WorkspaceDomainEvent,
+  WorkspaceLifecycleTransitionedEvent,
+  WorkspaceVisibilityChangedEvent,
+} from "../../../application/dtos/workspace-interfaces.dto";
+
+export {
+  WORKSPACE_CREATED_EVENT_TYPE,
+  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
+  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
+  createWorkspaceCreatedEvent,
+  createWorkspaceLifecycleTransitionedEvent,
+  createWorkspaceVisibilityChangedEvent,
+} from "../../../application/dtos/workspace-interfaces.dto";
+````
+
+## File: modules/workspace/interfaces/api/runtime/workspace-session-context.ts
+````typescript
+import type { WorkspaceCommandPort } from "../../../application/dtos/workspace-interfaces.dto";
+import type { WorkspaceQueryPort } from "../../../application/dtos/workspace-interfaces.dto";
+
+export interface WorkspaceSessionContext {
+  readonly workspaceCommandPort: WorkspaceCommandPort;
+  readonly workspaceQueryPort: WorkspaceQueryPort;
+}
+
+export function createWorkspaceSessionContext(
+  workspaceCommandPort: WorkspaceCommandPort,
+  workspaceQueryPort: WorkspaceQueryPort,
+): WorkspaceSessionContext {
+  return {
+    workspaceCommandPort,
+    workspaceQueryPort,
+  };
+}
+````
+
+## File: modules/workspace/interfaces/web/components/layout/WorkspaceQuickAccessRow.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { Settings } from "lucide-react";
+import { useRef } from "react";
+
+import type { WorkspaceQuickAccessItem } from "../navigation/workspace-quick-access";
+
+interface WorkspaceQuickAccessRowProps {
+  items: WorkspaceQuickAccessItem[];
+  pathname: string;
+  currentPanel: string | null;
+  currentWorkspaceTab: string | null;
+  workspaceSettingsHref: string;
+  isActiveRoute: (href: string) => boolean;
+}
+
+export function WorkspaceQuickAccessRow({
+  items,
+  pathname,
+  currentPanel,
+  currentWorkspaceTab,
+  workspaceSettingsHref,
+  isActiveRoute,
+}: WorkspaceQuickAccessRowProps) {
+  const quickAccessDragStateRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startScrollLeft: number;
+    didDrag: boolean;
+  } | null>(null);
+
+  const suppressQuickAccessClickRef = useRef(false);
+
+  if (items.length === 0) {
+    return null;
+  }
+
+  function handleQuickAccessPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.pointerType !== "mouse") {
+      return;
+    }
+
+    const container = event.currentTarget;
+    if (container.scrollWidth <= container.clientWidth) {
+      return;
+    }
+
+    quickAccessDragStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startScrollLeft: container.scrollLeft,
+      didDrag: false,
+    };
+  }
+
+  function handleQuickAccessPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const dragState = quickAccessDragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - dragState.startX;
+    if (!dragState.didDrag && Math.abs(deltaX) > 4) {
+      dragState.didDrag = true;
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+    }
+
+    if (!dragState.didDrag) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.scrollLeft = dragState.startScrollLeft - deltaX;
+  }
+
+  function finishQuickAccessPointer(event: React.PointerEvent<HTMLDivElement>) {
+    const dragState = quickAccessDragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (dragState.didDrag) {
+      suppressQuickAccessClickRef.current = true;
+      window.setTimeout(() => {
+        suppressQuickAccessClickRef.current = false;
+      }, 0);
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    quickAccessDragStateRef.current = null;
+  }
+
+  function handleQuickAccessItemClick(event: React.MouseEvent<HTMLAnchorElement>) {
+    if (!suppressQuickAccessClickRef.current) {
+      return;
+    }
+
+    suppressQuickAccessClickRef.current = false;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function handleQuickAccessDragStart(event: React.DragEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+  }
+
+  return (
+    <div className="shrink-0 border-b border-border/30 px-2 py-2">
+      <div className="flex items-center gap-1">
+        <div
+          className="min-w-0 flex-1 cursor-grab overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden active:cursor-grabbing"
+          onPointerDown={handleQuickAccessPointerDown}
+          onPointerMove={handleQuickAccessPointerMove}
+          onPointerUp={finishQuickAccessPointer}
+          onPointerCancel={finishQuickAccessPointer}
+        >
+          <div className="flex w-max items-center gap-1 pr-1 select-none">
+            {items.map((item) => {
+              const active = item.isActive?.(pathname, {
+                panel: currentPanel,
+                tab: currentWorkspaceTab,
+              }) ?? isActiveRoute(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-label={item.label}
+                  aria-current={active ? "page" : undefined}
+                  onClick={handleQuickAccessItemClick}
+                  onDragStart={handleQuickAccessDragStart}
+                  draggable={false}
+                  className={`flex size-7 shrink-0 items-center justify-center rounded-md transition ${
+                    active
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                  }`}
+                >
+                  {item.icon}
+                  <span className="sr-only">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+        {workspaceSettingsHref ? (
+          <Link
+            href={workspaceSettingsHref}
+            aria-label="工作區設定"
+            aria-current={currentPanel === "settings" ? "page" : undefined}
+            onClick={handleQuickAccessItemClick}
+            onDragStart={handleQuickAccessDragStart}
+            draggable={false}
+            className={`ml-auto flex size-7 items-center justify-center rounded-md transition ${
+              currentPanel === "settings"
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+            }`}
+          >
+            <Settings className="size-3.5" />
+            <span className="sr-only">工作區設定</span>
+          </Link>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/layout/WorkspaceSectionContent.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+
+import type { NavPreferences, SidebarLocaleBundle } from "../../navigation/nav-preferences-data";
+import { WorkspaceSidebarSection } from "./WorkspaceSidebarSection";
+
+interface RecentWorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+
+interface WorkspaceSectionContentProps {
+  workspacePathId: string | null;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+  showRecentWorkspaces: boolean;
+  visibleRecentWorkspaceLinks: RecentWorkspaceLink[];
+  hasOverflow: boolean;
+  isExpanded: boolean;
+  activeWorkspaceId: string | null;
+  isActiveRoute: (href: string) => boolean;
+  onSelectWorkspace: (workspaceId: string | null) => void;
+  onToggleExpanded: () => void;
+  getItemClassName: (isActive: boolean) => string;
+  sectionTitleClassName: string;
+}
+
+export function WorkspaceSectionContent({
+  workspacePathId,
+  navPrefs,
+  localeBundle,
+  showRecentWorkspaces,
+  visibleRecentWorkspaceLinks,
+  hasOverflow,
+  isExpanded,
+  activeWorkspaceId,
+  isActiveRoute,
+  onSelectWorkspace,
+  onToggleExpanded,
+  getItemClassName,
+  sectionTitleClassName,
+}: WorkspaceSectionContentProps) {
+  if (workspacePathId) {
+    return (
+      <WorkspaceSidebarSection
+        workspacePathId={workspacePathId}
+        navPrefs={navPrefs}
+        localeBundle={localeBundle}
+        getItemClassName={getItemClassName}
+      />
+    );
+  }
+
+  if (!showRecentWorkspaces) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-0.5">
+      <p className={sectionTitleClassName}>最近工作區</p>
+      {visibleRecentWorkspaceLinks.length === 0 ? (
+        <p className="px-2 py-2 text-[11px] text-muted-foreground">尚無最近開啟的工作區。</p>
+      ) : (
+        visibleRecentWorkspaceLinks.map((workspace) => (
+          <Link
+            key={workspace.id}
+            href={workspace.href}
+            onClick={() => {
+              onSelectWorkspace(workspace.id);
+            }}
+            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              activeWorkspaceId === workspace.id || isActiveRoute(workspace.href)
+                ? "border border-primary/30 bg-primary/10 text-primary"
+                : "border border-transparent text-foreground/80 hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
+            }`}
+            title={workspace.name}
+          >
+            <span className="truncate">{workspace.name}</span>
+          </Link>
+        ))
+      )}
+      {hasOverflow && (
+        <button
+          type="button"
+          onClick={onToggleExpanded}
+          className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
+        >
+          {isExpanded ? "收起" : "顯示更多"}
+        </button>
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/layout/WorkspaceSidebarSection.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabsByGroup,
+  WORKSPACE_TAB_SIDEBAR_GROUP_ORDER,
+  getWorkspaceTabStatus,
+  isWorkspaceTabValue,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+
+export interface WorkspaceSidebarLocaleBundle {
+  workspace?: {
+    tabLabels?: Record<string, string>;
+  };
+}
+
+export interface WorkspaceNavigationPreferences {
+  pinnedWorkspace: string[];
+  workspaceOrder: string[];
+}
+
+interface TabLinkItem {
+  value: WorkspaceTabValue;
+  label: string;
+}
+
+function createWorkspaceLinkItems(group: WorkspaceTabGroup): TabLinkItem[] {
+  return getWorkspaceTabsByGroup(group).map((value) => ({
+    value,
+    label: getWorkspaceTabLabel(value),
+  }));
+}
+
+const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
+const WORKSPACE_LINK_ITEMS_BY_GROUP: Record<WorkspaceTabGroup, readonly TabLinkItem[]> = {
+  primary: WORKSPACE_PRIMARY_LINK_ITEMS,
+  modules: createWorkspaceLinkItems("modules"),
+  spaces: createWorkspaceLinkItems("spaces"),
+  databases: createWorkspaceLinkItems("databases"),
+  library: createWorkspaceLinkItems("library"),
+};
+
+function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue): string {
+  return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
+}
+
+function tTab(
+  tab: WorkspaceTabValue,
+  fallback: string,
+  localeBundle: WorkspaceSidebarLocaleBundle | null,
+): string {
+  return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
+}
+
+function tTabWithDevStatus(
+  tab: WorkspaceTabValue,
+  fallback: string,
+  localeBundle: WorkspaceSidebarLocaleBundle | null,
+): string {
+  const label = tTab(tab, fallback, localeBundle);
+  const status = getWorkspaceTabStatus(tab);
+  return `${status} ${label}`;
+}
+
+function getPrefId(tabValue: string): string {
+  return getWorkspaceTabPrefId(tabValue as WorkspaceTabValue) ?? tabValue;
+}
+
+function isItemEnabled(prefId: string, navPrefs: WorkspaceNavigationPreferences): boolean {
+  return navPrefs.pinnedWorkspace.includes(prefId);
+}
+
+function getItemOrder(prefId: string, navPrefs: WorkspaceNavigationPreferences): number {
+  const index = navPrefs.workspaceOrder.indexOf(prefId);
+  return index === -1 ? 999 : index;
+}
+
+function sortByPreferenceOrder<T extends { value: string }>(
+  items: readonly T[],
+  navPrefs: WorkspaceNavigationPreferences,
+): T[] {
+  return [...items].sort(
+    (left, right) =>
+      getItemOrder(getPrefId(left.value), navPrefs) -
+      getItemOrder(getPrefId(right.value), navPrefs),
+  );
+}
+
+interface WorkspaceSidebarSectionProps {
+  workspacePathId: string;
+  navPrefs: WorkspaceNavigationPreferences;
+  localeBundle: WorkspaceSidebarLocaleBundle | null;
+  getItemClassName: (isActive: boolean) => string;
+}
+
+export function WorkspaceSidebarSection({
+  workspacePathId,
+  navPrefs,
+  localeBundle,
+  getItemClassName,
+}: WorkspaceSidebarSectionProps) {
+  const searchParams = useSearchParams();
+  const rawTab = searchParams.get("tab") ?? "Overview";
+  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawTab) ? rawTab : "Overview";
+
+  const groups: Array<{ key: WorkspaceTabGroup; items: readonly TabLinkItem[] }> =
+    WORKSPACE_TAB_SIDEBAR_GROUP_ORDER.map((groupKey) => ({
+      key: groupKey,
+      items: WORKSPACE_LINK_ITEMS_BY_GROUP[groupKey],
+    }));
+
+  const visibleGroups = groups
+    .map((g) => ({
+      key: g.key,
+      visible: sortByPreferenceOrder(g.items, navPrefs).filter((item) =>
+        isItemEnabled(getPrefId(item.value), navPrefs),
+      ),
+    }))
+    .filter((g) => g.visible.length > 0);
+
+  return (
+    <nav className="space-y-0.5" aria-label="Workspace navigation">
+      {visibleGroups.map((group, groupIndex) => (
+        <div key={group.key}>
+          {groupIndex > 0 && <div className="my-1.5 border-t border-border/40" />}
+          <div className="space-y-0.5">
+            {group.visible.map((item) => {
+              const isActive = activeWorkspaceTab === item.value;
+              return (
+                <Link
+                  key={item.value}
+                  href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                  aria-current={isActive ? "page" : undefined}
+                  className={getItemClassName(isActive)}
+                >
+                  {tTabWithDevStatus(item.value, item.label, localeBundle)}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </nav>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+import {
+  Card,
+  CardContent,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { WorkspaceAuditTab } from "@/modules/workspace/api";
+import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
+import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
+import { WorkspaceFlowTab } from "@/modules/workspace/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
+import { useApp } from "@/modules/platform/api";
+
+import {
+  createSettingsDraft,
+  type WorkspaceSettingsDraft,
+} from "../../state/workspace-settings";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../../view-models/workspace-supporting-records";
+import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
+import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
+import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
+import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+  readonly initialOverviewPanel?: string;
+}
+
+export function WorkspaceDetailScreen({
+  workspaceId,
+  accountId,
+  accountsHydrated,
+  initialTab,
+  initialOverviewPanel,
+}: WorkspaceDetailScreenProps) {
+  const { state: appState, dispatch } = useApp();
+  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
+    workspaceId,
+    accountId,
+    accountsHydrated,
+  );
+  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
+
+  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
+    workspace,
+    accountId,
+    onSaved: (updated) => {
+      setWorkspace(updated);
+      setSettingsDraft(createSettingsDraft(updated));
+      setIsEditWorkspaceOpen(false);
+    },
+  });
+
+  const personnelEntries = useMemo(() => {
+    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
+  }, [workspace]);
+
+  const addressLines = useMemo(() => {
+    return workspace ? getWorkspaceAddressLines(workspace) : [];
+  }, [workspace]);
+
+  function renderTabContent(tab: WorkspaceTabValue) {
+    if (!workspace) return null;
+
+    switch (tab) {
+      case "Overview":
+        return (
+          <WorkspaceOverviewTab
+            workspace={workspace}
+            activeWorkspaceId={appState.activeWorkspaceId}
+            personnelEntries={personnelEntries}
+            addressLines={addressLines}
+            showSettingsPanel={initialOverviewPanel === "settings"}
+            onEditClick={() => {
+              setSettingsDraft(createSettingsDraft(workspace));
+              clearSaveError();
+              setIsEditWorkspaceOpen(true);
+            }}
+            onSetActiveWorkspace={() =>
+              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
+            }
+          />
+        );
+      case "Members":
+        return <WorkspaceMembersTab workspace={workspace} />;
+      case "Daily":
+        return <WorkspaceDailyTab workspace={workspace} />;
+      case "Files":
+        return <WorkspaceFilesTab workspace={workspace} />;
+      case "Schedule":
+        return (
+          <WorkspaceSchedulingTab
+            workspace={workspace}
+            accountId={accountId ?? workspace.accountId}
+            currentUserId={accountId ?? "anonymous"}
+          />
+        );
+      case "Audit":
+        return <WorkspaceAuditTab workspaceId={workspace.id} />;
+      case "Tasks":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="tasks"
+          />
+        );
+      case "TaskQa":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="qa"
+          />
+        );
+      case "TaskAcceptance":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="acceptance"
+          />
+        );
+      case "TaskIssues":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="issues"
+          />
+        );
+      case "TaskFinance":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="invoices"
+          />
+        );
+      case "Feed":
+        return (
+          <WorkspaceFeedWorkspaceView
+            accountId={accountId ?? workspace.accountId}
+            workspaceId={workspace.id}
+            workspaceName={workspace.name}
+          />
+        );
+      default:
+        return null;
+    }
+  }
+
+  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
+    ? initialTab
+    : "Overview";
+
+  return (
+    <div className="space-y-6">
+      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
+        ← 返回 Workspace Hub
+      </Link>
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          正在同步帳號內容…
+        </div>
+      )}
+
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            Loading workspace detail…
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入工作區資料，請返回清單後重試。
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "loaded" && !workspace && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            找不到此工作區。
+          </CardContent>
+        </Card>
+      )}
+
+      {workspace && (
+        <div className="space-y-6">
+          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+          <nav
+            aria-label="Workspace tab navigation"
+            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
+          >
+            <div className="flex min-w-max items-center gap-0.5">
+              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
+                const tabs = getWorkspaceTabsByGroup(group);
+                const links = tabs.map((tab) => {
+                  const isActive = resolvedTab === tab;
+                  return (
+                    <Link
+                      key={tab}
+                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {getWorkspaceTabLabel(tab)}
+                    </Link>
+                  );
+                });
+                if (groupIndex > 0) {
+                  return [
+                    <div
+                      key={`sep-${group}`}
+                      aria-hidden="true"
+                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
+                    />,
+                    ...links,
+                  ];
+                }
+                return links;
+              })}
+            </div>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
+          </div>
+          {renderTabContent(resolvedTab)}
+        </div>
+      )}
+
+      <WorkspaceSettingsDialog
+        open={isEditWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsEditWorkspaceOpen(open);
+          if (!open) {
+            clearSaveError();
+            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
+          }
+        }}
+        settingsDraft={settingsDraft}
+        setSettingsDraft={setSettingsDraft}
+        isSaving={isSavingWorkspace}
+        saveError={saveError}
+        onSubmit={(event) => void handleSave(event, settingsDraft)}
+      />
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
+````typescript
+/**
+ * nav-preferences-data.ts  (workspace BC – interfaces/web/navigation)
+ * Owns: NavPreferences type, nav-item catalogs, default values,
+ *   validation helpers, and localStorage read/write utilities.
+ * Constraints: No React imports. No UI imports. Pure data / serialization.
+ */
+
+import {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "./workspace-nav-items";
+
+// Re-export for consumers that import from this file directly.
+export { WORKSPACE_NAV_ITEMS, normalizeWorkspaceOrder };
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+export interface NavPreferences {
+  pinnedPersonal: string[];
+  pinnedWorkspace: string[];
+  showLimitedWorkspaces: boolean;
+  maxWorkspaces: number;
+  workspaceOrder: string[];
+}
+
+export interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+
+const STORAGE_KEY = "xuanwu:nav-preferences";
+
+// ── Personal nav items ─────────────────────────────────────────────────────
+
+export const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
+  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
+];
+
+// ── Organization management items ─────────────────────────────────────────
+
+export const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
+  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
+  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
+  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
+];
+
+export const DIALOG_TEXT = {
+  zh: {
+    title: "Customize navigation",
+    description:
+      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
+    sectionPersonal: "個人",
+    sectionWorkspace: "工作區",
+    sectionOrganization: "組織管理",
+    sectionDisplay: "顯示設定",
+    limitedLabel: "側欄僅顯示固定數量的最近工作區",
+    limitedInputLabel: "工作區數量",
+    done: "完成",
+    recentWorkspaces: "最近工作區",
+  },
+  en: {
+    title: "Customize navigation",
+    description:
+      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
+    sectionPersonal: "Personal",
+    sectionWorkspace: "Workspace",
+    sectionOrganization: "Organization",
+    sectionDisplay: "Display",
+    limitedLabel: "Show a limited number of recent workspaces in sidebar",
+    limitedInputLabel: "Number of workspaces",
+    done: "Done",
+    recentWorkspaces: "Recent workspaces",
+  },
+} as const;
+
+// ── Defaults + validation ──────────────────────────────────────────────────
+
+export const DEFAULT_PREFS: NavPreferences = {
+  pinnedPersonal: ["recent-workspaces"],
+  pinnedWorkspace: [
+    ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
+    ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
+  ],
+  showLimitedWorkspaces: true,
+  maxWorkspaces: 10,
+  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
+};
+
+const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
+const VALID_WORKSPACE_ITEM_IDS = new Set([
+  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
+  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
+]);
+
+const WORKFLOW_PIN_MIGRATION_IDS = [
+  "task-qa",
+  "task-acceptance",
+  "task-issues",
+  "task-finance",
+] as const;
+
+function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
+  if (!Array.isArray(ids)) return fallback;
+  const normalized = ids
+    .filter((id): id is string => typeof id === "string")
+    .filter((id) => validSet.has(id));
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
+}
+
+function migrateWorkflowPins(ids: string[]): string[] {
+  if (!ids.includes("tasks")) return ids;
+  const next = [...ids];
+  for (const id of WORKFLOW_PIN_MIGRATION_IDS) {
+    if (!next.includes(id) && VALID_WORKSPACE_ITEM_IDS.has(id)) {
+      next.push(id);
+    }
+  }
+  return next;
+}
+
+// ── localStorage helpers ───────────────────────────────────────────────────
+
+export function readNavPreferences(): NavPreferences {
+  if (typeof window === "undefined") return DEFAULT_PREFS;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_PREFS;
+    const parsed = JSON.parse(raw) as Partial<NavPreferences>;
+    const normalizedWorkspacePinned = normalizePinnedIds(
+      parsed.pinnedWorkspace,
+      VALID_WORKSPACE_ITEM_IDS,
+      DEFAULT_PREFS.pinnedWorkspace,
+    );
+    return {
+      pinnedPersonal: normalizePinnedIds(
+        parsed.pinnedPersonal,
+        VALID_PERSONAL_ITEM_IDS,
+        DEFAULT_PREFS.pinnedPersonal,
+      ),
+      pinnedWorkspace: migrateWorkflowPins(normalizedWorkspacePinned),
+      showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
+      maxWorkspaces:
+        typeof parsed.maxWorkspaces === "number"
+          ? parsed.maxWorkspaces
+          : DEFAULT_PREFS.maxWorkspaces,
+      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
+    };
+  } catch {
+    return DEFAULT_PREFS;
+  }
+}
+
+export function writeNavPreferences(prefs: NavPreferences): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+}
+````
+
+## File: modules/workspace/subdomains/audit/api/index.ts
+````typescript
+/**
+ * workspace/subdomains/audit API boundary.
+ */
+
+export type { AuditLogEntity, AuditLogSource } from "../domain/entities/AuditLog";
+
+export type {
+  AuditLog,
+  AuditAction,
+  AuditSeverity,
+  ChangeRecord,
+} from "../domain/schema";
+
+export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../domain/schema";
+
+export {
+  getOrganizationAuditLogs,
+  getWorkspaceAuditLogs,
+} from "../interfaces/queries/audit.queries";
+
+export { WorkspaceAuditTab } from "../interfaces/components/WorkspaceAuditTab";
+export { AuditStream } from "../interfaces/components/AuditStream";
+export { RecordAuditEntryUseCase } from "../application/use-cases/record-audit-entry.use-case";
+````
+
+## File: modules/workspace/subdomains/audit/application/dto/audit.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the audit subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
+export type { AuditSeverity } from "../../domain/schema";
+````
+
+## File: modules/workspace/subdomains/audit/application/queries/list-audit-logs.queries.ts
+````typescript
+import type { AuditLogEntity } from "../../domain/entities/AuditLog";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+
+export class ListWorkspaceAuditLogsUseCase {
+  constructor(private readonly auditRepo: AuditRepository) {}
+
+  execute(workspaceId: string): Promise<AuditLogEntity[]> {
+    return this.auditRepo.findByWorkspaceId(workspaceId);
+  }
+}
+
+export class ListOrganizationAuditLogsUseCase {
+  constructor(private readonly auditRepo: AuditRepository) {}
+
+  execute(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]> {
+    return this.auditRepo.findByWorkspaceIds(workspaceIds, maxCount);
+  }
+}
+````
+
+## File: modules/workspace/subdomains/audit/application/use-cases/record-audit-entry.use-case.ts
+````typescript
+import { AuditEntry, type RecordAuditEntryInput } from "../../domain/aggregates/AuditEntry";
+import type { AuditDomainEventType } from "../../domain/events";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+
+export class RecordAuditEntryUseCase {
+  constructor(private readonly repo: AuditRepository) {}
+
+  async execute(input: RecordAuditEntryInput): Promise<AuditDomainEventType[]> {
+    const id = crypto.randomUUID();
+    const entry = AuditEntry.record(id, input);
+    await this.repo.save(entry);
+    return entry.pullDomainEvents();
+  }
+}
+````
+
+## File: modules/workspace/subdomains/audit/domain/aggregates/AuditEntry.ts
+````typescript
+import type { AuditLogSource } from "../entities/AuditLog";
+import type { AuditDomainEventType } from "../events";
+import type { AuditAction } from "../schema";
+import type { AuditSeverity } from "../value-objects";
+import type { ChangeRecord } from "../schema";
+
+export interface AuditEntrySnapshot {
+	readonly id: string;
+	readonly workspaceId: string;
+	readonly actorId: string;
+	readonly action: AuditAction;
+	readonly resourceType: string;
+	readonly resourceId: string;
+	readonly severity: AuditSeverity;
+	readonly detail: string;
+	readonly source: AuditLogSource;
+	readonly changes: readonly ChangeRecord[];
+	readonly recordedAtISO: string;
+}
+
+export interface RecordAuditEntryInput {
+	readonly workspaceId: string;
+	readonly actorId: string;
+	readonly action: string;
+	readonly resourceType: string;
+	readonly resourceId: string;
+	readonly severity: string;
+	readonly detail: string;
+	readonly source: AuditLogSource;
+	readonly changes?: readonly ChangeRecord[];
+}
+
+/**
+ * AuditEntry — Immutable aggregate root for audit records.
+ *
+ * Audit entries are write-once: once recorded they cannot be modified or deleted.
+ * All mutation methods are intentionally absent.
+ */
+export class AuditEntry {
+	private readonly _domainEvents: AuditDomainEventType[] = [];
+
+	private constructor(private readonly _props: AuditEntrySnapshot) {}
+
+	/**
+	 * Record a new audit entry. This is the only way to create an AuditEntry.
+	 * Validates action and severity via Zod branded types.
+	 */
+	static record(id: string, input: RecordAuditEntryInput): AuditEntry {
+		// Import dynamically is not possible in domain — validate via type narrowing
+		// The caller is responsible for passing valid action/severity strings;
+		// Zod validation happens at the value-object layer boundary.
+		const now = new Date().toISOString();
+		const entry = new AuditEntry({
+			id,
+			workspaceId: input.workspaceId,
+			actorId: input.actorId,
+			action: input.action as AuditAction,
+			resourceType: input.resourceType,
+			resourceId: input.resourceId,
+			severity: input.severity as AuditSeverity,
+			detail: input.detail,
+			source: input.source,
+			changes: input.changes ?? [],
+			recordedAtISO: now,
+		});
+		entry._domainEvents.push({
+			type: "workspace.audit.entry_recorded",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				auditId: id,
+				workspaceId: input.workspaceId,
+				actorId: input.actorId,
+				action: input.action,
+				resourceType: input.resourceType,
+				resourceId: input.resourceId,
+				severity: input.severity,
+			},
+		});
+
+		// Auto-escalation: critical entries emit an additional alert event
+		if (entry.isCritical()) {
+			entry._domainEvents.push({
+				type: "workspace.audit.critical_detected",
+				eventId: crypto.randomUUID(),
+				occurredAt: now,
+				payload: {
+					auditId: id,
+					workspaceId: input.workspaceId,
+					actorId: input.actorId,
+					action: input.action,
+					resourceType: input.resourceType,
+				},
+			});
+		}
+
+		return entry;
+	}
+
+	static reconstitute(snapshot: AuditEntrySnapshot): AuditEntry {
+		return new AuditEntry({ ...snapshot });
+	}
+
+	// ── Query methods (audit is immutable — no mutation) ─────────────────────
+
+	/** Returns true when severity is "critical". */
+	isCritical(): boolean {
+		return this._props.severity === ("critical" as AuditSeverity);
+	}
+
+	/** Returns true when severity is "critical" or "high". */
+	isHighSeverity(): boolean {
+		return (
+			this._props.severity === ("critical" as AuditSeverity) ||
+			this._props.severity === ("high" as AuditSeverity)
+		);
+	}
+
+	// ── Getters ──────────────────────────────────────────────────────────────
+
+	get id(): string {
+		return this._props.id;
+	}
+
+	get workspaceId(): string {
+		return this._props.workspaceId;
+	}
+
+	get actorId(): string {
+		return this._props.actorId;
+	}
+
+	get action(): AuditAction {
+		return this._props.action;
+	}
+
+	get resourceType(): string {
+		return this._props.resourceType;
+	}
+
+	get resourceId(): string {
+		return this._props.resourceId;
+	}
+
+	get severity(): AuditSeverity {
+		return this._props.severity;
+	}
+
+	get detail(): string {
+		return this._props.detail;
+	}
+
+	get source(): AuditLogSource {
+		return this._props.source;
+	}
+
+	get changes(): readonly ChangeRecord[] {
+		return this._props.changes;
+	}
+
+	get recordedAtISO(): string {
+		return this._props.recordedAtISO;
+	}
+
+	getSnapshot(): Readonly<AuditEntrySnapshot> {
+		return Object.freeze({ ...this._props });
+	}
+
+	pullDomainEvents(): AuditDomainEventType[] {
+		const events = [...this._domainEvents];
+		(this._domainEvents as AuditDomainEventType[]).length = 0;
+		return events;
+	}
+}
+````
+
+## File: modules/workspace/subdomains/audit/domain/aggregates/index.ts
+````typescript
+export { AuditEntry } from "./AuditEntry";
+export type { AuditEntrySnapshot, RecordAuditEntryInput } from "./AuditEntry";
+````
+
+## File: modules/workspace/subdomains/audit/domain/events/AuditDomainEvent.ts
+````typescript
+export interface AuditDomainEvent {
+	readonly eventId: string;
+	readonly occurredAt: string;
+	readonly type: string;
+	readonly payload: object;
+}
+
+export interface AuditEntryRecordedEvent extends AuditDomainEvent {
+	readonly type: "workspace.audit.entry_recorded";
+	readonly payload: {
+		readonly auditId: string;
+		readonly workspaceId: string;
+		readonly actorId: string;
+		readonly action: string;
+		readonly resourceType: string;
+		readonly resourceId: string;
+		readonly severity: string;
+	};
+}
+
+export interface CriticalAuditDetectedEvent extends AuditDomainEvent {
+	readonly type: "workspace.audit.critical_detected";
+	readonly payload: {
+		readonly auditId: string;
+		readonly workspaceId: string;
+		readonly actorId: string;
+		readonly action: string;
+		readonly resourceType: string;
+	};
+}
+
+export type AuditDomainEventType = AuditEntryRecordedEvent | CriticalAuditDetectedEvent;
+````
+
+## File: modules/workspace/subdomains/audit/domain/events/index.ts
+````typescript
+export type {
+	AuditDomainEvent,
+	AuditEntryRecordedEvent,
+	CriticalAuditDetectedEvent,
+	AuditDomainEventType,
+} from "./AuditDomainEvent";
+````
+
+## File: modules/workspace/subdomains/audit/domain/ports/index.ts
+````typescript
+/**
+ * workspace/audit domain/ports — driven port interfaces for the audit subdomain.
+ *
+ * Re-exports the repository contract from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
+export type { AuditRepository as IAuditPort } from "../repositories/AuditRepository";
+````
+
+## File: modules/workspace/subdomains/audit/domain/repositories/AuditRepository.ts
+````typescript
+import type { AuditEntry } from "../aggregates/AuditEntry";
+import type { AuditLogEntity } from "../entities/AuditLog";
+
+export interface AuditRepository {
+  save(entry: AuditEntry): Promise<void>;
+  findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]>;
+  findByWorkspaceIds(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]>;
+}
+````
+
+## File: modules/workspace/subdomains/audit/domain/services/AuditRecordingService.ts
+````typescript
+import { AuditEntry } from "../aggregates/AuditEntry";
+import type { RecordAuditEntryInput } from "../aggregates/AuditEntry";
+import { createAuditAction } from "../value-objects/AuditAction";
+import { createAuditSeverity } from "../value-objects/AuditSeverity";
+import { createActorId } from "../value-objects/ActorId";
+
+/**
+ * AuditRecordingService — Stateless domain service for recording audit entries.
+ *
+ * Validates inputs via value-object constructors and delegates to AuditEntry.record().
+ * Critical-severity escalation is handled by the aggregate itself.
+ */
+export class AuditRecordingService {
+	/**
+	 * Record a new audit entry with full input validation.
+	 *
+	 * @throws ZodError if action, severity, or actorId is invalid
+	 */
+	record(id: string, input: RecordAuditEntryInput): AuditEntry {
+		// Validate through branded value objects (throws on invalid input)
+		createAuditAction(input.action);
+		createAuditSeverity(input.severity);
+		createActorId(input.actorId);
+
+		return AuditEntry.record(id, input);
+	}
+}
+````
+
+## File: modules/workspace/subdomains/audit/domain/services/index.ts
+````typescript
+export { AuditRecordingService } from "./AuditRecordingService";
+````
+
+## File: modules/workspace/subdomains/audit/domain/value-objects/ActorId.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const ActorIdSchema = z.string().min(1).brand("ActorId");
+
+export type ActorId = z.infer<typeof ActorIdSchema>;
+
+export function createActorId(raw: string): ActorId {
+	return ActorIdSchema.parse(raw);
+}
+
+export function unsafeActorId(raw: string): ActorId {
+	return raw as ActorId;
+}
+````
+
+## File: modules/workspace/subdomains/audit/domain/value-objects/AuditAction.ts
+````typescript
+import { z } from "@lib-zod";
+
+import { AUDIT_ACTIONS } from "../schema";
+
+export const AuditActionSchema = z.enum(AUDIT_ACTIONS).brand("AuditAction");
+
+export type AuditAction = z.infer<typeof AuditActionSchema>;
+
+export function createAuditAction(raw: string): AuditAction {
+  return AuditActionSchema.parse(raw);
+}
+
+export function unsafeAuditAction(raw: string): AuditAction {
+  return raw as AuditAction;
+}
+````
+
+## File: modules/workspace/subdomains/audit/domain/value-objects/AuditSeverity.ts
+````typescript
+import { z } from "@lib-zod";
+
+import { AUDIT_SEVERITIES } from "../schema";
+
+export const AuditSeveritySchema = z.enum(AUDIT_SEVERITIES).brand("AuditSeverity");
+
+export type AuditSeverity = z.infer<typeof AuditSeveritySchema>;
+
+export function createAuditSeverity(raw: string): AuditSeverity {
+	return AuditSeveritySchema.parse(raw);
+}
+
+export function unsafeAuditSeverity(raw: string): AuditSeverity {
+	return raw as AuditSeverity;
+}
+
+const SEVERITY_LEVELS: Record<string, number> = {
+	low: 0,
+	medium: 1,
+	high: 2,
+	critical: 3,
+};
+
+/** Numeric level for ordering/comparison (low=0, medium=1, high=2, critical=3). */
+export function severityLevel(severity: AuditSeverity): number {
+	return SEVERITY_LEVELS[severity] ?? 0;
+}
+
+/** Returns true when `severity` is at or above the given threshold. */
+export function isAtLeast(severity: AuditSeverity, threshold: AuditSeverity): boolean {
+	return severityLevel(severity) >= severityLevel(threshold);
+}
+````
+
+## File: modules/workspace/subdomains/audit/domain/value-objects/index.ts
+````typescript
+export { AuditActionSchema, createAuditAction, unsafeAuditAction } from "./AuditAction";
+export type { AuditAction } from "./AuditAction";
+
+export { AuditSeveritySchema, createAuditSeverity, unsafeAuditSeverity, severityLevel, isAtLeast } from "./AuditSeverity";
+export type { AuditSeverity } from "./AuditSeverity";
+
+export { ActorIdSchema, createActorId, unsafeActorId } from "./ActorId";
+export type { ActorId } from "./ActorId";
+````
+
+## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
+````typescript
+import {
+  addDoc,
+  collection,
+  getDocs,
+  getFirestore,
+  limit,
+  query,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { AuditEntry } from "../../domain/aggregates/AuditEntry";
+import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+
+const VALID_AUDIT_LOG_SOURCES = new Set<AuditLogSource>([
+  "workspace",
+  "finance",
+  "notification",
+  "system",
+]);
+
+function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity {
+  const source = VALID_AUDIT_LOG_SOURCES.has(data.source as AuditLogSource)
+    ? (data.source as AuditLogSource)
+    : "workspace";
+
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    actorId: typeof data.actorId === "string" ? data.actorId : "system",
+    action: typeof data.action === "string" ? data.action : "unknown",
+    detail: typeof data.detail === "string" ? data.detail : "",
+    source,
+    occurredAtISO:
+      typeof data.occurredAtISO === "string"
+        ? data.occurredAtISO
+        : "",
+  };
+}
+
+export class FirebaseAuditRepository implements AuditRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async save(entry: AuditEntry): Promise<void> {
+    await addDoc(collection(this.db, "auditLogs"), entry.getSnapshot());
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]> {
+    const snaps = await getDocs(
+      query(collection(this.db, "auditLogs"), where("workspaceId", "==", workspaceId)),
+    );
+
+    return snaps.docs
+      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
+      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO));
+  }
+
+  async findByWorkspaceIds(
+    workspaceIds: string[],
+    maxCount = 200,
+  ): Promise<AuditLogEntity[]> {
+    if (workspaceIds.length === 0) {
+      return [];
+    }
+
+    const chunks: string[][] = [];
+    for (let index = 0; index < workspaceIds.length; index += 10) {
+      chunks.push(workspaceIds.slice(index, index + 10));
+    }
+
+    const perChunkLimit = Math.max(1, Math.ceil(maxCount / chunks.length));
+
+    const snapshots = await Promise.all(
+      chunks.map((chunk) =>
+        getDocs(
+          query(
+            collection(this.db, "auditLogs"),
+            where("workspaceId", "in", chunk),
+            limit(perChunkLimit),
+          ),
+        ),
+      ),
+    );
+
+    return snapshots
+      .flatMap((snapshot) => snapshot.docs)
+      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
+      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO))
+      .slice(0, maxCount);
+  }
+}
+````
+
+## File: modules/workspace/subdomains/audit/interfaces/components/AuditStream.tsx
+````typescript
+"use client";
+
+import { format } from "date-fns";
+import { zhTW } from "date-fns/locale/zh-TW";
+import { ShieldAlert } from "lucide-react";
+
+import { Badge } from "@ui-shadcn/ui/badge";
+import { ScrollArea } from "@ui-shadcn/ui/scroll-area";
+
+import type { AuditLogEntity, AuditLogSource } from "../../application/dto/audit.dto";
+import type { AuditSeverity } from "../../application/dto/audit.dto";
+
+interface AuditStreamItem {
+  id: string;
+  actorName: string;
+  action: string;
+  resourceType: string;
+  detail: string;
+  severity: AuditSeverity;
+  workspaceId: string;
+  occurredAtISO: string;
+}
+
+const SOURCE_SEVERITY: Record<AuditLogSource, AuditSeverity> = {
+  workspace: "low",
+  finance: "high",
+  notification: "low",
+  system: "medium",
+};
+
+function toStreamItem(entity: AuditLogEntity): AuditStreamItem {
+  return {
+    id: entity.id,
+    actorName: entity.actorId,
+    action: entity.action,
+    resourceType: entity.source,
+    detail: entity.detail,
+    severity: SOURCE_SEVERITY[entity.source] ?? "low",
+    workspaceId: entity.workspaceId,
+    occurredAtISO: entity.occurredAtISO,
+  };
+}
+
+const SEVERITY_DOT: Record<AuditSeverity, string> = {
+  low: "bg-muted-foreground/40",
+  medium: "bg-blue-500",
+  high: "bg-orange-500",
+  critical: "bg-destructive",
+};
+
+const SEVERITY_LABEL: Record<AuditSeverity, string> = {
+  low: "低",
+  medium: "中",
+  high: "高",
+  critical: "嚴重",
+};
+
+interface AuditRowProps {
+  item: AuditStreamItem;
+}
+
+function AuditRow({ item }: AuditRowProps) {
+  const timeLabel = (() => {
+    try {
+      return format(new Date(item.occurredAtISO), "yyyy-MM-dd HH:mm:ss", { locale: zhTW });
+    } catch {
+      return item.occurredAtISO;
+    }
+  })();
+
+  return (
+    <div className="mb-6 ml-6 relative group">
+      <span
+        className={`absolute -left-[1.85rem] flex h-3.5 w-3.5 items-center justify-center rounded-full ring-2 ring-background ${SEVERITY_DOT[item.severity]}`}
+      />
+
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1">
+        <div className="space-y-0.5 min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5 text-sm">
+            <span className="font-semibold truncate max-w-[120px]">{item.actorName}</span>
+            <span className="text-muted-foreground">執行了</span>
+            <Badge variant="outline" className="text-xs uppercase px-1.5 py-0">
+              {item.action}
+            </Badge>
+            <span className="text-muted-foreground">於</span>
+            <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">
+              {item.resourceType}
+            </code>
+            {item.severity === "critical" && (
+              <ShieldAlert className="h-3.5 w-3.5 text-destructive shrink-0" />
+            )}
+          </div>
+
+          {item.detail && (
+            <p className="text-xs text-muted-foreground">{item.detail}</p>
+          )}
+
+          <div className="flex items-center gap-2 mt-1">
+            <Badge variant="secondary" className="text-xs px-1.5 py-0">
+              {SEVERITY_LABEL[item.severity]}
+            </Badge>
+            <span className="text-xs text-muted-foreground">@{item.workspaceId}</span>
+          </div>
+        </div>
+
+        <time className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
+          {timeLabel}
+        </time>
+      </div>
+    </div>
+  );
+}
+
+interface AuditStreamProps {
+  logs: readonly AuditLogEntity[];
+  height?: number;
+}
+
+export function AuditStream({ logs, height = 500 }: AuditStreamProps) {
+  if (logs.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground py-8 text-center">
+        目前尚無稽核紀錄。
+      </p>
+    );
+  }
+
+  const items = logs.map(toStreamItem);
+
+  return (
+    <ScrollArea className="w-full rounded-md border" style={{ height }}>
+      <div className="p-4">
+        <div className="relative border-l border-border/60 ml-1.5">
+          {items.map((item) => (
+            <AuditRow key={item.id} item={item} />
+          ))}
+        </div>
+      </div>
+    </ScrollArea>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/audit/interfaces/components/WorkspaceAuditTab.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import type { AuditLogEntity } from "../../application/dto/audit.dto";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { getWorkspaceAuditLogs } from "../queries/audit.queries";
+
+function formatAuditDate(value: string) {
+  if (!value) {
+    return "—";
+  }
+
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+interface WorkspaceAuditTabProps {
+  readonly workspaceId: string;
+}
+
+export function WorkspaceAuditTab({ workspaceId }: WorkspaceAuditTabProps) {
+  const [logs, setLogs] = useState<AuditLogEntity[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadLogs() {
+      setLoadState("loading");
+
+      try {
+        const nextLogs = await getWorkspaceAuditLogs(workspaceId);
+        if (cancelled) {
+          return;
+        }
+
+        setLogs(nextLogs);
+        setLoadState("loaded");
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[WorkspaceAuditTab] Failed to load audit logs:", error);
+        }
+
+        if (!cancelled) {
+          setLogs([]);
+          setLoadState("error");
+        }
+      }
+    }
+
+    void loadLogs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId]);
+
+  return (
+    <Card className="border border-border/50">
+      <CardHeader>
+        <CardTitle>Audit</CardTitle>
+        <CardDescription>
+          工作區相關行為紀錄、來源與時間軸。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {loadState === "loading" && (
+          <p className="text-sm text-muted-foreground">Loading audit log…</p>
+        )}
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">
+            無法載入 audit log，請重新整理頁面或稍後再試。
+          </p>
+        )}
+
+        {loadState === "loaded" && logs.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            目前尚未記錄這個工作區的 audit entries。
+          </p>
+        )}
+
+        {loadState === "loaded" && logs.length > 0 && (
+          <div className="space-y-3">
+            {logs.map((log) => (
+              <div
+                key={log.id}
+                className="rounded-xl border border-border/40 px-4 py-4"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">{log.action}</p>
+                      <Badge variant="outline">{log.source}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{log.detail || "—"}</p>
+                    <p className="text-xs text-muted-foreground">Actor: {log.actorId}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {formatAuditDate(log.occurredAtISO)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/feed/application/dto/workspace-feed.dto.ts
+````typescript
+import { z } from "@lib-zod";
+
+/**
+ * Application-layer DTO re-exports for the feed subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+
+const AccountScopeSchema = z.object({
+  accountId: z.string().min(1),
+});
+
+const WorkspaceScopeSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1),
+});
+
+export const FeedLimitSchema = z.number().int().min(1).max(200).default(50);
+
+export const CreateWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
+  authorAccountId: z.string().min(1),
+  content: z.string().trim().min(1).max(5000),
+});
+
+export type CreateWorkspaceFeedPostDto = z.infer<typeof CreateWorkspaceFeedPostSchema>;
+
+export const ReplyWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
+  parentPostId: z.string().min(1),
+  authorAccountId: z.string().min(1),
+  content: z.string().trim().min(1).max(5000),
+});
+
+export type ReplyWorkspaceFeedPostDto = z.infer<typeof ReplyWorkspaceFeedPostSchema>;
+
+export const RepostWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
+  sourcePostId: z.string().min(1),
+  actorAccountId: z.string().min(1),
+  comment: z.string().trim().max(1000).optional(),
+});
+
+export type RepostWorkspaceFeedPostDto = z.infer<typeof RepostWorkspaceFeedPostSchema>;
+
+export const FeedInteractionSchema = AccountScopeSchema.extend({
+  postId: z.string().min(1),
+  actorAccountId: z.string().min(1),
+});
+
+export type FeedInteractionDto = z.infer<typeof FeedInteractionSchema>;
+
+export const ListWorkspaceFeedSchema = WorkspaceScopeSchema.extend({
+  limit: FeedLimitSchema.optional(),
+});
+
+export type ListWorkspaceFeedDto = z.infer<typeof ListWorkspaceFeedSchema>;
+
+export const ListAccountFeedSchema = AccountScopeSchema.extend({
+  limit: FeedLimitSchema.optional(),
+});
+
+export type ListAccountFeedDto = z.infer<typeof ListAccountFeedSchema>;
+````
+
+## File: modules/workspace/subdomains/feed/application/queries/workspace-feed-post.queries.ts
+````typescript
+import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
+import {
+  ListWorkspaceFeedSchema,
+  type ListWorkspaceFeedDto,
+  ListAccountFeedSchema,
+  type ListAccountFeedDto,
+} from "../dto/workspace-feed.dto";
+
+export class GetWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
+    if (!accountId.trim() || !postId.trim()) return null;
+    return this.repo.findById(accountId, postId);
+  }
+}
+
+export class ListWorkspaceFeedUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ListWorkspaceFeedDto): Promise<WorkspaceFeedPost[]> {
+    const parsed = ListWorkspaceFeedSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByWorkspaceId(parsed.data.accountId, parsed.data.workspaceId, parsed.data.limit ?? 50);
+  }
+}
+
+export class ListAccountWorkspaceFeedUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ListAccountFeedDto): Promise<WorkspaceFeedPost[]> {
+    const parsed = ListAccountFeedSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByAccountId(parsed.data.accountId, parsed.data.limit ?? 50);
+  }
+}
+````
+
+## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed-post.use-cases.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
+import {
+  CreateWorkspaceFeedPostSchema,
+  type CreateWorkspaceFeedPostDto,
+  ReplyWorkspaceFeedPostSchema,
+  type ReplyWorkspaceFeedPostDto,
+  RepostWorkspaceFeedPostSchema,
+  type RepostWorkspaceFeedPostDto,
+} from "../dto/workspace-feed.dto";
+
+export class CreateWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = CreateWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.repo.createPost(parsed.data);
+    return commandSuccess(post.id, Date.now());
+  }
+}
+
+export class ReplyWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = ReplyWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const parent = await this.repo.findById(parsed.data.accountId, parsed.data.parentPostId);
+    if (!parent) {
+      return commandFailureFrom("WORKSPACE_FEED_PARENT_NOT_FOUND", "Parent post not found.");
+    }
+    if (parent.workspaceId !== parsed.data.workspaceId) {
+      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Parent post is in another workspace.");
+    }
+
+    const reply = await this.repo.createReply(parsed.data);
+    return commandSuccess(reply.id, Date.now());
+  }
+}
+
+export class RepostWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = RepostWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const source = await this.repo.findById(parsed.data.accountId, parsed.data.sourcePostId);
+    if (!source) {
+      return commandFailureFrom("WORKSPACE_FEED_SOURCE_NOT_FOUND", "Source post not found.");
+    }
+    if (source.workspaceId !== parsed.data.workspaceId) {
+      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Source post is in another workspace.");
+    }
+
+    const repost = await this.repo.createRepost(parsed.data);
+    if (!repost) {
+      return commandFailureFrom("WORKSPACE_FEED_REPOST_FAILED", "Failed to create repost.");
+    }
+
+    return commandSuccess(repost.id, Date.now());
+  }
+}
+
+// Re-export read queries for backward compatibility
+export {
+  GetWorkspaceFeedPostUseCase,
+  ListWorkspaceFeedUseCase,
+  ListAccountWorkspaceFeedUseCase,
+} from "../queries/workspace-feed-post.queries";
+````
+
+## File: modules/workspace/subdomains/feed/domain/index.ts
+````typescript
+export type {
+  WorkspaceFeedPost,
+  WorkspaceFeedPostType,
+  CreateWorkspaceFeedPostInput,
+  CreateWorkspaceFeedReplyInput,
+  CreateWorkspaceFeedRepostInput,
+  WorkspaceFeedCounterPatch,
+} from "./entities/workspace-feed-post.entity";
+
+export { WORKSPACE_FEED_POST_TYPES } from "./entities/workspace-feed-post.entity";
+
+export type {
+  WorkspaceFeedDomainEvent,
+  WorkspaceFeedPostCreatedEvent,
+  WorkspaceFeedReplyCreatedEvent,
+  WorkspaceFeedRepostCreatedEvent,
+  WorkspaceFeedPostLikedEvent,
+  WorkspaceFeedPostViewedEvent,
+  WorkspaceFeedPostBookmarkedEvent,
+  WorkspaceFeedPostSharedEvent,
+} from "./events/workspace-feed.events";
+
+export { WORKSPACE_FEED_EVENT_TYPES } from "./events/workspace-feed.events";
+
+export type {
+  WorkspaceFeedPostRepository,
+  WorkspaceFeedInteractionRepository,
+} from "./repositories/workspace-feed.repositories";
+
+// ── Ports layer ──────────────────────────────────────────────────────────────
+export type { IWorkspaceFeedPostPort, IWorkspaceFeedInteractionPort } from "./ports";
+````
+
+## File: modules/workspace/subdomains/feed/domain/ports/index.ts
+````typescript
+/**
+ * workspace/feed domain/ports — driven port interfaces for the feed subdomain.
+ *
+ * Re-exports repository contracts from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
+export type {
+  WorkspaceFeedPostRepository as IWorkspaceFeedPostPort,
+  WorkspaceFeedInteractionRepository as IWorkspaceFeedInteractionPort,
+} from "../repositories/workspace-feed.repositories";
+````
+
+## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedAccountView.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Eye, Heart, MessageCircle, Repeat2, Share2, Star } from "lucide-react";
+
+import { useApp } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
+import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto";
+
+interface WorkspaceFeedAccountViewProps {
+  readonly accountId: string;
+}
+
+export function WorkspaceFeedAccountView({ accountId }: WorkspaceFeedAccountViewProps) {
+  const { state: appState } = useApp();
+  const actorId = appState.activeAccount?.id ?? accountId;
+
+  const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [activeReplyPostId, setActiveReplyPostId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [actingPostId, setActingPostId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refreshFeed = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const rows = await workspaceFeedFacade.getAccountFeed(accountId, 80);
+      setPosts(rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "載入 account feed 失敗");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [accountId]);
+
+  useEffect(() => {
+    void refreshFeed();
+  }, [refreshFeed]);
+
+  async function handleAction(post: WorkspaceFeedPost, action: "like" | "view" | "bookmark" | "share" | "repost") {
+    setActingPostId(post.id);
+    setError(null);
+    try {
+      if (action === "like") {
+        await workspaceFeedFacade.like({ accountId, postId: post.id, actorAccountId: actorId });
+      }
+      if (action === "view") {
+        await workspaceFeedFacade.view({ accountId, postId: post.id, actorAccountId: actorId });
+      }
+      if (action === "bookmark") {
+        await workspaceFeedFacade.bookmark({ accountId, postId: post.id, actorAccountId: actorId });
+      }
+      if (action === "share") {
+        await workspaceFeedFacade.share({ accountId, postId: post.id, actorAccountId: actorId });
+      }
+      if (action === "repost") {
+        await workspaceFeedFacade.repost({
+          accountId,
+          workspaceId: post.workspaceId,
+          sourcePostId: post.id,
+          actorAccountId: actorId,
+        });
+      }
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "互動失敗");
+    } finally {
+      setActingPostId(null);
+    }
+  }
+
+  async function handleReply(post: WorkspaceFeedPost) {
+    const content = replyDrafts[post.id]?.trim() ?? "";
+    if (!content) return;
+
+    setActingPostId(post.id);
+    setError(null);
+    try {
+      await workspaceFeedFacade.reply({
+        accountId,
+        workspaceId: post.workspaceId,
+        parentPostId: post.id,
+        authorAccountId: actorId,
+        content,
+      });
+      setReplyDrafts((prev) => ({ ...prev, [post.id]: "" }));
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "回覆失敗");
+    } finally {
+      setActingPostId(null);
+    }
+  }
+
+  return (
+    <>
+      {error && (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
+      )}
+
+      <div className="space-y-3">
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">載入 account feed 中...</p>
+        ) : posts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">目前沒有任何 workspace 貼文。</p>
+        ) : (
+          posts.map((post) => (
+            <article key={post.id} className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {post.type.toUpperCase()} · workspace {post.workspaceId} · {new Date(post.createdAtISO).toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground">by {post.authorAccountId}</p>
+              </div>
+
+              <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={activeReplyPostId === post.id ? "default" : "outline"}
+                  onClick={() => setActiveReplyPostId((current) => (current === post.id ? null : post.id))}
+                >
+                  <MessageCircle className="mr-1 h-4 w-4" />
+                  Reply {post.replyCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "repost")} disabled={actingPostId === post.id}>
+                  <Repeat2 className="mr-1 h-4 w-4" />
+                  Repost {post.repostCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "like")} disabled={actingPostId === post.id}>
+                  <Heart className="mr-1 h-4 w-4" />
+                  Like {post.likeCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "view")} disabled={actingPostId === post.id}>
+                  <Eye className="mr-1 h-4 w-4" />
+                  View {post.viewCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "bookmark")} disabled={actingPostId === post.id}>
+                  <Star className="mr-1 h-4 w-4" />
+                  bookmark {post.bookmarkCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "share")} disabled={actingPostId === post.id}>
+                  <Share2 className="mr-1 h-4 w-4" />
+                  share {post.shareCount}
+                </Button>
+              </div>
+
+              {activeReplyPostId === post.id && (
+                <div className="space-y-2 rounded-xl border border-border/40 p-3">
+                  <Textarea
+                    value={replyDrafts[post.id] ?? ""}
+                    onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
+                    placeholder="回覆這則貼文..."
+                    rows={2}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" type="button" variant="ghost" onClick={() => setActiveReplyPostId(null)}>
+                      取消
+                    </Button>
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={() => void handleReply(post)}
+                      disabled={actingPostId === post.id || !(replyDrafts[post.id] ?? "").trim()}
+                    >
+                      回覆
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </article>
+          ))
+        )}
+      </div>
+    </>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedWorkspaceView.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Eye, Heart, MessageCircle, Repeat2, Send, Share2, Star } from "lucide-react";
+
+import { useApp } from "@/modules/platform/api";
+import { Avatar, AvatarFallback, AvatarImage } from "@ui-shadcn/ui/avatar";
+import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
+import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto";
+
+interface WorkspaceFeedWorkspaceViewProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly workspaceName: string;
+}
+
+export function WorkspaceFeedWorkspaceView({
+  accountId,
+  workspaceId,
+  workspaceName,
+}: WorkspaceFeedWorkspaceViewProps) {
+  const { state: appState } = useApp();
+  const actor = appState.activeAccount;
+  const actorId = actor?.id ?? accountId;
+
+  const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
+  const [composer, setComposer] = useState("");
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [activeReplyPostId, setActiveReplyPostId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [actingPostId, setActingPostId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const actorName = actor?.name ?? "未知";
+  const actorAvatar = "photoURL" in (actor ?? {}) ? (actor as { photoURL?: string }).photoURL : undefined;
+  const actorInitial = actorName.charAt(0).toUpperCase();
+
+  const canPublish = useMemo(() => composer.trim().length > 0, [composer]);
+
+  const refreshFeed = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const rows = await workspaceFeedFacade.getWorkspaceFeed(accountId, workspaceId, 50);
+      setPosts(rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "載入 feed 失敗");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [accountId, workspaceId]);
+
+  useEffect(() => {
+    void refreshFeed();
+  }, [refreshFeed]);
+
+  async function handlePublish() {
+    if (!canPublish || isPublishing) return;
+    setIsPublishing(true);
+    setError(null);
+    try {
+      const createdId = await workspaceFeedFacade.createPost({
+        accountId,
+        workspaceId,
+        authorAccountId: actorId,
+        content: composer.trim(),
+      });
+      if (!createdId) {
+        setError("建立貼文失敗");
+        return;
+      }
+      setComposer("");
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立貼文失敗");
+    } finally {
+      setIsPublishing(false);
+    }
+  }
+
+  async function handleAction(postId: string, action: "like" | "view" | "bookmark" | "share" | "repost") {
+    setActingPostId(postId);
+    setError(null);
+    try {
+      if (action === "like") {
+        await workspaceFeedFacade.like({ accountId, postId, actorAccountId: actorId });
+      }
+      if (action === "view") {
+        await workspaceFeedFacade.view({ accountId, postId, actorAccountId: actorId });
+      }
+      if (action === "bookmark") {
+        await workspaceFeedFacade.bookmark({ accountId, postId, actorAccountId: actorId });
+      }
+      if (action === "share") {
+        await workspaceFeedFacade.share({ accountId, postId, actorAccountId: actorId });
+      }
+      if (action === "repost") {
+        const current = posts.find((row) => row.id === postId);
+        if (!current) return;
+        await workspaceFeedFacade.repost({
+          accountId,
+          workspaceId: current.workspaceId,
+          sourcePostId: postId,
+          actorAccountId: actorId,
+        });
+      }
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "互動失敗");
+    } finally {
+      setActingPostId(null);
+    }
+  }
+
+  async function handleReply(postId: string) {
+    const text = replyDrafts[postId]?.trim() ?? "";
+    if (!text) return;
+    setActingPostId(postId);
+    setError(null);
+    try {
+      const current = posts.find((row) => row.id === postId);
+      if (!current) return;
+      await workspaceFeedFacade.reply({
+        accountId,
+        workspaceId: current.workspaceId,
+        parentPostId: postId,
+        authorAccountId: actorId,
+        content: text,
+      });
+      setReplyDrafts((prev) => ({ ...prev, [postId]: "" }));
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "回覆失敗");
+    } finally {
+      setActingPostId(null);
+    }
+  }
+
+  return (
+    <section className="mx-auto max-w-3xl space-y-6 rounded-3xl border border-border/60 bg-card/50 p-6">
+      <header className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-12 w-12 shrink-0">
+            <AvatarImage src={actorAvatar} alt={actorName} />
+            <AvatarFallback className="text-sm font-bold">{actorInitial}</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="text-sm font-semibold">{workspaceName} Feed</p>
+            <p className="text-xs text-muted-foreground">workspaceId: {workspaceId}</p>
+          </div>
+        </div>
+        <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+          live
+        </div>
+      </header>
+
+      <div className="space-y-3 rounded-2xl border border-border/60 bg-background/80 p-4">
+        <Textarea
+          value={composer}
+          onChange={(event) => setComposer(event.target.value)}
+          placeholder="發佈你的想法到 workspace feed..."
+          rows={4}
+        />
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">actor: {actorName} / account: {accountId}</p>
+          <Button type="button" onClick={handlePublish} disabled={!canPublish || isPublishing}>
+            <Send className="mr-2 h-4 w-4" />
+            {isPublishing ? "送出中..." : "發佈"}
+          </Button>
+        </div>
+      </div>
+
+      {error && (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
+      )}
+
+      <div className="space-y-3">
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">載入 feed 中...</p>
+        ) : posts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">目前還沒有貼文，發佈第一則吧。</p>
+        ) : (
+          posts.map((post) => (
+            <article key={post.id} className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {post.type.toUpperCase()} · {post.workspaceId} · {new Date(post.createdAtISO).toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground">by {post.authorAccountId}</p>
+              </div>
+              <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={activeReplyPostId === post.id ? "default" : "outline"}
+                  onClick={() => setActiveReplyPostId((current) => (current === post.id ? null : post.id))}
+                >
+                  <MessageCircle className="mr-1 h-4 w-4" />
+                  Reply {post.replyCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "repost")} disabled={actingPostId === post.id}>
+                  <Repeat2 className="mr-1 h-4 w-4" />
+                  Repost {post.repostCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "like")} disabled={actingPostId === post.id}>
+                  <Heart className="mr-1 h-4 w-4" />
+                  Like {post.likeCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "view")} disabled={actingPostId === post.id}>
+                  <Eye className="mr-1 h-4 w-4" />
+                  View {post.viewCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "bookmark")} disabled={actingPostId === post.id}>
+                  <Star className="mr-1 h-4 w-4" />
+                  bookmark {post.bookmarkCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "share")} disabled={actingPostId === post.id}>
+                  <Share2 className="mr-1 h-4 w-4" />
+                  share {post.shareCount}
+                </Button>
+              </div>
+
+              {activeReplyPostId === post.id && (
+                <div className="space-y-2 rounded-xl border border-border/40 p-3">
+                  <Textarea
+                    value={replyDrafts[post.id] ?? ""}
+                    onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
+                    placeholder="回覆這則貼文..."
+                    rows={2}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" type="button" variant="ghost" onClick={() => setActiveReplyPostId(null)}>
+                      取消
+                    </Button>
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={() => void handleReply(post.id)}
+                      disabled={actingPostId === post.id || !(replyDrafts[post.id] ?? "").trim()}
+                    >
+                      回覆
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </article>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/feed/interfaces/queries/workspace-feed.queries.ts
+````typescript
+import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto";
+import {
+  GetWorkspaceFeedPostUseCase,
+  ListAccountWorkspaceFeedUseCase,
+  ListWorkspaceFeedUseCase,
+} from "../../application/use-cases/workspace-feed.use-cases";
+import { makeWorkspaceFeedPostRepo } from "../../api/factories";
+
+export async function getWorkspaceFeedPost(
+  accountId: string,
+  postId: string,
+): Promise<WorkspaceFeedPost | null> {
+  return new GetWorkspaceFeedPostUseCase(makeWorkspaceFeedPostRepo()).execute(
+    accountId,
+    postId,
+  );
+}
+
+export async function getWorkspaceFeed(
+  accountId: string,
+  workspaceId: string,
+  limit = 50,
+): Promise<WorkspaceFeedPost[]> {
+  return new ListWorkspaceFeedUseCase(makeWorkspaceFeedPostRepo()).execute({
+    accountId,
+    workspaceId,
+    limit,
+  });
+}
+
+export async function getAccountWorkspaceFeed(accountId: string, limit = 50): Promise<WorkspaceFeedPost[]> {
+  return new ListAccountWorkspaceFeedUseCase(makeWorkspaceFeedPostRepo()).execute({
+    accountId,
+    limit,
+  });
+}
+````
+
+## File: modules/workspace/subdomains/lifecycle/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/workspace/subdomains/lifecycle/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for workspace subdomain 'lifecycle'.
+````
+
+## File: modules/workspace/subdomains/lifecycle/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for workspace subdomain 'lifecycle'.
+````
+
+## File: modules/workspace/subdomains/lifecycle/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for workspace subdomain 'lifecycle'.
+````
+
+## File: modules/workspace/subdomains/membership/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/workspace/subdomains/membership/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for workspace subdomain 'membership'.
+````
+
+## File: modules/workspace/subdomains/membership/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for workspace subdomain 'membership'.
+````
+
+## File: modules/workspace/subdomains/membership/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for workspace subdomain 'membership'.
+````
+
+## File: modules/workspace/subdomains/presence/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/workspace/subdomains/presence/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for workspace subdomain 'presence'.
+````
+
+## File: modules/workspace/subdomains/presence/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for workspace subdomain 'presence'.
+````
+
+## File: modules/workspace/subdomains/presence/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for workspace subdomain 'presence'.
+````
+
+## File: modules/workspace/subdomains/scheduling/application/dto/work-demand.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the scheduling subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type { WorkDemand, DemandPriority } from "../../domain/types";
+export { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../../domain/types";
+
+import type { DemandPriority } from "../../domain/types";
+
+export interface CreateDemandInput {
+  workspaceId: string;
+  accountId: string;
+  requesterId: string;
+  title: string;
+  description?: string;
+  priority: DemandPriority;
+  scheduledAt: string;
+}
+
+export interface AssignMemberInput {
+  demandId: string;
+  userId: string;
+  assignedBy: string;
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/AccountSchedulingView.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { Users } from "lucide-react";
+
+import type { WorkDemand } from "../application/dto/work-demand.dto";
+import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../application/dto/work-demand.dto";
+import { assignWorkDemand } from "./_actions/work-demand.actions";
+import { getAccountDemands } from "./queries/work-demand.queries";
+
+export interface AccountMember {
+  id: string;
+  name: string;
+}
+
+const PRIORITY_DOT: Record<WorkDemand["priority"], string> = {
+  low: "bg-green-400",
+  medium: "bg-amber-400",
+  high: "bg-red-500",
+};
+
+const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "outline" | "destructive"> = {
+  draft: "outline",
+  open: "secondary",
+  in_progress: "default",
+  completed: "default",
+};
+
+interface AccountSchedulingViewProps {
+  readonly accountId: string;
+  readonly currentUserId: string;
+  readonly availableMembers?: AccountMember[];
+}
+
+export function AccountSchedulingView({
+  accountId,
+  currentUserId,
+  availableMembers = [],
+}: AccountSchedulingViewProps) {
+  const [demands, setDemands] = useState<WorkDemand[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [pendingAssign, setPendingAssign] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadDemands = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const data = await getAccountDemands(accountId);
+      setDemands(data);
+      setLoadState("loaded");
+    } catch {
+      setLoadState("error");
+    }
+  }, [accountId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!cancelled) await loadDemands();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadDemands]);
+
+  async function handleAssign(demandId: string, userId: string) {
+    setPendingAssign(demandId);
+    setActionError(null);
+    try {
+      const result = await assignWorkDemand({
+        demandId,
+        userId,
+        assignedBy: currentUserId,
+      });
+      if (!result.success) {
+        setActionError(result.error.message);
+        return;
+      }
+      await loadDemands();
+    } finally {
+      setPendingAssign(null);
+    }
+  }
+
+  const byWorkspace = demands.reduce<Record<string, WorkDemand[]>>((acc, d) => {
+    if (!acc[d.workspaceId]) acc[d.workspaceId] = [];
+    acc[d.workspaceId].push(d);
+    return acc;
+  }, {});
+
+  const workspaceEntries = Object.entries(byWorkspace);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <Users className="h-5 w-5 text-primary" />
+        <div>
+          <h2 className="text-lg font-semibold">工作需求總覽</h2>
+          <p className="text-sm text-muted-foreground">
+            顯示名下所有 Workspace 提出的需求，可在此指派成員。
+          </p>
+        </div>
+      </div>
+
+      {actionError && (
+        <p role="alert" className="text-sm text-destructive">
+          {actionError}
+        </p>
+      )}
+
+      {loadState === "loading" && (
+        <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
+          載入中…
+        </div>
+      )}
+
+      {loadState === "error" && (
+        <p className="text-sm text-destructive">載入失敗，請重新整理。</p>
+      )}
+
+      {loadState === "loaded" && demands.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+          目前名下所有 Workspace 均無工作需求。
+        </div>
+      )}
+
+      {loadState === "loaded" && workspaceEntries.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {workspaceEntries.map(([wsId, wsDemands]) => (
+            <Card key={wsId} className="flex flex-col">
+              <CardHeader className="bg-muted/40 pb-3">
+                <CardTitle className="text-sm font-semibold truncate">
+                  Workspace: <span className="font-mono text-xs">{wsId.slice(0, 8)}…</span>
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  {wsDemands.length} 筆需求
+                </p>
+              </CardHeader>
+              <CardContent className="flex-1 space-y-3 p-4">
+                {wsDemands.map((demand) => (
+                  <div
+                    key={demand.id}
+                    className="rounded-md border border-border/60 bg-background p-3 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-medium leading-snug flex-1 min-w-0 truncate">
+                        {demand.title}
+                      </p>
+                      <span
+                        title={DEMAND_PRIORITY_LABELS[demand.priority]}
+                        className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${PRIORITY_DOT[demand.priority]}`}
+                      />
+                    </div>
+
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <Badge variant={STATUS_VARIANT[demand.status]} className="text-[10px]">
+                        {DEMAND_STATUS_LABELS[demand.status]}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {demand.scheduledAt}
+                      </span>
+                    </div>
+
+                    {availableMembers.length > 0 && (
+                      <div className="mt-2.5">
+                        <p className="mb-1 text-[10px] text-muted-foreground">指派給</p>
+                        <Select
+                          value={demand.assignedUserId ?? ""}
+                          onValueChange={(userId) => {
+                            if (userId) void handleAssign(demand.id, userId);
+                          }}
+                          disabled={pendingAssign === demand.id}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue placeholder="選擇成員…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableMembers.map((member) => (
+                              <SelectItem key={member.id} value={member.id}>
+                                {member.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {availableMembers.length === 0 && demand.assignedUserId && (
+                      <p className="mt-1.5 text-xs text-muted-foreground">
+                        已指派：{demand.assignedUserId}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {loadState === "loaded" && (
+        <div className="flex justify-end">
+          <Button variant="ghost" size="sm" onClick={loadDemands}>
+            重新整理
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/components/CalendarWidget.tsx
+````typescript
+"use client";
+
+import { useMemo, useState } from "react";
+
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  format,
+  getDay,
+  isSameMonth,
+  isToday,
+  startOfMonth,
+  subMonths,
+} from "@lib-date-fns";
+import { Button } from "@ui-shadcn/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+import type { WorkDemand } from "../../application/dto/work-demand.dto";
+import { DEMAND_STATUS_LABELS } from "../../application/dto/work-demand.dto";
+
+interface CalendarWidgetProps {
+  demands: WorkDemand[];
+  onDayClick?: (date: Date) => void;
+}
+
+const DAY_HEADERS = ["日", "一", "二", "三", "四", "五", "六"] as const;
+
+const STATUS_DOT_CLASSES: Record<WorkDemand["status"], string> = {
+  draft: "bg-muted-foreground",
+  open: "bg-blue-500",
+  in_progress: "bg-amber-500",
+  completed: "bg-green-500",
+};
+
+function CalendarDayCell({
+  day,
+  isCurrentMonth,
+  dayDemands,
+  onDayClick,
+}: {
+  day: Date;
+  isCurrentMonth: boolean;
+  dayDemands: WorkDemand[];
+  onDayClick?: (date: Date) => void;
+}) {
+  const today = isToday(day);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={format(day, "yyyy-MM-dd")}
+      onClick={() => onDayClick?.(day)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onDayClick?.(day);
+      }}
+      className={[
+        "relative min-h-[72px] rounded-lg border p-1.5 text-sm transition-colors",
+        isCurrentMonth
+          ? "border-border/50 bg-card hover:bg-accent/40 cursor-pointer"
+          : "border-transparent bg-muted/20 text-muted-foreground cursor-default",
+        today ? "ring-2 ring-primary ring-offset-1" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <span
+        className={[
+          "flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium",
+          today ? "bg-primary text-primary-foreground" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {format(day, "d")}
+      </span>
+
+      <div className="mt-1 space-y-0.5">
+        {dayDemands.slice(0, 3).map((d) => (
+          <div
+            key={d.id}
+            title={`${d.title} (${DEMAND_STATUS_LABELS[d.status]})`}
+            className="flex items-center gap-1 truncate"
+          >
+            <span
+              className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT_CLASSES[d.status]}`}
+            />
+            <span className="truncate text-[10px] leading-none text-foreground/80">
+              {d.title}
+            </span>
+          </div>
+        ))}
+        {dayDemands.length > 3 && (
+          <span className="text-[10px] text-muted-foreground">
+            +{dayDemands.length - 3} more
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function CalendarWidget({ demands, onDayClick }: CalendarWidgetProps) {
+  const [currentMonth, setCurrentMonth] = useState<Date>(startOfMonth(new Date()));
+
+  const monthDays = useMemo(
+    () =>
+      eachDayOfInterval({
+        start: startOfMonth(currentMonth),
+        end: endOfMonth(currentMonth),
+      }),
+    [currentMonth],
+  );
+
+  const leadingBlanks = useMemo(() => getDay(startOfMonth(currentMonth)), [currentMonth]);
+
+  const demandsByDate = useMemo(() => {
+    const map = new Map<string, WorkDemand[]>();
+    for (const d of demands) {
+      const key = d.scheduledAt.slice(0, 10);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(d);
+    }
+    return map;
+  }, [demands]);
+
+  function getDayDemands(day: Date): WorkDemand[] {
+    return demandsByDate.get(format(day, "yyyy-MM-dd")) ?? [];
+  }
+
+  const legendEntries: { status: WorkDemand["status"]; label: string }[] = [
+    { status: "open", label: DEMAND_STATUS_LABELS.open },
+    { status: "in_progress", label: DEMAND_STATUS_LABELS.in_progress },
+    { status: "completed", label: DEMAND_STATUS_LABELS.completed },
+    { status: "draft", label: DEMAND_STATUS_LABELS.draft },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold">
+          {format(currentMonth, "yyyy 年 M 月")}
+        </h2>
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="上個月"
+            onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCurrentMonth(startOfMonth(new Date()))}
+          >
+            今天
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="下個月"
+            onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        {legendEntries.map(({ status, label }) => (
+          <div key={status} className="flex items-center gap-1.5">
+            <span
+              className={`h-2 w-2 rounded-full ${STATUS_DOT_CLASSES[status]}`}
+            />
+            <span className="text-xs text-muted-foreground">{label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {DAY_HEADERS.map((h) => (
+          <div
+            key={h}
+            className="pb-1 text-center text-xs font-medium text-muted-foreground"
+          >
+            {h}
+          </div>
+        ))}
+
+        {Array.from({ length: leadingBlanks }).map((_, i) => (
+          <div key={`blank-${i}`} />
+        ))}
+
+        {monthDays.map((day) => (
+          <CalendarDayCell
+            key={day.toISOString()}
+            day={day}
+            isCurrentMonth={isSameMonth(day, currentMonth)}
+            dayDemands={getDayDemands(day)}
+            onDayClick={isSameMonth(day, currentMonth) ? onDayClick : undefined}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/components/CreateDemandForm.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { format } from "@lib-date-fns";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import { DEMAND_PRIORITY_LABELS } from "../../application/dto/work-demand.dto";
+import type { DemandPriority } from "../../application/dto/work-demand.dto";
+
+export interface CreateDemandFormValues {
+  title: string;
+  description: string;
+  priority: DemandPriority;
+  scheduledAt: string;
+}
+
+interface CreateDemandFormProps {
+  open: boolean;
+  initialDate?: Date;
+  onClose: () => void;
+  onSubmit: (values: CreateDemandFormValues) => Promise<void>;
+}
+
+export function CreateDemandForm({
+  open,
+  initialDate,
+  onClose,
+  onSubmit,
+}: CreateDemandFormProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState<DemandPriority>("medium");
+  const [scheduledAt, setScheduledAt] = useState(
+    initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleOpen = (isOpen: boolean) => {
+    if (isOpen && initialDate) {
+      setScheduledAt(format(initialDate, "yyyy-MM-dd"));
+    }
+    if (!isOpen) handleClose();
+  };
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setPriority("medium");
+    setScheduledAt(initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"));
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) {
+      setError("請輸入需求標題。");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onSubmit({ title: t, description: description.trim(), priority, scheduledAt });
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "提交失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>建立工作需求</DialogTitle>
+          <DialogDescription>
+            填寫需求詳情後送出，Account 管理員將收到通知並指派成員。
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="demand-title">標題 *</Label>
+            <Input
+              id="demand-title"
+              placeholder="需要完成什麼工作？"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+              autoFocus
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="demand-description">描述（選填）</Label>
+            <Textarea
+              id="demand-description"
+              placeholder="詳細說明需求背景或驗收條件…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="demand-priority">優先級</Label>
+              <Select
+                value={priority}
+                onValueChange={(v) => setPriority(v as DemandPriority)}
+                disabled={submitting}
+              >
+                <SelectTrigger id="demand-priority">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(["low", "medium", "high"] as const).map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {DEMAND_PRIORITY_LABELS[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="demand-date">排程日期 *</Label>
+              <Input
+                id="demand-date"
+                type="date"
+                value={scheduledAt}
+                onChange={(e) => setScheduledAt(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
+              取消
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "提交中…" : "建立需求"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/WorkspaceSchedulingTab.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Plus } from "lucide-react";
+
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+import type { WorkDemand } from "../application/dto/work-demand.dto";
+import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../application/dto/work-demand.dto";
+import { submitWorkDemand } from "./_actions/work-demand.actions";
+import { getWorkspaceDemands } from "./queries/work-demand.queries";
+import { CalendarWidget } from "./components/CalendarWidget";
+import { CreateDemandForm } from "./components/CreateDemandForm";
+import type { CreateDemandFormValues } from "./components/CreateDemandForm";
+
+const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "outline" | "destructive"> = {
+  draft: "outline",
+  open: "secondary",
+  in_progress: "default",
+  completed: "default",
+};
+
+const PRIORITY_CLASS: Record<WorkDemand["priority"], string> = {
+  low: "text-muted-foreground",
+  medium: "text-amber-600",
+  high: "text-red-600",
+};
+
+interface WorkspaceSchedulingTabProps {
+  readonly workspace: WorkspaceEntity;
+  readonly accountId: string;
+  readonly currentUserId: string;
+}
+
+export function WorkspaceSchedulingTab({
+  workspace,
+  accountId,
+  currentUserId,
+}: WorkspaceSchedulingTabProps) {
+  const [demands, setDemands] = useState<WorkDemand[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [formOpen, setFormOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadDemands = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const data = await getWorkspaceDemands(workspace.id);
+      setDemands(data);
+      setLoadState("loaded");
+    } catch {
+      setLoadState("error");
+    }
+  }, [workspace.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!cancelled) await loadDemands();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadDemands]);
+
+  function handleDayClick(date: Date) {
+    setSelectedDate(date);
+    setFormOpen(true);
+  }
+
+  function handleNewDemand() {
+    setSelectedDate(undefined);
+    setFormOpen(true);
+  }
+
+  async function handleSubmit(values: CreateDemandFormValues) {
+    setActionError(null);
+    const result = await submitWorkDemand({
+      workspaceId: workspace.id,
+      accountId,
+      requesterId: currentUserId,
+      title: values.title,
+      description: values.description,
+      priority: values.priority,
+      scheduledAt: values.scheduledAt,
+    });
+    if (!result.success) {
+      throw new Error(result.error.message);
+    }
+    await loadDemands();
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">{workspace.name} — 工作規劃</h2>
+          <p className="text-sm text-muted-foreground">
+            點擊日期或「新增需求」快速建立工作需求。
+          </p>
+        </div>
+        <Button size="sm" onClick={handleNewDemand}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          新增需求
+        </Button>
+      </div>
+
+      {actionError && (
+        <p role="alert" className="text-sm text-destructive">
+          {actionError}
+        </p>
+      )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">排程日曆</CardTitle>
+          <CardDescription className="text-xs">
+            點擊日期快速排程新需求
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadState === "loading" ? (
+            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+              載入中…
+            </div>
+          ) : (
+            <CalendarWidget demands={demands} onDayClick={handleDayClick} />
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          需求列表 ({demands.length})
+        </h3>
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">載入失敗，請重新整理。</p>
+        )}
+
+        {loadState === "loaded" && demands.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            目前尚無需求。點擊日曆日期或「新增需求」開始排程。
+          </div>
+        )}
+
+        {demands.map((demand) => (
+          <div
+            key={demand.id}
+            className="flex items-start justify-between rounded-lg border border-border/60 bg-card px-4 py-3"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium text-sm">{demand.title}</p>
+              {demand.description && (
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {demand.description}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                排程日期：{demand.scheduledAt}
+              </p>
+            </div>
+            <div className="ml-4 flex shrink-0 flex-col items-end gap-1.5">
+              <Badge variant={STATUS_VARIANT[demand.status]}>
+                {DEMAND_STATUS_LABELS[demand.status]}
+              </Badge>
+              <span className={`text-xs font-medium ${PRIORITY_CLASS[demand.priority]}`}>
+                {DEMAND_PRIORITY_LABELS[demand.priority]}優先
+              </span>
+              {demand.assignedUserId && (
+                <span className="text-xs text-muted-foreground">已指派</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <CreateDemandForm
+        open={formOpen}
+        initialDate={selectedDate}
+        onClose={() => setFormOpen(false)}
+        onSubmit={handleSubmit}
+      />
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/sharing/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/workspace/subdomains/sharing/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for workspace subdomain 'sharing'.
+````
+
+## File: modules/workspace/subdomains/sharing/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for workspace subdomain 'sharing'.
+````
+
+## File: modules/workspace/subdomains/sharing/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for workspace subdomain 'sharing'.
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/application/dto/workflow.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the workspace-workflow subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type { Task } from "../../domain/entities/Task";
+export type { Issue } from "../../domain/entities/Issue";
+export type { Invoice } from "../../domain/entities/Invoice";
+export type { InvoiceItem } from "../../domain/entities/InvoiceItem";
+export type { TaskStatus } from "../../domain/value-objects/TaskStatus";
+export type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+export type { IssueStage } from "../../domain/value-objects/IssueStage";
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/domain/index.ts
+````typescript
+/**
+ * workspace/workspace-workflow domain — public exports.
+ */
+export type { InvoiceRepository } from "./repositories/InvoiceRepository";
+export type { IssueRepository } from "./repositories/IssueRepository";
+export type { TaskRepository } from "./repositories/TaskRepository";
+export * from "./events/TaskEvent";
+export * from "./events/IssueEvent";
+export * from "./events/InvoiceEvent";
+export * from "./value-objects/InvoiceId";
+export * from "./value-objects/InvoiceItemId";
+export * from "./value-objects/InvoiceStatus";
+export * from "./value-objects/IssueId";
+export * from "./value-objects/IssueStage";
+export * from "./value-objects/IssueStatus";
+export * from "./value-objects/SourceReference";
+export * from "./value-objects/TaskId";
+export * from "./value-objects/TaskStatus";
+export * from "./value-objects/UserId";
+// Ports layer — driven port aliases
+export type { IInvoicePort, IIssuePort, ITaskPort } from "./ports";
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/domain/ports/index.ts
+````typescript
+/**
+ * workspace/workspace-workflow domain/ports — driven port interfaces for the workflow subdomain.
+ *
+ * Re-exports repository contracts from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
+export type { InvoiceRepository as IInvoicePort } from "../repositories/InvoiceRepository";
+export type { IssueRepository as IIssuePort } from "../repositories/IssueRepository";
+export type { TaskRepository as ITaskPort } from "../repositories/TaskRepository";
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/InvoiceRow.tsx
@@ -17132,295 +17042,315 @@ export function toInvoiceItemSummary(item: InvoiceItem): InvoiceItemSummary {
 }
 ````
 
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/queries/workspace-flow.queries.ts
 ````typescript
-import type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../../domain/entities/WorkspaceMemberView";
-import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
-import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
+/**
+ * @module workspace-flow/interfaces/queries
+ * @file workspace-flow.queries.ts
+ * @description Server-side read queries for workspace-flow entities.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add pagination support and caching layer
+ */
 
-const personnelLabels = {
-  managerId: "Manager",
-  supervisorId: "Supervisor",
-  safetyOfficerId: "Safety officer",
-} as const;
+import type { Task } from "../../application/dto/workflow.dto";
+import type { Issue } from "../../application/dto/workflow.dto";
+import type { Invoice } from "../../application/dto/workflow.dto";
+import type { InvoiceItem } from "../../application/dto/workflow.dto";
+import { makeInvoiceRepo, makeIssueRepo, makeTaskRepo } from "../../api/factories";
 
-const personnelLabelEntries = Object.entries(personnelLabels) as Array<
-  [keyof typeof personnelLabels, string]
->;
-
-interface OrganizationMemberReference {
-  id: string;
-  name: string;
-  email?: string;
-  role?: string;
-  presence?: string;
-  isExternal?: boolean;
+/**
+ * List all tasks for a workspace.
+ *
+ * @param workspaceId - The workspace to query
+ */
+export async function getWorkspaceFlowTasks(workspaceId: string): Promise<Task[]> {
+  return makeTaskRepo().findByWorkspaceId(workspaceId);
 }
 
-interface OrganizationTeam {
-  id: string;
-  name: string;
-  memberIds: string[];
+/**
+ * Get a single task by id.
+ *
+ * @param taskId - The task identifier
+ */
+export async function getWorkspaceFlowTask(taskId: string): Promise<Task | null> {
+  return makeTaskRepo().findById(taskId);
 }
 
-interface OrganizationDirectoryGateway {
-  getOrganizationMembers(organizationId: string): Promise<OrganizationMemberReference[]>;
-  getOrganizationTeams(organizationId: string): Promise<OrganizationTeam[]>;
+/**
+ * List all issues for a task.
+ *
+ * @param taskId - The task identifier
+ */
+export async function getWorkspaceFlowIssues(taskId: string): Promise<Issue[]> {
+  return makeIssueRepo().findByTaskId(taskId);
 }
 
-const defaultOrganizationDirectoryGateway: OrganizationDirectoryGateway = {
-  async getOrganizationMembers() {
-    return [];
-  },
-  async getOrganizationTeams() {
-    return [];
-  },
-};
-
-function toPresence(value: OrganizationMemberReference["presence"] | undefined): WorkspaceMemberPresence {
-  if (value === "active" || value === "away" || value === "offline") {
-    return value;
-  }
-
-  return "unknown";
+/**
+ * List all invoices for a workspace.
+ *
+ * @param workspaceId - The workspace to query
+ */
+export async function getWorkspaceFlowInvoices(workspaceId: string): Promise<Invoice[]> {
+  return makeInvoiceRepo().findByWorkspaceId(workspaceId);
 }
 
-function createFallbackMember(id: string): WorkspaceMemberView {
-  return {
-    id,
-    displayName: id,
-    presence: "unknown",
-    isExternal: false,
-    accessChannels: [],
-  };
-}
-
-export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
-  constructor(
-    private readonly organizationDirectoryGateway: OrganizationDirectoryGateway = defaultOrganizationDirectoryGateway,
-  ) {}
-
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
-
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ) {
-    const normalizedAccountId = accountId.trim();
-    if (!normalizedAccountId) {
-      onUpdate([]);
-      return () => {};
-    }
-
-    const q = query(
-      collection(this.db, "workspaces"),
-      where("accountId", "==", normalizedAccountId),
-    );
-
-    return onSnapshot(q, (snap) => {
-      const workspaces = snap.docs.map((docSnap) =>
-        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
-      );
-      onUpdate(workspaces);
-    });
-  }
-
-  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    const workspace = await this.workspaceRepo.findById(workspaceId);
-    if (!workspace) {
-      return [];
-    }
-
-    const members = new Map<string, WorkspaceMemberView>();
-    const memberChannelKeys = new Map<string, Set<string>>();
-
-    const mergeMember = (
-      memberId: string,
-      channel: WorkspaceMemberAccessChannel,
-      orgMember?: OrganizationMemberReference,
-    ) => {
-      const current = members.get(memberId) ?? createFallbackMember(memberId);
-      const channelKey = [
-        channel.source,
-        channel.label,
-        channel.role ?? "",
-        channel.protocol ?? "",
-        channel.teamId ?? "",
-      ].join("::");
-      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
-      memberChannelKeys.set(memberId, knownChannelKeys);
-      const hasSameChannel = knownChannelKeys.has(channelKey);
-      if (!hasSameChannel) {
-        knownChannelKeys.add(channelKey);
-      }
-
-      members.set(memberId, {
-        id: memberId,
-        displayName: orgMember?.name || current.displayName,
-        email: orgMember?.email ?? current.email,
-        organizationRole: orgMember?.role ?? current.organizationRole,
-        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
-        isExternal: orgMember?.isExternal ?? current.isExternal,
-        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
-      });
-    };
-
-    if (workspace.accountType === "organization") {
-      const [organizationMembers, teams] = await Promise.all([
-        this.organizationDirectoryGateway.getOrganizationMembers(workspace.accountId),
-        this.organizationDirectoryGateway.getOrganizationTeams(workspace.accountId),
-      ]);
-
-      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
-      const teamMap = new Map(teams.map((team) => [team.id, team]));
-
-      const mergeTeam = (team: OrganizationTeam, role?: string, protocol?: string) => {
-        const label = team.name || team.id;
-        team.memberIds.forEach((memberId: string) => {
-          mergeMember(
-            memberId,
-            {
-              source: "team",
-              label,
-              role,
-              protocol,
-              teamId: team.id,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        });
-      };
-
-      workspace.teamIds.forEach((teamId) => {
-        const team = teamMap.get(teamId);
-        if (team) {
-          mergeTeam(team);
-        }
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(
-            grant.userId,
-            {
-              source: "direct",
-              label: "Direct access",
-              role: grant.role,
-              protocol: grant.protocol,
-            },
-            organizationMemberMap.get(grant.userId),
-          );
-        }
-
-        if (grant.teamId) {
-          const team = teamMap.get(grant.teamId);
-          if (team) {
-            mergeTeam(team, grant.role, grant.protocol);
-          }
-        }
-      });
-
-      personnelLabelEntries.forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field];
-        if (memberId) {
-          mergeMember(
-            memberId,
-            {
-              source: "personnel",
-              label,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        }
-      });
-    } else {
-      mergeMember(workspace.accountId, {
-        source: "owner",
-        label: "Workspace owner",
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(grant.userId, {
-            source: "direct",
-            label: "Direct access",
-            role: grant.role,
-            protocol: grant.protocol,
-          });
-        }
-      });
-
-      personnelLabelEntries.forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field];
-        if (memberId) {
-          mergeMember(memberId, {
-            source: "personnel",
-            label,
-          });
-        }
-      });
-    }
-
-    return Array.from(members.values()).sort((left, right) =>
-      left.displayName.localeCompare(right.displayName),
-    );
-  }
+/**
+ * Get items for an invoice.
+ *
+ * @param invoiceId - The invoice identifier
+ */
+export async function getWorkspaceFlowInvoiceItems(invoiceId: string): Promise<InvoiceItem[]> {
+  return makeInvoiceRepo().listItems(invoiceId);
 }
 ````
 
-## File: modules/workspace/interfaces/web/navigation/workspace-nav-items.ts
+## File: modules/workspace/AGENT.md
+````markdown
+# Workspace Agent
+
+> Strategic agent documentation: [docs/contexts/workspace/AGENT.md](../../docs/contexts/workspace/AGENT.md)
+
+## Mission
+
+保護 workspace 主域作為協作容器、工作區範疇與 workspaceId 錨點。
+
+## Route Here When
+
+- 問題的中心是 workspaceId、工作區建立封存、工作區內角色與參與關係。
+- 問題的中心是工作區共享、存在感、活動流、排程與工作流執行。
+- 問題需要提供其他主域運作所需的 workspace scope。
+
+## Route Elsewhere When
+
+- 身份、組織、授權、權益、憑證、通知治理屬於 platform。
+- 知識頁面、文章、資料庫、分類、內容發布屬於 notion。
+- notebook、conversation、source、retrieval、synthesis 屬於 notebooklm。
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order (Strangler Pattern)
+
+New features:
+1. Define Domain (entities, value objects, aggregates, events)
+2. Define Application (use cases, DTOs)
+3. Define Ports (only if boundary isolation needed)
+4. Implement Infrastructure (adapters, persistence)
+5. Implement Interfaces (UI, actions, hooks)
+
+Legacy migration:
+1. Find a Use Case to extract
+2. Build Domain model for that use case
+3. Converge Application layer
+4. Isolate legacy via Ports
+5. Replace Infrastructure adapter
+````
+
+## File: modules/workspace/docs/README.md
+````markdown
+# Workspace Documentation
+
+Implementation-level documentation for the workspace bounded context.
+
+## Strategic Documentation (Authority)
+
+Strategic architecture documentation lives in `docs/contexts/workspace/`:
+
+- [README.md](../../../docs/contexts/workspace/README.md) — Context overview
+- [subdomains.md](../../../docs/contexts/workspace/subdomains.md) — Subdomain inventory
+- [bounded-contexts.md](../../../docs/contexts/workspace/bounded-contexts.md) — Ownership map
+- [context-map.md](../../../docs/contexts/workspace/context-map.md) — Relationships
+- [ubiquitous-language.md](../../../docs/contexts/workspace/ubiquitous-language.md) — Terminology
+
+## Architecture Reference
+
+- [Bounded Context Template](../../../docs/bounded-context-subdomain-template.md) — Standard structure
+- [Architecture Overview](../../../docs/architecture-overview.md) — System-wide architecture
+- [Integration Guidelines](../../../docs/integration-guidelines.md) — Cross-context rules
+
+## Conflict Resolution
+
+- Strategic docs in `docs/contexts/workspace/` are the authority for naming, ownership, and boundaries.
+- This `docs/` folder is for implementation-aligned detail only.
+````
+
+## File: modules/workspace/interfaces/api/runtime/workspace-runtime.ts
 ````typescript
-/**
- * workspace-nav-items.ts
- *
- * Catalog of workspace sidebar tab entries owned by the workspace BC.
- * Consumers read this catalog; they do not define it.
- */
-
+import { WorkspaceCommandApplicationService } from "../../../application/services/WorkspaceCommandApplicationService";
+import { WorkspaceQueryApplicationService } from "../../../application/services/WorkspaceQueryApplicationService";
 import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabsInSidebarOrder,
-  type WorkspaceTabValue,
-} from "./workspace-tabs";
+  makeWikiWorkspaceRepo,
+  makeWorkspaceDomainEventPublisher,
+  makeWorkspaceQueryRepo,
+  makeWorkspaceRepo,
+} from "../../../api/runtime/factories";
+import type { WorkspaceCommandPort } from "../../../application/dtos/workspace-interfaces.dto";
+import type { WorkspaceQueryPort } from "../../../application/dtos/workspace-interfaces.dto";
+import { createWorkspaceSessionContext } from "./workspace-session-context";
 
-export interface WorkspaceNavItem {
-  id: string;
-  tabKey: WorkspaceTabValue;
-  fallbackLabel: string;
+let _sessionContext: ReturnType<typeof createWorkspaceSessionContext> | undefined;
+
+function getSessionContext() {
+  if (!_sessionContext) {
+    // Lazy-load the organization query functions to break the circular module
+    // evaluation chain: workspace-runtime → platform/api → organization/interfaces
+    // → organization/api → workspace (via barrel re-exports).
+    //
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const platformApi = require("@/modules/platform/api");
+
+    const workspaceRepo = makeWorkspaceRepo();
+    const workspaceQueryRepo = makeWorkspaceQueryRepo({
+      getOrganizationMembers: platformApi.getOrganizationMembers,
+      getOrganizationTeams: platformApi.getOrganizationTeams,
+    });
+    const wikiWorkspaceRepo = makeWikiWorkspaceRepo();
+    const workspaceDomainEventPublisher = makeWorkspaceDomainEventPublisher();
+
+    const commandPort: WorkspaceCommandPort = new WorkspaceCommandApplicationService({
+      workspaceRepo,
+      workspaceCapabilityRepo: workspaceRepo,
+      workspaceAccessRepo: workspaceRepo,
+      workspaceLocationRepo: workspaceRepo,
+      workspaceDomainEventPublisher,
+    });
+
+    const queryPort: WorkspaceQueryPort = new WorkspaceQueryApplicationService({
+      workspaceRepo,
+      workspaceQueryRepo,
+      wikiWorkspaceRepo,
+    });
+
+    _sessionContext = createWorkspaceSessionContext(commandPort, queryPort);
+  }
+  return _sessionContext;
 }
 
-export const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = getWorkspaceTabsInSidebarOrder().map((tabKey) => ({
-  id: getWorkspaceTabPrefId(tabKey),
-  tabKey,
-  fallbackLabel: getWorkspaceTabLabel(tabKey),
-}));
+/**
+ * Lazy-initialized workspace ports.
+ * Proxy objects defer all property access until first actual use, breaking
+ * the circular module-evaluation chain at build time while preserving the
+ * same public API as the previous eager singletons.
+ */
+export const workspaceSessionContext = new Proxy(
+  {} as ReturnType<typeof createWorkspaceSessionContext>,
+  { get: (_target, prop) => getSessionContext()[prop as keyof ReturnType<typeof createWorkspaceSessionContext>] },
+);
 
-const VALID_WORKSPACE_ORDER_IDS = new Set(WORKSPACE_NAV_ITEMS.map((item) => item.id));
-const DEFAULT_WORKSPACE_ORDER = WORKSPACE_NAV_ITEMS.map((item) => item.id);
+export const workspaceCommandPort: WorkspaceCommandPort = new Proxy(
+  {} as WorkspaceCommandPort,
+  { get: (_target, prop) => getSessionContext().workspaceCommandPort[prop as keyof WorkspaceCommandPort] },
+);
 
-export function normalizeWorkspaceOrder(order: unknown): string[] {
-  const fallback = DEFAULT_WORKSPACE_ORDER;
-  if (!Array.isArray(order)) return fallback;
-  const validOrder = order
-    .filter((id): id is string => typeof id === "string")
-    .filter((id) => VALID_WORKSPACE_ORDER_IDS.has(id));
-  const deduped = Array.from(new Set(validOrder));
-  for (const id of fallback) {
-    if (!deduped.includes(id)) deduped.push(id);
-  }
-  return deduped;
+export const workspaceQueryPort: WorkspaceQueryPort = new Proxy(
+  {} as WorkspaceQueryPort,
+  { get: (_target, prop) => getSessionContext().workspaceQueryPort[prop as keyof WorkspaceQueryPort] },
+);
+````
+
+## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
+````typescript
+export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+
+export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+
+export const WORKSPACE_TAB_SIDEBAR_GROUP_ORDER: readonly WorkspaceTabGroup[] = [
+  "primary",
+  "modules",
+  "spaces",
+  "databases",
+  "library",
+];
+
+export const WORKSPACE_TAB_VALUES = [
+  "Overview",
+  "Members",
+  "Daily",
+  "Files",
+  "Schedule",
+  "Audit",
+  "Tasks",
+  "TaskQa",
+  "TaskAcceptance",
+  "TaskIssues",
+  "TaskFinance",
+  "Feed",
+] as const;
+
+export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+
+interface WorkspaceTabMeta {
+  readonly label: string;
+  readonly prefId: string;
+  readonly group: WorkspaceTabGroup;
+  readonly status: WorkspaceTabDevStatus;
+}
+
+export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
+  Overview: { label: "Home", prefId: "home", group: "primary", status: "🏗️" },
+  Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
+  Daily: { label: "Daily", prefId: "daily", group: "modules", status: "✅" },
+  Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
+  Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
+  Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
+  Tasks: { label: "任務", prefId: "tasks", group: "modules", status: "🏗️" },
+  TaskQa: { label: "質檢", prefId: "task-qa", group: "modules", status: "🏗️" },
+  TaskAcceptance: { label: "驗收", prefId: "task-acceptance", group: "modules", status: "🏗️" },
+  TaskIssues: { label: "問題單", prefId: "task-issues", group: "modules", status: "🏗️" },
+  TaskFinance: { label: "財務", prefId: "task-finance", group: "modules", status: "🏗️" },
+  Feed: { label: "Feed", prefId: "feed", group: "modules", status: "🏗️" },
+};
+
+export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
+  primary: ["Overview"],
+  spaces: [],
+  databases: [],
+  library: ["Files", "Members"],
+  modules: [
+    "Daily",
+    "Schedule",
+    "Audit",
+    "Tasks",
+    "TaskQa",
+    "TaskAcceptance",
+    "TaskIssues",
+    "TaskFinance",
+    "Feed",
+  ],
+};
+
+const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);
+
+export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue {
+  return WORKSPACE_TAB_VALUE_SET.has(value);
+}
+
+export function getWorkspaceTabMeta(tab: WorkspaceTabValue) {
+  return WORKSPACE_TAB_META[tab];
+}
+
+export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus {
+  return WORKSPACE_TAB_META[tab].status;
+}
+
+export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string {
+  return WORKSPACE_TAB_META[tab].label;
+}
+
+export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
+  return WORKSPACE_TAB_META[tab].prefId;
+}
+
+export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
+  return WORKSPACE_TAB_GROUPS[group];
+}
+
+export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[] {
+  return WORKSPACE_TAB_SIDEBAR_GROUP_ORDER.flatMap((group) => getWorkspaceTabsByGroup(group));
 }
 ````
 
@@ -17475,6 +17405,182 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
+## File: modules/workspace/subdomains/audit/domain/index.ts
+````typescript
+// ── Existing domain types ────────────────────────────────────────────────────
+export type { AuditLogEntity, AuditLogSource } from "./entities/AuditLog";
+export type { AuditLog, AuditAction, AuditSeverity, ChangeRecord } from "./schema";
+export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "./schema";
+export type { AuditRepository } from "./repositories/AuditRepository";
+
+// ── Rich DDD additions ──────────────────────────────────────────────────────
+export * from "./aggregates";
+export * from "./events";
+export * from "./services";
+export * from "./value-objects";
+
+// ── Ports layer ──────────────────────────────────────────────────────────────
+export type { IAuditPort } from "./ports";
+````
+
+## File: modules/workspace/subdomains/audit/interfaces/queries/audit.queries.ts
+````typescript
+import type { AuditLogEntity } from "../../application/dto/audit.dto";
+import {
+  ListOrganizationAuditLogsUseCase,
+  ListWorkspaceAuditLogsUseCase,
+} from "../../application/queries/list-audit-logs.queries";
+import { makeAuditRepo } from "../../api/factories";
+
+const auditRepo = makeAuditRepo();
+const listWorkspaceAuditLogsUseCase = new ListWorkspaceAuditLogsUseCase(auditRepo);
+const listOrganizationAuditLogsUseCase = new ListOrganizationAuditLogsUseCase(auditRepo);
+
+export async function getWorkspaceAuditLogs(
+  workspaceId: string,
+): Promise<AuditLogEntity[]> {
+  const normalizedWorkspaceId = workspaceId.trim();
+  if (!normalizedWorkspaceId) {
+    return [];
+  }
+
+  return listWorkspaceAuditLogsUseCase.execute(normalizedWorkspaceId);
+}
+
+export async function getOrganizationAuditLogs(
+  workspaceIds: string[],
+  maxCount = 200,
+): Promise<AuditLogEntity[]> {
+  const normalizedWorkspaceIds = workspaceIds
+    .map((workspaceId) => workspaceId.trim())
+    .filter(Boolean);
+
+  if (normalizedWorkspaceIds.length === 0) {
+    return [];
+  }
+
+  return listOrganizationAuditLogsUseCase.execute(normalizedWorkspaceIds, maxCount);
+}
+````
+
+## File: modules/workspace/subdomains/audit/README.md
+````markdown
+# Audit
+
+Audit trail and accountability tracking for workspace actions.
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/workspace/subdomains/feed/README.md
+````markdown
+# Feed
+
+Activity feed projections for workspace events.
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/workspace/subdomains/lifecycle/README.md
+````markdown
+# Lifecycle
+
+把工作區容器生命週期獨立成正典邊界。
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/workspace/subdomains/membership/README.md
+````markdown
+# Membership
+
+把工作區參與關係從平台身份治理中切開。
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/workspace/subdomains/presence/README.md
+````markdown
+# Presence
+
+把即時協作存在感與共同編輯訊號形成本地語言。
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/workspace/subdomains/scheduling/interfaces/queries/work-demand.queries.ts
 ````typescript
 import type { WorkDemand } from "../../application/dto/work-demand.dto";
@@ -17503,6 +17609,56 @@ export async function getAccountDemands(accountId: string): Promise<WorkDemand[]
   }
   return new ListAccountDemandsUseCase(makeRepo()).execute(normalizedAccountId);
 }
+````
+
+## File: modules/workspace/subdomains/scheduling/README.md
+````markdown
+# Scheduling
+
+Scheduling and demand management within workspaces.
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/workspace/subdomains/sharing/README.md
+````markdown
+# Sharing
+
+把對外共享與可見性規則收斂到單一上下文。
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx
@@ -17848,69 +18004,6 @@ export function WorkspaceFlowTab({
 }
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/queries/workspace-flow.queries.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/queries
- * @file workspace-flow.queries.ts
- * @description Server-side read queries for workspace-flow entities.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add pagination support and caching layer
- */
-
-import type { Task } from "../../application/dto/workflow.dto";
-import type { Issue } from "../../application/dto/workflow.dto";
-import type { Invoice } from "../../application/dto/workflow.dto";
-import type { InvoiceItem } from "../../application/dto/workflow.dto";
-import { makeInvoiceRepo, makeIssueRepo, makeTaskRepo } from "../../api/factories";
-
-/**
- * List all tasks for a workspace.
- *
- * @param workspaceId - The workspace to query
- */
-export async function getWorkspaceFlowTasks(workspaceId: string): Promise<Task[]> {
-  return makeTaskRepo().findByWorkspaceId(workspaceId);
-}
-
-/**
- * Get a single task by id.
- *
- * @param taskId - The task identifier
- */
-export async function getWorkspaceFlowTask(taskId: string): Promise<Task | null> {
-  return makeTaskRepo().findById(taskId);
-}
-
-/**
- * List all issues for a task.
- *
- * @param taskId - The task identifier
- */
-export async function getWorkspaceFlowIssues(taskId: string): Promise<Issue[]> {
-  return makeIssueRepo().findByTaskId(taskId);
-}
-
-/**
- * List all invoices for a workspace.
- *
- * @param workspaceId - The workspace to query
- */
-export async function getWorkspaceFlowInvoices(workspaceId: string): Promise<Invoice[]> {
-  return makeInvoiceRepo().findByWorkspaceId(workspaceId);
-}
-
-/**
- * Get items for an invoice.
- *
- * @param invoiceId - The invoice identifier
- */
-export async function getWorkspaceFlowInvoiceItems(invoiceId: string): Promise<InvoiceItem[]> {
-  return makeInvoiceRepo().listItems(invoiceId);
-}
-````
-
 ## File: modules/workspace/subdomains/workspace-workflow/README.md
 ````markdown
 # Workspace Workflow
@@ -17943,76 +18036,47 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/workspace/interfaces/api/runtime/workspace-runtime.ts
+## File: modules/workspace/interfaces/web/navigation/workspace-nav-items.ts
 ````typescript
-import { WorkspaceCommandApplicationService } from "../../../application/services/WorkspaceCommandApplicationService";
-import { WorkspaceQueryApplicationService } from "../../../application/services/WorkspaceQueryApplicationService";
+/**
+ * workspace-nav-items.ts
+ *
+ * Catalog of workspace sidebar tab entries owned by the workspace BC.
+ * Consumers read this catalog; they do not define it.
+ */
+
 import {
-  makeWikiWorkspaceRepo,
-  makeWorkspaceDomainEventPublisher,
-  makeWorkspaceQueryRepo,
-  makeWorkspaceRepo,
-} from "../../../api/runtime/factories";
-import type { WorkspaceCommandPort } from "../../../application/dtos/workspace-interfaces.dto";
-import type { WorkspaceQueryPort } from "../../../application/dtos/workspace-interfaces.dto";
-import { createWorkspaceSessionContext } from "./workspace-session-context";
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabsInSidebarOrder,
+  type WorkspaceTabValue,
+} from "./workspace-tabs";
 
-let _sessionContext: ReturnType<typeof createWorkspaceSessionContext> | undefined;
-
-function getSessionContext() {
-  if (!_sessionContext) {
-    // Lazy-load the organization query functions to break the circular module
-    // evaluation chain: workspace-runtime → platform/api → organization/interfaces
-    // → organization/api → workspace (via barrel re-exports).
-    //
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const platformApi = require("@/modules/platform/api");
-
-    const workspaceRepo = makeWorkspaceRepo();
-    const workspaceQueryRepo = makeWorkspaceQueryRepo({
-      getOrganizationMembers: platformApi.getOrganizationMembers,
-      getOrganizationTeams: platformApi.getOrganizationTeams,
-    });
-    const wikiWorkspaceRepo = makeWikiWorkspaceRepo();
-    const workspaceDomainEventPublisher = makeWorkspaceDomainEventPublisher();
-
-    const commandPort: WorkspaceCommandPort = new WorkspaceCommandApplicationService({
-      workspaceRepo,
-      workspaceCapabilityRepo: workspaceRepo,
-      workspaceAccessRepo: workspaceRepo,
-      workspaceLocationRepo: workspaceRepo,
-      workspaceDomainEventPublisher,
-    });
-
-    const queryPort: WorkspaceQueryPort = new WorkspaceQueryApplicationService({
-      workspaceRepo,
-      workspaceQueryRepo,
-      wikiWorkspaceRepo,
-    });
-
-    _sessionContext = createWorkspaceSessionContext(commandPort, queryPort);
-  }
-  return _sessionContext;
+export interface WorkspaceNavItem {
+  id: string;
+  tabKey: WorkspaceTabValue;
+  fallbackLabel: string;
 }
 
-/**
- * Lazy-initialized workspace ports.
- * Proxy objects defer all property access until first actual use, breaking
- * the circular module-evaluation chain at build time while preserving the
- * same public API as the previous eager singletons.
- */
-export const workspaceSessionContext = new Proxy(
-  {} as ReturnType<typeof createWorkspaceSessionContext>,
-  { get: (_target, prop) => getSessionContext()[prop as keyof ReturnType<typeof createWorkspaceSessionContext>] },
-);
+export const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = getWorkspaceTabsInSidebarOrder().map((tabKey) => ({
+  id: getWorkspaceTabPrefId(tabKey),
+  tabKey,
+  fallbackLabel: getWorkspaceTabLabel(tabKey),
+}));
 
-export const workspaceCommandPort: WorkspaceCommandPort = new Proxy(
-  {} as WorkspaceCommandPort,
-  { get: (_target, prop) => getSessionContext().workspaceCommandPort[prop as keyof WorkspaceCommandPort] },
-);
+const VALID_WORKSPACE_ORDER_IDS = new Set(WORKSPACE_NAV_ITEMS.map((item) => item.id));
+const DEFAULT_WORKSPACE_ORDER = WORKSPACE_NAV_ITEMS.map((item) => item.id);
 
-export const workspaceQueryPort: WorkspaceQueryPort = new Proxy(
-  {} as WorkspaceQueryPort,
-  { get: (_target, prop) => getSessionContext().workspaceQueryPort[prop as keyof WorkspaceQueryPort] },
-);
+export function normalizeWorkspaceOrder(order: unknown): string[] {
+  const fallback = DEFAULT_WORKSPACE_ORDER;
+  if (!Array.isArray(order)) return fallback;
+  const validOrder = order
+    .filter((id): id is string => typeof id === "string")
+    .filter((id) => VALID_WORKSPACE_ORDER_IDS.has(id));
+  const deduped = Array.from(new Set(validOrder));
+  for (const id of fallback) {
+    if (!deduped.includes(id)) deduped.push(id);
+  }
+  return deduped;
+}
 ````
