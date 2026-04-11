@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-import { createKnowledgePage } from "@/modules/notion/api";
+import { quickCreateKnowledgePage } from "@/modules/platform/application/services/shell-quick-create";
 import {
   buildWorkspaceQuickAccessItems,
   CustomizeNavigationDialog,
@@ -143,21 +143,15 @@ export function ShellDashboardSidebar({
 
   async function handleQuickCreatePage() {
     const accountId = activeAccount?.id ?? "";
-    if (!accountId) {
-      toast.error("目前沒有 active account，無法建立");
-      return;
-    }
-    if (!activeWorkspaceId) {
-      toast.error("請先切換到工作區，再建立頁面");
+    if (!accountId || !activeWorkspaceId) {
+      toast.error(!accountId ? "目前沒有 active account，無法建立" : "請先切換到工作區，再建立頁面");
       return;
     }
     setCreatingKind("page");
     try {
-      const result = await createKnowledgePage({
+      const result = await quickCreateKnowledgePage({
         accountId,
         workspaceId: activeWorkspaceId,
-        title: "未命名頁面",
-        parentPageId: null,
         createdByUserId: userId ?? accountId,
       });
       if (result.success) {

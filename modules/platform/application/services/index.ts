@@ -7,3 +7,8 @@
 
 export { buildCausationId } from "./build-causation-id";
 export { buildCorrelationId } from "./build-correlation-id";
+export {
+  quickCreateKnowledgePage,
+  type QuickCreatePageInput,
+  type QuickCreatePageResult,
+} from "./shell-quick-create";

@@ -8,6 +8,7 @@ import {
   type NavPreferences,
   type SidebarLocaleBundle,
 } from "@/modules/workspace/api";
+import { SHELL_CONTEXT_SECTION_CONFIG } from "@/modules/platform/subdomains/platform-config/api";
 
 import {
   type NavSection,
@@ -52,16 +53,6 @@ interface ShellSidebarBodyProps {
   creatingKind: "page" | "database" | null;
   onQuickCreatePage: () => void;
 }
-
-const CONTEXT_SECTION_CONFIG: Partial<
-  Record<NavSection, { title: string; items: readonly { href: string; label: string }[] }>
-> = {
-  "knowledge-base": { title: "知識庫", items: [{ href: "/knowledge-base/articles", label: "文章" }] },
-  "knowledge-database": { title: "資料庫", items: [{ href: "/knowledge-database/databases", label: "資料庫" }] },
-  source: { title: "來源文件", items: [{ href: "/source/libraries", label: "資料庫" }] },
-  notebook: { title: "筆記本", items: [{ href: "/notebook/rag-query", label: "問答 / 引用" }] },
-  "ai-chat": { title: "筆記本 / AI", items: [{ href: "/ai-chat", label: "筆記本介面" }] },
-};
 
 function ManagedNavGroup({
   title,
@@ -118,7 +109,7 @@ export function DashboardSidebarBody({
   creatingKind,
   onQuickCreatePage,
 }: ShellSidebarBodyProps) {
-  const contextSection = CONTEXT_SECTION_CONFIG[section];
+  const contextSection = SHELL_CONTEXT_SECTION_CONFIG[section];
 
   return (
     <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
