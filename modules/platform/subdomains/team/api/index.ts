@@ -1,5 +1,5 @@
 /**
- * Module: platform/subdomains/organization/subdomains/team
+ * Module: platform/subdomains/team
  * Layer: api (public boundary)
  * Purpose: Exports types, use cases, and the Firebase adapter
  *          for the team subdomain.

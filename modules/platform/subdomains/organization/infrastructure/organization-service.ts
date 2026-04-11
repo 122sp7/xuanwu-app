@@ -21,7 +21,7 @@ import {
   DeleteTeamUseCase,
   UpdateTeamMembersUseCase,
 } from "../application/use-cases/organization-team.use-cases";
-import { FirebaseTeamRepository } from "../subdomains/team/api";
+import { FirebaseTeamRepository } from "../../team/api";
 import {
   CreatePartnerGroupUseCase,
   SendPartnerInviteUseCase,
@@ -40,7 +40,7 @@ import type {
   CreateOrgPolicyInput,
   UpdateOrgPolicyInput,
 } from "../domain/entities/Organization";
-import type { CreateTeamInput } from "../subdomains/team/api";
+import type { CreateTeamInput } from "../../team/api";
 import type { CommandResult } from "@shared-types";
 
 let _orgRepo: FirebaseOrganizationRepository | undefined;

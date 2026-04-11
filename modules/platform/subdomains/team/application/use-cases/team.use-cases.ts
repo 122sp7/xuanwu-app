@@ -1,5 +1,5 @@
 /**
- * Module: platform/subdomains/organization/subdomains/team
+ * Module: platform/subdomains/team
  * Layer: application/use-cases
  * Purpose: Team management use cases — create, delete, and member updates.
  */
