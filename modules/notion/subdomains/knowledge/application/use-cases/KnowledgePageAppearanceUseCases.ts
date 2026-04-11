@@ -12,7 +12,7 @@ import {
   type UpdatePageIconDto,
   UpdatePageCoverSchema,
   type UpdatePageCoverDto,
-} from "../dto/KnowledgeWikiDto";
+} from "../dto/KnowledgePageLifecycleDto";
 
 export class UpdatePageIconUseCase {
   constructor(private readonly repo: IKnowledgePageRepository) {}

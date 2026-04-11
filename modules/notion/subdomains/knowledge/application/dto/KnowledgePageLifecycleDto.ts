@@ -1,7 +1,7 @@
 /**
  * Module: notion/subdomains/knowledge
  * Layer: application/dto
- * Purpose: Zod-validated input schemas for wiki/knowledge-base use cases.
+ * Purpose: Zod-validated input schemas for knowledge page lifecycle use cases.
  */
 
 import { z } from "@lib-zod";
@@ -27,14 +27,6 @@ export const AssignPageOwnerSchema = AccountScopeSchema.extend({
   assignedByUserId: z.string().min(1),
 });
 export type AssignPageOwnerDto = z.infer<typeof AssignPageOwnerSchema>;
-
-export const CreateWikiSpaceSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1).optional(),
-  name: z.string().min(1).max(300),
-  description: z.string().max(1000).optional(),
-  createdByUserId: z.string().min(1),
-});
-export type CreateWikiSpaceDto = z.infer<typeof CreateWikiSpaceSchema>;
 
 export const UpdatePageIconSchema = AccountScopeSchema.extend({
   pageId: z.string().min(1),

@@ -24,7 +24,7 @@ import {
   type RequestPageReviewDto,
   AssignPageOwnerSchema,
   type AssignPageOwnerDto,
-} from "../dto/KnowledgeWikiDto";
+} from "../dto/KnowledgePageLifecycleDto";
 
 export class ApproveKnowledgePageUseCase {
   constructor(

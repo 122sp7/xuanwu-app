@@ -29,7 +29,7 @@ import type {
   ReorderKnowledgePageBlocksDto,
   ApproveKnowledgePageDto,
 } from "../../application/dto/KnowledgePageDto";
-import type { VerifyKnowledgePageDto, RequestPageReviewDto, AssignPageOwnerDto, UpdatePageIconDto, UpdatePageCoverDto } from "../../application/dto/KnowledgeWikiDto";
+import type { VerifyKnowledgePageDto, RequestPageReviewDto, AssignPageOwnerDto, UpdatePageIconDto, UpdatePageCoverDto } from "../../application/dto/KnowledgePageLifecycleDto";
 
 /** Stub event store — persists nothing. Replace with a real impl once infrastructure is wired. */
 const makeEventStore = (): IEventStoreRepository => ({
