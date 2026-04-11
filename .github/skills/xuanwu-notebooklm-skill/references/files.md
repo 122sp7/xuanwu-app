@@ -8,13 +8,16 @@
 
 ## Mission
 
-保護 notebooklm 主域作為對話、來源處理、檢索、grounding 與 synthesis 邊界。
+保護 notebooklm 主域作為對話、來源處理、檢索、grounding、synthesis、評估與筆記邊界。核心 pipeline 為：ingestion → retrieval → grounding → synthesis → evaluation。
 
 ## Route Here When
 
 - 問題核心是 notebook、conversation、source ingestion、retrieval、grounding、synthesis。
 - 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
 - 問題要把知識來源轉成可對話與可綜合的推理材料。
+- 問題涉及 RAG 問答、向量檢索、chunks 召回、generation 品質。
+- 問題涉及 evaluation、品質評估、回歸比較或 grounding 可信度。
+- 問題涉及 note（輕量個人筆記）或 conversation-versioning（對話快照策略）。
 
 ## Route Elsewhere When
 
@@ -22,6 +25,14 @@
 - 身份、授權、權益、憑證治理屬於 platform。
 - 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
 - 工作區生命週期、共享與存在感屬於 workspace。
+
+## Architecture Note — ai Subdomain Tech Debt
+
+`ai` 子域目前是此主域的過渡 adapter，持有 RAG 查詢 (`IKnowledgeContentRepository`)、向量檢索實體 (`RagRetrievedChunk`)、引用實體 (`RagCitation`)、synthesis use case (`AnswerRagQueryUseCase`) 與早期 feedback 流程。
+
+這些責任長期應依戰略清單逐步遷移至：`retrieval`、`grounding`、`synthesis`、`evaluation`。
+
+新功能應**優先加進目標子域**（如新的 retrieval 策略請放 `retrieval/`），不要繼續擴大 `ai` 子域範圍。用 Strangler Pattern：只在搬遷時加入 use case contract，不做一次性大改。
 
 ## Dependency Direction
 
@@ -211,20 +222,54 @@ modules/notebooklm/
 ├── interfaces/       # Context-wide driving adapters
 ├── docs/             # Links to strategic documentation
 └── subdomains/
-    ├── ai/
-    ├── conversation/
-    ├── notebook/
-    └── source/
+    ├── ai/                      # Active ⚠️
+    ├── conversation/            # Active
+    ├── notebook/                # Active
+    ├── source/                  # Active
+    ├── conversation-versioning/ # Stub (Baseline)
+    ├── note/                    # Stub (Baseline)
+    ├── synthesis/               # Stub (Baseline)
+    ├── evaluation/              # Stub (Gap)
+    ├── grounding/               # Stub (Gap)
+    ├── ingestion/               # Stub (Gap)
+    └── retrieval/               # Stub (Gap)
 ```
 
 ## Subdomains
 
+### Active
+
 | Subdomain | Status | Purpose |
 |-----------|--------|---------|
-| ai | Active | AI 推理與模型互動 |
-| conversation | Active | 對話管理與對話流程 |
-| source | Active | 來源匯入與來源管理 |
-| notebook | Stub | 筆記本容器與組織 |
+| ai | Active ⚠️ | RAG 問答、檢索、grounded 生成與回饋收集。命名技術債：此子域非戰略清單中的合法子域，長期目標為拆分至 retrieval / grounding / synthesis，詳見 Architecture Note。 |
+| conversation | Active | 對話 Thread 與 Message 生命週期管理 |
+| notebook | Active | Notebook 容器組合與 GenKit 回應生成 |
+| source | Active | 來源文件匯入生命週期、RagDocument 狀態機與 WikiLibrary 結構化庫 |
+
+### Baseline Stubs
+
+| Subdomain | Status | Purpose |
+|-----------|--------|---------|
+| conversation-versioning | Stub | 對話版本快照策略（長期拆出 conversation） |
+| note | Stub | 輕量個人筆記與知識連結 |
+| synthesis | Stub | RAG 合成、摘要與洞察生成（長期接收 ai 子域的合成責任） |
+
+### Recommended Gap Stubs
+
+| Subdomain | Status | Purpose |
+|-----------|--------|---------|
+| evaluation | Stub | 品質評估與回歸比較（獨立於 ai 子域的早期回饋收集） |
+| grounding | Stub | 引用對齊與可追溯證據（長期接收 ai 子域的 citation 責任） |
+| ingestion | Stub | 來源匯入、正規化與前處理（長期接收 source 子域的匯入責任） |
+| retrieval | Stub | 查詢召回與排序策略（長期接收 ai 子域的向量檢索責任） |
+
+## Architecture Note
+
+`ai` 子域是此模組的主要架構技術債。它在早期開發中吸收了四個戰略子域的責任（retrieval、grounding、synthesis、early evaluation），但 `ai` 本身並不在 [strategic subdomain docs](../../docs/contexts/notebooklm/subdomains.md) 的合法清單中。
+
+**現況**：`ai` 持有 `IKnowledgeContentRepository` port、`RagRetrievedChunk` / `RagCitation` entities、`AnswerRagQueryUseCase` orchestration、以及 `submit-rag-feedback` 回饋流程。
+
+**長期目標**：以單個 use case 為單位，漸進將各責任遷移至 `retrieval`、`grounding`、`synthesis`、`evaluation` 子域（Strangler Pattern）。在遷移完成前，`ai` 子域保留作為過渡 adapter。
 
 ## Dependency Direction
 
@@ -805,86 +850,6 @@ export interface IRagRetrievalRepository {
 }
 ````
 
-## File: modules/notebooklm/subdomains/ai/domain/repositories/IWikiContentRepository.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/ai
- * Layer: domain/repositories
- * Purpose: IWikiContentRepository — output port for wiki-style RAG document
- *          operations (run query, reindex, list parsed documents).
- *
- * Design notes:
- * - "Wiki" here refers to the knowledge-base document corpus used for RAG.
- * - Firebase Functions back-end implements this port; the domain remains clean.
- */
-
-export interface WikiCitation {
-  provider?: "vector" | "search";
-  chunk_id?: string;
-  doc_id?: string;
-  filename?: string;
-  json_gcs_uri?: string;
-  search_id?: string;
-  score?: number;
-  text?: string;
-  account_id?: string;
-  workspace_id?: string;
-  taxonomy?: string;
-  processing_status?: string;
-  indexed_at?: string;
-}
-
-export interface WikiRagQueryResult {
-  readonly answer: string;
-  readonly citations: readonly WikiCitation[];
-  readonly cache: "hit" | "miss";
-  readonly vectorHits: number;
-  readonly searchHits: number;
-  readonly accountScope: string;
-  readonly workspaceScope?: string;
-  readonly taxonomyFilters?: string[];
-  readonly maxAgeDays?: number;
-  readonly requireReady?: boolean;
-}
-
-export interface WikiParsedDocument {
-  readonly id: string;
-  readonly filename: string;
-  readonly workspaceId: string;
-  readonly sourceGcsUri: string;
-  readonly jsonGcsUri: string;
-  readonly pageCount: number;
-  readonly status: string;
-  readonly ragStatus: string;
-  readonly uploadedAt: Date | null;
-}
-
-export interface WikiReindexInput {
-  readonly accountId: string;
-  readonly docId: string;
-  readonly jsonGcsUri: string;
-  readonly sourceGcsUri: string;
-  readonly filename: string;
-  readonly pageCount: number;
-}
-
-export interface IWikiContentRepository {
-  runRagQuery(
-    query: string,
-    accountId: string,
-    workspaceId: string,
-    topK: number,
-    options?: {
-      taxonomyFilters?: string[];
-      maxAgeDays?: number;
-      requireReady?: boolean;
-    },
-  ): Promise<WikiRagQueryResult>;
-  reindexDocument(input: WikiReindexInput): Promise<void>;
-  listParsedDocuments(accountId: string, limitCount: number): Promise<WikiParsedDocument[]>;
-}
-````
-
 ## File: modules/notebooklm/subdomains/ai/domain/services/index.ts
 ````typescript
 export * from "./RagCitationBuilder";
@@ -1321,193 +1286,6 @@ export class FirebaseRagRetrievalAdapter implements IRagRetrievalRepository {
 }
 ````
 
-## File: modules/notebooklm/subdomains/ai/infrastructure/firebase/FirebaseWikiContentAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/ai
- * Layer: infrastructure/firebase
- * Purpose: FirebaseWikiContentAdapter — implements IWikiContentRepository via
- *          Firebase Functions calls (RAG query, reindex) and Firestore reads
- *          (list parsed documents).
- *
- * Design notes:
- * - All external shape normalisation happens here; domain types stay clean.
- * - Functions region is configured as a constant; change here only if region changes.
- */
-
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
-
-import type {
-  IWikiContentRepository,
-  WikiCitation,
-  WikiParsedDocument,
-  WikiRagQueryResult,
-  WikiReindexInput,
-} from "../../domain/repositories/IWikiContentRepository";
-
-const FUNCTIONS_REGION = "asia-southeast1";
-
-// --- Firestore / Functions response normalisation helpers ---------------------
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function objectOrEmpty(value: unknown): Record<string, unknown> {
-  return isRecord(value) ? value : {};
-}
-
-function toNumberOrDefault(value: unknown, fallback = 0): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
-
-function toDateOrNull(value: unknown): Date | null {
-  if (!isRecord(value)) return null;
-  if (typeof (value as { toDate?: unknown }).toDate === "function") {
-    const converted = (value as { toDate: () => unknown }).toDate();
-    if (converted instanceof Date) return converted;
-  }
-  return null;
-}
-
-function normaliseCitations(raw: unknown): WikiCitation[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.map((item) => {
-    if (!isRecord(item)) return {};
-    return {
-      provider: item.provider === "vector" || item.provider === "search" ? item.provider : undefined,
-      chunk_id: typeof item.chunk_id === "string" ? item.chunk_id : undefined,
-      doc_id: typeof item.doc_id === "string" ? item.doc_id : undefined,
-      filename: typeof item.filename === "string" ? item.filename : undefined,
-      json_gcs_uri: typeof item.json_gcs_uri === "string" ? item.json_gcs_uri : undefined,
-      search_id: typeof item.search_id === "string" ? item.search_id : undefined,
-      score: typeof item.score === "number" ? item.score : undefined,
-      text: typeof item.text === "string" ? item.text : undefined,
-    };
-  });
-}
-
-function resolveFilename(data: Record<string, unknown>): string {
-  const source = objectOrEmpty(data.source);
-  const metadata = objectOrEmpty(data.metadata);
-  const candidates = [
-    source.filename,
-    source.display_name,
-    data.title,
-    metadata.filename,
-    metadata.display_name,
-    source.original_filename,
-    metadata.original_filename,
-  ];
-  for (const c of candidates) {
-    if (typeof c === "string" && c.trim()) return c;
-  }
-  return "";
-}
-
-function mapToParsedDocument(id: string, data: Record<string, unknown>): WikiParsedDocument {
-  const source = objectOrEmpty(data.source);
-  const parsed = objectOrEmpty(data.parsed);
-  const rag = objectOrEmpty(data.rag);
-  const metadata = objectOrEmpty(data.metadata);
-
-  return {
-    id,
-    filename: resolveFilename(data) || id,
-    workspaceId:
-      (typeof data.spaceId === "string" ? data.spaceId : "") ||
-      (typeof metadata.space_id === "string" ? metadata.space_id : ""),
-    sourceGcsUri:
-      (typeof source.gcs_uri === "string" ? source.gcs_uri : "") ||
-      (typeof metadata.source_gcs_uri === "string" ? metadata.source_gcs_uri : ""),
-    jsonGcsUri:
-      (typeof parsed.json_gcs_uri === "string" ? parsed.json_gcs_uri : "") ||
-      (typeof metadata.json_gcs_uri === "string" ? metadata.json_gcs_uri : ""),
-    pageCount:
-      toNumberOrDefault(parsed.page_count) ||
-      toNumberOrDefault(metadata.page_count) ||
-      toNumberOrDefault(data.pageCount),
-    status: typeof data.status === "string" ? data.status : "unknown",
-    ragStatus: typeof rag.status === "string" ? rag.status : "",
-    uploadedAt: toDateOrNull(source.uploaded_at) ?? toDateOrNull(data.createdAt),
-  };
-}
-
-// --- Adapter ------------------------------------------------------------------
-
-export class FirebaseWikiContentAdapter implements IWikiContentRepository {
-  async runRagQuery(
-    query: string,
-    accountId: string,
-    workspaceId: string,
-    topK: number,
-    options: {
-      taxonomyFilters?: string[];
-      maxAgeDays?: number;
-      requireReady?: boolean;
-    } = {},
-  ): Promise<WikiRagQueryResult> {
-    const functions = getFirebaseFunctions(FUNCTIONS_REGION);
-    const callable = functionsApi.httpsCallable(functions, "rag_query");
-    const result = await callable({
-      query,
-      top_k: topK,
-      account_id: accountId,
-      workspace_id: workspaceId,
-      taxonomy_filters: options.taxonomyFilters ?? [],
-      max_age_days: options.maxAgeDays,
-      require_ready: options.requireReady,
-    });
-    const data = objectOrEmpty(result.data);
-
-    return {
-      answer: typeof data.answer === "string" ? data.answer : "",
-      citations: normaliseCitations(data.citations),
-      cache: data.cache === "hit" ? "hit" : "miss",
-      vectorHits: toNumberOrDefault(data.vector_hits),
-      searchHits: toNumberOrDefault(data.search_hits),
-      accountScope: typeof data.account_scope === "string" ? data.account_scope : accountId,
-      workspaceScope:
-        typeof data.workspace_scope === "string" ? data.workspace_scope : workspaceId,
-      taxonomyFilters: Array.isArray(data.taxonomy_filters)
-        ? data.taxonomy_filters.filter((v): v is string => typeof v === "string")
-        : undefined,
-      maxAgeDays: typeof data.max_age_days === "number" ? data.max_age_days : undefined,
-      requireReady: typeof data.require_ready === "boolean" ? data.require_ready : undefined,
-    };
-  }
-
-  async reindexDocument(input: WikiReindexInput): Promise<void> {
-    const functions = getFirebaseFunctions(FUNCTIONS_REGION);
-    const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
-    await callable({
-      account_id: input.accountId,
-      doc_id: input.docId,
-      json_gcs_uri: input.jsonGcsUri,
-      source_gcs_uri: input.sourceGcsUri,
-      filename: input.filename,
-      page_count: input.pageCount,
-    });
-  }
-
-  async listParsedDocuments(accountId: string, limitCount: number): Promise<WikiParsedDocument[]> {
-    if (!accountId) throw new Error("accountId is required");
-    const db = getFirebaseFirestore();
-    const ref = firestoreApi.collection(db, "accounts", accountId, "documents");
-    const q = firestoreApi.query(ref, firestoreApi.limit(limitCount));
-    const snap = await firestoreApi.getDocs(q);
-
-    const docs = snap.docs.map((d) => mapToParsedDocument(d.id, objectOrEmpty(d.data())));
-    return docs.sort((a, b) => {
-      const at = a.uploadedAt ? a.uploadedAt.getTime() : 0;
-      const bt = b.uploadedAt ? b.uploadedAt.getTime() : 0;
-      return bt - at;
-    });
-  }
-}
-````
-
 ## File: modules/notebooklm/subdomains/ai/infrastructure/genkit/genkit-ai-client.ts
 ````typescript
 /**
@@ -1632,195 +1410,6 @@ export class GenkitRagGenerationAdapter implements IRagGenerationRepository {
       };
     }
   }
-}
-````
-
-## File: modules/notebooklm/subdomains/ai/interfaces/components/RagQueryView.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-import { AlertCircle, Loader2, Search } from "lucide-react";
-import { toast } from "sonner";
-
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { DEV_DEMO_ACCOUNT_EMAIL } from "@/modules/platform/api";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@ui-shadcn/ui/accordion";
-import { Alert, AlertDescription, AlertTitle } from "@ui-shadcn/ui/alert";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import { runWikiRagQuery, type WikiCitation } from "../../api";
-
-interface RagQueryViewProps {
-  readonly workspaceId?: string;
-}
-
-/** Minimal RAG query chat interface. Uses local useState only — no streaming, no global state. */
-export function RagQueryView({ workspaceId }: RagQueryViewProps) {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const activeAccountId = appState.activeAccount?.id ?? "";
-  const effectiveWorkspaceId = workspaceId?.trim() ?? "";
-
-  const isDemoOrUnauthenticated =
-    authState.status !== "authenticated" ||
-    authState.user?.email === DEV_DEMO_ACCOUNT_EMAIL;
-
-  const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [answer, setAnswer] = useState("");
-  const [citations, setCitations] = useState<readonly WikiCitation[]>([]);
-  const [queried, setQueried] = useState(false);
-
-  async function handleSubmit() {
-    const q = query.trim();
-    if (!q) {
-      toast.error("請先輸入問題");
-      return;
-    }
-    if (!activeAccountId) {
-      toast.error("目前沒有 active account，無法執行 RAG 查詢");
-      return;
-    }
-    if (!effectiveWorkspaceId) {
-      toast.error("請先選擇工作區，再執行 RAG 查詢");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      let result = await runWikiRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: true });
-      // Compatibility fallback for older vectors without ready status.
-      if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
-        result = await runWikiRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: false, maxAgeDays: 3650 });
-      }
-      setAnswer(result.answer);
-      setCitations(result.citations);
-      setQueried(true);
-    } catch (error) {
-      console.error(error);
-      toast.error("呼叫 rag_query 失敗");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Auth warning — shown upfront when user cannot execute RAG queries */}
-      {isDemoOrUnauthenticated && (
-        <Alert variant="destructive">
-          <AlertCircle className="size-4" />
-          <AlertTitle>需要真實帳號</AlertTitle>
-          <AlertDescription>
-            目前以 Demo 帳號或未登入狀態存取。RAG 查詢需要真實 Firebase 帳號才能執行。
-            請登出後以正式帳號重新登入。
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Query input */}
-      <Card>
-        <CardHeader>
-          <CardTitle>RAG Query</CardTitle>
-          <CardDescription>
-            輸入問題，取得 AI 回答與引用來源。
-            {effectiveWorkspaceId ? ` workspace: ${effectiveWorkspaceId}` : " （請先選擇工作區）"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Textarea
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void handleSubmit();
-            }}
-            placeholder="請輸入你的問題...（Ctrl+Enter 送出）"
-            rows={4}
-            disabled={isDemoOrUnauthenticated}
-          />
-          <Button
-            onClick={() => void handleSubmit()}
-            disabled={loading || isDemoOrUnauthenticated}
-            title={isDemoOrUnauthenticated ? "請先以真實帳號登入才能執行 RAG 查詢" : undefined}
-          >
-            {loading ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
-            ) : (
-              <Search className="mr-2 size-4" />
-            )}
-            {loading ? "查詢中..." : "送出查詢"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Answer */}
-      {queried && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Answer</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="whitespace-pre-wrap text-sm text-foreground">{answer || "（無回答）"}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Citations */}
-      {queried && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Citations</CardTitle>
-            <CardDescription>
-              {citations.length === 0
-                ? "目前查詢無相關引用，請確認文件已完成 RAG 索引。"
-                : `${citations.length} 筆引用來源`}
-            </CardDescription>
-          </CardHeader>
-          {citations.length > 0 && (
-            <CardContent>
-              <Accordion type="multiple" className="w-full">
-                {citations.map((citation, index) => (
-                  <AccordionItem
-                    key={`${citation.doc_id ?? "doc"}-${index}`}
-                    value={`citation-${index}`}
-                  >
-                    <AccordionTrigger className="text-sm font-medium">
-                      <span className="flex items-center gap-2">
-                        {citation.filename ?? citation.doc_id ?? "未命名文件"}
-                        {citation.provider && (
-                          <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
-                            {citation.provider}
-                          </span>
-                        )}
-                      </span>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <p className="text-xs text-muted-foreground">{citation.text ?? "（無節錄）"}</p>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </CardContent>
-          )}
-        </Card>
-      )}
-    </div>
-  );
 }
 ````
 
@@ -2953,6 +2542,204 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/notebooklm/subdomains/source/api/factories.ts
+````typescript
+import { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
+import { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
+import { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
+import { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
+import { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
+import { waitForParsedDocument as _waitForParsedDocument } from "../infrastructure/firebase/FirebaseDocumentStatusAdapter";
+
+export function makeSourceFileAdapter() {
+  return new FirebaseSourceFileAdapter();
+}
+
+export function makeRagDocumentAdapter() {
+  return new FirebaseRagDocumentAdapter();
+}
+
+export function makeSourceDocumentCommandAdapter() {
+  return new FirebaseSourceDocumentCommandAdapter();
+}
+
+export function makeParsedDocumentAdapter() {
+  return new FirebaseParsedDocumentAdapter();
+}
+
+export function makeKnowledgePageGateway() {
+  return new NotionKnowledgePageGatewayAdapter();
+}
+
+export function waitForParsedDocument(
+  accountId: string,
+  docId: string,
+): Promise<{ pageCount: number; jsonGcsUri: string }> {
+  return _waitForParsedDocument(accountId, docId);
+}
+````
+
+## File: modules/notebooklm/subdomains/source/api/index.ts
+````typescript
+/**
+ * Public API boundary for the source subdomain.
+ *
+ * Cross-module consumers MUST import through this entry point.
+ * Internal consumers within the subdomain import from their own layer.
+ */
+
+// ---------------------------------------------------------------------------
+// Domain entity types
+// ---------------------------------------------------------------------------
+
+export type {
+  SourceFile,
+  SourceFileStatus,
+  SourceFileClassification,
+} from "../domain/entities/SourceFile";
+
+export type {
+  SourceFileVersion,
+  SourceFileVersionStatus,
+} from "../domain/entities/SourceFileVersion";
+
+export type {
+  RagDocumentRecord,
+  RagDocumentStatus,
+} from "../domain/entities/RagDocument";
+
+export type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../domain/entities/WikiLibrary";
+
+// ---------------------------------------------------------------------------
+// Wiki library use cases (lazy singleton — no module-scope side effects)
+// ---------------------------------------------------------------------------
+
+import type { IWikiLibraryRepository } from "../domain/repositories/IWikiLibraryRepository";
+import { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
+import {
+  listWikiLibraries as _listWikiLibraries,
+  createWikiLibrary as _createWikiLibrary,
+  addWikiLibraryField as _addWikiLibraryField,
+  createWikiLibraryRow as _createWikiLibraryRow,
+  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
+} from "../application/use-cases/wiki-library.use-cases";
+
+import type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../domain/entities/WikiLibrary";
+
+export type { WikiLibrarySnapshot } from "../application/use-cases/wiki-library.use-cases";
+
+let _libraryRepo: IWikiLibraryRepository | null = null;
+
+function getLibraryRepo(): IWikiLibraryRepository {
+  if (!_libraryRepo) _libraryRepo = new FirebaseWikiLibraryAdapter();
+  return _libraryRepo;
+}
+
+export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
+  return _listWikiLibraries(accountId, workspaceId, getLibraryRepo());
+}
+
+export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
+  return _createWikiLibrary(input, getLibraryRepo());
+}
+
+export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
+  return _addWikiLibraryField(input, getLibraryRepo());
+}
+
+export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
+  return _createWikiLibraryRow(input, getLibraryRepo());
+}
+
+export function getWikiLibrarySnapshot(accountId: string, libraryId: string): ReturnType<typeof _getWikiLibrarySnapshot> {
+  return _getWikiLibrarySnapshot(accountId, libraryId, getLibraryRepo());
+}
+
+// ---------------------------------------------------------------------------
+// Live document DTOs
+// ---------------------------------------------------------------------------
+
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../application/dto/source-live-document.dto";
+export {
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../application/dto/source-live-document.dto";
+
+// ---------------------------------------------------------------------------
+// Hooks
+// ---------------------------------------------------------------------------
+
+export type {
+  UseSourceDocumentsSnapshotResult,
+} from "../interfaces/hooks/useSourceDocumentsSnapshot";
+export {
+  useSourceDocumentsSnapshot,
+} from "../interfaces/hooks/useSourceDocumentsSnapshot";
+
+// ---------------------------------------------------------------------------
+// Queries
+// ---------------------------------------------------------------------------
+
+export { getWorkspaceFiles, getWorkspaceRagDocuments } from "../interfaces/queries/source-file.queries";
+
+// ---------------------------------------------------------------------------
+// Server actions
+// ---------------------------------------------------------------------------
+
+export {
+  uploadInitFile,
+  uploadCompleteFile,
+  registerUploadedRagDocument,
+  deleteSourceDocument,
+  renameSourceDocument,
+} from "../interfaces/_actions/source-file.actions";
+
+export { createKnowledgeDraftFromSourceDocument } from "../interfaces/_actions/source-processing.actions";
+
+// ---------------------------------------------------------------------------
+// UI components
+// ---------------------------------------------------------------------------
+
+export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
+export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
+export { LibrariesView } from "../interfaces/components/LibrariesView";
+export { LibraryTableView } from "../interfaces/components/LibraryTableView";
+export { FileProcessingDialog } from "../interfaces/components/FileProcessingDialog";
+
+// ---------------------------------------------------------------------------
+// Infrastructure (for direct injection in server-side wiring)
+// ---------------------------------------------------------------------------
+
+export { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
+export { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
+export { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
+export { InMemoryWikiLibraryAdapter } from "../infrastructure/memory/InMemoryWikiLibraryAdapter";
+export { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
+export { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
+export { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
+````
+
 ## File: modules/notebooklm/subdomains/source/application/dto/rag-document.dto.ts
 ````typescript
 /**
@@ -3104,6 +2891,116 @@ export type SourceFileCommandErrorCode =
   | "FILE_RENAME_FAILED";
 ````
 
+## File: modules/notebooklm/subdomains/source/application/dto/source-live-document.dto.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/dto
+ * Purpose: DTO types and mapping logic for live source documents.
+ *
+ * Extracted from interfaces/hooks to keep data transformation in the application layer.
+ * Interfaces should import these types and mappers from here.
+ */
+
+export interface SourceDocument {
+  readonly id: string;
+  readonly filename: string;
+  readonly workspaceId: string;
+  readonly sourceGcsUri: string;
+  readonly jsonGcsUri: string;
+  readonly pageCount: number;
+  readonly status: string;
+  readonly ragStatus: string;
+  readonly uploadedAt: Date | null;
+}
+
+export interface SourceLiveDocument extends SourceDocument {
+  readonly errorMessage: string;
+  readonly ragError: string;
+  readonly isClientPending?: boolean;
+}
+
+export type AssetDocument = SourceDocument;
+export type AssetLiveDocument = SourceLiveDocument;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function objectOrEmpty(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function toDateOrNull(value: unknown): Date | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.toDate === "function") {
+    try {
+      const d = (value.toDate as () => unknown)();
+      if (d instanceof Date) return d;
+    } catch {
+      // fall through
+    }
+  }
+  if (typeof value.toMillis === "function") {
+    try {
+      const ms = (value.toMillis as () => unknown)();
+      if (typeof ms === "number" && Number.isFinite(ms)) return new Date(ms);
+    } catch {
+      // fall through
+    }
+  }
+  return null;
+}
+
+function resolveFilename(data: Record<string, unknown>): string {
+  const source = objectOrEmpty(data.source);
+  const metadata = objectOrEmpty(data.metadata);
+  for (const candidate of [
+    source.filename, source.display_name, data.title,
+    metadata.filename, metadata.display_name,
+    source.original_filename, metadata.original_filename,
+  ]) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate;
+  }
+  return "";
+}
+
+export function mapToSourceLiveDocument(
+  id: string,
+  data: Record<string, unknown>,
+): SourceLiveDocument {
+  const source = objectOrEmpty(data.source);
+  const parsed = objectOrEmpty(data.parsed);
+  const rag = objectOrEmpty(data.rag);
+  const metadata = objectOrEmpty(data.metadata);
+  const error = objectOrEmpty(data.error);
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  return {
+    id,
+    filename: resolveFilename(data) || id,
+    workspaceId:
+      (typeof data.spaceId === "string" ? data.spaceId : "") ||
+      (typeof metadata.space_id === "string" ? metadata.space_id : ""),
+    sourceGcsUri:
+      (typeof source.gcs_uri === "string" ? source.gcs_uri : "") ||
+      (typeof metadata.source_gcs_uri === "string" ? metadata.source_gcs_uri : ""),
+    jsonGcsUri:
+      (typeof parsed.json_gcs_uri === "string" ? parsed.json_gcs_uri : "") ||
+      (typeof metadata.json_gcs_uri === "string" ? metadata.json_gcs_uri : ""),
+    pageCount: n(parsed.page_count) || n(metadata.page_count) || n(data.pageCount),
+    status: typeof data.status === "string" ? data.status : "unknown",
+    ragStatus: typeof rag.status === "string" ? rag.status : "",
+    uploadedAt: toDateOrNull(source.uploaded_at) ?? toDateOrNull(data.createdAt),
+    errorMessage: typeof error.message === "string" ? error.message : "",
+    ragError: typeof rag.error === "string" ? rag.error : "",
+  };
+}
+
+export const mapToAssetLiveDocument = mapToSourceLiveDocument;
+````
+
 ## File: modules/notebooklm/subdomains/source/application/dto/source.dto.ts
 ````typescript
 /**
@@ -3112,6 +3009,170 @@ export type SourceFileCommandErrorCode =
  */
 export { resolveSourceOrganizationId } from "../../domain/services/resolve-source-organization-id.service";
 export type { RagDocumentRecord } from "../../domain/entities/RagDocument";
+````
+
+## File: modules/notebooklm/subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Case: CreateKnowledgeDraftFromSourceUseCase — creates a knowledge page draft from a parsed source document.
+ *
+ * Actor: logged-in user
+ * Goal: read parsed text from storage, create a knowledge page with a text block.
+ * Main success: page created, returns aggregateId.
+ * Failure: missing input, storage retrieval failure, or page creation failure.
+ */
+
+import type { CommandResult } from "@shared-types";
+import { commandFailureFrom, commandSuccess } from "@shared-types";
+
+import type { IParsedDocumentPort } from "../../domain/ports/IParsedDocumentPort";
+
+export interface CreateKnowledgeDraftInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+  readonly filename: string;
+  readonly sourceGcsUri: string;
+  readonly jsonGcsUri: string;
+  readonly pageCount: number;
+}
+
+export interface KnowledgePageGateway {
+  createPage(input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    parentPageId: null;
+    createdByUserId: string;
+  }): Promise<CommandResult>;
+  addBlock(input: {
+    accountId: string;
+    pageId: string;
+    index: number;
+    content: {
+      type: "text";
+      richText: readonly { type: string; plainText: string }[];
+      properties: Record<string, unknown>;
+    };
+  }): Promise<CommandResult>;
+}
+
+function trimFileExtension(filename: string): string {
+  const trimmed = filename.trim();
+  const idx = trimmed.lastIndexOf(".");
+  return idx <= 0 ? trimmed : trimmed.slice(0, idx);
+}
+
+export class CreateKnowledgeDraftFromSourceUseCase {
+  constructor(
+    private readonly parsedDocumentPort: IParsedDocumentPort,
+    private readonly knowledgeGateway: KnowledgePageGateway,
+  ) {}
+
+  async execute(input: CreateKnowledgeDraftInput): Promise<CommandResult> {
+    if (!input.accountId.trim() || !input.workspaceId.trim() || !input.createdByUserId.trim()) {
+      return commandFailureFrom(
+        "SOURCE_KNOWLEDGE_DRAFT_INVALID_SCOPE",
+        "accountId、workspaceId、createdByUserId 為必填。",
+      );
+    }
+
+    if (!input.filename.trim() || !input.sourceGcsUri.trim() || !input.jsonGcsUri.trim()) {
+      return commandFailureFrom(
+        "SOURCE_KNOWLEDGE_DRAFT_INVALID_SOURCE",
+        "filename、sourceGcsUri、jsonGcsUri 為必填。",
+      );
+    }
+
+    try {
+      const parsedText = await this.parsedDocumentPort.loadParsedDocumentText(input.jsonGcsUri);
+      const plainText = parsedText || `[${trimFileExtension(input.filename)}]`;
+      const title = `${trimFileExtension(input.filename)}｜匯入草稿`;
+
+      const TIPTAP_PROPERTY_KEY = "tiptapJson";
+
+      const pageResult = await this.knowledgeGateway.createPage({
+        accountId: input.accountId,
+        workspaceId: input.workspaceId,
+        title,
+        parentPageId: null,
+        createdByUserId: input.createdByUserId,
+      });
+
+      if (!pageResult.success) return pageResult;
+
+      const blockResult = await this.knowledgeGateway.addBlock({
+        accountId: input.accountId,
+        pageId: pageResult.aggregateId,
+        index: 0,
+        content: {
+          type: "text",
+          richText: [{ type: "text", plainText }],
+          properties: { [TIPTAP_PROPERTY_KEY]: null },
+        },
+      });
+
+      if (!blockResult.success) return blockResult;
+
+      return commandSuccess(pageResult.aggregateId, blockResult.version);
+    } catch (error) {
+      return commandFailureFrom(
+        "SOURCE_KNOWLEDGE_DRAFT_CREATE_FAILED",
+        error instanceof Error ? error.message : "建立 Knowledge Page Draft 失敗。",
+      );
+    }
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/source/application/use-cases/delete-source-document.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Case: DeleteSourceDocumentUseCase — deletes a legacy source document.
+ *
+ * Actor: account owner
+ * Goal: remove a source document from the accounts/{accountId}/documents collection.
+ * Main success: document deleted, returns ok with documentId.
+ * Failure: invalid input or persistence failure.
+ */
+
+import type { ISourceDocumentCommandPort } from "../../domain/ports/ISourceDocumentPort";
+import type { SourceFileCommandErrorCode } from "../dto/source-file.dto";
+
+export interface DeleteSourceDocumentInput {
+  readonly accountId: string;
+  readonly documentId: string;
+}
+
+type DeleteSourceDocumentResult =
+  | { ok: true; data: { documentId: string } }
+  | { ok: false; error: { code: SourceFileCommandErrorCode; message: string } };
+
+export class DeleteSourceDocumentUseCase {
+  constructor(
+    private readonly documentPort: ISourceDocumentCommandPort,
+  ) {}
+
+  async execute(input: DeleteSourceDocumentInput): Promise<DeleteSourceDocumentResult> {
+    const accountId = input.accountId.trim();
+    const documentId = input.documentId.trim();
+
+    if (!accountId || !documentId) {
+      return { ok: false, error: { code: "FILE_INVALID_INPUT", message: "accountId and documentId are required." } };
+    }
+
+    try {
+      await this.documentPort.deleteDocument(accountId, documentId);
+      return { ok: true, data: { documentId } };
+    } catch (err) {
+      return { ok: false, error: { code: "FILE_DELETE_FAILED", message: err instanceof Error ? err.message : "Delete failed." } };
+    }
+  }
+}
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/use-cases/register-rag-document.use-case.ts
@@ -3198,6 +3259,200 @@ export class RegisterUploadedRagDocumentUseCase {
         documentId,
         status: "uploaded",
         registeredAtISO: nowISO,
+      },
+    };
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/source/application/use-cases/rename-source-document.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Case: RenameSourceDocumentUseCase — renames a legacy source document.
+ *
+ * Actor: account owner
+ * Goal: update the display name of a source document in accounts/{accountId}/documents.
+ * Main success: document renamed, returns ok with documentId.
+ * Failure: invalid input or persistence failure.
+ */
+
+import type { ISourceDocumentCommandPort } from "../../domain/ports/ISourceDocumentPort";
+import type { SourceFileCommandErrorCode } from "../dto/source-file.dto";
+
+export interface RenameSourceDocumentInput {
+  readonly accountId: string;
+  readonly documentId: string;
+  readonly newName: string;
+}
+
+type RenameSourceDocumentResult =
+  | { ok: true; data: { documentId: string } }
+  | { ok: false; error: { code: SourceFileCommandErrorCode; message: string } };
+
+export class RenameSourceDocumentUseCase {
+  constructor(
+    private readonly documentPort: ISourceDocumentCommandPort,
+  ) {}
+
+  async execute(input: RenameSourceDocumentInput): Promise<RenameSourceDocumentResult> {
+    const accountId = input.accountId.trim();
+    const documentId = input.documentId.trim();
+    const newName = input.newName.trim();
+
+    if (!accountId || !documentId || !newName) {
+      return { ok: false, error: { code: "FILE_INVALID_INPUT", message: "accountId, documentId and newName are required." } };
+    }
+
+    try {
+      await this.documentPort.renameDocument(accountId, documentId, newName);
+      return { ok: true, data: { documentId } };
+    } catch (err) {
+      return { ok: false, error: { code: "FILE_RENAME_FAILED", message: err instanceof Error ? err.message : "Rename failed." } };
+    }
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/source/application/use-cases/upload-complete-source-file.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Case: UploadCompleteSourceFileUseCase — activates a file after binary upload completes.
+ *
+ * This is the second step of a two-step upload flow:
+ *   1. init  → creates File + FileVersion records
+ *   2. complete (this) → activates the version and registers a RagDocumentRecord
+ *
+ * Idempotent: calling complete on an already-completed file returns the existing
+ * RagDocument without creating a duplicate.
+ */
+
+import { randomUUID } from "node:crypto";
+
+import type { ISourceFileRepository } from "../../domain/repositories/ISourceFileRepository";
+import type { IRagDocumentRepository } from "../../domain/repositories/IRagDocumentRepository";
+import { completeUploadSourceFile } from "../../domain/services/complete-upload-source-file.service";
+import type {
+  SourceFileCommandErrorCode,
+  UploadCompleteFileInputDto,
+  UploadCompleteFileOutputDto,
+} from "../dto/source-file.dto";
+import type { SourceFile } from "../../domain/entities/SourceFile";
+
+type UploadCompleteSourceFileResult =
+  | { ok: true; data: UploadCompleteFileOutputDto }
+  | { ok: false; error: { code: SourceFileCommandErrorCode; message: string } };
+
+function isFileScopeMatch(params: {
+  file: SourceFile;
+  workspaceId: string;
+  organizationId: string;
+  actorAccountId: string;
+  versionId: string;
+}): boolean {
+  return (
+    params.file.workspaceId === params.workspaceId &&
+    params.file.organizationId === params.organizationId &&
+    params.file.accountId === params.actorAccountId &&
+    params.file.currentVersionId === params.versionId
+  );
+}
+
+function isFileAlreadyCompleted(file: SourceFile): boolean {
+  return file.source === "file-upload-complete";
+}
+
+export class UploadCompleteSourceFileUseCase {
+  constructor(
+    private readonly fileRepository: ISourceFileRepository,
+    private readonly ragDocumentRepository: IRagDocumentRepository,
+  ) {}
+
+  async execute(input: UploadCompleteFileInputDto): Promise<UploadCompleteSourceFileResult> {
+    const workspaceId = input.workspaceId.trim();
+    const organizationId = input.organizationId.trim();
+    const actorAccountId = input.actorAccountId.trim();
+    const fileId = input.fileId.trim();
+    const versionId = input.versionId.trim();
+
+    if (!workspaceId) return { ok: false, error: { code: "FILE_WORKSPACE_REQUIRED", message: "Workspace is required." } };
+    if (!organizationId) return { ok: false, error: { code: "FILE_ORGANIZATION_REQUIRED", message: "Organization is required." } };
+    if (!actorAccountId) return { ok: false, error: { code: "FILE_ACTOR_REQUIRED", message: "Actor account is required." } };
+    if (!fileId) return { ok: false, error: { code: "FILE_ID_REQUIRED", message: "File id is required." } };
+    if (!versionId) return { ok: false, error: { code: "FILE_VERSION_REQUIRED", message: "Version id is required." } };
+
+    const file = await this.fileRepository.findById(fileId);
+    if (!file) return { ok: false, error: { code: "FILE_NOT_FOUND", message: "File metadata not found." } };
+
+    const version = await this.fileRepository.findVersion(fileId, versionId);
+    if (!version) return { ok: false, error: { code: "FILE_VERSION_NOT_FOUND", message: "File version metadata not found." } };
+
+    if (!isFileScopeMatch({ file, workspaceId, organizationId, actorAccountId, versionId })) {
+      return { ok: false, error: { code: "FILE_SCOPE_MISMATCH", message: "Upload completion scope does not match file metadata." } };
+    }
+
+    if (file.status !== "active") {
+      return { ok: false, error: { code: "FILE_STATUS_CONFLICT", message: "File upload completion requires an active file record." } };
+    }
+
+    const existingRagDocument = await this.ragDocumentRepository.findByStoragePath({
+      organizationId,
+      workspaceId,
+      storagePath: version.storagePath,
+    });
+
+    const nextFile = isFileAlreadyCompleted(file)
+      ? file
+      : completeUploadSourceFile({ file, completedAtISO: new Date().toISOString() });
+
+    if (!isFileAlreadyCompleted(file)) {
+      await this.fileRepository.save(nextFile);
+    }
+
+    let ragDocumentId: string;
+    let ragDocumentStatus: UploadCompleteFileOutputDto["ragDocumentStatus"];
+
+    if (existingRagDocument !== null) {
+      ragDocumentId = existingRagDocument.id;
+      ragDocumentStatus = existingRagDocument.status;
+    } else {
+      const nowISO = new Date().toISOString();
+      ragDocumentId = `rag-document-${randomUUID()}`;
+
+      await this.ragDocumentRepository.saveUploaded({
+        id: ragDocumentId,
+        organizationId,
+        workspaceId,
+        accountId: actorAccountId,
+        displayName: file.name,
+        title: file.name,
+        sourceFileName: file.name,
+        mimeType: file.mimeType,
+        storagePath: version.storagePath,
+        sizeBytes: file.sizeBytes,
+        status: "uploaded",
+        checksum: version.checksum,
+        versionGroupId: ragDocumentId,
+        versionNumber: version.versionNumber,
+        isLatest: true,
+        createdAtISO: nowISO,
+        updatedAtISO: nowISO,
+      });
+
+      ragDocumentStatus = "uploaded";
+    }
+
+    return {
+      ok: true,
+      data: {
+        fileId: nextFile.id,
+        versionId: nextFile.currentVersionId,
+        status: "active",
+        ragDocumentId,
+        ragDocumentStatus,
       },
     };
   }
@@ -3814,6 +4069,39 @@ export interface CreateWikiLibraryRowInput {
 }
 ````
 
+## File: modules/notebooklm/subdomains/source/domain/ports/IParsedDocumentPort.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: domain/ports
+ * Port: IParsedDocumentPort — retrieves parsed document text from storage.
+ *
+ * This port isolates Firebase Storage access from interfaces.
+ * Infrastructure provides the adapter; application consumes via use cases.
+ */
+
+export interface IParsedDocumentPort {
+  loadParsedDocumentText(jsonGcsUri: string): Promise<string>;
+}
+````
+
+## File: modules/notebooklm/subdomains/source/domain/ports/ISourceDocumentPort.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: domain/ports
+ * Port: ISourceDocumentPort — commands for legacy source documents stored in accounts/{accountId}/documents.
+ *
+ * This port isolates the legacy Firestore collection from interfaces.
+ * Infrastructure provides the Firebase adapter; interfaces consume via use cases.
+ */
+
+export interface ISourceDocumentCommandPort {
+  deleteDocument(accountId: string, documentId: string): Promise<void>;
+  renameDocument(accountId: string, documentId: string, newName: string): Promise<void>;
+}
+````
+
 ## File: modules/notebooklm/subdomains/source/domain/repositories/IRagDocumentRepository.ts
 ````typescript
 /**
@@ -3929,6 +4217,143 @@ export function resolveSourceOrganizationId(
   accountId: string,
 ): string {
   return accountType === "organization" ? accountId : `personal:${accountId}`;
+}
+````
+
+## File: modules/notebooklm/subdomains/source/infrastructure/adapters/NotionKnowledgePageGatewayAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/adapters
+ * Adapter: NotionKnowledgePageGatewayAdapter — delegates to notion bounded context API.
+ *
+ * Implements the KnowledgePageGateway port defined in the application layer,
+ * bridging the source subdomain to the notion bounded context through its public API.
+ */
+
+import type { CommandResult } from "@shared-types";
+
+import { addKnowledgeBlock, createKnowledgePage } from "@/modules/notion/api";
+
+import type { KnowledgePageGateway } from "../../application/use-cases/create-knowledge-draft-from-source.use-case";
+
+export class NotionKnowledgePageGatewayAdapter implements KnowledgePageGateway {
+  async createPage(input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    parentPageId: null;
+    createdByUserId: string;
+  }): Promise<CommandResult> {
+    return createKnowledgePage(input);
+  }
+
+  async addBlock(input: {
+    accountId: string;
+    pageId: string;
+    index: number;
+    content: {
+      type: "text";
+      richText: readonly { type: string; plainText: string }[];
+      properties: Record<string, unknown>;
+    };
+  }): Promise<CommandResult> {
+    return addKnowledgeBlock(input);
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseDocumentStatusAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseDocumentStatusAdapter — watches Firestore document status via onSnapshot.
+ *
+ * Extracted from interfaces/components to keep Firestore access in infrastructure layer.
+ */
+
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+export async function waitForParsedDocument(
+  accountId: string,
+  docId: string,
+): Promise<{ pageCount: number; jsonGcsUri: string }> {
+  const db = getFirebaseFirestore();
+
+  return new Promise((resolve, reject) => {
+    const docRef = firestoreApi.doc(db, "accounts", accountId, "documents", docId);
+    const unsubscribe = firestoreApi.onSnapshot(docRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+
+      const data = asRecord(snapshot.data());
+      const status = asString(data.status, "unknown");
+
+      if (status === "completed") {
+        const parsed = asRecord(data.parsed);
+        unsubscribe();
+        resolve({
+          pageCount: asNumber(parsed.page_count, 0),
+          jsonGcsUri: asString(parsed.json_gcs_uri),
+        });
+        return;
+      }
+
+      if (status === "error") {
+        const error = asRecord(data.error);
+        unsubscribe();
+        reject(new Error(asString(error.message, "文件解析失敗")));
+      }
+    });
+  });
+}
+````
+
+## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseParsedDocumentAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseParsedDocumentAdapter — Firebase Storage implementation of IParsedDocumentPort.
+ *
+ * Reads parsed JSON from a GCS URI and extracts the text content.
+ */
+
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+
+import type { IParsedDocumentPort } from "../../domain/ports/IParsedDocumentPort";
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+export class FirebaseParsedDocumentAdapter implements IParsedDocumentPort {
+  async loadParsedDocumentText(jsonGcsUri: string): Promise<string> {
+    if (!jsonGcsUri) return "";
+    const storage = getFirebaseStorage();
+    const ref = storageApi.ref(storage, jsonGcsUri);
+    const url = await storageApi.getDownloadURL(ref);
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error(`無法讀取解析 JSON (${response.status})`);
+    const payload = asRecord(await response.json());
+    return asString(payload.text);
+  }
 }
 ````
 
@@ -4099,6 +4524,41 @@ export class FirebaseRagDocumentAdapter implements IRagDocumentRepository {
       createdAtISO: record.createdAtISO,
       updatedAtISO: record.updatedAtISO,
       createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseSourceDocumentCommandAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseSourceDocumentCommandAdapter — Firestore implementation of ISourceDocumentCommandPort.
+ *
+ * Collection path: accounts/{accountId}/documents/{documentId}
+ * This is a legacy collection; new data should use the workspaceFiles collection.
+ */
+
+import { deleteDoc, doc, getFirestore, serverTimestamp, updateDoc } from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+
+import type { ISourceDocumentCommandPort } from "../../domain/ports/ISourceDocumentPort";
+
+export class FirebaseSourceDocumentCommandAdapter implements ISourceDocumentCommandPort {
+  private readonly db = getFirestore(firebaseClientApp);
+
+  async deleteDocument(accountId: string, documentId: string): Promise<void> {
+    await deleteDoc(doc(this.db, "accounts", accountId, "documents", documentId));
+  }
+
+  async renameDocument(accountId: string, documentId: string, newName: string): Promise<void> {
+    await updateDoc(doc(this.db, "accounts", accountId, "documents", documentId), {
+      title: newName,
+      "source.filename": newName,
+      "metadata.filename": newName,
       updatedAt: serverTimestamp(),
     });
   }
@@ -4540,6 +5000,113 @@ export class InMemoryWikiLibraryAdapter implements IWikiLibraryRepository {
 }
 ````
 
+## File: modules/notebooklm/subdomains/source/interfaces/_actions/source-file.actions.ts
+````typescript
+"use server";
+
+import type {
+  UploadCompleteFileInputDto,
+  UploadCompleteFileOutputDto,
+  UploadInitFileInputDto,
+  UploadInitFileOutputDto,
+} from "../../application/dto/source-file.dto";
+import type {
+  RegisterUploadedRagDocumentInputDto,
+  RegisterUploadedRagDocumentResult,
+} from "../../application/dto/rag-document.dto";
+import { makeRagDocumentAdapter, makeSourceDocumentCommandAdapter, makeSourceFileAdapter } from "../../api/factories";
+import { UploadInitSourceFileUseCase } from "../../application/use-cases/upload-init-source-file.use-case";
+import { UploadCompleteSourceFileUseCase } from "../../application/use-cases/upload-complete-source-file.use-case";
+import { RegisterUploadedRagDocumentUseCase } from "../../application/use-cases/register-rag-document.use-case";
+import { DeleteSourceDocumentUseCase } from "../../application/use-cases/delete-source-document.use-case";
+import { RenameSourceDocumentUseCase } from "../../application/use-cases/rename-source-document.use-case";
+import type { SourceFileCommandResult } from "../contracts/source-command-result";
+
+function createCommandId(idempotencyKey?: string): string {
+  const normalized = idempotencyKey?.trim();
+  return normalized || `source-file-${crypto.randomUUID()}`;
+}
+
+export async function uploadInitFile(
+  input: UploadInitFileInputDto,
+): Promise<SourceFileCommandResult<UploadInitFileOutputDto>> {
+  const commandId = createCommandId(input.idempotencyKey);
+  const useCase = new UploadInitSourceFileUseCase(makeSourceFileAdapter());
+  const result = await useCase.execute(input);
+  return { ...result, commandId };
+}
+
+export async function uploadCompleteFile(
+  input: UploadCompleteFileInputDto,
+): Promise<SourceFileCommandResult<UploadCompleteFileOutputDto>> {
+  const commandId = createCommandId(input.versionId);
+  const fileAdapter = makeSourceFileAdapter();
+  const useCase = new UploadCompleteSourceFileUseCase(fileAdapter, makeRagDocumentAdapter());
+  const result = await useCase.execute(input);
+  return { ...result, commandId };
+}
+
+export async function registerUploadedRagDocument(
+  input: RegisterUploadedRagDocumentInputDto,
+): Promise<RegisterUploadedRagDocumentResult> {
+  const commandId = createCommandId(input.storagePath);
+  const useCase = new RegisterUploadedRagDocumentUseCase(makeRagDocumentAdapter());
+  const result = await useCase.execute(input);
+  return { ...result, commandId };
+}
+
+export async function deleteSourceDocument(
+  accountId: string,
+  documentId: string,
+): Promise<SourceFileCommandResult<{ documentId: string }>> {
+  const commandId = `source-delete-${crypto.randomUUID()}`;
+  const useCase = new DeleteSourceDocumentUseCase(makeSourceDocumentCommandAdapter());
+  const result = await useCase.execute({ accountId, documentId });
+  return { ...result, commandId };
+}
+
+export async function renameSourceDocument(
+  accountId: string,
+  documentId: string,
+  newName: string,
+): Promise<SourceFileCommandResult<{ documentId: string }>> {
+  const commandId = `source-rename-${crypto.randomUUID()}`;
+  const useCase = new RenameSourceDocumentUseCase(makeSourceDocumentCommandAdapter());
+  const result = await useCase.execute({ accountId, documentId, newName });
+  return { ...result, commandId };
+}
+````
+
+## File: modules/notebooklm/subdomains/source/interfaces/_actions/source-processing.actions.ts
+````typescript
+"use server";
+
+import type { CommandResult } from "@shared-types";
+
+import { makeKnowledgePageGateway, makeParsedDocumentAdapter } from "../../api/factories";
+import { CreateKnowledgeDraftFromSourceUseCase } from "../../application/use-cases/create-knowledge-draft-from-source.use-case";
+
+interface CreateKnowledgeDraftFromSourceDocumentInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+  readonly filename: string;
+  readonly sourceGcsUri: string;
+  readonly jsonGcsUri: string;
+  readonly pageCount: number;
+}
+
+export async function createKnowledgeDraftFromSourceDocument(
+  input: CreateKnowledgeDraftFromSourceDocumentInput,
+): Promise<CommandResult> {
+  const useCase = new CreateKnowledgeDraftFromSourceUseCase(
+    makeParsedDocumentAdapter(),
+    makeKnowledgePageGateway(),
+  );
+  return useCase.execute(input);
+}
+````
+
 ## File: modules/notebooklm/subdomains/source/interfaces/components/file-processing-dialog.body.tsx
 ````typescript
 "use client";
@@ -4903,6 +5470,54 @@ export function FileProcessingDialogSurface({
     </Dialog>
   );
 }
+````
+
+## File: modules/notebooklm/subdomains/source/interfaces/components/file-processing-dialog.utils.ts
+````typescript
+"use client";
+
+import { waitForParsedDocument } from "../../api/factories";
+
+export type TaskStatus = "idle" | "running" | "success" | "error" | "skipped";
+
+export interface TaskResult {
+  readonly status: TaskStatus;
+  readonly detail: string;
+}
+
+export interface ExecutionSummary {
+  readonly pageCount: number;
+  readonly jsonGcsUri: string;
+  readonly pageHref: string;
+  readonly parse: TaskResult;
+  readonly rag: TaskResult;
+  readonly page: TaskResult;
+}
+
+export function createIdleSummary(): ExecutionSummary {
+  return {
+    pageCount: 0,
+    jsonGcsUri: "",
+    pageHref: "",
+    parse: { status: "idle", detail: "尚未開始解析" },
+    rag: { status: "idle", detail: "尚未決定是否建立 RAG 索引" },
+    page: { status: "idle", detail: "尚未決定是否建立 Knowledge Page" },
+  };
+}
+
+export function readCallableData(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+export function readString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+export function readNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+export { waitForParsedDocument };
 ````
 
 ## File: modules/notebooklm/subdomains/source/interfaces/components/FileProcessingDialog.tsx
@@ -6068,6 +6683,118 @@ export type SourceFileCommandResult<TData> =
     };
 ````
 
+## File: modules/notebooklm/subdomains/source/interfaces/hooks/useSourceDocumentsSnapshot.ts
+````typescript
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
+
+import type {
+  SourceLiveDocument,
+} from "../../application/dto/source-live-document.dto";
+import {
+  mapToSourceLiveDocument,
+} from "../../application/dto/source-live-document.dto";
+
+// Re-export types for backward compatibility
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../../application/dto/source-live-document.dto";
+export {
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../../application/dto/source-live-document.dto";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function objectOrEmpty(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+// ── Hook ──────────────────────────────────────────────────────────────────────
+
+export interface UseSourceDocumentsSnapshotResult {
+  readonly docs: SourceLiveDocument[];
+  readonly loading: boolean;
+  readonly pendingDocs: SourceLiveDocument[];
+  readonly addPending: (doc: SourceLiveDocument) => void;
+  readonly removePending: (id: string) => void;
+}
+
+/** Subscribes to Firestore `accounts/{accountId}/documents` in real time via onSnapshot. */
+export function useSourceDocumentsSnapshot(
+  accountId: string,
+  workspaceId?: string,
+): UseSourceDocumentsSnapshotResult {
+  const [rawDocs, setRawDocs] = useState<SourceLiveDocument[]>([]);
+  const [rawPending, setRawPending] = useState<SourceLiveDocument[]>([]);
+  const [receivedKey, setReceivedKey] = useState("");
+  const statusMapRef = useRef<Record<string, string>>({});
+
+  const addPending = useCallback((doc: SourceLiveDocument) => {
+    setRawPending((prev) => [doc, ...prev.filter((p) => p.id !== doc.id)]);
+  }, []);
+
+  const removePending = useCallback((id: string) => {
+    setRawPending((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  useEffect(() => {
+    if (!accountId) return;
+
+    const subKey = `${accountId}/${workspaceId ?? ""}`;
+    statusMapRef.current = {};
+
+    const db = getFirebaseFirestore();
+    const colRef = firestoreApi.collection(db, "accounts", accountId, "documents");
+
+    const unsubscribe = firestoreApi.onSnapshot(
+      colRef,
+      (snapshot) => {
+        const mapped = snapshot.docs
+          .map((item) => mapToSourceLiveDocument(item.id, objectOrEmpty(item.data())))
+          .filter((item) => !workspaceId || item.workspaceId === workspaceId)
+          .sort((a, b) => (b.uploadedAt?.getTime() ?? 0) - (a.uploadedAt?.getTime() ?? 0));
+
+        const nextMap: Record<string, string> = {};
+        for (const doc of mapped) {
+          nextMap[doc.id] = `${doc.status}/${doc.ragStatus}`;
+        }
+        statusMapRef.current = nextMap;
+
+        setRawDocs(mapped);
+        setRawPending((prev) => prev.filter((p) => !mapped.some((d) => d.id === p.id)));
+        setReceivedKey(subKey);
+      },
+      () => {
+        setReceivedKey(subKey);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+      statusMapRef.current = {};
+    };
+  }, [accountId, workspaceId]);
+
+  const currentKey = `${accountId}/${workspaceId ?? ""}`;
+  const docs = accountId ? rawDocs : [];
+  const loading = Boolean(accountId) && receivedKey !== currentKey;
+  const pendingDocs = accountId ? rawPending : [];
+
+  return { docs, loading, pendingDocs, addPending, removePending };
+}
+````
+
 ## File: modules/notebooklm/subdomains/source/README.md
 ````markdown
 # Source
@@ -6359,122 +7086,460 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/notebooklm/subdomains/ai/api/index.ts
+## File: modules/notebooklm/subdomains/ai/domain/repositories/IKnowledgeContentRepository.ts
 ````typescript
 /**
- * Public API boundary for the ai subdomain.
- * Cross-module consumers must import through this entry point.
- */
-
-// --- Domain types (grounding) ------------------------------------------------
-
-export type { RagRetrievedChunk, RagCitation, RagRetrievalSummary } from "../domain/entities/retrieval.entities";
-export type { IVectorStore, VectorDocument, VectorSearchResult } from "../domain/ports/IVectorStore";
-export type { IRagRetrievalRepository, RetrieveChunksInput } from "../domain/repositories/IRagRetrievalRepository";
-export type {
-  IWikiContentRepository,
-  WikiCitation,
-  WikiParsedDocument,
-  WikiRagQueryResult,
-  WikiReindexInput,
-} from "../domain/repositories/IWikiContentRepository";
-
-// --- Domain types (qa) -------------------------------------------------------
-
-export type { AnswerRagQueryInput, AnswerRagQueryOutput, AnswerRagQueryResult, RagStreamEvent } from "../domain/entities/rag-query.entities";
-export type { RagQueryFeedback, RagFeedbackRating, SubmitRagQueryFeedbackInput } from "../domain/entities/rag-feedback.entities";
-export type { IRagQueryFeedbackRepository } from "../domain/repositories/IRagQueryFeedbackRepository";
-
-// --- Domain types (synthesis) ------------------------------------------------
-
-export type {
-  GenerateRagAnswerInput,
-  GenerateRagAnswerOutput,
-  GenerateRagAnswerResult,
-  GenerationCitation,
-} from "../domain/entities/generation.entities";
-export type { IRagGenerationRepository } from "../domain/repositories/IRagGenerationRepository";
-
-// --- Use-case classes (for DI composition) -----------------------------------
-
-export { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
-export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-rag-feedback.use-case";
-
-// --- Wiki convenience wrappers with default repository -----------------------
-
-import { FirebaseWikiContentAdapter } from "../infrastructure/firebase/FirebaseWikiContentAdapter";
-import type { WikiParsedDocument, WikiRagQueryResult, WikiReindexInput } from "../domain/repositories/IWikiContentRepository";
-
-let _wikiContentRepository: FirebaseWikiContentAdapter | undefined;
-
-function getWikiContentRepository(): FirebaseWikiContentAdapter {
-  if (!_wikiContentRepository) {
-    _wikiContentRepository = new FirebaseWikiContentAdapter();
-  }
-  return _wikiContentRepository;
-}
-
-export function runWikiRagQuery(
-  query: string,
-  accountId: string,
-  workspaceId: string,
-  topK = 4,
-  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
-): Promise<WikiRagQueryResult> {
-  return getWikiContentRepository().runRagQuery(query, accountId, workspaceId, topK, options);
-}
-
-export function reindexWikiDocument(input: WikiReindexInput): Promise<void> {
-  return getWikiContentRepository().reindexDocument(input);
-}
-
-export function listWikiParsedDocuments(accountId: string, limitCount = 20): Promise<WikiParsedDocument[]> {
-  return getWikiContentRepository().listParsedDocuments(accountId, limitCount);
-}
-
-// --- Infrastructure adapters (client-safe, for composition roots) ------------
-
-export { FirebaseRagRetrievalAdapter } from "../infrastructure/firebase/FirebaseRagRetrievalAdapter";
-export { FirebaseWikiContentAdapter } from "../infrastructure/firebase/FirebaseWikiContentAdapter";
-export { FirebaseRagQueryFeedbackAdapter } from "../infrastructure/firebase/FirebaseRagQueryFeedbackAdapter";
-
-// --- UI components -----------------------------------------------------------
-
-export { RagQueryView } from "../interfaces/components/RagQueryView";
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/index.ts
-````typescript
-export * from "./entities/generation.entities";
-export * from "./entities/rag-feedback.entities";
-export * from "./entities/rag-query.entities";
-export * from "./entities/retrieval.entities";
-export * from "./events";
-export * from "./ports/IVectorStore";
-export * from "./repositories/IRagGenerationRepository";
-export * from "./repositories/IRagQueryFeedbackRepository";
-export * from "./repositories/IRagRetrievalRepository";
-export * from "./repositories/IWikiContentRepository";
-export * from "./services";
-export * from "./value-objects";
-// Ports layer — driven port aliases
-export type { IRagGenerationPort, IRagQueryFeedbackPort, IRagRetrievalPort, IWikiContentPort } from "./ports";
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/ports/index.ts
-````typescript
-/**
- * notebooklm/ai domain/ports — driven port interfaces for the ai subdomain.
+ * Module: notebooklm/subdomains/ai
+ * Layer: domain/repositories
+ * Purpose: IKnowledgeContentRepository — output port for knowledge corpus RAG
+ *          operations (run query, reindex, list parsed documents).
  *
- * These re-export the repository contracts from domain/repositories/ and
- * the existing IVectorStore port from domain/ports/, making the Ports layer
- * explicitly visible in the directory structure.
+ * Design notes:
+ * - Knowledge content refers to the knowledge artifact corpus used for RAG retrieval.
+ * - Firebase Functions back-end implements this port; the domain remains clean.
  */
-export type { IRagGenerationRepository as IRagGenerationPort } from "../repositories/IRagGenerationRepository";
-export type { IRagQueryFeedbackRepository as IRagQueryFeedbackPort } from "../repositories/IRagQueryFeedbackRepository";
-export type { IRagRetrievalRepository as IRagRetrievalPort } from "../repositories/IRagRetrievalRepository";
-export type { IWikiContentRepository as IWikiContentPort } from "../repositories/IWikiContentRepository";
-export type { IVectorStore } from "./IVectorStore";
+
+export interface KnowledgeCitation {
+  provider?: "vector" | "search";
+  chunk_id?: string;
+  doc_id?: string;
+  filename?: string;
+  json_gcs_uri?: string;
+  search_id?: string;
+  score?: number;
+  text?: string;
+  account_id?: string;
+  workspace_id?: string;
+  taxonomy?: string;
+  processing_status?: string;
+  indexed_at?: string;
+}
+
+export interface KnowledgeRagQueryResult {
+  readonly answer: string;
+  readonly citations: readonly KnowledgeCitation[];
+  readonly cache: "hit" | "miss";
+  readonly vectorHits: number;
+  readonly searchHits: number;
+  readonly accountScope: string;
+  readonly workspaceScope?: string;
+  readonly taxonomyFilters?: string[];
+  readonly maxAgeDays?: number;
+  readonly requireReady?: boolean;
+}
+
+export interface KnowledgeParsedDocument {
+  readonly id: string;
+  readonly filename: string;
+  readonly workspaceId: string;
+  readonly sourceGcsUri: string;
+  readonly jsonGcsUri: string;
+  readonly pageCount: number;
+  readonly status: string;
+  readonly ragStatus: string;
+  readonly uploadedAt: Date | null;
+}
+
+export interface KnowledgeReindexInput {
+  readonly accountId: string;
+  readonly docId: string;
+  readonly jsonGcsUri: string;
+  readonly sourceGcsUri: string;
+  readonly filename: string;
+  readonly pageCount: number;
+}
+
+export interface IKnowledgeContentRepository {
+  runRagQuery(
+    query: string,
+    accountId: string,
+    workspaceId: string,
+    topK: number,
+    options?: {
+      taxonomyFilters?: string[];
+      maxAgeDays?: number;
+      requireReady?: boolean;
+    },
+  ): Promise<KnowledgeRagQueryResult>;
+  reindexDocument(input: KnowledgeReindexInput): Promise<void>;
+  listParsedDocuments(accountId: string, limitCount: number): Promise<KnowledgeParsedDocument[]>;
+}
+````
+
+## File: modules/notebooklm/subdomains/ai/infrastructure/firebase/FirebaseKnowledgeContentAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/ai
+ * Layer: infrastructure/firebase
+ * Purpose: FirebaseKnowledgeContentAdapter — implements IKnowledgeContentRepository via
+ *          Firebase Functions calls (RAG query, reindex) and Firestore reads
+ *          (list parsed documents).
+ *
+ * Design notes:
+ * - All external shape normalisation happens here; domain types stay clean.
+ * - Functions region is configured as a constant; change here only if region changes.
+ */
+
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
+
+import type {
+  IKnowledgeContentRepository,
+  KnowledgeCitation,
+  KnowledgeParsedDocument,
+  KnowledgeRagQueryResult,
+  KnowledgeReindexInput,
+} from "../../domain/repositories/IKnowledgeContentRepository";
+
+const FUNCTIONS_REGION = "asia-southeast1";
+
+// --- Firestore / Functions response normalisation helpers ---------------------
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function objectOrEmpty(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function toNumberOrDefault(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function toDateOrNull(value: unknown): Date | null {
+  if (!isRecord(value)) return null;
+  if (typeof (value as { toDate?: unknown }).toDate === "function") {
+    const converted = (value as { toDate: () => unknown }).toDate();
+    if (converted instanceof Date) return converted;
+  }
+  return null;
+}
+
+function normaliseCitations(raw: unknown): KnowledgeCitation[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item) => {
+    if (!isRecord(item)) return {};
+    return {
+      provider: item.provider === "vector" || item.provider === "search" ? item.provider : undefined,
+      chunk_id: typeof item.chunk_id === "string" ? item.chunk_id : undefined,
+      doc_id: typeof item.doc_id === "string" ? item.doc_id : undefined,
+      filename: typeof item.filename === "string" ? item.filename : undefined,
+      json_gcs_uri: typeof item.json_gcs_uri === "string" ? item.json_gcs_uri : undefined,
+      search_id: typeof item.search_id === "string" ? item.search_id : undefined,
+      score: typeof item.score === "number" ? item.score : undefined,
+      text: typeof item.text === "string" ? item.text : undefined,
+    };
+  });
+}
+
+function resolveFilename(data: Record<string, unknown>): string {
+  const source = objectOrEmpty(data.source);
+  const metadata = objectOrEmpty(data.metadata);
+  const candidates = [
+    source.filename,
+    source.display_name,
+    data.title,
+    metadata.filename,
+    metadata.display_name,
+    source.original_filename,
+    metadata.original_filename,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.trim()) return c;
+  }
+  return "";
+}
+
+function mapToParsedDocument(id: string, data: Record<string, unknown>): KnowledgeParsedDocument {
+  const source = objectOrEmpty(data.source);
+  const parsed = objectOrEmpty(data.parsed);
+  const rag = objectOrEmpty(data.rag);
+  const metadata = objectOrEmpty(data.metadata);
+
+  return {
+    id,
+    filename: resolveFilename(data) || id,
+    workspaceId:
+      (typeof data.spaceId === "string" ? data.spaceId : "") ||
+      (typeof metadata.space_id === "string" ? metadata.space_id : ""),
+    sourceGcsUri:
+      (typeof source.gcs_uri === "string" ? source.gcs_uri : "") ||
+      (typeof metadata.source_gcs_uri === "string" ? metadata.source_gcs_uri : ""),
+    jsonGcsUri:
+      (typeof parsed.json_gcs_uri === "string" ? parsed.json_gcs_uri : "") ||
+      (typeof metadata.json_gcs_uri === "string" ? metadata.json_gcs_uri : ""),
+    pageCount:
+      toNumberOrDefault(parsed.page_count) ||
+      toNumberOrDefault(metadata.page_count) ||
+      toNumberOrDefault(data.pageCount),
+    status: typeof data.status === "string" ? data.status : "unknown",
+    ragStatus: typeof rag.status === "string" ? rag.status : "",
+    uploadedAt: toDateOrNull(source.uploaded_at) ?? toDateOrNull(data.createdAt),
+  };
+}
+
+// --- Adapter ------------------------------------------------------------------
+
+export class FirebaseKnowledgeContentAdapter implements IKnowledgeContentRepository {
+  async runRagQuery(
+    query: string,
+    accountId: string,
+    workspaceId: string,
+    topK: number,
+    options: {
+      taxonomyFilters?: string[];
+      maxAgeDays?: number;
+      requireReady?: boolean;
+    } = {},
+  ): Promise<KnowledgeRagQueryResult> {
+    const functions = getFirebaseFunctions(FUNCTIONS_REGION);
+    const callable = functionsApi.httpsCallable(functions, "rag_query");
+    const result = await callable({
+      query,
+      top_k: topK,
+      account_id: accountId,
+      workspace_id: workspaceId,
+      taxonomy_filters: options.taxonomyFilters ?? [],
+      max_age_days: options.maxAgeDays,
+      require_ready: options.requireReady,
+    });
+    const data = objectOrEmpty(result.data);
+
+    return {
+      answer: typeof data.answer === "string" ? data.answer : "",
+      citations: normaliseCitations(data.citations),
+      cache: data.cache === "hit" ? "hit" : "miss",
+      vectorHits: toNumberOrDefault(data.vector_hits),
+      searchHits: toNumberOrDefault(data.search_hits),
+      accountScope: typeof data.account_scope === "string" ? data.account_scope : accountId,
+      workspaceScope:
+        typeof data.workspace_scope === "string" ? data.workspace_scope : workspaceId,
+      taxonomyFilters: Array.isArray(data.taxonomy_filters)
+        ? data.taxonomy_filters.filter((v): v is string => typeof v === "string")
+        : undefined,
+      maxAgeDays: typeof data.max_age_days === "number" ? data.max_age_days : undefined,
+      requireReady: typeof data.require_ready === "boolean" ? data.require_ready : undefined,
+    };
+  }
+
+  async reindexDocument(input: KnowledgeReindexInput): Promise<void> {
+    const functions = getFirebaseFunctions(FUNCTIONS_REGION);
+    const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
+    await callable({
+      account_id: input.accountId,
+      doc_id: input.docId,
+      json_gcs_uri: input.jsonGcsUri,
+      source_gcs_uri: input.sourceGcsUri,
+      filename: input.filename,
+      page_count: input.pageCount,
+    });
+  }
+
+  async listParsedDocuments(accountId: string, limitCount: number): Promise<KnowledgeParsedDocument[]> {
+    if (!accountId) throw new Error("accountId is required");
+    const db = getFirebaseFirestore();
+    const ref = firestoreApi.collection(db, "accounts", accountId, "documents");
+    const q = firestoreApi.query(ref, firestoreApi.limit(limitCount));
+    const snap = await firestoreApi.getDocs(q);
+
+    const docs = snap.docs.map((d) => mapToParsedDocument(d.id, objectOrEmpty(d.data())));
+    return docs.sort((a, b) => {
+      const at = a.uploadedAt ? a.uploadedAt.getTime() : 0;
+      const bt = b.uploadedAt ? b.uploadedAt.getTime() : 0;
+      return bt - at;
+    });
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/ai/interfaces/components/RagQueryView.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+import { AlertCircle, Loader2, Search } from "lucide-react";
+import { toast } from "sonner";
+
+import { useApp } from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+import { DEV_DEMO_ACCOUNT_EMAIL } from "@/modules/platform/api";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@ui-shadcn/ui/accordion";
+import { Alert, AlertDescription, AlertTitle } from "@ui-shadcn/ui/alert";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import { runKnowledgeRagQuery, type KnowledgeCitation } from "../../api";
+
+interface RagQueryViewProps {
+  readonly workspaceId?: string;
+}
+
+/** Minimal RAG query chat interface. Uses local useState only — no streaming, no global state. */
+export function RagQueryView({ workspaceId }: RagQueryViewProps) {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+  const effectiveWorkspaceId = workspaceId?.trim() ?? "";
+
+  const isDemoOrUnauthenticated =
+    authState.status !== "authenticated" ||
+    authState.user?.email === DEV_DEMO_ACCOUNT_EMAIL;
+
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [answer, setAnswer] = useState("");
+  const [citations, setCitations] = useState<readonly KnowledgeCitation[]>([]);
+  const [queried, setQueried] = useState(false);
+
+  async function handleSubmit() {
+    const q = query.trim();
+    if (!q) {
+      toast.error("請先輸入問題");
+      return;
+    }
+    if (!activeAccountId) {
+      toast.error("目前沒有 active account，無法執行 RAG 查詢");
+      return;
+    }
+    if (!effectiveWorkspaceId) {
+      toast.error("請先選擇工作區，再執行 RAG 查詢");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      let result = await runKnowledgeRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: true });
+      // Compatibility fallback for older vectors without ready status.
+      if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
+        result = await runKnowledgeRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: false, maxAgeDays: 3650 });
+      }
+      setAnswer(result.answer);
+      setCitations(result.citations);
+      setQueried(true);
+    } catch (error) {
+      console.error(error);
+      toast.error("呼叫 rag_query 失敗");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Auth warning — shown upfront when user cannot execute RAG queries */}
+      {isDemoOrUnauthenticated && (
+        <Alert variant="destructive">
+          <AlertCircle className="size-4" />
+          <AlertTitle>需要真實帳號</AlertTitle>
+          <AlertDescription>
+            目前以 Demo 帳號或未登入狀態存取。RAG 查詢需要真實 Firebase 帳號才能執行。
+            請登出後以正式帳號重新登入。
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Query input */}
+      <Card>
+        <CardHeader>
+          <CardTitle>RAG Query</CardTitle>
+          <CardDescription>
+            輸入問題，取得 AI 回答與引用來源。
+            {effectiveWorkspaceId ? ` workspace: ${effectiveWorkspaceId}` : " （請先選擇工作區）"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Textarea
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) void handleSubmit();
+            }}
+            placeholder="請輸入你的問題...（Ctrl+Enter 送出）"
+            rows={4}
+            disabled={isDemoOrUnauthenticated}
+          />
+          <Button
+            onClick={() => void handleSubmit()}
+            disabled={loading || isDemoOrUnauthenticated}
+            title={isDemoOrUnauthenticated ? "請先以真實帳號登入才能執行 RAG 查詢" : undefined}
+          >
+            {loading ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Search className="mr-2 size-4" />
+            )}
+            {loading ? "查詢中..." : "送出查詢"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Answer */}
+      {queried && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Answer</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-wrap text-sm text-foreground">{answer || "（無回答）"}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Citations */}
+      {queried && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Citations</CardTitle>
+            <CardDescription>
+              {citations.length === 0
+                ? "目前查詢無相關引用，請確認文件已完成 RAG 索引。"
+                : `${citations.length} 筆引用來源`}
+            </CardDescription>
+          </CardHeader>
+          {citations.length > 0 && (
+            <CardContent>
+              <Accordion type="multiple" className="w-full">
+                {citations.map((citation, index) => (
+                  <AccordionItem
+                    key={`${citation.doc_id ?? "doc"}-${index}`}
+                    value={`citation-${index}`}
+                  >
+                    <AccordionTrigger className="text-sm font-medium">
+                      <span className="flex items-center gap-2">
+                        {citation.filename ?? citation.doc_id ?? "未命名文件"}
+                        {citation.provider && (
+                          <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
+                            {citation.provider}
+                          </span>
+                        )}
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <p className="text-xs text-muted-foreground">{citation.text ?? "（無節錄）"}</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </CardContent>
+          )}
+        </Card>
+      )}
+    </div>
+  );
+}
 ````
 
 ## File: modules/notebooklm/subdomains/conversation/domain/index.ts
@@ -6517,314 +7582,6 @@ export * from "./ports";
  * explicitly visible in the directory structure.
  */
 export type { NotebookRepository as INotebookPort } from "../repositories/NotebookRepository";
-````
-
-## File: modules/notebooklm/subdomains/source/api/factories.ts
-````typescript
-import { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
-import { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
-import { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
-import { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
-import { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
-import { waitForParsedDocument as _waitForParsedDocument } from "../infrastructure/firebase/FirebaseDocumentStatusAdapter";
-
-export function makeSourceFileAdapter() {
-  return new FirebaseSourceFileAdapter();
-}
-
-export function makeRagDocumentAdapter() {
-  return new FirebaseRagDocumentAdapter();
-}
-
-export function makeSourceDocumentCommandAdapter() {
-  return new FirebaseSourceDocumentCommandAdapter();
-}
-
-export function makeParsedDocumentAdapter() {
-  return new FirebaseParsedDocumentAdapter();
-}
-
-export function makeKnowledgePageGateway() {
-  return new NotionKnowledgePageGatewayAdapter();
-}
-
-export function waitForParsedDocument(
-  accountId: string,
-  docId: string,
-): Promise<{ pageCount: number; jsonGcsUri: string }> {
-  return _waitForParsedDocument(accountId, docId);
-}
-````
-
-## File: modules/notebooklm/subdomains/source/api/index.ts
-````typescript
-/**
- * Public API boundary for the source subdomain.
- *
- * Cross-module consumers MUST import through this entry point.
- * Internal consumers within the subdomain import from their own layer.
- */
-
-// ---------------------------------------------------------------------------
-// Domain entity types
-// ---------------------------------------------------------------------------
-
-export type {
-  SourceFile,
-  SourceFileStatus,
-  SourceFileClassification,
-} from "../domain/entities/SourceFile";
-
-export type {
-  SourceFileVersion,
-  SourceFileVersionStatus,
-} from "../domain/entities/SourceFileVersion";
-
-export type {
-  RagDocumentRecord,
-  RagDocumentStatus,
-} from "../domain/entities/RagDocument";
-
-export type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../domain/entities/WikiLibrary";
-
-// ---------------------------------------------------------------------------
-// Wiki library use cases (lazy singleton — no module-scope side effects)
-// ---------------------------------------------------------------------------
-
-import type { IWikiLibraryRepository } from "../domain/repositories/IWikiLibraryRepository";
-import { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
-import {
-  listWikiLibraries as _listWikiLibraries,
-  createWikiLibrary as _createWikiLibrary,
-  addWikiLibraryField as _addWikiLibraryField,
-  createWikiLibraryRow as _createWikiLibraryRow,
-  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
-} from "../application/use-cases/wiki-library.use-cases";
-
-import type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../domain/entities/WikiLibrary";
-
-export type { WikiLibrarySnapshot } from "../application/use-cases/wiki-library.use-cases";
-
-let _libraryRepo: IWikiLibraryRepository | null = null;
-
-function getLibraryRepo(): IWikiLibraryRepository {
-  if (!_libraryRepo) _libraryRepo = new FirebaseWikiLibraryAdapter();
-  return _libraryRepo;
-}
-
-export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
-  return _listWikiLibraries(accountId, workspaceId, getLibraryRepo());
-}
-
-export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
-  return _createWikiLibrary(input, getLibraryRepo());
-}
-
-export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
-  return _addWikiLibraryField(input, getLibraryRepo());
-}
-
-export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
-  return _createWikiLibraryRow(input, getLibraryRepo());
-}
-
-export function getWikiLibrarySnapshot(accountId: string, libraryId: string): ReturnType<typeof _getWikiLibrarySnapshot> {
-  return _getWikiLibrarySnapshot(accountId, libraryId, getLibraryRepo());
-}
-
-// ---------------------------------------------------------------------------
-// Live document DTOs
-// ---------------------------------------------------------------------------
-
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../application/dto/source-live-document.dto";
-export {
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../application/dto/source-live-document.dto";
-
-// ---------------------------------------------------------------------------
-// Hooks
-// ---------------------------------------------------------------------------
-
-export type {
-  UseSourceDocumentsSnapshotResult,
-} from "../interfaces/hooks/useSourceDocumentsSnapshot";
-export {
-  useSourceDocumentsSnapshot,
-} from "../interfaces/hooks/useSourceDocumentsSnapshot";
-
-// ---------------------------------------------------------------------------
-// Queries
-// ---------------------------------------------------------------------------
-
-export { getWorkspaceFiles, getWorkspaceRagDocuments } from "../interfaces/queries/source-file.queries";
-
-// ---------------------------------------------------------------------------
-// Server actions
-// ---------------------------------------------------------------------------
-
-export {
-  uploadInitFile,
-  uploadCompleteFile,
-  registerUploadedRagDocument,
-  deleteSourceDocument,
-  renameSourceDocument,
-} from "../interfaces/_actions/source-file.actions";
-
-export { createKnowledgeDraftFromSourceDocument } from "../interfaces/_actions/source-processing.actions";
-
-// ---------------------------------------------------------------------------
-// UI components
-// ---------------------------------------------------------------------------
-
-export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
-export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
-export { LibrariesView } from "../interfaces/components/LibrariesView";
-export { LibraryTableView } from "../interfaces/components/LibraryTableView";
-export { FileProcessingDialog } from "../interfaces/components/FileProcessingDialog";
-
-// ---------------------------------------------------------------------------
-// Infrastructure (for direct injection in server-side wiring)
-// ---------------------------------------------------------------------------
-
-export { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
-export { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
-export { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
-export { InMemoryWikiLibraryAdapter } from "../infrastructure/memory/InMemoryWikiLibraryAdapter";
-export { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
-export { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
-export { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
-````
-
-## File: modules/notebooklm/subdomains/source/application/dto/source-live-document.dto.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: application/dto
- * Purpose: DTO types and mapping logic for live source documents.
- *
- * Extracted from interfaces/hooks to keep data transformation in the application layer.
- * Interfaces should import these types and mappers from here.
- */
-
-export interface SourceDocument {
-  readonly id: string;
-  readonly filename: string;
-  readonly workspaceId: string;
-  readonly sourceGcsUri: string;
-  readonly jsonGcsUri: string;
-  readonly pageCount: number;
-  readonly status: string;
-  readonly ragStatus: string;
-  readonly uploadedAt: Date | null;
-}
-
-export interface SourceLiveDocument extends SourceDocument {
-  readonly errorMessage: string;
-  readonly ragError: string;
-  readonly isClientPending?: boolean;
-}
-
-export type AssetDocument = SourceDocument;
-export type AssetLiveDocument = SourceLiveDocument;
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function objectOrEmpty(value: unknown): Record<string, unknown> {
-  return isRecord(value) ? value : {};
-}
-
-function toDateOrNull(value: unknown): Date | null {
-  if (!isRecord(value)) return null;
-  if (typeof value.toDate === "function") {
-    try {
-      const d = (value.toDate as () => unknown)();
-      if (d instanceof Date) return d;
-    } catch {
-      // fall through
-    }
-  }
-  if (typeof value.toMillis === "function") {
-    try {
-      const ms = (value.toMillis as () => unknown)();
-      if (typeof ms === "number" && Number.isFinite(ms)) return new Date(ms);
-    } catch {
-      // fall through
-    }
-  }
-  return null;
-}
-
-function resolveFilename(data: Record<string, unknown>): string {
-  const source = objectOrEmpty(data.source);
-  const metadata = objectOrEmpty(data.metadata);
-  for (const candidate of [
-    source.filename, source.display_name, data.title,
-    metadata.filename, metadata.display_name,
-    source.original_filename, metadata.original_filename,
-  ]) {
-    if (typeof candidate === "string" && candidate.trim()) return candidate;
-  }
-  return "";
-}
-
-export function mapToSourceLiveDocument(
-  id: string,
-  data: Record<string, unknown>,
-): SourceLiveDocument {
-  const source = objectOrEmpty(data.source);
-  const parsed = objectOrEmpty(data.parsed);
-  const rag = objectOrEmpty(data.rag);
-  const metadata = objectOrEmpty(data.metadata);
-  const error = objectOrEmpty(data.error);
-  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
-  return {
-    id,
-    filename: resolveFilename(data) || id,
-    workspaceId:
-      (typeof data.spaceId === "string" ? data.spaceId : "") ||
-      (typeof metadata.space_id === "string" ? metadata.space_id : ""),
-    sourceGcsUri:
-      (typeof source.gcs_uri === "string" ? source.gcs_uri : "") ||
-      (typeof metadata.source_gcs_uri === "string" ? metadata.source_gcs_uri : ""),
-    jsonGcsUri:
-      (typeof parsed.json_gcs_uri === "string" ? parsed.json_gcs_uri : "") ||
-      (typeof metadata.json_gcs_uri === "string" ? metadata.json_gcs_uri : ""),
-    pageCount: n(parsed.page_count) || n(metadata.page_count) || n(data.pageCount),
-    status: typeof data.status === "string" ? data.status : "unknown",
-    ragStatus: typeof rag.status === "string" ? rag.status : "",
-    uploadedAt: toDateOrNull(source.uploaded_at) ?? toDateOrNull(data.createdAt),
-    errorMessage: typeof error.message === "string" ? error.message : "",
-    ragError: typeof rag.error === "string" ? rag.error : "",
-  };
-}
-
-export const mapToAssetLiveDocument = mapToSourceLiveDocument;
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/queries/source-file.queries.ts
@@ -6871,364 +7628,6 @@ export class ListSourceFilesUseCase {
 }
 ````
 
-## File: modules/notebooklm/subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: application/use-cases
- * Use Case: CreateKnowledgeDraftFromSourceUseCase — creates a knowledge page draft from a parsed source document.
- *
- * Actor: logged-in user
- * Goal: read parsed text from storage, create a knowledge page with a text block.
- * Main success: page created, returns aggregateId.
- * Failure: missing input, storage retrieval failure, or page creation failure.
- */
-
-import type { CommandResult } from "@shared-types";
-import { commandFailureFrom, commandSuccess } from "@shared-types";
-
-import type { IParsedDocumentPort } from "../../domain/ports/IParsedDocumentPort";
-
-export interface CreateKnowledgeDraftInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly createdByUserId: string;
-  readonly filename: string;
-  readonly sourceGcsUri: string;
-  readonly jsonGcsUri: string;
-  readonly pageCount: number;
-}
-
-export interface KnowledgePageGateway {
-  createPage(input: {
-    accountId: string;
-    workspaceId: string;
-    title: string;
-    parentPageId: null;
-    createdByUserId: string;
-  }): Promise<CommandResult>;
-  addBlock(input: {
-    accountId: string;
-    pageId: string;
-    index: number;
-    content: {
-      type: "text";
-      richText: readonly { type: string; plainText: string }[];
-      properties: Record<string, unknown>;
-    };
-  }): Promise<CommandResult>;
-}
-
-function trimFileExtension(filename: string): string {
-  const trimmed = filename.trim();
-  const idx = trimmed.lastIndexOf(".");
-  return idx <= 0 ? trimmed : trimmed.slice(0, idx);
-}
-
-export class CreateKnowledgeDraftFromSourceUseCase {
-  constructor(
-    private readonly parsedDocumentPort: IParsedDocumentPort,
-    private readonly knowledgeGateway: KnowledgePageGateway,
-  ) {}
-
-  async execute(input: CreateKnowledgeDraftInput): Promise<CommandResult> {
-    if (!input.accountId.trim() || !input.workspaceId.trim() || !input.createdByUserId.trim()) {
-      return commandFailureFrom(
-        "SOURCE_KNOWLEDGE_DRAFT_INVALID_SCOPE",
-        "accountId、workspaceId、createdByUserId 為必填。",
-      );
-    }
-
-    if (!input.filename.trim() || !input.sourceGcsUri.trim() || !input.jsonGcsUri.trim()) {
-      return commandFailureFrom(
-        "SOURCE_KNOWLEDGE_DRAFT_INVALID_SOURCE",
-        "filename、sourceGcsUri、jsonGcsUri 為必填。",
-      );
-    }
-
-    try {
-      const parsedText = await this.parsedDocumentPort.loadParsedDocumentText(input.jsonGcsUri);
-      const plainText = parsedText || `[${trimFileExtension(input.filename)}]`;
-      const title = `${trimFileExtension(input.filename)}｜匯入草稿`;
-
-      const TIPTAP_PROPERTY_KEY = "tiptapJson";
-
-      const pageResult = await this.knowledgeGateway.createPage({
-        accountId: input.accountId,
-        workspaceId: input.workspaceId,
-        title,
-        parentPageId: null,
-        createdByUserId: input.createdByUserId,
-      });
-
-      if (!pageResult.success) return pageResult;
-
-      const blockResult = await this.knowledgeGateway.addBlock({
-        accountId: input.accountId,
-        pageId: pageResult.aggregateId,
-        index: 0,
-        content: {
-          type: "text",
-          richText: [{ type: "text", plainText }],
-          properties: { [TIPTAP_PROPERTY_KEY]: null },
-        },
-      });
-
-      if (!blockResult.success) return blockResult;
-
-      return commandSuccess(pageResult.aggregateId, blockResult.version);
-    } catch (error) {
-      return commandFailureFrom(
-        "SOURCE_KNOWLEDGE_DRAFT_CREATE_FAILED",
-        error instanceof Error ? error.message : "建立 Knowledge Page Draft 失敗。",
-      );
-    }
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/source/application/use-cases/delete-source-document.use-case.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: application/use-cases
- * Use Case: DeleteSourceDocumentUseCase — deletes a legacy source document.
- *
- * Actor: account owner
- * Goal: remove a source document from the accounts/{accountId}/documents collection.
- * Main success: document deleted, returns ok with documentId.
- * Failure: invalid input or persistence failure.
- */
-
-import type { ISourceDocumentCommandPort } from "../../domain/ports/ISourceDocumentPort";
-import type { SourceFileCommandErrorCode } from "../dto/source-file.dto";
-
-export interface DeleteSourceDocumentInput {
-  readonly accountId: string;
-  readonly documentId: string;
-}
-
-type DeleteSourceDocumentResult =
-  | { ok: true; data: { documentId: string } }
-  | { ok: false; error: { code: SourceFileCommandErrorCode; message: string } };
-
-export class DeleteSourceDocumentUseCase {
-  constructor(
-    private readonly documentPort: ISourceDocumentCommandPort,
-  ) {}
-
-  async execute(input: DeleteSourceDocumentInput): Promise<DeleteSourceDocumentResult> {
-    const accountId = input.accountId.trim();
-    const documentId = input.documentId.trim();
-
-    if (!accountId || !documentId) {
-      return { ok: false, error: { code: "FILE_INVALID_INPUT", message: "accountId and documentId are required." } };
-    }
-
-    try {
-      await this.documentPort.deleteDocument(accountId, documentId);
-      return { ok: true, data: { documentId } };
-    } catch (err) {
-      return { ok: false, error: { code: "FILE_DELETE_FAILED", message: err instanceof Error ? err.message : "Delete failed." } };
-    }
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/source/application/use-cases/rename-source-document.use-case.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: application/use-cases
- * Use Case: RenameSourceDocumentUseCase — renames a legacy source document.
- *
- * Actor: account owner
- * Goal: update the display name of a source document in accounts/{accountId}/documents.
- * Main success: document renamed, returns ok with documentId.
- * Failure: invalid input or persistence failure.
- */
-
-import type { ISourceDocumentCommandPort } from "../../domain/ports/ISourceDocumentPort";
-import type { SourceFileCommandErrorCode } from "../dto/source-file.dto";
-
-export interface RenameSourceDocumentInput {
-  readonly accountId: string;
-  readonly documentId: string;
-  readonly newName: string;
-}
-
-type RenameSourceDocumentResult =
-  | { ok: true; data: { documentId: string } }
-  | { ok: false; error: { code: SourceFileCommandErrorCode; message: string } };
-
-export class RenameSourceDocumentUseCase {
-  constructor(
-    private readonly documentPort: ISourceDocumentCommandPort,
-  ) {}
-
-  async execute(input: RenameSourceDocumentInput): Promise<RenameSourceDocumentResult> {
-    const accountId = input.accountId.trim();
-    const documentId = input.documentId.trim();
-    const newName = input.newName.trim();
-
-    if (!accountId || !documentId || !newName) {
-      return { ok: false, error: { code: "FILE_INVALID_INPUT", message: "accountId, documentId and newName are required." } };
-    }
-
-    try {
-      await this.documentPort.renameDocument(accountId, documentId, newName);
-      return { ok: true, data: { documentId } };
-    } catch (err) {
-      return { ok: false, error: { code: "FILE_RENAME_FAILED", message: err instanceof Error ? err.message : "Rename failed." } };
-    }
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/source/application/use-cases/upload-complete-source-file.use-case.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: application/use-cases
- * Use Case: UploadCompleteSourceFileUseCase — activates a file after binary upload completes.
- *
- * This is the second step of a two-step upload flow:
- *   1. init  → creates File + FileVersion records
- *   2. complete (this) → activates the version and registers a RagDocumentRecord
- *
- * Idempotent: calling complete on an already-completed file returns the existing
- * RagDocument without creating a duplicate.
- */
-
-import { randomUUID } from "node:crypto";
-
-import type { ISourceFileRepository } from "../../domain/repositories/ISourceFileRepository";
-import type { IRagDocumentRepository } from "../../domain/repositories/IRagDocumentRepository";
-import { completeUploadSourceFile } from "../../domain/services/complete-upload-source-file.service";
-import type {
-  SourceFileCommandErrorCode,
-  UploadCompleteFileInputDto,
-  UploadCompleteFileOutputDto,
-} from "../dto/source-file.dto";
-import type { SourceFile } from "../../domain/entities/SourceFile";
-
-type UploadCompleteSourceFileResult =
-  | { ok: true; data: UploadCompleteFileOutputDto }
-  | { ok: false; error: { code: SourceFileCommandErrorCode; message: string } };
-
-function isFileScopeMatch(params: {
-  file: SourceFile;
-  workspaceId: string;
-  organizationId: string;
-  actorAccountId: string;
-  versionId: string;
-}): boolean {
-  return (
-    params.file.workspaceId === params.workspaceId &&
-    params.file.organizationId === params.organizationId &&
-    params.file.accountId === params.actorAccountId &&
-    params.file.currentVersionId === params.versionId
-  );
-}
-
-function isFileAlreadyCompleted(file: SourceFile): boolean {
-  return file.source === "file-upload-complete";
-}
-
-export class UploadCompleteSourceFileUseCase {
-  constructor(
-    private readonly fileRepository: ISourceFileRepository,
-    private readonly ragDocumentRepository: IRagDocumentRepository,
-  ) {}
-
-  async execute(input: UploadCompleteFileInputDto): Promise<UploadCompleteSourceFileResult> {
-    const workspaceId = input.workspaceId.trim();
-    const organizationId = input.organizationId.trim();
-    const actorAccountId = input.actorAccountId.trim();
-    const fileId = input.fileId.trim();
-    const versionId = input.versionId.trim();
-
-    if (!workspaceId) return { ok: false, error: { code: "FILE_WORKSPACE_REQUIRED", message: "Workspace is required." } };
-    if (!organizationId) return { ok: false, error: { code: "FILE_ORGANIZATION_REQUIRED", message: "Organization is required." } };
-    if (!actorAccountId) return { ok: false, error: { code: "FILE_ACTOR_REQUIRED", message: "Actor account is required." } };
-    if (!fileId) return { ok: false, error: { code: "FILE_ID_REQUIRED", message: "File id is required." } };
-    if (!versionId) return { ok: false, error: { code: "FILE_VERSION_REQUIRED", message: "Version id is required." } };
-
-    const file = await this.fileRepository.findById(fileId);
-    if (!file) return { ok: false, error: { code: "FILE_NOT_FOUND", message: "File metadata not found." } };
-
-    const version = await this.fileRepository.findVersion(fileId, versionId);
-    if (!version) return { ok: false, error: { code: "FILE_VERSION_NOT_FOUND", message: "File version metadata not found." } };
-
-    if (!isFileScopeMatch({ file, workspaceId, organizationId, actorAccountId, versionId })) {
-      return { ok: false, error: { code: "FILE_SCOPE_MISMATCH", message: "Upload completion scope does not match file metadata." } };
-    }
-
-    if (file.status !== "active") {
-      return { ok: false, error: { code: "FILE_STATUS_CONFLICT", message: "File upload completion requires an active file record." } };
-    }
-
-    const existingRagDocument = await this.ragDocumentRepository.findByStoragePath({
-      organizationId,
-      workspaceId,
-      storagePath: version.storagePath,
-    });
-
-    const nextFile = isFileAlreadyCompleted(file)
-      ? file
-      : completeUploadSourceFile({ file, completedAtISO: new Date().toISOString() });
-
-    if (!isFileAlreadyCompleted(file)) {
-      await this.fileRepository.save(nextFile);
-    }
-
-    let ragDocumentId: string;
-    let ragDocumentStatus: UploadCompleteFileOutputDto["ragDocumentStatus"];
-
-    if (existingRagDocument !== null) {
-      ragDocumentId = existingRagDocument.id;
-      ragDocumentStatus = existingRagDocument.status;
-    } else {
-      const nowISO = new Date().toISOString();
-      ragDocumentId = `rag-document-${randomUUID()}`;
-
-      await this.ragDocumentRepository.saveUploaded({
-        id: ragDocumentId,
-        organizationId,
-        workspaceId,
-        accountId: actorAccountId,
-        displayName: file.name,
-        title: file.name,
-        sourceFileName: file.name,
-        mimeType: file.mimeType,
-        storagePath: version.storagePath,
-        sizeBytes: file.sizeBytes,
-        status: "uploaded",
-        checksum: version.checksum,
-        versionGroupId: ragDocumentId,
-        versionNumber: version.versionNumber,
-        isLatest: true,
-        createdAtISO: nowISO,
-        updatedAtISO: nowISO,
-      });
-
-      ragDocumentStatus = "uploaded";
-    }
-
-    return {
-      ok: true,
-      data: {
-        fileId: nextFile.id,
-        versionId: nextFile.currentVersionId,
-        status: "active",
-        ragDocumentId,
-        ragDocumentStatus,
-      },
-    };
-  }
-}
-````
-
 ## File: modules/notebooklm/subdomains/source/domain/index.ts
 ````typescript
 /**
@@ -7254,478 +7653,6 @@ export type { IParsedDocumentPort } from "./IParsedDocumentPort";
 export type { IRagDocumentRepository as IRagDocumentPort } from "../repositories/IRagDocumentRepository";
 export type { ISourceFileRepository as ISourceFilePort } from "../repositories/ISourceFileRepository";
 export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";
-````
-
-## File: modules/notebooklm/subdomains/source/domain/ports/IParsedDocumentPort.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: domain/ports
- * Port: IParsedDocumentPort — retrieves parsed document text from storage.
- *
- * This port isolates Firebase Storage access from interfaces.
- * Infrastructure provides the adapter; application consumes via use cases.
- */
-
-export interface IParsedDocumentPort {
-  loadParsedDocumentText(jsonGcsUri: string): Promise<string>;
-}
-````
-
-## File: modules/notebooklm/subdomains/source/domain/ports/ISourceDocumentPort.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: domain/ports
- * Port: ISourceDocumentPort — commands for legacy source documents stored in accounts/{accountId}/documents.
- *
- * This port isolates the legacy Firestore collection from interfaces.
- * Infrastructure provides the Firebase adapter; interfaces consume via use cases.
- */
-
-export interface ISourceDocumentCommandPort {
-  deleteDocument(accountId: string, documentId: string): Promise<void>;
-  renameDocument(accountId: string, documentId: string, newName: string): Promise<void>;
-}
-````
-
-## File: modules/notebooklm/subdomains/source/infrastructure/adapters/NotionKnowledgePageGatewayAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/adapters
- * Adapter: NotionKnowledgePageGatewayAdapter — delegates to notion bounded context API.
- *
- * Implements the KnowledgePageGateway port defined in the application layer,
- * bridging the source subdomain to the notion bounded context through its public API.
- */
-
-import type { CommandResult } from "@shared-types";
-
-import { addKnowledgeBlock, createKnowledgePage } from "@/modules/notion/api";
-
-import type { KnowledgePageGateway } from "../../application/use-cases/create-knowledge-draft-from-source.use-case";
-
-export class NotionKnowledgePageGatewayAdapter implements KnowledgePageGateway {
-  async createPage(input: {
-    accountId: string;
-    workspaceId: string;
-    title: string;
-    parentPageId: null;
-    createdByUserId: string;
-  }): Promise<CommandResult> {
-    return createKnowledgePage(input);
-  }
-
-  async addBlock(input: {
-    accountId: string;
-    pageId: string;
-    index: number;
-    content: {
-      type: "text";
-      richText: readonly { type: string; plainText: string }[];
-      properties: Record<string, unknown>;
-    };
-  }): Promise<CommandResult> {
-    return addKnowledgeBlock(input);
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseDocumentStatusAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/firebase
- * Adapter: FirebaseDocumentStatusAdapter — watches Firestore document status via onSnapshot.
- *
- * Extracted from interfaces/components to keep Firestore access in infrastructure layer.
- */
-
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function asNumber(value: unknown, fallback = 0): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
-
-export async function waitForParsedDocument(
-  accountId: string,
-  docId: string,
-): Promise<{ pageCount: number; jsonGcsUri: string }> {
-  const db = getFirebaseFirestore();
-
-  return new Promise((resolve, reject) => {
-    const docRef = firestoreApi.doc(db, "accounts", accountId, "documents", docId);
-    const unsubscribe = firestoreApi.onSnapshot(docRef, (snapshot) => {
-      if (!snapshot.exists()) return;
-
-      const data = asRecord(snapshot.data());
-      const status = asString(data.status, "unknown");
-
-      if (status === "completed") {
-        const parsed = asRecord(data.parsed);
-        unsubscribe();
-        resolve({
-          pageCount: asNumber(parsed.page_count, 0),
-          jsonGcsUri: asString(parsed.json_gcs_uri),
-        });
-        return;
-      }
-
-      if (status === "error") {
-        const error = asRecord(data.error);
-        unsubscribe();
-        reject(new Error(asString(error.message, "文件解析失敗")));
-      }
-    });
-  });
-}
-````
-
-## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseParsedDocumentAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/firebase
- * Adapter: FirebaseParsedDocumentAdapter — Firebase Storage implementation of IParsedDocumentPort.
- *
- * Reads parsed JSON from a GCS URI and extracts the text content.
- */
-
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-
-import type { IParsedDocumentPort } from "../../domain/ports/IParsedDocumentPort";
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-export class FirebaseParsedDocumentAdapter implements IParsedDocumentPort {
-  async loadParsedDocumentText(jsonGcsUri: string): Promise<string> {
-    if (!jsonGcsUri) return "";
-    const storage = getFirebaseStorage();
-    const ref = storageApi.ref(storage, jsonGcsUri);
-    const url = await storageApi.getDownloadURL(ref);
-    const response = await fetch(url, { cache: "no-store" });
-    if (!response.ok) throw new Error(`無法讀取解析 JSON (${response.status})`);
-    const payload = asRecord(await response.json());
-    return asString(payload.text);
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseSourceDocumentCommandAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/firebase
- * Adapter: FirebaseSourceDocumentCommandAdapter — Firestore implementation of ISourceDocumentCommandPort.
- *
- * Collection path: accounts/{accountId}/documents/{documentId}
- * This is a legacy collection; new data should use the workspaceFiles collection.
- */
-
-import { deleteDoc, doc, getFirestore, serverTimestamp, updateDoc } from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type { ISourceDocumentCommandPort } from "../../domain/ports/ISourceDocumentPort";
-
-export class FirebaseSourceDocumentCommandAdapter implements ISourceDocumentCommandPort {
-  private readonly db = getFirestore(firebaseClientApp);
-
-  async deleteDocument(accountId: string, documentId: string): Promise<void> {
-    await deleteDoc(doc(this.db, "accounts", accountId, "documents", documentId));
-  }
-
-  async renameDocument(accountId: string, documentId: string, newName: string): Promise<void> {
-    await updateDoc(doc(this.db, "accounts", accountId, "documents", documentId), {
-      title: newName,
-      "source.filename": newName,
-      "metadata.filename": newName,
-      updatedAt: serverTimestamp(),
-    });
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/source/interfaces/_actions/source-file.actions.ts
-````typescript
-"use server";
-
-import type {
-  UploadCompleteFileInputDto,
-  UploadCompleteFileOutputDto,
-  UploadInitFileInputDto,
-  UploadInitFileOutputDto,
-} from "../../application/dto/source-file.dto";
-import type {
-  RegisterUploadedRagDocumentInputDto,
-  RegisterUploadedRagDocumentResult,
-} from "../../application/dto/rag-document.dto";
-import { makeRagDocumentAdapter, makeSourceDocumentCommandAdapter, makeSourceFileAdapter } from "../../api/factories";
-import { UploadInitSourceFileUseCase } from "../../application/use-cases/upload-init-source-file.use-case";
-import { UploadCompleteSourceFileUseCase } from "../../application/use-cases/upload-complete-source-file.use-case";
-import { RegisterUploadedRagDocumentUseCase } from "../../application/use-cases/register-rag-document.use-case";
-import { DeleteSourceDocumentUseCase } from "../../application/use-cases/delete-source-document.use-case";
-import { RenameSourceDocumentUseCase } from "../../application/use-cases/rename-source-document.use-case";
-import type { SourceFileCommandResult } from "../contracts/source-command-result";
-
-function createCommandId(idempotencyKey?: string): string {
-  const normalized = idempotencyKey?.trim();
-  return normalized || `source-file-${crypto.randomUUID()}`;
-}
-
-export async function uploadInitFile(
-  input: UploadInitFileInputDto,
-): Promise<SourceFileCommandResult<UploadInitFileOutputDto>> {
-  const commandId = createCommandId(input.idempotencyKey);
-  const useCase = new UploadInitSourceFileUseCase(makeSourceFileAdapter());
-  const result = await useCase.execute(input);
-  return { ...result, commandId };
-}
-
-export async function uploadCompleteFile(
-  input: UploadCompleteFileInputDto,
-): Promise<SourceFileCommandResult<UploadCompleteFileOutputDto>> {
-  const commandId = createCommandId(input.versionId);
-  const fileAdapter = makeSourceFileAdapter();
-  const useCase = new UploadCompleteSourceFileUseCase(fileAdapter, makeRagDocumentAdapter());
-  const result = await useCase.execute(input);
-  return { ...result, commandId };
-}
-
-export async function registerUploadedRagDocument(
-  input: RegisterUploadedRagDocumentInputDto,
-): Promise<RegisterUploadedRagDocumentResult> {
-  const commandId = createCommandId(input.storagePath);
-  const useCase = new RegisterUploadedRagDocumentUseCase(makeRagDocumentAdapter());
-  const result = await useCase.execute(input);
-  return { ...result, commandId };
-}
-
-export async function deleteSourceDocument(
-  accountId: string,
-  documentId: string,
-): Promise<SourceFileCommandResult<{ documentId: string }>> {
-  const commandId = `source-delete-${crypto.randomUUID()}`;
-  const useCase = new DeleteSourceDocumentUseCase(makeSourceDocumentCommandAdapter());
-  const result = await useCase.execute({ accountId, documentId });
-  return { ...result, commandId };
-}
-
-export async function renameSourceDocument(
-  accountId: string,
-  documentId: string,
-  newName: string,
-): Promise<SourceFileCommandResult<{ documentId: string }>> {
-  const commandId = `source-rename-${crypto.randomUUID()}`;
-  const useCase = new RenameSourceDocumentUseCase(makeSourceDocumentCommandAdapter());
-  const result = await useCase.execute({ accountId, documentId, newName });
-  return { ...result, commandId };
-}
-````
-
-## File: modules/notebooklm/subdomains/source/interfaces/_actions/source-processing.actions.ts
-````typescript
-"use server";
-
-import type { CommandResult } from "@shared-types";
-
-import { makeKnowledgePageGateway, makeParsedDocumentAdapter } from "../../api/factories";
-import { CreateKnowledgeDraftFromSourceUseCase } from "../../application/use-cases/create-knowledge-draft-from-source.use-case";
-
-interface CreateKnowledgeDraftFromSourceDocumentInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly createdByUserId: string;
-  readonly filename: string;
-  readonly sourceGcsUri: string;
-  readonly jsonGcsUri: string;
-  readonly pageCount: number;
-}
-
-export async function createKnowledgeDraftFromSourceDocument(
-  input: CreateKnowledgeDraftFromSourceDocumentInput,
-): Promise<CommandResult> {
-  const useCase = new CreateKnowledgeDraftFromSourceUseCase(
-    makeParsedDocumentAdapter(),
-    makeKnowledgePageGateway(),
-  );
-  return useCase.execute(input);
-}
-````
-
-## File: modules/notebooklm/subdomains/source/interfaces/components/file-processing-dialog.utils.ts
-````typescript
-"use client";
-
-import { waitForParsedDocument } from "../../api/factories";
-
-export type TaskStatus = "idle" | "running" | "success" | "error" | "skipped";
-
-export interface TaskResult {
-  readonly status: TaskStatus;
-  readonly detail: string;
-}
-
-export interface ExecutionSummary {
-  readonly pageCount: number;
-  readonly jsonGcsUri: string;
-  readonly pageHref: string;
-  readonly parse: TaskResult;
-  readonly rag: TaskResult;
-  readonly page: TaskResult;
-}
-
-export function createIdleSummary(): ExecutionSummary {
-  return {
-    pageCount: 0,
-    jsonGcsUri: "",
-    pageHref: "",
-    parse: { status: "idle", detail: "尚未開始解析" },
-    rag: { status: "idle", detail: "尚未決定是否建立 RAG 索引" },
-    page: { status: "idle", detail: "尚未決定是否建立 Knowledge Page" },
-  };
-}
-
-export function readCallableData(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-export function readString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-export function readNumber(value: unknown, fallback = 0): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
-
-export { waitForParsedDocument };
-````
-
-## File: modules/notebooklm/subdomains/source/interfaces/hooks/useSourceDocumentsSnapshot.ts
-````typescript
-"use client";
-
-import { useCallback, useEffect, useRef, useState } from "react";
-
-import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
-
-import type {
-  SourceLiveDocument,
-} from "../../application/dto/source-live-document.dto";
-import {
-  mapToSourceLiveDocument,
-} from "../../application/dto/source-live-document.dto";
-
-// Re-export types for backward compatibility
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../../application/dto/source-live-document.dto";
-export {
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../../application/dto/source-live-document.dto";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function objectOrEmpty(value: unknown): Record<string, unknown> {
-  return isRecord(value) ? value : {};
-}
-
-// ── Hook ──────────────────────────────────────────────────────────────────────
-
-export interface UseSourceDocumentsSnapshotResult {
-  readonly docs: SourceLiveDocument[];
-  readonly loading: boolean;
-  readonly pendingDocs: SourceLiveDocument[];
-  readonly addPending: (doc: SourceLiveDocument) => void;
-  readonly removePending: (id: string) => void;
-}
-
-/** Subscribes to Firestore `accounts/{accountId}/documents` in real time via onSnapshot. */
-export function useSourceDocumentsSnapshot(
-  accountId: string,
-  workspaceId?: string,
-): UseSourceDocumentsSnapshotResult {
-  const [rawDocs, setRawDocs] = useState<SourceLiveDocument[]>([]);
-  const [rawPending, setRawPending] = useState<SourceLiveDocument[]>([]);
-  const [receivedKey, setReceivedKey] = useState("");
-  const statusMapRef = useRef<Record<string, string>>({});
-
-  const addPending = useCallback((doc: SourceLiveDocument) => {
-    setRawPending((prev) => [doc, ...prev.filter((p) => p.id !== doc.id)]);
-  }, []);
-
-  const removePending = useCallback((id: string) => {
-    setRawPending((prev) => prev.filter((p) => p.id !== id));
-  }, []);
-
-  useEffect(() => {
-    if (!accountId) return;
-
-    const subKey = `${accountId}/${workspaceId ?? ""}`;
-    statusMapRef.current = {};
-
-    const db = getFirebaseFirestore();
-    const colRef = firestoreApi.collection(db, "accounts", accountId, "documents");
-
-    const unsubscribe = firestoreApi.onSnapshot(
-      colRef,
-      (snapshot) => {
-        const mapped = snapshot.docs
-          .map((item) => mapToSourceLiveDocument(item.id, objectOrEmpty(item.data())))
-          .filter((item) => !workspaceId || item.workspaceId === workspaceId)
-          .sort((a, b) => (b.uploadedAt?.getTime() ?? 0) - (a.uploadedAt?.getTime() ?? 0));
-
-        const nextMap: Record<string, string> = {};
-        for (const doc of mapped) {
-          nextMap[doc.id] = `${doc.status}/${doc.ragStatus}`;
-        }
-        statusMapRef.current = nextMap;
-
-        setRawDocs(mapped);
-        setRawPending((prev) => prev.filter((p) => !mapped.some((d) => d.id === p.id)));
-        setReceivedKey(subKey);
-      },
-      () => {
-        setReceivedKey(subKey);
-      },
-    );
-
-    return () => {
-      unsubscribe();
-      statusMapRef.current = {};
-    };
-  }, [accountId, workspaceId]);
-
-  const currentKey = `${accountId}/${workspaceId ?? ""}`;
-  const docs = accountId ? rawDocs : [];
-  const loading = Boolean(accountId) && receivedKey !== currentKey;
-  const pendingDocs = accountId ? rawPending : [];
-
-  return { docs, loading, pendingDocs, addPending, removePending };
-}
 ````
 
 ## File: modules/notebooklm/subdomains/source/interfaces/queries/source-file.queries.ts
@@ -7782,4 +7709,122 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill rag-architecture
+````
+
+## File: modules/notebooklm/subdomains/ai/api/index.ts
+````typescript
+/**
+ * Public API boundary for the ai subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+
+// --- Domain types (grounding) ------------------------------------------------
+
+export type { RagRetrievedChunk, RagCitation, RagRetrievalSummary } from "../domain/entities/retrieval.entities";
+export type { IVectorStore, VectorDocument, VectorSearchResult } from "../domain/ports/IVectorStore";
+export type { IRagRetrievalRepository, RetrieveChunksInput } from "../domain/repositories/IRagRetrievalRepository";
+export type {
+  IKnowledgeContentRepository,
+  KnowledgeCitation,
+  KnowledgeParsedDocument,
+  KnowledgeRagQueryResult,
+  KnowledgeReindexInput,
+} from "../domain/repositories/IKnowledgeContentRepository";
+
+// --- Domain types (qa) -------------------------------------------------------
+
+export type { AnswerRagQueryInput, AnswerRagQueryOutput, AnswerRagQueryResult, RagStreamEvent } from "../domain/entities/rag-query.entities";
+export type { RagQueryFeedback, RagFeedbackRating, SubmitRagQueryFeedbackInput } from "../domain/entities/rag-feedback.entities";
+export type { IRagQueryFeedbackRepository } from "../domain/repositories/IRagQueryFeedbackRepository";
+
+// --- Domain types (synthesis) ------------------------------------------------
+
+export type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerOutput,
+  GenerateRagAnswerResult,
+  GenerationCitation,
+} from "../domain/entities/generation.entities";
+export type { IRagGenerationRepository } from "../domain/repositories/IRagGenerationRepository";
+
+// --- Use-case classes (for DI composition) -----------------------------------
+
+export { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
+export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-rag-feedback.use-case";
+
+// --- Wiki convenience wrappers with default repository -----------------------
+
+import { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
+import type { KnowledgeParsedDocument, KnowledgeRagQueryResult, KnowledgeReindexInput } from "../domain/repositories/IKnowledgeContentRepository";
+
+let _knowledgeContentRepository: FirebaseKnowledgeContentAdapter | undefined;
+
+function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter {
+  if (!_knowledgeContentRepository) {
+    _knowledgeContentRepository = new FirebaseKnowledgeContentAdapter();
+  }
+  return _knowledgeContentRepository;
+}
+
+export function runKnowledgeRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
+): Promise<KnowledgeRagQueryResult> {
+  return getKnowledgeContentRepository().runRagQuery(query, accountId, workspaceId, topK, options);
+}
+
+export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void> {
+  return getKnowledgeContentRepository().reindexDocument(input);
+}
+
+export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]> {
+  return getKnowledgeContentRepository().listParsedDocuments(accountId, limitCount);
+}
+
+// --- Infrastructure adapters (client-safe, for composition roots) ------------
+
+export { FirebaseRagRetrievalAdapter } from "../infrastructure/firebase/FirebaseRagRetrievalAdapter";
+export { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
+export { FirebaseRagQueryFeedbackAdapter } from "../infrastructure/firebase/FirebaseRagQueryFeedbackAdapter";
+
+// --- UI components -----------------------------------------------------------
+
+export { RagQueryView } from "../interfaces/components/RagQueryView";
+````
+
+## File: modules/notebooklm/subdomains/ai/domain/index.ts
+````typescript
+export * from "./entities/generation.entities";
+export * from "./entities/rag-feedback.entities";
+export * from "./entities/rag-query.entities";
+export * from "./entities/retrieval.entities";
+export * from "./events";
+export * from "./ports/IVectorStore";
+export * from "./repositories/IRagGenerationRepository";
+export * from "./repositories/IRagQueryFeedbackRepository";
+export * from "./repositories/IRagRetrievalRepository";
+export * from "./repositories/IKnowledgeContentRepository";
+export * from "./services";
+export * from "./value-objects";
+// Ports layer — driven port aliases
+export type { IRagGenerationPort, IRagQueryFeedbackPort, IRagRetrievalPort, IKnowledgeContentPort } from "./ports";
+````
+
+## File: modules/notebooklm/subdomains/ai/domain/ports/index.ts
+````typescript
+/**
+ * notebooklm/ai domain/ports — driven port interfaces for the ai subdomain.
+ *
+ * These re-export the repository contracts from domain/repositories/ and
+ * the existing IVectorStore port from domain/ports/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
+export type { IRagGenerationRepository as IRagGenerationPort } from "../repositories/IRagGenerationRepository";
+export type { IRagQueryFeedbackRepository as IRagQueryFeedbackPort } from "../repositories/IRagQueryFeedbackRepository";
+export type { IRagRetrievalRepository as IRagRetrievalPort } from "../repositories/IRagRetrievalRepository";
+export type { IWikiContentRepository as IKnowledgeContentPort } from "../repositories/IKnowledgeContentRepository";
+export type { IVectorStore } from "./IVectorStore";
 ````

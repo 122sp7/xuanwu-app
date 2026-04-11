@@ -64,10 +64,10 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
 
     setLoading(true);
     try {
-      let result = await runWikiRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: true });
+      let result = await runKnowledgeRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: true });
       // Compatibility fallback for older vectors without ready status.
       if (result.citations.length === 0 && (result.vectorHits > 0 || result.searchHits > 0)) {
-        result = await runWikiRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: false, maxAgeDays: 3650 });
+        result = await runKnowledgeRagQuery(q, activeAccountId, effectiveWorkspaceId, 4, { requireReady: false, maxAgeDays: 3650 });
       }
       setAnswer(result.answer);
       setCitations(result.citations);

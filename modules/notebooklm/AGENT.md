@@ -4,13 +4,16 @@
 
 ## Mission
 
-保護 notebooklm 主域作為對話、來源處理、檢索、grounding 與 synthesis 邊界。
+保護 notebooklm 主域作為對話、來源處理、檢索、grounding、synthesis、評估與筆記邊界。核心 pipeline 為：ingestion → retrieval → grounding → synthesis → evaluation。
 
 ## Route Here When
 
 - 問題核心是 notebook、conversation、source ingestion、retrieval、grounding、synthesis。
 - 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
 - 問題要把知識來源轉成可對話與可綜合的推理材料。
+- 問題涉及 RAG 問答、向量檢索、chunks 召回、generation 品質。
+- 問題涉及 evaluation、品質評估、回歸比較或 grounding 可信度。
+- 問題涉及 note（輕量個人筆記）或 conversation-versioning（對話快照策略）。
 
 ## Route Elsewhere When
 
@@ -18,6 +21,14 @@
 - 身份、授權、權益、憑證治理屬於 platform。
 - 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
 - 工作區生命週期、共享與存在感屬於 workspace。
+
+## Architecture Note — ai Subdomain Tech Debt
+
+`ai` 子域目前是此主域的過渡 adapter，持有 RAG 查詢 (`IKnowledgeContentRepository`)、向量檢索實體 (`RagRetrievedChunk`)、引用實體 (`RagCitation`)、synthesis use case (`AnswerRagQueryUseCase`) 與早期 feedback 流程。
+
+這些責任長期應依戰略清單逐步遷移至：`retrieval`、`grounding`、`synthesis`、`evaluation`。
+
+新功能應**優先加進目標子域**（如新的 retrieval 策略請放 `retrieval/`），不要繼續擴大 `ai` 子域範圍。用 Strangler Pattern：只在搬遷時加入 use case contract，不做一次性大改。
 
 ## Dependency Direction
 
