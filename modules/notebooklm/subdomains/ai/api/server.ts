@@ -5,4 +5,13 @@
  * Must only be imported in Server Actions, route handlers, or server-side infrastructure.
  */
 
-export { createAnswerRagQueryUseCase } from "../qa/server";
+import { FirebaseRagRetrievalAdapter } from "../infrastructure/firebase/FirebaseRagRetrievalAdapter";
+import { GenkitRagGenerationAdapter } from "../infrastructure/genkit/GenkitRagGenerationAdapter";
+import { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
+
+export function createAnswerRagQueryUseCase(): AnswerRagQueryUseCase {
+  return new AnswerRagQueryUseCase(
+    new FirebaseRagRetrievalAdapter(),
+    new GenkitRagGenerationAdapter(),
+  );
+}
