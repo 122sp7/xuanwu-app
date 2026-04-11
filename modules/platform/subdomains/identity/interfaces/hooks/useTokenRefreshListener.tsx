@@ -2,7 +2,7 @@
 
 import { getFirebaseAuth } from "@integration-firebase";
 import { useEffect } from "react";
-import { FirebaseTokenRefreshRepository } from "../../infrastructure/firebase/FirebaseTokenRefreshRepository";
+import { FirebaseTokenRefreshRepository } from "../../api";
 
 let _tokenRefreshRepo: FirebaseTokenRefreshRepository | undefined;
 

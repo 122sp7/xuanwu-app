@@ -9,7 +9,7 @@ import {
 	SignInUseCase,
 	SignOutUseCase,
 } from "../../application/use-cases/identity.use-cases";
-import { FirebaseIdentityRepository } from "../../infrastructure/firebase/FirebaseIdentityRepository";
+import { FirebaseIdentityRepository } from "../../api";
 
 const identityRepo = new FirebaseIdentityRepository();
 

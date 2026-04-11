@@ -64,7 +64,7 @@ export {
 } from "../application";
 
 // --- Infrastructure (lazy, safe for SSR) ---
-export { organizationService } from "../infrastructure";
+export { organizationService, organizationQueryService } from "../infrastructure";
 
 // --- Interfaces (UI, queries, actions) ---
 export * from "../interfaces";

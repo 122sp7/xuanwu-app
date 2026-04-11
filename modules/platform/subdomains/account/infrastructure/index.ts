@@ -1,1 +1,1 @@
-export { accountService, createClientAccountUseCases } from "./account-service";
+export { accountService, createClientAccountUseCases, FirebaseAccountQueryRepository } from "./account-service";

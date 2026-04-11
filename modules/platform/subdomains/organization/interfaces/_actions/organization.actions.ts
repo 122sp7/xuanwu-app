@@ -5,7 +5,7 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { organizationService } from "../../infrastructure/organization-service";
+import { organizationService } from "../../api";
 import type {
   CreateOrganizationCommand,
   UpdateOrganizationSettingsCommand,

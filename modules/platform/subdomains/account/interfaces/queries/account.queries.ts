@@ -3,7 +3,7 @@
  * NOT Server Actions — callable from React components/hooks directly.
  */
 
-import { FirebaseAccountQueryRepository } from "../../infrastructure/firebase/FirebaseAccountQueryRepository";
+import { FirebaseAccountQueryRepository } from "../../api";
 import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dto/account.dto";
 
 let _accountQueryRepo: FirebaseAccountQueryRepository | undefined;
