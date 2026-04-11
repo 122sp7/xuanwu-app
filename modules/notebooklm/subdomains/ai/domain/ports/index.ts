@@ -8,5 +8,5 @@
 export type { IRagGenerationRepository as IRagGenerationPort } from "../repositories/IRagGenerationRepository";
 export type { IRagQueryFeedbackRepository as IRagQueryFeedbackPort } from "../repositories/IRagQueryFeedbackRepository";
 export type { IRagRetrievalRepository as IRagRetrievalPort } from "../repositories/IRagRetrievalRepository";
-export type { IWikiContentRepository as IKnowledgeContentPort } from "../repositories/IKnowledgeContentRepository";
+export type { IKnowledgeContentRepository as IKnowledgeContentPort } from "../repositories/IKnowledgeContentRepository";
 export type { IVectorStore } from "./IVectorStore";
