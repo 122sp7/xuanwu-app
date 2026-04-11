@@ -3,22 +3,15 @@
  *
  * Query:   GetWorkflowPolicyView
  * Purpose: Returns the workflow policy corresponding to a trigger key.
- *
- * Input fields:
- *   contextId, triggerKey
- *
- * Orchestration steps:
- *   1. Query WorkflowPolicyRepository for trigger key
- *   2. Cross-reference with PolicyCatalogViewRepository
- *   3. Return WorkflowPolicyView read model
- *
- * Output ports:
- *   WorkflowPolicyRepository, PolicyCatalogViewRepository
- *
- * Returns: WorkflowPolicyView read model (never adapter-native type)
- *
- * @see docs/application-services.md
- * @see ports/input/index.ts — PlatformQueryPort
  */
 
-// TODO: implement GetWorkflowPolicyViewUseCase
+import type { GetWorkflowPolicyViewInput } from "../dtos";
+import type { WorkflowPolicyRepository, WorkflowPolicyView } from "../../domain/ports/output";
+
+export class GetWorkflowPolicyViewUseCase {
+	constructor(private readonly policyRepo: WorkflowPolicyRepository) {}
+
+	async execute(input: GetWorkflowPolicyViewInput): Promise<WorkflowPolicyView | null> {
+		return this.policyRepo.getView(input.contextId, input.triggerKey);
+	}
+}
