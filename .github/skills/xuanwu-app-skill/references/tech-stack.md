@@ -97,5 +97,5 @@
 - package.json
 - vitest.config.ts
 - .gitignore
-- tsconfig.json
 - eslint.config.mjs
+- tsconfig.json

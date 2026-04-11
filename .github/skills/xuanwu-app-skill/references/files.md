@@ -1816,6 +1816,32 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-typescript-workbench
 ````
 
+## File: app/(shell)/ai-chat/page.tsx
+````typescript
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+import { useApp, useAuth } from "@/modules/platform/api"
+import { AiChatPage } from "@/modules/notebooklm/api";
+
+export default function AiChatRoutePage() {
+  const searchParams = useSearchParams();
+  const { state: { workspaces } } = useApp();
+  const { state: authState } = useAuth();
+  const accountId = authState.user?.id ?? "";
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+
+  return (
+    <AiChatPage
+      accountId={accountId}
+      workspaces={workspaces ?? {}}
+      requestedWorkspaceId={requestedWorkspaceId}
+    />
+  );
+}
+````
+
 ## File: app/(shell)/dashboard/page.tsx
 ````typescript
 /**
@@ -2138,6 +2164,485 @@ export function DevToolsParsedDocsSection({
 }
 ````
 
+## File: app/(shell)/dev-tools/page.tsx
+````typescript
+"use client";
+
+/**
+ * Module: dev-tools page — /dev-tools
+ * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
+ * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
+ * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
+ *   Doc-list state and operations → useDevToolsDocList hook.
+ *   Parsed-docs table → DevToolsParsedDocsSection component.
+ */
+
+import { useRef, useState, useEffect } from "react";
+import {
+  FlaskConical,
+  FileUp,
+  AlertCircle,
+  FileText,
+  Trash2,
+  Code2,
+  ExternalLink,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
+
+import { useApp } from "@/modules/platform/api";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  UPLOAD_BUCKET,
+  WATCH_PATH,
+  ACCEPTED_MIME,
+  ACCEPTED_EXTS,
+  asRecord,
+  asString,
+  asNumber,
+  type ParseResult,
+  type UploadStatus,
+} from "./dev-tools-helpers";
+import { StatusBadge, RagBadge } from "./dev-tools-badges";
+import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
+import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
+
+// ── Page component ─────────────────────────────────────────────────────────
+
+export default function DevToolsPage() {
+  const { state: appState } = useApp();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+  const activeWorkspaceId = appState.activeWorkspaceId ?? "";
+
+  // ── Upload state ──────────────────────────────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<UploadStatus>("idle");
+  const [result, setResult] = useState<ParseResult | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [logs, setLogs] = useState<string[]>([]);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
+
+  // ── Doc list + operations (extracted hook) ────────────────────────────────
+  const {
+    allDocs,
+    selectedDocId,
+    selectedDoc,
+    jsonContent,
+    jsonLoading,
+    deletingId,
+    reindexingId,
+    handleViewOriginal,
+    handleViewJson,
+    handleDeleteDoc,
+    handleManualProcess,
+    closeJsonPreview,
+    formatNormalizationRatio,
+  } = useDevToolsDocList(activeAccountId);
+
+  // Cleanup upload subscription on unmount
+  useEffect(() => {
+    return () => { if (unsubscribeRef.current) unsubscribeRef.current(); };
+  }, []);
+
+  function appendLog(msg: string) {
+    setLogs((prev) => [
+      ...prev,
+      `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`,
+    ]);
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    setResult(null);
+    setErrorMsg(null);
+    setStatus("idle");
+    setLogs([]);
+    if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
+  }
+
+  function buildUuidUploadPath(accountId: string, file: File) {
+    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
+    const docId = crypto.randomUUID();
+    return { uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`, docId };
+  }
+
+  function watchDocument(docId: string) {
+    if (!activeAccountId) {
+      appendLog("❌ 缺少 active account，無法監聽文件狀態");
+      return;
+    }
+    try {
+      const db = getFirebaseFirestore();
+      const docRef = firestoreApi.doc(db, "accounts", activeAccountId, "documents", docId);
+      if (unsubscribeRef.current) unsubscribeRef.current();
+      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {
+        if (!snapshot.exists()) { appendLog("等待 Firestore 初始化…"); return; }
+        const data = asRecord(snapshot.data());
+        const docStatus = asString(data.status, "unknown");
+        appendLog(`Firestore update: status=${docStatus}`);
+        if (docStatus === "completed") {
+          const parsed = asRecord(data.parsed);
+          const r: ParseResult = {
+            doc_id: docId,
+            status: "completed",
+            page_count: asNumber(parsed.page_count) ?? 0,
+            json_gcs_uri: asString(parsed.json_gcs_uri),
+          };
+          setResult(r);
+          setStatus("done");
+          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
+          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+        } else if (docStatus === "error") {
+          const error = asRecord(data.error);
+          const msg = asString(error.message, "未知錯誤");
+          setErrorMsg(msg);
+          setStatus("error");
+          appendLog(`❌ 錯誤：${msg}`);
+          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+        }
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appendLog(`❌ 監聽失敗：${msg}`);
+      setErrorMsg(msg);
+      setStatus("error");
+    }
+  }
+
+  async function handleUploadAndParse() {
+    if (!selectedFile) return;
+    if (!activeAccountId) {
+      setErrorMsg("缺少 active account，無法上傳與解析");
+      setStatus("error");
+      return;
+    }
+    setStatus("uploading");
+    setResult(null);
+    setErrorMsg(null);
+    appendLog("📤 上傳檔案到 Cloud Storage…");
+    try {
+      // Step 1: Upload to GCS
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);
+      const fileRef = storageApi.ref(storage, uploadPath);
+      const snap = await storageApi.uploadBytes(fileRef, selectedFile, {
+        contentType: ACCEPTED_MIME[selectedFile.name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream",
+        customMetadata: {
+          account_id: activeAccountId,
+          workspace_id: activeWorkspaceId,
+          filename: selectedFile.name,
+        },
+      });
+      appendLog(`✅ 上傳完成：${snap.ref.fullPath}`);
+      // Step 2: Watch Firestore for status updates
+      setStatus("waiting");
+      appendLog("⏳ 等待 parse_document 處理…");
+      watchDocument(docId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setErrorMsg(msg);
+      setStatus("error");
+      appendLog(`❌ 上傳失敗：${msg}`);
+    }
+  }
+
+  function reset() {
+    if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+    setSelectedFile(null);
+    setResult(null);
+    setErrorMsg(null);
+    setStatus("idle");
+    setLogs([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  const isLoading = status === "uploading" || status === "waiting";
+  const parsedDocs = allDocs.filter((doc) => doc.status === "completed");
+  const ragReadyCount = allDocs.filter((doc) => doc.rag_status === "ready").length;
+  const ragErrorCount = allDocs.filter((doc) => doc.rag_status === "error").length;
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-8">
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
+          <FlaskConical className="size-5 text-amber-500" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Dev Tools</h1>
+          <p className="text-xs text-muted-foreground">
+            py_fn · parse_document · Document AI · Firestore 實時監聽
+          </p>
+        </div>
+      </div>
+
+      {/* ── Stats ──────────────────────────────────────────────────── */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">全部文件</p>
+          <p className="text-lg font-semibold tracking-tight">{allDocs.length}</p>
+        </div>
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+          <p className="text-[11px] text-emerald-700">解析完成</p>
+          <p className="text-lg font-semibold tracking-tight text-emerald-700">{parsedDocs.length}</p>
+        </div>
+        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+          <p className="text-[11px] text-blue-700">RAG Ready</p>
+          <p className="text-lg font-semibold tracking-tight text-blue-700">{ragReadyCount}</p>
+        </div>
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
+          <p className="text-[11px] text-destructive">RAG Error</p>
+          <p className="text-lg font-semibold tracking-tight text-destructive">{ragErrorCount}</p>
+        </div>
+      </section>
+
+      {/* ── File picker ────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          1. 選擇檔案
+        </h2>
+        <label
+          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 transition
+            ${selectedFile ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
+        >
+          <FileUp className="size-8 text-muted-foreground" />
+          <div className="text-center">
+            <p className="text-sm font-medium">
+              {selectedFile ? selectedFile.name : "點擊或拖曳上傳"}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={Object.keys(ACCEPTED_MIME).join(",")}
+            className="sr-only"
+            onChange={handleFileChange}
+          />
+        </label>
+      </section>
+
+      {/* ── Actions ────────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          2. 執行上傳 &amp; 解析
+        </h2>
+        <div className="flex gap-3">
+          <Button onClick={handleUploadAndParse} disabled={!selectedFile || isLoading} className="gap-2">
+            {isLoading ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />}
+            {status === "uploading" ? "上傳中…" : status === "waiting" ? "等待中…" : "開始"}
+          </Button>
+          <Button variant="outline" onClick={reset} disabled={isLoading}>
+            重置
+          </Button>
+        </div>
+      </section>
+
+      {/* ── Result ─────────────────────────────────────────────────── */}
+      {(status === "done" || status === "error") && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            3. 結果
+          </h2>
+          {status === "done" && result && (
+            <div className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
+              <div className="flex items-center gap-2 text-emerald-600">
+                <CheckCircle2 className="size-4 shrink-0" />
+                <span className="text-sm font-medium">解析成功</span>
+              </div>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <dt className="text-muted-foreground">doc_id</dt>
+                <dd className="font-mono text-xs">{result.doc_id}</dd>
+                <dt className="text-muted-foreground">page_count</dt>
+                <dd className="font-bold">{result.page_count}</dd>
+                <dt className="text-muted-foreground">JSON 位置</dt>
+                <dd className="font-mono text-xs break-all">{result.json_gcs_uri || "—"}</dd>
+              </dl>
+            </div>
+          )}
+          {status === "error" && (
+            <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+              <XCircle className="mt-0.5 size-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+        </section>
+      )}
+
+      {status === "waiting" && (
+        <section className="space-y-3">
+          <div className="flex items-start gap-2 rounded-xl border border-blue-300/30 bg-blue-500/5 p-4 text-sm text-blue-600">
+            <AlertCircle className="mt-0.5 size-4 shrink-0 animate-pulse" />
+            <div>
+              <p className="font-medium">處理中…</p>
+              <p className="mt-1 text-xs opacity-75">Document AI 正在解析檔案，請稍候</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── All uploaded docs table ─────────────────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <FileText className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            已上傳檔案（{allDocs.length}）
+          </h2>
+        </div>
+        {allDocs.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+            尚無上傳記錄
+          </p>
+        ) : (
+          <div className="space-y-0 overflow-hidden rounded-xl border border-border/60">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead>
+                  <tr className="border-b border-border/60 bg-muted/40">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allDocs.map((doc, i) => (
+                    <tr
+                      key={doc.id}
+                      className={`border-b border-border/40 last:border-0 transition-colors ${
+                        selectedDocId === doc.id
+                          ? "bg-primary/8 ring-1 ring-inset ring-primary/20"
+                          : i % 2 === 0 ? "bg-background" : "bg-muted/20"
+                      }`}
+                    >
+                      <td className="px-4 py-2.5 font-mono text-xs max-w-[180px] truncate" title={doc.filename}>
+                        {doc.filename}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <StatusBadge status={doc.status} errorMessage={doc.error_message} />
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <RagBadge status={doc.rag_status} error={doc.rag_error} />
+                      </td>
+                      <td className="px-4 py-2.5 text-xs">
+                        {doc.page_count != null ? doc.page_count : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                        {formatDateTime(doc.uploaded_at)}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => { void handleViewOriginal(doc); }}
+                            disabled={!doc.gcs_uri}
+                            title="查看原始檔案"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
+                          >
+                            <ExternalLink className="size-3.5" />
+                          </button>
+                          <button
+                            onClick={() => { void handleViewJson(doc); }}
+                            disabled={doc.status !== "completed" || !doc.json_gcs_uri}
+                            title="查看 JSON 解析結果"
+                            className={`inline-flex size-7 items-center justify-center rounded-md transition hover:bg-muted disabled:opacity-30 ${
+                              selectedDocId === doc.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            <Code2 className="size-3.5" />
+                          </button>
+                          <button
+                            onClick={() => { void handleDeleteDoc(doc); }}
+                            disabled={deletingId === doc.id}
+                            title="刪除"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                          >
+                            {deletingId === doc.id
+                              ? <Loader2 className="size-3.5 animate-spin" />
+                              : <Trash2 className="size-3.5" />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* JSON preview panel */}
+            {selectedDocId && (
+              <div className="border-t border-border/60 bg-[#0d1117]">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
+                  <div className="flex items-center gap-2 text-xs text-green-400">
+                    <Code2 className="size-3.5" />
+                    <span className="font-mono">
+                      {selectedDoc?.filename ?? selectedDocId} — JSON
+                    </span>
+                  </div>
+                  <button
+                    onClick={closeJsonPreview}
+                    className="text-white/30 hover:text-white/70 transition text-xs"
+                  >
+                    ✕ 關閉
+                  </button>
+                </div>
+                {selectedDoc?.rag_status === "error" && (
+                  <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs text-destructive">
+                    RAG 失敗：{selectedDoc.rag_error || "未知錯誤"}
+                  </div>
+                )}
+                <div className="max-h-80 overflow-y-auto p-4">
+                  {jsonLoading ? (
+                    <div className="flex items-center gap-2 text-green-400/60 text-xs">
+                      <Loader2 className="size-3.5 animate-spin" /> 載入中…
+                    </div>
+                  ) : (
+                    <pre className="font-mono text-xs leading-relaxed text-green-400 whitespace-pre-wrap break-words">
+                      {jsonContent}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ── Parsed docs table (extracted component) ─────────────────── */}
+      <DevToolsParsedDocsSection
+        parsedDocs={parsedDocs}
+        reindexingId={reindexingId}
+        onViewJson={(doc) => { void handleViewJson(doc); }}
+        onManualProcess={(doc) => { void handleManualProcess(doc, appendLog); }}
+        formatNormalizationRatio={formatNormalizationRatio}
+      />
+
+      {/* ── Console log ────────────────────────────────────────────── */}
+      {logs.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            Console
+          </h2>
+          <div className="max-h-48 overflow-y-auto rounded-xl bg-[#0d1117] p-4">
+            {logs.map((line, i) => (
+              <p key={i} className="font-mono text-xs leading-relaxed text-green-400">
+                {line}
+              </p>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/dev-tools/use-dev-tools-doc-list.ts
 ````typescript
 "use client";
@@ -2345,6 +2850,31 @@ export function useDevToolsDocList(activeAccountId: string): DocListState & DocL
 export { formatDateTime };
 ````
 
+## File: app/(shell)/knowledge-base/articles/[articleId]/page.tsx
+````typescript
+"use client";
+
+import { useApp, useAuth } from "@/modules/platform/api"
+import { ArticleDetailPage } from "@/modules/notion/api";
+
+export default function ArticleDetailPageRoute() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  return (
+    <ArticleDetailPage
+      accountId={accountId}
+      workspaceId={workspaceId}
+      currentUserId={currentUserId}
+    />
+  );
+}
+````
+
 ## File: app/(shell)/knowledge-base/articles/page.tsx
 ````typescript
 "use client";
@@ -2362,6 +2892,56 @@ import { redirect } from "next/navigation";
 
 export default function KnowledgeBasePage() {
   redirect("/knowledge-base/articles");
+}
+````
+
+## File: app/(shell)/knowledge-database/databases/[databaseId]/forms/page.tsx
+````typescript
+"use client";
+
+import { useApp, useAuth } from "@/modules/platform/api"
+import { DatabaseFormsPage } from "@/modules/notion/api";
+
+export default function DatabaseFormsPageRoute() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  return (
+    <DatabaseFormsPage
+      accountId={accountId}
+      workspaceId={workspaceId}
+      currentUserId={currentUserId}
+    />
+  );
+}
+````
+
+## File: app/(shell)/knowledge-database/databases/[databaseId]/page.tsx
+````typescript
+"use client";
+
+import { useApp, useAuth } from "@/modules/platform/api"
+import { DatabaseDetailPage } from "@/modules/notion/api";
+
+export default function DatabaseDetailPageRoute() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  return (
+    <DatabaseDetailPage
+      accountId={accountId}
+      workspaceId={workspaceId}
+      currentUserId={currentUserId}
+    />
+  );
 }
 ````
 
@@ -2408,6 +2988,31 @@ export default function KnowledgeBlockEditorPage() {
 }
 ````
 
+## File: app/(shell)/knowledge/pages/[pageId]/page.tsx
+````typescript
+"use client";
+
+import { useApp, useAuth } from "@/modules/platform/api"
+import { KnowledgePageDetailPage } from "@/modules/notion/api";
+
+export default function KnowledgePageDetailPageRoute() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const activeWorkspaceId = appState.activeWorkspaceId ?? null;
+  const currentUserId = authState.user?.id ?? "";
+
+  return (
+    <KnowledgePageDetailPage
+      accountId={accountId}
+      activeWorkspaceId={activeWorkspaceId}
+      currentUserId={currentUserId}
+    />
+  );
+}
+````
+
 ## File: app/(shell)/knowledge/pages/page.tsx
 ````typescript
 "use client";
@@ -2444,6 +3049,37 @@ export default function NotebookPage() {
 }
 ````
 
+## File: app/(shell)/notebook/rag-query/page.tsx
+````typescript
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+import { useApp } from "@/modules/platform/api";
+import { resolveWorkspaceFromMap } from "@/modules/workspace/api";
+import { RagQueryView } from "@/modules/notebooklm/api";
+
+export default function NotebookRagQueryPage() {
+  const searchParams = useSearchParams();
+  const { state: appState } = useApp();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const resolvedWorkspace = resolveWorkspaceFromMap(appState.workspaces, requestedWorkspaceId);
+  const workspaceId = resolvedWorkspace?.id ?? appState.activeWorkspaceId ?? undefined;
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
+        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
+      </header>
+
+      <RagQueryView workspaceId={workspaceId} />
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/organization/_utils.ts
 ````typescript
 export function formatDateTime(value: string | Date | null | undefined): string {
@@ -2462,6 +3098,27 @@ export function formatDateTime(value: string | Date | null | undefined): string 
 }
 ````
 
+## File: app/(shell)/organization/audit/page.tsx
+````typescript
+"use client";
+
+import { useApp, isActiveOrganizationAccount, OrganizationAuditPage } from "@/modules/platform/api"
+
+export default function OrganizationAuditPageRoute() {
+  const { state: appState } = useApp();
+  const { activeAccount, workspaces, workspacesHydrated } = appState;
+  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  return (
+    <OrganizationAuditPage
+      organizationId={organizationId}
+      workspaces={workspaces}
+      workspacesHydrated={workspacesHydrated}
+    />
+  );
+}
+````
+
 ## File: app/(shell)/organization/content/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
@@ -2472,6 +3129,266 @@ import { redirect } from "next/navigation";
  */
 export default function OrganizationKnowledgePage() {
   redirect("/knowledge");
+}
+````
+
+## File: app/(shell)/organization/daily/page.tsx
+````typescript
+"use client";
+
+import { useApp } from "@/modules/platform/api";
+import { WorkspaceFeedAccountView } from "@/modules/workspace/api";
+import { isActiveOrganizationAccount } from "@/modules/platform/api";
+
+export default function OrganizationDailyPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="mx-auto max-w-4xl space-y-6">
+      <header className="rounded-3xl border border-border/60 bg-card/50 p-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold">Account Workspace Feed</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              聚合名下所有 workspace 的 feed，並提供 Reply / Repost / Like / View / Bookmark / Share 互動。
+            </p>
+          </div>
+          <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+            live
+          </div>
+        </div>
+      </header>
+
+      <WorkspaceFeedAccountView accountId={activeOrganizationId} />
+    </section>
+  );
+}
+````
+
+## File: app/(shell)/organization/members/page.tsx
+````typescript
+"use client";
+
+import { useApp, isActiveOrganizationAccount, MembersPage } from "@/modules/platform/api"
+
+export default function OrganizationMembersPage() {
+  const { state: { activeAccount } } = useApp();
+  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+  return <MembersPage organizationId={organizationId} />;
+}
+````
+
+## File: app/(shell)/organization/page.tsx
+````typescript
+"use client";
+
+/**
+ * Organization Overview Page — /organization
+ * Lists organizations visible to the current user and allows switching
+ * to an organization account context.
+ * Section pages live under /organization/[section].
+ */
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+import { useApp, useAuth } from "@/modules/platform/api"
+import type { AccountEntity } from "@/modules/platform/api";
+import { isActiveOrganizationAccount } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+
+export default function OrganizationPage() {
+  const router = useRouter();
+  const { state: appState, dispatch } = useApp();
+  const { state: authState } = useAuth();
+  const { user } = authState;
+  const { accounts, activeAccount, accountsHydrated, bootstrapPhase } = appState;
+
+  const orgList = Object.values(accounts);
+  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  function handleSwitch(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+    router.replace("/workspace");
+  }
+
+  function handleSwitchToPersonal() {
+    if (!user) return;
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
+    router.replace("/workspace");
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Account Context Switcher</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          先選擇個人或組織帳號情境，再回到 workspace-first 主流程。
+        </p>
+      </div>
+
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="text-base font-semibold">Recommended flow</h2>
+        <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+          <li>
+            <span className="font-medium text-foreground">1. Identity</span>：登入後確認你目前要操作的個人／組織帳號。
+          </li>
+          <li>
+            <span className="font-medium text-foreground">2. Organization</span>：在這裡切換 active account。
+          </li>
+          <li>
+            <span className="font-medium text-foreground">3. Workspace</span>：回到工作區，再進入 Knowledge、知識頁面、Notebook / AI。
+          </li>
+        </ol>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button asChild size="sm">
+            <Link href="/workspace">回到 Workspace Hub</Link>
+          </Button>
+          {activeOrganizationId && (
+            <Button asChild size="sm" variant="outline">
+              <Link href="/organization/members">組織治理模組</Link>
+            </Button>
+          )}
+        </div>
+      </section>
+
+      {/* Quick-access dashboard — visible only when an org context is active */}
+      {activeOrganizationId && (
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold">組織功能</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {[
+              { href: "/organization/members", title: "成員管理", desc: "邀請與管理組織成員" },
+              { href: "/organization/teams", title: "團隊管理", desc: "建立與編輯團隊" },
+              { href: "/organization/permissions", title: "權限政策", desc: "設定存取規則" },
+              { href: "/organization/workspaces", title: "工作區", desc: "組織下的工作區清單" },
+              { href: "/organization/schedule", title: "工作需求排程", desc: "排程與容量總覽" },
+              { href: "/organization/audit", title: "稽核記錄", desc: "操作歷史追蹤" },
+              { href: "/organization/daily", title: "動態牆", desc: "組織工作區動態" },
+            ].map((item) => (
+              <Link key={item.href} href={item.href} className="group">
+                <Card className="h-full transition-colors group-hover:border-primary/50 group-hover:bg-accent/40">
+                  <CardHeader className="pb-2 pt-4">
+                    <CardTitle className="text-sm">{item.title}</CardTitle>
+                    <CardDescription className="text-xs">{item.desc}</CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          {bootstrapPhase === "seeded"
+            ? "正在同步你的組織清單，完成後就能切換到對應的組織上下文。"
+            : "正在載入組織資料…"}
+        </div>
+      )}
+
+      {/* Personal account */}
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold">Personal Account</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium">{user?.name ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
+          </div>
+          {activeAccount?.id === user?.id ? (
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              Active
+            </span>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleSwitchToPersonal}
+            >
+              Switch
+            </Button>
+          )}
+        </div>
+      </section>
+
+      {/* Organizations */}
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold">
+          Organizations
+          <span className="ml-2 text-xs font-normal text-muted-foreground">
+            ({orgList.length})
+          </span>
+        </h2>
+
+        {orgList.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            You are not a member of any organization yet.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {orgList.map((org) => (
+              <li
+                key={org.id}
+                className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3"
+              >
+                <div>
+                  <p className="font-medium">{org.name}</p>
+                  {org.description && (
+                    <p className="text-xs text-muted-foreground">{org.description}</p>
+                  )}
+                </div>
+                {activeAccount?.id === org.id ? (
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    Active
+                  </span>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSwitch(org)}
+                  >
+                    Switch
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {activeOrganizationId && (
+        <p className="text-sm text-muted-foreground">
+          已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
+        </p>
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/organization/permissions/page.tsx
+````typescript
+"use client";
+
+import { useApp, isActiveOrganizationAccount, PermissionsPage } from "@/modules/platform/api"
+
+export default function OrganizationPermissionsPage() {
+  const { state: { activeAccount } } = useApp();
+  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+  return <PermissionsPage organizationId={organizationId} />;
 }
 ````
 
@@ -2488,6 +3405,80 @@ export default function DispatcherPage() {
 }
 ````
 
+## File: app/(shell)/organization/schedule/page.tsx
+````typescript
+"use client";
+
+import { useApp } from "@/modules/platform/api";
+import { AccountSchedulingView } from "@/modules/workspace/api";
+import { isActiveOrganizationAccount } from "@/modules/platform/api";
+
+export default function OrganizationSchedulePage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+
+  const activeOrganizationId = isActiveOrganizationAccount(activeAccount)
+    ? activeAccount.id
+    : null;
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-6 px-4 py-6">
+      <header className="space-y-1">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">
+          Account Scheduling
+        </p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          工作需求總覽
+        </h1>
+      </header>
+
+      <AccountSchedulingView
+        accountId={activeOrganizationId}
+        currentUserId={activeOrganizationId}
+      />
+    </section>
+  );
+}
+````
+
+## File: app/(shell)/organization/teams/page.tsx
+````typescript
+"use client";
+
+import { useApp, isActiveOrganizationAccount, TeamsPage } from "@/modules/platform/api"
+
+export default function OrganizationTeamsPage() {
+  const { state: { activeAccount } } = useApp();
+  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+  return <TeamsPage organizationId={organizationId} />;
+}
+````
+
+## File: app/(shell)/organization/workspaces/page.tsx
+````typescript
+"use client";
+
+import { useApp } from "@/modules/platform/api";
+import { OrganizationWorkspacesScreen } from "@/modules/workspace/api";
+import { isActiveOrganizationAccount } from "@/modules/platform/api";
+
+export default function OrganizationWorkspacesPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  return <OrganizationWorkspacesScreen accountId={activeOrganizationId} />;
+}
+````
+
 ## File: app/(shell)/settings/general/page.tsx
 ````typescript
 /**
@@ -2497,6 +3488,19 @@ import { redirect } from "next/navigation";
 
 export default function SettingsGeneralPage() {
   redirect("/workspace");
+}
+````
+
+## File: app/(shell)/settings/notifications/page.tsx
+````typescript
+"use client";
+
+import { useAuth, NotificationsPage } from "@/modules/platform/api"
+
+export default function NotificationCenterPage() {
+  const { state: authState } = useAuth();
+  const recipientId = authState.user?.id ?? "";
+  return <NotificationsPage recipientId={recipientId} />;
 }
 ````
 
@@ -2512,12 +3516,222 @@ export default function SettingsPage() {
 }
 ````
 
+## File: app/(shell)/source/documents/page.tsx
+````typescript
+"use client";
+
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { useApp } from "@/modules/platform/api";
+
+/**
+ * /source/documents is now a redirect shim.
+ * Canonical file management lives at /workspace/[id]?tab=Files.
+ * If a workspaceId is available (via URL param or active workspace),
+ * we redirect immediately; otherwise we show a picker placeholder.
+ */
+export default function SourceDocumentsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const {
+    state: { activeWorkspaceId },
+  } = useApp();
+
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const targetWorkspaceId = requestedWorkspaceId || activeWorkspaceId || "";
+
+  useEffect(() => {
+    if (targetWorkspaceId) {
+      router.replace(`/workspace/${encodeURIComponent(targetWorkspaceId)}?tab=Files`);
+    }
+  }, [router, targetWorkspaceId]);
+
+  if (targetWorkspaceId) {
+    return (
+      <div className="px-4 py-6 text-sm text-muted-foreground">
+        正在導向工作區檔案管理頁面…
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文件</h1>
+        <p className="text-sm text-muted-foreground">工作區來源文件管理（已整合至工作區 Files 頁簽）。</p>
+      </header>
+      <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+        請先從側邊欄選擇一個工作區，系統將自動導向至該工作區的檔案管理頁面（
+        <code className="rounded bg-muted px-1">?tab=Files</code>
+        ）。你也可以直接在網址帶入{" "}
+        <code className="rounded bg-muted px-1">workspaceId</code> 參數。
+      </p>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/source/libraries/page.tsx
+````typescript
+"use client";
+
+import { useApp, useAuth } from "@/modules/platform/api"
+import { LibrariesView, LibraryTableView } from "@/modules/notebooklm/api";
+
+export default function SourceLibrariesPage() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? undefined;
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
+        <p className="text-sm text-muted-foreground">
+          對齊資料庫／資料來源能力的 MVP，產品命名統一為 Libraries。
+        </p>
+      </header>
+
+      {accountId ? (
+        <>
+          <LibraryTableView accountId={accountId} workspaceId={workspaceId} />
+          <LibrariesView accountId={accountId} workspaceId={workspaceId} />
+        </>
+      ) : (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號情境，請先登入或切換帳號。
+        </p>
+      )}
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/source/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
 
 export default function SourcePage() {
   redirect("/workspace");
+}
+````
+
+## File: app/(shell)/workspace-feed/page.tsx
+````typescript
+"use client";
+
+/**
+ * Route: /workspace-feed
+ * Purpose: Workspace activity feed — shows posts, reactions, and replies for the
+ *          currently active workspace.
+ */
+
+import { useApp } from "@/modules/platform/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
+
+export default function WorkspaceFeedPage() {
+  const { state } = useApp();
+  const accountId = state.activeAccount?.id ?? "";
+  const workspaceId = state.activeWorkspaceId ?? "";
+  const workspaceName = "工作區";
+
+  if (!accountId || !workspaceId) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        請先選擇工作區
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-6">
+      <h1 className="mb-4 text-xl font-semibold">動態牆</h1>
+      <WorkspaceFeedWorkspaceView
+        accountId={accountId}
+        workspaceId={workspaceId}
+        workspaceName={workspaceName}
+      />
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/workspace/[workspaceId]/page.tsx
+````typescript
+"use client";
+
+import { useParams, useSearchParams } from "next/navigation";
+
+import { useApp } from "@/modules/platform/api";
+import { WorkspaceDetailRouteScreen } from "@/modules/workspace/api";
+
+export default function WorkspaceDetailPage() {
+  const params = useParams<{ workspaceId: string }>();
+  const searchParams = useSearchParams();
+  const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
+  const initialTab = searchParams.get("tab") ?? undefined;
+  const initialOverviewPanel = searchParams.get("panel") ?? undefined;
+  const {
+    state: { activeAccount, accountsHydrated },
+  } = useApp();
+
+  return (
+    <WorkspaceDetailRouteScreen
+      workspaceId={workspaceId}
+      accountId={activeAccount?.id}
+      accountsHydrated={accountsHydrated}
+      initialTab={initialTab}
+      initialOverviewPanel={initialOverviewPanel}
+    />
+  );
+}
+````
+
+## File: app/(shell)/workspace/page.tsx
+````typescript
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+import type { ActiveAccount } from "@/modules/platform/api";
+import { useApp, useAuth, isActiveOrganizationAccount } from "@/modules/platform/api"
+import { WorkspaceHubScreen } from "@/modules/workspace/api";
+
+function getActiveAccountType(activeAccount: ActiveAccount | null) {
+  return isActiveOrganizationAccount(activeAccount) ? "organization" : "user";
+}
+
+export default function WorkspacePage() {
+  const searchParams = useSearchParams();
+  const {
+    state: { activeAccount, accountsHydrated, bootstrapPhase },
+  } = useApp();
+  const { state: authState } = useAuth();
+  const context = searchParams.get("context");
+
+  return (
+    <div className="space-y-4">
+      {context === "unavailable" && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          目前帳戶無法存取該工作區，已返回工作區清單。
+        </div>
+      )}
+
+      <WorkspaceHubScreen
+        accountId={activeAccount?.id}
+        accountName={activeAccount?.name}
+        accountType={getActiveAccountType(activeAccount)}
+        accountsHydrated={accountsHydrated}
+        isBootstrapSeeded={bootstrapPhase === "seeded"}
+        currentUserId={authState.user?.id}
+      />
+    </div>
+  );
 }
 ````
 
@@ -2722,6 +3936,36 @@ export default function SourcePage() {
 }
 ````
 
+## File: app/layout.tsx
+````typescript
+import type { Metadata } from "next";
+import "./globals.css";
+import { Geist } from "next/font/google";
+import { cn } from "@shared-utils";
+import { Providers } from "@/modules/platform/api";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+
+export const metadata: Metadata = {
+  title: "Xuanwu App",
+  description: "Xuanwu App - Modular Domain-Driven Design template",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en" className={cn("font-sans", geist.variable)}>
+      <body className="antialiased">
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}
+````
+
 ## File: apphosting.yaml
 ````yaml
 # Settings for Backend (on Cloud Run).
@@ -2817,6 +4061,417 @@ env:
   "menuAccent": "subtle",
   "registries": {}
 }
+````
+
+## File: docs/contexts/notebooklm/ubiquitous-language.md
+````markdown
+# NotebookLM
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| Notebook | 聚合對話、來源與衍生筆記的工作單位 |
+| Conversation | Notebook 內的對話執行邊界 |
+| Message | 一則輸入或輸出對話項 |
+| Source | 被引用與推理的來源材料 |
+| Ingestion | 來源匯入、正規化與前處理流程 |
+| Retrieval | 從來源中召回候選片段的查詢能力 |
+| Grounding | 把輸出對齊到來源證據的能力 |
+| Citation | 輸出指回來源證據的引用關係 |
+| Synthesis | 綜合多來源後生成的衍生輸出 |
+| Note | 與 Notebook 關聯的輕量摘記 |
+| Evaluation | 對輸出品質、回歸結果與效果的評估 |
+| VersionSnapshot | 對話或 Notebook 某一時點的不可變快照 |
+
+## Language Rules
+
+- 使用 Conversation，不使用 Chat 作為正典語彙。
+- 使用 Ingestion 與 Source 區分來源處理與來源語義。
+- 使用 Retrieval 與 Grounding 區分召回能力與證據對齊能力。
+- 使用 Synthesis 表示衍生綜合輸出，不把它直接稱為正典知識內容。
+- 使用 Evaluation 表示品質語言，不用 Analytics 混稱模型效果。
+
+## Avoid
+
+| Avoid | Use Instead |
+|---|---|
+| Chat | Conversation |
+| File Import | Ingestion |
+| Search Step | Retrieval |
+| Verified Answer | Grounded Synthesis |
+
+## Naming Anti-Patterns
+
+- 不用 Chat 混稱 Conversation 與 Notebook。
+- 不用 Search 混稱 Retrieval 與 Grounding。
+- 不用 Knowledge 或 Wiki 混稱 Synthesis 輸出，避免污染 notion 的正典語言。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，名稱先對齊 Notebook、Conversation、Retrieval、Grounding、Synthesis、Evaluation，再決定型別與模組位置。
+- 奧卡姆剃刀：若一個名詞已能準確表達語義，就不要再疊加第二個近義抽象名稱。
+- 命名要先保護邊界，再追求實作便利。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic language"] --> Context["NotebookLM language"]
+	Context --> API["Published language / API boundary"]
+	API --> Code["Generated code"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Source["Source"] --> Ingestion["Ingestion"]
+	Ingestion --> Retrieval["Retrieval"]
+	Retrieval --> Grounding["Grounding"]
+	Grounding --> Synthesis["Synthesis"]
+	Synthesis --> Evaluation["Evaluation"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [../../ubiquitous-language.md](../../ubiquitous-language.md)
+- [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
+````
+
+## File: docs/contexts/notion/ubiquitous-language.md
+````markdown
+# Notion
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| KnowledgeArtifact | notion 主域擁有的知識內容總稱 |
+| KnowledgePage | 正典頁面型知識單位 |
+| Article | 經過撰寫與驗證流程的知識內容 |
+| Database | 結構化知識集合 |
+| DatabaseView | 對 Database 的投影與檢視配置 |
+| Taxonomy | 標籤、分類法、主題樹等語義組織結構 |
+| Relation | 內容對內容之間的正式關聯 |
+| CollaborationThread | 內容附著的協作討論邊界 |
+| Attachment | 綁定於知識內容的檔案或媒體 |
+| Template | 可重複套用的內容結構起點 |
+| Publication | 對外可見且可交付的內容狀態 |
+| VersionSnapshot | 某一時點的不可變內容快照 |
+
+## Language Rules
+
+- 使用 KnowledgeArtifact、KnowledgePage、Article、Database 區分內容型別。
+- 使用 Taxonomy 表示分類法，不用 Tagging 功能泛稱整個語義結構。
+- 使用 Relation 表示正式內容關聯，不用 Link 混稱語義關係。
+- 使用 Publication 表示正式對外內容狀態，不用 Publish Action 取代整個交付語言。
+- 來自 notebooklm 的內容若未被 notion 吸收，不應直接稱為 KnowledgeArtifact。
+
+## Avoid
+
+| Avoid | Use Instead |
+|---|---|
+| Wiki | KnowledgePage 或 Article |
+| Table | Database 或 DatabaseView |
+| Tag System | Taxonomy |
+| Content Link | Relation |
+
+## Naming Anti-Patterns
+
+- 不用 Wiki 混指 KnowledgeArtifact、KnowledgePage、Article。
+- 不用 Tagging 混指 Taxonomy。
+- 不用 Link 混指 Relation。
+- 不用 Publish Action 混指 Publication 狀態與整個交付邊界。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，名稱先對齊 KnowledgeArtifact、Taxonomy、Relation、Publication，再決定類別與檔名。
+- 奧卡姆剃刀：若一個正確名詞已能表達邊界，就不要再堆疊第二個近義抽象名稱。
+- 命名先保護內容語義，再考慮實作便利。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic language"] --> Context["Notion language"]
+	Context --> API["Published language / API boundary"]
+	API --> Code["Generated code"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Knowledge["KnowledgeArtifact"] --> Taxonomy["Taxonomy"]
+	Knowledge --> Relation["Relation"]
+	Relation --> Publication["Publication"]
+	Taxonomy --> Publication
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [../../ubiquitous-language.md](../../ubiquitous-language.md)
+- [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
+````
+
+## File: docs/contexts/platform/ubiquitous-language.md
+````markdown
+# Platform
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| Actor | 被平台識別與治理的主體 |
+| Identity | 證明 Actor 是誰的訊號集合 |
+| Account | Actor 的帳號生命週期聚合根 |
+| AccountProfile | 帳號附屬屬性與偏好 |
+| Organization | 多主體治理邊界 |
+| Tenant | 租戶隔離與 tenant-scoped 規則邊界 |
+| AccessDecision | 對 actor 當下能否執行某行為的判定 |
+| SecurityPolicy | 可版本化的安全規則集合 |
+| FeatureFlag | 功能暴露與 rollout 的治理開關 |
+| Entitlement | 綜合 subscription、policy、flag 之後的有效權益 |
+| BillingEvent | 財務計價或收費事實 |
+| Subscription | 方案、配額與續期狀態 |
+| Consent | 同意、偏好與資料使用授權紀錄 |
+| Secret | 受控憑證、token 或 integration credential |
+| NotificationRoute | 訊息投遞路由與偏好結果 |
+| AuditLog | 平台級永久稽核證據 |
+
+## Language Rules
+
+- 使用 Actor，不使用 User 作為平台通用詞。
+- 使用 Tenant 區分租戶隔離，不以 Organization 代替。
+- 使用 Entitlement 表示解算後權益，不用 Plan 或 Feature 混稱。
+- 使用 Consent 表示授權與同意，不用 Preference 混稱法律或治理語意。
+- 使用 Secret 表示受控憑證，不放入一般 Integration payload 語言。
+
+## Avoid
+
+| Avoid | Use Instead |
+|---|---|
+| User | Actor |
+| Team | Organization 或 Tenant |
+| Plan Access | Entitlement |
+| API Key Store | SecretManagement |
+
+## Naming Anti-Patterns
+
+- 不用 User 混稱 Actor。
+- 不用 Team 混稱 Organization 或 Tenant。
+- 不用 Plan 混稱 Entitlement。
+- 不用 Preference 混稱 Consent。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，名稱先對齊 Actor、Tenant、Entitlement、Consent、Secret，再決定類型與檔名。
+- 奧卡姆剃刀：若一個治理名詞已足夠表達責任，就不要再堆疊第二個近義抽象名稱。
+- 命名先保護治理語言，再考慮 UI 或 API 顯示便利。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic language"] --> Context["Platform language"]
+	Context --> API["Published language / API boundary"]
+	API --> Code["Generated code"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Actor["Actor"] --> Organization["Organization / Tenant"]
+	Organization --> Access["AccessDecision"]
+	Access --> Entitlement["Entitlement"]
+	Entitlement --> Notification["NotificationRoute / delivery"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [../../ubiquitous-language.md](../../ubiquitous-language.md)
+- [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
+````
+
+## File: docs/contexts/workspace/context-map.md
+````markdown
+# Workspace
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Context Role
+
+workspace 對其他主域提供工作區範疇。依 Context Mapper 的 context map 思維，workspace 應只暴露 scope、membership scope 與協作容器語言，而不暴露內部實作。
+
+## Relationships
+
+| Related Domain | Relationship Type | Workspace Position | Published Language |
+|---|---|---|---|
+| platform | Upstream/Downstream | downstream | actor reference、organization scope、access decision、entitlement signal |
+| notion | Upstream/Downstream | upstream | workspaceId、membership scope、share scope |
+| notebooklm | Upstream/Downstream | upstream | workspaceId、membership scope、share scope |
+
+## Mapping Rules
+
+- workspace 消費 platform 的治理結果，但不重建 identity、policy 或 entitlement 模型。
+- notion 與 notebooklm 可以在 workspace scope 內運作，但不反向定義 workspace 生命週期。
+- sharing 與 membership 是 workspace 對內容與對話主域輸出的核心 published language。
+- 與其他主域的整合優先使用 API 邊界或事件，而不是直接模型滲透。
+
+## Dependency Direction
+
+- workspace 對 platform 屬 downstream；對 notion 與 notebooklm 屬 upstream 的 scope supplier。
+- workspace 對外輸出 workspaceId、membership scope、share scope，而不是內部 aggregate 或投影實作。
+- downstream 若需保護自己的語言，ACL 由 downstream 自行實作，不由 workspace 代做。
+
+## Anti-Patterns
+
+- 把 workspace 與 notion/notebooklm 寫成對稱共用核心，同時又要求 ACL。
+- 把 sharing scope 直接當成平台 access decision 本身。
+- 讓其他主域直接操作 workspace 內部 membership 或 lifecycle 模型。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先維持 workspace 對 platform 的 downstream 位置，以及對 notion / notebooklm 的 upstream scope supplier 位置。
+- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要再建立第二個翻譯鏈。
+- workspace 對外提供的是 scope，不是內部 aggregate、投影或 storage 模型。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["platform upstream"] -->|Published Language| Boundary["workspace boundary"]
+	Boundary --> Translation["Local DTO / ACL if needed"]
+	Translation --> App["Application"]
+	App --> Domain["Domain"]
+	Domain --> PL["Published workspace scope"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] -->|actor / access / entitlement| Boundary["workspace API boundary"]
+	Boundary --> ACL["ACL or local DTO"]
+	ACL --> Domain["Workspace domain"]
+	Domain --> Scope["workspaceId / membership scope / share scope"]
+	Scope --> Notion["notion"]
+	Scope --> NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [../../context-map.md](../../context-map.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../strategic-patterns.md](../../strategic-patterns.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/contexts/workspace/ubiquitous-language.md
+````markdown
+# Workspace
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Canonical Terms
+
+| Term | Meaning |
+|---|---|
+| Workspace | 協作容器與主要範疇邊界 |
+| WorkspaceId | 工作區唯一識別子與範疇錨點 |
+| WorkspaceLifecycle | 工作區建立、封存、還原、移轉等生命週期狀態 |
+| Membership | 工作區內的參與關係 |
+| WorkspaceRole | 工作區範疇下的角色語意 |
+| ShareScope | 共享暴露範圍 |
+| ShareLink | 對外共享的可解析入口 |
+| PresenceSession | 即時在線與共同編輯存在感訊號 |
+| ActivityFeed | 面向使用者的活動流投影 |
+| AuditTrail | 不可否認的工作區操作追蹤 |
+| Schedule | 工作區內的時間安排與提醒意圖 |
+| WorkflowExecution | 某個工作區流程的一次執行實例 |
+
+## Language Rules
+
+- 使用 Workspace，不使用 Project 或 Space 作為同義詞。
+- 使用 Membership，不用 User 表示工作區參與關係。
+- 使用 ActivityFeed 與 AuditTrail 區分投影與證據。
+- 使用 ShareScope 表示共享邊界，不用 Permission 泛指共享。
+- 使用 PresenceSession 表示即時存在感，不把它隱藏在 UI 概念裡。
+
+## Avoid
+
+| Avoid | Use Instead |
+|---|---|
+| User | Membership 或 Actor reference |
+| Timeline | ActivityFeed 或 Schedule |
+| Share Permission | ShareScope |
+| Workspace Log | ActivityFeed 或 AuditTrail |
+
+## Naming Anti-Patterns
+
+- 不用 User 混指 Membership 與 Actor reference。
+- 不用 Timeline 混指 ActivityFeed 與 Schedule。
+- 不用 Permission 混指 ShareScope。
+- 不用 Log 混指 ActivityFeed 與 AuditTrail。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，名稱先對齊 Workspace、Membership、ShareScope、ActivityFeed、AuditTrail，再決定類型與檔名。
+- 奧卡姆剃刀：若一個工作區名詞已足夠表達責任，就不要再堆疊第二個近義抽象名稱。
+- 命名先保護 scope 語言，再考慮 UI 或 API 顯示便利。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic language"] --> Context["Workspace language"]
+	Context --> API["Published language / API boundary"]
+	API --> Code["Generated code"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Workspace["Workspace"] --> Membership["Membership"]
+	Membership --> ShareScope["ShareScope"]
+	ShareScope --> ActivityFeed["ActivityFeed"]
+	ActivityFeed --> AuditTrail["AuditTrail"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [subdomains.md](./subdomains.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [../../ubiquitous-language.md](../../ubiquitous-language.md)
+- [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
 ````
 
 ## File: features/README.md
@@ -4095,143 +5750,6 @@ export class RegisterUploadedRagDocumentUseCase {
 }
 ````
 
-## File: modules/notebooklm/subdomains/source/application/use-cases/upload-complete-source-file.use-case.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: application/use-cases
- * Use Case: UploadCompleteSourceFileUseCase — activates a file after binary upload completes.
- *
- * This is the second step of a two-step upload flow:
- *   1. init  → creates File + FileVersion records
- *   2. complete (this) → activates the version and registers a RagDocumentRecord
- *
- * Idempotent: calling complete on an already-completed file returns the existing
- * RagDocument without creating a duplicate.
- */
-
-import type { ISourceFileRepository } from "../../domain/repositories/ISourceFileRepository";
-import type { IRagDocumentRepository } from "../../domain/repositories/IRagDocumentRepository";
-import { completeUploadSourceFile } from "../../domain/services/complete-upload-source-file.service";
-import type {
-  SourceFileCommandErrorCode,
-  UploadCompleteFileInputDto,
-  UploadCompleteFileOutputDto,
-} from "../dto/source-file.dto";
-import { RegisterUploadedRagDocumentUseCase } from "./register-rag-document.use-case";
-import type { SourceFile } from "../../domain/entities/SourceFile";
-
-type UploadCompleteSourceFileResult =
-  | { ok: true; data: UploadCompleteFileOutputDto }
-  | { ok: false; error: { code: SourceFileCommandErrorCode; message: string } };
-
-function isFileScopeMatch(params: {
-  file: SourceFile;
-  workspaceId: string;
-  organizationId: string;
-  actorAccountId: string;
-  versionId: string;
-}): boolean {
-  return (
-    params.file.workspaceId === params.workspaceId &&
-    params.file.organizationId === params.organizationId &&
-    params.file.accountId === params.actorAccountId &&
-    params.file.currentVersionId === params.versionId
-  );
-}
-
-function isFileAlreadyCompleted(file: SourceFile): boolean {
-  return file.source === "file-upload-complete";
-}
-
-export class UploadCompleteSourceFileUseCase {
-  constructor(
-    private readonly fileRepository: ISourceFileRepository,
-    private readonly ragDocumentRepository: IRagDocumentRepository,
-  ) {}
-
-  async execute(input: UploadCompleteFileInputDto): Promise<UploadCompleteSourceFileResult> {
-    const workspaceId = input.workspaceId.trim();
-    const organizationId = input.organizationId.trim();
-    const actorAccountId = input.actorAccountId.trim();
-    const fileId = input.fileId.trim();
-    const versionId = input.versionId.trim();
-
-    if (!workspaceId) return { ok: false, error: { code: "FILE_WORKSPACE_REQUIRED", message: "Workspace is required." } };
-    if (!organizationId) return { ok: false, error: { code: "FILE_ORGANIZATION_REQUIRED", message: "Organization is required." } };
-    if (!actorAccountId) return { ok: false, error: { code: "FILE_ACTOR_REQUIRED", message: "Actor account is required." } };
-    if (!fileId) return { ok: false, error: { code: "FILE_ID_REQUIRED", message: "File id is required." } };
-    if (!versionId) return { ok: false, error: { code: "FILE_VERSION_REQUIRED", message: "Version id is required." } };
-
-    const file = await this.fileRepository.findById(fileId);
-    if (!file) return { ok: false, error: { code: "FILE_NOT_FOUND", message: "File metadata not found." } };
-
-    const version = await this.fileRepository.findVersion(fileId, versionId);
-    if (!version) return { ok: false, error: { code: "FILE_VERSION_NOT_FOUND", message: "File version metadata not found." } };
-
-    if (!isFileScopeMatch({ file, workspaceId, organizationId, actorAccountId, versionId })) {
-      return { ok: false, error: { code: "FILE_SCOPE_MISMATCH", message: "Upload completion scope does not match file metadata." } };
-    }
-
-    if (file.status !== "active") {
-      return { ok: false, error: { code: "FILE_STATUS_CONFLICT", message: "File upload completion requires an active file record." } };
-    }
-
-    const existingRagDocument = await this.ragDocumentRepository.findByStoragePath({
-      organizationId,
-      workspaceId,
-      storagePath: version.storagePath,
-    });
-
-    const nextFile = isFileAlreadyCompleted(file)
-      ? file
-      : completeUploadSourceFile({ file, completedAtISO: new Date().toISOString() });
-
-    if (!isFileAlreadyCompleted(file)) {
-      await this.fileRepository.save(nextFile);
-    }
-
-    let ragDocumentId: string;
-    let ragDocumentStatus: UploadCompleteFileOutputDto["ragDocumentStatus"];
-
-    if (existingRagDocument !== null) {
-      ragDocumentId = existingRagDocument.id;
-      ragDocumentStatus = existingRagDocument.status;
-    } else {
-      const registerUseCase = new RegisterUploadedRagDocumentUseCase(this.ragDocumentRepository);
-      const ragResult = await registerUseCase.execute({
-        organizationId,
-        workspaceId,
-        accountId: actorAccountId,
-        title: file.name,
-        sourceFileName: file.name,
-        mimeType: file.mimeType,
-        storagePath: version.storagePath,
-        sizeBytes: file.sizeBytes,
-        checksum: version.checksum,
-        versionNumber: version.versionNumber,
-      });
-      if (!ragResult.ok) {
-        return { ok: false, error: { code: "FILE_RAG_REGISTRATION_FAILED", message: ragResult.error.message } };
-      }
-      ragDocumentId = ragResult.data.documentId;
-      ragDocumentStatus = ragResult.data.status;
-    }
-
-    return {
-      ok: true,
-      data: {
-        fileId: nextFile.id,
-        versionId: nextFile.currentVersionId,
-        status: "active",
-        ragDocumentId,
-        ragDocumentStatus,
-      },
-    };
-  }
-}
-````
-
 ## File: modules/notebooklm/subdomains/source/application/use-cases/upload-init-source-file.use-case.ts
 ````typescript
 /**
@@ -4563,78 +6081,6 @@ export interface CreateWikiLibraryRowInput {
   readonly accountId: string;
   readonly libraryId: string;
   readonly values: Record<string, unknown>;
-}
-````
-
-## File: modules/notebooklm/subdomains/source/domain/ports/ActorContextPort.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: domain/ports
- * Port: ActorContextPort — resolves the acting user's file context.
- */
-
-export interface ActorFileContext {
-  readonly actorAccountId: string;
-  readonly actorRole: string;
-  readonly organizationIds: readonly string[];
-}
-
-export interface ActorContextPort {
-  getActorFileContext(actorAccountId: string): ActorFileContext | null;
-}
-````
-
-## File: modules/notebooklm/subdomains/source/domain/ports/OrganizationPolicyPort.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: domain/ports
- * Port: OrganizationPolicyPort — resolves org-level file access policies.
- */
-
-import type { SourceRetentionPolicy } from "../entities/SourceRetentionPolicy";
-
-export interface OrganizationFilePolicySnapshot {
-  readonly organizationId: string;
-  readonly policyVersion: number;
-  readonly denyRead: boolean;
-  readonly denyUpload: boolean;
-  readonly denyDownload: boolean;
-  readonly denyArchive: boolean;
-  readonly denyRestore: boolean;
-  readonly retentionPolicy?: SourceRetentionPolicy;
-}
-
-export interface OrganizationPolicyPort {
-  getOrganizationFilePolicy(organizationId: string): OrganizationFilePolicySnapshot | null;
-}
-````
-
-## File: modules/notebooklm/subdomains/source/domain/ports/WorkspaceGrantPort.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: domain/ports
- * Port: WorkspaceGrantPort — resolves per-actor workspace permissions snapshot.
- */
-
-export interface WorkspaceGrantSnapshot {
-  readonly workspaceId: string;
-  readonly organizationId: string;
-  readonly grantVersion: number;
-  readonly canRead: boolean;
-  readonly canUpload: boolean;
-  readonly canDownload: boolean;
-  readonly canArchive: boolean;
-  readonly canRestore: boolean;
-}
-
-export interface WorkspaceGrantPort {
-  getWorkspaceGrantSnapshot(
-    workspaceId: string,
-    actorAccountId: string,
-  ): WorkspaceGrantSnapshot | null;
 }
 ````
 
@@ -5364,112 +6810,6 @@ export class InMemoryWikiLibraryAdapter implements IWikiLibraryRepository {
 }
 ````
 
-## File: modules/notebooklm/subdomains/source/interfaces/_actions/source-processing.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-
-import { addKnowledgeBlock, createKnowledgePage } from "@/modules/notion/api";
-
-const TIPTAP_PROPERTY_KEY = "tiptapJson";
-
-interface CreateKnowledgeDraftFromSourceDocumentInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly createdByUserId: string;
-  readonly filename: string;
-  readonly sourceGcsUri: string;
-  readonly jsonGcsUri: string;
-  readonly pageCount: number;
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function trimFileExtension(filename: string): string {
-  const trimmed = filename.trim();
-  const idx = trimmed.lastIndexOf(".");
-  return idx <= 0 ? trimmed : trimmed.slice(0, idx);
-}
-
-async function loadParsedDocumentText(jsonGcsUri: string): Promise<string> {
-  if (!jsonGcsUri) return "";
-  const storage = getFirebaseStorage();
-  const ref = storageApi.ref(storage, jsonGcsUri);
-  const url = await storageApi.getDownloadURL(ref);
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error(`無法讀取解析 JSON (${response.status})`);
-  const payload = asRecord(await response.json());
-  return asString(payload.text);
-}
-
-function buildDraftPlainText(filename: string, parsedText: string): string {
-  return parsedText || `[${trimFileExtension(filename)}]`;
-}
-
-export async function createKnowledgeDraftFromSourceDocument(
-  input: CreateKnowledgeDraftFromSourceDocumentInput,
-): Promise<CommandResult> {
-  if (!input.accountId.trim() || !input.workspaceId.trim() || !input.createdByUserId.trim()) {
-    return commandFailureFrom(
-      "SOURCE_KNOWLEDGE_DRAFT_INVALID_SCOPE",
-      "accountId、workspaceId、createdByUserId 為必填。",
-    );
-  }
-
-  if (!input.filename.trim() || !input.sourceGcsUri.trim() || !input.jsonGcsUri.trim()) {
-    return commandFailureFrom(
-      "SOURCE_KNOWLEDGE_DRAFT_INVALID_SOURCE",
-      "filename、sourceGcsUri、jsonGcsUri 為必填。",
-    );
-  }
-
-  try {
-    const parsedText = await loadParsedDocumentText(input.jsonGcsUri);
-    const plainText = buildDraftPlainText(input.filename, parsedText);
-    const title = `${trimFileExtension(input.filename)}｜匯入草稿`;
-
-    const pageResult = await createKnowledgePage({
-      accountId: input.accountId,
-      workspaceId: input.workspaceId,
-      title,
-      parentPageId: null,
-      createdByUserId: input.createdByUserId,
-    });
-
-    if (!pageResult.success) return pageResult;
-
-    const blockResult = await addKnowledgeBlock({
-      accountId: input.accountId,
-      pageId: pageResult.aggregateId,
-      index: 0,
-      content: {
-        type: "text",
-        richText: [{ type: "text", plainText }],
-        properties: { [TIPTAP_PROPERTY_KEY]: null },
-      },
-    });
-
-    if (!blockResult.success) return blockResult;
-
-    return commandSuccess(pageResult.aggregateId, blockResult.version);
-  } catch (error) {
-    return commandFailureFrom(
-      "SOURCE_KNOWLEDGE_DRAFT_CREATE_FAILED",
-      error instanceof Error ? error.message : "建立 Knowledge Page Draft 失敗。",
-    );
-  }
-}
-````
-
 ## File: modules/notebooklm/subdomains/source/interfaces/components/file-processing-dialog.body.tsx
 ````typescript
 "use client";
@@ -5832,97 +7172,6 @@ export function FileProcessingDialogSurface({
       </DialogContent>
     </Dialog>
   );
-}
-````
-
-## File: modules/notebooklm/subdomains/source/interfaces/components/file-processing-dialog.utils.ts
-````typescript
-"use client";
-
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-
-export type TaskStatus = "idle" | "running" | "success" | "error" | "skipped";
-
-export interface TaskResult {
-  readonly status: TaskStatus;
-  readonly detail: string;
-}
-
-export interface ExecutionSummary {
-  readonly pageCount: number;
-  readonly jsonGcsUri: string;
-  readonly pageHref: string;
-  readonly parse: TaskResult;
-  readonly rag: TaskResult;
-  readonly page: TaskResult;
-}
-
-export function createIdleSummary(): ExecutionSummary {
-  return {
-    pageCount: 0,
-    jsonGcsUri: "",
-    pageHref: "",
-    parse: { status: "idle", detail: "尚未開始解析" },
-    rag: { status: "idle", detail: "尚未決定是否建立 RAG 索引" },
-    page: { status: "idle", detail: "尚未決定是否建立 Knowledge Page" },
-  };
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function asNumber(value: unknown, fallback = 0): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
-
-export function readCallableData(value: unknown): Record<string, unknown> {
-  return asRecord(value);
-}
-
-export async function waitForParsedDocument(
-  accountId: string,
-  docId: string,
-): Promise<{ pageCount: number; jsonGcsUri: string }> {
-  const db = getFirebaseFirestore();
-
-  return new Promise((resolve, reject) => {
-    const docRef = firestoreApi.doc(db, "accounts", accountId, "documents", docId);
-    const unsubscribe = firestoreApi.onSnapshot(docRef, (snapshot) => {
-      if (!snapshot.exists()) return;
-
-      const data = asRecord(snapshot.data());
-      const status = asString(data.status, "unknown");
-
-      if (status === "completed") {
-        const parsed = asRecord(data.parsed);
-        unsubscribe();
-        resolve({
-          pageCount: asNumber(parsed.page_count, 0),
-          jsonGcsUri: asString(parsed.json_gcs_uri),
-        });
-        return;
-      }
-
-      if (status === "error") {
-        const error = asRecord(data.error);
-        unsubscribe();
-        reject(new Error(asString(error.message, "文件解析失敗")));
-      }
-    });
-  });
-}
-
-export function readString(value: unknown, fallback = ""): string {
-  return asString(value, fallback);
-}
-
-export function readNumber(value: unknown, fallback = 0): number {
-  return asNumber(value, fallback);
 }
 ````
 
@@ -6375,189 +7624,6 @@ export type SourceFileCommandResult<TData> =
       };
       readonly commandId: string;
     };
-````
-
-## File: modules/notebooklm/subdomains/source/interfaces/hooks/useSourceDocumentsSnapshot.ts
-````typescript
-"use client";
-
-import { useCallback, useEffect, useRef, useState } from "react";
-
-import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
-
-// ── Document types owned by source subdomain ─────────────────────────────────
-
-export interface SourceDocument {
-  readonly id: string;
-  readonly filename: string;
-  readonly workspaceId: string;
-  readonly sourceGcsUri: string;
-  readonly jsonGcsUri: string;
-  readonly pageCount: number;
-  readonly status: string;
-  readonly ragStatus: string;
-  readonly uploadedAt: Date | null;
-}
-
-export interface SourceLiveDocument extends SourceDocument {
-  readonly errorMessage: string;
-  readonly ragError: string;
-  readonly isClientPending?: boolean;
-}
-
-export type AssetDocument = SourceDocument;
-export type AssetLiveDocument = SourceLiveDocument;
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function objectOrEmpty(value: unknown): Record<string, unknown> {
-  return isRecord(value) ? value : {};
-}
-
-function toDateOrNull(value: unknown): Date | null {
-  if (!isRecord(value)) return null;
-  if (typeof value.toDate === "function") {
-    try {
-      const d = (value.toDate as () => unknown)();
-      if (d instanceof Date) return d;
-    } catch {
-      // fall through
-    }
-  }
-  if (typeof value.toMillis === "function") {
-    try {
-      const ms = (value.toMillis as () => unknown)();
-      if (typeof ms === "number" && Number.isFinite(ms)) return new Date(ms);
-    } catch {
-      // fall through
-    }
-  }
-  return null;
-}
-
-function resolveFilename(data: Record<string, unknown>): string {
-  const source = objectOrEmpty(data.source);
-  const metadata = objectOrEmpty(data.metadata);
-  for (const candidate of [
-    source.filename, source.display_name, data.title,
-    metadata.filename, metadata.display_name,
-    source.original_filename, metadata.original_filename,
-  ]) {
-    if (typeof candidate === "string" && candidate.trim()) return candidate;
-  }
-  return "";
-}
-
-export function mapToSourceLiveDocument(
-  id: string,
-  data: Record<string, unknown>,
-): SourceLiveDocument {
-  const source = objectOrEmpty(data.source);
-  const parsed = objectOrEmpty(data.parsed);
-  const rag = objectOrEmpty(data.rag);
-  const metadata = objectOrEmpty(data.metadata);
-  const error = objectOrEmpty(data.error);
-  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
-  return {
-    id,
-    filename: resolveFilename(data) || id,
-    workspaceId:
-      (typeof data.spaceId === "string" ? data.spaceId : "") ||
-      (typeof metadata.space_id === "string" ? metadata.space_id : ""),
-    sourceGcsUri:
-      (typeof source.gcs_uri === "string" ? source.gcs_uri : "") ||
-      (typeof metadata.source_gcs_uri === "string" ? metadata.source_gcs_uri : ""),
-    jsonGcsUri:
-      (typeof parsed.json_gcs_uri === "string" ? parsed.json_gcs_uri : "") ||
-      (typeof metadata.json_gcs_uri === "string" ? metadata.json_gcs_uri : ""),
-    pageCount: n(parsed.page_count) || n(metadata.page_count) || n(data.pageCount),
-    status: typeof data.status === "string" ? data.status : "unknown",
-    ragStatus: typeof rag.status === "string" ? rag.status : "",
-    uploadedAt: toDateOrNull(source.uploaded_at) ?? toDateOrNull(data.createdAt),
-    errorMessage: typeof error.message === "string" ? error.message : "",
-    ragError: typeof rag.error === "string" ? rag.error : "",
-  };
-}
-
-export const mapToAssetLiveDocument = mapToSourceLiveDocument;
-
-// ── Hook ──────────────────────────────────────────────────────────────────────
-
-export interface UseSourceDocumentsSnapshotResult {
-  readonly docs: SourceLiveDocument[];
-  readonly loading: boolean;
-  readonly pendingDocs: SourceLiveDocument[];
-  readonly addPending: (doc: SourceLiveDocument) => void;
-  readonly removePending: (id: string) => void;
-}
-
-/** Subscribes to Firestore `accounts/{accountId}/documents` in real time via onSnapshot. */
-export function useSourceDocumentsSnapshot(
-  accountId: string,
-  workspaceId?: string,
-): UseSourceDocumentsSnapshotResult {
-  const [rawDocs, setRawDocs] = useState<SourceLiveDocument[]>([]);
-  const [rawPending, setRawPending] = useState<SourceLiveDocument[]>([]);
-  const [receivedKey, setReceivedKey] = useState("");
-  const statusMapRef = useRef<Record<string, string>>({});
-
-  const addPending = useCallback((doc: SourceLiveDocument) => {
-    setRawPending((prev) => [doc, ...prev.filter((p) => p.id !== doc.id)]);
-  }, []);
-
-  const removePending = useCallback((id: string) => {
-    setRawPending((prev) => prev.filter((p) => p.id !== id));
-  }, []);
-
-  useEffect(() => {
-    if (!accountId) return;
-
-    const subKey = `${accountId}/${workspaceId ?? ""}`;
-    statusMapRef.current = {};
-
-    const db = getFirebaseFirestore();
-    const colRef = firestoreApi.collection(db, "accounts", accountId, "documents");
-
-    const unsubscribe = firestoreApi.onSnapshot(
-      colRef,
-      (snapshot) => {
-        const mapped = snapshot.docs
-          .map((item) => mapToSourceLiveDocument(item.id, objectOrEmpty(item.data())))
-          .filter((item) => !workspaceId || item.workspaceId === workspaceId)
-          .sort((a, b) => (b.uploadedAt?.getTime() ?? 0) - (a.uploadedAt?.getTime() ?? 0));
-
-        const nextMap: Record<string, string> = {};
-        for (const doc of mapped) {
-          nextMap[doc.id] = `${doc.status}/${doc.ragStatus}`;
-        }
-        statusMapRef.current = nextMap;
-
-        setRawDocs(mapped);
-        setRawPending((prev) => prev.filter((p) => !mapped.some((d) => d.id === p.id)));
-        setReceivedKey(subKey);
-      },
-      () => {
-        setReceivedKey(subKey);
-      },
-    );
-
-    return () => {
-      unsubscribe();
-      statusMapRef.current = {};
-    };
-  }, [accountId, workspaceId]);
-
-  const currentKey = `${accountId}/${workspaceId ?? ""}`;
-  const docs = accountId ? rawDocs : [];
-  const loading = Boolean(accountId) && receivedKey !== currentKey;
-  const pendingDocs = accountId ? rawPending : [];
-
-  return { docs, loading, pendingDocs, addPending, removePending };
-}
 ````
 
 ## File: modules/notion/api/index.ts
@@ -20489,253 +21555,6 @@ export function WorkspaceDetailRouteScreen({
 }
 ````
 
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useMemo, useState } from "react";
-
-import {
-  Card,
-  CardContent,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { WorkspaceAuditTab } from "@/modules/workspace/api";
-import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
-import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
-import { WorkspaceFlowTab } from "@/modules/workspace/api";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
-import { useApp } from "@/modules/platform/api";
-
-import {
-  createSettingsDraft,
-  type WorkspaceSettingsDraft,
-} from "../../state/workspace-settings";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
-import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
-import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
-import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
-
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-  readonly initialOverviewPanel?: string;
-}
-
-export function WorkspaceDetailScreen({
-  workspaceId,
-  accountId,
-  accountsHydrated,
-  initialTab,
-  initialOverviewPanel,
-}: WorkspaceDetailScreenProps) {
-  const { state: appState, dispatch } = useApp();
-  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
-    workspaceId,
-    accountId,
-    accountsHydrated,
-  );
-  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
-  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
-
-  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
-    workspace,
-    accountId,
-    onSaved: (updated) => {
-      setWorkspace(updated);
-      setSettingsDraft(createSettingsDraft(updated));
-      setIsEditWorkspaceOpen(false);
-    },
-  });
-
-  const personnelEntries = useMemo(() => {
-    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
-  }, [workspace]);
-
-  const addressLines = useMemo(() => {
-    return workspace ? getWorkspaceAddressLines(workspace) : [];
-  }, [workspace]);
-
-  function renderTabContent(tab: WorkspaceTabValue) {
-    if (!workspace) return null;
-
-    switch (tab) {
-      case "Overview":
-        return (
-          <WorkspaceOverviewTab
-            workspace={workspace}
-            activeWorkspaceId={appState.activeWorkspaceId}
-            personnelEntries={personnelEntries}
-            addressLines={addressLines}
-            showSettingsPanel={initialOverviewPanel === "settings"}
-            onEditClick={() => {
-              setSettingsDraft(createSettingsDraft(workspace));
-              clearSaveError();
-              setIsEditWorkspaceOpen(true);
-            }}
-            onSetActiveWorkspace={() =>
-              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
-            }
-          />
-        );
-      case "Members":
-        return <WorkspaceMembersTab workspace={workspace} />;
-      case "Daily":
-        return <WorkspaceDailyTab workspace={workspace} />;
-      case "Files":
-        return <WorkspaceFilesTab workspace={workspace} />;
-      case "Schedule":
-        return (
-          <WorkspaceSchedulingTab
-            workspace={workspace}
-            accountId={accountId ?? workspace.accountId}
-            currentUserId={accountId ?? "anonymous"}
-          />
-        );
-      case "Audit":
-        return <WorkspaceAuditTab workspaceId={workspace.id} />;
-      case "Tasks":
-        return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
-      case "Feed":
-        return (
-          <WorkspaceFeedWorkspaceView
-            accountId={accountId ?? workspace.accountId}
-            workspaceId={workspace.id}
-            workspaceName={workspace.name}
-          />
-        );
-      default:
-        return null;
-    }
-  }
-
-  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
-    ? initialTab
-    : "Overview";
-
-  return (
-    <div className="space-y-6">
-      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
-        ← 返回 Workspace Hub
-      </Link>
-
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          正在同步帳號內容…
-        </div>
-      )}
-
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            Loading workspace detail…
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入工作區資料，請返回清單後重試。
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "loaded" && !workspace && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            找不到此工作區。
-          </CardContent>
-        </Card>
-      )}
-
-      {workspace && (
-        <div className="space-y-6">
-          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
-          <nav
-            aria-label="Workspace tab navigation"
-            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
-          >
-            <div className="flex min-w-max items-center gap-0.5">
-              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
-                const tabs = getWorkspaceTabsByGroup(group);
-                const links = tabs.map((tab) => {
-                  const isActive = resolvedTab === tab;
-                  return (
-                    <Link
-                      key={tab}
-                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
-                      aria-current={isActive ? "page" : undefined}
-                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {getWorkspaceTabLabel(tab)}
-                    </Link>
-                  );
-                });
-                if (groupIndex > 0) {
-                  return [
-                    <div
-                      key={`sep-${group}`}
-                      aria-hidden="true"
-                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
-                    />,
-                    ...links,
-                  ];
-                }
-                return links;
-              })}
-            </div>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
-          </div>
-          {renderTabContent(resolvedTab)}
-        </div>
-      )}
-
-      <WorkspaceSettingsDialog
-        open={isEditWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsEditWorkspaceOpen(open);
-          if (!open) {
-            clearSaveError();
-            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
-          }
-        }}
-        settingsDraft={settingsDraft}
-        setSettingsDraft={setSettingsDraft}
-        isSaving={isSavingWorkspace}
-        saveError={saveError}
-        onSubmit={(event) => void handleSave(event, settingsDraft)}
-      />
-    </div>
-  );
-}
-````
-
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
 ````typescript
 "use client";
@@ -22147,149 +22966,6 @@ export {
 } from "./hooks/useRecentWorkspaces";
 ````
 
-## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
-````typescript
-/**
- * nav-preferences-data.ts  (workspace BC – interfaces/web/navigation)
- * Owns: NavPreferences type, nav-item catalogs, default values,
- *   validation helpers, and localStorage read/write utilities.
- * Constraints: No React imports. No UI imports. Pure data / serialization.
- */
-
-import {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "./workspace-nav-items";
-
-// Re-export for consumers that import from this file directly.
-export { WORKSPACE_NAV_ITEMS, normalizeWorkspaceOrder };
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export interface NavPreferences {
-  pinnedPersonal: string[];
-  pinnedWorkspace: string[];
-  showLimitedWorkspaces: boolean;
-  maxWorkspaces: number;
-  workspaceOrder: string[];
-}
-
-export interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
-
-const STORAGE_KEY = "xuanwu:nav-preferences";
-
-// ── Personal nav items ─────────────────────────────────────────────────────
-
-export const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
-  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
-];
-
-// ── Organization management items ─────────────────────────────────────────
-
-export const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
-  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
-  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
-  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
-];
-
-export const DIALOG_TEXT = {
-  zh: {
-    title: "Customize navigation",
-    description:
-      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
-    sectionPersonal: "個人",
-    sectionWorkspace: "工作區",
-    sectionOrganization: "組織管理",
-    sectionDisplay: "顯示設定",
-    limitedLabel: "側欄僅顯示固定數量的最近工作區",
-    limitedInputLabel: "工作區數量",
-    done: "完成",
-    recentWorkspaces: "最近工作區",
-  },
-  en: {
-    title: "Customize navigation",
-    description:
-      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
-    sectionPersonal: "Personal",
-    sectionWorkspace: "Workspace",
-    sectionOrganization: "Organization",
-    sectionDisplay: "Display",
-    limitedLabel: "Show a limited number of recent workspaces in sidebar",
-    limitedInputLabel: "Number of workspaces",
-    done: "Done",
-    recentWorkspaces: "Recent workspaces",
-  },
-} as const;
-
-// ── Defaults + validation ──────────────────────────────────────────────────
-
-export const DEFAULT_PREFS: NavPreferences = {
-  pinnedPersonal: ["recent-workspaces"],
-  pinnedWorkspace: [
-    ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
-    ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
-  ],
-  showLimitedWorkspaces: true,
-  maxWorkspaces: 10,
-  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
-};
-
-const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
-const VALID_WORKSPACE_ITEM_IDS = new Set([
-  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
-  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
-]);
-
-function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
-  if (!Array.isArray(ids)) return fallback;
-  const normalized = ids
-    .filter((id): id is string => typeof id === "string")
-    .filter((id) => validSet.has(id));
-  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
-}
-
-// ── localStorage helpers ───────────────────────────────────────────────────
-
-export function readNavPreferences(): NavPreferences {
-  if (typeof window === "undefined") return DEFAULT_PREFS;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_PREFS;
-    const parsed = JSON.parse(raw) as Partial<NavPreferences>;
-    return {
-      pinnedPersonal: normalizePinnedIds(
-        parsed.pinnedPersonal,
-        VALID_PERSONAL_ITEM_IDS,
-        DEFAULT_PREFS.pinnedPersonal,
-      ),
-      pinnedWorkspace: normalizePinnedIds(
-        parsed.pinnedWorkspace,
-        VALID_WORKSPACE_ITEM_IDS,
-        DEFAULT_PREFS.pinnedWorkspace,
-      ),
-      showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
-      maxWorkspaces:
-        typeof parsed.maxWorkspaces === "number"
-          ? parsed.maxWorkspaces
-          : DEFAULT_PREFS.maxWorkspaces,
-      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
-    };
-  } catch {
-    return DEFAULT_PREFS;
-  }
-}
-
-export function writeNavPreferences(prefs: NavPreferences): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-}
-````
-
 ## File: modules/workspace/interfaces/web/navigation/use-sidebar-locale.ts
 ````typescript
 "use client";
@@ -22336,78 +23012,6 @@ export function useSidebarLocale(): SidebarLocaleBundle | null {
   }, []);
 
   return localeBundle;
-}
-````
-
-## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
-````typescript
-export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
-
-export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
-
-export const WORKSPACE_TAB_VALUES = [
-  "Overview",
-  "Members",
-  "Daily",
-  "Files",
-  "Schedule",
-  "Audit",
-  "Tasks",
-  "Feed",
-] as const;
-
-export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
-
-interface WorkspaceTabMeta {
-  readonly label: string;
-  readonly prefId: string;
-  readonly group: WorkspaceTabGroup;
-  readonly status: WorkspaceTabDevStatus;
-}
-
-export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
-  Overview: { label: "Home", prefId: "home", group: "primary", status: "🏗️" },
-  Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
-  Daily: { label: "Daily", prefId: "daily", group: "modules", status: "✅" },
-  Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
-  Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
-  Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
-  Tasks: { label: "Workflow", prefId: "tasks", group: "modules", status: "🏗️" },
-  Feed: { label: "Feed", prefId: "feed", group: "modules", status: "🏗️" },
-};
-
-export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
-  primary: ["Overview"],
-  spaces: [],
-  databases: [],
-  library: ["Files", "Members"],
-  modules: ["Daily", "Schedule", "Audit", "Tasks", "Feed"],
-};
-
-const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);
-
-export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue {
-  return WORKSPACE_TAB_VALUE_SET.has(value);
-}
-
-export function getWorkspaceTabMeta(tab: WorkspaceTabValue) {
-  return WORKSPACE_TAB_META[tab];
-}
-
-export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus {
-  return WORKSPACE_TAB_META[tab].status;
-}
-
-export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string {
-  return WORKSPACE_TAB_META[tab].label;
-}
-
-export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
-  return WORKSPACE_TAB_META[tab].prefId;
-}
-
-export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
-  return WORKSPACE_TAB_GROUPS[group];
 }
 ````
 
@@ -37873,1007 +38477,295 @@ venv/
 .tmp-eslint*.jsontsconfig.tsbuildinfo
 ````
 
-## File: app/(shell)/ai-chat/page.tsx
-````typescript
-"use client";
-
-import { useSearchParams } from "next/navigation";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { AiChatPage } from "@/modules/notebooklm/api";
-
-export default function AiChatRoutePage() {
-  const searchParams = useSearchParams();
-  const { state: { workspaces } } = useApp();
-  const { state: authState } = useAuth();
-  const accountId = authState.user?.id ?? "";
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-
-  return (
-    <AiChatPage
-      accountId={accountId}
-      workspaces={workspaces ?? {}}
-      requestedWorkspaceId={requestedWorkspaceId}
-    />
-  );
-}
-````
-
-## File: app/(shell)/dev-tools/page.tsx
+## File: app/(public)/page.tsx
 ````typescript
 "use client";
 
 /**
- * Module: dev-tools page — /dev-tools
- * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
- * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
- * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
- *   Doc-list state and operations → useDevToolsDocList hook.
- *   Parsed-docs table → DevToolsParsedDocsSection component.
+ * app/(public)/page.tsx
+ * Public landing page with top-right auth entry and inline auth panel.
+ * Uses identity module use cases directly on the client so Firebase auth state
+ * actually updates AuthProvider via onAuthStateChanged.
  */
 
-import { useRef, useState, useEffect } from "react";
-import {
-  FlaskConical,
-  FileUp,
-  AlertCircle,
-  FileText,
-  Trash2,
-  Code2,
-  ExternalLink,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
-
-import { useApp } from "@/modules/platform/api";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  UPLOAD_BUCKET,
-  WATCH_PATH,
-  ACCEPTED_MIME,
-  ACCEPTED_EXTS,
-  asRecord,
-  asString,
-  asNumber,
-  type ParseResult,
-  type UploadStatus,
-} from "./dev-tools-helpers";
-import { StatusBadge, RagBadge } from "./dev-tools-badges";
-import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
-import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
-
-// ── Page component ─────────────────────────────────────────────────────────
-
-export default function DevToolsPage() {
-  const { state: appState } = useApp();
-  const activeAccountId = appState.activeAccount?.id ?? "";
-  const activeWorkspaceId = appState.activeWorkspaceId ?? "";
-
-  // ── Upload state ──────────────────────────────────────────────────────────
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<UploadStatus>("idle");
-  const [result, setResult] = useState<ParseResult | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [logs, setLogs] = useState<string[]>([]);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
-
-  // ── Doc list + operations (extracted hook) ────────────────────────────────
-  const {
-    allDocs,
-    selectedDocId,
-    selectedDoc,
-    jsonContent,
-    jsonLoading,
-    deletingId,
-    reindexingId,
-    handleViewOriginal,
-    handleViewJson,
-    handleDeleteDoc,
-    handleManualProcess,
-    closeJsonPreview,
-    formatNormalizationRatio,
-  } = useDevToolsDocList(activeAccountId);
-
-  // Cleanup upload subscription on unmount
-  useEffect(() => {
-    return () => { if (unsubscribeRef.current) unsubscribeRef.current(); };
-  }, []);
-
-  function appendLog(msg: string) {
-    setLogs((prev) => [
-      ...prev,
-      `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`,
-    ]);
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null;
-    setSelectedFile(file);
-    setResult(null);
-    setErrorMsg(null);
-    setStatus("idle");
-    setLogs([]);
-    if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
-  }
-
-  function buildUuidUploadPath(accountId: string, file: File) {
-    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
-    const docId = crypto.randomUUID();
-    return { uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`, docId };
-  }
-
-  function watchDocument(docId: string) {
-    if (!activeAccountId) {
-      appendLog("❌ 缺少 active account，無法監聽文件狀態");
-      return;
-    }
-    try {
-      const db = getFirebaseFirestore();
-      const docRef = firestoreApi.doc(db, "accounts", activeAccountId, "documents", docId);
-      if (unsubscribeRef.current) unsubscribeRef.current();
-      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {
-        if (!snapshot.exists()) { appendLog("等待 Firestore 初始化…"); return; }
-        const data = asRecord(snapshot.data());
-        const docStatus = asString(data.status, "unknown");
-        appendLog(`Firestore update: status=${docStatus}`);
-        if (docStatus === "completed") {
-          const parsed = asRecord(data.parsed);
-          const r: ParseResult = {
-            doc_id: docId,
-            status: "completed",
-            page_count: asNumber(parsed.page_count) ?? 0,
-            json_gcs_uri: asString(parsed.json_gcs_uri),
-          };
-          setResult(r);
-          setStatus("done");
-          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
-          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-        } else if (docStatus === "error") {
-          const error = asRecord(data.error);
-          const msg = asString(error.message, "未知錯誤");
-          setErrorMsg(msg);
-          setStatus("error");
-          appendLog(`❌ 錯誤：${msg}`);
-          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-        }
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      appendLog(`❌ 監聽失敗：${msg}`);
-      setErrorMsg(msg);
-      setStatus("error");
-    }
-  }
-
-  async function handleUploadAndParse() {
-    if (!selectedFile) return;
-    if (!activeAccountId) {
-      setErrorMsg("缺少 active account，無法上傳與解析");
-      setStatus("error");
-      return;
-    }
-    setStatus("uploading");
-    setResult(null);
-    setErrorMsg(null);
-    appendLog("📤 上傳檔案到 Cloud Storage…");
-    try {
-      // Step 1: Upload to GCS
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);
-      const fileRef = storageApi.ref(storage, uploadPath);
-      const snap = await storageApi.uploadBytes(fileRef, selectedFile, {
-        contentType: ACCEPTED_MIME[selectedFile.name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream",
-        customMetadata: {
-          account_id: activeAccountId,
-          workspace_id: activeWorkspaceId,
-          filename: selectedFile.name,
-        },
-      });
-      appendLog(`✅ 上傳完成：${snap.ref.fullPath}`);
-      // Step 2: Watch Firestore for status updates
-      setStatus("waiting");
-      appendLog("⏳ 等待 parse_document 處理…");
-      watchDocument(docId);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setErrorMsg(msg);
-      setStatus("error");
-      appendLog(`❌ 上傳失敗：${msg}`);
-    }
-  }
-
-  function reset() {
-    if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-    setSelectedFile(null);
-    setResult(null);
-    setErrorMsg(null);
-    setStatus("idle");
-    setLogs([]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
-
-  const isLoading = status === "uploading" || status === "waiting";
-  const parsedDocs = allDocs.filter((doc) => doc.status === "completed");
-  const ragReadyCount = allDocs.filter((doc) => doc.rag_status === "ready").length;
-  const ragErrorCount = allDocs.filter((doc) => doc.rag_status === "error").length;
-
-  return (
-    <div className="mx-auto max-w-2xl space-y-8">
-      {/* ── Header ─────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
-          <FlaskConical className="size-5 text-amber-500" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Dev Tools</h1>
-          <p className="text-xs text-muted-foreground">
-            py_fn · parse_document · Document AI · Firestore 實時監聽
-          </p>
-        </div>
-      </div>
-
-      {/* ── Stats ──────────────────────────────────────────────────── */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
-          <p className="text-[11px] text-muted-foreground">全部文件</p>
-          <p className="text-lg font-semibold tracking-tight">{allDocs.length}</p>
-        </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
-          <p className="text-[11px] text-emerald-700">解析完成</p>
-          <p className="text-lg font-semibold tracking-tight text-emerald-700">{parsedDocs.length}</p>
-        </div>
-        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2">
-          <p className="text-[11px] text-blue-700">RAG Ready</p>
-          <p className="text-lg font-semibold tracking-tight text-blue-700">{ragReadyCount}</p>
-        </div>
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
-          <p className="text-[11px] text-destructive">RAG Error</p>
-          <p className="text-lg font-semibold tracking-tight text-destructive">{ragErrorCount}</p>
-        </div>
-      </section>
-
-      {/* ── File picker ────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          1. 選擇檔案
-        </h2>
-        <label
-          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 transition
-            ${selectedFile ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
-        >
-          <FileUp className="size-8 text-muted-foreground" />
-          <div className="text-center">
-            <p className="text-sm font-medium">
-              {selectedFile ? selectedFile.name : "點擊或拖曳上傳"}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={Object.keys(ACCEPTED_MIME).join(",")}
-            className="sr-only"
-            onChange={handleFileChange}
-          />
-        </label>
-      </section>
-
-      {/* ── Actions ────────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          2. 執行上傳 &amp; 解析
-        </h2>
-        <div className="flex gap-3">
-          <Button onClick={handleUploadAndParse} disabled={!selectedFile || isLoading} className="gap-2">
-            {isLoading ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />}
-            {status === "uploading" ? "上傳中…" : status === "waiting" ? "等待中…" : "開始"}
-          </Button>
-          <Button variant="outline" onClick={reset} disabled={isLoading}>
-            重置
-          </Button>
-        </div>
-      </section>
-
-      {/* ── Result ─────────────────────────────────────────────────── */}
-      {(status === "done" || status === "error") && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            3. 結果
-          </h2>
-          {status === "done" && result && (
-            <div className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
-              <div className="flex items-center gap-2 text-emerald-600">
-                <CheckCircle2 className="size-4 shrink-0" />
-                <span className="text-sm font-medium">解析成功</span>
-              </div>
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <dt className="text-muted-foreground">doc_id</dt>
-                <dd className="font-mono text-xs">{result.doc_id}</dd>
-                <dt className="text-muted-foreground">page_count</dt>
-                <dd className="font-bold">{result.page_count}</dd>
-                <dt className="text-muted-foreground">JSON 位置</dt>
-                <dd className="font-mono text-xs break-all">{result.json_gcs_uri || "—"}</dd>
-              </dl>
-            </div>
-          )}
-          {status === "error" && (
-            <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              <XCircle className="mt-0.5 size-4 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-        </section>
-      )}
-
-      {status === "waiting" && (
-        <section className="space-y-3">
-          <div className="flex items-start gap-2 rounded-xl border border-blue-300/30 bg-blue-500/5 p-4 text-sm text-blue-600">
-            <AlertCircle className="mt-0.5 size-4 shrink-0 animate-pulse" />
-            <div>
-              <p className="font-medium">處理中…</p>
-              <p className="mt-1 text-xs opacity-75">Document AI 正在解析檔案，請稍候</p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── All uploaded docs table ─────────────────────────────────── */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <FileText className="size-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            已上傳檔案（{allDocs.length}）
-          </h2>
-        </div>
-        {allDocs.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-            尚無上傳記錄
-          </p>
-        ) : (
-          <div className="space-y-0 overflow-hidden rounded-xl border border-border/60">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead>
-                  <tr className="border-b border-border/60 bg-muted/40">
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allDocs.map((doc, i) => (
-                    <tr
-                      key={doc.id}
-                      className={`border-b border-border/40 last:border-0 transition-colors ${
-                        selectedDocId === doc.id
-                          ? "bg-primary/8 ring-1 ring-inset ring-primary/20"
-                          : i % 2 === 0 ? "bg-background" : "bg-muted/20"
-                      }`}
-                    >
-                      <td className="px-4 py-2.5 font-mono text-xs max-w-[180px] truncate" title={doc.filename}>
-                        {doc.filename}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <StatusBadge status={doc.status} errorMessage={doc.error_message} />
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <RagBadge status={doc.rag_status} error={doc.rag_error} />
-                      </td>
-                      <td className="px-4 py-2.5 text-xs">
-                        {doc.page_count != null ? doc.page_count : "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                        {formatDateTime(doc.uploaded_at)}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => { void handleViewOriginal(doc); }}
-                            disabled={!doc.gcs_uri}
-                            title="查看原始檔案"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
-                          >
-                            <ExternalLink className="size-3.5" />
-                          </button>
-                          <button
-                            onClick={() => { void handleViewJson(doc); }}
-                            disabled={doc.status !== "completed" || !doc.json_gcs_uri}
-                            title="查看 JSON 解析結果"
-                            className={`inline-flex size-7 items-center justify-center rounded-md transition hover:bg-muted disabled:opacity-30 ${
-                              selectedDocId === doc.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            <Code2 className="size-3.5" />
-                          </button>
-                          <button
-                            onClick={() => { void handleDeleteDoc(doc); }}
-                            disabled={deletingId === doc.id}
-                            title="刪除"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
-                          >
-                            {deletingId === doc.id
-                              ? <Loader2 className="size-3.5 animate-spin" />
-                              : <Trash2 className="size-3.5" />}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* JSON preview panel */}
-            {selectedDocId && (
-              <div className="border-t border-border/60 bg-[#0d1117]">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
-                  <div className="flex items-center gap-2 text-xs text-green-400">
-                    <Code2 className="size-3.5" />
-                    <span className="font-mono">
-                      {selectedDoc?.filename ?? selectedDocId} — JSON
-                    </span>
-                  </div>
-                  <button
-                    onClick={closeJsonPreview}
-                    className="text-white/30 hover:text-white/70 transition text-xs"
-                  >
-                    ✕ 關閉
-                  </button>
-                </div>
-                {selectedDoc?.rag_status === "error" && (
-                  <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs text-destructive">
-                    RAG 失敗：{selectedDoc.rag_error || "未知錯誤"}
-                  </div>
-                )}
-                <div className="max-h-80 overflow-y-auto p-4">
-                  {jsonLoading ? (
-                    <div className="flex items-center gap-2 text-green-400/60 text-xs">
-                      <Loader2 className="size-3.5 animate-spin" /> 載入中…
-                    </div>
-                  ) : (
-                    <pre className="font-mono text-xs leading-relaxed text-green-400 whitespace-pre-wrap break-words">
-                      {jsonContent}
-                    </pre>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* ── Parsed docs table (extracted component) ─────────────────── */}
-      <DevToolsParsedDocsSection
-        parsedDocs={parsedDocs}
-        reindexingId={reindexingId}
-        onViewJson={(doc) => { void handleViewJson(doc); }}
-        onManualProcess={(doc) => { void handleManualProcess(doc, appendLog); }}
-        formatNormalizationRatio={formatNormalizationRatio}
-      />
-
-      {/* ── Console log ────────────────────────────────────────────── */}
-      {logs.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Console
-          </h2>
-          <div className="max-h-48 overflow-y-auto rounded-xl bg-[#0d1117] p-4">
-            {logs.map((line, i) => (
-              <p key={i} className="font-mono text-xs leading-relaxed text-green-400">
-                {line}
-              </p>
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/knowledge-base/articles/[articleId]/page.tsx
-````typescript
-"use client";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { ArticleDetailPage } from "@/modules/notion/api";
-
-export default function ArticleDetailPageRoute() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  return (
-    <ArticleDetailPage
-      accountId={accountId}
-      workspaceId={workspaceId}
-      currentUserId={currentUserId}
-    />
-  );
-}
-````
-
-## File: app/(shell)/knowledge-database/databases/[databaseId]/forms/page.tsx
-````typescript
-"use client";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { DatabaseFormsPage } from "@/modules/notion/api";
-
-export default function DatabaseFormsPageRoute() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  return (
-    <DatabaseFormsPage
-      accountId={accountId}
-      workspaceId={workspaceId}
-      currentUserId={currentUserId}
-    />
-  );
-}
-````
-
-## File: app/(shell)/knowledge-database/databases/[databaseId]/page.tsx
-````typescript
-"use client";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { DatabaseDetailPage } from "@/modules/notion/api";
-
-export default function DatabaseDetailPageRoute() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  return (
-    <DatabaseDetailPage
-      accountId={accountId}
-      workspaceId={workspaceId}
-      currentUserId={currentUserId}
-    />
-  );
-}
-````
-
-## File: app/(shell)/knowledge/pages/[pageId]/page.tsx
-````typescript
-"use client";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { KnowledgePageDetailPage } from "@/modules/notion/api";
-
-export default function KnowledgePageDetailPageRoute() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const activeWorkspaceId = appState.activeWorkspaceId ?? null;
-  const currentUserId = authState.user?.id ?? "";
-
-  return (
-    <KnowledgePageDetailPage
-      accountId={accountId}
-      activeWorkspaceId={activeWorkspaceId}
-      currentUserId={currentUserId}
-    />
-  );
-}
-````
-
-## File: app/(shell)/notebook/rag-query/page.tsx
-````typescript
-"use client";
-
-import { useSearchParams } from "next/navigation";
-
-import { useApp } from "@/modules/platform/api";
-import { resolveWorkspaceFromMap } from "@/modules/workspace/api";
-import { RagQueryView } from "@/modules/notebooklm/api";
-
-export default function NotebookRagQueryPage() {
-  const searchParams = useSearchParams();
-  const { state: appState } = useApp();
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const resolvedWorkspace = resolveWorkspaceFromMap(appState.workspaces, requestedWorkspaceId);
-  const workspaceId = resolvedWorkspace?.id ?? appState.activeWorkspaceId ?? undefined;
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
-        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
-      </header>
-
-      <RagQueryView workspaceId={workspaceId} />
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/organization/audit/page.tsx
-````typescript
-"use client";
-
-import { useApp, isActiveOrganizationAccount, OrganizationAuditPage } from "@/modules/platform/api"
-
-export default function OrganizationAuditPageRoute() {
-  const { state: appState } = useApp();
-  const { activeAccount, workspaces, workspacesHydrated } = appState;
-  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  return (
-    <OrganizationAuditPage
-      organizationId={organizationId}
-      workspaces={workspaces}
-      workspacesHydrated={workspacesHydrated}
-    />
-  );
-}
-````
-
-## File: app/(shell)/organization/daily/page.tsx
-````typescript
-"use client";
-
-import { useApp } from "@/modules/platform/api";
-import { WorkspaceFeedAccountView } from "@/modules/workspace/api";
-import { isActiveOrganizationAccount } from "@/modules/platform/api";
-
-export default function OrganizationDailyPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <section className="mx-auto max-w-4xl space-y-6">
-      <header className="rounded-3xl border border-border/60 bg-card/50 p-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold">Account Workspace Feed</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              聚合名下所有 workspace 的 feed，並提供 Reply / Repost / Like / View / Bookmark / Share 互動。
-            </p>
-          </div>
-          <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-            live
-          </div>
-        </div>
-      </header>
-
-      <WorkspaceFeedAccountView accountId={activeOrganizationId} />
-    </section>
-  );
-}
-````
-
-## File: app/(shell)/organization/members/page.tsx
-````typescript
-"use client";
-
-import { useApp, isActiveOrganizationAccount, MembersPage } from "@/modules/platform/api"
-
-export default function OrganizationMembersPage() {
-  const { state: { activeAccount } } = useApp();
-  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
-  return <MembersPage organizationId={organizationId} />;
-}
-````
-
-## File: app/(shell)/organization/page.tsx
-````typescript
-"use client";
-
-/**
- * Organization Overview Page — /organization
- * Lists organizations visible to the current user and allows switching
- * to an organization account context.
- * Section pages live under /organization/[section].
- */
-
-import Link from "next/link";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
 
-import { useApp, useAuth } from "@/modules/platform/api"
-import type { AccountEntity } from "@/modules/platform/api";
-import { isActiveOrganizationAccount } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import {
+  useAuth,
+  createClientAuthUseCases,
+  createClientAccountUseCases,
+  createDevDemoUser,
+  isDevDemoCredential,
+  isLocalDevDemoAllowed,
+  writeDevDemoSession,
+} from "@/modules/platform/api";
 
-export default function OrganizationPage() {
+type Tab = "login" | "register";
+
+export default function PublicPage() {
+  const { state, dispatch } = useAuth();
   const router = useRouter();
-  const { state: appState, dispatch } = useApp();
-  const { state: authState } = useAuth();
-  const { user } = authState;
-  const { accounts, activeAccount, accountsHydrated, bootstrapPhase } = appState;
 
-  const orgList = Object.values(accounts);
-  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+  const [tab, setTab] = useState<Tab>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
+  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
 
-  function handleSwitch(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    router.replace("/workspace");
+  const {
+    signInUseCase,
+    signInAnonymouslyUseCase,
+    registerUseCase,
+    sendPasswordResetEmailUseCase,
+    createUserAccountUseCase,
+  } =
+    useMemo(() => ({
+      ...createClientAuthUseCases(),
+      ...createClientAccountUseCases(),
+    }), []);
+
+  useEffect(() => {
+    if (state.status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [state.status, router]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
+        writeDevDemoSession(createDevDemoUser());
+        window.location.assign("/dashboard");
+        return;
+      }
+
+      const result =
+        tab === "login"
+          ? await signInUseCase.execute({ email, password })
+          : await registerUseCase.execute({ email, password, name });
+
+      if (!result.success) {
+        setError(result.error.message);
+        return;
+      }
+
+      if (tab === "register") {
+        const accountResult = await createUserAccountUseCase.execute(
+          result.aggregateId,
+          name,
+          email,
+        );
+        if (!accountResult.success) {
+          setError(accountResult.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  function handleSwitchToPersonal() {
-    if (!user) return;
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
-    router.replace("/workspace");
+  async function handleGuestAccess() {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await signInAnonymouslyUseCase.execute();
+      if (!result.success) {
+        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
+        // blocked in sandboxes), create a local guest session so the shell can be tested.
+        if (isLocalDevDemoAllowed()) {
+          const guestUser = createDevDemoUser();
+          writeDevDemoSession(guestUser);
+          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
+        } else {
+          setError(result.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
   }
 
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Account Context Switcher</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          先選擇個人或組織帳號情境，再回到 workspace-first 主流程。
-        </p>
-      </div>
+  async function handlePasswordReset() {
+    if (!email) {
+      setError("Enter your email address first.");
+      return;
+    }
 
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="text-base font-semibold">Recommended flow</h2>
-        <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
-          <li>
-            <span className="font-medium text-foreground">1. Identity</span>：登入後確認你目前要操作的個人／組織帳號。
-          </li>
-          <li>
-            <span className="font-medium text-foreground">2. Organization</span>：在這裡切換 active account。
-          </li>
-          <li>
-            <span className="font-medium text-foreground">3. Workspace</span>：回到工作區，再進入 Knowledge、知識頁面、Notebook / AI。
-          </li>
-        </ol>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button asChild size="sm">
-            <Link href="/workspace">回到 Workspace Hub</Link>
-          </Button>
-          {activeOrganizationId && (
-            <Button asChild size="sm" variant="outline">
-              <Link href="/organization/members">組織治理模組</Link>
-            </Button>
-          )}
-        </div>
-      </section>
+    setIsLoading(true);
+    try {
+      const result = await sendPasswordResetEmailUseCase.execute(email);
+      if (result.success) {
+        setResetSent(true);
+        setError(null);
+      } else {
+        setError(result.error.message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
-      {/* Quick-access dashboard — visible only when an org context is active */}
-      {activeOrganizationId && (
-        <section className="space-y-3">
-          <h2 className="text-base font-semibold">組織功能</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {[
-              { href: "/organization/members", title: "成員管理", desc: "邀請與管理組織成員" },
-              { href: "/organization/teams", title: "團隊管理", desc: "建立與編輯團隊" },
-              { href: "/organization/permissions", title: "權限政策", desc: "設定存取規則" },
-              { href: "/organization/workspaces", title: "工作區", desc: "組織下的工作區清單" },
-              { href: "/organization/schedule", title: "工作需求排程", desc: "排程與容量總覽" },
-              { href: "/organization/audit", title: "稽核記錄", desc: "操作歷史追蹤" },
-              { href: "/organization/daily", title: "動態牆", desc: "組織工作區動態" },
-            ].map((item) => (
-              <Link key={item.href} href={item.href} className="group">
-                <Card className="h-full transition-colors group-hover:border-primary/50 group-hover:bg-accent/40">
-                  <CardHeader className="pb-2 pt-4">
-                    <CardTitle className="text-sm">{item.title}</CardTitle>
-                    <CardDescription className="text-xs">{item.desc}</CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          {bootstrapPhase === "seeded"
-            ? "正在同步你的組織清單，完成後就能切換到對應的組織上下文。"
-            : "正在載入組織資料…"}
-        </div>
-      )}
-
-      {/* Personal account */}
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold">Personal Account</h2>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-medium">{user?.name ?? "—"}</p>
-            <p className="text-xs text-muted-foreground">{user?.email}</p>
-          </div>
-          {activeAccount?.id === user?.id ? (
-            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-              Active
-            </span>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleSwitchToPersonal}
-            >
-              Switch
-            </Button>
-          )}
-        </div>
-      </section>
-
-      {/* Organizations */}
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold">
-          Organizations
-          <span className="ml-2 text-xs font-normal text-muted-foreground">
-            ({orgList.length})
-          </span>
-        </h2>
-
-        {orgList.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            You are not a member of any organization yet.
-          </p>
-        ) : (
-          <ul className="space-y-3">
-            {orgList.map((org) => (
-              <li
-                key={org.id}
-                className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3"
-              >
-                <div>
-                  <p className="font-medium">{org.name}</p>
-                  {org.description && (
-                    <p className="text-xs text-muted-foreground">{org.description}</p>
-                  )}
-                </div>
-                {activeAccount?.id === org.id ? (
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                    Active
-                  </span>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSwitch(org)}
-                  >
-                    Switch
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {activeOrganizationId && (
-        <p className="text-sm text-muted-foreground">
-          已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
-        </p>
-      )}
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/organization/permissions/page.tsx
-````typescript
-"use client";
-
-import { useApp, isActiveOrganizationAccount, PermissionsPage } from "@/modules/platform/api"
-
-export default function OrganizationPermissionsPage() {
-  const { state: { activeAccount } } = useApp();
-  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
-  return <PermissionsPage organizationId={organizationId} />;
-}
-````
-
-## File: app/(shell)/organization/schedule/page.tsx
-````typescript
-"use client";
-
-import { useApp } from "@/modules/platform/api";
-import { AccountSchedulingView } from "@/modules/workspace/api";
-import { isActiveOrganizationAccount } from "@/modules/platform/api";
-
-export default function OrganizationSchedulePage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-
-  const activeOrganizationId = isActiveOrganizationAccount(activeAccount)
-    ? activeAccount.id
-    : null;
-
-  if (!activeOrganizationId) {
+  if (state.status === "initializing") {
     return (
-      <div className="flex items-center justify-center py-16">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <section className="flex flex-col gap-6 px-4 py-6">
-      <header className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">
-          Account Scheduling
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          工作需求總覽
-        </h1>
+    <main className="min-h-screen bg-background">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setResetSent(false);
+            setIsAuthPanelOpen((prev) => !prev);
+          }}
+          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+        >
+          {isAuthPanelOpen ? "Close" : "Sign In"}
+        </button>
       </header>
 
-      <AccountSchedulingView
-        accountId={activeOrganizationId}
-        currentUserId={activeOrganizationId}
-      />
-    </section>
+      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
+        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
+            Unified Hexagonal Architecture with DDD workspace for identity, account, and organization modules.
+            Use the top-right sign in button to access your dashboard.
+          </p>
+        </div>
+
+        {isAuthPanelOpen && (
+          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
+            <div className="flex flex-col items-center pb-4 pt-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
+                <ShieldCheck className="h-7 w-7 text-primary/90" />
+              </div>
+            </div>
+
+            <div className="px-6">
+              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
+                {(["login", "register"] as Tab[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setTab(t);
+                      setError(null);
+                    }}
+                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
+                      tab === t
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t === "login" ? "Sign In" : "Register"}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                {tab === "register" && (
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
+                    <input
+                      id="register-name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your display name"
+                      required
+                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    autoComplete="email"
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
+                    {tab === "login" && (
+                      <button
+                        type="button"
+                        onClick={handlePasswordReset}
+                        className="text-xs text-primary/70 hover:text-primary"
+                      >
+                        {resetSent ? "Email sent!" : "Forgot password?"}
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    id="auth-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete={tab === "login" ? "current-password" : "new-password"}
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                {error && (
+                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : tab === "login" ? (
+                    "Enter Dimension"
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
+              </form>
+            </div>
+
+            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
+              <button
+                type="button"
+                onClick={handleGuestAccess}
+                disabled={isLoading}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
   );
-}
-````
-
-## File: app/(shell)/organization/teams/page.tsx
-````typescript
-"use client";
-
-import { useApp, isActiveOrganizationAccount, TeamsPage } from "@/modules/platform/api"
-
-export default function OrganizationTeamsPage() {
-  const { state: { activeAccount } } = useApp();
-  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
-  return <TeamsPage organizationId={organizationId} />;
-}
-````
-
-## File: app/(shell)/organization/workspaces/page.tsx
-````typescript
-"use client";
-
-import { useApp } from "@/modules/platform/api";
-import { OrganizationWorkspacesScreen } from "@/modules/workspace/api";
-import { isActiveOrganizationAccount } from "@/modules/platform/api";
-
-export default function OrganizationWorkspacesPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  return <OrganizationWorkspacesScreen accountId={activeOrganizationId} />;
-}
-````
-
-## File: app/(shell)/settings/notifications/page.tsx
-````typescript
-"use client";
-
-import { useAuth, NotificationsPage } from "@/modules/platform/api"
-
-export default function NotificationCenterPage() {
-  const { state: authState } = useAuth();
-  const recipientId = authState.user?.id ?? "";
-  return <NotificationsPage recipientId={recipientId} />;
 }
 ````
 
@@ -39056,244 +38948,2001 @@ export default function SettingsProfilePage() {
 }
 ````
 
-## File: app/(shell)/source/documents/page.tsx
-````typescript
-"use client";
+## File: docs/contexts/notebooklm/AGENT.md
+````markdown
+# NotebookLM Agent
 
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
-import { useApp } from "@/modules/platform/api";
+## Mission
 
-/**
- * /source/documents is now a redirect shim.
- * Canonical file management lives at /workspace/[id]?tab=Files.
- * If a workspaceId is available (via URL param or active workspace),
- * we redirect immediately; otherwise we show a picker placeholder.
- */
-export default function SourceDocumentsPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const {
-    state: { activeWorkspaceId },
-  } = useApp();
+保護 notebooklm 主域作為對話、來源處理、檢索、grounding 與 synthesis 邊界。任何變更都應維持 notebooklm 擁有衍生推理流程與可追溯輸出，而不是直接擁有正典知識內容。
 
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const targetWorkspaceId = requestedWorkspaceId || activeWorkspaceId || "";
+## Canonical Ownership
 
-  useEffect(() => {
-    if (targetWorkspaceId) {
-      router.replace(`/workspace/${encodeURIComponent(targetWorkspaceId)}?tab=Files`);
-    }
-  }, [router, targetWorkspaceId]);
+- ingestion
+- source
+- retrieval
+- grounding
+- notebook
+- conversation
+- note
+- synthesis
+- evaluation
+- conversation-versioning
 
-  if (targetWorkspaceId) {
-    return (
-      <div className="px-4 py-6 text-sm text-muted-foreground">
-        正在導向工作區檔案管理頁面…
-      </div>
-    );
-  }
+## Route Here When
 
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文件</h1>
-        <p className="text-sm text-muted-foreground">工作區來源文件管理（已整合至工作區 Files 頁簽）。</p>
-      </header>
-      <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-        請先從側邊欄選擇一個工作區，系統將自動導向至該工作區的檔案管理頁面（
-        <code className="rounded bg-muted px-1">?tab=Files</code>
-        ）。你也可以直接在網址帶入{" "}
-        <code className="rounded bg-muted px-1">workspaceId</code> 參數。
-      </p>
-    </div>
-  );
-}
+- 問題核心是 notebook、conversation、source ingestion、retrieval、grounding、synthesis。
+- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
+- 問題要把知識來源轉成可對話與可綜合的推理材料。
+
+## Route Elsewhere When
+
+- 正典知識頁面、內容分類、正式發布屬於 notion。
+- 身份、授權、權益、憑證治理屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
+- 工作區生命週期、共享與存在感屬於 workspace。
+
+## Guardrails
+
+- notebooklm 的輸出是衍生產物，不直接等於正典知識內容。
+- retrieval 與 grounding 應作為獨立邊界，而不是隱含在 platform.ai 接入或 source 裡。
+- ingestion 應與 source reference 分離，避免來源處理與來源語義耦合。
+- evaluation 應作為品質與回歸語言，而不只是分析儀表板指標。
+- 跨主域互動只經過 published language、API 邊界或事件。
+
+## Dependency Direction
+
+- notebooklm 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
+- application 只能透過 ports 協調 retrieval、grounding、ingestion、synthesis 所需的外部能力。
+- infrastructure 只實作 ports 與邊界轉譯，不反向定義 domain 語言。
+
+## Hard Prohibitions
+
+- 不得把 notion 的 KnowledgeArtifact 直接當成 notebooklm 的本地主域模型。
+- 不得讓 domain 或 application 直接依賴模型 SDK、向量儲存或外部檔案處理框架。
+- 不得讓 notebooklm 直接改寫 workspace 或 notion 的內部狀態，而繞過其 API 邊界。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先維持 notebooklm 作為 downstream 推理主域，不回推治理或正典內容所有權。
+- 共享模型能力若已由 platform.ai 提供，就不要在 notebooklm 再建立第二個 generic `ai` 子域。
+- 奧卡姆剃刀：若較少的抽象已能保護邊界，就不要額外新增 port、ACL、DTO、subdomain 或 process manager。
+- 只有碰到外部依賴、語義污染或跨主域轉譯時，才建立 port、ACL 或 local DTO。
+- 任何跨主域互動都先走 API boundary / published language，再轉成本地主域語言。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["NotebookLM Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform upstream"] -->|Published Language| Boundary["notebooklm API boundary"]
+	Workspace["workspace upstream"] -->|Published Language| Boundary
+	Notion["notion upstream"] -->|Published Language| Boundary
+	Boundary --> Translation["Local DTO / ACL when needed"]
+	Translation --> App["Application orchestration"]
+	App --> Domain["Conversation / Retrieval / Grounding / Synthesis"]
+	Domain --> Output["Grounded output / notes / evaluation"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: app/(shell)/source/libraries/page.tsx
-````typescript
-"use client";
+## File: docs/contexts/notebooklm/bounded-contexts.md
+````markdown
+# NotebookLM
 
-import { useApp, useAuth } from "@/modules/platform/api"
-import { LibrariesView, LibraryTableView } from "@/modules/notebooklm/api";
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
-export default function SourceLibrariesPage() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
+## Domain Role
 
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? undefined;
+notebooklm 是對話與推理主域。依 bounded context 原則，它應封裝來源匯入、檢索、grounding、對話、摘要、評估與版本化，使推理流程保持高凝聚且與正典知識內容邊界分離。
 
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
-        <p className="text-sm text-muted-foreground">
-          對齊資料庫／資料來源能力的 MVP，產品命名統一為 Libraries。
-        </p>
-      </header>
+## Baseline Bounded Contexts
 
-      {accountId ? (
-        <>
-          <LibraryTableView accountId={accountId} workspaceId={workspaceId} />
-          <LibrariesView accountId={accountId} workspaceId={workspaceId} />
-        </>
-      ) : (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入或切換帳號。
-        </p>
-      )}
-    </div>
-  );
-}
+| Cluster | Subdomains |
+|---|---|
+| Interaction Core | notebook, conversation, note |
+| Reasoning Output | source, synthesis, conversation-versioning |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why It Should Exist | Gap If Missing |
+|---|---|---|
+| ingestion | 承接來源匯入、正規化與前處理 | source 會同時承載來源處理與來源語義 |
+| retrieval | 承接查詢、召回、排序與檢索策略 | synthesis 缺少清楚上游邊界 |
+| grounding | 承接 citation、evidence 對齊與答案可追溯性 | 引用語言無法形成正典邊界 |
+| evaluation | 承接品質評估、回歸比較與效果量測 | 品質語言只能散落在 analytics 或測試層 |
+
+## Domain Invariants
+
+- notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
+- shared AI capability 由 platform.ai 提供；notebooklm 擁有 retrieval、grounding、synthesis 的本地語義。
+- grounding 應能把輸出對齊到來源證據。
+- retrieval 是 synthesis 的上游能力，不應與 source reference 混成同一層。
+- evaluation 應描述品質，而不是單純使用量。
+- 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
+
+## Dependency Direction
+
+- notebooklm 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
+- ingestion、retrieval、grounding 的外部整合必須由 adapter 實作，透過 port 注入到核心。
+- domain 不得向外依賴來源處理框架、模型供應商或傳輸協定。
+
+## Anti-Patterns
+
+- 把 retrieval、grounding、ingestion 重新塞回 platform.ai 接入層或 source，造成責任折疊。
+- 讓 synthesis 直接持有正典內容所有權，混淆 notion 與 notebooklm 邊界。
+- 讓 application service 直接呼叫外部 SDK，而不經過 port/adapter。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 retrieval、grounding、ingestion、evaluation 的獨立語義，再決定是否需要額外抽象。
+- 奧卡姆剃刀：不要為了形式上的對稱而新增子域；只有在責任、語義或演化速率不同時才拆分。
+- 若外部能力只服務單一明確邊界，優先用最小必要 port，而不是複製整套工具 API。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["NotebookLM bounded contexts"]
+	X["Infrastructure"] --> D
+	X -. adapter / provider .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	SourceInput["Source / governance / scope input"] --> Boundary["NotebookLM boundary"]
+	Boundary --> App["Use case orchestration"]
+	App --> Retrieval["Retrieval"]
+	Retrieval --> Grounding["Grounding"]
+	Grounding --> Synthesis["Synthesis"]
+	Synthesis --> Evaluation["Evaluation"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
 ````
 
-## File: app/(shell)/workspace-feed/page.tsx
-````typescript
-"use client";
+## File: docs/contexts/notebooklm/context-map.md
+````markdown
+# NotebookLM
 
-/**
- * Route: /workspace-feed
- * Purpose: Workspace activity feed — shows posts, reactions, and replies for the
- *          currently active workspace.
- */
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
-import { useApp } from "@/modules/platform/api";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
+## Context Role
 
-export default function WorkspaceFeedPage() {
-  const { state } = useApp();
-  const accountId = state.activeAccount?.id ?? "";
-  const workspaceId = state.activeWorkspaceId ?? "";
-  const workspaceName = "工作區";
+notebooklm 消費 workspace scope、platform 治理與 notion 內容來源，並輸出可追溯的對話、洞察與 synthesis。依 Context Mapper 思維，它是多個上游語言的下游整合者，但仍需維持自己的對話與推理邊界。
 
-  if (!accountId || !workspaceId) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        請先選擇工作區
-      </div>
-    );
-  }
+## Relationships
 
-  return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
-      <h1 className="mb-4 text-xl font-semibold">動態牆</h1>
-      <WorkspaceFeedWorkspaceView
-        accountId={accountId}
-        workspaceId={workspaceId}
-        workspaceName={workspaceName}
-      />
-    </div>
-  );
-}
+| Related Domain | Relationship Type | NotebookLM Position | Published Language |
+|---|---|---|---|
+| platform | Upstream/Downstream | downstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
+| workspace | Upstream/Downstream | downstream | workspaceId、membership scope、share scope |
+| notion | Upstream/Downstream | downstream | knowledge artifact reference、attachment reference、taxonomy hint |
+
+## Mapping Rules
+
+- notebooklm 依賴 platform 的治理結果，但不重建 actor、policy 或 secret 模型。
+- notebooklm 可消費 platform.ai 作為共享模型能力，但不擁有 provider / policy 所有權。
+- notebooklm 在 workspace scope 內運作，但不定義 workspace 生命周期或 sharing 規則。
+- notion 是 notebooklm 的重要 source supplier，notebooklm 不能反向直接改寫 notion 正典內容。
+- synthesis、grounding、evaluation 是 notebooklm 對外輸出的核心能力語言。
+
+## Dependency Direction
+
+- notebooklm 只作為 platform、workspace、notion 的 downstream consumer，不反向宣稱治理或正典內容所有權。
+- ACL 或 Conformist 只能由 notebooklm 這個 downstream 端選擇，不能回推到上游。
+- 跨主域資料進入 notebooklm 時，先落在 published language 或 local DTO，再進入本地主域語言。
+
+## Anti-Patterns
+
+- 把 notebooklm 寫成 notion 或 workspace 的上游治理來源。
+- 在同一主域關係上同時聲稱 ACL 與 Conformist。
+- 直接共享 notebook、source 或 conversation 的內部模型給其他主域使用。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先維持 notebooklm 對 platform、workspace、notion 的 downstream 位置，再安排轉譯層。
+- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要額外發明第二層 mapper 或雙重 ACL。
+- 上游只提供 published language；本地主域保護由 downstream 完成。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream contexts"] -->|Published Language| Boundary["notebooklm boundary"]
+	Boundary --> Translation["Local DTO / ACL if needed"]
+	Translation --> App["Application"]
+	App --> Domain["Domain"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] -->|actor / access / entitlement / ai| Boundary["notebooklm API boundary"]
+	Workspace["workspace"] -->|workspace scope| Boundary
+	Notion["notion"] -->|knowledge references| Boundary
+	Boundary --> ACL["ACL or local DTO"]
+	ACL --> Domain["NotebookLM domain"]
+	Domain --> Result["Grounded synthesis / conversation output"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [../../context-map.md](../../context-map.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../strategic-patterns.md](../../strategic-patterns.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: app/(shell)/workspace/[workspaceId]/page.tsx
-````typescript
-"use client";
+## File: docs/contexts/notebooklm/README.md
+````markdown
+# NotebookLM Context
 
-import { useParams, useSearchParams } from "next/navigation";
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
 
-import { useApp } from "@/modules/platform/api";
-import { WorkspaceDetailRouteScreen } from "@/modules/workspace/api";
+## Purpose
 
-export default function WorkspaceDetailPage() {
-  const params = useParams<{ workspaceId: string }>();
-  const searchParams = useSearchParams();
-  const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
-  const initialTab = searchParams.get("tab") ?? undefined;
-  const initialOverviewPanel = searchParams.get("panel") ?? undefined;
-  const {
-    state: { activeAccount, accountsHydrated },
-  } = useApp();
+notebooklm 是對話、來源處理與推理主域。它的責任是提供 notebook、conversation、source ingestion、retrieval、grounding、synthesis、evaluation 與 conversation-versioning 等語言，把來源材料轉成可對話、可追溯、可評估的衍生輸出。
 
-  return (
-    <WorkspaceDetailRouteScreen
-      workspaceId={workspaceId}
-      accountId={activeAccount?.id}
-      accountsHydrated={accountsHydrated}
-      initialTab={initialTab}
-      initialOverviewPanel={initialOverviewPanel}
-    />
-  );
-}
+## Why This Context Exists
+
+- 把推理流程與正典知識內容分離。
+- 把來源匯入、檢索、grounding 與 synthesis 統整成同一主域。
+- 提供可回流到其他主域、但本質上仍屬衍生輸出的能力邊界。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 對話、來源處理、檢索與推理輸出 |
+| Upstream Dependency | platform 治理、workspace scope、notion 內容來源 |
+| Downstream Consumer | 無固定主域級 consumer；輸出可被其他主域吸收 |
+| Core Principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
+
+## Baseline Subdomains
+
+- conversation
+- note
+- notebook
+- source
+- synthesis
+- conversation-versioning
+
+## Recommended Gap Subdomains
+
+- ingestion
+- retrieval
+- grounding
+- evaluation
+
+## Key Relationships
+
+- 與 platform：notebooklm 消費 actor、organization、access、entitlement、ai capability。
+- 與 workspace：notebooklm 消費 workspaceId、membership scope、share scope。
+- 與 notion：notebooklm 消費 knowledge artifact reference、attachment reference、taxonomy hint。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- 跨主域只消費 published language、API boundary、events，不直接依賴他域內部模型。
+
+## Anti-Pattern Rules
+
+- 不把 notebooklm 的衍生輸出直接宣稱為 notion 的正典知識內容。
+- 不把 retrieval/grounding 降格成單純 UI 功能或模型提示細節。
+- 不把 ingestion 與 source reference 混成同一個不可拆分責任。
+- 不把 platform.ai 的共享能力誤寫成 notebooklm 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notebooklm 的衍生推理定位，再安排 retrieval、grounding、synthesis 的交互。
+- 模型接入、配額、供應商策略若屬共享能力，先消費 platform.ai；notebooklm 保留 retrieval、grounding、synthesis、evaluation 的語義所有權。
+- 奧卡姆剃刀：只在必要時引入 port、ACL、DTO；不要因為未來也許會有需求就預先堆疊抽象。
+- 優先產生一條清楚的 upstream input -> translation -> application -> domain -> output 流程，而不是多條重疊流程。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Boundary["notebooklm boundary"]
+	Workspace["workspace"] --> Boundary
+	Notion["notion"] --> Boundary
+	Boundary --> Translation["DTO / ACL"]
+	Translation --> App["Application use case"]
+	App --> Domain["NotebookLM domain"]
+	Domain --> Output["Grounded answer / note / evaluation"]
+```
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../README.md](../../README.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
 ````
 
-## File: app/(shell)/workspace/page.tsx
-````typescript
-"use client";
+## File: docs/contexts/notebooklm/subdomains.md
+````markdown
+# NotebookLM
 
-import { useSearchParams } from "next/navigation";
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
-import type { ActiveAccount } from "@/modules/platform/api";
-import { useApp, useAuth, isActiveOrganizationAccount } from "@/modules/platform/api"
-import { WorkspaceHubScreen } from "@/modules/workspace/api";
+## Baseline Subdomains
 
-function getActiveAccountType(activeAccount: ActiveAccount | null) {
-  return isActiveOrganizationAccount(activeAccount) ? "organization" : "user";
-}
+| Subdomain | Responsibility |
+|---|---|
+| conversation | 對話 Thread 與 Message 生命週期 |
+| note | 輕量筆記與知識連結 |
+| notebook | Notebook 組合與管理 |
+| source | 來源文件追蹤與引用 |
+| synthesis | RAG 合成、摘要與洞察生成 |
+| conversation-versioning | 對話版本與快照策略 |
 
-export default function WorkspacePage() {
-  const searchParams = useSearchParams();
-  const {
-    state: { activeAccount, accountsHydrated, bootstrapPhase },
-  } = useApp();
-  const { state: authState } = useAuth();
-  const context = searchParams.get("context");
+## Recommended Gap Subdomains
 
-  return (
-    <div className="space-y-4">
-      {context === "unavailable" && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          目前帳戶無法存取該工作區，已返回工作區清單。
-        </div>
-      )}
+| Subdomain | Why Needed |
+|---|---|
+| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
+| retrieval | 建立查詢召回與排序策略的正典邊界 |
+| grounding | 建立引用對齊與可追溯證據的正典邊界 |
+| evaluation | 建立品質評估與回歸比較的正典邊界 |
 
-      <WorkspaceHubScreen
-        accountId={activeAccount?.id}
-        accountName={activeAccount?.name}
-        accountType={getActiveAccountType(activeAccount)}
-        accountsHydrated={accountsHydrated}
-        isBootstrapSeeded={bootstrapPhase === "seeded"}
-        currentUserId={authState.user?.id}
-      />
-    </div>
-  );
-}
+## Recommended Order
+
+1. retrieval
+2. grounding
+3. ingestion
+4. evaluation
+
+## Anti-Patterns
+
+- 不把 retrieval 與 grounding 併回 source 或 platform.ai 接入層，否則推理鏈條失去清楚邊界。
+- 不把 evaluation 只當成 dashboard 指標，否則品質語言無法成為正典子域。
+- 不把 notebook、conversation、note 混成單一 UI 容器語意，否則無法維持聚合邊界。
+- 不把 platform.ai 的共享能力誤寫成 notebooklm 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先問新需求落在哪個既有子域；只有既有子域無法容納時才建立新子域。
+- 模型 provider、配額與安全護欄優先歸 platform.ai；notebooklm 保留 retrieval、grounding、synthesis、evaluation 的語義切分。
+- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新增第二個平行子域。
+- 子域命名應反映責任與語義，不應只是頁面名稱或工具名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Ingestion["Ingestion"] --> Retrieval["Retrieval"]
+	Retrieval --> Grounding["Grounding"]
+	Grounding --> Synthesis["Synthesis"]
+	Synthesis --> Evaluation["Evaluation"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
 ````
 
-## File: app/layout.tsx
-````typescript
-import type { Metadata } from "next";
-import "./globals.css";
-import { Geist } from "next/font/google";
-import { cn } from "@shared-utils";
-import { Providers } from "@/modules/platform/api";
+## File: docs/contexts/notion/AGENT.md
+````markdown
+# Notion Agent
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
 
-export const metadata: Metadata = {
-  title: "Xuanwu App",
-  description: "Xuanwu App - Modular Domain-Driven Design template",
+## Mission
+
+保護 notion 主域作為知識內容生命週期邊界。任何變更都應維持 notion 擁有內容建立、分類、關聯、協作、模板、發布與版本化語言，而不是吸收平台治理或對話推理語言。
+
+## Canonical Ownership
+
+- knowledge
+- authoring
+- collaboration
+- database
+- taxonomy
+- relations
+- knowledge-analytics
+- attachments
+- automation
+- knowledge-integration
+- notes
+- templates
+- publishing
+- knowledge-versioning
+
+## Route Here When
+
+- 問題核心是知識頁面、文章、內容結構、分類、關聯、模板與發布。
+- 問題需要把輸入吸收成正式知識內容的正典狀態。
+- 問題需要定義內容版本、內容協作與內容交付。
+
+## Route Elsewhere When
+
+- 身份、租戶、授權、權益、憑證治理屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
+- 工作區生命週期、共享、存在感與工作區流程屬於 workspace。
+- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
+
+## Guardrails
+
+- notion 的正典內容不等於 notebooklm 的衍生輸出。
+- taxonomy 與 relations 應作為內容語義邊界，而不是 UI 功能附屬物。
+- publishing 應與 authoring 分離，避免編輯語意與交付語意混用。
+- notion 可以消費 platform.ai，但不擁有 AI provider / policy 的正典邊界。
+- attachments 是內容資產語言，不是平台 secret 或一般檔案暫存語言。
+- 跨主域互動只經過 published language、API 邊界或事件。
+
+## Dependency Direction
+
+- notion 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
+- authoring、knowledge、database、publishing 對外部能力的依賴只能透過 ports 進入核心。
+- infrastructure 只負責儲存、傳輸、ACL 轉譯，不定義 KnowledgeArtifact 的正典語義。
+
+## Hard Prohibitions
+
+- 不得讓 notebooklm 的 Conversation、Synthesis 直接滲入 notion 作為正典內容模型。
+- 不得讓 domain 或 application 直接依賴 UI、HTTP、資料庫 SDK 或框架語言。
+- 不得讓 notion 直接接管 platform 的 actor、tenant、entitlement 治理責任。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notion 作為正典內容主域，不讓治理或推理語言滲入核心。
+- 內容輔助若只是支援 knowledge / authoring / publishing use case，先消費 platform.ai，而不是在 notion 內重建 generic `ai` 子域。
+- 奧卡姆剃刀：若一個既有內容子域與一條清楚 use case 就能承接需求，不要再新增額外 service、mapper 或子域。
+- 只有在外部依賴或跨主域語義污染出現時，才建立 port、ACL 或 local DTO。
+- 對 notebooklm 或 workspace 的互動一律先經 published language / API boundary，再進入 notion 語言。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["Notion Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform upstream"] -->|Published Language| Boundary["notion API boundary"]
+	Workspace["workspace upstream"] -->|Published Language| Boundary
+	Boundary --> Translation["Local DTO / ACL when needed"]
+	Translation --> App["Application orchestration"]
+	App --> Domain["Knowledge / Authoring / Relations / Publishing"]
+	Domain --> Output["KnowledgeArtifact / Publication / Reference"]
+	Output --> NotebookLM["notebooklm downstream"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/contexts/notion/bounded-contexts.md
+````markdown
+# Notion
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Domain Role
+
+notion 是知識內容主域。依 bounded context 原則，它應封裝內容建立、編輯、結構化、分類、關聯、版本化與對外發布的高凝聚規則。
+
+## Baseline Bounded Contexts
+
+| Cluster | Subdomains |
+|---|---|
+| Content Core | knowledge, authoring, database |
+| Collaboration and Change | collaboration, knowledge-versioning, templates |
+| Intelligence and Extension | knowledge-analytics, attachments, automation, knowledge-integration, notes |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why It Should Exist | Gap If Missing |
+|---|---|---|
+| taxonomy | 承接標籤、分類、語義樹與主題治理 | authoring 與 database 會混入分類責任 |
+| relations | 承接內容之間的引用、backlink 與語義關聯 | 內容關係只能隱藏在欄位或 UI 裡 |
+| publishing | 承接發布流程、受眾可見性與正式交付 | 編輯語意與交付語意無法分離 |
+
+## Domain Invariants
+
+- 知識內容的正典狀態屬於 notion。
+- taxonomy 應獨立於具體 UI 視圖存在。
+- relations 應描述內容對內容的語義關係，而不是臨時連結。
+- platform.ai 可被 notion use case 消費，但 AI provider / policy ownership 不屬於 notion。
+- publishing 只交付已被 notion 吸收的內容狀態。
+- 任何來自 notebooklm 的輸出，若要成為正典內容，必須先被 notion 吸收。
+
+## Dependency Direction
+
+- notion 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
+- content lifecycle 由 knowledge、authoring、database、publishing 等上下文在核心內協作，不由外層技術層直接驅動。
+- 外部內容輸入只能先經 API boundary 或 adapter 轉譯，再進入 notion 語言。
+
+## Anti-Patterns
+
+- 把 taxonomy 或 relations 當成純 UI 功能，而不是內容語義邊界。
+- 讓 publishing 直接等同 authoring，混淆編輯與交付責任。
+- 讓 notebooklm 或 platform 的語言直接取代 notion 的 KnowledgeArtifact 模型。
+- 把 platform.ai 共享能力提升成 notion 自己的 generic `ai` 子域所有權。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先決定需求屬於 content core、collaboration、還是 extension，再安排具體型別與流程。
+- 奧卡姆剃刀：不要為了看起來完整而新增抽象層；只在現有內容邊界真的失效時才拆更多上下文。
+- 外部能力若不影響正典內容語言，就不要把它抬升成新的內容核心抽象。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Notion bounded contexts"]
+	X["Infrastructure"] --> D
+	X -. adapter / provider .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Input["Governance / scope / author input"] --> Boundary["Notion boundary"]
+	Boundary --> App["Use case orchestration"]
+	App --> Knowledge["Knowledge / Authoring / Database"]
+	Knowledge --> Taxonomy["Taxonomy / Relations"]
+	Taxonomy --> Publishing["Publishing / Knowledge Versioning"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+````
+
+## File: docs/contexts/notion/context-map.md
+````markdown
+# Notion
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Context Role
+
+notion 對其他主域提供知識內容語言。依 Context Mapper 的 context map 思維，它消費 workspace scope 與 platform 治理，並向 notebooklm 提供可被引用的知識內容來源。
+
+## Relationships
+
+| Related Domain | Relationship Type | Notion Position | Published Language |
+|---|---|---|---|
+| platform | Upstream/Downstream | downstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
+| workspace | Upstream/Downstream | downstream | workspaceId、membership scope、share scope |
+| notebooklm | Upstream/Downstream | upstream | knowledge artifact reference、attachment reference、taxonomy hint |
+
+## Mapping Rules
+
+- notion 消費 platform 的治理結果，但不重建 actor、tenant、policy 模型。
+- notion 可消費 platform.ai 來支援內容 use case，但不擁有 AI provider / policy 所有權。
+- notion 在 workspace scope 中運作，但不反向定義 workspace 生命週期。
+- notebooklm 可以消費 notion 的知識來源，但不得直接重寫 notion 正典內容。
+- publishing 是 notion 對外輸出正式內容狀態的邊界。
+
+## Dependency Direction
+
+- notion 對 platform、workspace 屬 downstream；對 notebooklm 屬 upstream 的內容 supplier。
+- ACL 或 Conformist 只能由 notion 作為 downstream 時選擇，不能要求上游替 notion 保護語言。
+- notion 對 notebooklm 輸出的是 published language，不是內部 aggregate 或 workflow 細節。
+
+## Anti-Patterns
+
+- 把 notion 與 notebooklm 寫成對稱 Shared Kernel，同時又要求 ACL。
+- 讓 notebooklm 直接回寫 notion 正典內容而不經 notion 邊界。
+- 把 workspace scope 語言錯寫成 notion 自己擁有的容器生命週期語言。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notion 對 platform、workspace 的 downstream 位置與對 notebooklm 的 upstream 位置。
+- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要再建立第二個平行翻譯管線。
+- notion 向外提供的是內容語言，不是內部 aggregate、repository 或 UI projection。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["platform / workspace upstream"] -->|Published Language| Boundary["notion boundary"]
+	Boundary --> Translation["Local DTO / ACL if needed"]
+	Translation --> App["Application"]
+	App --> Domain["Domain"]
+	Domain --> PL["Published content language"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] -->|actor / access / entitlement / ai| Boundary["notion API boundary"]
+	Workspace["workspace"] -->|workspace scope| Boundary
+	Boundary --> ACL["ACL or local DTO"]
+	ACL --> Domain["Notion domain"]
+	Domain --> Publication["Publication / KnowledgeArtifact reference"]
+	Publication --> NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [../../context-map.md](../../context-map.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../strategic-patterns.md](../../strategic-patterns.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/contexts/notion/README.md
+````markdown
+# Notion Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+notion 是知識內容生命週期主域。它的責任是提供 knowledge artifact、authoring、database、taxonomy、relations、templates、publishing、knowledge-versioning 與 collaboration 等內容語言，承接正式知識內容的正典狀態。
+
+## Why This Context Exists
+
+- 把知識內容正典與平台治理、工作區範疇、對話推理分離。
+- 讓內容建立、分類、關聯、交付與版本規則維持在同一個主域。
+- 提供 notebooklm 可引用、但不可直接改寫的知識來源。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 正典知識內容生命週期 |
+| Upstream Dependency | platform 治理、workspace scope |
+| Downstream Consumer | notebooklm |
+| Core Principle | notion 擁有正式內容，不擁有治理或推理過程 |
+
+## Baseline Subdomains
+
+- knowledge
+- authoring
+- collaboration
+- database
+- knowledge-analytics
+- attachments
+- automation
+- knowledge-integration
+- notes
+- templates
+- knowledge-versioning
+
+## Recommended Gap Subdomains
+
+- taxonomy
+- relations
+- publishing
+
+## Key Relationships
+
+- 與 platform：notion 消費 actor、organization、access、entitlement、ai capability。
+- 與 workspace：notion 消費 workspaceId、membership scope、share scope。
+- 與 notebooklm：notion 向 notebooklm 提供 knowledge artifact reference 與 attachment reference。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- notion 對外只暴露 published language、API boundary、events，不暴露內部內容模型。
+
+## Anti-Pattern Rules
+
+- 不把 notebooklm 的衍生輸出直接當成 notion 正典內容。
+- 不把 taxonomy、relations、publishing 壓回單一 knowledge 編輯流程。
+- 不把 platform 的治理語言混成內容生命週期本身。
+- 不把 platform.ai 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 notion 的正典內容定位，再安排 authoring、knowledge、taxonomy、publishing 的交互。
+- 內容輔助、摘要與生成若只是內容 use case 的支援能力，優先由 knowledge / authoring use case 消費 `platform.ai`，而不是在 notion 再建一個 generic `ai` 子域。
+- 奧卡姆剃刀：不要預先新增第二套內容流程，只在既有內容邊界真的不夠時才補新抽象。
+- 優先讓同一條 input -> translation -> application -> domain -> publication 流程保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Boundary["notion boundary"]
+	Workspace["workspace"] --> Boundary
+	Boundary --> Translation["DTO / ACL"]
+	Translation --> App["Application use case"]
+	App --> Domain["Notion domain"]
+	Domain --> Output["KnowledgeArtifact / Publication"]
+	Output --> NotebookLM["notebooklm consumer"]
+```
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../README.md](../../README.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
+````
+
+## File: docs/contexts/notion/subdomains.md
+````markdown
+# Notion
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| knowledge | 頁面建立、組織、版本化與交付 |
+| authoring | 知識庫文章建立、驗證與分類 |
+| collaboration | 協作留言、細粒度權限與版本快照 |
+| database | 結構化資料多視圖管理 |
+| knowledge-analytics | 知識使用行為量測 |
+| attachments | 附件與媒體關聯儲存 |
+| automation | 知識事件觸發自動化動作 |
+| knowledge-integration | 知識與外部系統雙向整合 |
+| notes | 個人輕量筆記與正式知識協作 |
+| templates | 頁面範本管理與套用 |
+| knowledge-versioning | 全域版本快照策略管理 |
+
+## Recommended Gap Subdomains
+
+| Subdomain | Why Needed |
+|---|---|
+| taxonomy | 建立分類法與語義組織的正典邊界 |
+| relations | 建立內容之間關聯與 backlink 的正典邊界 |
+| publishing | 建立正式發布與對外交付的正典邊界 |
+
+## Recommended Order
+
+1. taxonomy
+2. relations
+3. publishing
+
+## Anti-Patterns
+
+- 不把 taxonomy 混成 authoring 裡的附屬設定。
+- 不把 relations 混成單純 hyperlink 功能，失去語義關係邊界。
+- 不把 publishing 混成 UI 上的一個按鈕事件，而忽略正式交付語言。
+- 不把 platform.ai 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先判斷需求屬於 knowledge、authoring、relations、publishing、knowledge-analytics、knowledge-integration、knowledge-versioning 哪一個內容責任。
+- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新建第二個概念接近的子域。
+- 子域命名要反映內容語義，不要退化成頁面或元件名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Authoring["Authoring"] --> Knowledge["Knowledge"]
+	Knowledge --> Taxonomy["Taxonomy"]
+	Knowledge --> Relations["Relations"]
+	Taxonomy --> Publishing["Publishing"]
+	Relations --> Publishing
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+````
+
+## File: docs/contexts/platform/AGENT.md
+````markdown
+# Platform Agent
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Mission
+
+保護 platform 主域作為治理、身份、組織、權益、策略與營運支撐邊界。任何變更都應維持 platform 對治理語言的所有權，不吸收 workspace、notion、notebooklm 的正典業務模型。
+
+## Canonical Ownership
+
+- identity
+- account
+- account-profile
+- organization
+- tenant
+- access-control
+- security-policy
+- platform-config
+- feature-flag
+- entitlement
+- onboarding
+- compliance
+- consent
+- billing
+- subscription
+- referral
+- ai
+- integration
+- secret-management
+- workflow
+- notification
+- background-job
+- content
+- search
+- audit-log
+- observability
+- analytics
+- support
+
+## Route Here When
+
+- 問題核心是 actor、organization、tenant、access、policy、entitlement 或商業權益。
+- 問題核心是通知治理、背景任務、平台級搜尋、觀測與支援。
+- 問題核心是共享 AI provider、模型政策、配額、安全護欄或下游主域共同消費的 AI capability。
+- 問題需要提供其他主域共同消費的治理結果。
+
+## Route Elsewhere When
+
+- 工作區生命週期、成員關係、共享與存在感屬於 workspace。
+- 知識內容建立、分類、關聯與發布屬於 notion。
+- 對話、來源、retrieval、grounding、synthesis 屬於 notebooklm。
+
+## Guardrails
+
+- Actor 與 Identity 屬於 platform，不能在其他主域重定義。
+- entitlement 是 subscription、feature-flag、policy 的解算結果，不等於 plan 本身。
+- ai 屬於 platform 的共享能力治理，不等於 notebooklm 的推理輸出所有權。
+- secret-management 應與 integration 分離，避免憑證語義擴散。
+- consent 與 compliance 有關，但不是同一個 bounded context。
+- 平台輸出治理信號，不接管其他主域的正典內容生命週期。
+
+## Dependency Direction
+
+- platform 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
+- access-control、entitlement、secret-management 等外部依賴只能透過 ports 進入核心。
+- infrastructure 只實作治理能力與外部整合，不反向定義 Actor、Tenant、Entitlement 語言。
+
+## Hard Prohibitions
+
+- 不得讓 platform 直接接管 workspace、notion、notebooklm 的正典業務流程。
+- 不得讓 domain 或 application 直接依賴第三方身份、通知、計費或 secret SDK。
+- 不得在其他主域重建 Actor、Tenant、Entitlement、Secret 的正典模型。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 platform 作為治理 upstream，而不是內容或推理 owner。
+- notion 與 notebooklm 若需要 AI 能力，先走 platform.ai 的 published language / API boundary。
+- 奧卡姆剃刀：若既有治理子域與單一 use case 能承接需求，就不要新增第二層 policy service、flag service 或 entitlement facade。
+- 只有在外部依賴、敏感治理或跨主域轉譯明確存在時，才建立 port、ACL 或 local DTO。
+- 對 workspace、notion、notebooklm 的輸出應停在 published language / API boundary。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["Platform Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Request["Actor / admin / system request"] --> Boundary["platform API boundary"]
+	Boundary --> App["Application orchestration"]
+	App --> Domain["Identity / Access / Entitlement / AI / Secret"]
+	Domain --> PL["Published governance language"]
+	PL --> Workspace["workspace"]
+	PL --> Notion["notion"]
+	PL --> NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/contexts/platform/bounded-contexts.md
+````markdown
+# Platform
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Domain Role
+
+platform 是治理與營運支撐主域。依 bounded context 原則，它應把 actor、organization、access、policy、entitlement、billing 與 operational intelligence 封裝成清楚的上下文，而非讓這些責任滲入其他主域。
+
+## Baseline Bounded Contexts
+
+| Cluster | Subdomains |
+|---|---|
+| Identity and Organization | identity, account, account-profile, organization |
+| Governance | access-control, security-policy, platform-config, feature-flag, onboarding, compliance |
+| Commercial | billing, subscription, referral |
+| Delivery and Operations | ai, integration, workflow, notification, background-job |
+| Intelligence and Audit | content, search, audit-log, observability, analytics, support |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why It Should Exist | Gap If Missing |
+|---|---|---|
+| tenant | 承接多租戶隔離與 tenant-scoped 規則 | organization 無法完整覆蓋租戶隔離模型 |
+| entitlement | 承接有效權益與功能可用性解算 | subscription、feature-flag、policy 之間缺少統一決策點 |
+| secret-management | 承接憑證、token、rotation 與 secret audit | integration 容易承載過多敏感治理責任 |
+| consent | 承接同意、偏好、資料使用授權 | compliance 會被迫承接過細的使用者授權語意 |
+
+## Domain Invariants
+
+- actor identity 由 platform 正典擁有。
+- access decision 必須基於 platform 語言輸出，而不是由下游主域自創。
+- entitlement 必須是解算結果，不是任意 UI 標記。
+- shared AI capability 由 platform 正典擁有；下游主域只能消費其 published language。
+- billing event 與 subscription state 必須分離。
+- secret 不應作為一般 integration payload 傳播。
+
+## Dependency Direction
+
+- platform 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
+- identity、organization、billing、notification 等外部整合能力必須透過 port/adapter 進入核心。
+- domain 不得向外依賴 HTTP、Firebase、secret provider 或 message transport 細節。
+
+## Anti-Patterns
+
+- 把 entitlement 當成 subscription plan 名稱或 UI 開關。
+- 把 secret-management 混回 integration，使敏感治理責任失焦。
+- 讓 platform 直接持有其他主域的正典內容或推理模型。
+- 把 platform.ai 與 notebooklm 的 retrieval / grounding / synthesis 混成同一個子域所有權。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先判斷需求落在 identity、organization、entitlement、ai、secret-management 或其他既有治理責任。
+- 奧卡姆剃刀：不要為了形式上的完整而新增抽象；只有當既有治理邊界無法承接時才拆新上下文。
+- 對外部 provider 的抽象必須貼合 domain 需要，而不是複製供應商 API。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Platform bounded contexts"]
+	X["Infrastructure"] --> D
+	X -. adapter / provider .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Identity["Identity / Organization"] --> Access["Access / Policy"]
+	Access --> Entitlement["Entitlement"]
+	Entitlement --> Delivery["AI / Notification / Job / Integration"]
+	Delivery --> Audit["Audit / Observability / Analytics"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+````
+
+## File: docs/contexts/platform/context-map.md
+````markdown
+# Platform
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Context Role
+
+platform 是其他三個主域的治理上游。依 Context Mapper 的 upstream/downstream 關係，它向下游提供身份、組織、存取、權益與營運支撐語言。
+
+## Relationships
+
+| Related Domain | Relationship Type | Platform Position | Published Language |
+|---|---|---|---|
+| workspace | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal |
+| notion | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
+| notebooklm | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
+
+## Mapping Rules
+
+- platform 提供治理結果，但不直接擁有工作區、知識內容或對話內容。
+- workspace、notion、notebooklm 可以把平台輸出當作 supplier language，但不能穿透其內部模型。
+- platform 擁有 shared AI capability，但 notion 與 notebooklm 仍各自擁有內容與推理語義。
+- audit-log 與 analytics 可消費其他主域的事件，但那不等於接管對方的主域責任。
+- tenant、entitlement、secret-management、consent 是平台應補齊的核心缺口邊界。
+
+## Dependency Direction
+
+- platform 是 workspace、notion、notebooklm 的治理 upstream，而不是它們的內容或流程 owner。
+- platform 對下游輸出 published language，不輸出內部 aggregate、repository 或 secret 結構。
+- 下游若需保護本地語言，ACL 由下游自行實作，不由 platform 代替選擇。
+
+## Anti-Patterns
+
+- 把 platform 與下游主域寫成 Shared Kernel，再同時保留 supplier/downstream 敘事。
+- 讓 platform 直接穿透下游主域內部模型，以治理名義接管業務邏輯。
+- 把審計或分析事件消費錯寫成平台擁有下游正典責任。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先維持 platform 作為 workspace、notion、notebooklm 的治理 upstream。
+- 奧卡姆剃刀：若 published language 已足夠，就不要對每個下游再額外建立一套專屬治理模型。
+- platform 的輸出應穩定、可被消費，但不應暴露其內部 aggregate 或 repository。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Domain["Platform domain"] --> PL["Published Language / OHS"]
+	PL --> Boundary["Downstream API clients"]
+	Boundary --> Local["Downstream local DTO / ACL"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] -->|actor / org / access / entitlement| Workspace["workspace"]
+	Platform -->|actor / org / access / entitlement / ai| Notion["notion"]
+	Platform -->|actor / org / access / entitlement / ai| NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [subdomains.md](./subdomains.md)
+- [../../context-map.md](../../context-map.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../strategic-patterns.md](../../strategic-patterns.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/contexts/platform/README.md
+````markdown
+# Platform Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+platform 是治理與營運支撐主域。它的責任是提供 actor、identity、organization、tenant、access、policy、entitlement、shared ai capability、billing、notification、search、audit 與 observability 等跨切面語言，供其他主域穩定消費。
+
+## Why This Context Exists
+
+- 把治理與營運支撐責任集中，避免滲入其他主域。
+- 讓其他主域只消費治理結果，而不是重建治理模型。
+- 以清楚的 published language 承接身份、權益、政策與營運能力。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 治理、身份、權益與營運支撐 |
+| Upstream Dependency | 無主域級上游；作為其他主域治理上游 |
+| Downstream Consumers | workspace、notion、notebooklm |
+| Core Principle | platform 輸出治理結果，不接管其他主域正典內容 |
+
+## Baseline Subdomains
+
+- identity
+- account
+- account-profile
+- organization
+- access-control
+- security-policy
+- platform-config
+- feature-flag
+- onboarding
+- compliance
+- billing
+- subscription
+- referral
+- ai
+- integration
+- workflow
+- notification
+- background-job
+- content
+- search
+- audit-log
+- observability
+- analytics
+- support
+
+## Recommended Gap Subdomains
+
+- tenant
+- entitlement
+- secret-management
+- consent
+
+## Key Relationships
+
+- 對 workspace：提供 actor、organization、access、entitlement。
+- 對 notion：提供 actor、organization、access、entitlement、ai capability。
+- 對 notebooklm：提供 actor、organization、access、entitlement、ai capability。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- platform 對外只輸出治理結果與 published language，不輸出內部治理模型細節。
+
+## Anti-Pattern Rules
+
+- 不把 platform 寫成內容主域或對話主域。
+- 不把 entitlement、consent、secret-management 混成同一個泛用設定區。
+- 不把其他主域對平台的依賴寫成可以直接存取其內部模型。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 platform 的治理定位，再安排 identity、access、entitlement、ai、secret-management 的交互。
+- 奧卡姆剃刀：不要預先建立多餘 facade；能直接由既有治理邊界承接就維持單一路徑。
+- 優先讓 request -> orchestration -> domain decision -> published language 保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Request["Actor / admin request"] --> Boundary["platform boundary"]
+	Boundary --> App["Application use case"]
+	App --> Domain["Platform domain"]
+	Domain --> Published["Published governance language"]
+	Published --> Consumers["workspace / notion / notebooklm"]
+```
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../README.md](../../README.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
+````
+
+## File: docs/contexts/platform/subdomains.md
+````markdown
+# Platform
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| identity | 已驗證主體與身份信號治理 |
+| account | 帳號聚合根與帳號生命週期 |
+| account-profile | 主體屬性、偏好與治理設定 |
+| organization | 組織、成員與角色邊界 |
+| access-control | 主體現在能做什麼的授權判定 |
+| security-policy | 安全規則定義、版本化與發佈 |
+| platform-config | 平台設定輪廓與配置管理 |
+| feature-flag | 功能開關策略與發佈節點 |
+| onboarding | 新主體初始設定與引導流程 |
+| compliance | 資料保留、稽核與法規執行 |
+| billing | 計費狀態、費率與財務證據 |
+| subscription | 方案、權益、配額與續期治理 |
+| referral | 推薦關係與獎勵追蹤 |
+| ai | 共享 AI provider 路由、模型政策、配額與安全護欄 |
+| integration | 外部系統整合邊界與契約 |
+| workflow | 平台級流程編排與狀態驅動執行 |
+| notification | 通知路由、偏好與投遞 |
+| background-job | 背景任務提交、排程與監控 |
+| content | 平台級內容資產管理與發布 |
+| search | 跨域搜尋路由與查詢協調 |
+| audit-log | 永久稽核軌跡與不可否認證據 |
+| observability | 健康量測、追蹤與告警 |
+| analytics | 平台使用行為量測與分析 |
+| support | 客服工單、支援知識與處理流程 |
+
+## Recommended Gap Subdomains
+
+| Subdomain | Why Needed |
+|---|---|
+| tenant | 建立多租戶隔離與 tenant-scoped 規則的正典邊界 |
+| entitlement | 建立有效權益與功能可用性的統一解算上下文 |
+| secret-management | 把憑證、token、rotation 從 integration 中切開 |
+| consent | 把同意與資料使用授權從 compliance 中切開 |
+
+## Recommended Order
+
+1. tenant
+2. entitlement
+3. secret-management
+4. consent
+
+## Anti-Patterns
+
+- 不把 tenant 與 organization 視為同義詞。
+- 不把 entitlement 混成 feature-flag 的別名。
+- 不把 secret-management 混成 integration 的一個欄位集合。
+- 不把 consent 混成一般 UI preference。
+- 不把 platform 的 ai 混成 notebooklm synthesis 或 notion 內容輔助的本地所有權。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個治理責任，再決定 use case 與 boundary。
+- shared AI provider、模型政策、成本與安全護欄一律先歸 platform.ai 評估。
+- 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的治理子域。
+- 子域命名必須反映治理責任，不應退化成頁面或介面名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Identity["Identity"] --> Organization["Organization / Tenant"]
+	Organization --> Access["Access / Policy"]
+	Access --> Entitlement["Entitlement"]
+	Entitlement --> Secret["AI / Secret / Integration / Delivery"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+````
+
+## File: docs/contexts/workspace/AGENT.md
+````markdown
+# Workspace Agent
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Mission
+
+保護 workspace 主域作為協作容器、工作區範疇與 workspaceId 錨點。任何變更都應維持 workspace 擁有工作區生命週期、成員關係、共享、存在感、活動投影、稽核、排程與工作流，而不是吸收平台治理或知識內容正典。
+
+## Canonical Ownership
+
+- lifecycle
+- membership
+- sharing
+- presence
+- audit
+- feed
+- scheduling
+- workspace-workflow
+
+## Route Here When
+
+- 問題的中心是 workspaceId、工作區建立封存、工作區內角色與參與關係。
+- 問題的中心是工作區共享、存在感、活動流、排程與工作流執行。
+- 問題需要提供其他主域運作所需的 workspace scope。
+
+## Route Elsewhere When
+
+- 身份、組織、授權、權益、憑證、通知治理屬於 platform。
+- 知識頁面、文章、資料庫、分類、內容發布屬於 notion。
+- notebook、conversation、source、retrieval、synthesis 屬於 notebooklm。
+
+## Guardrails
+
+- workspace 的 Member 或 Membership 不等於 platform 的 Actor 或 Identity。
+- feed 是投影，不是工作區正典狀態來源。
+- audit 是不可否認追蹤，不等於使用者導向動態流。
+- sharing 定義暴露範圍，但不取代 platform entitlement 與 access-control。
+- 跨主域互動只經過 published language、API 邊界或事件。
+
+## Dependency Direction
+
+- workspace 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
+- membership、sharing、presence、workspace-workflow 所需外部能力只能透過 ports 進入核心。
+- infrastructure 只處理事件、儲存、同步與投影，不反向定義 Workspace 或 Membership 語言。
+
+## Hard Prohibitions
+
+- 不得把 platform 的 Actor 或 Identity 直接當成 workspace 的 Membership 模型。
+- 不得讓 feed 取代正典狀態來源，或讓 audit 退化成一般 UI 活動流。
+- 不得讓 workspace 直接接管 notion 內容生命週期或 notebooklm 推理流程。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 workspace 作為協作 scope 主域，而不是治理或內容 owner。
+- 奧卡姆剃刀：若既有 lifecycle、membership、sharing、presence 或 workspace-workflow 邊界已足夠，就不要額外新增平行協作抽象。
+- 只有在外部依賴、跨主域語義污染或 scope 轉譯明確存在時，才建立 port、ACL 或 local DTO。
+- 對 notion 與 notebooklm 的輸出應停在 workspace scope / membership scope / share scope。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
+	A --> D["Workspace Domain / Invariants"]
+	P["Ports / Domain-fit Contracts"] -. used by .-> A
+	X["Infrastructure / Driven Adapters"] -. implements .-> P
+	X --> D
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform upstream"] -->|Published Language| Boundary["workspace API boundary"]
+	Boundary --> Translation["Local DTO / ACL when needed"]
+	Translation --> App["Application orchestration"]
+	App --> Domain["Lifecycle / Membership / Sharing / Workspace Workflow"]
+	Domain --> Scope["workspace scope / membership scope / share scope"]
+	Scope --> Notion["notion downstream"]
+	Scope --> NotebookLM["notebooklm downstream"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
+- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+````
+
+## File: docs/contexts/workspace/bounded-contexts.md
+````markdown
+# Workspace
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Domain Role
+
+workspace 是協作與範疇主域。依 bounded context 原則，它應封裝高度凝聚的工作區規則，並以最小公開介面提供其他主域使用的 workspace scope。
+
+## Baseline Bounded Contexts
+
+| Subdomain | Owns | Excludes |
+|---|---|---|
+| audit | 工作區操作證據、可追溯紀錄 | 平台永久合規審計 |
+| feed | 面向使用者的工作區活動投影 | 正典狀態與不可變證據 |
+| scheduling | 工作區時間安排、提醒、期限 | 平台背景工作引擎 |
+| workspace-workflow | 工作區流程定義、執行、狀態推進 | 知識內容正典生命週期 |
+
+## Recommended Gap Bounded Contexts
+
+| Subdomain | Why It Should Exist | Gap If Missing |
+|---|---|---|
+| lifecycle | 承接 workspace 建立、封存、還原、移轉與狀態變化 | 主容器生命週期容易散落到 workflow 或 app 組裝層 |
+| membership | 承接 workspace 內邀請、席位、角色與參與關係 | 會把 organization 與 workspace participation 混為一談 |
+| sharing | 承接分享連結、外部可見性與公開暴露範圍 | 對外共享無獨立邊界，安全與責任不清 |
+| presence | 承接即時在線狀態、協作存在感與共同編輯訊號 | 即時協作能力無法形成可演化的本地模型 |
+
+## Domain Invariants
+
+- workspaceId 是工作區範疇錨點。
+- 工作區成員關係屬於 membership，而不是平台身份本身。
+- activity feed 只投影事實，不創造事實。
+- audit trail 一旦寫入即不可隨意覆蓋。
+- workspace-workflow 可跨工作區能力協調，但不能取代 lifecycle 與 membership 的正典責任。
+
+## Dependency Direction
+
+- workspace 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
+- lifecycle、membership、sharing、presence 等能力若需要外部服務，必須經過 port/adapter。
+- domain 不得依賴 UI 狀態、HTTP 傳輸、排程框架或儲存實作細節。
+
+## Anti-Patterns
+
+- 把 Membership 混成 Actor 身份本身。
+- 讓 ActivityFeed 直接創造工作區事實，而不是投影工作區事實。
+- 讓 Workspace Workflow 取代 Lifecycle、Membership、Sharing 的正典責任。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先判斷需求落在 lifecycle、membership、sharing、presence、audit、feed、scheduling、workspace-workflow 哪個責任。
+- 奧卡姆剃刀：若既有 workspace 邊界可以吸收需求，就不要額外新建平行容器或 scope 抽象。
+- 對外部能力的抽象必須貼合 workspace scope 的需求，而不是複製供應商 API。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Workspace bounded contexts"]
+	X["Infrastructure"] --> D
+	X -. adapter / provider .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Lifecycle["Lifecycle"] --> Membership["Membership"]
+	Membership --> Sharing["Sharing"]
+	Sharing --> Presence["Presence"]
+	Presence --> Workflow["Workspace Workflow / Scheduling"]
+	Workflow --> AuditFeed["Audit / Feed projections"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [AGENT.md](./AGENT.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
+- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
+````
+
+## File: docs/contexts/workspace/README.md
+````markdown
+# Workspace Context
+
+本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
+
+## Purpose
+
+workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、稽核、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
+
+## Why This Context Exists
+
+- 把工作區容器語意與平台治理語意分離。
+- 把工作區 scope 作為其他主域可依賴的 published language。
+- 把活動流、稽核、排程與流程協調收斂為同一主域內的高凝聚能力。
+
+## Context Summary
+
+| Aspect | Summary |
+|---|---|
+| Primary Role | 協作容器與 workspace scope |
+| Upstream Dependency | platform 的 actor、organization、access、entitlement |
+| Downstream Consumers | notion、notebooklm |
+| Core Principle | workspace 暴露 scope，不接管治理或內容正典 |
+
+## Baseline Subdomains
+
+- audit
+- feed
+- scheduling
+- workspace-workflow
+
+## Recommended Gap Subdomains
+
+- lifecycle
+- membership
+- sharing
+- presence
+
+## Key Relationships
+
+- 與 platform：workspace 是治理結果的 downstream consumer。
+- 與 notion：workspace 向 notion 提供 workspaceId、membership scope、share scope。
+- 與 notebooklm：workspace 向 notebooklm 提供 workspaceId、membership scope、share scope。
+
+## Reading Order
+
+1. [subdomains.md](./subdomains.md)
+2. [bounded-contexts.md](./bounded-contexts.md)
+3. [context-map.md](./context-map.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [AGENT.md](./AGENT.md)
+
+## Dependency Direction
+
+- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
+- workspace 對外只暴露 scope、published language、API boundary、events，不暴露內部實作。
+
+## Anti-Pattern Rules
+
+- 不把 workspace scope 寫成平台治理結果本身。
+- 不把 feed、audit、workspace-workflow 互相取代為單一泛用流程層。
+- 不把 notion 或 notebooklm 的內容與推理責任吸回 workspace。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先保留 workspace 的協作 scope 定位，再安排 lifecycle、membership、sharing、workspace-workflow 的交互。
+- 奧卡姆剃刀：不要預先建立第二條平行協作流程；只有既有 scope 邊界不夠時才補新抽象。
+- 優先讓 input -> translation -> application -> domain -> published scope 保持單純可追溯。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	I["Interfaces"] --> A["Application"]
+	A --> D["Domain"]
+	X["Infrastructure"] --> D
+	X -. implements ports .-> A
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Platform["platform"] --> Boundary["workspace boundary"]
+	Boundary --> Translation["DTO / ACL"]
+	Translation --> App["Application use case"]
+	App --> Domain["Workspace domain"]
+	Domain --> Scope["workspace scope"]
+	Scope --> Notion["notion"]
+	Scope --> NotebookLM["notebooklm"]
+```
+
+## Document Network
+
+- [AGENT.md](./AGENT.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../README.md](../../README.md)
+- [../../architecture-overview.md](../../architecture-overview.md)
+- [../../integration-guidelines.md](../../integration-guidelines.md)
+
+## Constraints
+
+- 本文件是 architecture-first 版本。
+- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
+- 本文件不代表對既有 repo 內容做過語意校準。
+````
+
+## File: docs/contexts/workspace/subdomains.md
+````markdown
+# Workspace
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+
+## Baseline Subdomains
+
+| Subdomain | Responsibility |
+|---|---|
+| audit | 工作區操作稽核與證據追蹤 |
+| feed | 工作區活動摘要與事件流呈現 |
+| scheduling | 工作區排程、時序與提醒協調 |
+| workspace-workflow | 工作區流程編排與執行治理 |
+
+## Recommended Gap Subdomains
+
+| Subdomain | Why Needed |
+|---|---|
+| lifecycle | 把工作區容器生命週期獨立成正典邊界 |
+| membership | 把工作區參與關係從平台身份治理中切開 |
+| sharing | 把對外共享與可見性規則收斂到單一上下文 |
+| presence | 把即時協作存在感與共同編輯訊號形成本地語言 |
+
+## Recommended Order
+
+1. lifecycle
+2. membership
+3. sharing
+4. presence
+
+## Anti-Patterns
+
+- 不把 lifecycle 混進 workspace-workflow，使容器生命週期被流程編排吞沒。
+- 不把 membership 混成 organization 或 identity。
+- 不把 sharing 混成一般 permission 欄位集合。
+- 不把 presence 藏進 UI 狀態而失去獨立語言。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個 workspace 責任，再決定 use case 與 boundary。
+- 涉及工作區流程時一律使用 `workspace-workflow`，避免與 `platform.workflow` 混名。
+- 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的 scope 子域。
+- 子域命名必須反映工作區語義，不應退化成頁面或元件名稱。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	UI["Interfaces"] --> UseCase["Use case"]
+	UseCase --> Subdomain["Owning subdomain domain"]
+	Infra["Infra adapter"] --> Subdomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Lifecycle["Lifecycle"] --> Membership["Membership"]
+	Membership --> Sharing["Sharing"]
+	Sharing --> Presence["Presence"]
+	Presence --> Workflow["Workspace Workflow"]
+	Workflow --> Scheduling["Scheduling"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [../../subdomains.md](../../subdomains.md)
+- [../../bounded-contexts.md](../../bounded-contexts.md)
+````
+
+## File: eslint.config.mjs
+````javascript
+import { defineConfig, globalIgnores } from "eslint/config";
+import tseslint from "@typescript-eslint/eslint-plugin";
+import boundaries from "eslint-plugin-boundaries";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+import jsdoc from "eslint-plugin-jsdoc";
+import jsxA11y from "eslint-plugin-jsx-a11y";
+
+// ─── Globs ───────────────────────────────────────────────────────────────────
+const srcGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
+const tsGlobs  = ["**/*.{ts,tsx}"];
+const moduleCodeGlobs = ["modules/**/*.{js,jsx,ts,tsx}"];
+const outerAdapterGlobs = ["app/**/*.{ts,tsx,js,jsx}","providers/**/*.{ts,tsx,js,jsx}","debug/**/*.{ts,tsx,js,jsx}"];
+const packageGlobs = ["packages/**/*.{ts,tsx,js,jsx}"];
+
+// ─── Module boundary helpers ─────────────────────────────────────────────────
+const WARN = "warn";
+
+const mainDomainElements = [
+  { type: "main-domain-api", pattern: "modules/*/api/**/*", mode: "file", capture: ["domain"] },
+  { type: "main-domain-domain", pattern: "modules/*/domain/**/*", mode: "file", capture: ["domain"] },
+  { type: "main-domain-application", pattern: "modules/*/application/**/*", mode: "file", capture: ["domain"] },
+  { type: "main-domain-infrastructure", pattern: "modules/*/infrastructure/**/*", mode: "file", capture: ["domain"] },
+  { type: "main-domain-interfaces", pattern: "modules/*/interfaces/**/*", mode: "file", capture: ["domain"] },
+];
+
+const subdomainElements = [
+  { type: "subdomain-api", pattern: "modules/*/subdomains/*/api/**/*", mode: "file", capture: ["domain","subdomain"] },
+  { type: "subdomain-domain", pattern: "modules/*/subdomains/*/domain/**/*", mode: "file", capture: ["domain","subdomain"] },
+  { type: "subdomain-application", pattern: "modules/*/subdomains/*/application/**/*", mode: "file", capture: ["domain","subdomain"] },
+  { type: "subdomain-infrastructure", pattern: "modules/*/subdomains/*/infrastructure/**/*", mode: "file", capture: ["domain","subdomain"] },
+  { type: "subdomain-interfaces", pattern: "modules/*/subdomains/*/interfaces/**/*", mode: "file", capture: ["domain","subdomain"] },
+];
+
+const moduleElements = [...subdomainElements, ...mainDomainElements];
+
+const sameDomain = (type) => [type, { domain: "${from.domain}" }];
+const sameSubdomain = (type) => [type, { domain: "${from.domain}", subdomain: "${from.subdomain}" }];
+
+const moduleElementTypeRules = [
+  { from: ["main-domain-domain"], allow: [sameDomain("main-domain-domain")] },
+  { from: ["main-domain-application"], allow: [sameDomain("main-domain-application"), sameDomain("main-domain-domain")] },
+  { from: ["main-domain-infrastructure"], allow: [sameDomain("main-domain-infrastructure"), sameDomain("main-domain-application"), sameDomain("main-domain-domain")] },
+  { from: ["main-domain-interfaces"], allow: [sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api"), "main-domain-api"] },
+  { from: ["main-domain-api"], allow: [sameDomain("main-domain-api"), sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("main-domain-infrastructure"), sameDomain("subdomain-api")] },
+  { from: ["subdomain-domain"], allow: [sameSubdomain("subdomain-domain")] },
+  { from: ["subdomain-application"], allow: [sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain")] },
+  { from: ["subdomain-infrastructure"], allow: [sameSubdomain("subdomain-infrastructure"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain")] },
+  { from: ["subdomain-interfaces"], allow: [sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameSubdomain("subdomain-api"), "main-domain-api"] },
+  { from: ["subdomain-api"], allow: [sameSubdomain("subdomain-api"), sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameSubdomain("subdomain-infrastructure"), sameDomain("subdomain-api"), "main-domain-api"] },
+];
+
+// ─── Restricted import patterns ───────────────────────────────────────────────
+const moduleRootBarrel = { regex: "^@/modules/(?!system$)[^/]+$", message: "Do not import module root barrels; use @/modules/<main-domain>/api." };
+const subdomainRootBarrel = { regex: "^@/modules/[^/]+/subdomains/[^/]+$", message: "Do not import subdomain root barrels; use @/modules/<main-domain>/subdomains/<subdomain>/api." };
+const nonApiModuleSubpath = { regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)|subdomains/[^/]+/api(?:/|$)).+", message: "Cross-boundary dependencies must use API boundaries only." };
+const explicitIndex = { group: ["**/index","**/index.ts","**/index.tsx"], message: "Import the boundary path, not an explicit index file." };
+const internalLayer = {
+  group: [
+    "@/modules/*/domain/**",
+    "@/modules/*/application/**",
+    "@/modules/*/infrastructure/**",
+    "@/modules/*/interfaces/**",
+    "@/modules/*/subdomains/*/domain/**",
+    "@/modules/*/subdomains/*/application/**",
+    "@/modules/*/subdomains/*/infrastructure/**",
+    "@/modules/*/subdomains/*/interfaces/**",
+  ],
+  message: "Use the owning API boundary instead of internal layer paths.",
 };
+const packageToModules = { regex: "^@/modules/", message: "packages/* must remain independent of application modules." };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="en" className={cn("font-sans", geist.variable)}>
-      <body className="antialiased">
-        <Providers>{children}</Providers>
-      </body>
-    </html>
-  );
-}
+const legacyAliases = [
+  { group: ["@/shared/*"],        message: "Use @shared-types / @shared-utils / … instead." },
+  { group: ["@/infrastructure/*"],message: "Use @integration-firebase / @integration-upstash / … instead." },
+  { group: ["@/libs/*"],          message: "Use the corresponding @lib-* or @integration-* alias." },
+  { group: ["@/ui/shadcn/*"],     message: "Use @ui-shadcn/* instead." },
+  { group: ["@/ui/vis","@/ui/vis/*"], message: "Use @ui-vis instead." },
+  { group: ["@/interfaces/*"],    message: "Use @api-contracts instead." },
+];
+
+const restrictedImports = (patterns) => ["no-restricted-imports", [WARN, { patterns }]];
+
+// ─── Config ───────────────────────────────────────────────────────────────────
+export default defineConfig([
+  ...nextVitals,
+  ...nextTs,
+
+  // JSDoc
+  {
+    files: srcGlobs,
+    plugins: { jsdoc },
+    settings: { jsdoc: { mode: "typescript" } },
+    rules: {
+      "jsdoc/check-alignment": WARN,
+      "jsdoc/check-syntax":    WARN,
+      "jsdoc/check-tag-names": WARN,
+      "jsdoc/no-blank-blocks": WARN,
+    },
+  },
+
+  // TypeScript naming + type imports + unused vars
+  {
+    files: tsGlobs,
+    plugins: { "@typescript-eslint": tseslint },
+    rules: {
+      "@typescript-eslint/naming-convention": [WARN,
+        { selector: "typeLike",     format: ["PascalCase"] },
+        { selector: "typeParameter",format: ["PascalCase"] },
+        { selector: "variable",     modifiers: ["destructured"], format: null },
+        { selector: "function",     format: ["camelCase","PascalCase"], leadingUnderscore: "allow" },
+        { selector: "variable",     format: ["camelCase","PascalCase","UPPER_CASE"], leadingUnderscore: "allow", trailingUnderscore: "allow" },
+        { selector: "parameter",    modifiers: ["destructured"], format: null },
+        { selector: "parameter",    format: ["camelCase"], leadingUnderscore: "allow" },
+        { selector: "enumMember",   format: ["PascalCase","UPPER_CASE"] },
+      ],
+      "@typescript-eslint/consistent-type-imports": [WARN, { prefer: "type-imports", fixStyle: "inline-type-imports" }],
+      "@typescript-eslint/no-unused-vars":          [WARN, { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" }],
+    },
+  },
+
+  // React + a11y
+  {
+    files: ["**/*.{jsx,tsx}"],
+    rules: {
+      "react/react-in-jsx-scope":       "off",
+      "react/prop-types":               "off",
+      "react/self-closing-comp":        WARN,
+      "react/jsx-no-useless-fragment":  [WARN, { allowExpressions: true }],
+      "react-hooks/rules-of-hooks":     "error",
+      "react-hooks/exhaustive-deps":    WARN,
+      ...Object.fromEntries(
+        Object.entries(jsxA11y.flatConfigs.recommended.rules ?? {}).map(([rule, cfg]) => {
+          if (Array.isArray(cfg)) {
+            const [sev, ...rest] = cfg;
+            const w = sev === "error" || sev === 2 ? WARN : sev;
+            return [rule, rest.length ? [w, ...rest] : w];
+          }
+          return [rule, cfg === "error" || cfg === 2 ? WARN : cfg];
+        }),
+      ),
+    },
+  },
+
+  // Module boundaries (eslint-plugin-boundaries)
+  {
+    files: moduleCodeGlobs,
+    plugins: { boundaries },
+    settings: { "boundaries/include": moduleCodeGlobs, "boundaries/elements": moduleElements },
+    rules: {
+      "boundaries/element-types": [WARN, { default: "disallow", rules: moduleElementTypeRules }],
+    },
+  },
+
+  // File-size guardrails per Hexagonal DDD layer
+  { files: ["modules/*/interfaces/**/*.{ts,tsx}"],    rules: { "max-lines": [WARN, { max: 300, skipBlankLines: true, skipComments: true }] } },
+  { files: ["modules/*/application/**/*.{ts,tsx}"],   rules: { "max-lines": [WARN, { max: 300, skipBlankLines: true, skipComments: true }] } },
+  { files: ["modules/*/infrastructure/**/*.{ts,tsx}"],rules: { "max-lines": [WARN, { max: 400, skipBlankLines: true, skipComments: true }] } },
+
+  // Legacy alias migration
+  { rules: { [restrictedImports(legacyAliases)[0]]: restrictedImports(legacyAliases)[1] } },
+
+  // app / providers / debug → only module api entrypoints
+  {
+    files: outerAdapterGlobs,
+    rules: { [restrictedImports([moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath])[0]]: restrictedImports([moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath])[1] },
+  },
+
+  // modules → strict entrypoint + internal layer enforcement
+  {
+    files: moduleCodeGlobs,
+    rules: { [restrictedImports([explicitIndex, moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath, internalLayer])[0]]: restrictedImports([explicitIndex, moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath, internalLayer])[1] },
+  },
+
+  // packages must not depend on application modules
+  {
+    files: packageGlobs,
+    rules: { [restrictedImports([packageToModules])[0]]: restrictedImports([packageToModules])[1] },
+  },
+
+  globalIgnores([".agents/**",".next/**","out/**","build/**","next-env.d.ts"]),
+]);
 ````
 
 ## File: llms.txt
@@ -41500,167 +43149,114 @@ export {};
 // Purpose: Infrastructure layer placeholder for notebooklm subdomain 'retrieval'.
 ````
 
-## File: modules/notebooklm/subdomains/source/api/factories.ts
-````typescript
-import { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
-import { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
-
-export function makeSourceFileAdapter() {
-  return new FirebaseSourceFileAdapter();
-}
-
-export function makeRagDocumentAdapter() {
-  return new FirebaseRagDocumentAdapter();
-}
-````
-
-## File: modules/notebooklm/subdomains/source/api/index.ts
+## File: modules/notebooklm/subdomains/source/application/dto/source-live-document.dto.ts
 ````typescript
 /**
- * Public API boundary for the source subdomain.
+ * Module: notebooklm/subdomains/source
+ * Layer: application/dto
+ * Purpose: DTO types and mapping logic for live source documents.
  *
- * Cross-module consumers MUST import through this entry point.
- * Internal consumers within the subdomain import from their own layer.
+ * Extracted from interfaces/hooks to keep data transformation in the application layer.
+ * Interfaces should import these types and mappers from here.
  */
 
-// ---------------------------------------------------------------------------
-// Domain entity types
-// ---------------------------------------------------------------------------
-
-export type {
-  SourceFile,
-  SourceFileStatus,
-  SourceFileClassification,
-} from "../domain/entities/SourceFile";
-
-export type {
-  SourceFileVersion,
-  SourceFileVersionStatus,
-} from "../domain/entities/SourceFileVersion";
-
-export type {
-  RagDocumentRecord,
-  RagDocumentStatus,
-} from "../domain/entities/RagDocument";
-
-export type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../domain/entities/WikiLibrary";
-
-// ---------------------------------------------------------------------------
-// Wiki library use cases (lazy singleton — no module-scope side effects)
-// ---------------------------------------------------------------------------
-
-import type { IWikiLibraryRepository } from "../domain/repositories/IWikiLibraryRepository";
-import { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
-import {
-  listWikiLibraries as _listWikiLibraries,
-  createWikiLibrary as _createWikiLibrary,
-  addWikiLibraryField as _addWikiLibraryField,
-  createWikiLibraryRow as _createWikiLibraryRow,
-  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
-} from "../application/use-cases/wiki-library.use-cases";
-
-import type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../domain/entities/WikiLibrary";
-
-export type { WikiLibrarySnapshot } from "../application/use-cases/wiki-library.use-cases";
-
-let _libraryRepo: IWikiLibraryRepository | null = null;
-
-function getLibraryRepo(): IWikiLibraryRepository {
-  if (!_libraryRepo) _libraryRepo = new FirebaseWikiLibraryAdapter();
-  return _libraryRepo;
+export interface SourceDocument {
+  readonly id: string;
+  readonly filename: string;
+  readonly workspaceId: string;
+  readonly sourceGcsUri: string;
+  readonly jsonGcsUri: string;
+  readonly pageCount: number;
+  readonly status: string;
+  readonly ragStatus: string;
+  readonly uploadedAt: Date | null;
 }
 
-export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
-  return _listWikiLibraries(accountId, workspaceId, getLibraryRepo());
+export interface SourceLiveDocument extends SourceDocument {
+  readonly errorMessage: string;
+  readonly ragError: string;
+  readonly isClientPending?: boolean;
 }
 
-export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
-  return _createWikiLibrary(input, getLibraryRepo());
+export type AssetDocument = SourceDocument;
+export type AssetLiveDocument = SourceLiveDocument;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
-export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
-  return _addWikiLibraryField(input, getLibraryRepo());
+function objectOrEmpty(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
 }
 
-export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
-  return _createWikiLibraryRow(input, getLibraryRepo());
+function toDateOrNull(value: unknown): Date | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.toDate === "function") {
+    try {
+      const d = (value.toDate as () => unknown)();
+      if (d instanceof Date) return d;
+    } catch {
+      // fall through
+    }
+  }
+  if (typeof value.toMillis === "function") {
+    try {
+      const ms = (value.toMillis as () => unknown)();
+      if (typeof ms === "number" && Number.isFinite(ms)) return new Date(ms);
+    } catch {
+      // fall through
+    }
+  }
+  return null;
 }
 
-export function getWikiLibrarySnapshot(accountId: string, libraryId: string): ReturnType<typeof _getWikiLibrarySnapshot> {
-  return _getWikiLibrarySnapshot(accountId, libraryId, getLibraryRepo());
+function resolveFilename(data: Record<string, unknown>): string {
+  const source = objectOrEmpty(data.source);
+  const metadata = objectOrEmpty(data.metadata);
+  for (const candidate of [
+    source.filename, source.display_name, data.title,
+    metadata.filename, metadata.display_name,
+    source.original_filename, metadata.original_filename,
+  ]) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate;
+  }
+  return "";
 }
 
-// ---------------------------------------------------------------------------
-// Hooks
-// ---------------------------------------------------------------------------
+export function mapToSourceLiveDocument(
+  id: string,
+  data: Record<string, unknown>,
+): SourceLiveDocument {
+  const source = objectOrEmpty(data.source);
+  const parsed = objectOrEmpty(data.parsed);
+  const rag = objectOrEmpty(data.rag);
+  const metadata = objectOrEmpty(data.metadata);
+  const error = objectOrEmpty(data.error);
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  return {
+    id,
+    filename: resolveFilename(data) || id,
+    workspaceId:
+      (typeof data.spaceId === "string" ? data.spaceId : "") ||
+      (typeof metadata.space_id === "string" ? metadata.space_id : ""),
+    sourceGcsUri:
+      (typeof source.gcs_uri === "string" ? source.gcs_uri : "") ||
+      (typeof metadata.source_gcs_uri === "string" ? metadata.source_gcs_uri : ""),
+    jsonGcsUri:
+      (typeof parsed.json_gcs_uri === "string" ? parsed.json_gcs_uri : "") ||
+      (typeof metadata.json_gcs_uri === "string" ? metadata.json_gcs_uri : ""),
+    pageCount: n(parsed.page_count) || n(metadata.page_count) || n(data.pageCount),
+    status: typeof data.status === "string" ? data.status : "unknown",
+    ragStatus: typeof rag.status === "string" ? rag.status : "",
+    uploadedAt: toDateOrNull(source.uploaded_at) ?? toDateOrNull(data.createdAt),
+    errorMessage: typeof error.message === "string" ? error.message : "",
+    ragError: typeof rag.error === "string" ? rag.error : "",
+  };
+}
 
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-  UseSourceDocumentsSnapshotResult,
-} from "../interfaces/hooks/useSourceDocumentsSnapshot";
-export {
-  useSourceDocumentsSnapshot,
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../interfaces/hooks/useSourceDocumentsSnapshot";
-
-// ---------------------------------------------------------------------------
-// Queries
-// ---------------------------------------------------------------------------
-
-export { getWorkspaceFiles, getWorkspaceRagDocuments } from "../interfaces/queries/source-file.queries";
-
-// ---------------------------------------------------------------------------
-// Server actions
-// ---------------------------------------------------------------------------
-
-export {
-  uploadInitFile,
-  uploadCompleteFile,
-  registerUploadedRagDocument,
-  deleteSourceDocument,
-  renameSourceDocument,
-} from "../interfaces/_actions/source-file.actions";
-
-export { createKnowledgeDraftFromSourceDocument } from "../interfaces/_actions/source-processing.actions";
-
-// ---------------------------------------------------------------------------
-// UI components
-// ---------------------------------------------------------------------------
-
-export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
-export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
-export { LibrariesView } from "../interfaces/components/LibrariesView";
-export { LibraryTableView } from "../interfaces/components/LibraryTableView";
-export { FileProcessingDialog } from "../interfaces/components/FileProcessingDialog";
-
-// ---------------------------------------------------------------------------
-// Infrastructure (for direct injection in server-side wiring)
-// ---------------------------------------------------------------------------
-
-export { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
-export { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
-export { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
-export { InMemoryWikiLibraryAdapter } from "../infrastructure/memory/InMemoryWikiLibraryAdapter";
+export const mapToAssetLiveDocument = mapToSourceLiveDocument;
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/dto/source.dto.ts
@@ -41671,6 +43267,364 @@ export { InMemoryWikiLibraryAdapter } from "../infrastructure/memory/InMemoryWik
  */
 export { resolveSourceOrganizationId } from "../../domain/services/resolve-source-organization-id.service";
 export type { RagDocumentRecord } from "../../domain/entities/RagDocument";
+````
+
+## File: modules/notebooklm/subdomains/source/application/use-cases/create-knowledge-draft-from-source.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Case: CreateKnowledgeDraftFromSourceUseCase — creates a knowledge page draft from a parsed source document.
+ *
+ * Actor: logged-in user
+ * Goal: read parsed text from storage, create a knowledge page with a text block.
+ * Main success: page created, returns aggregateId.
+ * Failure: missing input, storage retrieval failure, or page creation failure.
+ */
+
+import type { CommandResult } from "@shared-types";
+import { commandFailureFrom, commandSuccess } from "@shared-types";
+
+import type { IParsedDocumentPort } from "../../domain/ports/IParsedDocumentPort";
+
+export interface CreateKnowledgeDraftInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+  readonly filename: string;
+  readonly sourceGcsUri: string;
+  readonly jsonGcsUri: string;
+  readonly pageCount: number;
+}
+
+export interface KnowledgePageGateway {
+  createPage(input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    parentPageId: null;
+    createdByUserId: string;
+  }): Promise<CommandResult>;
+  addBlock(input: {
+    accountId: string;
+    pageId: string;
+    index: number;
+    content: {
+      type: "text";
+      richText: readonly { type: string; plainText: string }[];
+      properties: Record<string, unknown>;
+    };
+  }): Promise<CommandResult>;
+}
+
+function trimFileExtension(filename: string): string {
+  const trimmed = filename.trim();
+  const idx = trimmed.lastIndexOf(".");
+  return idx <= 0 ? trimmed : trimmed.slice(0, idx);
+}
+
+export class CreateKnowledgeDraftFromSourceUseCase {
+  constructor(
+    private readonly parsedDocumentPort: IParsedDocumentPort,
+    private readonly knowledgeGateway: KnowledgePageGateway,
+  ) {}
+
+  async execute(input: CreateKnowledgeDraftInput): Promise<CommandResult> {
+    if (!input.accountId.trim() || !input.workspaceId.trim() || !input.createdByUserId.trim()) {
+      return commandFailureFrom(
+        "SOURCE_KNOWLEDGE_DRAFT_INVALID_SCOPE",
+        "accountId、workspaceId、createdByUserId 為必填。",
+      );
+    }
+
+    if (!input.filename.trim() || !input.sourceGcsUri.trim() || !input.jsonGcsUri.trim()) {
+      return commandFailureFrom(
+        "SOURCE_KNOWLEDGE_DRAFT_INVALID_SOURCE",
+        "filename、sourceGcsUri、jsonGcsUri 為必填。",
+      );
+    }
+
+    try {
+      const parsedText = await this.parsedDocumentPort.loadParsedDocumentText(input.jsonGcsUri);
+      const plainText = parsedText || `[${trimFileExtension(input.filename)}]`;
+      const title = `${trimFileExtension(input.filename)}｜匯入草稿`;
+
+      const TIPTAP_PROPERTY_KEY = "tiptapJson";
+
+      const pageResult = await this.knowledgeGateway.createPage({
+        accountId: input.accountId,
+        workspaceId: input.workspaceId,
+        title,
+        parentPageId: null,
+        createdByUserId: input.createdByUserId,
+      });
+
+      if (!pageResult.success) return pageResult;
+
+      const blockResult = await this.knowledgeGateway.addBlock({
+        accountId: input.accountId,
+        pageId: pageResult.aggregateId,
+        index: 0,
+        content: {
+          type: "text",
+          richText: [{ type: "text", plainText }],
+          properties: { [TIPTAP_PROPERTY_KEY]: null },
+        },
+      });
+
+      if (!blockResult.success) return blockResult;
+
+      return commandSuccess(pageResult.aggregateId, blockResult.version);
+    } catch (error) {
+      return commandFailureFrom(
+        "SOURCE_KNOWLEDGE_DRAFT_CREATE_FAILED",
+        error instanceof Error ? error.message : "建立 Knowledge Page Draft 失敗。",
+      );
+    }
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/source/application/use-cases/delete-source-document.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Case: DeleteSourceDocumentUseCase — deletes a legacy source document.
+ *
+ * Actor: account owner
+ * Goal: remove a source document from the accounts/{accountId}/documents collection.
+ * Main success: document deleted, returns ok with documentId.
+ * Failure: invalid input or persistence failure.
+ */
+
+import type { ISourceDocumentCommandPort } from "../../domain/ports/ISourceDocumentPort";
+import type { SourceFileCommandErrorCode } from "../dto/source-file.dto";
+
+export interface DeleteSourceDocumentInput {
+  readonly accountId: string;
+  readonly documentId: string;
+}
+
+type DeleteSourceDocumentResult =
+  | { ok: true; data: { documentId: string } }
+  | { ok: false; error: { code: SourceFileCommandErrorCode; message: string } };
+
+export class DeleteSourceDocumentUseCase {
+  constructor(
+    private readonly documentPort: ISourceDocumentCommandPort,
+  ) {}
+
+  async execute(input: DeleteSourceDocumentInput): Promise<DeleteSourceDocumentResult> {
+    const accountId = input.accountId.trim();
+    const documentId = input.documentId.trim();
+
+    if (!accountId || !documentId) {
+      return { ok: false, error: { code: "FILE_INVALID_INPUT", message: "accountId and documentId are required." } };
+    }
+
+    try {
+      await this.documentPort.deleteDocument(accountId, documentId);
+      return { ok: true, data: { documentId } };
+    } catch (err) {
+      return { ok: false, error: { code: "FILE_DELETE_FAILED", message: err instanceof Error ? err.message : "Delete failed." } };
+    }
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/source/application/use-cases/rename-source-document.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Case: RenameSourceDocumentUseCase — renames a legacy source document.
+ *
+ * Actor: account owner
+ * Goal: update the display name of a source document in accounts/{accountId}/documents.
+ * Main success: document renamed, returns ok with documentId.
+ * Failure: invalid input or persistence failure.
+ */
+
+import type { ISourceDocumentCommandPort } from "../../domain/ports/ISourceDocumentPort";
+import type { SourceFileCommandErrorCode } from "../dto/source-file.dto";
+
+export interface RenameSourceDocumentInput {
+  readonly accountId: string;
+  readonly documentId: string;
+  readonly newName: string;
+}
+
+type RenameSourceDocumentResult =
+  | { ok: true; data: { documentId: string } }
+  | { ok: false; error: { code: SourceFileCommandErrorCode; message: string } };
+
+export class RenameSourceDocumentUseCase {
+  constructor(
+    private readonly documentPort: ISourceDocumentCommandPort,
+  ) {}
+
+  async execute(input: RenameSourceDocumentInput): Promise<RenameSourceDocumentResult> {
+    const accountId = input.accountId.trim();
+    const documentId = input.documentId.trim();
+    const newName = input.newName.trim();
+
+    if (!accountId || !documentId || !newName) {
+      return { ok: false, error: { code: "FILE_INVALID_INPUT", message: "accountId, documentId and newName are required." } };
+    }
+
+    try {
+      await this.documentPort.renameDocument(accountId, documentId, newName);
+      return { ok: true, data: { documentId } };
+    } catch (err) {
+      return { ok: false, error: { code: "FILE_RENAME_FAILED", message: err instanceof Error ? err.message : "Rename failed." } };
+    }
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/source/application/use-cases/upload-complete-source-file.use-case.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Case: UploadCompleteSourceFileUseCase — activates a file after binary upload completes.
+ *
+ * This is the second step of a two-step upload flow:
+ *   1. init  → creates File + FileVersion records
+ *   2. complete (this) → activates the version and registers a RagDocumentRecord
+ *
+ * Idempotent: calling complete on an already-completed file returns the existing
+ * RagDocument without creating a duplicate.
+ */
+
+import { randomUUID } from "node:crypto";
+
+import type { ISourceFileRepository } from "../../domain/repositories/ISourceFileRepository";
+import type { IRagDocumentRepository } from "../../domain/repositories/IRagDocumentRepository";
+import { completeUploadSourceFile } from "../../domain/services/complete-upload-source-file.service";
+import type {
+  SourceFileCommandErrorCode,
+  UploadCompleteFileInputDto,
+  UploadCompleteFileOutputDto,
+} from "../dto/source-file.dto";
+import type { SourceFile } from "../../domain/entities/SourceFile";
+
+type UploadCompleteSourceFileResult =
+  | { ok: true; data: UploadCompleteFileOutputDto }
+  | { ok: false; error: { code: SourceFileCommandErrorCode; message: string } };
+
+function isFileScopeMatch(params: {
+  file: SourceFile;
+  workspaceId: string;
+  organizationId: string;
+  actorAccountId: string;
+  versionId: string;
+}): boolean {
+  return (
+    params.file.workspaceId === params.workspaceId &&
+    params.file.organizationId === params.organizationId &&
+    params.file.accountId === params.actorAccountId &&
+    params.file.currentVersionId === params.versionId
+  );
+}
+
+function isFileAlreadyCompleted(file: SourceFile): boolean {
+  return file.source === "file-upload-complete";
+}
+
+export class UploadCompleteSourceFileUseCase {
+  constructor(
+    private readonly fileRepository: ISourceFileRepository,
+    private readonly ragDocumentRepository: IRagDocumentRepository,
+  ) {}
+
+  async execute(input: UploadCompleteFileInputDto): Promise<UploadCompleteSourceFileResult> {
+    const workspaceId = input.workspaceId.trim();
+    const organizationId = input.organizationId.trim();
+    const actorAccountId = input.actorAccountId.trim();
+    const fileId = input.fileId.trim();
+    const versionId = input.versionId.trim();
+
+    if (!workspaceId) return { ok: false, error: { code: "FILE_WORKSPACE_REQUIRED", message: "Workspace is required." } };
+    if (!organizationId) return { ok: false, error: { code: "FILE_ORGANIZATION_REQUIRED", message: "Organization is required." } };
+    if (!actorAccountId) return { ok: false, error: { code: "FILE_ACTOR_REQUIRED", message: "Actor account is required." } };
+    if (!fileId) return { ok: false, error: { code: "FILE_ID_REQUIRED", message: "File id is required." } };
+    if (!versionId) return { ok: false, error: { code: "FILE_VERSION_REQUIRED", message: "Version id is required." } };
+
+    const file = await this.fileRepository.findById(fileId);
+    if (!file) return { ok: false, error: { code: "FILE_NOT_FOUND", message: "File metadata not found." } };
+
+    const version = await this.fileRepository.findVersion(fileId, versionId);
+    if (!version) return { ok: false, error: { code: "FILE_VERSION_NOT_FOUND", message: "File version metadata not found." } };
+
+    if (!isFileScopeMatch({ file, workspaceId, organizationId, actorAccountId, versionId })) {
+      return { ok: false, error: { code: "FILE_SCOPE_MISMATCH", message: "Upload completion scope does not match file metadata." } };
+    }
+
+    if (file.status !== "active") {
+      return { ok: false, error: { code: "FILE_STATUS_CONFLICT", message: "File upload completion requires an active file record." } };
+    }
+
+    const existingRagDocument = await this.ragDocumentRepository.findByStoragePath({
+      organizationId,
+      workspaceId,
+      storagePath: version.storagePath,
+    });
+
+    const nextFile = isFileAlreadyCompleted(file)
+      ? file
+      : completeUploadSourceFile({ file, completedAtISO: new Date().toISOString() });
+
+    if (!isFileAlreadyCompleted(file)) {
+      await this.fileRepository.save(nextFile);
+    }
+
+    let ragDocumentId: string;
+    let ragDocumentStatus: UploadCompleteFileOutputDto["ragDocumentStatus"];
+
+    if (existingRagDocument !== null) {
+      ragDocumentId = existingRagDocument.id;
+      ragDocumentStatus = existingRagDocument.status;
+    } else {
+      const nowISO = new Date().toISOString();
+      ragDocumentId = `rag-document-${randomUUID()}`;
+
+      await this.ragDocumentRepository.saveUploaded({
+        id: ragDocumentId,
+        organizationId,
+        workspaceId,
+        accountId: actorAccountId,
+        displayName: file.name,
+        title: file.name,
+        sourceFileName: file.name,
+        mimeType: file.mimeType,
+        storagePath: version.storagePath,
+        sizeBytes: file.sizeBytes,
+        status: "uploaded",
+        checksum: version.checksum,
+        versionGroupId: ragDocumentId,
+        versionNumber: version.versionNumber,
+        isLatest: true,
+        createdAtISO: nowISO,
+        updatedAtISO: nowISO,
+      });
+
+      ragDocumentStatus = "uploaded";
+    }
+
+    return {
+      ok: true,
+      data: {
+        fileId: nextFile.id,
+        versionId: nextFile.currentVersionId,
+        status: "active",
+        ragDocumentId,
+        ragDocumentStatus,
+      },
+    };
+  }
+}
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/use-cases/wiki-library.helpers.ts
@@ -41949,6 +43903,289 @@ export function isValidSlug(slug: string): boolean {
 }
 ````
 
+## File: modules/notebooklm/subdomains/source/domain/ports/IParsedDocumentPort.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: domain/ports
+ * Port: IParsedDocumentPort — retrieves parsed document text from storage.
+ *
+ * This port isolates Firebase Storage access from interfaces.
+ * Infrastructure provides the adapter; application consumes via use cases.
+ */
+
+export interface IParsedDocumentPort {
+  loadParsedDocumentText(jsonGcsUri: string): Promise<string>;
+}
+````
+
+## File: modules/notebooklm/subdomains/source/domain/ports/ISourceDocumentPort.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: domain/ports
+ * Port: ISourceDocumentPort — commands for legacy source documents stored in accounts/{accountId}/documents.
+ *
+ * This port isolates the legacy Firestore collection from interfaces.
+ * Infrastructure provides the Firebase adapter; interfaces consume via use cases.
+ */
+
+export interface ISourceDocumentCommandPort {
+  deleteDocument(accountId: string, documentId: string): Promise<void>;
+  renameDocument(accountId: string, documentId: string, newName: string): Promise<void>;
+}
+````
+
+## File: modules/notebooklm/subdomains/source/infrastructure/adapters/NotionKnowledgePageGatewayAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/adapters
+ * Adapter: NotionKnowledgePageGatewayAdapter — delegates to notion bounded context API.
+ *
+ * Implements the KnowledgePageGateway port defined in the application layer,
+ * bridging the source subdomain to the notion bounded context through its public API.
+ */
+
+import type { CommandResult } from "@shared-types";
+
+import { addKnowledgeBlock, createKnowledgePage } from "@/modules/notion/api";
+
+import type { KnowledgePageGateway } from "../../application/use-cases/create-knowledge-draft-from-source.use-case";
+
+export class NotionKnowledgePageGatewayAdapter implements KnowledgePageGateway {
+  async createPage(input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    parentPageId: null;
+    createdByUserId: string;
+  }): Promise<CommandResult> {
+    return createKnowledgePage(input);
+  }
+
+  async addBlock(input: {
+    accountId: string;
+    pageId: string;
+    index: number;
+    content: {
+      type: "text";
+      richText: readonly { type: string; plainText: string }[];
+      properties: Record<string, unknown>;
+    };
+  }): Promise<CommandResult> {
+    return addKnowledgeBlock(input);
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseDocumentStatusAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseDocumentStatusAdapter — watches Firestore document status via onSnapshot.
+ *
+ * Extracted from interfaces/components to keep Firestore access in infrastructure layer.
+ */
+
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+export async function waitForParsedDocument(
+  accountId: string,
+  docId: string,
+): Promise<{ pageCount: number; jsonGcsUri: string }> {
+  const db = getFirebaseFirestore();
+
+  return new Promise((resolve, reject) => {
+    const docRef = firestoreApi.doc(db, "accounts", accountId, "documents", docId);
+    const unsubscribe = firestoreApi.onSnapshot(docRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+
+      const data = asRecord(snapshot.data());
+      const status = asString(data.status, "unknown");
+
+      if (status === "completed") {
+        const parsed = asRecord(data.parsed);
+        unsubscribe();
+        resolve({
+          pageCount: asNumber(parsed.page_count, 0),
+          jsonGcsUri: asString(parsed.json_gcs_uri),
+        });
+        return;
+      }
+
+      if (status === "error") {
+        const error = asRecord(data.error);
+        unsubscribe();
+        reject(new Error(asString(error.message, "文件解析失敗")));
+      }
+    });
+  });
+}
+````
+
+## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseParsedDocumentAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseParsedDocumentAdapter — Firebase Storage implementation of IParsedDocumentPort.
+ *
+ * Reads parsed JSON from a GCS URI and extracts the text content.
+ */
+
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+
+import type { IParsedDocumentPort } from "../../domain/ports/IParsedDocumentPort";
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+export class FirebaseParsedDocumentAdapter implements IParsedDocumentPort {
+  async loadParsedDocumentText(jsonGcsUri: string): Promise<string> {
+    if (!jsonGcsUri) return "";
+    const storage = getFirebaseStorage();
+    const ref = storageApi.ref(storage, jsonGcsUri);
+    const url = await storageApi.getDownloadURL(ref);
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error(`無法讀取解析 JSON (${response.status})`);
+    const payload = asRecord(await response.json());
+    return asString(payload.text);
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseSourceDocumentCommandAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/firebase
+ * Adapter: FirebaseSourceDocumentCommandAdapter — Firestore implementation of ISourceDocumentCommandPort.
+ *
+ * Collection path: accounts/{accountId}/documents/{documentId}
+ * This is a legacy collection; new data should use the workspaceFiles collection.
+ */
+
+import { deleteDoc, doc, getFirestore, serverTimestamp, updateDoc } from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+
+import type { ISourceDocumentCommandPort } from "../../domain/ports/ISourceDocumentPort";
+
+export class FirebaseSourceDocumentCommandAdapter implements ISourceDocumentCommandPort {
+  private readonly db = getFirestore(firebaseClientApp);
+
+  async deleteDocument(accountId: string, documentId: string): Promise<void> {
+    await deleteDoc(doc(this.db, "accounts", accountId, "documents", documentId));
+  }
+
+  async renameDocument(accountId: string, documentId: string, newName: string): Promise<void> {
+    await updateDoc(doc(this.db, "accounts", accountId, "documents", documentId), {
+      title: newName,
+      "source.filename": newName,
+      "metadata.filename": newName,
+      updatedAt: serverTimestamp(),
+    });
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/source/interfaces/_actions/source-processing.actions.ts
+````typescript
+"use server";
+
+import type { CommandResult } from "@shared-types";
+
+import { makeKnowledgePageGateway, makeParsedDocumentAdapter } from "../../api/factories";
+import { CreateKnowledgeDraftFromSourceUseCase } from "../../application/use-cases/create-knowledge-draft-from-source.use-case";
+
+interface CreateKnowledgeDraftFromSourceDocumentInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+  readonly filename: string;
+  readonly sourceGcsUri: string;
+  readonly jsonGcsUri: string;
+  readonly pageCount: number;
+}
+
+export async function createKnowledgeDraftFromSourceDocument(
+  input: CreateKnowledgeDraftFromSourceDocumentInput,
+): Promise<CommandResult> {
+  const useCase = new CreateKnowledgeDraftFromSourceUseCase(
+    makeParsedDocumentAdapter(),
+    makeKnowledgePageGateway(),
+  );
+  return useCase.execute(input);
+}
+````
+
+## File: modules/notebooklm/subdomains/source/interfaces/components/file-processing-dialog.utils.ts
+````typescript
+"use client";
+
+import { waitForParsedDocument } from "../../api/factories";
+
+export type TaskStatus = "idle" | "running" | "success" | "error" | "skipped";
+
+export interface TaskResult {
+  readonly status: TaskStatus;
+  readonly detail: string;
+}
+
+export interface ExecutionSummary {
+  readonly pageCount: number;
+  readonly jsonGcsUri: string;
+  readonly pageHref: string;
+  readonly parse: TaskResult;
+  readonly rag: TaskResult;
+  readonly page: TaskResult;
+}
+
+export function createIdleSummary(): ExecutionSummary {
+  return {
+    pageCount: 0,
+    jsonGcsUri: "",
+    pageHref: "",
+    parse: { status: "idle", detail: "尚未開始解析" },
+    rag: { status: "idle", detail: "尚未決定是否建立 RAG 索引" },
+    page: { status: "idle", detail: "尚未決定是否建立 Knowledge Page" },
+  };
+}
+
+export function readCallableData(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+export function readString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+export function readNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+export { waitForParsedDocument };
+````
+
 ## File: modules/notebooklm/subdomains/source/interfaces/components/WorkspaceFilesTab.tsx
 ````typescript
 "use client";
@@ -42180,6 +44417,118 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
       )}
     </Card>
   );
+}
+````
+
+## File: modules/notebooklm/subdomains/source/interfaces/hooks/useSourceDocumentsSnapshot.ts
+````typescript
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
+
+import type {
+  SourceLiveDocument,
+} from "../../application/dto/source-live-document.dto";
+import {
+  mapToSourceLiveDocument,
+} from "../../application/dto/source-live-document.dto";
+
+// Re-export types for backward compatibility
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../../application/dto/source-live-document.dto";
+export {
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../../application/dto/source-live-document.dto";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function objectOrEmpty(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+// ── Hook ──────────────────────────────────────────────────────────────────────
+
+export interface UseSourceDocumentsSnapshotResult {
+  readonly docs: SourceLiveDocument[];
+  readonly loading: boolean;
+  readonly pendingDocs: SourceLiveDocument[];
+  readonly addPending: (doc: SourceLiveDocument) => void;
+  readonly removePending: (id: string) => void;
+}
+
+/** Subscribes to Firestore `accounts/{accountId}/documents` in real time via onSnapshot. */
+export function useSourceDocumentsSnapshot(
+  accountId: string,
+  workspaceId?: string,
+): UseSourceDocumentsSnapshotResult {
+  const [rawDocs, setRawDocs] = useState<SourceLiveDocument[]>([]);
+  const [rawPending, setRawPending] = useState<SourceLiveDocument[]>([]);
+  const [receivedKey, setReceivedKey] = useState("");
+  const statusMapRef = useRef<Record<string, string>>({});
+
+  const addPending = useCallback((doc: SourceLiveDocument) => {
+    setRawPending((prev) => [doc, ...prev.filter((p) => p.id !== doc.id)]);
+  }, []);
+
+  const removePending = useCallback((id: string) => {
+    setRawPending((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  useEffect(() => {
+    if (!accountId) return;
+
+    const subKey = `${accountId}/${workspaceId ?? ""}`;
+    statusMapRef.current = {};
+
+    const db = getFirebaseFirestore();
+    const colRef = firestoreApi.collection(db, "accounts", accountId, "documents");
+
+    const unsubscribe = firestoreApi.onSnapshot(
+      colRef,
+      (snapshot) => {
+        const mapped = snapshot.docs
+          .map((item) => mapToSourceLiveDocument(item.id, objectOrEmpty(item.data())))
+          .filter((item) => !workspaceId || item.workspaceId === workspaceId)
+          .sort((a, b) => (b.uploadedAt?.getTime() ?? 0) - (a.uploadedAt?.getTime() ?? 0));
+
+        const nextMap: Record<string, string> = {};
+        for (const doc of mapped) {
+          nextMap[doc.id] = `${doc.status}/${doc.ragStatus}`;
+        }
+        statusMapRef.current = nextMap;
+
+        setRawDocs(mapped);
+        setRawPending((prev) => prev.filter((p) => !mapped.some((d) => d.id === p.id)));
+        setReceivedKey(subKey);
+      },
+      () => {
+        setReceivedKey(subKey);
+      },
+    );
+
+    return () => {
+      unsubscribe();
+      statusMapRef.current = {};
+    };
+  }, [accountId, workspaceId]);
+
+  const currentKey = `${accountId}/${workspaceId ?? ""}`;
+  const docs = accountId ? rawDocs : [];
+  const loading = Boolean(accountId) && receivedKey !== currentKey;
+  const pendingDocs = accountId ? rawPending : [];
+
+  return { docs, loading, pendingDocs, addPending, removePending };
 }
 ````
 
@@ -54230,46 +56579,540 @@ export {
 } from "../../../application/dtos/workspace-interfaces.dto";
 ````
 
-## File: modules/workspace/interfaces/web/navigation/workspace-nav-items.ts
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
 ````typescript
-/**
- * workspace-nav-items.ts
- *
- * Catalog of workspace sidebar tab entries owned by the workspace BC.
- * Consumers read this catalog; they do not define it.
- */
+"use client";
 
-export interface WorkspaceNavItem {
-  id: string;
-  tabKey: string;
-  fallbackLabel: string;
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+import {
+  Card,
+  CardContent,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { WorkspaceAuditTab } from "@/modules/workspace/api";
+import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
+import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
+import { WorkspaceFlowTab } from "@/modules/workspace/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
+import { useApp } from "@/modules/platform/api";
+
+import {
+  createSettingsDraft,
+  type WorkspaceSettingsDraft,
+} from "../../state/workspace-settings";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../../view-models/workspace-supporting-records";
+import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
+import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
+import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
+import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+  readonly initialOverviewPanel?: string;
 }
 
-export const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = [
-  { id: "home", tabKey: "Overview", fallbackLabel: "Home" },
-  { id: "daily", tabKey: "Daily", fallbackLabel: "Daily" },
-  { id: "schedule", tabKey: "Schedule", fallbackLabel: "Schedule" },
-  { id: "audit", tabKey: "Audit", fallbackLabel: "Audit" },
-  { id: "tasks", tabKey: "Tasks", fallbackLabel: "Workflow" },
-  { id: "feed", tabKey: "Feed", fallbackLabel: "Feed" },
-  { id: "files", tabKey: "Files", fallbackLabel: "Files" },
-  { id: "members", tabKey: "Members", fallbackLabel: "Members" },
+export function WorkspaceDetailScreen({
+  workspaceId,
+  accountId,
+  accountsHydrated,
+  initialTab,
+  initialOverviewPanel,
+}: WorkspaceDetailScreenProps) {
+  const { state: appState, dispatch } = useApp();
+  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
+    workspaceId,
+    accountId,
+    accountsHydrated,
+  );
+  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
+
+  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
+    workspace,
+    accountId,
+    onSaved: (updated) => {
+      setWorkspace(updated);
+      setSettingsDraft(createSettingsDraft(updated));
+      setIsEditWorkspaceOpen(false);
+    },
+  });
+
+  const personnelEntries = useMemo(() => {
+    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
+  }, [workspace]);
+
+  const addressLines = useMemo(() => {
+    return workspace ? getWorkspaceAddressLines(workspace) : [];
+  }, [workspace]);
+
+  function renderTabContent(tab: WorkspaceTabValue) {
+    if (!workspace) return null;
+
+    switch (tab) {
+      case "Overview":
+        return (
+          <WorkspaceOverviewTab
+            workspace={workspace}
+            activeWorkspaceId={appState.activeWorkspaceId}
+            personnelEntries={personnelEntries}
+            addressLines={addressLines}
+            showSettingsPanel={initialOverviewPanel === "settings"}
+            onEditClick={() => {
+              setSettingsDraft(createSettingsDraft(workspace));
+              clearSaveError();
+              setIsEditWorkspaceOpen(true);
+            }}
+            onSetActiveWorkspace={() =>
+              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
+            }
+          />
+        );
+      case "Members":
+        return <WorkspaceMembersTab workspace={workspace} />;
+      case "Daily":
+        return <WorkspaceDailyTab workspace={workspace} />;
+      case "Files":
+        return <WorkspaceFilesTab workspace={workspace} />;
+      case "Schedule":
+        return (
+          <WorkspaceSchedulingTab
+            workspace={workspace}
+            accountId={accountId ?? workspace.accountId}
+            currentUserId={accountId ?? "anonymous"}
+          />
+        );
+      case "Audit":
+        return <WorkspaceAuditTab workspaceId={workspace.id} />;
+      case "Tasks":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="tasks"
+          />
+        );
+      case "TaskQa":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="qa"
+          />
+        );
+      case "TaskAcceptance":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="acceptance"
+          />
+        );
+      case "TaskIssues":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="issues"
+          />
+        );
+      case "TaskFinance":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="invoices"
+          />
+        );
+      case "Feed":
+        return (
+          <WorkspaceFeedWorkspaceView
+            accountId={accountId ?? workspace.accountId}
+            workspaceId={workspace.id}
+            workspaceName={workspace.name}
+          />
+        );
+      default:
+        return null;
+    }
+  }
+
+  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
+    ? initialTab
+    : "Overview";
+
+  return (
+    <div className="space-y-6">
+      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
+        ← 返回 Workspace Hub
+      </Link>
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          正在同步帳號內容…
+        </div>
+      )}
+
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            Loading workspace detail…
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入工作區資料，請返回清單後重試。
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "loaded" && !workspace && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            找不到此工作區。
+          </CardContent>
+        </Card>
+      )}
+
+      {workspace && (
+        <div className="space-y-6">
+          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+          <nav
+            aria-label="Workspace tab navigation"
+            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
+          >
+            <div className="flex min-w-max items-center gap-0.5">
+              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
+                const tabs = getWorkspaceTabsByGroup(group);
+                const links = tabs.map((tab) => {
+                  const isActive = resolvedTab === tab;
+                  return (
+                    <Link
+                      key={tab}
+                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {getWorkspaceTabLabel(tab)}
+                    </Link>
+                  );
+                });
+                if (groupIndex > 0) {
+                  return [
+                    <div
+                      key={`sep-${group}`}
+                      aria-hidden="true"
+                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
+                    />,
+                    ...links,
+                  ];
+                }
+                return links;
+              })}
+            </div>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
+          </div>
+          {renderTabContent(resolvedTab)}
+        </div>
+      )}
+
+      <WorkspaceSettingsDialog
+        open={isEditWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsEditWorkspaceOpen(open);
+          if (!open) {
+            clearSaveError();
+            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
+          }
+        }}
+        settingsDraft={settingsDraft}
+        setSettingsDraft={setSettingsDraft}
+        isSaving={isSavingWorkspace}
+        saveError={saveError}
+        onSubmit={(event) => void handleSave(event, settingsDraft)}
+      />
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
+````typescript
+/**
+ * nav-preferences-data.ts  (workspace BC – interfaces/web/navigation)
+ * Owns: NavPreferences type, nav-item catalogs, default values,
+ *   validation helpers, and localStorage read/write utilities.
+ * Constraints: No React imports. No UI imports. Pure data / serialization.
+ */
+
+import {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "./workspace-nav-items";
+
+// Re-export for consumers that import from this file directly.
+export { WORKSPACE_NAV_ITEMS, normalizeWorkspaceOrder };
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+export interface NavPreferences {
+  pinnedPersonal: string[];
+  pinnedWorkspace: string[];
+  showLimitedWorkspaces: boolean;
+  maxWorkspaces: number;
+  workspaceOrder: string[];
+}
+
+export interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+
+const STORAGE_KEY = "xuanwu:nav-preferences";
+
+// ── Personal nav items ─────────────────────────────────────────────────────
+
+export const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
+  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
 ];
 
-const VALID_WORKSPACE_ORDER_IDS = new Set(WORKSPACE_NAV_ITEMS.map((item) => item.id));
-const DEFAULT_WORKSPACE_ORDER = WORKSPACE_NAV_ITEMS.map((item) => item.id);
+// ── Organization management items ─────────────────────────────────────────
 
-export function normalizeWorkspaceOrder(order: unknown): string[] {
-  const fallback = DEFAULT_WORKSPACE_ORDER;
-  if (!Array.isArray(order)) return fallback;
-  const validOrder = order
+export const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
+  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
+  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
+  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
+];
+
+export const DIALOG_TEXT = {
+  zh: {
+    title: "Customize navigation",
+    description:
+      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
+    sectionPersonal: "個人",
+    sectionWorkspace: "工作區",
+    sectionOrganization: "組織管理",
+    sectionDisplay: "顯示設定",
+    limitedLabel: "側欄僅顯示固定數量的最近工作區",
+    limitedInputLabel: "工作區數量",
+    done: "完成",
+    recentWorkspaces: "最近工作區",
+  },
+  en: {
+    title: "Customize navigation",
+    description:
+      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
+    sectionPersonal: "Personal",
+    sectionWorkspace: "Workspace",
+    sectionOrganization: "Organization",
+    sectionDisplay: "Display",
+    limitedLabel: "Show a limited number of recent workspaces in sidebar",
+    limitedInputLabel: "Number of workspaces",
+    done: "Done",
+    recentWorkspaces: "Recent workspaces",
+  },
+} as const;
+
+// ── Defaults + validation ──────────────────────────────────────────────────
+
+export const DEFAULT_PREFS: NavPreferences = {
+  pinnedPersonal: ["recent-workspaces"],
+  pinnedWorkspace: [
+    ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
+    ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
+  ],
+  showLimitedWorkspaces: true,
+  maxWorkspaces: 10,
+  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
+};
+
+const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
+const VALID_WORKSPACE_ITEM_IDS = new Set([
+  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
+  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
+]);
+
+const WORKFLOW_PIN_MIGRATION_IDS = [
+  "task-qa",
+  "task-acceptance",
+  "task-issues",
+  "task-finance",
+] as const;
+
+function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
+  if (!Array.isArray(ids)) return fallback;
+  const normalized = ids
     .filter((id): id is string => typeof id === "string")
-    .filter((id) => VALID_WORKSPACE_ORDER_IDS.has(id));
-  const deduped = Array.from(new Set(validOrder));
-  for (const id of fallback) {
-    if (!deduped.includes(id)) deduped.push(id);
+    .filter((id) => validSet.has(id));
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
+}
+
+function migrateWorkflowPins(ids: string[]): string[] {
+  if (!ids.includes("tasks")) return ids;
+  const next = [...ids];
+  for (const id of WORKFLOW_PIN_MIGRATION_IDS) {
+    if (!next.includes(id) && VALID_WORKSPACE_ITEM_IDS.has(id)) {
+      next.push(id);
+    }
   }
-  return deduped;
+  return next;
+}
+
+// ── localStorage helpers ───────────────────────────────────────────────────
+
+export function readNavPreferences(): NavPreferences {
+  if (typeof window === "undefined") return DEFAULT_PREFS;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_PREFS;
+    const parsed = JSON.parse(raw) as Partial<NavPreferences>;
+    const normalizedWorkspacePinned = normalizePinnedIds(
+      parsed.pinnedWorkspace,
+      VALID_WORKSPACE_ITEM_IDS,
+      DEFAULT_PREFS.pinnedWorkspace,
+    );
+    return {
+      pinnedPersonal: normalizePinnedIds(
+        parsed.pinnedPersonal,
+        VALID_PERSONAL_ITEM_IDS,
+        DEFAULT_PREFS.pinnedPersonal,
+      ),
+      pinnedWorkspace: migrateWorkflowPins(normalizedWorkspacePinned),
+      showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
+      maxWorkspaces:
+        typeof parsed.maxWorkspaces === "number"
+          ? parsed.maxWorkspaces
+          : DEFAULT_PREFS.maxWorkspaces,
+      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
+    };
+  } catch {
+    return DEFAULT_PREFS;
+  }
+}
+
+export function writeNavPreferences(prefs: NavPreferences): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+}
+````
+
+## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
+````typescript
+export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+
+export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+
+export const WORKSPACE_TAB_VALUES = [
+  "Overview",
+  "Members",
+  "Daily",
+  "Files",
+  "Schedule",
+  "Audit",
+  "Tasks",
+  "TaskQa",
+  "TaskAcceptance",
+  "TaskIssues",
+  "TaskFinance",
+  "Feed",
+] as const;
+
+export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+
+interface WorkspaceTabMeta {
+  readonly label: string;
+  readonly prefId: string;
+  readonly group: WorkspaceTabGroup;
+  readonly status: WorkspaceTabDevStatus;
+}
+
+export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
+  Overview: { label: "Home", prefId: "home", group: "primary", status: "🏗️" },
+  Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
+  Daily: { label: "Daily", prefId: "daily", group: "modules", status: "✅" },
+  Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
+  Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
+  Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
+  Tasks: { label: "任務", prefId: "tasks", group: "modules", status: "🏗️" },
+  TaskQa: { label: "質檢", prefId: "task-qa", group: "modules", status: "🏗️" },
+  TaskAcceptance: { label: "驗收", prefId: "task-acceptance", group: "modules", status: "🏗️" },
+  TaskIssues: { label: "問題單", prefId: "task-issues", group: "modules", status: "🏗️" },
+  TaskFinance: { label: "財務", prefId: "task-finance", group: "modules", status: "🏗️" },
+  Feed: { label: "Feed", prefId: "feed", group: "modules", status: "🏗️" },
+};
+
+export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
+  primary: ["Overview"],
+  spaces: [],
+  databases: [],
+  library: ["Files", "Members"],
+  modules: [
+    "Daily",
+    "Schedule",
+    "Audit",
+    "Tasks",
+    "TaskQa",
+    "TaskAcceptance",
+    "TaskIssues",
+    "TaskFinance",
+    "Feed",
+  ],
+};
+
+const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);
+
+export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue {
+  return WORKSPACE_TAB_VALUE_SET.has(value);
+}
+
+export function getWorkspaceTabMeta(tab: WorkspaceTabValue) {
+  return WORKSPACE_TAB_META[tab];
+}
+
+export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus {
+  return WORKSPACE_TAB_META[tab].status;
+}
+
+export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string {
+  return WORKSPACE_TAB_META[tab].label;
+}
+
+export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
+  return WORKSPACE_TAB_META[tab].prefId;
+}
+
+export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
+  return WORKSPACE_TAB_GROUPS[group];
 }
 ````
 
@@ -61615,707 +64458,966 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: app/(public)/page.tsx
+## File: app/(shell)/knowledge/page.tsx
 ````typescript
 "use client";
 
-/**
- * app/(public)/page.tsx
- * Public landing page with top-right auth entry and inline auth panel.
- * Uses identity module use cases directly on the client so Firebase auth state
- * actually updates AuthProvider via onAuthStateChanged.
- */
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
 
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { useApp, useAuth } from "@/modules/platform/api"
+import { buildWikiContentTree } from "@/modules/workspace/api";
+import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-import {
-  useAuth,
-  createClientAuthUseCases,
-  createClientAccountUseCases,
-  createDevDemoUser,
-  isDevDemoCredential,
-  isLocalDevDemoAllowed,
-  writeDevDemoSession,
-} from "@/modules/platform/api";
+const QUICK_ACCESS = [
+  {
+    href: "/knowledge/pages?scope=account",
+    title: "Pages",
+    description: "顯式 account summary 的頁面樹檢視與維運工具；日常建立與整理請從工作區進入。",
+    icon: FileText,
+  },
+  {
+    href: "/source/libraries",
+    title: "Libraries",
+    description: "維持 schema / table 型知識資產。",
+    icon: Database,
+  },
+  {
+    href: "/knowledge-base/articles",
+    title: "Articles",
+    description: "組織知識庫 SOP 文章、驗證管治與分類樹。",
+    icon: FolderKanban,
+  },
+  {
+    href: "/knowledge-database/databases",
+    title: "Databases",
+    description: "結構化資料庫、多視圖（表格、看板、日曆）管理。",
+    icon: Brain,
+  },
+  {
+    href: "/notebook/rag-query",
+    title: "Ask / Cite",
+    description: "查詢、引用與回答檢視。",
+    icon: MessageSquare,
+  },
+] as const;
 
-type Tab = "login" | "register";
+export default function KnowledgeHubPage() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const [contentTree, setContentTree] = useState<WikiAccountContentNode[]>([]);
+  const [loading, setLoading] = useState(true);
 
-export default function PublicPage() {
-  const { state, dispatch } = useAuth();
-  const router = useRouter();
+  const accountSeeds = useMemo<WikiAccountSeed[]>(() => {
+    const personalUser = authState.user;
+    const activeAccountId = appState.activeAccount?.id;
+    const seeds: WikiAccountSeed[] = [];
 
-  const [tab, setTab] = useState<Tab>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [resetSent, setResetSent] = useState(false);
-  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
+    if (personalUser) {
+      seeds.push({
+        accountId: personalUser.id,
+        accountName: personalUser.name,
+        accountType: "personal",
+        isActive: activeAccountId === personalUser.id,
+      });
+    }
 
-  const {
-    signInUseCase,
-    signInAnonymouslyUseCase,
-    registerUseCase,
-    sendPasswordResetEmailUseCase,
-    createUserAccountUseCase,
-  } =
-    useMemo(() => ({
-      ...createClientAuthUseCases(),
-      ...createClientAccountUseCases(),
-    }), []);
+    const organizations = Object.values(appState.accounts);
+    for (const organization of organizations) {
+      seeds.push({
+        accountId: organization.id,
+        accountName: organization.name,
+        accountType: "organization",
+        isActive: activeAccountId === organization.id,
+      });
+    }
+
+    return seeds;
+  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
 
   useEffect(() => {
-    if (state.status === "authenticated") {
-      router.replace("/dashboard");
-    }
-  }, [state.status, router]);
+    let disposed = false;
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    try {
-      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
-        writeDevDemoSession(createDevDemoUser());
-        window.location.assign("/dashboard");
-        return;
-      }
-
-      const result =
-        tab === "login"
-          ? await signInUseCase.execute({ email, password })
-          : await registerUseCase.execute({ email, password, name });
-
-      if (!result.success) {
-        setError(result.error.message);
-        return;
-      }
-
-      if (tab === "register") {
-        const accountResult = await createUserAccountUseCase.execute(
-          result.aggregateId,
-          name,
-          email,
-        );
-        if (!accountResult.success) {
-          setError(accountResult.error.message);
+    async function load() {
+      setLoading(true);
+      try {
+        const result = await buildWikiContentTree(accountSeeds);
+        if (!disposed) {
+          setContentTree(result);
+        }
+      } catch {
+        if (!disposed) {
+          setContentTree([]);
+        }
+      } finally {
+        if (!disposed) {
+          setLoading(false);
         }
       }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleGuestAccess() {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const result = await signInAnonymouslyUseCase.execute();
-      if (!result.success) {
-        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
-        // blocked in sandboxes), create a local guest session so the shell can be tested.
-        if (isLocalDevDemoAllowed()) {
-          const guestUser = createDevDemoUser();
-          writeDevDemoSession(guestUser);
-          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
-        } else {
-          setError(result.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handlePasswordReset() {
-    if (!email) {
-      setError("Enter your email address first.");
-      return;
     }
 
-    setIsLoading(true);
-    try {
-      const result = await sendPasswordResetEmailUseCase.execute(email);
-      if (result.success) {
-        setResetSent(true);
-        setError(null);
-      } else {
-        setError(result.error.message);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
+    void load();
 
-  if (state.status === "initializing") {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+    return () => {
+      disposed = true;
+    };
+  }, [accountSeeds]);
+
+  const activeAccount = contentTree.find((node) => node.isActive);
+  const highlightedWorkspace =
+    activeAccount?.workspaces.find((workspace) => workspace.workspaceId === appState.activeWorkspaceId) ??
+    activeAccount?.workspaces[0];
 
   return (
-    <main className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
-        <button
-          type="button"
-          onClick={() => {
-            setError(null);
-            setResetSent(false);
-            setIsAuthPanelOpen((prev) => !prev);
-          }}
-          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
-        >
-          {isAuthPanelOpen ? "Close" : "Sign In"}
-        </button>
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Hub</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Knowledge Hub</h1>
+        <p className="text-sm text-muted-foreground">
+          從這裡進入 Knowledge、Knowledge Base、Knowledge Database、Source 與 Notebook 各模組。
+        </p>
       </header>
 
-      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
-        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
-            Unified Hexagonal Architecture with DDD workspace for identity, account, and organization modules.
-            Use the top-right sign in button to access your dashboard.
-          </p>
-        </div>
-
-        {isAuthPanelOpen && (
-          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
-            <div className="flex flex-col items-center pb-4 pt-8">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
-                <ShieldCheck className="h-7 w-7 text-primary/90" />
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Workspace-first entry</CardTitle>
+          <CardDescription>先鎖定 active account，再選擇要進入的工作區，最後才分流到 Knowledge、知識頁面、Notebook / AI。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loading ? (
+            <Skeleton className="h-6 w-48" />
+          ) : activeAccount ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Active Account</p>
+                <div className="mt-2 flex items-center gap-2 text-sm">
+                  <Building2 className="size-4 text-primary" />
+                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
+                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
+                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
+                  <FolderKanban className="size-4 text-primary" />
+                  <span>{activeAccount.workspaces.length} 個工作區可直接進入各自的知識頁面</span>
+                </div>
               </div>
             </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
+          )}
 
-            <div className="px-6">
-              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
-                {(["login", "register"] as Tab[]).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => {
-                      setTab(t);
-                      setError(null);
-                    }}
-                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
-                      tab === t
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {t === "login" ? "Sign In" : "Register"}
-                  </button>
-                ))}
+          {highlightedWorkspace && (
+            <div className="grid gap-3 lg:grid-cols-[1fr_1.1fr]">
+              <div className="rounded-xl border border-border/60 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Highlighted workspace</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">{highlightedWorkspace.workspaceName}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  先把這個工作區當成知識主樞紐，再從裡面打開知識頁面與 Notebook / AI。
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button asChild size="sm">
+                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}`}>進入工作區</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>知識頁面</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/ai-chat?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>
+                      Notebook / AI
+                    </Link>
+                  </Button>
+                </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                {tab === "register" && (
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
-                    <input
-                      id="register-name"
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Your display name"
-                      required
-                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
-                  <input
-                    id="auth-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    autoComplete="email"
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
-                    {tab === "login" && (
-                      <button
-                        type="button"
-                        onClick={handlePasswordReset}
-                        className="text-xs text-primary/70 hover:text-primary"
-                      >
-                        {resetSent ? "Email sent!" : "Forgot password?"}
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    id="auth-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete={tab === "login" ? "current-password" : "new-password"}
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                {error && (
-                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    {error}
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Knowledge</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    先整理文件來源、Libraries 與 upload / ingest。
                   </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : tab === "login" ? (
-                    "Enter Dimension"
-                  ) : (
-                    "Create Account"
-                  )}
-                </button>
-              </form>
+                </div>
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">知識頁面</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    再用頁面樹與內容脈絡整理知識結構。
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    最後才消費這些知識做問答、摘要與洞察。
+                  </p>
+                </div>
+              </div>
             </div>
+          )}
 
-            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
-              <button
-                type="button"
-                onClick={handleGuestAccess}
-                disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
-              </button>
-            </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {QUICK_ACCESS.map((item) => (
+              <Link key={item.href} href={item.href} className="group">
+                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <item.icon className="size-4" />
+                      </div>
+                      <CardTitle className="text-sm">{item.title}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
           </div>
-        )}
-      </section>
-    </main>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
+          <CardDescription>以下工作區皆屬於目前 active account；請優先從工作區進入，再分流到 Knowledge、知識頁面與 Notebook / AI。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
+          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
+            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {activeAccount.workspaces.map((workspace) => (
+                <Card key={workspace.workspaceId} className="transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex flex-wrap gap-1">
+                      {workspace.contentBaseItems
+                        .filter((item) => item.enabled)
+                        .map((item) => (
+                          <Badge key={item.key} variant="secondary" className="text-[10px]">
+                            {item.label}
+                          </Badge>
+                        ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/workspace/${workspace.workspaceId}`}>Workspace</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>知識頁面</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/workspace/${workspace.workspaceId}?tab=Files`}>
+                          Files
+                        </Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
+                          <Brain className="mr-1 size-3.5" />
+                          Notebook
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 ````
 
-## File: docs/contexts/notebooklm/ubiquitous-language.md
+## File: docs/context-map.md
 ````markdown
-# NotebookLM
+# Context Map
 
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+本文件在本次任務限制下，僅依 Context7 驗證的 context map 與 strategic design 原則重建，不主張反映現況實作。
 
-## Canonical Terms
+## System Landscape
 
-| Term | Meaning |
-|---|---|
-| Notebook | 聚合對話、來源與衍生筆記的工作單位 |
-| Conversation | Notebook 內的對話執行邊界 |
-| Message | 一則輸入或輸出對話項 |
-| Source | 被引用與推理的來源材料 |
-| Ingestion | 來源匯入、正規化與前處理流程 |
-| Retrieval | 從來源中召回候選片段的查詢能力 |
-| Grounding | 把輸出對齊到來源證據的能力 |
-| Citation | 輸出指回來源證據的引用關係 |
-| Synthesis | 綜合多來源後生成的衍生輸出 |
-| Note | 與 Notebook 關聯的輕量摘記 |
-| Evaluation | 對輸出品質、回歸結果與效果的評估 |
-| VersionSnapshot | 對話或 Notebook 某一時點的不可變快照 |
+主域級關係只採用 directed upstream-downstream 模型。
 
-## Language Rules
+## Directed Relationships
 
-- 使用 Conversation，不使用 Chat 作為正典語彙。
-- 使用 Ingestion 與 Source 區分來源處理與來源語義。
-- 使用 Retrieval 與 Grounding 區分召回能力與證據對齊能力。
-- 使用 Synthesis 表示衍生綜合輸出，不把它直接稱為正典知識內容。
-- 使用 Evaluation 表示品質語言，不用 Analytics 混稱模型效果。
+| Upstream | Downstream | Published Language |
+|---|---|---|
+| platform | workspace | actor reference、organization scope、access decision、entitlement signal |
+| platform | notion | actor reference、organization scope、access decision、entitlement signal |
+| platform | notebooklm | actor reference、organization scope、access decision、entitlement signal |
+| workspace | notion | workspaceId、membership scope、share scope |
+| workspace | notebooklm | workspaceId、membership scope、share scope |
+| notion | notebooklm | knowledge artifact reference、attachment reference、taxonomy hint |
 
-## Avoid
+## Pattern Rules
 
-| Avoid | Use Instead |
-|---|---|
-| Chat | Conversation |
-| File Import | Ingestion |
-| Search Step | Retrieval |
-| Verified Answer | Grounded Synthesis |
+- ACL 與 Conformist 只允許出現在 downstream 端。
+- ACL 與 Conformist 互斥，不能同時套用在同一整合。
+- Shared Kernel 與 Partnership 不用於主域級關係。
+- 若未來真的需要共享模型，必須先抽出新的 bounded context，而不是把對稱關係塞回主域之間。
 
-## Naming Anti-Patterns
+## Dependency Direction Guardrail
 
-- 不用 Chat 混稱 Conversation 與 Notebook。
-- 不用 Search 混稱 Retrieval 與 Grounding。
-- 不用 Knowledge 或 Wiki 混稱 Synthesis 輸出，避免污染 notion 的正典語言。
+- 主域級方向只允許 upstream -> downstream，不允許同時宣稱對稱依賴。
+- downstream 整合上游時，先決定 published language，再決定 ACL 或 Conformist。
+- 上游提供語言與能力，下游決定如何保護自己的語言。
+
+## Strategic Consequences
+
+- 關係方向清楚後，published language、local DTO 與 ACL 才能一致。
+- 主域級文檔可以避免同時出現互相矛盾的 supplier / consumer 敘事。
+
+## Contradictions Removed
+
+- 不再同時把主域級關係描述成 directed relationship 與 symmetric relationship。
+- 不再把 ACL 寫成 upstream 的責任。
+- 不再把 shared technical libraries 誤寫為主域級 Shared Kernel。
+
+## Forbidden Relationship Patterns
+
+- 不得把 Shared Kernel / Partnership 與 ACL / Conformist 混寫在同一關係。
+- 不得把 direct model sharing 寫成 published language。
+- 不得把下游的轉譯責任倒灌回上游。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，名稱先對齊 Notebook、Conversation、Retrieval、Grounding、Synthesis、Evaluation，再決定型別與模組位置。
-- 奧卡姆剃刀：若一個名詞已能準確表達語義，就不要再疊加第二個近義抽象名稱。
-- 命名要先保護邊界，再追求實作便利。
+- 生成程式碼時，先畫清 upstream / downstream，再安排 API boundary、published language、ACL 或 Conformist。
+- 奧卡姆剃刀：若單一 published language 與單一 translation step 足夠，就不要再加第二層整合流程。
+- 不確定關係方向時，先修正文檔，不直接生成跨主域耦合程式碼。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	Strategic["Strategic language"] --> Context["NotebookLM language"]
-	Context --> API["Published language / API boundary"]
-	API --> Code["Generated code"]
+	Upstream["Upstream"] -->|PL / OHS| Downstream["Downstream"]
+	Downstream -->|ACL or Conformist| LocalModel["Local domain model"]
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	Source["Source"] --> Ingestion["Ingestion"]
-	Ingestion --> Retrieval["Retrieval"]
-	Retrieval --> Grounding["Grounding"]
-	Grounding --> Synthesis["Synthesis"]
-	Synthesis --> Evaluation["Evaluation"]
+	Platform["platform"] --> Workspace["workspace"]
+	Platform --> Notion["notion"]
+	Platform --> NotebookLM["notebooklm"]
+	Workspace --> Notion
+	Workspace --> NotebookLM
+	Notion --> NotebookLM
 ```
 
 ## Document Network
 
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [subdomains.md](./subdomains.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [../../ubiquitous-language.md](../../ubiquitous-language.md)
-- [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
+- [architecture-overview.md](./architecture-overview.md)
+- [integration-guidelines.md](./integration-guidelines.md)
+- [strategic-patterns.md](./strategic-patterns.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
+- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
 ````
 
-## File: docs/contexts/notion/ubiquitous-language.md
+## File: docs/decisions/0001-hexagonal-architecture.md
 ````markdown
-# Notion
+# 0001 Hexagonal Architecture
 
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+- Status: Accepted
+- Date: 2026-04-11
 
-## Canonical Terms
+## Context
 
-| Term | Meaning |
-|---|---|
-| KnowledgeArtifact | notion 主域擁有的知識內容總稱 |
-| KnowledgePage | 正典頁面型知識單位 |
-| Article | 經過撰寫與驗證流程的知識內容 |
-| Database | 結構化知識集合 |
-| DatabaseView | 對 Database 的投影與檢視配置 |
-| Taxonomy | 標籤、分類法、主題樹等語義組織結構 |
-| Relation | 內容對內容之間的正式關聯 |
-| CollaborationThread | 內容附著的協作討論邊界 |
-| Attachment | 綁定於知識內容的檔案或媒體 |
-| Template | 可重複套用的內容結構起點 |
-| Publication | 對外可見且可交付的內容狀態 |
-| VersionSnapshot | 某一時點的不可變內容快照 |
+Context7 驗證的 DDD / Hexagonal 參考指出，模組應保持高凝聚、低耦合，外部世界只依賴公開介面，領域核心必須與框架與基礎設施分離。若沒有清楚的邊界與端口，模組內部規則會被外層技術細節污染，跨主域整合也會快速失控。
 
-## Language Rules
+## Decision
 
-- 使用 KnowledgeArtifact、KnowledgePage、Article、Database 區分內容型別。
-- 使用 Taxonomy 表示分類法，不用 Tagging 功能泛稱整個語義結構。
-- 使用 Relation 表示正式內容關聯，不用 Link 混稱語義關係。
-- 使用 Publication 表示正式對外內容狀態，不用 Publish Action 取代整個交付語言。
-- 來自 notebooklm 的內容若未被 notion 吸收，不應直接稱為 KnowledgeArtifact。
+採用主域導向的 Hexagonal Architecture 作為全域架構基線。
 
-## Avoid
+- 每個主域內部遵守：driving adapters -> application orchestration -> domain core <- driven adapters。
+- 領域核心負責 invariants、值物件、聚合與領域規則。
+- 外部框架、IO、第三方服務、傳輸格式只能存在於邊界與 adapter。
+- 跨主域互動只能透過 published language、API 邊界或事件。
+- 公開 API 是跨主域依賴點，不是內部模組結構的鏡像暴露。
 
-| Avoid | Use Instead |
-|---|---|
-| Wiki | KnowledgePage 或 Article |
-| Table | Database 或 DatabaseView |
-| Tag System | Taxonomy |
-| Content Link | Relation |
+## Consequences
 
-## Naming Anti-Patterns
+正面影響：
 
-- 不用 Wiki 混指 KnowledgeArtifact、KnowledgePage、Article。
-- 不用 Tagging 混指 Taxonomy。
-- 不用 Link 混指 Relation。
-- 不用 Publish Action 混指 Publication 狀態與整個交付邊界。
+- 主域邊界更清楚，重構內部結構時不必連帶破壞外部整合。
+- 領域語言可維持穩定，不會被 UI、HTTP 或基礎設施術語污染。
+- 後續若需要分拆部署或演進為更獨立的服務，代價較低。
+
+代價與限制：
+
+- 需要更多 API 契約、Local DTO、ACL 與轉換層。
+- 需要更嚴格的命名與文件治理，不可直接偷渡內部模型。
+
+## Conflict Resolution
+
+- 若任何文件暗示 domain 直接依賴 framework / infrastructure，以本 ADR 為準並判定為衝突。
+- 若任何文件把 index 或共享檔案當成跨主域真實邊界，以本 ADR 為準並改回公開 API / published language。
+
+## Rejected Anti-Patterns
+
+- Domain 直接依賴 framework、SDK、transport、database implementation。
+- Application service 直接呼叫 driven adapter，而不透過 port。
+- Interface adapter 直接承載核心業務規則。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，名稱先對齊 KnowledgeArtifact、Taxonomy、Relation、Publication，再決定類別與檔名。
-- 奧卡姆剃刀：若一個正確名詞已能表達邊界，就不要再堆疊第二個近義抽象名稱。
-- 命名先保護內容語義，再考慮實作便利。
+- 生成程式碼時，先保留 interfaces -> application -> domain <- infrastructure 的向內依賴方向。
+- 奧卡姆剃刀：若較少的 abstraction 已能保護邊界，就不要額外新增 port、service、facade 或 adapter。
+- 只有外部依賴或語義污染明確存在時，才建立 port 與 adapter。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	Strategic["Strategic language"] --> Context["Notion language"]
-	Context --> API["Published language / API boundary"]
-	API --> Code["Generated code"]
+	Interfaces["Interfaces"] --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
+	Infrastructure -. implements .-> Ports["Ports"]
+	Application -. uses .-> Ports
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	Knowledge["KnowledgeArtifact"] --> Taxonomy["Taxonomy"]
-	Knowledge --> Relation["Relation"]
-	Relation --> Publication["Publication"]
-	Taxonomy --> Publication
+	Request["Request"] --> Interfaces["Driving adapter"]
+	Interfaces --> Application["Application orchestration"]
+	Application --> Domain["Domain decision"]
+	Domain --> Ports["Port contract"]
+	Ports --> Infrastructure["Driven adapter"]
 ```
 
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [subdomains.md](./subdomains.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [../../ubiquitous-language.md](../../ubiquitous-language.md)
-- [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
+- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
+- [0003-context-map.md](./0003-context-map.md)
+- [../architecture-overview.md](../architecture-overview.md)
+- [../integration-guidelines.md](../integration-guidelines.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)
 ````
 
-## File: docs/contexts/platform/ubiquitous-language.md
+## File: docs/decisions/0002-bounded-contexts.md
 ````markdown
-# Platform
+# 0002 Bounded Contexts
 
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+- Status: Accepted
+- Date: 2026-04-11
 
-## Canonical Terms
+## Context
 
-| Term | Meaning |
-|---|---|
-| Actor | 被平台識別與治理的主體 |
-| Identity | 證明 Actor 是誰的訊號集合 |
-| Account | Actor 的帳號生命週期聚合根 |
-| AccountProfile | 帳號附屬屬性與偏好 |
-| Organization | 多主體治理邊界 |
-| Tenant | 租戶隔離與 tenant-scoped 規則邊界 |
-| AccessDecision | 對 actor 當下能否執行某行為的判定 |
-| SecurityPolicy | 可版本化的安全規則集合 |
-| FeatureFlag | 功能暴露與 rollout 的治理開關 |
-| Entitlement | 綜合 subscription、policy、flag 之後的有效權益 |
-| BillingEvent | 財務計價或收費事實 |
-| Subscription | 方案、配額與續期狀態 |
-| Consent | 同意、偏好與資料使用授權紀錄 |
-| Secret | 受控憑證、token 或 integration credential |
-| NotificationRoute | 訊息投遞路由與偏好結果 |
-| AuditLog | 平台級永久稽核證據 |
+Context7 驗證的 bounded context 原則要求每個 context 只承載一組高凝聚、可自洽的語言與規則。如果沒有清楚主域與子域所有權，術語、責任與整合規則就會互相覆蓋，造成治理語言、內容語言與推理語言混雜。
 
-## Language Rules
+## Decision
 
-- 使用 Actor，不使用 User 作為平台通用詞。
-- 使用 Tenant 區分租戶隔離，不以 Organization 代替。
-- 使用 Entitlement 表示解算後權益，不用 Plan 或 Feature 混稱。
-- 使用 Consent 表示授權與同意，不用 Preference 混稱法律或治理語意。
-- 使用 Secret 表示受控憑證，不放入一般 Integration payload 語言。
+將系統的主域固定為四個主域：
 
-## Avoid
+- workspace：協作容器與工作區範疇
+- platform：治理、身份、權益與營運支撐
+- notion：正典知識內容生命週期
+- notebooklm：對話、來源處理與推理輸出
 
-| Avoid | Use Instead |
-|---|---|
-| User | Actor |
-| Team | Organization 或 Tenant |
-| Plan Access | Entitlement |
-| API Key Store | SecretManagement |
+每個主域底下都有自己的子域集合。文件中必須明確區分：
 
-## Naming Anti-Patterns
+- baseline subdomains：此架構基線中已確立的核心子域
+- recommended gap subdomains：依 Context7 推導出的合理缺口子域
 
-- 不用 User 混稱 Actor。
-- 不用 Team 混稱 Organization 或 Tenant。
-- 不用 Plan 混稱 Entitlement。
-- 不用 Preference 混稱 Consent。
+## Consequences
+
+正面影響：
+
+- 所有權清楚，可避免 platform、workspace、notion、notebooklm 互相吞邊界。
+- 上層戰略文件與主域文件可共享同一個 decomposition 模型。
+
+代價與限制：
+
+- 需要承認 gap subdomains 是 architecture-first 建議，而不是 repo-inspected 現況事實。
+- 未來若要改主域切分，必須連動更新 strategic docs、ADR 與 context docs。
+
+## Conflict Resolution
+
+- 若任何文件出現超過四個主域的平級切分，以本 ADR 為準並視為衝突。
+- 若任何文件把 recommended gap subdomains 寫成已驗證現況，以本 ADR 為準並改回 architecture-first 表述。
+
+## Rejected Anti-Patterns
+
+- 讓多個主域同時聲稱同一正典所有權。
+- 用 UI、部署或資料表分組來取代 bounded context 切分。
+- 把 gap subdomain 寫成已落地事實，而不標示為架構缺口。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，名稱先對齊 Actor、Tenant、Entitlement、Consent、Secret，再決定類型與檔名。
-- 奧卡姆剃刀：若一個治理名詞已足夠表達責任，就不要再堆疊第二個近義抽象名稱。
-- 命名先保護治理語言，再考慮 UI 或 API 顯示便利。
+- 生成程式碼時，先判定需求屬於哪個主域與子域，再決定檔案位置與依賴方向。
+- 奧卡姆剃刀：若既有 bounded context 已可吸收需求，就不要新增平級主域或語意重疊子域。
+- 所有權不清楚時，先修正語言與 context map，再寫程式碼。
 
 ## Dependency Direction Flow
 
 ```mermaid
-flowchart LR
-	Strategic["Strategic language"] --> Context["Platform language"]
-	Context --> API["Published language / API boundary"]
-	API --> Code["Generated code"]
+flowchart TD
+	MainDomain["Main Domain"] --> Subdomain["Subdomain"]
+	Subdomain --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	Actor["Actor"] --> Organization["Organization / Tenant"]
-	Organization --> Access["AccessDecision"]
-	Access --> Entitlement["Entitlement"]
-	Entitlement --> Notification["NotificationRoute / delivery"]
+	Need["New requirement"] --> Ownership["Identify owning bounded context"]
+	Ownership --> Language["Align ubiquitous language"]
+	Language --> API["Choose boundary / API"]
+	API --> Code["Generate code in owning context"]
 ```
 
 ## Document Network
 
 - [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [subdomains.md](./subdomains.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [../../ubiquitous-language.md](../../ubiquitous-language.md)
-- [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
+- [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md)
+- [0003-context-map.md](./0003-context-map.md)
+- [../bounded-contexts.md](../bounded-contexts.md)
+- [../subdomains.md](../subdomains.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)
 ````
 
-## File: docs/contexts/workspace/context-map.md
+## File: docs/decisions/0003-context-map.md
 ````markdown
-# Workspace
+# 0003 Context Map
 
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+- Status: Accepted
+- Date: 2026-04-11
 
-## Context Role
+## Context
 
-workspace 對其他主域提供工作區範疇。依 Context Mapper 的 context map 思維，workspace 應只暴露 scope、membership scope 與協作容器語言，而不暴露內部實作。
+Context Mapper 文件指出，context map 是 bounded contexts 與其關係的中心表示。若關係方向不清楚，則 published language、ACL、supplier/customer 責任無法正確定義，文件之間也容易同時出現互相衝突的整合模型。
 
-## Relationships
+## Decision
 
-| Related Domain | Relationship Type | Workspace Position | Published Language |
+在四個主域之間，只採用 directed upstream-downstream 關係作為主域級整合基線。
+
+主域關係如下：
+
+- platform -> workspace
+- platform -> notion
+- platform -> notebooklm
+- workspace -> notion
+- workspace -> notebooklm
+- notion -> notebooklm
+
+主域級不採用 Shared Kernel 或 Partnership。
+
+## Consequences
+
+正面影響：
+
+- 每個主域可以清楚知道誰是上游、誰是下游。
+- ACL、Published Language、Conformist 等模式才有明確適用位置。
+
+代價與限制：
+
+- 需要更多轉譯與 API 契約層，不能直接共享內部模型。
+- 若某些能力確實需要共用模型，必須先抽象成新的獨立 bounded context，而不是偷渡共享核心。
+
+## Conflict Resolution
+
+- 若任何文件同時宣稱兩個主域是 Partnership / Shared Kernel，又同時使用 ACL 或 Conformist，判定為衝突，以本 ADR 為準。
+- 若任何文件出現與上述方向相反的主域級關係，以本 ADR 為準。
+
+## Rejected Anti-Patterns
+
+- 把 directed upstream-downstream 與 symmetric relationship 混寫在同一主域關係。
+- 把 supplier / consumer 敘事寫反，造成上下游不明。
+- 直接共享內部模型來取代 published language。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先判定 upstream 與 downstream，再安排 API boundary、published language、ACL 或 Conformist。
+- 奧卡姆剃刀：若單一 published language 與單一 translation step 已足夠，就不要加第二條整合鏈。
+- 關係方向不清楚時，先停下修正文檔，不直接生成跨主域耦合程式碼。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream"] -->|PL / OHS| Downstream["Downstream"]
+	Downstream -->|ACL or Conformist| LocalModel["Local model"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream context"] -->|Published Language| Boundary["Downstream API client / boundary"]
+	Boundary --> Translation["ACL or local DTO"]
+	Translation --> Domain["Downstream domain"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
+- [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md)
+- [../context-map.md](../context-map.md)
+- [../integration-guidelines.md](../integration-guidelines.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)
+````
+
+## File: docs/decisions/0004-ubiquitous-language.md
+````markdown
+# 0004 Ubiquitous Language
+
+- Status: Accepted
+- Date: 2026-04-11
+
+## Context
+
+Context7 驗證的 DDD 參考指出，領域核心必須運作在自己清楚的 ubiquitous language 之上。若沒有共同語言，跨主域整合、ADR、戰略文件與子域文件會用不同詞指同一件事，或用同一詞指不同責任，進而造成長期衝突。
+
+## Decision
+
+建立兩層語言治理：
+
+- strategic ubiquitous language：定義四主域共用的戰略術語與整合術語
+- context-specific ubiquitous language：由各主域 context 文件定義更細的本地主域語言
+
+主域層的關鍵術語固定為：
+
+- platform：Actor、Tenant、Entitlement、Secret、Consent
+- workspace：Workspace、Membership、ShareScope、ActivityFeed、AuditTrail
+- notion：KnowledgeArtifact、Taxonomy、Relation、Publication
+- notebooklm：Notebook、Ingestion、Retrieval、Grounding、Synthesis、Evaluation
+
+## Consequences
+
+正面影響：
+
+- 戰略文件、主域文件與 ADR 可以共享同一套術語。
+- 語言衝突可以在文件層面先被攔住，而不是等到實作才暴露。
+
+代價與限制：
+
+- 命名自由度下降，需要持續維護 glossary。
+- 新概念若無法歸屬到既有語言，必須先做文件決策。
+
+## Conflict Resolution
+
+- 若戰略語言與主域語言衝突，先以更具邊界意義的主域語言為準，再回寫 strategic glossary。
+- 若兩個主域同時主張同一術語所有權，以 bounded contexts 與 context map 的所有權關係為準。
+
+## Rejected Anti-Patterns
+
+- 用同一個詞同時指涉治理、內容、推理三種不同責任。
+- 用舊產品術語覆蓋新的 bounded context 語言。
+- 讓實作便利性凌駕於 ubiquitous language 一致性。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先對齊 strategic term 與 context-specific term，再決定檔名、型別與 API 名稱。
+- 奧卡姆剃刀：若一個名詞已足夠表達邊界，就不要再堆疊第二個近義抽象詞。
+- 名稱若與現有語言衝突，先修正文檔與用語，再寫程式碼。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Strategic["Strategic language"] --> Context["Context language"]
+	Context --> Boundary["API / Published Language"]
+	Boundary --> Code["Generated code names"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Requirement["Requirement"] --> Term["Choose canonical term"]
+	Term --> Context["Map to owning context"]
+	Context --> Boundary["Expose through correct boundary"]
+	Boundary --> Code["Generate code"]
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
+- [../ubiquitous-language.md](../ubiquitous-language.md)
+- [../contexts/_template.md](../contexts/_template.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)
+````
+
+## File: docs/decisions/0005-anti-corruption-layer.md
+````markdown
+# 0005 Anti-Corruption Layer
+
+- Status: Accepted
+- Date: 2026-04-11
+
+## Context
+
+Context Mapper 明確指出 ACL 只能出現在 upstream-downstream 關係中，且只能由 downstream 採用；ACL 與 Conformist 互斥，且都不適用於 Shared Kernel 或 Partnership。若沒有這條規則，整合文件會同時宣稱保護語言與直接順從上游，造成自相矛盾。
+
+## Decision
+
+採用以下整合保護規則：
+
+- 主域級整合預設先使用 published language + local DTO。
+- 若上游語言會扭曲下游語言，下游必須使用 ACL。
+- 若上游語言與下游需求高度一致，下游才可選擇 Conformist。
+- ACL 與 Conformist 不能同時套用在同一關係。
+- 因本架構基線不採用主域級 Shared Kernel / Partnership，所以主域級不允許以對稱關係為由略過 ACL 判斷。
+
+## Consequences
+
+正面影響：
+
+- 下游主域可以保護自己的 ubiquitous language。
+- Integration guidelines 可以有單一、可判斷的模式選擇規則。
+
+代價與限制：
+
+- 需要維護更多轉譯器、Local DTO 與邊界測試。
+- 若每個整合都無條件使用 ACL，也會增加樣板成本，因此仍須做必要性判斷。
+
+## Conflict Resolution
+
+- 若任何文件把 ACL 寫成 upstream 的責任，判定為衝突，以本 ADR 為準。
+- 若任何文件同時要求 ACL 與 Conformist 套在同一整合，判定為衝突，以本 ADR 為準。
+- 若任何文件在對稱關係上使用 ACL / Conformist，判定為衝突，以本 ADR 為準。
+
+## Rejected Anti-Patterns
+
+- 把 ACL 當成 upstream 的工作。
+- 在同一關係同時宣稱 ACL 與 Conformist。
+- 用 Shared Kernel / Partnership 當理由跳過整合語義判斷。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認自己是 upstream 還是 downstream，再決定是否需要 ACL 或 Conformist。
+- 奧卡姆剃刀：若 published language 加 local DTO 已足夠，就不要額外新增第二層 ACL。
+- 只有在上游語言真的會污染本地語言時，才建立 ACL。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream"] -->|Published Language| DownstreamBoundary["Downstream boundary"]
+	DownstreamBoundary --> ACL["ACL if needed"]
+	DownstreamBoundary --> CF["Conformist if language matches"]
+	ACL --> LocalDomain["Local domain"]
+	CF --> LocalDomain
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	Upstream["Upstream context"] -->|PL / OHS| Boundary["Downstream API client"]
+	Boundary --> Decision["Need protection?"]
+	Decision -->|Yes| ACL["ACL"]
+	Decision -->|No| CF["Conformist"]
+	ACL --> Domain["Downstream domain"]
+	CF --> Domain
+```
+
+## Document Network
+
+- [README.md](./README.md)
+- [0003-context-map.md](./0003-context-map.md)
+- [../context-map.md](../context-map.md)
+- [../integration-guidelines.md](../integration-guidelines.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)
+````
+
+## File: docs/decisions/README.md
+````markdown
+# Decisions
+
+本目錄是 architecture-first 的決策日誌。依 ADR 參考模式，每份 ADR 至少說明 context、decision、consequences 與 conflict resolution，讓後續戰略文件可以引用相同決策來源。
+
+## Decision Log
+
+| ADR | Title | Status | Scope |
 |---|---|---|---|
-| platform | Upstream/Downstream | downstream | actor reference、organization scope、access decision、entitlement signal |
-| notion | Upstream/Downstream | upstream | workspaceId、membership scope、share scope |
-| notebooklm | Upstream/Downstream | upstream | workspaceId、membership scope、share scope |
+| [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md) | Hexagonal Architecture | Accepted | 全域架構與邊界分層 |
+| [0002-bounded-contexts.md](./0002-bounded-contexts.md) | Bounded Contexts | Accepted | 四主域與子域切分 |
+| [0003-context-map.md](./0003-context-map.md) | Context Map | Accepted | 主域間依賴方向 |
+| [0004-ubiquitous-language.md](./0004-ubiquitous-language.md) | Ubiquitous Language | Accepted | 戰略術語治理 |
+| [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md) | Anti-Corruption Layer | Accepted | 邊界整合保護規則 |
 
-## Mapping Rules
+## How To Use This Directory
 
-- workspace 消費 platform 的治理結果，但不重建 identity、policy 或 entitlement 模型。
-- notion 與 notebooklm 可以在 workspace scope 內運作，但不反向定義 workspace 生命週期。
-- sharing 與 membership 是 workspace 對內容與對話主域輸出的核心 published language。
-- 與其他主域的整合優先使用 API 邊界或事件，而不是直接模型滲透。
+- 先讀標題以取得整體脈絡。
+- 若某份戰略文件與 ADR 衝突，以 ADR 的 decision 與 conflict resolution 為準。
+- 若未來新增新的架構決策，應沿用同一結構補充，而不是覆寫舊決策歷史。
 
-## Dependency Direction
+## Anti-Pattern Coverage
 
-- workspace 對 platform 屬 downstream；對 notion 與 notebooklm 屬 upstream 的 scope supplier。
-- workspace 對外輸出 workspaceId、membership scope、share scope，而不是內部 aggregate 或投影實作。
-- downstream 若需保護自己的語言，ACL 由 downstream 自行實作，不由 workspace 代做。
-
-## Anti-Patterns
-
-- 把 workspace 與 notion/notebooklm 寫成對稱共用核心，同時又要求 ACL。
-- 把 sharing scope 直接當成平台 access decision 本身。
-- 讓其他主域直接操作 workspace 內部 membership 或 lifecycle 模型。
+- 0001 禁止把 framework / infrastructure 滲入核心。
+- 0002 禁止主域與子域所有權漂移。
+- 0003 禁止上下游方向與對稱關係混寫。
+- 0004 禁止語言污染與同詞多義。
+- 0005 禁止錯置 ACL / Conformist 的責任位置。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先維持 workspace 對 platform 的 downstream 位置，以及對 notion / notebooklm 的 upstream scope supplier 位置。
-- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要再建立第二個翻譯鏈。
-- workspace 對外提供的是 scope，不是內部 aggregate、投影或 storage 模型。
+- 生成程式碼前，先由 ADR 決定邊界、語言與整合責任，再下手實作。
+- 奧卡姆剃刀：若既有 ADR 已能解決當前判斷，就不要再堆疊新的臨時規則文件。
+- 新規則若會改變邊界，先補 ADR，再補戰略文件與 context docs。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	Upstream["platform upstream"] -->|Published Language| Boundary["workspace boundary"]
-	Boundary --> Translation["Local DTO / ACL if needed"]
-	Translation --> App["Application"]
-	App --> Domain["Domain"]
-	Domain --> PL["Published workspace scope"]
+	ADR["ADR"] --> Strategy["Strategic docs"]
+	Strategy --> Context["Context docs"]
+	Context --> Code["Generated code"]
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	Platform["platform"] -->|actor / access / entitlement| Boundary["workspace API boundary"]
-	Boundary --> ACL["ACL or local DTO"]
-	ACL --> Domain["Workspace domain"]
-	Domain --> Scope["workspaceId / membership scope / share scope"]
-	Scope --> Notion["notion"]
-	Scope --> NotebookLM["notebooklm"]
+	Question["Architecture question"] --> ADR["Check ADR"]
+	ADR --> Strategy["Align strategic docs"]
+	Strategy --> Context["Align context docs"]
+	Context --> Code["Generate boundary-safe code"]
 ```
 
 ## Document Network
 
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [subdomains.md](./subdomains.md)
-- [../../context-map.md](../../context-map.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../strategic-patterns.md](../../strategic-patterns.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
+- [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md)
+- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
+- [0003-context-map.md](./0003-context-map.md)
+- [0004-ubiquitous-language.md](./0004-ubiquitous-language.md)
+- [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../project-delivery-milestones.md](../project-delivery-milestones.md)
+- [../README.md](../README.md)
+
+## Constraints
+
+- 本目錄在本次任務限制下，只依 Context7 架構參考重建。
+- 本目錄不是對既有 repo 內容做過語意比對後的歷史還原。
 ````
 
-## File: docs/contexts/workspace/ubiquitous-language.md
+## File: docs/integration-guidelines.md
 ````markdown
-# Workspace
+# Integration Guidelines
 
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+本文件在本次任務限制下，僅依 Context7 驗證的 published language、ACL、Conformist 與 hexagonal boundary 原則重建，不主張反映現況實作。
 
-## Canonical Terms
+## Boundary Contract
 
-| Term | Meaning |
+跨主域整合只能使用：
+
+- published language
+- public API boundary
+- domain / integration events
+- local DTO
+- downstream ACL 或 downstream Conformist
+
+## Pattern Selection Rules
+
+| Situation | Pattern |
 |---|---|
-| Workspace | 協作容器與主要範疇邊界 |
-| WorkspaceId | 工作區唯一識別子與範疇錨點 |
-| WorkspaceLifecycle | 工作區建立、封存、還原、移轉等生命週期狀態 |
-| Membership | 工作區內的參與關係 |
-| WorkspaceRole | 工作區範疇下的角色語意 |
-| ShareScope | 共享暴露範圍 |
-| ShareLink | 對外共享的可解析入口 |
-| PresenceSession | 即時在線與共同編輯存在感訊號 |
-| ActivityFeed | 面向使用者的活動流投影 |
-| AuditTrail | 不可否認的工作區操作追蹤 |
-| Schedule | 工作區內的時間安排與提醒意圖 |
-| WorkflowExecution | 某個工作區流程的一次執行實例 |
+| 下游與上游語義高度一致，且不會扭曲本地語言 | Conformist |
+| 上游語義會污染下游本地語言 | Anti-Corruption Layer |
+| 只是跨主域資料交換 | Published Language + Local DTO |
 
-## Language Rules
+## Hard Rules
 
-- 使用 Workspace，不使用 Project 或 Space 作為同義詞。
-- 使用 Membership，不用 User 表示工作區參與關係。
-- 使用 ActivityFeed 與 AuditTrail 區分投影與證據。
-- 使用 ShareScope 表示共享邊界，不用 Permission 泛指共享。
-- 使用 PresenceSession 表示即時存在感，不把它隱藏在 UI 概念裡。
+- ACL 與 Conformist 只能由 downstream 選擇。
+- ACL 與 Conformist 互斥。
+- 不可直接傳遞上游 entity / aggregate 作為下游正典模型。
+- 不可把 shared technical package 誤當成 strategic shared kernel。
+- 若需要共同語義，先定 published language，再定 DTO，再評估是否需要 ACL。
 
-## Avoid
+## Domain-Specific Guidance
 
-| Avoid | Use Instead |
-|---|---|
-| User | Membership 或 Actor reference |
-| Timeline | ActivityFeed 或 Schedule |
-| Share Permission | ShareScope |
-| Workspace Log | ActivityFeed 或 AuditTrail |
+- workspace 消費 platform 時，優先保護自己的 membership、sharing、presence 語言。
+- notion 消費 platform 或 workspace 時，優先保護自己的 knowledge artifact 與 taxonomy 語言。
+- notebooklm 消費 notion 時，優先保護自己的 retrieval、grounding、synthesis 語言。
 
-## Naming Anti-Patterns
+## Integration Checklist
 
-- 不用 User 混指 Membership 與 Actor reference。
-- 不用 Timeline 混指 ActivityFeed 與 Schedule。
-- 不用 Permission 混指 ShareScope。
-- 不用 Log 混指 ActivityFeed 與 AuditTrail。
+1. 先確認 upstream / downstream 方向。
+2. 先列出 published language。
+3. 判斷是否語義一致。
+4. 一致則考慮 conformist，不一致則建立 ACL。
+5. 避免把 DTO、entity、policy、UI 狀態混成同一層。
+
+## Integration Anti-Patterns
+
+- 直接傳遞上游 aggregate、entity、repository 給下游使用。
+- 讓 downstream 省略 published language 與 local DTO，直接貼靠上游內部模型。
+- 把 ACL 當成預設樣板卻不判斷是否真的有語義污染。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，名稱先對齊 Workspace、Membership、ShareScope、ActivityFeed、AuditTrail，再決定類型與檔名。
-- 奧卡姆剃刀：若一個工作區名詞已足夠表達責任，就不要再堆疊第二個近義抽象名稱。
-- 命名先保護 scope 語言，再考慮 UI 或 API 顯示便利。
+- 生成程式碼時，先決定 upstream、downstream、published language，再決定 DTO、ACL 或 Conformist。
+- 奧卡姆剃刀：若 published language 加 local DTO 已足夠，就不要額外建立雙重 mapper、雙重 ACL 或鏡像 aggregate。
+- 只有在上游語義真的會污染本地語言時，才建立 ACL。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	Strategic["Strategic language"] --> Context["Workspace language"]
-	Context --> API["Published language / API boundary"]
-	API --> Code["Generated code"]
+	Upstream["Upstream"] -->|Published Language| Boundary["Downstream boundary"]
+	Boundary --> Translation["Local DTO / ACL / Conformist"]
+	Translation --> Application["Application"]
+	Application --> Domain["Domain"]
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	Workspace["Workspace"] --> Membership["Membership"]
-	Membership --> ShareScope["ShareScope"]
-	ShareScope --> ActivityFeed["ActivityFeed"]
-	ActivityFeed --> AuditTrail["AuditTrail"]
+	Need["Cross-context need"] --> Direction["Identify upstream/downstream"]
+	Direction --> PL["Define published language"]
+	PL --> Decision["Need protection?"]
+	Decision -->|Yes| ACL["ACL"]
+	Decision -->|No| DTO["Local DTO / Conformist"]
+	ACL --> Domain["Downstream domain"]
+	DTO --> Domain
 ```
 
 ## Document Network
 
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [subdomains.md](./subdomains.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [../../ubiquitous-language.md](../../ubiquitous-language.md)
-- [../../decisions/0004-ubiquitous-language.md](../../decisions/0004-ubiquitous-language.md)
+- [context-map.md](./context-map.md)
+- [strategic-patterns.md](./strategic-patterns.md)
+- [architecture-overview.md](./architecture-overview.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
+- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
+- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
+
+## Conflict Resolution
+
+- 若某整合指南與 [context-map.md](./context-map.md) 的方向衝突，以 context map 為準。
+- 若某整合指南與 [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md) 衝突，以 ADR 為準。
 ````
 
 ## File: docs/project-delivery-milestones.md
@@ -62429,6 +65531,91 @@ flowchart LR
 - 本里程碑文件是 architecture-first 的交付路線，不代表任何既有 repo 已依此順序演進。
 - 里程碑是交付順序指引，不是 waterfall 式一次性階段牆；必要時可以小步迭代，但不可跳過核心決策產物。
 - 若需求很小，可以在同一次交付內完成多個相鄰里程碑，但仍需保留對應產物。
+````
+
+## File: docs/strategic-patterns.md
+````markdown
+# Strategic Patterns
+
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD strategic design 與 context map 原則重建，不主張反映現況實作。
+
+## Selected Patterns
+
+| Pattern | Usage In This Architecture |
+|---|---|
+| Bounded Context | 四個主域與其子域切分的核心模式 |
+| Upstream-Downstream | 主域級關係的唯一基線模式 |
+| Published Language | 所有跨主域交換的共同語言 |
+| Anti-Corruption Layer | downstream 語言需要保護時使用 |
+| Conformist | downstream 語言與 upstream 高度一致時的例外策略 |
+
+## Patterns Not Used At Main-Domain Level
+
+| Pattern | Why Not Used |
+|---|---|
+| Shared Kernel | 主域級共用模型會快速放大耦合與責任混淆 |
+| Partnership | 主域級互相綁定會破壞 supplier / consumer 的清楚方向 |
+
+## Recommended Strategic Posture
+
+- platform 作為治理 supplier。
+- workspace 作為協作 scope supplier。
+- notion 作為知識內容 supplier。
+- notebooklm 作為推理輸出與引用整合者。
+
+## Pattern Conflicts Avoided
+
+- 不把 ACL 與 Conformist 混用。
+- 不把 Shared Kernel 與 directed relationship 混用。
+- 不把 technical shared libraries 混寫成 strategic shared kernel。
+
+## Strategic Anti-Patterns
+
+- 以 shared technical package 取代真正的 bounded context 關係設計。
+- 以對稱關係語言掩蓋其實存在的上下游依賴。
+- 以實作方便為由，直接共享內部模型而不定 published language。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先選對戰略模式，再選對技術形狀。
+- 奧卡姆剃刀：優先使用最少但足夠的戰略模式，不要同時堆疊多個彼此衝突的模式。
+- 若一段整合沒有真正的語義污染，就不要硬加 ACL。
+
+## Dependency Direction Flow
+
+```mermaid
+flowchart LR
+	BoundedContext["Bounded Context"] --> UpstreamDownstream["Upstream / Downstream"]
+	UpstreamDownstream --> PublishedLanguage["Published Language"]
+	PublishedLanguage --> ACLCF["ACL or Conformist"]
+```
+
+## Correct Interaction Flow
+
+```mermaid
+flowchart LR
+	PatternChoice["Choose pattern"] --> Relationship["Set relationship direction"]
+	Relationship --> Language["Define published language"]
+	Language --> Protection["Apply ACL or Conformist if needed"]
+	Protection --> Code["Generate code"]
+```
+
+## Document Network
+
+- [architecture-overview.md](./architecture-overview.md)
+- [context-map.md](./context-map.md)
+- [integration-guidelines.md](./integration-guidelines.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
+- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
+
+## Decision References
+
+- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
+- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
+- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
+- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
 ````
 
 ## File: modules/notebooklm/api/factories.ts
@@ -62697,102 +65884,202 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notebooklm/subdomains/source/interfaces/_actions/source-file.actions.ts
+## File: modules/notebooklm/subdomains/source/api/factories.ts
 ````typescript
-"use server";
+import { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
+import { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
+import { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
+import { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
+import { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
+import { waitForParsedDocument as _waitForParsedDocument } from "../infrastructure/firebase/FirebaseDocumentStatusAdapter";
 
-import { deleteDoc, doc, getFirestore, serverTimestamp, updateDoc } from "firebase/firestore";
+export function makeSourceFileAdapter() {
+  return new FirebaseSourceFileAdapter();
+}
 
-import { firebaseClientApp } from "@integration-firebase/client";
+export function makeRagDocumentAdapter() {
+  return new FirebaseRagDocumentAdapter();
+}
+
+export function makeSourceDocumentCommandAdapter() {
+  return new FirebaseSourceDocumentCommandAdapter();
+}
+
+export function makeParsedDocumentAdapter() {
+  return new FirebaseParsedDocumentAdapter();
+}
+
+export function makeKnowledgePageGateway() {
+  return new NotionKnowledgePageGatewayAdapter();
+}
+
+export function waitForParsedDocument(
+  accountId: string,
+  docId: string,
+): Promise<{ pageCount: number; jsonGcsUri: string }> {
+  return _waitForParsedDocument(accountId, docId);
+}
+````
+
+## File: modules/notebooklm/subdomains/source/api/index.ts
+````typescript
+/**
+ * Public API boundary for the source subdomain.
+ *
+ * Cross-module consumers MUST import through this entry point.
+ * Internal consumers within the subdomain import from their own layer.
+ */
+
+// ---------------------------------------------------------------------------
+// Domain entity types
+// ---------------------------------------------------------------------------
+
+export type {
+  SourceFile,
+  SourceFileStatus,
+  SourceFileClassification,
+} from "../domain/entities/SourceFile";
+
+export type {
+  SourceFileVersion,
+  SourceFileVersionStatus,
+} from "../domain/entities/SourceFileVersion";
+
+export type {
+  RagDocumentRecord,
+  RagDocumentStatus,
+} from "../domain/entities/RagDocument";
+
+export type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../domain/entities/WikiLibrary";
+
+// ---------------------------------------------------------------------------
+// Wiki library use cases (lazy singleton — no module-scope side effects)
+// ---------------------------------------------------------------------------
+
+import type { IWikiLibraryRepository } from "../domain/repositories/IWikiLibraryRepository";
+import { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
+import {
+  listWikiLibraries as _listWikiLibraries,
+  createWikiLibrary as _createWikiLibrary,
+  addWikiLibraryField as _addWikiLibraryField,
+  createWikiLibraryRow as _createWikiLibraryRow,
+  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
+} from "../application/use-cases/wiki-library.use-cases";
 
 import type {
-  UploadCompleteFileInputDto,
-  UploadCompleteFileOutputDto,
-  UploadInitFileInputDto,
-  UploadInitFileOutputDto,
-} from "../../application/dto/source-file.dto";
-import type {
-  RegisterUploadedRagDocumentInputDto,
-  RegisterUploadedRagDocumentResult,
-} from "../../application/dto/rag-document.dto";
-import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../../api/factories";
-import { UploadInitSourceFileUseCase } from "../../application/use-cases/upload-init-source-file.use-case";
-import { UploadCompleteSourceFileUseCase } from "../../application/use-cases/upload-complete-source-file.use-case";
-import { RegisterUploadedRagDocumentUseCase } from "../../application/use-cases/register-rag-document.use-case";
-import type { SourceFileCommandResult } from "../contracts/source-command-result";
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../domain/entities/WikiLibrary";
 
-function createCommandId(idempotencyKey?: string): string {
-  const normalized = idempotencyKey?.trim();
-  return normalized || `source-file-${crypto.randomUUID()}`;
+export type { WikiLibrarySnapshot } from "../application/use-cases/wiki-library.use-cases";
+
+let _libraryRepo: IWikiLibraryRepository | null = null;
+
+function getLibraryRepo(): IWikiLibraryRepository {
+  if (!_libraryRepo) _libraryRepo = new FirebaseWikiLibraryAdapter();
+  return _libraryRepo;
 }
 
-export async function uploadInitFile(
-  input: UploadInitFileInputDto,
-): Promise<SourceFileCommandResult<UploadInitFileOutputDto>> {
-  const commandId = createCommandId(input.idempotencyKey);
-  const useCase = new UploadInitSourceFileUseCase(makeSourceFileAdapter());
-  const result = await useCase.execute(input);
-  return { ...result, commandId };
+export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
+  return _listWikiLibraries(accountId, workspaceId, getLibraryRepo());
 }
 
-export async function uploadCompleteFile(
-  input: UploadCompleteFileInputDto,
-): Promise<SourceFileCommandResult<UploadCompleteFileOutputDto>> {
-  const commandId = createCommandId(input.versionId);
-  const fileAdapter = makeSourceFileAdapter();
-  const useCase = new UploadCompleteSourceFileUseCase(fileAdapter, makeRagDocumentAdapter());
-  const result = await useCase.execute(input);
-  return { ...result, commandId };
+export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
+  return _createWikiLibrary(input, getLibraryRepo());
 }
 
-export async function registerUploadedRagDocument(
-  input: RegisterUploadedRagDocumentInputDto,
-): Promise<RegisterUploadedRagDocumentResult> {
-  const commandId = createCommandId(input.storagePath);
-  const useCase = new RegisterUploadedRagDocumentUseCase(makeRagDocumentAdapter());
-  const result = await useCase.execute(input);
-  return { ...result, commandId };
+export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
+  return _addWikiLibraryField(input, getLibraryRepo());
 }
 
-export async function deleteSourceDocument(
-  accountId: string,
-  documentId: string,
-): Promise<SourceFileCommandResult<{ documentId: string }>> {
-  const commandId = `source-delete-${crypto.randomUUID()}`;
-  if (!accountId.trim() || !documentId.trim()) {
-    return { ok: false, error: { code: "FILE_INVALID_INPUT", message: "accountId and documentId are required." }, commandId };
-  }
-  try {
-    const db = getFirestore(firebaseClientApp);
-    await deleteDoc(doc(db, "accounts", accountId, "documents", documentId));
-    return { ok: true, data: { documentId }, commandId };
-  } catch (err) {
-    return { ok: false, error: { code: "FILE_DELETE_FAILED", message: err instanceof Error ? err.message : "Delete failed." }, commandId };
-  }
+export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
+  return _createWikiLibraryRow(input, getLibraryRepo());
 }
 
-export async function renameSourceDocument(
-  accountId: string,
-  documentId: string,
-  newName: string,
-): Promise<SourceFileCommandResult<{ documentId: string }>> {
-  const commandId = `source-rename-${crypto.randomUUID()}`;
-  if (!accountId.trim() || !documentId.trim() || !newName.trim()) {
-    return { ok: false, error: { code: "FILE_INVALID_INPUT", message: "accountId, documentId and newName are required." }, commandId };
-  }
-  try {
-    const db = getFirestore(firebaseClientApp);
-    await updateDoc(doc(db, "accounts", accountId, "documents", documentId), {
-      title: newName,
-      "source.filename": newName,
-      "metadata.filename": newName,
-      updatedAt: serverTimestamp(),
-    });
-    return { ok: true, data: { documentId }, commandId };
-  } catch (err) {
-    return { ok: false, error: { code: "FILE_RENAME_FAILED", message: err instanceof Error ? err.message : "Rename failed." }, commandId };
-  }
+export function getWikiLibrarySnapshot(accountId: string, libraryId: string): ReturnType<typeof _getWikiLibrarySnapshot> {
+  return _getWikiLibrarySnapshot(accountId, libraryId, getLibraryRepo());
 }
+
+// ---------------------------------------------------------------------------
+// Live document DTOs
+// ---------------------------------------------------------------------------
+
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../application/dto/source-live-document.dto";
+export {
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../application/dto/source-live-document.dto";
+
+// ---------------------------------------------------------------------------
+// Hooks
+// ---------------------------------------------------------------------------
+
+export type {
+  UseSourceDocumentsSnapshotResult,
+} from "../interfaces/hooks/useSourceDocumentsSnapshot";
+export {
+  useSourceDocumentsSnapshot,
+} from "../interfaces/hooks/useSourceDocumentsSnapshot";
+
+// ---------------------------------------------------------------------------
+// Queries
+// ---------------------------------------------------------------------------
+
+export { getWorkspaceFiles, getWorkspaceRagDocuments } from "../interfaces/queries/source-file.queries";
+
+// ---------------------------------------------------------------------------
+// Server actions
+// ---------------------------------------------------------------------------
+
+export {
+  uploadInitFile,
+  uploadCompleteFile,
+  registerUploadedRagDocument,
+  deleteSourceDocument,
+  renameSourceDocument,
+} from "../interfaces/_actions/source-file.actions";
+
+export { createKnowledgeDraftFromSourceDocument } from "../interfaces/_actions/source-processing.actions";
+
+// ---------------------------------------------------------------------------
+// UI components
+// ---------------------------------------------------------------------------
+
+export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
+export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
+export { LibrariesView } from "../interfaces/components/LibrariesView";
+export { LibraryTableView } from "../interfaces/components/LibraryTableView";
+export { FileProcessingDialog } from "../interfaces/components/FileProcessingDialog";
+
+// ---------------------------------------------------------------------------
+// Infrastructure (for direct injection in server-side wiring)
+// ---------------------------------------------------------------------------
+
+export { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
+export { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
+export { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
+export { InMemoryWikiLibraryAdapter } from "../infrastructure/memory/InMemoryWikiLibraryAdapter";
+export { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
+export { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
+export { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
 ````
 
 ## File: modules/notebooklm/subdomains/source/interfaces/components/LibrariesView.tsx
@@ -66453,6 +69740,23 @@ export function Providers({ children }: { children: ReactNode }) {
 export {};
 ````
 
+## File: modules/platform/subdomains/access-control/README.md
+````markdown
+# Access Control
+
+Access control policies and permission resolution.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/account-profile/application/dto/account-profile.dto.ts
 ````typescript
 /**
@@ -66558,6 +69862,23 @@ export { getProfile, subscribeToProfile } from "./queries/account-profile.querie
 export { updateProfile } from "./_actions/account-profile.actions";
 ````
 
+## File: modules/platform/subdomains/account-profile/README.md
+````markdown
+# Account Profile
+
+User profile preferences and settings.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/account/infrastructure/account-service.ts
 ````typescript
 /**
@@ -66647,6 +69968,38 @@ export { FirebaseAccountQueryRepository };
 export { accountService, createClientAccountUseCases, FirebaseAccountQueryRepository } from "./account-service";
 ````
 
+## File: modules/platform/subdomains/account/README.md
+````markdown
+# Account
+
+User account lifecycle management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/analytics/api/index.ts
 ````typescript
 /**
@@ -66654,6 +70007,23 @@ export { accountService, createClientAccountUseCases, FirebaseAccountQueryReposi
  * Cross-module consumers must import through this entry point.
  */
 export {};
+````
+
+## File: modules/platform/subdomains/analytics/README.md
+````markdown
+# Analytics
+
+Platform-wide analytics and metrics.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/audit-log/api/index.ts
@@ -69070,6 +72440,53 @@ export function createWorkspaceSessionContext(
 }
 ````
 
+## File: modules/workspace/interfaces/web/navigation/workspace-nav-items.ts
+````typescript
+/**
+ * workspace-nav-items.ts
+ *
+ * Catalog of workspace sidebar tab entries owned by the workspace BC.
+ * Consumers read this catalog; they do not define it.
+ */
+
+export interface WorkspaceNavItem {
+  id: string;
+  tabKey: string;
+  fallbackLabel: string;
+}
+
+export const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = [
+  { id: "home", tabKey: "Overview", fallbackLabel: "Home" },
+  { id: "daily", tabKey: "Daily", fallbackLabel: "Daily" },
+  { id: "schedule", tabKey: "Schedule", fallbackLabel: "Schedule" },
+  { id: "audit", tabKey: "Audit", fallbackLabel: "Audit" },
+  { id: "tasks", tabKey: "Tasks", fallbackLabel: "任務" },
+  { id: "task-qa", tabKey: "TaskQa", fallbackLabel: "質檢" },
+  { id: "task-acceptance", tabKey: "TaskAcceptance", fallbackLabel: "驗收" },
+  { id: "task-issues", tabKey: "TaskIssues", fallbackLabel: "問題單" },
+  { id: "task-finance", tabKey: "TaskFinance", fallbackLabel: "財務" },
+  { id: "feed", tabKey: "Feed", fallbackLabel: "Feed" },
+  { id: "files", tabKey: "Files", fallbackLabel: "Files" },
+  { id: "members", tabKey: "Members", fallbackLabel: "Members" },
+];
+
+const VALID_WORKSPACE_ORDER_IDS = new Set(WORKSPACE_NAV_ITEMS.map((item) => item.id));
+const DEFAULT_WORKSPACE_ORDER = WORKSPACE_NAV_ITEMS.map((item) => item.id);
+
+export function normalizeWorkspaceOrder(order: unknown): string[] {
+  const fallback = DEFAULT_WORKSPACE_ORDER;
+  if (!Array.isArray(order)) return fallback;
+  const validOrder = order
+    .filter((id): id is string => typeof id === "string")
+    .filter((id) => VALID_WORKSPACE_ORDER_IDS.has(id));
+  const deduped = Array.from(new Set(validOrder));
+  for (const id of fallback) {
+    if (!deduped.includes(id)) deduped.push(id);
+  }
+  return deduped;
+}
+````
+
 ## File: modules/workspace/subdomains/audit/interfaces/queries/audit.queries.ts
 ````typescript
 import type { AuditLogEntity } from "../../application/dto/audit.dto";
@@ -69329,6 +72746,38 @@ export class ListAccountDemandsUseCase {
     return this.repo.listByAccount(accountId);
   }
 }
+````
+
+## File: modules/workspace/subdomains/scheduling/README.md
+````markdown
+# Scheduling
+
+Scheduling and demand management within workspaces.
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/application/process-managers/knowledge-to-workflow-materializer.ts
@@ -70305,224 +73754,6 @@ export function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
 }
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx
-````typescript
-"use client";
-
-/**
- * @module workspace-flow/interfaces/components
- * @file WorkspaceFlowTab.tsx
- * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
- *
- * MVP interactive surface:
- * - Create Task dialog
- * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
- * - Per-task expandable Issue sub-list with transition buttons
- * - Open Issue dialog
- * - Create Invoice button + Invoice lifecycle transitions
- *
- * @author workspace-flow
- * @since 2026-03-27
- */
-
-import { useCallback, useEffect, useState } from "react";
-
-import { Plus } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Separator } from "@ui-shadcn/ui/separator";
-
-import type { Invoice } from "../../application/dto/workflow.dto";
-import type { Task } from "../../application/dto/workflow.dto";
-import { wfCreateInvoice } from "../_actions/workspace-flow.actions";
-import {
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowTasks,
-} from "../queries/workspace-flow.queries";
-import { CreateTaskDialog } from "./CreateTaskDialog";
-import { InvoiceRow } from "./InvoiceRow";
-import { TaskRow } from "./TaskRow";
-
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-type FlowSection = "tasks" | "invoices";
-
-interface WorkspaceFlowTabProps {
-  readonly workspaceId: string;
-  readonly currentUserId?: string;
-}
-
-// ── Main Component ─────────────────────────────────────────────────────────────
-
-export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: WorkspaceFlowTabProps) {
-  const [section, setSection] = useState<FlowSection>("tasks");
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [createTaskOpen, setCreateTaskOpen] = useState(false);
-  const [creatingInvoice, setCreatingInvoice] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const loadData = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const [nextTasks, nextInvoices] = await Promise.all([
-        getWorkspaceFlowTasks(workspaceId),
-        getWorkspaceFlowInvoices(workspaceId),
-      ]);
-      setTasks(nextTasks);
-      setInvoices(nextInvoices);
-      setLoadState("loaded");
-    } catch (err) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceFlowTab] Failed to load flow data:", err);
-      }
-      setLoadState("error");
-    }
-  }, [workspaceId]);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
-
-  async function handleCreateInvoice() {
-    setCreatingInvoice(true);
-    setActionError(null);
-    try {
-      const result = await wfCreateInvoice(workspaceId);
-      if (!result.success) { setActionError(result.error.message ?? "建立發票失敗"); }
-      else { await loadData(); }
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "建立發票失敗");
-    } finally {
-      setCreatingInvoice(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* ── Section switcher ─────────────────────────────────────────── */}
-      <div className="flex gap-2">
-        <Button
-          variant={section === "tasks" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("tasks")}
-        >
-          任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
-        </Button>
-        <Button
-          variant={section === "invoices" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("invoices")}
-        >
-          發票{loadState === "loaded" ? ` (${invoices.length})` : ""}
-        </Button>
-      </div>
-
-      {/* ── Loading state ─────────────────────────────────────────────── */}
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">載入中…</CardContent>
-        </Card>
-      )}
-
-      {/* ── Error state ───────────────────────────────────────────────── */}
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入資料，請重新整理頁面後再試。
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Tasks section ─────────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "tasks" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>任務</CardTitle>
-                <CardDescription>工作區所有任務與其進度狀態。</CardDescription>
-              </div>
-              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                建立任務
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {tasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前尚無任務，點擊右上角「建立任務」開始。</p>
-            ) : (
-              tasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  currentUserId={currentUserId}
-                  onTransitioned={loadData}
-                />
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Invoices section ──────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "invoices" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>發票</CardTitle>
-                <CardDescription>工作區帳務請款紀錄。</CardDescription>
-              </div>
-              <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                {creatingInvoice ? "建立中…" : "建立發票"}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {actionError && (
-              <p role="alert" className="text-sm text-destructive">{actionError}</p>
-            )}
-            {invoices.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前尚無發票紀錄，點擊右上角「建立發票」開始。</p>
-            ) : (
-              <>
-                <Separator />
-                {invoices.map((invoice) => (
-                  <InvoiceRow
-                    key={invoice.id}
-                    invoice={invoice}
-                    onTransitioned={loadData}
-                  />
-                ))}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Create Task Dialog ─────────────────────────────────────────── */}
-      <CreateTaskDialog
-        open={createTaskOpen}
-        workspaceId={workspaceId}
-        onClose={() => setCreateTaskOpen(false)}
-        onCreated={loadData}
-      />
-    </div>
-  );
-}
-````
-
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/contracts/workspace-flow.contract.ts
 ````typescript
 /**
@@ -70954,354 +74185,82 @@ applyTo: 'docs/**/*.md'
 Tags: #use skill context7 #use skill xuanwu-app-skill
 ````
 
-## File: app/(shell)/knowledge/page.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import { buildWikiContentTree } from "@/modules/workspace/api";
-import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-const QUICK_ACCESS = [
-  {
-    href: "/knowledge/pages?scope=account",
-    title: "Pages",
-    description: "顯式 account summary 的頁面樹檢視與維運工具；日常建立與整理請從工作區進入。",
-    icon: FileText,
-  },
-  {
-    href: "/source/libraries",
-    title: "Libraries",
-    description: "維持 schema / table 型知識資產。",
-    icon: Database,
-  },
-  {
-    href: "/knowledge-base/articles",
-    title: "Articles",
-    description: "組織知識庫 SOP 文章、驗證管治與分類樹。",
-    icon: FolderKanban,
-  },
-  {
-    href: "/knowledge-database/databases",
-    title: "Databases",
-    description: "結構化資料庫、多視圖（表格、看板、日曆）管理。",
-    icon: Brain,
-  },
-  {
-    href: "/notebook/rag-query",
-    title: "Ask / Cite",
-    description: "查詢、引用與回答檢視。",
-    icon: MessageSquare,
-  },
-] as const;
-
-export default function KnowledgeHubPage() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const [contentTree, setContentTree] = useState<WikiAccountContentNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const accountSeeds = useMemo<WikiAccountSeed[]>(() => {
-    const personalUser = authState.user;
-    const activeAccountId = appState.activeAccount?.id;
-    const seeds: WikiAccountSeed[] = [];
-
-    if (personalUser) {
-      seeds.push({
-        accountId: personalUser.id,
-        accountName: personalUser.name,
-        accountType: "personal",
-        isActive: activeAccountId === personalUser.id,
-      });
-    }
-
-    const organizations = Object.values(appState.accounts);
-    for (const organization of organizations) {
-      seeds.push({
-        accountId: organization.id,
-        accountName: organization.name,
-        accountType: "organization",
-        isActive: activeAccountId === organization.id,
-      });
-    }
-
-    return seeds;
-  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
-
-  useEffect(() => {
-    let disposed = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const result = await buildWikiContentTree(accountSeeds);
-        if (!disposed) {
-          setContentTree(result);
-        }
-      } catch {
-        if (!disposed) {
-          setContentTree([]);
-        }
-      } finally {
-        if (!disposed) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-
-    return () => {
-      disposed = true;
-    };
-  }, [accountSeeds]);
-
-  const activeAccount = contentTree.find((node) => node.isActive);
-  const highlightedWorkspace =
-    activeAccount?.workspaces.find((workspace) => workspace.workspaceId === appState.activeWorkspaceId) ??
-    activeAccount?.workspaces[0];
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Hub</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Knowledge Hub</h1>
-        <p className="text-sm text-muted-foreground">
-          從這裡進入 Knowledge、Knowledge Base、Knowledge Database、Source 與 Notebook 各模組。
-        </p>
-      </header>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Workspace-first entry</CardTitle>
-          <CardDescription>先鎖定 active account，再選擇要進入的工作區，最後才分流到 Knowledge、知識頁面、Notebook / AI。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loading ? (
-            <Skeleton className="h-6 w-48" />
-          ) : activeAccount ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Active Account</p>
-                <div className="mt-2 flex items-center gap-2 text-sm">
-                  <Building2 className="size-4 text-primary" />
-                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
-                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
-                </div>
-              </div>
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
-                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
-                  <FolderKanban className="size-4 text-primary" />
-                  <span>{activeAccount.workspaces.length} 個工作區可直接進入各自的知識頁面</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
-          )}
-
-          {highlightedWorkspace && (
-            <div className="grid gap-3 lg:grid-cols-[1fr_1.1fr]">
-              <div className="rounded-xl border border-border/60 px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Highlighted workspace</p>
-                <p className="mt-2 text-sm font-semibold text-foreground">{highlightedWorkspace.workspaceName}</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  先把這個工作區當成知識主樞紐，再從裡面打開知識頁面與 Notebook / AI。
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button asChild size="sm">
-                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}`}>進入工作區</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>知識頁面</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/ai-chat?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>
-                      Notebook / AI
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Knowledge</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    先整理文件來源、Libraries 與 upload / ingest。
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">知識頁面</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    再用頁面樹與內容脈絡整理知識結構。
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    最後才消費這些知識做問答、摘要與洞察。
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {QUICK_ACCESS.map((item) => (
-              <Link key={item.href} href={item.href} className="group">
-                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <item.icon className="size-4" />
-                      </div>
-                      <CardTitle className="text-sm">{item.title}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
-          <CardDescription>以下工作區皆屬於目前 active account；請優先從工作區進入，再分流到 Knowledge、知識頁面與 Notebook / AI。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-            </div>
-          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
-            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {activeAccount.workspaces.map((workspace) => (
-                <Card key={workspace.workspaceId} className="transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex flex-wrap gap-1">
-                      {workspace.contentBaseItems
-                        .filter((item) => item.enabled)
-                        .map((item) => (
-                          <Badge key={item.key} variant="secondary" className="text-[10px]">
-                            {item.label}
-                          </Badge>
-                        ))}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/workspace/${workspace.workspaceId}`}>Workspace</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>知識頁面</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/workspace/${workspace.workspaceId}?tab=Files`}>
-                          Files
-                        </Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
-                          <Brain className="mr-1 size-3.5" />
-                          Notebook
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
-
-## File: docs/context-map.md
+## File: docs/architecture-overview.md
 ````markdown
-# Context Map
+# Architecture Overview
 
-本文件在本次任務限制下，僅依 Context7 驗證的 context map 與 strategic design 原則重建，不主張反映現況實作。
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
 
-## System Landscape
+## System Shape
 
-主域級關係只採用 directed upstream-downstream 模型。
+系統以四個主域組成，每個主域都視為一個有自己語言與規則的 bounded context 族群：
 
-## Directed Relationships
+- workspace：協作容器與工作區範疇
+- platform：治理、身份、權益與營運支撐
+- notion：正典知識內容生命週期
+- notebooklm：對話、來源處理與推理輸出
 
-| Upstream | Downstream | Published Language |
+## Architectural Baseline
+
+- 主域內部採用 Hexagonal Architecture。
+- 主域之間只透過 published language、API 邊界或事件互動。
+- 領域核心不直接依賴 framework 與 infrastructure。
+- 主域級關係採用 directed upstream-downstream，不採用 Shared Kernel / Partnership。
+
+## Main Domains
+
+| Main Domain | Strategic Role | What It Owns |
 |---|---|---|
-| platform | workspace | actor reference、organization scope、access decision、entitlement signal |
-| platform | notion | actor reference、organization scope、access decision、entitlement signal |
-| platform | notebooklm | actor reference、organization scope、access decision、entitlement signal |
-| workspace | notion | workspaceId、membership scope、share scope |
-| workspace | notebooklm | workspaceId、membership scope、share scope |
-| notion | notebooklm | knowledge artifact reference、attachment reference、taxonomy hint |
+| workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、workspace-workflow |
+| platform | 治理上游 | actor、tenant、access、policy、entitlement、billing、ai capability、notification、audit-log |
+| notion | 正典內容 | knowledge artifact、taxonomy、relations、publication、knowledge-versioning |
+| notebooklm | 推理輸出 | ingestion、retrieval、grounding、conversation、synthesis、evaluation、conversation-versioning |
 
-## Pattern Rules
+## Relationship Baseline
 
-- ACL 與 Conformist 只允許出現在 downstream 端。
-- ACL 與 Conformist 互斥，不能同時套用在同一整合。
-- Shared Kernel 與 Partnership 不用於主域級關係。
-- 若未來真的需要共享模型，必須先抽出新的 bounded context，而不是把對稱關係塞回主域之間。
+| Upstream | Downstream | Reason |
+|---|---|---|
+| platform | workspace | 提供治理結果與權益判定 |
+| platform | notion | 提供治理結果與權益判定 |
+| platform | notebooklm | 提供治理結果與權益判定 |
+| workspace | notion | 提供 workspace scope 與 sharing scope |
+| workspace | notebooklm | 提供 workspace scope 與 sharing scope |
+| notion | notebooklm | 提供可引用的知識內容來源 |
 
-## Dependency Direction Guardrail
+## Contradiction-Free Rules
 
-- 主域級方向只允許 upstream -> downstream，不允許同時宣稱對稱依賴。
-- downstream 整合上游時，先決定 published language，再決定 ACL 或 Conformist。
-- 上游提供語言與能力，下游決定如何保護自己的語言。
+- 只有四個主域，不再引入其他平級主域。
+- 戰略文件若需要描述缺口，一律使用 recommended gap subdomains，而不是假裝它們已被實作驗證。
+- platform 是治理上游，不是內容或對話的正典擁有者。
+- platform 擁有 shared AI capability，但不擁有 notion 的正典內容語言或 notebooklm 的推理輸出語言。
+- notion 是正典內容擁有者，不是治理上游。
+- notebooklm 是衍生推理輸出擁有者，不是正典內容擁有者。
 
-## Strategic Consequences
+## System-Wide Dependency Direction
 
-- 關係方向清楚後，published language、local DTO 與 ACL 才能一致。
-- 主域級文檔可以避免同時出現互相矛盾的 supplier / consumer 敘事。
+- 每個主域內部固定遵守 interfaces -> application -> domain <- infrastructure。
+- 跨主域依賴只能透過 published language、public API boundary、events。
+- 外部框架、SDK、傳輸與儲存細節只能停留在 adapter 邊界。
 
-## Contradictions Removed
+## System-Wide Anti-Patterns
 
-- 不再同時把主域級關係描述成 directed relationship 與 symmetric relationship。
-- 不再把 ACL 寫成 upstream 的責任。
-- 不再把 shared technical libraries 誤寫為主域級 Shared Kernel。
-
-## Forbidden Relationship Patterns
-
-- 不得把 Shared Kernel / Partnership 與 ACL / Conformist 混寫在同一關係。
-- 不得把 direct model sharing 寫成 published language。
-- 不得把下游的轉譯責任倒灌回上游。
+- 把 domain 核心直接接上 framework、database、HTTP、queue 或 AI SDK。
+- 把主域內部模型直接共享給其他主域，取代 published language。
+- 把治理、內容、推理三種責任重新揉成單一平級主域。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先畫清 upstream / downstream，再安排 API boundary、published language、ACL 或 Conformist。
-- 奧卡姆剃刀：若單一 published language 與單一 translation step 足夠，就不要再加第二層整合流程。
-- 不確定關係方向時，先修正文檔，不直接生成跨主域耦合程式碼。
+- 生成程式碼時，先定位需求落在哪個主域，再定位到子域與層。
+- 奧卡姆剃刀：若既有主域、子域與 API boundary 已能承接需求，就不要再新增新的平級結構。
+- 優先維持單一清楚的 input -> boundary -> application -> domain -> output 路徑。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	Upstream["Upstream"] -->|PL / OHS| Downstream["Downstream"]
-	Downstream -->|ACL or Conformist| LocalModel["Local domain model"]
+	Interfaces["Interfaces"] --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
 ```
 
 ## Correct Interaction Flow
@@ -71318,1969 +74277,85 @@ flowchart LR
 
 ## Document Network
 
-- [architecture-overview.md](./architecture-overview.md)
+- [README.md](./README.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [subdomains.md](./subdomains.md)
 - [integration-guidelines.md](./integration-guidelines.md)
 - [strategic-patterns.md](./strategic-patterns.md)
 - [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
 - [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
-- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
+- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
+
+## Reading Path
+
+1. [bounded-contexts.md](./bounded-contexts.md)
+2. [context-map.md](./context-map.md)
+3. [subdomains.md](./subdomains.md)
+4. [ubiquitous-language.md](./ubiquitous-language.md)
+5. [integration-guidelines.md](./integration-guidelines.md)
+6. [strategic-patterns.md](./strategic-patterns.md)
+7. [decisions/README.md](./decisions/README.md)
 ````
 
-## File: docs/contexts/notebooklm/AGENT.md
+## File: docs/bounded-contexts.md
 ````markdown
-# NotebookLM Agent
+# Bounded Contexts
 
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
+本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 hexagonal architecture 原則重建，不主張反映現況實作。
 
-## Mission
+## Strategic Bounded Context Model
 
-保護 notebooklm 主域作為對話、來源處理、檢索、grounding 與 synthesis 邊界。任何變更都應維持 notebooklm 擁有衍生推理流程與可追溯輸出，而不是直接擁有正典知識內容。
+系統固定由四個主域構成。每個主域下可再分成 baseline subdomains 與 recommended gap subdomains。
 
-## Canonical Ownership
+## Main Domain Map
 
-- ingestion
-- source
-- retrieval
-- grounding
-- notebook
-- conversation
-- note
-- synthesis
-- evaluation
-- conversation-versioning
-
-## Route Here When
-
-- 問題核心是 notebook、conversation、source ingestion、retrieval、grounding、synthesis。
-- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
-- 問題要把知識來源轉成可對話與可綜合的推理材料。
-
-## Route Elsewhere When
-
-- 正典知識頁面、內容分類、正式發布屬於 notion。
-- 身份、授權、權益、憑證治理屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
-- 工作區生命週期、共享與存在感屬於 workspace。
-
-## Guardrails
-
-- notebooklm 的輸出是衍生產物，不直接等於正典知識內容。
-- retrieval 與 grounding 應作為獨立邊界，而不是隱含在 platform.ai 接入或 source 裡。
-- ingestion 應與 source reference 分離，避免來源處理與來源語義耦合。
-- evaluation 應作為品質與回歸語言，而不只是分析儀表板指標。
-- 跨主域互動只經過 published language、API 邊界或事件。
-
-## Dependency Direction
-
-- notebooklm 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- application 只能透過 ports 協調 retrieval、grounding、ingestion、synthesis 所需的外部能力。
-- infrastructure 只實作 ports 與邊界轉譯，不反向定義 domain 語言。
-
-## Hard Prohibitions
-
-- 不得把 notion 的 KnowledgeArtifact 直接當成 notebooklm 的本地主域模型。
-- 不得讓 domain 或 application 直接依賴模型 SDK、向量儲存或外部檔案處理框架。
-- 不得讓 notebooklm 直接改寫 workspace 或 notion 的內部狀態，而繞過其 API 邊界。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先維持 notebooklm 作為 downstream 推理主域，不回推治理或正典內容所有權。
-- 共享模型能力若已由 platform.ai 提供，就不要在 notebooklm 再建立第二個 generic `ai` 子域。
-- 奧卡姆剃刀：若較少的抽象已能保護邊界，就不要額外新增 port、ACL、DTO、subdomain 或 process manager。
-- 只有碰到外部依賴、語義污染或跨主域轉譯時，才建立 port、ACL 或 local DTO。
-- 任何跨主域互動都先走 API boundary / published language，再轉成本地主域語言。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
-	A --> D["NotebookLM Domain / Invariants"]
-	P["Ports / Domain-fit Contracts"] -. used by .-> A
-	X["Infrastructure / Driven Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform upstream"] -->|Published Language| Boundary["notebooklm API boundary"]
-	Workspace["workspace upstream"] -->|Published Language| Boundary
-	Notion["notion upstream"] -->|Published Language| Boundary
-	Boundary --> Translation["Local DTO / ACL when needed"]
-	Translation --> App["Application orchestration"]
-	App --> Domain["Conversation / Retrieval / Grounding / Synthesis"]
-	Domain --> Output["Grounded output / notes / evaluation"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/notebooklm/bounded-contexts.md
-````markdown
-# NotebookLM
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Domain Role
-
-notebooklm 是對話與推理主域。依 bounded context 原則，它應封裝來源匯入、檢索、grounding、對話、摘要、評估與版本化，使推理流程保持高凝聚且與正典知識內容邊界分離。
-
-## Baseline Bounded Contexts
-
-| Cluster | Subdomains |
-|---|---|
-| Interaction Core | notebook, conversation, note |
-| Reasoning Output | source, synthesis, conversation-versioning |
-
-## Recommended Gap Bounded Contexts
-
-| Subdomain | Why It Should Exist | Gap If Missing |
-|---|---|---|
-| ingestion | 承接來源匯入、正規化與前處理 | source 會同時承載來源處理與來源語義 |
-| retrieval | 承接查詢、召回、排序與檢索策略 | synthesis 缺少清楚上游邊界 |
-| grounding | 承接 citation、evidence 對齊與答案可追溯性 | 引用語言無法形成正典邊界 |
-| evaluation | 承接品質評估、回歸比較與效果量測 | 品質語言只能散落在 analytics 或測試層 |
-
-## Domain Invariants
-
-- notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
-- shared AI capability 由 platform.ai 提供；notebooklm 擁有 retrieval、grounding、synthesis 的本地語義。
-- grounding 應能把輸出對齊到來源證據。
-- retrieval 是 synthesis 的上游能力，不應與 source reference 混成同一層。
-- evaluation 應描述品質，而不是單純使用量。
-- 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
-
-## Dependency Direction
-
-- notebooklm 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
-- ingestion、retrieval、grounding 的外部整合必須由 adapter 實作，透過 port 注入到核心。
-- domain 不得向外依賴來源處理框架、模型供應商或傳輸協定。
-
-## Anti-Patterns
-
-- 把 retrieval、grounding、ingestion 重新塞回 platform.ai 接入層或 source，造成責任折疊。
-- 讓 synthesis 直接持有正典內容所有權，混淆 notion 與 notebooklm 邊界。
-- 讓 application service 直接呼叫外部 SDK，而不經過 port/adapter。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 retrieval、grounding、ingestion、evaluation 的獨立語義，再決定是否需要額外抽象。
-- 奧卡姆剃刀：不要為了形式上的對稱而新增子域；只有在責任、語義或演化速率不同時才拆分。
-- 若外部能力只服務單一明確邊界，優先用最小必要 port，而不是複製整套工具 API。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["NotebookLM bounded contexts"]
-	X["Infrastructure"] --> D
-	X -. adapter / provider .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	SourceInput["Source / governance / scope input"] --> Boundary["NotebookLM boundary"]
-	Boundary --> App["Use case orchestration"]
-	App --> Retrieval["Retrieval"]
-	Retrieval --> Grounding["Grounding"]
-	Grounding --> Synthesis["Synthesis"]
-	Synthesis --> Evaluation["Evaluation"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
-````
-
-## File: docs/contexts/notebooklm/context-map.md
-````markdown
-# NotebookLM
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Context Role
-
-notebooklm 消費 workspace scope、platform 治理與 notion 內容來源，並輸出可追溯的對話、洞察與 synthesis。依 Context Mapper 思維，它是多個上游語言的下游整合者，但仍需維持自己的對話與推理邊界。
-
-## Relationships
-
-| Related Domain | Relationship Type | NotebookLM Position | Published Language |
+| Main Domain | Strategic Role | Baseline Focus | Recommended Gap Focus |
 |---|---|---|---|
-| platform | Upstream/Downstream | downstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
-| workspace | Upstream/Downstream | downstream | workspaceId、membership scope、share scope |
-| notion | Upstream/Downstream | downstream | knowledge artifact reference、attachment reference、taxonomy hint |
-
-## Mapping Rules
-
-- notebooklm 依賴 platform 的治理結果，但不重建 actor、policy 或 secret 模型。
-- notebooklm 可消費 platform.ai 作為共享模型能力，但不擁有 provider / policy 所有權。
-- notebooklm 在 workspace scope 內運作，但不定義 workspace 生命周期或 sharing 規則。
-- notion 是 notebooklm 的重要 source supplier，notebooklm 不能反向直接改寫 notion 正典內容。
-- synthesis、grounding、evaluation 是 notebooklm 對外輸出的核心能力語言。
-
-## Dependency Direction
-
-- notebooklm 只作為 platform、workspace、notion 的 downstream consumer，不反向宣稱治理或正典內容所有權。
-- ACL 或 Conformist 只能由 notebooklm 這個 downstream 端選擇，不能回推到上游。
-- 跨主域資料進入 notebooklm 時，先落在 published language 或 local DTO，再進入本地主域語言。
-
-## Anti-Patterns
-
-- 把 notebooklm 寫成 notion 或 workspace 的上游治理來源。
-- 在同一主域關係上同時聲稱 ACL 與 Conformist。
-- 直接共享 notebook、source 或 conversation 的內部模型給其他主域使用。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先維持 notebooklm 對 platform、workspace、notion 的 downstream 位置，再安排轉譯層。
-- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要額外發明第二層 mapper 或雙重 ACL。
-- 上游只提供 published language；本地主域保護由 downstream 完成。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Upstream["Upstream contexts"] -->|Published Language| Boundary["notebooklm boundary"]
-	Boundary --> Translation["Local DTO / ACL if needed"]
-	Translation --> App["Application"]
-	App --> Domain["Domain"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] -->|actor / access / entitlement / ai| Boundary["notebooklm API boundary"]
-	Workspace["workspace"] -->|workspace scope| Boundary
-	Notion["notion"] -->|knowledge references| Boundary
-	Boundary --> ACL["ACL or local DTO"]
-	ACL --> Domain["NotebookLM domain"]
-	Domain --> Result["Grounded synthesis / conversation output"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [subdomains.md](./subdomains.md)
-- [../../context-map.md](../../context-map.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../strategic-patterns.md](../../strategic-patterns.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/notebooklm/README.md
-````markdown
-# NotebookLM Context
-
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
-
-## Purpose
-
-notebooklm 是對話、來源處理與推理主域。它的責任是提供 notebook、conversation、source ingestion、retrieval、grounding、synthesis、evaluation 與 conversation-versioning 等語言，把來源材料轉成可對話、可追溯、可評估的衍生輸出。
-
-## Why This Context Exists
-
-- 把推理流程與正典知識內容分離。
-- 把來源匯入、檢索、grounding 與 synthesis 統整成同一主域。
-- 提供可回流到其他主域、但本質上仍屬衍生輸出的能力邊界。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 對話、來源處理、檢索與推理輸出 |
-| Upstream Dependency | platform 治理、workspace scope、notion 內容來源 |
-| Downstream Consumer | 無固定主域級 consumer；輸出可被其他主域吸收 |
-| Core Principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
-
-## Baseline Subdomains
-
-- conversation
-- note
-- notebook
-- source
-- synthesis
-- conversation-versioning
-
-## Recommended Gap Subdomains
-
-- ingestion
-- retrieval
-- grounding
-- evaluation
-
-## Key Relationships
-
-- 與 platform：notebooklm 消費 actor、organization、access、entitlement、ai capability。
-- 與 workspace：notebooklm 消費 workspaceId、membership scope、share scope。
-- 與 notion：notebooklm 消費 knowledge artifact reference、attachment reference、taxonomy hint。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- 跨主域只消費 published language、API boundary、events，不直接依賴他域內部模型。
-
-## Anti-Pattern Rules
-
-- 不把 notebooklm 的衍生輸出直接宣稱為 notion 的正典知識內容。
-- 不把 retrieval/grounding 降格成單純 UI 功能或模型提示細節。
-- 不把 ingestion 與 source reference 混成同一個不可拆分責任。
-- 不把 platform.ai 的共享能力誤寫成 notebooklm 自己擁有的 `ai` 子域。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 notebooklm 的衍生推理定位，再安排 retrieval、grounding、synthesis 的交互。
-- 模型接入、配額、供應商策略若屬共享能力，先消費 platform.ai；notebooklm 保留 retrieval、grounding、synthesis、evaluation 的語義所有權。
-- 奧卡姆剃刀：只在必要時引入 port、ACL、DTO；不要因為未來也許會有需求就預先堆疊抽象。
-- 優先產生一條清楚的 upstream input -> translation -> application -> domain -> output 流程，而不是多條重疊流程。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] --> Boundary["notebooklm boundary"]
-	Workspace["workspace"] --> Boundary
-	Notion["notion"] --> Boundary
-	Boundary --> Translation["DTO / ACL"]
-	Translation --> App["Application use case"]
-	App --> Domain["NotebookLM domain"]
-	Domain --> Output["Grounded answer / note / evaluation"]
-```
-
-## Document Network
-
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../README.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
-````
-
-## File: docs/contexts/notebooklm/subdomains.md
-````markdown
-# NotebookLM
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| conversation | 對話 Thread 與 Message 生命週期 |
-| note | 輕量筆記與知識連結 |
-| notebook | Notebook 組合與管理 |
-| source | 來源文件追蹤與引用 |
-| synthesis | RAG 合成、摘要與洞察生成 |
-| conversation-versioning | 對話版本與快照策略 |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Why Needed |
-|---|---|
-| ingestion | 建立來源匯入、正規化與前處理的正典邊界 |
-| retrieval | 建立查詢召回與排序策略的正典邊界 |
-| grounding | 建立引用對齊與可追溯證據的正典邊界 |
-| evaluation | 建立品質評估與回歸比較的正典邊界 |
-
-## Recommended Order
-
-1. retrieval
-2. grounding
-3. ingestion
-4. evaluation
-
-## Anti-Patterns
-
-- 不把 retrieval 與 grounding 併回 source 或 platform.ai 接入層，否則推理鏈條失去清楚邊界。
-- 不把 evaluation 只當成 dashboard 指標，否則品質語言無法成為正典子域。
-- 不把 notebook、conversation、note 混成單一 UI 容器語意，否則無法維持聚合邊界。
-- 不把 platform.ai 的共享能力誤寫成 notebooklm 自己擁有的 `ai` 子域。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先問新需求落在哪個既有子域；只有既有子域無法容納時才建立新子域。
-- 模型 provider、配額與安全護欄優先歸 platform.ai；notebooklm 保留 retrieval、grounding、synthesis、evaluation 的語義切分。
-- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新增第二個平行子域。
-- 子域命名應反映責任與語義，不應只是頁面名稱或工具名稱。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case"]
-	UseCase --> Subdomain["Owning subdomain domain"]
-	Infra["Infra adapter"] --> Subdomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Ingestion["Ingestion"] --> Retrieval["Retrieval"]
-	Retrieval --> Grounding["Grounding"]
-	Grounding --> Synthesis["Synthesis"]
-	Synthesis --> Evaluation["Evaluation"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-````
-
-## File: docs/contexts/notion/AGENT.md
-````markdown
-# Notion Agent
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Mission
-
-保護 notion 主域作為知識內容生命週期邊界。任何變更都應維持 notion 擁有內容建立、分類、關聯、協作、模板、發布與版本化語言，而不是吸收平台治理或對話推理語言。
-
-## Canonical Ownership
-
-- knowledge
-- authoring
-- collaboration
-- database
-- taxonomy
-- relations
-- knowledge-analytics
-- attachments
-- automation
-- knowledge-integration
-- notes
-- templates
-- publishing
-- knowledge-versioning
-
-## Route Here When
-
-- 問題核心是知識頁面、文章、內容結構、分類、關聯、模板與發布。
-- 問題需要把輸入吸收成正式知識內容的正典狀態。
-- 問題需要定義內容版本、內容協作與內容交付。
-
-## Route Elsewhere When
-
-- 身份、租戶、授權、權益、憑證治理屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
-- 工作區生命週期、共享、存在感與工作區流程屬於 workspace。
-- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
-
-## Guardrails
-
-- notion 的正典內容不等於 notebooklm 的衍生輸出。
-- taxonomy 與 relations 應作為內容語義邊界，而不是 UI 功能附屬物。
-- publishing 應與 authoring 分離，避免編輯語意與交付語意混用。
-- notion 可以消費 platform.ai，但不擁有 AI provider / policy 的正典邊界。
-- attachments 是內容資產語言，不是平台 secret 或一般檔案暫存語言。
-- 跨主域互動只經過 published language、API 邊界或事件。
-
-## Dependency Direction
-
-- notion 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- authoring、knowledge、database、publishing 對外部能力的依賴只能透過 ports 進入核心。
-- infrastructure 只負責儲存、傳輸、ACL 轉譯，不定義 KnowledgeArtifact 的正典語義。
-
-## Hard Prohibitions
-
-- 不得讓 notebooklm 的 Conversation、Synthesis 直接滲入 notion 作為正典內容模型。
-- 不得讓 domain 或 application 直接依賴 UI、HTTP、資料庫 SDK 或框架語言。
-- 不得讓 notion 直接接管 platform 的 actor、tenant、entitlement 治理責任。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 notion 作為正典內容主域，不讓治理或推理語言滲入核心。
-- 內容輔助若只是支援 knowledge / authoring / publishing use case，先消費 platform.ai，而不是在 notion 內重建 generic `ai` 子域。
-- 奧卡姆剃刀：若一個既有內容子域與一條清楚 use case 就能承接需求，不要再新增額外 service、mapper 或子域。
-- 只有在外部依賴或跨主域語義污染出現時，才建立 port、ACL 或 local DTO。
-- 對 notebooklm 或 workspace 的互動一律先經 published language / API boundary，再進入 notion 語言。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
-	A --> D["Notion Domain / Invariants"]
-	P["Ports / Domain-fit Contracts"] -. used by .-> A
-	X["Infrastructure / Driven Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform upstream"] -->|Published Language| Boundary["notion API boundary"]
-	Workspace["workspace upstream"] -->|Published Language| Boundary
-	Boundary --> Translation["Local DTO / ACL when needed"]
-	Translation --> App["Application orchestration"]
-	App --> Domain["Knowledge / Authoring / Relations / Publishing"]
-	Domain --> Output["KnowledgeArtifact / Publication / Reference"]
-	Output --> NotebookLM["notebooklm downstream"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/notion/bounded-contexts.md
-````markdown
-# Notion
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Domain Role
-
-notion 是知識內容主域。依 bounded context 原則，它應封裝內容建立、編輯、結構化、分類、關聯、版本化與對外發布的高凝聚規則。
-
-## Baseline Bounded Contexts
-
-| Cluster | Subdomains |
-|---|---|
-| Content Core | knowledge, authoring, database |
-| Collaboration and Change | collaboration, knowledge-versioning, templates |
-| Intelligence and Extension | knowledge-analytics, attachments, automation, knowledge-integration, notes |
-
-## Recommended Gap Bounded Contexts
-
-| Subdomain | Why It Should Exist | Gap If Missing |
-|---|---|---|
-| taxonomy | 承接標籤、分類、語義樹與主題治理 | authoring 與 database 會混入分類責任 |
-| relations | 承接內容之間的引用、backlink 與語義關聯 | 內容關係只能隱藏在欄位或 UI 裡 |
-| publishing | 承接發布流程、受眾可見性與正式交付 | 編輯語意與交付語意無法分離 |
-
-## Domain Invariants
-
-- 知識內容的正典狀態屬於 notion。
-- taxonomy 應獨立於具體 UI 視圖存在。
-- relations 應描述內容對內容的語義關係，而不是臨時連結。
-- platform.ai 可被 notion use case 消費，但 AI provider / policy ownership 不屬於 notion。
-- publishing 只交付已被 notion 吸收的內容狀態。
-- 任何來自 notebooklm 的輸出，若要成為正典內容，必須先被 notion 吸收。
-
-## Dependency Direction
-
-- notion 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
-- content lifecycle 由 knowledge、authoring、database、publishing 等上下文在核心內協作，不由外層技術層直接驅動。
-- 外部內容輸入只能先經 API boundary 或 adapter 轉譯，再進入 notion 語言。
-
-## Anti-Patterns
-
-- 把 taxonomy 或 relations 當成純 UI 功能，而不是內容語義邊界。
-- 讓 publishing 直接等同 authoring，混淆編輯與交付責任。
-- 讓 notebooklm 或 platform 的語言直接取代 notion 的 KnowledgeArtifact 模型。
-- 把 platform.ai 共享能力提升成 notion 自己的 generic `ai` 子域所有權。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先決定需求屬於 content core、collaboration、還是 extension，再安排具體型別與流程。
-- 奧卡姆剃刀：不要為了看起來完整而新增抽象層；只在現有內容邊界真的失效時才拆更多上下文。
-- 外部能力若不影響正典內容語言，就不要把它抬升成新的內容核心抽象。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Notion bounded contexts"]
-	X["Infrastructure"] --> D
-	X -. adapter / provider .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Input["Governance / scope / author input"] --> Boundary["Notion boundary"]
-	Boundary --> App["Use case orchestration"]
-	App --> Knowledge["Knowledge / Authoring / Database"]
-	Knowledge --> Taxonomy["Taxonomy / Relations"]
-	Taxonomy --> Publishing["Publishing / Knowledge Versioning"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
-````
-
-## File: docs/contexts/notion/context-map.md
-````markdown
-# Notion
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Context Role
-
-notion 對其他主域提供知識內容語言。依 Context Mapper 的 context map 思維，它消費 workspace scope 與 platform 治理，並向 notebooklm 提供可被引用的知識內容來源。
-
-## Relationships
-
-| Related Domain | Relationship Type | Notion Position | Published Language |
-|---|---|---|---|
-| platform | Upstream/Downstream | downstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
-| workspace | Upstream/Downstream | downstream | workspaceId、membership scope、share scope |
-| notebooklm | Upstream/Downstream | upstream | knowledge artifact reference、attachment reference、taxonomy hint |
-
-## Mapping Rules
-
-- notion 消費 platform 的治理結果，但不重建 actor、tenant、policy 模型。
-- notion 可消費 platform.ai 來支援內容 use case，但不擁有 AI provider / policy 所有權。
-- notion 在 workspace scope 中運作，但不反向定義 workspace 生命週期。
-- notebooklm 可以消費 notion 的知識來源，但不得直接重寫 notion 正典內容。
-- publishing 是 notion 對外輸出正式內容狀態的邊界。
-
-## Dependency Direction
-
-- notion 對 platform、workspace 屬 downstream；對 notebooklm 屬 upstream 的內容 supplier。
-- ACL 或 Conformist 只能由 notion 作為 downstream 時選擇，不能要求上游替 notion 保護語言。
-- notion 對 notebooklm 輸出的是 published language，不是內部 aggregate 或 workflow 細節。
-
-## Anti-Patterns
-
-- 把 notion 與 notebooklm 寫成對稱 Shared Kernel，同時又要求 ACL。
-- 讓 notebooklm 直接回寫 notion 正典內容而不經 notion 邊界。
-- 把 workspace scope 語言錯寫成 notion 自己擁有的容器生命週期語言。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 notion 對 platform、workspace 的 downstream 位置與對 notebooklm 的 upstream 位置。
-- 奧卡姆剃刀：若 published language 加一層 local DTO 已足夠，就不要再建立第二個平行翻譯管線。
-- notion 向外提供的是內容語言，不是內部 aggregate、repository 或 UI projection。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Upstream["platform / workspace upstream"] -->|Published Language| Boundary["notion boundary"]
-	Boundary --> Translation["Local DTO / ACL if needed"]
-	Translation --> App["Application"]
-	App --> Domain["Domain"]
-	Domain --> PL["Published content language"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] -->|actor / access / entitlement / ai| Boundary["notion API boundary"]
-	Workspace["workspace"] -->|workspace scope| Boundary
-	Boundary --> ACL["ACL or local DTO"]
-	ACL --> Domain["Notion domain"]
-	Domain --> Publication["Publication / KnowledgeArtifact reference"]
-	Publication --> NotebookLM["notebooklm"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [subdomains.md](./subdomains.md)
-- [../../context-map.md](../../context-map.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../strategic-patterns.md](../../strategic-patterns.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/notion/README.md
-````markdown
-# Notion Context
-
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
-
-## Purpose
-
-notion 是知識內容生命週期主域。它的責任是提供 knowledge artifact、authoring、database、taxonomy、relations、templates、publishing、knowledge-versioning 與 collaboration 等內容語言，承接正式知識內容的正典狀態。
-
-## Why This Context Exists
-
-- 把知識內容正典與平台治理、工作區範疇、對話推理分離。
-- 讓內容建立、分類、關聯、交付與版本規則維持在同一個主域。
-- 提供 notebooklm 可引用、但不可直接改寫的知識來源。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 正典知識內容生命週期 |
-| Upstream Dependency | platform 治理、workspace scope |
-| Downstream Consumer | notebooklm |
-| Core Principle | notion 擁有正式內容，不擁有治理或推理過程 |
-
-## Baseline Subdomains
-
-- knowledge
-- authoring
-- collaboration
-- database
-- knowledge-analytics
-- attachments
-- automation
-- knowledge-integration
-- notes
-- templates
-- knowledge-versioning
-
-## Recommended Gap Subdomains
-
-- taxonomy
-- relations
-- publishing
-
-## Key Relationships
-
-- 與 platform：notion 消費 actor、organization、access、entitlement、ai capability。
-- 與 workspace：notion 消費 workspaceId、membership scope、share scope。
-- 與 notebooklm：notion 向 notebooklm 提供 knowledge artifact reference 與 attachment reference。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- notion 對外只暴露 published language、API boundary、events，不暴露內部內容模型。
-
-## Anti-Pattern Rules
-
-- 不把 notebooklm 的衍生輸出直接當成 notion 正典內容。
-- 不把 taxonomy、relations、publishing 壓回單一 knowledge 編輯流程。
-- 不把 platform 的治理語言混成內容生命週期本身。
-- 不把 platform.ai 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 notion 的正典內容定位，再安排 authoring、knowledge、taxonomy、publishing 的交互。
-- 內容輔助、摘要與生成若只是內容 use case 的支援能力，優先由 knowledge / authoring use case 消費 `platform.ai`，而不是在 notion 再建一個 generic `ai` 子域。
-- 奧卡姆剃刀：不要預先新增第二套內容流程，只在既有內容邊界真的不夠時才補新抽象。
-- 優先讓同一條 input -> translation -> application -> domain -> publication 流程保持單純可追溯。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] --> Boundary["notion boundary"]
-	Workspace["workspace"] --> Boundary
-	Boundary --> Translation["DTO / ACL"]
-	Translation --> App["Application use case"]
-	App --> Domain["Notion domain"]
-	Domain --> Output["KnowledgeArtifact / Publication"]
-	Output --> NotebookLM["notebooklm consumer"]
-```
-
-## Document Network
-
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../README.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
-````
-
-## File: docs/contexts/notion/subdomains.md
-````markdown
-# Notion
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| knowledge | 頁面建立、組織、版本化與交付 |
-| authoring | 知識庫文章建立、驗證與分類 |
-| collaboration | 協作留言、細粒度權限與版本快照 |
-| database | 結構化資料多視圖管理 |
-| knowledge-analytics | 知識使用行為量測 |
-| attachments | 附件與媒體關聯儲存 |
-| automation | 知識事件觸發自動化動作 |
-| knowledge-integration | 知識與外部系統雙向整合 |
-| notes | 個人輕量筆記與正式知識協作 |
-| templates | 頁面範本管理與套用 |
-| knowledge-versioning | 全域版本快照策略管理 |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Why Needed |
-|---|---|
-| taxonomy | 建立分類法與語義組織的正典邊界 |
-| relations | 建立內容之間關聯與 backlink 的正典邊界 |
-| publishing | 建立正式發布與對外交付的正典邊界 |
-
-## Recommended Order
-
-1. taxonomy
-2. relations
-3. publishing
-
-## Anti-Patterns
-
-- 不把 taxonomy 混成 authoring 裡的附屬設定。
-- 不把 relations 混成單純 hyperlink 功能，失去語義關係邊界。
-- 不把 publishing 混成 UI 上的一個按鈕事件，而忽略正式交付語言。
-- 不把 platform.ai 的共享能力誤寫成 notion 自己擁有的 `ai` 子域。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先判斷需求屬於 knowledge、authoring、relations、publishing、knowledge-analytics、knowledge-integration、knowledge-versioning 哪一個內容責任。
-- 奧卡姆剃刀：能在既有子域用一個明確 use case 解決，就不要新建第二個概念接近的子域。
-- 子域命名要反映內容語義，不要退化成頁面或元件名稱。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case"]
-	UseCase --> Subdomain["Owning subdomain domain"]
-	Infra["Infra adapter"] --> Subdomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Authoring["Authoring"] --> Knowledge["Knowledge"]
-	Knowledge --> Taxonomy["Taxonomy"]
-	Knowledge --> Relations["Relations"]
-	Taxonomy --> Publishing["Publishing"]
-	Relations --> Publishing
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-````
-
-## File: docs/contexts/platform/AGENT.md
-````markdown
-# Platform Agent
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Mission
-
-保護 platform 主域作為治理、身份、組織、權益、策略與營運支撐邊界。任何變更都應維持 platform 對治理語言的所有權，不吸收 workspace、notion、notebooklm 的正典業務模型。
-
-## Canonical Ownership
-
-- identity
-- account
-- account-profile
-- organization
-- tenant
-- access-control
-- security-policy
-- platform-config
-- feature-flag
-- entitlement
-- onboarding
-- compliance
-- consent
-- billing
-- subscription
-- referral
-- ai
-- integration
-- secret-management
-- workflow
-- notification
-- background-job
-- content
-- search
-- audit-log
-- observability
-- analytics
-- support
-
-## Route Here When
-
-- 問題核心是 actor、organization、tenant、access、policy、entitlement 或商業權益。
-- 問題核心是通知治理、背景任務、平台級搜尋、觀測與支援。
-- 問題核心是共享 AI provider、模型政策、配額、安全護欄或下游主域共同消費的 AI capability。
-- 問題需要提供其他主域共同消費的治理結果。
-
-## Route Elsewhere When
-
-- 工作區生命週期、成員關係、共享與存在感屬於 workspace。
-- 知識內容建立、分類、關聯與發布屬於 notion。
-- 對話、來源、retrieval、grounding、synthesis 屬於 notebooklm。
-
-## Guardrails
-
-- Actor 與 Identity 屬於 platform，不能在其他主域重定義。
-- entitlement 是 subscription、feature-flag、policy 的解算結果，不等於 plan 本身。
-- ai 屬於 platform 的共享能力治理，不等於 notebooklm 的推理輸出所有權。
-- secret-management 應與 integration 分離，避免憑證語義擴散。
-- consent 與 compliance 有關，但不是同一個 bounded context。
-- 平台輸出治理信號，不接管其他主域的正典內容生命週期。
-
-## Dependency Direction
-
-- platform 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- access-control、entitlement、secret-management 等外部依賴只能透過 ports 進入核心。
-- infrastructure 只實作治理能力與外部整合，不反向定義 Actor、Tenant、Entitlement 語言。
-
-## Hard Prohibitions
-
-- 不得讓 platform 直接接管 workspace、notion、notebooklm 的正典業務流程。
-- 不得讓 domain 或 application 直接依賴第三方身份、通知、計費或 secret SDK。
-- 不得在其他主域重建 Actor、Tenant、Entitlement、Secret 的正典模型。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 platform 作為治理 upstream，而不是內容或推理 owner。
-- notion 與 notebooklm 若需要 AI 能力，先走 platform.ai 的 published language / API boundary。
-- 奧卡姆剃刀：若既有治理子域與單一 use case 能承接需求，就不要新增第二層 policy service、flag service 或 entitlement facade。
-- 只有在外部依賴、敏感治理或跨主域轉譯明確存在時，才建立 port、ACL 或 local DTO。
-- 對 workspace、notion、notebooklm 的輸出應停在 published language / API boundary。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
-	A --> D["Platform Domain / Invariants"]
-	P["Ports / Domain-fit Contracts"] -. used by .-> A
-	X["Infrastructure / Driven Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Request["Actor / admin / system request"] --> Boundary["platform API boundary"]
-	Boundary --> App["Application orchestration"]
-	App --> Domain["Identity / Access / Entitlement / AI / Secret"]
-	Domain --> PL["Published governance language"]
-	PL --> Workspace["workspace"]
-	PL --> Notion["notion"]
-	PL --> NotebookLM["notebooklm"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/platform/bounded-contexts.md
-````markdown
-# Platform
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Domain Role
-
-platform 是治理與營運支撐主域。依 bounded context 原則，它應把 actor、organization、access、policy、entitlement、billing 與 operational intelligence 封裝成清楚的上下文，而非讓這些責任滲入其他主域。
-
-## Baseline Bounded Contexts
-
-| Cluster | Subdomains |
-|---|---|
-| Identity and Organization | identity, account, account-profile, organization |
-| Governance | access-control, security-policy, platform-config, feature-flag, onboarding, compliance |
-| Commercial | billing, subscription, referral |
-| Delivery and Operations | ai, integration, workflow, notification, background-job |
-| Intelligence and Audit | content, search, audit-log, observability, analytics, support |
-
-## Recommended Gap Bounded Contexts
-
-| Subdomain | Why It Should Exist | Gap If Missing |
-|---|---|---|
-| tenant | 承接多租戶隔離與 tenant-scoped 規則 | organization 無法完整覆蓋租戶隔離模型 |
-| entitlement | 承接有效權益與功能可用性解算 | subscription、feature-flag、policy 之間缺少統一決策點 |
-| secret-management | 承接憑證、token、rotation 與 secret audit | integration 容易承載過多敏感治理責任 |
-| consent | 承接同意、偏好、資料使用授權 | compliance 會被迫承接過細的使用者授權語意 |
-
-## Domain Invariants
-
-- actor identity 由 platform 正典擁有。
-- access decision 必須基於 platform 語言輸出，而不是由下游主域自創。
-- entitlement 必須是解算結果，不是任意 UI 標記。
-- shared AI capability 由 platform 正典擁有；下游主域只能消費其 published language。
-- billing event 與 subscription state 必須分離。
-- secret 不應作為一般 integration payload 傳播。
-
-## Dependency Direction
-
-- platform 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
-- identity、organization、billing、notification 等外部整合能力必須透過 port/adapter 進入核心。
-- domain 不得向外依賴 HTTP、Firebase、secret provider 或 message transport 細節。
-
-## Anti-Patterns
-
-- 把 entitlement 當成 subscription plan 名稱或 UI 開關。
-- 把 secret-management 混回 integration，使敏感治理責任失焦。
-- 讓 platform 直接持有其他主域的正典內容或推理模型。
-- 把 platform.ai 與 notebooklm 的 retrieval / grounding / synthesis 混成同一個子域所有權。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先判斷需求落在 identity、organization、entitlement、ai、secret-management 或其他既有治理責任。
-- 奧卡姆剃刀：不要為了形式上的完整而新增抽象；只有當既有治理邊界無法承接時才拆新上下文。
-- 對外部 provider 的抽象必須貼合 domain 需要，而不是複製供應商 API。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Platform bounded contexts"]
-	X["Infrastructure"] --> D
-	X -. adapter / provider .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Identity["Identity / Organization"] --> Access["Access / Policy"]
-	Access --> Entitlement["Entitlement"]
-	Entitlement --> Delivery["AI / Notification / Job / Integration"]
-	Delivery --> Audit["Audit / Observability / Analytics"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
-````
-
-## File: docs/contexts/platform/context-map.md
-````markdown
-# Platform
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Context Role
-
-platform 是其他三個主域的治理上游。依 Context Mapper 的 upstream/downstream 關係，它向下游提供身份、組織、存取、權益與營運支撐語言。
-
-## Relationships
-
-| Related Domain | Relationship Type | Platform Position | Published Language |
-|---|---|---|---|
-| workspace | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal |
-| notion | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
-| notebooklm | Upstream/Downstream | upstream | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
-
-## Mapping Rules
-
-- platform 提供治理結果，但不直接擁有工作區、知識內容或對話內容。
-- workspace、notion、notebooklm 可以把平台輸出當作 supplier language，但不能穿透其內部模型。
-- platform 擁有 shared AI capability，但 notion 與 notebooklm 仍各自擁有內容與推理語義。
-- audit-log 與 analytics 可消費其他主域的事件，但那不等於接管對方的主域責任。
-- tenant、entitlement、secret-management、consent 是平台應補齊的核心缺口邊界。
-
-## Dependency Direction
-
-- platform 是 workspace、notion、notebooklm 的治理 upstream，而不是它們的內容或流程 owner。
-- platform 對下游輸出 published language，不輸出內部 aggregate、repository 或 secret 結構。
-- 下游若需保護本地語言，ACL 由下游自行實作，不由 platform 代替選擇。
-
-## Anti-Patterns
-
-- 把 platform 與下游主域寫成 Shared Kernel，再同時保留 supplier/downstream 敘事。
-- 讓 platform 直接穿透下游主域內部模型，以治理名義接管業務邏輯。
-- 把審計或分析事件消費錯寫成平台擁有下游正典責任。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先維持 platform 作為 workspace、notion、notebooklm 的治理 upstream。
-- 奧卡姆剃刀：若 published language 已足夠，就不要對每個下游再額外建立一套專屬治理模型。
-- platform 的輸出應穩定、可被消費，但不應暴露其內部 aggregate 或 repository。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Domain["Platform domain"] --> PL["Published Language / OHS"]
-	PL --> Boundary["Downstream API clients"]
-	Boundary --> Local["Downstream local DTO / ACL"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] -->|actor / org / access / entitlement| Workspace["workspace"]
-	Platform -->|actor / org / access / entitlement / ai| Notion["notion"]
-	Platform -->|actor / org / access / entitlement / ai| NotebookLM["notebooklm"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [subdomains.md](./subdomains.md)
-- [../../context-map.md](../../context-map.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../strategic-patterns.md](../../strategic-patterns.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/platform/README.md
-````markdown
-# Platform Context
-
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
-
-## Purpose
-
-platform 是治理與營運支撐主域。它的責任是提供 actor、identity、organization、tenant、access、policy、entitlement、shared ai capability、billing、notification、search、audit 與 observability 等跨切面語言，供其他主域穩定消費。
-
-## Why This Context Exists
-
-- 把治理與營運支撐責任集中，避免滲入其他主域。
-- 讓其他主域只消費治理結果，而不是重建治理模型。
-- 以清楚的 published language 承接身份、權益、政策與營運能力。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 治理、身份、權益與營運支撐 |
-| Upstream Dependency | 無主域級上游；作為其他主域治理上游 |
-| Downstream Consumers | workspace、notion、notebooklm |
-| Core Principle | platform 輸出治理結果，不接管其他主域正典內容 |
-
-## Baseline Subdomains
-
-- identity
-- account
-- account-profile
-- organization
-- access-control
-- security-policy
-- platform-config
-- feature-flag
-- onboarding
-- compliance
-- billing
-- subscription
-- referral
-- ai
-- integration
-- workflow
-- notification
-- background-job
-- content
-- search
-- audit-log
-- observability
-- analytics
-- support
-
-## Recommended Gap Subdomains
-
-- tenant
-- entitlement
-- secret-management
-- consent
-
-## Key Relationships
-
-- 對 workspace：提供 actor、organization、access、entitlement。
-- 對 notion：提供 actor、organization、access、entitlement、ai capability。
-- 對 notebooklm：提供 actor、organization、access、entitlement、ai capability。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- platform 對外只輸出治理結果與 published language，不輸出內部治理模型細節。
-
-## Anti-Pattern Rules
-
-- 不把 platform 寫成內容主域或對話主域。
-- 不把 entitlement、consent、secret-management 混成同一個泛用設定區。
-- 不把其他主域對平台的依賴寫成可以直接存取其內部模型。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 platform 的治理定位，再安排 identity、access、entitlement、ai、secret-management 的交互。
-- 奧卡姆剃刀：不要預先建立多餘 facade；能直接由既有治理邊界承接就維持單一路徑。
-- 優先讓 request -> orchestration -> domain decision -> published language 保持單純可追溯。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Request["Actor / admin request"] --> Boundary["platform boundary"]
-	Boundary --> App["Application use case"]
-	App --> Domain["Platform domain"]
-	Domain --> Published["Published governance language"]
-	Published --> Consumers["workspace / notion / notebooklm"]
-```
-
-## Document Network
-
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../README.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
-````
-
-## File: docs/contexts/platform/subdomains.md
-````markdown
-# Platform
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| identity | 已驗證主體與身份信號治理 |
-| account | 帳號聚合根與帳號生命週期 |
-| account-profile | 主體屬性、偏好與治理設定 |
-| organization | 組織、成員與角色邊界 |
-| access-control | 主體現在能做什麼的授權判定 |
-| security-policy | 安全規則定義、版本化與發佈 |
-| platform-config | 平台設定輪廓與配置管理 |
-| feature-flag | 功能開關策略與發佈節點 |
-| onboarding | 新主體初始設定與引導流程 |
-| compliance | 資料保留、稽核與法規執行 |
-| billing | 計費狀態、費率與財務證據 |
-| subscription | 方案、權益、配額與續期治理 |
-| referral | 推薦關係與獎勵追蹤 |
-| ai | 共享 AI provider 路由、模型政策、配額與安全護欄 |
-| integration | 外部系統整合邊界與契約 |
-| workflow | 平台級流程編排與狀態驅動執行 |
-| notification | 通知路由、偏好與投遞 |
-| background-job | 背景任務提交、排程與監控 |
-| content | 平台級內容資產管理與發布 |
-| search | 跨域搜尋路由與查詢協調 |
-| audit-log | 永久稽核軌跡與不可否認證據 |
-| observability | 健康量測、追蹤與告警 |
-| analytics | 平台使用行為量測與分析 |
-| support | 客服工單、支援知識與處理流程 |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Why Needed |
-|---|---|
-| tenant | 建立多租戶隔離與 tenant-scoped 規則的正典邊界 |
-| entitlement | 建立有效權益與功能可用性的統一解算上下文 |
-| secret-management | 把憑證、token、rotation 從 integration 中切開 |
-| consent | 把同意與資料使用授權從 compliance 中切開 |
-
-## Recommended Order
-
-1. tenant
-2. entitlement
-3. secret-management
-4. consent
-
-## Anti-Patterns
-
-- 不把 tenant 與 organization 視為同義詞。
-- 不把 entitlement 混成 feature-flag 的別名。
-- 不把 secret-management 混成 integration 的一個欄位集合。
-- 不把 consent 混成一般 UI preference。
-- 不把 platform 的 ai 混成 notebooklm synthesis 或 notion 內容輔助的本地所有權。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先確認需求屬於哪個治理責任，再決定 use case 與 boundary。
-- shared AI provider、模型政策、成本與安全護欄一律先歸 platform.ai 評估。
-- 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的治理子域。
-- 子域命名必須反映治理責任，不應退化成頁面或介面名稱。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case"]
-	UseCase --> Subdomain["Owning subdomain domain"]
-	Infra["Infra adapter"] --> Subdomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Identity["Identity"] --> Organization["Organization / Tenant"]
-	Organization --> Access["Access / Policy"]
-	Access --> Entitlement["Entitlement"]
-	Entitlement --> Secret["AI / Secret / Integration / Delivery"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-````
-
-## File: docs/contexts/workspace/AGENT.md
-````markdown
-# Workspace Agent
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Mission
-
-保護 workspace 主域作為協作容器、工作區範疇與 workspaceId 錨點。任何變更都應維持 workspace 擁有工作區生命週期、成員關係、共享、存在感、活動投影、稽核、排程與工作流，而不是吸收平台治理或知識內容正典。
-
-## Canonical Ownership
-
-- lifecycle
-- membership
-- sharing
-- presence
-- audit
-- feed
-- scheduling
-- workspace-workflow
-
-## Route Here When
-
-- 問題的中心是 workspaceId、工作區建立封存、工作區內角色與參與關係。
-- 問題的中心是工作區共享、存在感、活動流、排程與工作流執行。
-- 問題需要提供其他主域運作所需的 workspace scope。
-
-## Route Elsewhere When
-
-- 身份、組織、授權、權益、憑證、通知治理屬於 platform。
-- 知識頁面、文章、資料庫、分類、內容發布屬於 notion。
-- notebook、conversation、source、retrieval、synthesis 屬於 notebooklm。
-
-## Guardrails
-
-- workspace 的 Member 或 Membership 不等於 platform 的 Actor 或 Identity。
-- feed 是投影，不是工作區正典狀態來源。
-- audit 是不可否認追蹤，不等於使用者導向動態流。
-- sharing 定義暴露範圍，但不取代 platform entitlement 與 access-control。
-- 跨主域互動只經過 published language、API 邊界或事件。
-
-## Dependency Direction
-
-- workspace 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- membership、sharing、presence、workspace-workflow 所需外部能力只能透過 ports 進入核心。
-- infrastructure 只處理事件、儲存、同步與投影，不反向定義 Workspace 或 Membership 語言。
-
-## Hard Prohibitions
-
-- 不得把 platform 的 Actor 或 Identity 直接當成 workspace 的 Membership 模型。
-- 不得讓 feed 取代正典狀態來源，或讓 audit 退化成一般 UI 活動流。
-- 不得讓 workspace 直接接管 notion 內容生命週期或 notebooklm 推理流程。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 workspace 作為協作 scope 主域，而不是治理或內容 owner。
-- 奧卡姆剃刀：若既有 lifecycle、membership、sharing、presence 或 workspace-workflow 邊界已足夠，就不要額外新增平行協作抽象。
-- 只有在外部依賴、跨主域語義污染或 scope 轉譯明確存在時，才建立 port、ACL 或 local DTO。
-- 對 notion 與 notebooklm 的輸出應停在 workspace scope / membership scope / share scope。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces / Driving Adapters"] --> A["Application / Orchestration"]
-	A --> D["Workspace Domain / Invariants"]
-	P["Ports / Domain-fit Contracts"] -. used by .-> A
-	X["Infrastructure / Driven Adapters"] -. implements .-> P
-	X --> D
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform upstream"] -->|Published Language| Boundary["workspace API boundary"]
-	Boundary --> Translation["Local DTO / ACL when needed"]
-	Translation --> App["Application orchestration"]
-	App --> Domain["Lifecycle / Membership / Sharing / Workspace Workflow"]
-	Domain --> Scope["workspace scope / membership scope / share scope"]
-	Scope --> Notion["notion downstream"]
-	Scope --> NotebookLM["notebooklm downstream"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0003-context-map.md](../../decisions/0003-context-map.md)
-- [../../decisions/0005-anti-corruption-layer.md](../../decisions/0005-anti-corruption-layer.md)
-````
-
-## File: docs/contexts/workspace/bounded-contexts.md
-````markdown
-# Workspace
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Domain Role
-
-workspace 是協作與範疇主域。依 bounded context 原則，它應封裝高度凝聚的工作區規則，並以最小公開介面提供其他主域使用的 workspace scope。
-
-## Baseline Bounded Contexts
-
-| Subdomain | Owns | Excludes |
-|---|---|---|
-| audit | 工作區操作證據、可追溯紀錄 | 平台永久合規審計 |
-| feed | 面向使用者的工作區活動投影 | 正典狀態與不可變證據 |
-| scheduling | 工作區時間安排、提醒、期限 | 平台背景工作引擎 |
-| workspace-workflow | 工作區流程定義、執行、狀態推進 | 知識內容正典生命週期 |
-
-## Recommended Gap Bounded Contexts
-
-| Subdomain | Why It Should Exist | Gap If Missing |
-|---|---|---|
-| lifecycle | 承接 workspace 建立、封存、還原、移轉與狀態變化 | 主容器生命週期容易散落到 workflow 或 app 組裝層 |
-| membership | 承接 workspace 內邀請、席位、角色與參與關係 | 會把 organization 與 workspace participation 混為一談 |
-| sharing | 承接分享連結、外部可見性與公開暴露範圍 | 對外共享無獨立邊界，安全與責任不清 |
-| presence | 承接即時在線狀態、協作存在感與共同編輯訊號 | 即時協作能力無法形成可演化的本地模型 |
-
-## Domain Invariants
-
-- workspaceId 是工作區範疇錨點。
-- 工作區成員關係屬於 membership，而不是平台身份本身。
-- activity feed 只投影事實，不創造事實。
-- audit trail 一旦寫入即不可隨意覆蓋。
-- workspace-workflow 可跨工作區能力協調，但不能取代 lifecycle 與 membership 的正典責任。
-
-## Dependency Direction
-
-- workspace 子域內部一律遵守 interfaces -> application -> domain <- infrastructure。
-- lifecycle、membership、sharing、presence 等能力若需要外部服務，必須經過 port/adapter。
-- domain 不得依賴 UI 狀態、HTTP 傳輸、排程框架或儲存實作細節。
-
-## Anti-Patterns
-
-- 把 Membership 混成 Actor 身份本身。
-- 讓 ActivityFeed 直接創造工作區事實，而不是投影工作區事實。
-- 讓 Workspace Workflow 取代 Lifecycle、Membership、Sharing 的正典責任。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先判斷需求落在 lifecycle、membership、sharing、presence、audit、feed、scheduling、workspace-workflow 哪個責任。
-- 奧卡姆剃刀：若既有 workspace 邊界可以吸收需求，就不要額外新建平行容器或 scope 抽象。
-- 對外部能力的抽象必須貼合 workspace scope 的需求，而不是複製供應商 API。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Workspace bounded contexts"]
-	X["Infrastructure"] --> D
-	X -. adapter / provider .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Lifecycle["Lifecycle"] --> Membership["Membership"]
-	Membership --> Sharing["Sharing"]
-	Sharing --> Presence["Presence"]
-	Presence --> Workflow["Workspace Workflow / Scheduling"]
-	Workflow --> AuditFeed["Audit / Feed projections"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [AGENT.md](./AGENT.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../decisions/0001-hexagonal-architecture.md](../../decisions/0001-hexagonal-architecture.md)
-- [../../decisions/0002-bounded-contexts.md](../../decisions/0002-bounded-contexts.md)
-````
-
-## File: docs/contexts/workspace/README.md
-````markdown
-# Workspace Context
-
-本 README 在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考重建，不主張反映現況實作。
-
-## Purpose
-
-workspace 是協作容器與工作區範疇主域。它的責任是提供 workspaceId、工作區生命週期、參與關係、共享、存在感、活動投影、稽核、排程與工作流，讓其他主域可以在同一個協作範疇中運作。
-
-## Why This Context Exists
-
-- 把工作區容器語意與平台治理語意分離。
-- 把工作區 scope 作為其他主域可依賴的 published language。
-- 把活動流、稽核、排程與流程協調收斂為同一主域內的高凝聚能力。
-
-## Context Summary
-
-| Aspect | Summary |
-|---|---|
-| Primary Role | 協作容器與 workspace scope |
-| Upstream Dependency | platform 的 actor、organization、access、entitlement |
-| Downstream Consumers | notion、notebooklm |
-| Core Principle | workspace 暴露 scope，不接管治理或內容正典 |
-
-## Baseline Subdomains
-
-- audit
-- feed
-- scheduling
-- workspace-workflow
-
-## Recommended Gap Subdomains
-
-- lifecycle
-- membership
-- sharing
-- presence
-
-## Key Relationships
-
-- 與 platform：workspace 是治理結果的 downstream consumer。
-- 與 notion：workspace 向 notion 提供 workspaceId、membership scope、share scope。
-- 與 notebooklm：workspace 向 notebooklm 提供 workspaceId、membership scope、share scope。
-
-## Reading Order
-
-1. [subdomains.md](./subdomains.md)
-2. [bounded-contexts.md](./bounded-contexts.md)
-3. [context-map.md](./context-map.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [AGENT.md](./AGENT.md)
-
-## Dependency Direction
-
-- 本主域內部固定採用 interfaces -> application -> domain <- infrastructure。
-- workspace 對外只暴露 scope、published language、API boundary、events，不暴露內部實作。
-
-## Anti-Pattern Rules
-
-- 不把 workspace scope 寫成平台治理結果本身。
-- 不把 feed、audit、workspace-workflow 互相取代為單一泛用流程層。
-- 不把 notion 或 notebooklm 的內容與推理責任吸回 workspace。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 workspace 的協作 scope 定位，再安排 lifecycle、membership、sharing、workspace-workflow 的交互。
-- 奧卡姆剃刀：不要預先建立第二條平行協作流程；只有既有 scope 邊界不夠時才補新抽象。
-- 優先讓 input -> translation -> application -> domain -> published scope 保持單純可追溯。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	I["Interfaces"] --> A["Application"]
-	A --> D["Domain"]
-	X["Infrastructure"] --> D
-	X -. implements ports .-> A
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] --> Boundary["workspace boundary"]
-	Boundary --> Translation["DTO / ACL"]
-	Translation --> App["Application use case"]
-	App --> Domain["Workspace domain"]
-	Domain --> Scope["workspace scope"]
-	Scope --> Notion["notion"]
-	Scope --> NotebookLM["notebooklm"]
-```
-
-## Document Network
-
-- [AGENT.md](./AGENT.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../README.md](../../README.md)
-- [../../architecture-overview.md](../../architecture-overview.md)
-- [../../integration-guidelines.md](../../integration-guidelines.md)
-
-## Constraints
-
-- 本文件是 architecture-first 版本。
-- 本文件依 Context7 的 bounded context 與 context map 原則編寫。
-- 本文件不代表對既有 repo 內容做過語意校準。
-````
-
-## File: docs/contexts/workspace/subdomains.md
-````markdown
-# Workspace
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 參考整理，不主張反映現況實作。
-
-## Baseline Subdomains
-
-| Subdomain | Responsibility |
-|---|---|
-| audit | 工作區操作稽核與證據追蹤 |
-| feed | 工作區活動摘要與事件流呈現 |
-| scheduling | 工作區排程、時序與提醒協調 |
-| workspace-workflow | 工作區流程編排與執行治理 |
-
-## Recommended Gap Subdomains
-
-| Subdomain | Why Needed |
-|---|---|
-| lifecycle | 把工作區容器生命週期獨立成正典邊界 |
-| membership | 把工作區參與關係從平台身份治理中切開 |
-| sharing | 把對外共享與可見性規則收斂到單一上下文 |
-| presence | 把即時協作存在感與共同編輯訊號形成本地語言 |
-
-## Recommended Order
-
-1. lifecycle
-2. membership
-3. sharing
-4. presence
-
-## Anti-Patterns
-
-- 不把 lifecycle 混進 workspace-workflow，使容器生命週期被流程編排吞沒。
-- 不把 membership 混成 organization 或 identity。
-- 不把 sharing 混成一般 permission 欄位集合。
-- 不把 presence 藏進 UI 狀態而失去獨立語言。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先確認需求屬於哪個 workspace 責任，再決定 use case 與 boundary。
-- 涉及工作區流程時一律使用 `workspace-workflow`，避免與 `platform.workflow` 混名。
-- 奧卡姆剃刀：能在既有子域用一個清楚 use case 解決，就不要新建語意重疊的 scope 子域。
-- 子域命名必須反映工作區語義，不應退化成頁面或元件名稱。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	UI["Interfaces"] --> UseCase["Use case"]
-	UseCase --> Subdomain["Owning subdomain domain"]
-	Infra["Infra adapter"] --> Subdomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Lifecycle["Lifecycle"] --> Membership["Membership"]
-	Membership --> Sharing["Sharing"]
-	Sharing --> Presence["Presence"]
-	Presence --> Workflow["Workspace Workflow"]
-	Workflow --> Scheduling["Scheduling"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [../../subdomains.md](../../subdomains.md)
-- [../../bounded-contexts.md](../../bounded-contexts.md)
-````
-
-## File: docs/decisions/0001-hexagonal-architecture.md
-````markdown
-# 0001 Hexagonal Architecture
-
-- Status: Accepted
-- Date: 2026-04-11
-
-## Context
-
-Context7 驗證的 DDD / Hexagonal 參考指出，模組應保持高凝聚、低耦合，外部世界只依賴公開介面，領域核心必須與框架與基礎設施分離。若沒有清楚的邊界與端口，模組內部規則會被外層技術細節污染，跨主域整合也會快速失控。
-
-## Decision
-
-採用主域導向的 Hexagonal Architecture 作為全域架構基線。
-
-- 每個主域內部遵守：driving adapters -> application orchestration -> domain core <- driven adapters。
-- 領域核心負責 invariants、值物件、聚合與領域規則。
-- 外部框架、IO、第三方服務、傳輸格式只能存在於邊界與 adapter。
-- 跨主域互動只能透過 published language、API 邊界或事件。
-- 公開 API 是跨主域依賴點，不是內部模組結構的鏡像暴露。
-
-## Consequences
-
-正面影響：
-
-- 主域邊界更清楚，重構內部結構時不必連帶破壞外部整合。
-- 領域語言可維持穩定，不會被 UI、HTTP 或基礎設施術語污染。
-- 後續若需要分拆部署或演進為更獨立的服務，代價較低。
-
-代價與限制：
-
-- 需要更多 API 契約、Local DTO、ACL 與轉換層。
-- 需要更嚴格的命名與文件治理，不可直接偷渡內部模型。
+| workspace | 協作容器與 scope | audit、feed、scheduling、workspace-workflow | lifecycle、membership、sharing、presence |
+| platform | 治理與營運支撐 | identity、organization、access、policy、billing、ai、notification、observability | tenant、entitlement、secret-management、consent |
+| notion | 正典知識內容 | knowledge、authoring、collaboration、database、templates、knowledge-versioning | taxonomy、relations、publishing |
+| notebooklm | 對話與推理 | conversation、note、notebook、source、synthesis、conversation-versioning | ingestion、retrieval、grounding、evaluation |
+
+## Ownership Rules
+
+- workspace 擁有工作區範疇，不擁有平台治理或正典內容。
+- platform 擁有治理與權益，不擁有正典內容或推理輸出。
+- notion 擁有正典知識內容，不擁有治理或推理流程。
+- notebooklm 擁有推理流程與衍生輸出，不擁有正典知識內容。
+
+## Dependency Direction Guardrail
+
+- bounded context 所有權定義的是語言與規則邊界，不等於可直接穿透的實作邊界。
+- 每個主域內部仍必須遵守 interfaces -> application -> domain <- infrastructure。
+- 跨主域整合一律先經 API boundary、published language、events 或 local DTO。
 
 ## Conflict Resolution
 
-- 若任何文件暗示 domain 直接依賴 framework / infrastructure，以本 ADR 為準並判定為衝突。
-- 若任何文件把 index 或共享檔案當成跨主域真實邊界，以本 ADR 為準並改回公開 API / published language。
+- 若某子域同時被多個主域宣稱，依最能維持語言自洽與 context map 方向的主域保留所有權。
+- 若某能力同時像治理又像內容，先問它是否定義 actor / tenant / entitlement；若是，歸 platform。
+- 若某能力同時像內容又像推理輸出，先問它是否是正典內容狀態；若是，歸 notion，否則歸 notebooklm。
+- generic `ai` 由 platform 擁有；notion 與 notebooklm 只能消費 platform 的 AI capability，不能再各自宣稱 `ai` 子域。
+- `workflow` 作為 generic 名稱只保留在 platform；workspace 使用 `workspace-workflow` 避免跨主域混名。
 
-## Rejected Anti-Patterns
+## Forbidden Ownership Moves
 
-- Domain 直接依賴 framework、SDK、transport、database implementation。
-- Application service 直接呼叫 driven adapter，而不透過 port。
-- Interface adapter 直接承載核心業務規則。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先保留 interfaces -> application -> domain <- infrastructure 的向內依賴方向。
-- 奧卡姆剃刀：若較少的 abstraction 已能保護邊界，就不要額外新增 port、service、facade 或 adapter。
-- 只有外部依賴或語義污染明確存在時，才建立 port 與 adapter。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Interfaces["Interfaces"] --> Application["Application"]
-	Application --> Domain["Domain"]
-	Infrastructure["Infrastructure"] --> Domain
-	Infrastructure -. implements .-> Ports["Ports"]
-	Application -. uses .-> Ports
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Request["Request"] --> Interfaces["Driving adapter"]
-	Interfaces --> Application["Application orchestration"]
-	Application --> Domain["Domain decision"]
-	Domain --> Ports["Port contract"]
-	Ports --> Infrastructure["Driven adapter"]
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
-- [0003-context-map.md](./0003-context-map.md)
-- [../architecture-overview.md](../architecture-overview.md)
-- [../integration-guidelines.md](../integration-guidelines.md)
-- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
-- [../project-delivery-milestones.md](../project-delivery-milestones.md)
-````
-
-## File: docs/decisions/0002-bounded-contexts.md
-````markdown
-# 0002 Bounded Contexts
-
-- Status: Accepted
-- Date: 2026-04-11
-
-## Context
-
-Context7 驗證的 bounded context 原則要求每個 context 只承載一組高凝聚、可自洽的語言與規則。如果沒有清楚主域與子域所有權，術語、責任與整合規則就會互相覆蓋，造成治理語言、內容語言與推理語言混雜。
-
-## Decision
-
-將系統的主域固定為四個主域：
-
-- workspace：協作容器與工作區範疇
-- platform：治理、身份、權益與營運支撐
-- notion：正典知識內容生命週期
-- notebooklm：對話、來源處理與推理輸出
-
-每個主域底下都有自己的子域集合。文件中必須明確區分：
-
-- baseline subdomains：此架構基線中已確立的核心子域
-- recommended gap subdomains：依 Context7 推導出的合理缺口子域
-
-## Consequences
-
-正面影響：
-
-- 所有權清楚，可避免 platform、workspace、notion、notebooklm 互相吞邊界。
-- 上層戰略文件與主域文件可共享同一個 decomposition 模型。
-
-代價與限制：
-
-- 需要承認 gap subdomains 是 architecture-first 建議，而不是 repo-inspected 現況事實。
-- 未來若要改主域切分，必須連動更新 strategic docs、ADR 與 context docs。
-
-## Conflict Resolution
-
-- 若任何文件出現超過四個主域的平級切分，以本 ADR 為準並視為衝突。
-- 若任何文件把 recommended gap subdomains 寫成已驗證現況，以本 ADR 為準並改回 architecture-first 表述。
-
-## Rejected Anti-Patterns
-
-- 讓多個主域同時聲稱同一正典所有權。
-- 用 UI、部署或資料表分組來取代 bounded context 切分。
-- 把 gap subdomain 寫成已落地事實，而不標示為架構缺口。
+- 不得讓兩個主域同時宣稱同一正典模型所有權。
+- 不得用部署、資料表或 UI 分區來覆蓋 bounded context 所有權。
+- 不得把 gap subdomain 缺口視為可以任意分散到其他主域的理由。
+- 不得讓同一個 generic 子域名稱同時作為多個主域的 canonical ownership。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先判定需求屬於哪個主域與子域，再決定檔案位置與依賴方向。
-- 奧卡姆剃刀：若既有 bounded context 已可吸收需求，就不要新增平級主域或語意重疊子域。
-- 所有權不清楚時，先修正語言與 context map，再寫程式碼。
+- 生成程式碼時，先決定 owning bounded context，再決定檔案位置、命名與 boundary。
+- 奧卡姆剃刀：若既有 bounded context 可吸收需求，就不要為了命名好看而新增新的上下文。
+- 所有權模糊時，先修正文檔邊界，再寫程式碼。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart TD
-	MainDomain["Main Domain"] --> Subdomain["Subdomain"]
+	MainDomain["Main domain"] --> Subdomain["Subdomain"]
 	Subdomain --> Application["Application"]
 	Application --> Domain["Domain"]
 	Infrastructure["Infrastructure"] --> Domain
@@ -73290,166 +74365,315 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-	Need["New requirement"] --> Ownership["Identify owning bounded context"]
-	Ownership --> Language["Align ubiquitous language"]
-	Language --> API["Choose boundary / API"]
-	API --> Code["Generate code in owning context"]
+	Requirement["Requirement"] --> Ownership["Choose bounded context"]
+	Ownership --> Boundary["Choose API boundary"]
+	Boundary --> Language["Align local language"]
+	Language --> Code["Generate code"]
 ```
 
 ## Document Network
 
-- [README.md](./README.md)
-- [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md)
-- [0003-context-map.md](./0003-context-map.md)
-- [../bounded-contexts.md](../bounded-contexts.md)
-- [../subdomains.md](../subdomains.md)
-- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
-- [../project-delivery-milestones.md](../project-delivery-milestones.md)
+- [architecture-overview.md](./architecture-overview.md)
+- [subdomains.md](./subdomains.md)
+- [context-map.md](./context-map.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
+- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
 ````
 
-## File: docs/decisions/0003-context-map.md
+## File: docs/contexts/_template.md
 ````markdown
-# 0003 Context Map
+# Context Template
 
-- Status: Accepted
-- Date: 2026-04-11
+本樣板在本次任務限制下，依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 原則設計，用於建立新的 context 文件集合。
 
-## Context
+## Files To Create
 
-Context Mapper 文件指出，context map 是 bounded contexts 與其關係的中心表示。若關係方向不清楚，則 published language、ACL、supplier/customer 責任無法正確定義，文件之間也容易同時出現互相衝突的整合模型。
+- README.md
+- subdomains.md
+- bounded-contexts.md
+- context-map.md
+- ubiquitous-language.md
+- AGENT.md
 
-## Decision
+## README.md Template
 
-在四個主域之間，只採用 directed upstream-downstream 關係作為主域級整合基線。
+- Purpose
+- Why This Context Exists
+- Context Summary
+- Baseline Subdomains
+- Recommended Gap Subdomains
+- Key Relationships
+- Reading Order
+- Copilot Generation Rules
+- Dependency Direction
+- Dependency Direction Flow
+- Anti-Pattern Rules
+- Correct Interaction Flow
+- Document Network
+- Constraints
 
-主域關係如下：
+## subdomains.md Template
 
-- platform -> workspace
-- platform -> notion
-- platform -> notebooklm
-- workspace -> notion
-- workspace -> notebooklm
-- notion -> notebooklm
+- Baseline Subdomains
+- Recommended Gap Subdomains
+- Recommended Order
+- Copilot Generation Rules
+- Dependency Direction Flow
+- Correct Interaction Flow
+- Document Network
 
-主域級不採用 Shared Kernel 或 Partnership。
+## bounded-contexts.md Template
 
-## Consequences
+- Domain Role
+- Baseline Bounded Contexts
+- Recommended Gap Bounded Contexts
+- Domain Invariants
+- Copilot Generation Rules
+- Dependency Direction
+- Dependency Direction Flow
+- Anti-Patterns
+- Correct Interaction Flow
+- Document Network
 
-正面影響：
+## context-map.md Template
 
-- 每個主域可以清楚知道誰是上游、誰是下游。
-- ACL、Published Language、Conformist 等模式才有明確適用位置。
+- Context Role
+- Relationships
+- Mapping Rules
+- Copilot Generation Rules
+- Dependency Direction
+- Dependency Direction Flow
+- Anti-Patterns
+- Correct Interaction Flow
+- Document Network
 
-代價與限制：
+## ubiquitous-language.md Template
 
-- 需要更多轉譯與 API 契約層，不能直接共享內部模型。
-- 若某些能力確實需要共用模型，必須先抽象成新的獨立 bounded context，而不是偷渡共享核心。
+- Canonical Terms
+- Language Rules
+- Avoid
+- Naming Anti-Patterns
+- Copilot Generation Rules
+- Dependency Direction Flow
+- Correct Interaction Flow
+- Document Network
 
-## Conflict Resolution
+## AGENT.md Template
 
-- 若任何文件同時宣稱兩個主域是 Partnership / Shared Kernel，又同時使用 ACL 或 Conformist，判定為衝突，以本 ADR 為準。
-- 若任何文件出現與上述方向相反的主域級關係，以本 ADR 為準。
+- Mission
+- Canonical Ownership
+- Route Here When
+- Route Elsewhere When
+- Guardrails
+- Copilot Generation Rules
+- Dependency Direction
+- Dependency Direction Flow
+- Hard Prohibitions
+- Correct Interaction Flow
+- Document Network
 
-## Rejected Anti-Patterns
+## Consistency Rules
 
-- 把 directed upstream-downstream 與 symmetric relationship 混寫在同一主域關係。
-- 把 supplier / consumer 敘事寫反，造成上下游不明。
-- 直接共享內部模型來取代 published language。
+- context-map 只能使用與戰略文件一致的關係方向。
+- subdomains 與 bounded-contexts 必須使用同一套 baseline / gap 子域集合。
+- README 只做入口摘要，不重寫 ADR 級決策。
+- 若新 context 需要 symmetric relationship，必須先明確說明為什麼不採用 upstream-downstream。
+- 若 context 文件涉及模組骨架或分層，必須與 `docs/bounded-context-subdomain-template.md` 一致：`<bounded-context>` 根層可承接 context-wide 的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，不應被簡化成只有 `docs/` 與 `subdomains/`。
+- 若文件提到 `core/`，必須明確說明它只是可選包裝；`infrastructure/` 與 `interfaces/` 仍屬外層，不得被包進泛用 `core/`。
+
+## Mandatory Anti-Pattern Rules
+
+- 不得把 domain 寫成依賴 framework、transport、storage 或第三方 SDK 的層。
+- 不得把 Shared Kernel / Partnership 與 ACL / Conformist 混用在同一關係敘事。
+- 不得把其他主域的正典模型直接拿來當成本地主域模型。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先判定 upstream 與 downstream，再安排 API boundary、published language、ACL 或 Conformist。
-- 奧卡姆剃刀：若單一 published language 與單一 translation step 已足夠，就不要加第二條整合鏈。
-- 關係方向不清楚時，先停下修正文檔，不直接生成跨主域耦合程式碼。
+- 先決定 owning context、語言、邊界與依賴方向，再生成程式碼。
+- 若需求屬於 shared policy、published language 或跨 subdomain orchestration，允許在 `<bounded-context>` 根層使用 hexagonal layers；否則優先落回擁有責任的 subdomain。
+- 奧卡姆剃刀：若較少的抽象已能保護邊界與可測試性，就不要額外新增 port、ACL、DTO、subdomain、service 或流程節點。
+- 任何新文件都應沿用同一套規則、流程圖與文件網絡章節。
+
+## Occam Guardrail
+
+- 若較少的抽象已能保護邊界與可測試性，就不要額外新增 port、ACL、DTO、subdomain、service 或流程節點。
+
+## Diagram Templates
+
+```mermaid
+flowchart LR
+	Interfaces["Interfaces"] --> Application["Application"]
+	Application --> Domain["Domain"]
+	Infrastructure["Infrastructure"] --> Domain
+```
+
+```mermaid
+flowchart LR
+	Upstream["Upstream"] -->|Published Language| Boundary["API boundary"]
+	Boundary --> Translation["Local DTO / ACL"]
+	Translation --> Application["Application"]
+	Application --> Domain["Domain"]
+```
+
+## Document Network
+
+- [../README.md](../README.md)
+- [../architecture-overview.md](../architecture-overview.md)
+- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
+- [../bounded-contexts.md](../bounded-contexts.md)
+- [../context-map.md](../context-map.md)
+- [../integration-guidelines.md](../integration-guidelines.md)
+- [../subdomains.md](../subdomains.md)
+- [../ubiquitous-language.md](../ubiquitous-language.md)
+- [../decisions/README.md](../decisions/README.md)
+````
+
+## File: docs/subdomains.md
+````markdown
+# Subdomains
+
+本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 strategic design 原則重建，不主張反映現況實作。
+
+## Main Domain Inventory
+
+| Main Domain | Baseline Subdomains | Recommended Gap Subdomains |
+|---|---|---|
+| workspace | audit, feed, scheduling, workspace-workflow | lifecycle, membership, sharing, presence |
+| platform | identity, account, account-profile, organization, access-control, security-policy, platform-config, feature-flag, onboarding, compliance, billing, subscription, referral, ai, integration, workflow, notification, background-job, content, search, audit-log, observability, analytics, support | tenant, entitlement, secret-management, consent |
+| notion | knowledge, authoring, collaboration, database, knowledge-analytics, attachments, automation, knowledge-integration, notes, templates, knowledge-versioning | taxonomy, relations, publishing |
+| notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | ingestion, retrieval, grounding, evaluation |
+
+## Strategic Notes
+
+- baseline subdomains 代表本架構基線中已確立的核心切分。
+- recommended gap subdomains 代表依 Context7 推導出的合理補洞方向。
+- recommended gap subdomains 不等於已驗證現況實作。
+
+## Ownership Summary
+
+- workspace 關心協作範疇。
+- platform 關心治理與權益。
+- notion 關心正典知識內容。
+- notebooklm 關心推理與衍生輸出。
+
+## Cross-Domain Duplicate Resolution
+
+| Original Term | Resolution |
+|---|---|
+| ai | `platform` 擁有唯一 generic `ai` 子域；`notion` 與 `notebooklm` 改為 consumer，不再各自擁有 `ai` 子域 |
+| analytics | `platform` 保留 generic `analytics`；`notion` 改為 `knowledge-analytics` |
+| integration | `platform` 保留 generic `integration`；`notion` 改為 `knowledge-integration` |
+| versioning | `notion` 改為 `knowledge-versioning`；`notebooklm` 改為 `conversation-versioning` |
+| workflow | `platform` 保留 generic `workflow`；`workspace` 改為 `workspace-workflow` |
+
+## Subdomain Anti-Patterns
+
+- 不把 baseline subdomains 與 recommended gap subdomains 混成同一種事實狀態。
+- 不把主域缺口直接分攤到別的主域，造成所有權漂移。
+- 不把子域名稱當成 UI 功能清單，而忽略其邊界責任。
+- 不讓同一個 generic 子域名稱同時被多個主域擁有，造成 Copilot 與團隊語言歧義。
+
+## Copilot Generation Rules
+
+- 生成程式碼時，先確認需求屬於哪個主域與子域，再決定實作位置。
+- 奧卡姆剃刀：能放進既有子域就不要創造新子域；能放進既有 use case 就不要新增第二條平行流程。
+- gap subdomain 只表示架構缺口，不表示一定要立刻實作。
+- 遇到 generic 名稱時，先套用本文件的 duplicate resolution，再決定是否新增或改名。
 
 ## Dependency Direction Flow
 
 ```mermaid
-flowchart LR
-	Upstream["Upstream"] -->|PL / OHS| Downstream["Downstream"]
-	Downstream -->|ACL or Conformist| LocalModel["Local model"]
+flowchart TD
+	MainDomain["Main domain"] --> Baseline["Baseline subdomains"]
+	MainDomain --> Gap["Recommended gap subdomains"]
+	Baseline --> UseCase["Use case / boundary"]
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	Upstream["Upstream context"] -->|Published Language| Boundary["Downstream API client / boundary"]
-	Boundary --> Translation["ACL or local DTO"]
-	Translation --> Domain["Downstream domain"]
+	Requirement["Requirement"] --> Domain["Choose main domain"]
+	Domain --> Subdomain["Choose owning subdomain"]
+	Subdomain --> Boundary["Choose boundary"]
+	Boundary --> Code["Generate code"]
 ```
 
 ## Document Network
 
-- [README.md](./README.md)
-- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
-- [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md)
-- [../context-map.md](../context-map.md)
-- [../integration-guidelines.md](../integration-guidelines.md)
-- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
-- [../project-delivery-milestones.md](../project-delivery-milestones.md)
+- [architecture-overview.md](./architecture-overview.md)
+- [bounded-contexts.md](./bounded-contexts.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [contexts/workspace/subdomains.md](./contexts/workspace/subdomains.md)
+- [contexts/platform/subdomains.md](./contexts/platform/subdomains.md)
+- [contexts/notion/subdomains.md](./contexts/notion/subdomains.md)
+- [contexts/notebooklm/subdomains.md](./contexts/notebooklm/subdomains.md)
 ````
 
-## File: docs/decisions/0004-ubiquitous-language.md
+## File: docs/ubiquitous-language.md
 ````markdown
-# 0004 Ubiquitous Language
+# Ubiquitous Language
 
-- Status: Accepted
-- Date: 2026-04-11
+本文件在本次任務限制下，僅依 Context7 驗證的 DDD ubiquitous language 原則重建，不主張反映現況實作。
 
-## Context
+## Strategic Terms
 
-Context7 驗證的 DDD 參考指出，領域核心必須運作在自己清楚的 ubiquitous language 之上。若沒有共同語言，跨主域整合、ADR、戰略文件與子域文件會用不同詞指同一件事，或用同一詞指不同責任，進而造成長期衝突。
+| Term | Meaning |
+|---|---|
+| Main Domain | 戰略層級的主要 bounded context 群組 |
+| Bounded Context | 一組高凝聚、可自洽的語言與規則邊界 |
+| Published Language | 跨邊界交換時使用的共同語言 |
+| Upstream | 關係中提供語言或能力的一方 |
+| Downstream | 關係中消費語言或能力的一方 |
+| Anti-Corruption Layer | downstream 用來保護本地語言的轉譯層 |
+| Conformist | downstream 直接接受 upstream 語言的整合選擇 |
+| Shared Kernel | 對稱共用模型關係 |
+| Partnership | 對稱共同成功 / 共同失敗關係 |
 
-## Decision
+## Domain Terms
 
-建立兩層語言治理：
+| Domain | Key Terms |
+|---|---|
+| platform | Actor, Tenant, Entitlement, Consent, Secret |
+| workspace | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail |
+| notion | KnowledgeArtifact, Taxonomy, Relation, Publication |
+| notebooklm | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
 
-- strategic ubiquitous language：定義四主域共用的戰略術語與整合術語
-- context-specific ubiquitous language：由各主域 context 文件定義更細的本地主域語言
+## Naming Rules
 
-主域層的關鍵術語固定為：
+- 不用 User 混指 Actor 與 Membership。
+- 不用 Plan 混指 Subscription 與 Entitlement。
+- 不用 Wiki 混指 KnowledgeArtifact。
+- 不用 Chat 混指 Conversation。
+- 不用 Search 混指 Retrieval。
+- 不用 AI 混指 platform 的 shared AI capability 與 notion / notebooklm 的本地 use case。
+- 不用 Analytics 混指 platform analytics 與 notion 的 knowledge-analytics。
+- 不用 Integration 混指 platform integration 與 notion 的 knowledge-integration。
+- 不用 Versioning 混指 notion 的 knowledge-versioning 與 notebooklm 的 conversation-versioning。
+- 不用 Workflow 混指 platform workflow 與 workspace-workflow。
 
-- platform：Actor、Tenant、Entitlement、Secret、Consent
-- workspace：Workspace、Membership、ShareScope、ActivityFeed、AuditTrail
-- notion：KnowledgeArtifact、Taxonomy、Relation、Publication
-- notebooklm：Notebook、Ingestion、Retrieval、Grounding、Synthesis、Evaluation
+## Naming Anti-Patterns
 
-## Consequences
-
-正面影響：
-
-- 戰略文件、主域文件與 ADR 可以共享同一套術語。
-- 語言衝突可以在文件層面先被攔住，而不是等到實作才暴露。
-
-代價與限制：
-
-- 命名自由度下降，需要持續維護 glossary。
-- 新概念若無法歸屬到既有語言，必須先做文件決策。
-
-## Conflict Resolution
-
-- 若戰略語言與主域語言衝突，先以更具邊界意義的主域語言為準，再回寫 strategic glossary。
-- 若兩個主域同時主張同一術語所有權，以 bounded contexts 與 context map 的所有權關係為準。
-
-## Rejected Anti-Patterns
-
-- 用同一個詞同時指涉治理、內容、推理三種不同責任。
-- 用舊產品術語覆蓋新的 bounded context 語言。
-- 讓實作便利性凌駕於 ubiquitous language 一致性。
+- 用同一個詞同時代表平台治理語言與工作區參與語言。
+- 用內容產品舊名覆蓋 notion 的正典語言。
+- 用 Search 混指 notebooklm 的 Retrieval 與一般搜尋能力。
+- 用同一個 generic 子域名跨主域重複宣稱所有權，再期望 Copilot 自行猜對上下文。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先對齊 strategic term 與 context-specific term，再決定檔名、型別與 API 名稱。
-- 奧卡姆剃刀：若一個名詞已足夠表達邊界，就不要再堆疊第二個近義抽象詞。
-- 名稱若與現有語言衝突，先修正文檔與用語，再寫程式碼。
+- 生成程式碼時，先對齊 strategic term，再對齊 context-specific term，最後才命名型別與 API。
+- 奧卡姆剃刀：若一個詞已足夠準確，就不要再加第二個近義詞製造歧義。
+- 名稱衝突時先回到 glossary，而不是直接在程式碼裡各自命名。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	Strategic["Strategic language"] --> Context["Context language"]
-	Context --> Boundary["API / Published Language"]
+	Strategic["Strategic terms"] --> Context["Context terms"]
+	Context --> Boundary["Published language / API"]
 	Boundary --> Code["Generated code names"]
 ```
 
@@ -73457,545 +74681,26 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-	Requirement["Requirement"] --> Term["Choose canonical term"]
+	Requirement["Requirement"] --> Term["Select canonical term"]
 	Term --> Context["Map to owning context"]
-	Context --> Boundary["Expose through correct boundary"]
+	Context --> Boundary["Expose via boundary"]
 	Boundary --> Code["Generate code"]
 ```
 
 ## Document Network
 
-- [README.md](./README.md)
-- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
-- [../ubiquitous-language.md](../ubiquitous-language.md)
-- [../contexts/_template.md](../contexts/_template.md)
-- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
-- [../project-delivery-milestones.md](../project-delivery-milestones.md)
-````
-
-## File: docs/decisions/0005-anti-corruption-layer.md
-````markdown
-# 0005 Anti-Corruption Layer
-
-- Status: Accepted
-- Date: 2026-04-11
-
-## Context
-
-Context Mapper 明確指出 ACL 只能出現在 upstream-downstream 關係中，且只能由 downstream 採用；ACL 與 Conformist 互斥，且都不適用於 Shared Kernel 或 Partnership。若沒有這條規則，整合文件會同時宣稱保護語言與直接順從上游，造成自相矛盾。
-
-## Decision
-
-採用以下整合保護規則：
-
-- 主域級整合預設先使用 published language + local DTO。
-- 若上游語言會扭曲下游語言，下游必須使用 ACL。
-- 若上游語言與下游需求高度一致，下游才可選擇 Conformist。
-- ACL 與 Conformist 不能同時套用在同一關係。
-- 因本架構基線不採用主域級 Shared Kernel / Partnership，所以主域級不允許以對稱關係為由略過 ACL 判斷。
-
-## Consequences
-
-正面影響：
-
-- 下游主域可以保護自己的 ubiquitous language。
-- Integration guidelines 可以有單一、可判斷的模式選擇規則。
-
-代價與限制：
-
-- 需要維護更多轉譯器、Local DTO 與邊界測試。
-- 若每個整合都無條件使用 ACL，也會增加樣板成本，因此仍須做必要性判斷。
+- [contexts/workspace/ubiquitous-language.md](./contexts/workspace/ubiquitous-language.md)
+- [contexts/platform/ubiquitous-language.md](./contexts/platform/ubiquitous-language.md)
+- [contexts/notion/ubiquitous-language.md](./contexts/notion/ubiquitous-language.md)
+- [contexts/notebooklm/ubiquitous-language.md](./contexts/notebooklm/ubiquitous-language.md)
+- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
+- [project-delivery-milestones.md](./project-delivery-milestones.md)
+- [decisions/0004-ubiquitous-language.md](./decisions/0004-ubiquitous-language.md)
 
 ## Conflict Resolution
 
-- 若任何文件把 ACL 寫成 upstream 的責任，判定為衝突，以本 ADR 為準。
-- 若任何文件同時要求 ACL 與 Conformist 套在同一整合，判定為衝突，以本 ADR 為準。
-- 若任何文件在對稱關係上使用 ACL / Conformist，判定為衝突，以本 ADR 為準。
-
-## Rejected Anti-Patterns
-
-- 把 ACL 當成 upstream 的工作。
-- 在同一關係同時宣稱 ACL 與 Conformist。
-- 用 Shared Kernel / Partnership 當理由跳過整合語義判斷。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先確認自己是 upstream 還是 downstream，再決定是否需要 ACL 或 Conformist。
-- 奧卡姆剃刀：若 published language 加 local DTO 已足夠，就不要額外新增第二層 ACL。
-- 只有在上游語言真的會污染本地語言時，才建立 ACL。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Upstream["Upstream"] -->|Published Language| DownstreamBoundary["Downstream boundary"]
-	DownstreamBoundary --> ACL["ACL if needed"]
-	DownstreamBoundary --> CF["Conformist if language matches"]
-	ACL --> LocalDomain["Local domain"]
-	CF --> LocalDomain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Upstream["Upstream context"] -->|PL / OHS| Boundary["Downstream API client"]
-	Boundary --> Decision["Need protection?"]
-	Decision -->|Yes| ACL["ACL"]
-	Decision -->|No| CF["Conformist"]
-	ACL --> Domain["Downstream domain"]
-	CF --> Domain
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [0003-context-map.md](./0003-context-map.md)
-- [../context-map.md](../context-map.md)
-- [../integration-guidelines.md](../integration-guidelines.md)
-- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
-- [../project-delivery-milestones.md](../project-delivery-milestones.md)
-````
-
-## File: docs/decisions/README.md
-````markdown
-# Decisions
-
-本目錄是 architecture-first 的決策日誌。依 ADR 參考模式，每份 ADR 至少說明 context、decision、consequences 與 conflict resolution，讓後續戰略文件可以引用相同決策來源。
-
-## Decision Log
-
-| ADR | Title | Status | Scope |
-|---|---|---|---|
-| [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md) | Hexagonal Architecture | Accepted | 全域架構與邊界分層 |
-| [0002-bounded-contexts.md](./0002-bounded-contexts.md) | Bounded Contexts | Accepted | 四主域與子域切分 |
-| [0003-context-map.md](./0003-context-map.md) | Context Map | Accepted | 主域間依賴方向 |
-| [0004-ubiquitous-language.md](./0004-ubiquitous-language.md) | Ubiquitous Language | Accepted | 戰略術語治理 |
-| [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md) | Anti-Corruption Layer | Accepted | 邊界整合保護規則 |
-
-## How To Use This Directory
-
-- 先讀標題以取得整體脈絡。
-- 若某份戰略文件與 ADR 衝突，以 ADR 的 decision 與 conflict resolution 為準。
-- 若未來新增新的架構決策，應沿用同一結構補充，而不是覆寫舊決策歷史。
-
-## Anti-Pattern Coverage
-
-- 0001 禁止把 framework / infrastructure 滲入核心。
-- 0002 禁止主域與子域所有權漂移。
-- 0003 禁止上下游方向與對稱關係混寫。
-- 0004 禁止語言污染與同詞多義。
-- 0005 禁止錯置 ACL / Conformist 的責任位置。
-
-## Copilot Generation Rules
-
-- 生成程式碼前，先由 ADR 決定邊界、語言與整合責任，再下手實作。
-- 奧卡姆剃刀：若既有 ADR 已能解決當前判斷，就不要再堆疊新的臨時規則文件。
-- 新規則若會改變邊界，先補 ADR，再補戰略文件與 context docs。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	ADR["ADR"] --> Strategy["Strategic docs"]
-	Strategy --> Context["Context docs"]
-	Context --> Code["Generated code"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Question["Architecture question"] --> ADR["Check ADR"]
-	ADR --> Strategy["Align strategic docs"]
-	Strategy --> Context["Align context docs"]
-	Context --> Code["Generate boundary-safe code"]
-```
-
-## Document Network
-
-- [0001-hexagonal-architecture.md](./0001-hexagonal-architecture.md)
-- [0002-bounded-contexts.md](./0002-bounded-contexts.md)
-- [0003-context-map.md](./0003-context-map.md)
-- [0004-ubiquitous-language.md](./0004-ubiquitous-language.md)
-- [0005-anti-corruption-layer.md](./0005-anti-corruption-layer.md)
-- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
-- [../project-delivery-milestones.md](../project-delivery-milestones.md)
-- [../README.md](../README.md)
-
-## Constraints
-
-- 本目錄在本次任務限制下，只依 Context7 架構參考重建。
-- 本目錄不是對既有 repo 內容做過語意比對後的歷史還原。
-````
-
-## File: docs/integration-guidelines.md
-````markdown
-# Integration Guidelines
-
-本文件在本次任務限制下，僅依 Context7 驗證的 published language、ACL、Conformist 與 hexagonal boundary 原則重建，不主張反映現況實作。
-
-## Boundary Contract
-
-跨主域整合只能使用：
-
-- published language
-- public API boundary
-- domain / integration events
-- local DTO
-- downstream ACL 或 downstream Conformist
-
-## Pattern Selection Rules
-
-| Situation | Pattern |
-|---|---|
-| 下游與上游語義高度一致，且不會扭曲本地語言 | Conformist |
-| 上游語義會污染下游本地語言 | Anti-Corruption Layer |
-| 只是跨主域資料交換 | Published Language + Local DTO |
-
-## Hard Rules
-
-- ACL 與 Conformist 只能由 downstream 選擇。
-- ACL 與 Conformist 互斥。
-- 不可直接傳遞上游 entity / aggregate 作為下游正典模型。
-- 不可把 shared technical package 誤當成 strategic shared kernel。
-- 若需要共同語義，先定 published language，再定 DTO，再評估是否需要 ACL。
-
-## Domain-Specific Guidance
-
-- workspace 消費 platform 時，優先保護自己的 membership、sharing、presence 語言。
-- notion 消費 platform 或 workspace 時，優先保護自己的 knowledge artifact 與 taxonomy 語言。
-- notebooklm 消費 notion 時，優先保護自己的 retrieval、grounding、synthesis 語言。
-
-## Integration Checklist
-
-1. 先確認 upstream / downstream 方向。
-2. 先列出 published language。
-3. 判斷是否語義一致。
-4. 一致則考慮 conformist，不一致則建立 ACL。
-5. 避免把 DTO、entity、policy、UI 狀態混成同一層。
-
-## Integration Anti-Patterns
-
-- 直接傳遞上游 aggregate、entity、repository 給下游使用。
-- 讓 downstream 省略 published language 與 local DTO，直接貼靠上游內部模型。
-- 把 ACL 當成預設樣板卻不判斷是否真的有語義污染。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先決定 upstream、downstream、published language，再決定 DTO、ACL 或 Conformist。
-- 奧卡姆剃刀：若 published language 加 local DTO 已足夠，就不要額外建立雙重 mapper、雙重 ACL 或鏡像 aggregate。
-- 只有在上游語義真的會污染本地語言時，才建立 ACL。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Upstream["Upstream"] -->|Published Language| Boundary["Downstream boundary"]
-	Boundary --> Translation["Local DTO / ACL / Conformist"]
-	Translation --> Application["Application"]
-	Application --> Domain["Domain"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Need["Cross-context need"] --> Direction["Identify upstream/downstream"]
-	Direction --> PL["Define published language"]
-	PL --> Decision["Need protection?"]
-	Decision -->|Yes| ACL["ACL"]
-	Decision -->|No| DTO["Local DTO / Conformist"]
-	ACL --> Domain["Downstream domain"]
-	DTO --> Domain
-```
-
-## Document Network
-
-- [context-map.md](./context-map.md)
-- [strategic-patterns.md](./strategic-patterns.md)
-- [architecture-overview.md](./architecture-overview.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
-- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
-
-## Conflict Resolution
-
-- 若某整合指南與 [context-map.md](./context-map.md) 的方向衝突，以 context map 為準。
-- 若某整合指南與 [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md) 衝突，以 ADR 為準。
-````
-
-## File: docs/strategic-patterns.md
-````markdown
-# Strategic Patterns
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD strategic design 與 context map 原則重建，不主張反映現況實作。
-
-## Selected Patterns
-
-| Pattern | Usage In This Architecture |
-|---|---|
-| Bounded Context | 四個主域與其子域切分的核心模式 |
-| Upstream-Downstream | 主域級關係的唯一基線模式 |
-| Published Language | 所有跨主域交換的共同語言 |
-| Anti-Corruption Layer | downstream 語言需要保護時使用 |
-| Conformist | downstream 語言與 upstream 高度一致時的例外策略 |
-
-## Patterns Not Used At Main-Domain Level
-
-| Pattern | Why Not Used |
-|---|---|
-| Shared Kernel | 主域級共用模型會快速放大耦合與責任混淆 |
-| Partnership | 主域級互相綁定會破壞 supplier / consumer 的清楚方向 |
-
-## Recommended Strategic Posture
-
-- platform 作為治理 supplier。
-- workspace 作為協作 scope supplier。
-- notion 作為知識內容 supplier。
-- notebooklm 作為推理輸出與引用整合者。
-
-## Pattern Conflicts Avoided
-
-- 不把 ACL 與 Conformist 混用。
-- 不把 Shared Kernel 與 directed relationship 混用。
-- 不把 technical shared libraries 混寫成 strategic shared kernel。
-
-## Strategic Anti-Patterns
-
-- 以 shared technical package 取代真正的 bounded context 關係設計。
-- 以對稱關係語言掩蓋其實存在的上下游依賴。
-- 以實作方便為由，直接共享內部模型而不定 published language。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先選對戰略模式，再選對技術形狀。
-- 奧卡姆剃刀：優先使用最少但足夠的戰略模式，不要同時堆疊多個彼此衝突的模式。
-- 若一段整合沒有真正的語義污染，就不要硬加 ACL。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	BoundedContext["Bounded Context"] --> UpstreamDownstream["Upstream / Downstream"]
-	UpstreamDownstream --> PublishedLanguage["Published Language"]
-	PublishedLanguage --> ACLCF["ACL or Conformist"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	PatternChoice["Choose pattern"] --> Relationship["Set relationship direction"]
-	Relationship --> Language["Define published language"]
-	Language --> Protection["Apply ACL or Conformist if needed"]
-	Protection --> Code["Generate code"]
-```
-
-## Document Network
-
-- [architecture-overview.md](./architecture-overview.md)
-- [context-map.md](./context-map.md)
-- [integration-guidelines.md](./integration-guidelines.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
-- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
-
-## Decision References
-
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
-- [decisions/0003-context-map.md](./decisions/0003-context-map.md)
-- [decisions/0005-anti-corruption-layer.md](./decisions/0005-anti-corruption-layer.md)
-````
-
-## File: eslint.config.mjs
-````javascript
-import { defineConfig, globalIgnores } from "eslint/config";
-import tseslint from "@typescript-eslint/eslint-plugin";
-import boundaries from "eslint-plugin-boundaries";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
-import jsdoc from "eslint-plugin-jsdoc";
-import jsxA11y from "eslint-plugin-jsx-a11y";
-
-// ─── Globs ───────────────────────────────────────────────────────────────────
-const srcGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
-const tsGlobs  = ["**/*.{ts,tsx}"];
-const moduleCodeGlobs = ["modules/**/*.{js,jsx,ts,tsx}"];
-const outerAdapterGlobs = ["app/**/*.{ts,tsx,js,jsx}","providers/**/*.{ts,tsx,js,jsx}","debug/**/*.{ts,tsx,js,jsx}"];
-const packageGlobs = ["packages/**/*.{ts,tsx,js,jsx}"];
-
-// ─── Module boundary helpers ─────────────────────────────────────────────────
-const WARN = "warn";
-
-const mainDomainElements = [
-  { type: "main-domain-api", pattern: "modules/*/api/**/*", mode: "file", capture: ["domain"] },
-  { type: "main-domain-domain", pattern: "modules/*/domain/**/*", mode: "file", capture: ["domain"] },
-  { type: "main-domain-application", pattern: "modules/*/application/**/*", mode: "file", capture: ["domain"] },
-  { type: "main-domain-infrastructure", pattern: "modules/*/infrastructure/**/*", mode: "file", capture: ["domain"] },
-  { type: "main-domain-interfaces", pattern: "modules/*/interfaces/**/*", mode: "file", capture: ["domain"] },
-];
-
-const subdomainElements = [
-  { type: "subdomain-api", pattern: "modules/*/subdomains/*/api/**/*", mode: "file", capture: ["domain","subdomain"] },
-  { type: "subdomain-domain", pattern: "modules/*/subdomains/*/domain/**/*", mode: "file", capture: ["domain","subdomain"] },
-  { type: "subdomain-application", pattern: "modules/*/subdomains/*/application/**/*", mode: "file", capture: ["domain","subdomain"] },
-  { type: "subdomain-infrastructure", pattern: "modules/*/subdomains/*/infrastructure/**/*", mode: "file", capture: ["domain","subdomain"] },
-  { type: "subdomain-interfaces", pattern: "modules/*/subdomains/*/interfaces/**/*", mode: "file", capture: ["domain","subdomain"] },
-];
-
-const moduleElements = [...subdomainElements, ...mainDomainElements];
-
-const sameDomain = (type) => [type, { domain: "${from.domain}" }];
-const sameSubdomain = (type) => [type, { domain: "${from.domain}", subdomain: "${from.subdomain}" }];
-
-const moduleElementTypeRules = [
-  { from: ["main-domain-domain"], allow: [sameDomain("main-domain-domain")] },
-  { from: ["main-domain-application"], allow: [sameDomain("main-domain-application"), sameDomain("main-domain-domain")] },
-  { from: ["main-domain-infrastructure"], allow: [sameDomain("main-domain-infrastructure"), sameDomain("main-domain-application"), sameDomain("main-domain-domain")] },
-  { from: ["main-domain-interfaces"], allow: [sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api"), "main-domain-api"] },
-  { from: ["main-domain-api"], allow: [sameDomain("main-domain-api"), sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("main-domain-infrastructure"), sameDomain("subdomain-api")] },
-  { from: ["subdomain-domain"], allow: [sameSubdomain("subdomain-domain")] },
-  { from: ["subdomain-application"], allow: [sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain")] },
-  { from: ["subdomain-infrastructure"], allow: [sameSubdomain("subdomain-infrastructure"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain")] },
-  { from: ["subdomain-interfaces"], allow: [sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameSubdomain("subdomain-api"), "main-domain-api"] },
-  { from: ["subdomain-api"], allow: [sameSubdomain("subdomain-api"), sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameSubdomain("subdomain-infrastructure"), sameDomain("subdomain-api"), "main-domain-api"] },
-];
-
-// ─── Restricted import patterns ───────────────────────────────────────────────
-const moduleRootBarrel = { regex: "^@/modules/(?!system$)[^/]+$", message: "Do not import module root barrels; use @/modules/<main-domain>/api." };
-const subdomainRootBarrel = { regex: "^@/modules/[^/]+/subdomains/[^/]+$", message: "Do not import subdomain root barrels; use @/modules/<main-domain>/subdomains/<subdomain>/api." };
-const nonApiModuleSubpath = { regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)|subdomains/[^/]+/api(?:/|$)).+", message: "Cross-boundary dependencies must use API boundaries only." };
-const explicitIndex = { group: ["**/index","**/index.ts","**/index.tsx"], message: "Import the boundary path, not an explicit index file." };
-const internalLayer = {
-  group: [
-    "@/modules/*/domain/**",
-    "@/modules/*/application/**",
-    "@/modules/*/infrastructure/**",
-    "@/modules/*/interfaces/**",
-    "@/modules/*/subdomains/*/domain/**",
-    "@/modules/*/subdomains/*/application/**",
-    "@/modules/*/subdomains/*/infrastructure/**",
-    "@/modules/*/subdomains/*/interfaces/**",
-  ],
-  message: "Use the owning API boundary instead of internal layer paths.",
-};
-const packageToModules = { regex: "^@/modules/", message: "packages/* must remain independent of application modules." };
-
-const legacyAliases = [
-  { group: ["@/shared/*"],        message: "Use @shared-types / @shared-utils / … instead." },
-  { group: ["@/infrastructure/*"],message: "Use @integration-firebase / @integration-upstash / … instead." },
-  { group: ["@/libs/*"],          message: "Use the corresponding @lib-* or @integration-* alias." },
-  { group: ["@/ui/shadcn/*"],     message: "Use @ui-shadcn/* instead." },
-  { group: ["@/ui/vis","@/ui/vis/*"], message: "Use @ui-vis instead." },
-  { group: ["@/interfaces/*"],    message: "Use @api-contracts instead." },
-];
-
-const restrictedImports = (patterns) => ["no-restricted-imports", [WARN, { patterns }]];
-
-// ─── Config ───────────────────────────────────────────────────────────────────
-export default defineConfig([
-  ...nextVitals,
-  ...nextTs,
-
-  // JSDoc
-  {
-    files: srcGlobs,
-    plugins: { jsdoc },
-    settings: { jsdoc: { mode: "typescript" } },
-    rules: {
-      "jsdoc/check-alignment": WARN,
-      "jsdoc/check-syntax":    WARN,
-      "jsdoc/check-tag-names": WARN,
-      "jsdoc/no-blank-blocks": WARN,
-    },
-  },
-
-  // TypeScript naming + type imports + unused vars
-  {
-    files: tsGlobs,
-    plugins: { "@typescript-eslint": tseslint },
-    rules: {
-      "@typescript-eslint/naming-convention": [WARN,
-        { selector: "typeLike",     format: ["PascalCase"] },
-        { selector: "typeParameter",format: ["PascalCase"] },
-        { selector: "variable",     modifiers: ["destructured"], format: null },
-        { selector: "function",     format: ["camelCase","PascalCase"], leadingUnderscore: "allow" },
-        { selector: "variable",     format: ["camelCase","PascalCase","UPPER_CASE"], leadingUnderscore: "allow", trailingUnderscore: "allow" },
-        { selector: "parameter",    modifiers: ["destructured"], format: null },
-        { selector: "parameter",    format: ["camelCase"], leadingUnderscore: "allow" },
-        { selector: "enumMember",   format: ["PascalCase","UPPER_CASE"] },
-      ],
-      "@typescript-eslint/consistent-type-imports": [WARN, { prefer: "type-imports", fixStyle: "inline-type-imports" }],
-      "@typescript-eslint/no-unused-vars":          [WARN, { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" }],
-    },
-  },
-
-  // React + a11y
-  {
-    files: ["**/*.{jsx,tsx}"],
-    rules: {
-      "react/react-in-jsx-scope":       "off",
-      "react/prop-types":               "off",
-      "react/self-closing-comp":        WARN,
-      "react/jsx-no-useless-fragment":  [WARN, { allowExpressions: true }],
-      "react-hooks/rules-of-hooks":     "error",
-      "react-hooks/exhaustive-deps":    WARN,
-      ...Object.fromEntries(
-        Object.entries(jsxA11y.flatConfigs.recommended.rules ?? {}).map(([rule, cfg]) => {
-          if (Array.isArray(cfg)) {
-            const [sev, ...rest] = cfg;
-            const w = sev === "error" || sev === 2 ? WARN : sev;
-            return [rule, rest.length ? [w, ...rest] : w];
-          }
-          return [rule, cfg === "error" || cfg === 2 ? WARN : cfg];
-        }),
-      ),
-    },
-  },
-
-  // Module boundaries (eslint-plugin-boundaries)
-  {
-    files: moduleCodeGlobs,
-    plugins: { boundaries },
-    settings: { "boundaries/include": moduleCodeGlobs, "boundaries/elements": moduleElements },
-    rules: {
-      "boundaries/element-types": [WARN, { default: "disallow", rules: moduleElementTypeRules }],
-    },
-  },
-
-  // File-size guardrails per Hexagonal DDD layer
-  { files: ["modules/*/interfaces/**/*.{ts,tsx}"],    rules: { "max-lines": [WARN, { max: 300, skipBlankLines: true, skipComments: true }] } },
-  { files: ["modules/*/application/**/*.{ts,tsx}"],   rules: { "max-lines": [WARN, { max: 300, skipBlankLines: true, skipComments: true }] } },
-  { files: ["modules/*/infrastructure/**/*.{ts,tsx}"],rules: { "max-lines": [WARN, { max: 400, skipBlankLines: true, skipComments: true }] } },
-
-  // Legacy alias migration
-  { rules: { [restrictedImports(legacyAliases)[0]]: restrictedImports(legacyAliases)[1] } },
-
-  // app / providers / debug → only module api entrypoints
-  {
-    files: outerAdapterGlobs,
-    rules: { [restrictedImports([moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath])[0]]: restrictedImports([moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath])[1] },
-  },
-
-  // modules → strict entrypoint + internal layer enforcement
-  {
-    files: moduleCodeGlobs,
-    rules: { [restrictedImports([explicitIndex, moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath, internalLayer])[0]]: restrictedImports([explicitIndex, moduleRootBarrel, subdomainRootBarrel, nonApiModuleSubpath, internalLayer])[1] },
-  },
-
-  // packages must not depend on application modules
-  {
-    files: packageGlobs,
-    rules: { [restrictedImports([packageToModules])[0]]: restrictedImports([packageToModules])[1] },
-  },
-
-  globalIgnores([".agents/**",".next/**","out/**","build/**","next-env.d.ts"]),
-]);
+- 若 strategic term 與主域 term 衝突，優先維持主域語言不被污染，再回寫 strategic glossary。
+- 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
 ````
 
 ## File: modules/notebooklm/AGENT.md
@@ -74312,6 +75017,83 @@ When implementing, follow inside-out:
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/subdomains/source/interfaces/_actions/source-file.actions.ts
+````typescript
+"use server";
+
+import type {
+  UploadCompleteFileInputDto,
+  UploadCompleteFileOutputDto,
+  UploadInitFileInputDto,
+  UploadInitFileOutputDto,
+} from "../../application/dto/source-file.dto";
+import type {
+  RegisterUploadedRagDocumentInputDto,
+  RegisterUploadedRagDocumentResult,
+} from "../../application/dto/rag-document.dto";
+import { makeRagDocumentAdapter, makeSourceDocumentCommandAdapter, makeSourceFileAdapter } from "../../api/factories";
+import { UploadInitSourceFileUseCase } from "../../application/use-cases/upload-init-source-file.use-case";
+import { UploadCompleteSourceFileUseCase } from "../../application/use-cases/upload-complete-source-file.use-case";
+import { RegisterUploadedRagDocumentUseCase } from "../../application/use-cases/register-rag-document.use-case";
+import { DeleteSourceDocumentUseCase } from "../../application/use-cases/delete-source-document.use-case";
+import { RenameSourceDocumentUseCase } from "../../application/use-cases/rename-source-document.use-case";
+import type { SourceFileCommandResult } from "../contracts/source-command-result";
+
+function createCommandId(idempotencyKey?: string): string {
+  const normalized = idempotencyKey?.trim();
+  return normalized || `source-file-${crypto.randomUUID()}`;
+}
+
+export async function uploadInitFile(
+  input: UploadInitFileInputDto,
+): Promise<SourceFileCommandResult<UploadInitFileOutputDto>> {
+  const commandId = createCommandId(input.idempotencyKey);
+  const useCase = new UploadInitSourceFileUseCase(makeSourceFileAdapter());
+  const result = await useCase.execute(input);
+  return { ...result, commandId };
+}
+
+export async function uploadCompleteFile(
+  input: UploadCompleteFileInputDto,
+): Promise<SourceFileCommandResult<UploadCompleteFileOutputDto>> {
+  const commandId = createCommandId(input.versionId);
+  const fileAdapter = makeSourceFileAdapter();
+  const useCase = new UploadCompleteSourceFileUseCase(fileAdapter, makeRagDocumentAdapter());
+  const result = await useCase.execute(input);
+  return { ...result, commandId };
+}
+
+export async function registerUploadedRagDocument(
+  input: RegisterUploadedRagDocumentInputDto,
+): Promise<RegisterUploadedRagDocumentResult> {
+  const commandId = createCommandId(input.storagePath);
+  const useCase = new RegisterUploadedRagDocumentUseCase(makeRagDocumentAdapter());
+  const result = await useCase.execute(input);
+  return { ...result, commandId };
+}
+
+export async function deleteSourceDocument(
+  accountId: string,
+  documentId: string,
+): Promise<SourceFileCommandResult<{ documentId: string }>> {
+  const commandId = `source-delete-${crypto.randomUUID()}`;
+  const useCase = new DeleteSourceDocumentUseCase(makeSourceDocumentCommandAdapter());
+  const result = await useCase.execute({ accountId, documentId });
+  return { ...result, commandId };
+}
+
+export async function renameSourceDocument(
+  accountId: string,
+  documentId: string,
+  newName: string,
+): Promise<SourceFileCommandResult<{ documentId: string }>> {
+  const commandId = `source-rename-${crypto.randomUUID()}`;
+  const useCase = new RenameSourceDocumentUseCase(makeSourceDocumentCommandAdapter());
+  const result = await useCase.execute({ accountId, documentId, newName });
+  return { ...result, commandId };
+}
 ````
 
 ## File: modules/notion/AGENT.md
@@ -75664,23 +76446,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
-## File: modules/platform/subdomains/access-control/README.md
-````markdown
-# Access Control
-
-Access control policies and permission resolution.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/account-profile/infrastructure/index.ts
 ````typescript
 export {
@@ -75690,55 +76455,6 @@ export {
 export type {
 	LegacyAccountProfileDataSource,
 } from "./create-legacy-account-profile-application.adapter";
-````
-
-## File: modules/platform/subdomains/account-profile/README.md
-````markdown
-# Account Profile
-
-User profile preferences and settings.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/account/README.md
-````markdown
-# Account
-
-User account lifecycle management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/ai/README.md
@@ -75751,23 +76467,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 - **Bounded Context**: platform
 - **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/analytics/README.md
-````markdown
-# Analytics
-
-Platform-wide analytics and metrics.
-
-## Ownership
-
-- **Bounded Context**: platform
 - **Status**: Stub — awaiting use case definition
 
 ## Development Order
@@ -76556,38 +77255,6 @@ export async function getAccountDemands(accountId: string): Promise<WorkDemand[]
 }
 ````
 
-## File: modules/workspace/subdomains/scheduling/README.md
-````markdown
-# Scheduling
-
-Scheduling and demand management within workspaces.
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/workspace/subdomains/sharing/README.md
 ````markdown
 # Sharing
@@ -76604,6 +77271,349 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx
+````typescript
+"use client";
+
+/**
+ * @module workspace-flow/interfaces/components
+ * @file WorkspaceFlowTab.tsx
+ * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
+ *
+ * MVP interactive surface:
+ * - Create Task dialog
+ * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
+ * - Per-task expandable Issue sub-list with transition buttons
+ * - Open Issue dialog
+ * - Create Invoice button + Invoice lifecycle transitions
+ *
+ * @author workspace-flow
+ * @since 2026-03-27
+ */
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { Plus } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Separator } from "@ui-shadcn/ui/separator";
+
+import type { Invoice } from "../../application/dto/workflow.dto";
+import type { Issue } from "../../application/dto/workflow.dto";
+import type { Task } from "../../application/dto/workflow.dto";
+import { wfCreateInvoice } from "../_actions/workspace-flow.actions";
+import {
+  getWorkspaceFlowIssues,
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowTasks,
+} from "../queries/workspace-flow.queries";
+import { CreateTaskDialog } from "./CreateTaskDialog";
+import { IssueRow } from "./IssueRow";
+import { InvoiceRow } from "./InvoiceRow";
+import { TaskRow } from "./TaskRow";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+type FlowSection = "tasks" | "qa" | "acceptance" | "issues" | "invoices";
+
+interface WorkspaceFlowTabProps {
+  readonly workspaceId: string;
+  readonly currentUserId?: string;
+  readonly initialSection?: FlowSection;
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────────
+
+export function WorkspaceFlowTab({
+  workspaceId,
+  currentUserId = "anonymous",
+  initialSection = "tasks",
+}: WorkspaceFlowTabProps) {
+  const [section, setSection] = useState<FlowSection>(initialSection);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const [nextTasks, nextInvoices] = await Promise.all([
+        getWorkspaceFlowTasks(workspaceId),
+        getWorkspaceFlowInvoices(workspaceId),
+      ]);
+      const issueMatrix = await Promise.all(
+        nextTasks.map(async (task) => {
+          try {
+            return await getWorkspaceFlowIssues(task.id);
+          } catch {
+            return [] as Issue[];
+          }
+        }),
+      );
+      setTasks(nextTasks);
+      setInvoices(nextInvoices);
+      setIssues(issueMatrix.flat());
+      setLoadState("loaded");
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceFlowTab] Failed to load flow data:", err);
+      }
+      setLoadState("error");
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    setSection(initialSection);
+  }, [initialSection]);
+
+  const qaTasks = useMemo(
+    () => tasks.filter((task) => task.status === "qa"),
+    [tasks],
+  );
+
+  const acceptanceTasks = useMemo(
+    () => tasks.filter((task) => task.status === "acceptance" || task.status === "accepted"),
+    [tasks],
+  );
+
+  async function handleCreateInvoice() {
+    setCreatingInvoice(true);
+    setActionError(null);
+    try {
+      const result = await wfCreateInvoice(workspaceId);
+      if (!result.success) { setActionError(result.error.message ?? "建立發票失敗"); }
+      else { await loadData(); }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "建立發票失敗");
+    } finally {
+      setCreatingInvoice(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* ── Section switcher ─────────────────────────────────────────── */}
+      <div className="flex gap-2">
+        <Button
+          variant={section === "tasks" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("tasks")}
+        >
+          任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
+        </Button>
+        <Button
+          variant={section === "qa" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("qa")}
+        >
+          質檢{loadState === "loaded" ? ` (${qaTasks.length})` : ""}
+        </Button>
+        <Button
+          variant={section === "acceptance" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("acceptance")}
+        >
+          驗收{loadState === "loaded" ? ` (${acceptanceTasks.length})` : ""}
+        </Button>
+        <Button
+          variant={section === "issues" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("issues")}
+        >
+          問題單{loadState === "loaded" ? ` (${issues.length})` : ""}
+        </Button>
+        <Button
+          variant={section === "invoices" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("invoices")}
+        >
+          財務{loadState === "loaded" ? ` (${invoices.length})` : ""}
+        </Button>
+      </div>
+
+      {/* ── Loading state ─────────────────────────────────────────────── */}
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">載入中…</CardContent>
+        </Card>
+      )}
+
+      {/* ── Error state ───────────────────────────────────────────────── */}
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入資料，請重新整理頁面後再試。
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Tasks section ─────────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "tasks" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>任務</CardTitle>
+                <CardDescription>工作區所有任務與其進度狀態。</CardDescription>
+              </div>
+              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                建立任務
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {tasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前尚無任務，點擊右上角「建立任務」開始。</p>
+            ) : (
+              tasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  currentUserId={currentUserId}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── QA section ────────────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "qa" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle>質檢</CardTitle>
+            <CardDescription>等待 QA 審查或處於 QA 階段的任務。</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {qaTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前沒有等待質檢的任務。</p>
+            ) : (
+              qaTasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  currentUserId={currentUserId}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Acceptance section ────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "acceptance" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle>驗收</CardTitle>
+            <CardDescription>進行驗收中與已完成驗收的任務。</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {acceptanceTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前沒有驗收中的任務。</p>
+            ) : (
+              acceptanceTasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  currentUserId={currentUserId}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Issues section ────────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "issues" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle>問題單</CardTitle>
+            <CardDescription>跨任務檢視所有議題狀態與處理進度。</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {issues.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前沒有問題單。</p>
+            ) : (
+              issues.map((issue) => (
+                <IssueRow
+                  key={issue.id}
+                  issue={issue}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Invoices section ──────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "invoices" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>財務</CardTitle>
+                <CardDescription>工作區帳務請款紀錄。</CardDescription>
+              </div>
+              <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                {creatingInvoice ? "建立中…" : "建立發票"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {actionError && (
+              <p role="alert" className="text-sm text-destructive">{actionError}</p>
+            )}
+            {invoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前尚無發票紀錄，點擊右上角「建立發票」開始。</p>
+            ) : (
+              <>
+                <Separator />
+                {invoices.map((invoice) => (
+                  <InvoiceRow
+                    key={invoice.id}
+                    invoice={invoice}
+                    onTransitioned={loadData}
+                  />
+                ))}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Create Task Dialog ─────────────────────────────────────────── */}
+      <CreateTaskDialog
+        open={createTaskOpen}
+        workspaceId={workspaceId}
+        onClose={() => setCreateTaskOpen(false)}
+        onCreated={loadData}
+      />
+    </div>
+  );
+}
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/queries/workspace-flow.queries.ts
@@ -76699,119 +77709,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: docs/architecture-overview.md
-````markdown
-# Architecture Overview
-
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
-
-## System Shape
-
-系統以四個主域組成，每個主域都視為一個有自己語言與規則的 bounded context 族群：
-
-- workspace：協作容器與工作區範疇
-- platform：治理、身份、權益與營運支撐
-- notion：正典知識內容生命週期
-- notebooklm：對話、來源處理與推理輸出
-
-## Architectural Baseline
-
-- 主域內部採用 Hexagonal Architecture。
-- 主域之間只透過 published language、API 邊界或事件互動。
-- 領域核心不直接依賴 framework 與 infrastructure。
-- 主域級關係採用 directed upstream-downstream，不採用 Shared Kernel / Partnership。
-
-## Main Domains
-
-| Main Domain | Strategic Role | What It Owns |
-|---|---|---|
-| workspace | 協作範疇 | workspaceId、membership、sharing、presence、feed、audit、scheduling、workspace-workflow |
-| platform | 治理上游 | actor、tenant、access、policy、entitlement、billing、ai capability、notification、audit-log |
-| notion | 正典內容 | knowledge artifact、taxonomy、relations、publication、knowledge-versioning |
-| notebooklm | 推理輸出 | ingestion、retrieval、grounding、conversation、synthesis、evaluation、conversation-versioning |
-
-## Relationship Baseline
-
-| Upstream | Downstream | Reason |
-|---|---|---|
-| platform | workspace | 提供治理結果與權益判定 |
-| platform | notion | 提供治理結果與權益判定 |
-| platform | notebooklm | 提供治理結果與權益判定 |
-| workspace | notion | 提供 workspace scope 與 sharing scope |
-| workspace | notebooklm | 提供 workspace scope 與 sharing scope |
-| notion | notebooklm | 提供可引用的知識內容來源 |
-
-## Contradiction-Free Rules
-
-- 只有四個主域，不再引入其他平級主域。
-- 戰略文件若需要描述缺口，一律使用 recommended gap subdomains，而不是假裝它們已被實作驗證。
-- platform 是治理上游，不是內容或對話的正典擁有者。
-- platform 擁有 shared AI capability，但不擁有 notion 的正典內容語言或 notebooklm 的推理輸出語言。
-- notion 是正典內容擁有者，不是治理上游。
-- notebooklm 是衍生推理輸出擁有者，不是正典內容擁有者。
-
-## System-Wide Dependency Direction
-
-- 每個主域內部固定遵守 interfaces -> application -> domain <- infrastructure。
-- 跨主域依賴只能透過 published language、public API boundary、events。
-- 外部框架、SDK、傳輸與儲存細節只能停留在 adapter 邊界。
-
-## System-Wide Anti-Patterns
-
-- 把 domain 核心直接接上 framework、database、HTTP、queue 或 AI SDK。
-- 把主域內部模型直接共享給其他主域，取代 published language。
-- 把治理、內容、推理三種責任重新揉成單一平級主域。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先定位需求落在哪個主域，再定位到子域與層。
-- 奧卡姆剃刀：若既有主域、子域與 API boundary 已能承接需求，就不要再新增新的平級結構。
-- 優先維持單一清楚的 input -> boundary -> application -> domain -> output 路徑。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	Interfaces["Interfaces"] --> Application["Application"]
-	Application --> Domain["Domain"]
-	Infrastructure["Infrastructure"] --> Domain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Platform["platform"] --> Workspace["workspace"]
-	Platform --> Notion["notion"]
-	Platform --> NotebookLM["notebooklm"]
-	Workspace --> Notion
-	Workspace --> NotebookLM
-	Notion --> NotebookLM
-```
-
-## Document Network
-
-- [README.md](./README.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [subdomains.md](./subdomains.md)
-- [integration-guidelines.md](./integration-guidelines.md)
-- [strategic-patterns.md](./strategic-patterns.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-
-## Reading Path
-
-1. [bounded-contexts.md](./bounded-contexts.md)
-2. [context-map.md](./context-map.md)
-3. [subdomains.md](./subdomains.md)
-4. [ubiquitous-language.md](./ubiquitous-language.md)
-5. [integration-guidelines.md](./integration-guidelines.md)
-6. [strategic-patterns.md](./strategic-patterns.md)
-7. [decisions/README.md](./decisions/README.md)
 ````
 
 ## File: docs/bounded-context-subdomain-template.md
@@ -77004,409 +77901,98 @@ flowchart LR
 - 若某 subdomain 很小，允許比本模板更精簡；若更精簡仍能守住邊界，應優先採用更精簡版本。
 ````
 
-## File: docs/bounded-contexts.md
+## File: docs/README.md
 ````markdown
-# Bounded Contexts
+# Docs
 
-本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 hexagonal architecture 原則重建，不主張反映現況實作。
+本文件集在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
 
-## Strategic Bounded Context Model
+## Purpose
 
-系統固定由四個主域構成。每個主域下可再分成 baseline subdomains 與 recommended gap subdomains。
+這份文件集提供四個主域的 architecture-first 戰略藍圖，並用單一決策日誌與主域文件消除術語、邊界與關係上的衝突。
 
-## Main Domain Map
+## Single Source Of Truth Map
 
-| Main Domain | Strategic Role | Baseline Focus | Recommended Gap Focus |
-|---|---|---|---|
-| workspace | 協作容器與 scope | audit、feed、scheduling、workspace-workflow | lifecycle、membership、sharing、presence |
-| platform | 治理與營運支撐 | identity、organization、access、policy、billing、ai、notification、observability | tenant、entitlement、secret-management、consent |
-| notion | 正典知識內容 | knowledge、authoring、collaboration、database、templates、knowledge-versioning | taxonomy、relations、publishing |
-| notebooklm | 對話與推理 | conversation、note、notebook、source、synthesis、conversation-versioning | ingestion、retrieval、grounding、evaluation |
-
-## Ownership Rules
-
-- workspace 擁有工作區範疇，不擁有平台治理或正典內容。
-- platform 擁有治理與權益，不擁有正典內容或推理輸出。
-- notion 擁有正典知識內容，不擁有治理或推理流程。
-- notebooklm 擁有推理流程與衍生輸出，不擁有正典知識內容。
-
-## Dependency Direction Guardrail
-
-- bounded context 所有權定義的是語言與規則邊界，不等於可直接穿透的實作邊界。
-- 每個主域內部仍必須遵守 interfaces -> application -> domain <- infrastructure。
-- 跨主域整合一律先經 API boundary、published language、events 或 local DTO。
-
-## Conflict Resolution
-
-- 若某子域同時被多個主域宣稱，依最能維持語言自洽與 context map 方向的主域保留所有權。
-- 若某能力同時像治理又像內容，先問它是否定義 actor / tenant / entitlement；若是，歸 platform。
-- 若某能力同時像內容又像推理輸出，先問它是否是正典內容狀態；若是，歸 notion，否則歸 notebooklm。
-- generic `ai` 由 platform 擁有；notion 與 notebooklm 只能消費 platform 的 AI capability，不能再各自宣稱 `ai` 子域。
-- `workflow` 作為 generic 名稱只保留在 platform；workspace 使用 `workspace-workflow` 避免跨主域混名。
-
-## Forbidden Ownership Moves
-
-- 不得讓兩個主域同時宣稱同一正典模型所有權。
-- 不得用部署、資料表或 UI 分區來覆蓋 bounded context 所有權。
-- 不得把 gap subdomain 缺口視為可以任意分散到其他主域的理由。
-- 不得讓同一個 generic 子域名稱同時作為多個主域的 canonical ownership。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先決定 owning bounded context，再決定檔案位置、命名與 boundary。
-- 奧卡姆剃刀：若既有 bounded context 可吸收需求，就不要為了命名好看而新增新的上下文。
-- 所有權模糊時，先修正文檔邊界，再寫程式碼。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart TD
-	MainDomain["Main domain"] --> Subdomain["Subdomain"]
-	Subdomain --> Application["Application"]
-	Application --> Domain["Domain"]
-	Infrastructure["Infrastructure"] --> Domain
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Requirement["Requirement"] --> Ownership["Choose bounded context"]
-	Ownership --> Boundary["Choose API boundary"]
-	Boundary --> Language["Align local language"]
-	Language --> Code["Generate code"]
-```
-
-## Document Network
-
-- [architecture-overview.md](./architecture-overview.md)
-- [subdomains.md](./subdomains.md)
-- [context-map.md](./context-map.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0001-hexagonal-architecture.md](./decisions/0001-hexagonal-architecture.md)
-- [decisions/0002-bounded-contexts.md](./decisions/0002-bounded-contexts.md)
-````
-
-## File: docs/contexts/_template.md
-````markdown
-# Context Template
-
-本樣板在本次任務限制下，依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 原則設計，用於建立新的 context 文件集合。
-
-## Files To Create
-
-- README.md
-- subdomains.md
-- bounded-contexts.md
-- context-map.md
-- ubiquitous-language.md
-- AGENT.md
-
-## README.md Template
-
-- Purpose
-- Why This Context Exists
-- Context Summary
-- Baseline Subdomains
-- Recommended Gap Subdomains
-- Key Relationships
-- Reading Order
-- Copilot Generation Rules
-- Dependency Direction
-- Dependency Direction Flow
-- Anti-Pattern Rules
-- Correct Interaction Flow
-- Document Network
-- Constraints
-
-## subdomains.md Template
-
-- Baseline Subdomains
-- Recommended Gap Subdomains
-- Recommended Order
-- Copilot Generation Rules
-- Dependency Direction Flow
-- Correct Interaction Flow
-- Document Network
-
-## bounded-contexts.md Template
-
-- Domain Role
-- Baseline Bounded Contexts
-- Recommended Gap Bounded Contexts
-- Domain Invariants
-- Copilot Generation Rules
-- Dependency Direction
-- Dependency Direction Flow
-- Anti-Patterns
-- Correct Interaction Flow
-- Document Network
-
-## context-map.md Template
-
-- Context Role
-- Relationships
-- Mapping Rules
-- Copilot Generation Rules
-- Dependency Direction
-- Dependency Direction Flow
-- Anti-Patterns
-- Correct Interaction Flow
-- Document Network
-
-## ubiquitous-language.md Template
-
-- Canonical Terms
-- Language Rules
-- Avoid
-- Naming Anti-Patterns
-- Copilot Generation Rules
-- Dependency Direction Flow
-- Correct Interaction Flow
-- Document Network
-
-## AGENT.md Template
-
-- Mission
-- Canonical Ownership
-- Route Here When
-- Route Elsewhere When
-- Guardrails
-- Copilot Generation Rules
-- Dependency Direction
-- Dependency Direction Flow
-- Hard Prohibitions
-- Correct Interaction Flow
-- Document Network
-
-## Consistency Rules
-
-- context-map 只能使用與戰略文件一致的關係方向。
-- subdomains 與 bounded-contexts 必須使用同一套 baseline / gap 子域集合。
-- README 只做入口摘要，不重寫 ADR 級決策。
-- 若新 context 需要 symmetric relationship，必須先明確說明為什麼不採用 upstream-downstream。
-- 若 context 文件涉及模組骨架或分層，必須與 `docs/bounded-context-subdomain-template.md` 一致：`<bounded-context>` 根層可承接 context-wide 的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，不應被簡化成只有 `docs/` 與 `subdomains/`。
-- 若文件提到 `core/`，必須明確說明它只是可選包裝；`infrastructure/` 與 `interfaces/` 仍屬外層，不得被包進泛用 `core/`。
-
-## Mandatory Anti-Pattern Rules
-
-- 不得把 domain 寫成依賴 framework、transport、storage 或第三方 SDK 的層。
-- 不得把 Shared Kernel / Partnership 與 ACL / Conformist 混用在同一關係敘事。
-- 不得把其他主域的正典模型直接拿來當成本地主域模型。
-
-## Copilot Generation Rules
-
-- 先決定 owning context、語言、邊界與依賴方向，再生成程式碼。
-- 若需求屬於 shared policy、published language 或跨 subdomain orchestration，允許在 `<bounded-context>` 根層使用 hexagonal layers；否則優先落回擁有責任的 subdomain。
-- 奧卡姆剃刀：若較少的抽象已能保護邊界與可測試性，就不要額外新增 port、ACL、DTO、subdomain、service 或流程節點。
-- 任何新文件都應沿用同一套規則、流程圖與文件網絡章節。
-
-## Occam Guardrail
-
-- 若較少的抽象已能保護邊界與可測試性，就不要額外新增 port、ACL、DTO、subdomain、service 或流程節點。
-
-## Diagram Templates
-
-```mermaid
-flowchart LR
-	Interfaces["Interfaces"] --> Application["Application"]
-	Application --> Domain["Domain"]
-	Infrastructure["Infrastructure"] --> Domain
-```
-
-```mermaid
-flowchart LR
-	Upstream["Upstream"] -->|Published Language| Boundary["API boundary"]
-	Boundary --> Translation["Local DTO / ACL"]
-	Translation --> Application["Application"]
-	Application --> Domain["Domain"]
-```
-
-## Document Network
-
-- [../README.md](../README.md)
-- [../architecture-overview.md](../architecture-overview.md)
-- [../bounded-context-subdomain-template.md](../bounded-context-subdomain-template.md)
-- [../bounded-contexts.md](../bounded-contexts.md)
-- [../context-map.md](../context-map.md)
-- [../integration-guidelines.md](../integration-guidelines.md)
-- [../subdomains.md](../subdomains.md)
-- [../ubiquitous-language.md](../ubiquitous-language.md)
-- [../decisions/README.md](../decisions/README.md)
-````
-
-## File: docs/subdomains.md
-````markdown
-# Subdomains
-
-本文件在本次任務限制下，僅依 Context7 驗證的 bounded context 與 strategic design 原則重建，不主張反映現況實作。
-
-## Main Domain Inventory
-
-| Main Domain | Baseline Subdomains | Recommended Gap Subdomains |
-|---|---|---|
-| workspace | audit, feed, scheduling, workspace-workflow | lifecycle, membership, sharing, presence |
-| platform | identity, account, account-profile, organization, access-control, security-policy, platform-config, feature-flag, onboarding, compliance, billing, subscription, referral, ai, integration, workflow, notification, background-job, content, search, audit-log, observability, analytics, support | tenant, entitlement, secret-management, consent |
-| notion | knowledge, authoring, collaboration, database, knowledge-analytics, attachments, automation, knowledge-integration, notes, templates, knowledge-versioning | taxonomy, relations, publishing |
-| notebooklm | conversation, note, notebook, source, synthesis, conversation-versioning | ingestion, retrieval, grounding, evaluation |
-
-## Strategic Notes
-
-- baseline subdomains 代表本架構基線中已確立的核心切分。
-- recommended gap subdomains 代表依 Context7 推導出的合理補洞方向。
-- recommended gap subdomains 不等於已驗證現況實作。
-
-## Ownership Summary
-
-- workspace 關心協作範疇。
-- platform 關心治理與權益。
-- notion 關心正典知識內容。
-- notebooklm 關心推理與衍生輸出。
-
-## Cross-Domain Duplicate Resolution
-
-| Original Term | Resolution |
+| Document | Role |
 |---|---|
-| ai | `platform` 擁有唯一 generic `ai` 子域；`notion` 與 `notebooklm` 改為 consumer，不再各自擁有 `ai` 子域 |
-| analytics | `platform` 保留 generic `analytics`；`notion` 改為 `knowledge-analytics` |
-| integration | `platform` 保留 generic `integration`；`notion` 改為 `knowledge-integration` |
-| versioning | `notion` 改為 `knowledge-versioning`；`notebooklm` 改為 `conversation-versioning` |
-| workflow | `platform` 保留 generic `workflow`；`workspace` 改為 `workspace-workflow` |
+| [architecture-overview.md](./architecture-overview.md) | 全域架構敘事總覽 |
+| [subdomains.md](./subdomains.md) | 四主域與子域總清單 |
+| [bounded-contexts.md](./bounded-contexts.md) | 主域與子域所有權地圖 |
+| [context-map.md](./context-map.md) | 主域間關係圖與方向 |
+| [ubiquitous-language.md](./ubiquitous-language.md) | 戰略詞彙表 |
+| [integration-guidelines.md](./integration-guidelines.md) | 主域整合規則 |
+| [strategic-patterns.md](./strategic-patterns.md) | 採用與禁用的戰略模式 |
+| [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md) | bounded context 與 subdomain 交付模板 |
+| [project-delivery-milestones.md](./project-delivery-milestones.md) | 從零到交付的專案里程碑 |
+| [decisions/README.md](./decisions/README.md) | ADR 索引與決策日誌 |
+| [contexts/_template.md](./contexts/_template.md) | 新主域或新 context 文件樣板 |
 
-## Subdomain Anti-Patterns
+## Context Folders
 
-- 不把 baseline subdomains 與 recommended gap subdomains 混成同一種事實狀態。
-- 不把主域缺口直接分攤到別的主域，造成所有權漂移。
-- 不把子域名稱當成 UI 功能清單，而忽略其邊界責任。
-- 不讓同一個 generic 子域名稱同時被多個主域擁有，造成 Copilot 與團隊語言歧義。
-
-## Copilot Generation Rules
-
-- 生成程式碼時，先確認需求屬於哪個主域與子域，再決定實作位置。
-- 奧卡姆剃刀：能放進既有子域就不要創造新子域；能放進既有 use case 就不要新增第二條平行流程。
-- gap subdomain 只表示架構缺口，不表示一定要立刻實作。
-- 遇到 generic 名稱時，先套用本文件的 duplicate resolution，再決定是否新增或改名。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart TD
-	MainDomain["Main domain"] --> Baseline["Baseline subdomains"]
-	MainDomain --> Gap["Recommended gap subdomains"]
-	Baseline --> UseCase["Use case / boundary"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Requirement["Requirement"] --> Domain["Choose main domain"]
-	Domain --> Subdomain["Choose owning subdomain"]
-	Subdomain --> Boundary["Choose boundary"]
-	Boundary --> Code["Generate code"]
-```
+- [contexts/workspace/README.md](./contexts/workspace/README.md)
+- [contexts/platform/README.md](./contexts/platform/README.md)
+- [contexts/notion/README.md](./contexts/notion/README.md)
+- [contexts/notebooklm/README.md](./contexts/notebooklm/README.md)
 
 ## Document Network
 
 - [architecture-overview.md](./architecture-overview.md)
 - [bounded-contexts.md](./bounded-contexts.md)
+- [context-map.md](./context-map.md)
+- [integration-guidelines.md](./integration-guidelines.md)
+- [strategic-patterns.md](./strategic-patterns.md)
 - [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
 - [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [contexts/workspace/subdomains.md](./contexts/workspace/subdomains.md)
-- [contexts/platform/subdomains.md](./contexts/platform/subdomains.md)
-- [contexts/notion/subdomains.md](./contexts/notion/subdomains.md)
-- [contexts/notebooklm/subdomains.md](./contexts/notebooklm/subdomains.md)
-````
+- [subdomains.md](./subdomains.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [decisions/README.md](./decisions/README.md)
+- [contexts/_template.md](./contexts/_template.md)
 
-## File: docs/ubiquitous-language.md
-````markdown
-# Ubiquitous Language
+## Conflict Resolution Rules
 
-本文件在本次任務限制下，僅依 Context7 驗證的 DDD ubiquitous language 原則重建，不主張反映現況實作。
+- ADR 與戰略敘事衝突時，以 ADR 為準。
+- 戰略文件與主域文件衝突時，先以更具邊界意義的主域文件為準，再回寫戰略文件。
+- 子域所有權衝突時，以 [bounded-contexts.md](./bounded-contexts.md) 與 [subdomains.md](./subdomains.md) 為準。
+- 關係方向衝突時，以 [context-map.md](./context-map.md) 為準。
+- 若 root `docs/` 與 `modules/*/docs/*` 的 generic 子域命名衝突，以 root `docs/` 的戰略命名與 duplicate resolution 為準。
 
-## Strategic Terms
+## Global Anti-Pattern Rules
 
-| Term | Meaning |
-|---|---|
-| Main Domain | 戰略層級的主要 bounded context 群組 |
-| Bounded Context | 一組高凝聚、可自洽的語言與規則邊界 |
-| Published Language | 跨邊界交換時使用的共同語言 |
-| Upstream | 關係中提供語言或能力的一方 |
-| Downstream | 關係中消費語言或能力的一方 |
-| Anti-Corruption Layer | downstream 用來保護本地語言的轉譯層 |
-| Conformist | downstream 直接接受 upstream 語言的整合選擇 |
-| Shared Kernel | 對稱共用模型關係 |
-| Partnership | 對稱共同成功 / 共同失敗關係 |
-
-## Domain Terms
-
-| Domain | Key Terms |
-|---|---|
-| platform | Actor, Tenant, Entitlement, Consent, Secret |
-| workspace | Workspace, Membership, ShareScope, ActivityFeed, AuditTrail |
-| notion | KnowledgeArtifact, Taxonomy, Relation, Publication |
-| notebooklm | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
-
-## Naming Rules
-
-- 不用 User 混指 Actor 與 Membership。
-- 不用 Plan 混指 Subscription 與 Entitlement。
-- 不用 Wiki 混指 KnowledgeArtifact。
-- 不用 Chat 混指 Conversation。
-- 不用 Search 混指 Retrieval。
-- 不用 AI 混指 platform 的 shared AI capability 與 notion / notebooklm 的本地 use case。
-- 不用 Analytics 混指 platform analytics 與 notion 的 knowledge-analytics。
-- 不用 Integration 混指 platform integration 與 notion 的 knowledge-integration。
-- 不用 Versioning 混指 notion 的 knowledge-versioning 與 notebooklm 的 conversation-versioning。
-- 不用 Workflow 混指 platform workflow 與 workspace-workflow。
-
-## Naming Anti-Patterns
-
-- 用同一個詞同時代表平台治理語言與工作區參與語言。
-- 用內容產品舊名覆蓋 notion 的正典語言。
-- 用 Search 混指 notebooklm 的 Retrieval 與一般搜尋能力。
-- 用同一個 generic 子域名跨主域重複宣稱所有權，再期望 Copilot 自行猜對上下文。
+- 不把 framework、transport、storage、SDK 細節寫進 domain 核心。
+- 不把其他主域的內部模型當成自己的正典語言。
+- 不把對稱關係與 directed relationship 混寫在同一套戰略文件。
+- 不把 gap subdomains 描述成已驗證現況。
 
 ## Copilot Generation Rules
 
-- 生成程式碼時，先對齊 strategic term，再對齊 context-specific term，最後才命名型別與 API。
-- 奧卡姆剃刀：若一個詞已足夠準確，就不要再加第二個近義詞製造歧義。
-- 名稱衝突時先回到 glossary，而不是直接在程式碼裡各自命名。
+- 生成程式碼前，先從本文件決定應讀哪些戰略文件與 context 文件。
+- 若任務涉及新 bounded context、subdomain 骨架或交付分期，先讀 [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md) 與 [project-delivery-milestones.md](./project-delivery-milestones.md)。
+- 奧卡姆剃刀：若現有文件網已能回答邊界問題，就不要再新增臨時規則文件。
+- 生成流程應先看 ADR，再看戰略文件，再看主域文件，最後才落到程式碼。
 
 ## Dependency Direction Flow
 
 ```mermaid
 flowchart LR
-	Strategic["Strategic terms"] --> Context["Context terms"]
-	Context --> Boundary["Published language / API"]
-	Boundary --> Code["Generated code names"]
+	ADR["ADR"] --> Strategy["Strategic docs"]
+	Strategy --> Context["Context docs"]
+	Context --> Code["Generated code"]
 ```
 
 ## Correct Interaction Flow
 
 ```mermaid
 flowchart LR
-	Requirement["Requirement"] --> Term["Select canonical term"]
-	Term --> Context["Map to owning context"]
-	Context --> Boundary["Expose via boundary"]
-	Boundary --> Code["Generate code"]
+	Question["Coding question"] --> ADR["Check ADR"]
+	ADR --> Strategy["Read strategic docs"]
+	Strategy --> Context["Read owning context docs"]
+	Context --> Code["Generate boundary-safe code"]
 ```
 
-## Document Network
+## Constraints
 
-- [contexts/workspace/ubiquitous-language.md](./contexts/workspace/ubiquitous-language.md)
-- [contexts/platform/ubiquitous-language.md](./contexts/platform/ubiquitous-language.md)
-- [contexts/notion/ubiquitous-language.md](./contexts/notion/ubiquitous-language.md)
-- [contexts/notebooklm/ubiquitous-language.md](./contexts/notebooklm/ubiquitous-language.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [decisions/0004-ubiquitous-language.md](./decisions/0004-ubiquitous-language.md)
-
-## Conflict Resolution
-
-- 若 strategic term 與主域 term 衝突，優先維持主域語言不被污染，再回寫 strategic glossary。
-- 若同一個詞在多主域都想擁有，優先看它服務的是治理、協作範疇、正典內容還是推理輸出。
+- 本文件集是 Context7-only 的 architecture-first 版本。
+- 本文件集沒有檢視任何既有專案內容，因此不應被解讀為 repo-inspected 現況描述。
 ````
 
 ## File: modules/platform/subdomains/account-profile/infrastructure/create-legacy-account-profile-application.adapter.ts
@@ -78075,100 +78661,6 @@ export const workspaceQueryPort: WorkspaceQueryPort = new Proxy(
   {} as WorkspaceQueryPort,
   { get: (_target, prop) => getSessionContext().workspaceQueryPort[prop as keyof WorkspaceQueryPort] },
 );
-````
-
-## File: docs/README.md
-````markdown
-# Docs
-
-本文件集在本次任務限制下，僅依 Context7 驗證的 DDD、Context Map、Hexagonal Architecture 與 ADR 參考重建，不主張反映現況實作。
-
-## Purpose
-
-這份文件集提供四個主域的 architecture-first 戰略藍圖，並用單一決策日誌與主域文件消除術語、邊界與關係上的衝突。
-
-## Single Source Of Truth Map
-
-| Document | Role |
-|---|---|
-| [architecture-overview.md](./architecture-overview.md) | 全域架構敘事總覽 |
-| [subdomains.md](./subdomains.md) | 四主域與子域總清單 |
-| [bounded-contexts.md](./bounded-contexts.md) | 主域與子域所有權地圖 |
-| [context-map.md](./context-map.md) | 主域間關係圖與方向 |
-| [ubiquitous-language.md](./ubiquitous-language.md) | 戰略詞彙表 |
-| [integration-guidelines.md](./integration-guidelines.md) | 主域整合規則 |
-| [strategic-patterns.md](./strategic-patterns.md) | 採用與禁用的戰略模式 |
-| [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md) | bounded context 與 subdomain 交付模板 |
-| [project-delivery-milestones.md](./project-delivery-milestones.md) | 從零到交付的專案里程碑 |
-| [decisions/README.md](./decisions/README.md) | ADR 索引與決策日誌 |
-| [contexts/_template.md](./contexts/_template.md) | 新主域或新 context 文件樣板 |
-
-## Context Folders
-
-- [contexts/workspace/README.md](./contexts/workspace/README.md)
-- [contexts/platform/README.md](./contexts/platform/README.md)
-- [contexts/notion/README.md](./contexts/notion/README.md)
-- [contexts/notebooklm/README.md](./contexts/notebooklm/README.md)
-
-## Document Network
-
-- [architecture-overview.md](./architecture-overview.md)
-- [bounded-contexts.md](./bounded-contexts.md)
-- [context-map.md](./context-map.md)
-- [integration-guidelines.md](./integration-guidelines.md)
-- [strategic-patterns.md](./strategic-patterns.md)
-- [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md)
-- [project-delivery-milestones.md](./project-delivery-milestones.md)
-- [subdomains.md](./subdomains.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [decisions/README.md](./decisions/README.md)
-- [contexts/_template.md](./contexts/_template.md)
-
-## Conflict Resolution Rules
-
-- ADR 與戰略敘事衝突時，以 ADR 為準。
-- 戰略文件與主域文件衝突時，先以更具邊界意義的主域文件為準，再回寫戰略文件。
-- 子域所有權衝突時，以 [bounded-contexts.md](./bounded-contexts.md) 與 [subdomains.md](./subdomains.md) 為準。
-- 關係方向衝突時，以 [context-map.md](./context-map.md) 為準。
-- 若 root `docs/` 與 `modules/*/docs/*` 的 generic 子域命名衝突，以 root `docs/` 的戰略命名與 duplicate resolution 為準。
-
-## Global Anti-Pattern Rules
-
-- 不把 framework、transport、storage、SDK 細節寫進 domain 核心。
-- 不把其他主域的內部模型當成自己的正典語言。
-- 不把對稱關係與 directed relationship 混寫在同一套戰略文件。
-- 不把 gap subdomains 描述成已驗證現況。
-
-## Copilot Generation Rules
-
-- 生成程式碼前，先從本文件決定應讀哪些戰略文件與 context 文件。
-- 若任務涉及新 bounded context、subdomain 骨架或交付分期，先讀 [bounded-context-subdomain-template.md](./bounded-context-subdomain-template.md) 與 [project-delivery-milestones.md](./project-delivery-milestones.md)。
-- 奧卡姆剃刀：若現有文件網已能回答邊界問題，就不要再新增臨時規則文件。
-- 生成流程應先看 ADR，再看戰略文件，再看主域文件，最後才落到程式碼。
-
-## Dependency Direction Flow
-
-```mermaid
-flowchart LR
-	ADR["ADR"] --> Strategy["Strategic docs"]
-	Strategy --> Context["Context docs"]
-	Context --> Code["Generated code"]
-```
-
-## Correct Interaction Flow
-
-```mermaid
-flowchart LR
-	Question["Coding question"] --> ADR["Check ADR"]
-	ADR --> Strategy["Read strategic docs"]
-	Strategy --> Context["Read owning context docs"]
-	Context --> Code["Generate boundary-safe code"]
-```
-
-## Constraints
-
-- 本文件集是 Context7-only 的 architecture-first 版本。
-- 本文件集沒有檢視任何既有專案內容，因此不應被解讀為 repo-inspected 現況描述。
 ````
 
 ## File: modules/platform/subdomains/account-profile/api/index.ts

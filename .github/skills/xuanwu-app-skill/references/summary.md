@@ -38,13 +38,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1548 files | 72,253 lines
+1555 files | 72,717 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1044 | 34,957 |
+| TypeScript | 1051 | 35,258 |
 | Markdown | 201 | 8,738 |
-| TypeScript (TSX) | 185 | 23,213 |
+| TypeScript (TSX) | 185 | 23,376 |
 | Python | 61 | 3,823 |
 | No Extension | 41 | 125 |
 | JSON | 7 | 822 |
@@ -63,5 +63,5 @@ This skill contains the following reference files:
 - `packages/ui-shadcn/ui/chart.tsx` (356 lines)
 - `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
 - `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (341 lines)
+- `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)
 - `modules/platform/interfaces/web/components/ShellLayout.tsx` (338 lines)
-- `modules/workspace/domain/aggregates/Workspace.ts` (305 lines)
