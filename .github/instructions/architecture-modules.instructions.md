@@ -23,9 +23,16 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 
 1. Confirm ownership.
 2. Map API consumers.
-3. Preserve boundaries during split/merge/delete.
-4. Update docs and imports in the same change.
-5. Migrate public API and event contracts before removing old paths.
+3. Create or update the target use case contract before editing adapters/UI.
+4. Preserve boundaries during split/merge/delete.
+5. Update docs and imports in the same change.
+6. Migrate public API and event contracts before removing old paths.
+
+## Legacy Outside-In Convergence
+
+- Refactor old flows with strangler pattern per use case, not per page or per module rewrite.
+- Sequence: Use Case Contract -> Domain Extraction -> Application Orchestration -> Ports Isolation -> Infrastructure Replacement -> Interface Rewire.
+- Keep old and new paths coexisting only for the shortest safe transition window.
 
 ## Module Lifecycle Notes
 

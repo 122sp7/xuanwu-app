@@ -36,9 +36,23 @@
 3. 先確認 upstream / downstream 關係，再決定 Published Language、ACL 或 Conformist。
 4. 先把本輪交付切成最小可交付增量，再決定是否需要新增抽象。
 
+## Legacy Convergence Guidance (Strangler Pattern)
+
+- 既有 outside-in 功能不得一次性推倒重練，必須以單一 use case 為單位收斂。
+- 每條 legacy use case 的收斂順序固定為：
+1. 定義 use case contract（actor、goal、success scenario、failure branches）。
+2. 先重建該 use case 的 domain 模型與不變條件。
+3. 由 application 接管流程協調，讓舊入口改走新 use case。
+4. 以 ports 隔離 legacy service 或資料模型。
+5. 在 infrastructure 實作新 ports，並漸進切換舊 adapter。
+6. 新路徑穩定後再移除舊路徑。
+
+- 每次收斂只允許處理一條 use case，避免跨多條流程的大爆炸式重寫。
+
 ## Anti-Pattern Rules
 
 - 不得把里程碑順序反過來，先寫大量 adapter 或 UI，再回頭猜 domain。
+- 不得以「全面重構」為由跳過 use-case-by-use-case 的漸進式收斂。
 - 不得把每個規劃點都升級成 ADR；只有架構上有持續影響的決策才寫 ADR。
 - 不得在 M4 就預建所有可能的 port、repository、service 與子域，只為了追求骨架完整。
 - 不得跳過 context map 與 published language，直接用另一個 context 的內部模型來省事。
