@@ -21,6 +21,7 @@ import {
 } from "../../../../subdomains/access-control/api";
 import { type AccountEntity } from "../../../../subdomains/account/api";
 import { subscribeToProfile, type AccountProfile } from "../../../../subdomains/account-profile/api";
+import { resolveShellPageTitle } from "../../../../subdomains/platform-config/api";
 import { AccountSwitcher } from "../../../../subdomains/organization/api";
 import { ShellAppBreadcrumbs } from "../breadcrumbs/ShellAppBreadcrumbs";
 import { AppRail } from "../sidebar/ShellAppRail";
@@ -29,25 +30,6 @@ import { isActiveRoute } from "../navigation/data/ShellSidebarNavData";
 import { ShellGlobalSearchDialog, useShellGlobalSearch } from "../search/ShellGlobalSearchDialog";
 import { ShellHeaderControls } from "../header/components/ShellHeaderControls";
 import { ShellUserAvatar } from "../header/components/ShellUserAvatar";
-
-const routeTitles: Record<string, string> = {
-  "/organization": "組織治理",
-  "/organization/daily": "帳號 · 每日",
-  "/organization/schedule": "帳號 · 排程",
-  "/organization/schedule/dispatcher": "帳號 · 調度台",
-  "/organization/audit": "帳號 · 稽核",
-  "/workspace": "工作區中心",
-  "/knowledge": "知識中心",
-  "/knowledge/pages": "知識 · 頁面",
-  "/knowledge/block-editor": "知識 · 區塊編輯器",
-  "/knowledge-base/articles": "知識庫 · 文章",
-  "/knowledge-database/databases": "知識資料庫 · 資料庫",
-  "/source/documents": "來源 · 文件",
-  "/source/libraries": "來源 · 資料庫",
-  "/notebook/rag-query": "筆記本 · 問答 / 引用",
-  "/ai-chat": "AI 對話",
-  "/dev-tools": "開發工具",
-};
 
 /** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
 const mobileNavItems = [
@@ -89,7 +71,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
     });
   }
 
-  const pageTitle = routeTitles[pathname] ?? "工作區";
+  const pageTitle = resolveShellPageTitle(pathname);
   const organizationAccounts = Object.values(appState.accounts ?? {});
   const accountWorkspaces = Object.values(appState.workspaces ?? {});
   const showAccountManagement = isOrganizationActor(appState.activeAccount);

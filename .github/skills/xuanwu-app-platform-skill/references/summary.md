@@ -39,18 +39,18 @@ This skill contains the following reference files:
 
 ## Statistics
 
-596 files | 18,683 lines
+597 files | 18,691 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 526 | 13,853 |
+| TypeScript | 527 | 13,884 |
 | Markdown | 40 | 795 |
-| TypeScript (TSX) | 30 | 4,035 |
+| TypeScript (TSX) | 30 | 4,012 |
 
 **Largest files:**
 - `modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx` (358 lines)
 - `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
-- `modules/platform/interfaces/web/shell/layout/ShellRootLayout.tsx` (335 lines)
+- `modules/platform/interfaces/web/shell/layout/ShellRootLayout.tsx` (315 lines)
 - `modules/platform/subdomains/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts` (293 lines)
 - `modules/platform/interfaces/web/providers/ShellAppProvider.tsx` (265 lines)
 - `modules/platform/interfaces/web/shell/navigation/components/ShellDashboardSidebar.tsx` (239 lines)
