@@ -8,17 +8,11 @@
  * Constraints: UI-only; workspace data sourced from module interfaces.
  */
 
-import Link from "next/link";
-import {
-  PanelLeftClose,
-  Settings,
-  SlidersHorizontal,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-import { createKnowledgePage, KnowledgeSidebarSection } from "@/modules/notion/api";
+import { createKnowledgePage } from "@/modules/notion/api";
 import {
   buildWorkspaceQuickAccessItems,
   CustomizeNavigationDialog,
@@ -28,7 +22,6 @@ import {
   type NavPreferences,
   useRecentWorkspaces,
   useSidebarLocale,
-  WorkspaceSidebarSection,
 } from "@/modules/workspace/api";
 
 import {
@@ -36,12 +29,12 @@ import {
   ORGANIZATION_MANAGEMENT_ITEMS,
   ACCOUNT_NAV_ITEMS,
   SECTION_TITLES,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
   resolveNavSection,
   isActiveOrganizationAccount,
-  SimpleNavLinks,
 } from "../navigation/sidebar-nav-data";
+import { DashboardSidebarHeader } from "./sidebar/DashboardSidebarHeader";
+import { DashboardSidebarBody } from "./sidebar/DashboardSidebarBody";
+import { WorkspaceQuickAccessRow } from "./sidebar/WorkspaceQuickAccessRow";
 
 export function DashboardSidebar({
   pathname,
@@ -55,13 +48,6 @@ export function DashboardSidebar({
   onSelectWorkspace,
 }: DashboardSidebarProps) {
   const searchParams = useSearchParams();
-  const quickAccessDragStateRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startScrollLeft: number;
-    didDrag: boolean;
-  } | null>(null);
-  const suppressQuickAccessClickRef = useRef(false);
 
   const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
     activeAccount?.id,
@@ -204,80 +190,6 @@ export function DashboardSidebar({
     }
   }
 
-  function handleQuickAccessPointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    if (event.pointerType !== "mouse") {
-      return;
-    }
-
-    const container = event.currentTarget;
-    if (container.scrollWidth <= container.clientWidth) {
-      return;
-    }
-
-    quickAccessDragStateRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startScrollLeft: container.scrollLeft,
-      didDrag: false,
-    };
-  }
-
-  function handleQuickAccessPointerMove(event: React.PointerEvent<HTMLDivElement>) {
-    const dragState = quickAccessDragStateRef.current;
-    if (!dragState || dragState.pointerId !== event.pointerId) {
-      return;
-    }
-
-    const deltaX = event.clientX - dragState.startX;
-    if (!dragState.didDrag && Math.abs(deltaX) > 4) {
-      dragState.didDrag = true;
-      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }
-    }
-
-    if (!dragState.didDrag) {
-      return;
-    }
-
-    event.preventDefault();
-    event.currentTarget.scrollLeft = dragState.startScrollLeft - deltaX;
-  }
-
-  function finishQuickAccessPointer(event: React.PointerEvent<HTMLDivElement>) {
-    const dragState = quickAccessDragStateRef.current;
-    if (!dragState || dragState.pointerId !== event.pointerId) {
-      return;
-    }
-
-    if (dragState.didDrag) {
-      suppressQuickAccessClickRef.current = true;
-      window.setTimeout(() => {
-        suppressQuickAccessClickRef.current = false;
-      }, 0);
-    }
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-
-    quickAccessDragStateRef.current = null;
-  }
-
-  function handleQuickAccessItemClick(event: React.MouseEvent<HTMLAnchorElement>) {
-    if (!suppressQuickAccessClickRef.current) {
-      return;
-    }
-
-    suppressQuickAccessClickRef.current = false;
-    event.preventDefault();
-    event.stopPropagation();
-  }
-
-  function handleQuickAccessDragStart(event: React.DragEvent<HTMLAnchorElement>) {
-    event.preventDefault();
-  }
-
   return (
     <div className="contents">
       <aside
@@ -286,260 +198,51 @@ export function DashboardSidebar({
           collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
         }`}
       >
-        {/* ── Sidebar title bar ──────────────────────────────────── */}
-        <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
-          <span className="flex flex-1 items-center gap-1.5 px-1 text-[11px] font-semibold tracking-tight text-foreground/80">
-            {sectionMeta.icon}
-            {sectionMeta.label}
-          </span>
-          <div className="flex items-center gap-0.5">
-            <button
-              type="button"
-              title="設定"
-              aria-label="設定"
-              onClick={() => { setCustomizeOpen(true); }}
-              className="flex size-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
-            >
-              <SlidersHorizontal className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={onToggleCollapsed}
-              aria-label="收起側欄"
-              title="收起側欄"
-              className="flex size-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
-            >
-              <PanelLeftClose className="size-3.5" />
-            </button>
-          </div>
-        </div>
+        <DashboardSidebarHeader
+          sectionLabel={sectionMeta.label}
+          sectionIcon={sectionMeta.icon}
+          onOpenCustomize={() => {
+            setCustomizeOpen(true);
+          }}
+          onToggleCollapsed={onToggleCollapsed}
+        />
 
-        {/* ── Quick access row ───────────────────────────────────── */}
-        {workspaceQuickAccessItems.length > 0 ? (
-          <div className="shrink-0 border-b border-border/30 px-2 py-2">
-            <div className="flex items-center gap-1">
-              <div
-                className="min-w-0 flex-1 cursor-grab overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden active:cursor-grabbing"
-                onPointerDown={handleQuickAccessPointerDown}
-                onPointerMove={handleQuickAccessPointerMove}
-                onPointerUp={finishQuickAccessPointer}
-                onPointerCancel={finishQuickAccessPointer}
-              >
-                <div className="flex w-max items-center gap-1 pr-1 select-none">
-                  {workspaceQuickAccessItems.map((item) => {
-                    const active = item.isActive?.(pathname, {
-                      panel: currentPanel,
-                      tab: currentWorkspaceTab,
-                    }) ?? isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-label={item.label}
-                        aria-current={active ? "page" : undefined}
-                        onClick={handleQuickAccessItemClick}
-                        onDragStart={handleQuickAccessDragStart}
-                        draggable={false}
-                        className={`flex size-7 shrink-0 items-center justify-center rounded-md transition ${
-                          active
-                            ? "bg-primary/10 text-primary"
-                            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                        }`}
-                      >
-                        {item.icon}
-                        <span className="sr-only">{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-              {workspaceSettingsHref ? (
-                <Link
-                  href={workspaceSettingsHref}
-                  aria-label="工作區設定"
-                  aria-current={currentPanel === "settings" ? "page" : undefined}
-                  onClick={handleQuickAccessItemClick}
-                  onDragStart={handleQuickAccessDragStart}
-                  draggable={false}
-                  className={`ml-auto flex size-7 items-center justify-center rounded-md transition ${
-                    currentPanel === "settings"
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                  }`}
-                >
-                  <Settings className="size-3.5" />
-                  <span className="sr-only">工作區設定</span>
-                </Link>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
+        <WorkspaceQuickAccessRow
+          items={workspaceQuickAccessItems}
+          pathname={pathname}
+          currentPanel={currentPanel}
+          currentWorkspaceTab={currentWorkspaceTab}
+          workspaceSettingsHref={workspaceSettingsHref}
+          isActiveRoute={isActiveRoute}
+        />
 
-        {/* ── Scrollable nav body ─── section-specific ──────────── */}
-        <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
-
-          {section === "account" && (
-            <div className="space-y-2">
-              {showAccountManagement && visibleAccountItems.length > 0 && (
-                <nav className="space-y-0.5" aria-label="Account navigation">
-                  <p className={sidebarSectionTitleClass}>Account</p>
-                  {visibleAccountItems.map((item) => {
-                    const active = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={active ? "page" : undefined}
-                        className={sidebarItemClass(active)}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-              )}
-              {!showAccountManagement && (
-                <p className="px-2 py-4 text-[11px] text-muted-foreground">
-                  請切換到組織帳號以查看 Account 選項。
-                </p>
-              )}
-            </div>
-          )}
-
-          {section === "organization" && (
-            <div className="space-y-2">
-              {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
-                <nav className="space-y-0.5" aria-label="Organization management">
-                  <p className={sidebarSectionTitleClass}>組織管理</p>
-                  {visibleOrganizationManagementItems.map((item) => {
-                    const active = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={active ? "page" : undefined}
-                        className={sidebarItemClass(active)}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-              )}
-              {!showAccountManagement && (
-                <p className="px-2 py-4 text-[11px] text-muted-foreground">
-                  請切換到組織帳號以查看管理選項。
-                </p>
-              )}
-            </div>
-          )}
-
-          {section === "workspace" && (
-            <div className="space-y-2">
-              {workspacePathId ? (
-                <WorkspaceSidebarSection
-                  workspacePathId={workspacePathId}
-                  navPrefs={navPrefs}
-                  localeBundle={localeBundle}
-                  getItemClassName={sidebarItemClass}
-                />
-              ) : (
-                <div>
-                  {showRecentWorkspaces && (
-                    <div className="space-y-0.5">
-                      <p className={sidebarSectionTitleClass}>最近工作區</p>
-                      {visibleRecentWorkspaceLinks.length === 0 ? (
-                        <p className="px-2 py-2 text-[11px] text-muted-foreground">
-                          尚無最近開啟的工作區。
-                        </p>
-                      ) : (
-                        visibleRecentWorkspaceLinks.map((ws) => (
-                          <Link
-                            key={ws.id}
-                            href={ws.href}
-                            onClick={() => { onSelectWorkspace(ws.id); }}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              activeWorkspaceId === ws.id || isActiveRoute(ws.href)
-                                ? "border border-primary/30 bg-primary/10 text-primary"
-                                : "border border-transparent text-foreground/80 hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
-                            }`}
-                            title={ws.name}
-                          >
-                            <span className="truncate">{ws.name}</span>
-                          </Link>
-                        ))
-                      )}
-                      {hasOverflow && (
-                        <button
-                          type="button"
-                          onClick={() => { setIsExpanded((prev) => !prev); }}
-                          className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
-                        >
-                          {isExpanded ? "收起" : "顯示更多"}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {section === "knowledge" && (
-            <KnowledgeSidebarSection
-              pathname={pathname}
-              workspacesHydrated={workspacesHydrated}
-              allWorkspaceLinks={allWorkspaceLinks}
-              activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
-              creatingKind={creatingKind}
-              onSelectWorkspace={onSelectWorkspace}
-              onQuickCreatePage={() => { void handleQuickCreatePage(); }}
-            />
-          )}
-
-          {section === "knowledge-base" && (
-            <SimpleNavLinks
-              title="知識庫"
-              items={[{ href: "/knowledge-base/articles", label: "文章" }]}
-              isActiveRoute={isActiveRoute}
-            />
-          )}
-
-          {section === "knowledge-database" && (
-            <SimpleNavLinks
-              title="資料庫"
-              items={[{ href: "/knowledge-database/databases", label: "資料庫" }]}
-              isActiveRoute={isActiveRoute}
-            />
-          )}
-
-          {section === "source" && (
-            <SimpleNavLinks
-              title="來源文件"
-              items={[
-                { href: "/source/libraries", label: "Libraries" },
-              ]}
-              isActiveRoute={isActiveRoute}
-            />
-          )}
-
-          {section === "notebook" && (
-            <SimpleNavLinks
-              title="Notebook"
-              items={[{ href: "/notebook/rag-query", label: "Ask / Cite" }]}
-              isActiveRoute={isActiveRoute}
-            />
-          )}
-
-          {section === "ai-chat" && (
-            <SimpleNavLinks
-              title="Notebook / AI"
-              items={[{ href: "/ai-chat", label: "Notebook shell" }]}
-              isActiveRoute={isActiveRoute}
-            />
-          )}
-
-        </div>
+        <DashboardSidebarBody
+          section={section}
+          isActiveRoute={isActiveRoute}
+          showAccountManagement={showAccountManagement}
+          visibleAccountItems={visibleAccountItems}
+          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
+          workspacePathId={workspacePathId}
+          navPrefs={navPrefs}
+          localeBundle={localeBundle}
+          showRecentWorkspaces={showRecentWorkspaces}
+          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+          hasOverflow={hasOverflow}
+          isExpanded={isExpanded}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={onSelectWorkspace}
+          onToggleExpanded={() => {
+            setIsExpanded((prev) => !prev);
+          }}
+          pathname={pathname}
+          workspacesHydrated={workspacesHydrated}
+          allWorkspaceLinks={allWorkspaceLinks}
+          currentSearchWorkspaceId={currentSearchWorkspaceId}
+          creatingKind={creatingKind}
+          onQuickCreatePage={() => {
+            void handleQuickCreatePage();
+          }}
+        />
       </aside>
 
       <CustomizeNavigationDialog
