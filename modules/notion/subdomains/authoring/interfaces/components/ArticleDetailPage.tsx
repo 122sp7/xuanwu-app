@@ -22,8 +22,8 @@ import {
   requestArticleReview,
 } from "../_actions/article.actions";
 import { ArticleDialog } from "./ArticleDialog";
-import type { ArticleSnapshot as Article } from "../../domain/aggregates/Article";
-import type { CategorySnapshot as Category } from "../../domain/aggregates/Category";
+import type { ArticleSnapshot as Article } from "../../application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
 import { CommentPanel, VersionHistoryPanel } from "@/modules/notion/api";
 import { ReactMarkdown } from "@lib-react-markdown";
 import { remarkGfm } from "@lib-remark-gfm";

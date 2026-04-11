@@ -6,7 +6,7 @@
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { accountService } from "../../infrastructure/account-service";
-import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
+import type { UpdateProfileInput, OrganizationRole } from "../../application/dto/account.dto";
 
 export async function createUserAccount(
   userId: string,

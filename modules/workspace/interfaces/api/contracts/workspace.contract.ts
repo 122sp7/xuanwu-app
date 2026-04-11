@@ -16,7 +16,7 @@ export type {
   WorkspacePersonnelCustomRole,
   WorkspaceVisibility,
   WorkspaceVisibilityInput,
-} from "../../../domain/aggregates/Workspace";
+} from "../../../application/dtos/workspace-interfaces.dto";
 
 export {
   WORKSPACE_LIFECYCLE_STATES,
@@ -29,14 +29,14 @@ export {
   isTerminalWorkspaceLifecycleState,
   isWorkspaceVisible,
   workspaceNameEquals,
-} from "../../../domain/value-objects";
+} from "../../../application/dtos/workspace-interfaces.dto";
 
 export type {
   WorkspaceCreatedEvent,
   WorkspaceDomainEvent,
   WorkspaceLifecycleTransitionedEvent,
   WorkspaceVisibilityChangedEvent,
-} from "../../../domain/events/workspace.events";
+} from "../../../application/dtos/workspace-interfaces.dto";
 
 export {
   WORKSPACE_CREATED_EVENT_TYPE,
@@ -45,4 +45,4 @@ export {
   createWorkspaceCreatedEvent,
   createWorkspaceLifecycleTransitionedEvent,
   createWorkspaceVisibilityChangedEvent,
-} from "../../../domain/events/workspace.events";
+} from "../../../application/dtos/workspace-interfaces.dto";

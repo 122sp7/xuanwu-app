@@ -7,8 +7,8 @@ import { ShieldAlert } from "lucide-react";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { ScrollArea } from "@ui-shadcn/ui/scroll-area";
 
-import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
-import type { AuditSeverity } from "../../domain/schema";
+import type { AuditLogEntity, AuditLogSource } from "../../application/dto/audit.dto";
+import type { AuditSeverity } from "../../application/dto/audit.dto";
 
 interface AuditStreamItem {
   id: string;

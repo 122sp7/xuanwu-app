@@ -16,8 +16,8 @@ import {
 import { Button } from "@ui-shadcn/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import type { WorkDemand } from "../../domain/types";
-import { DEMAND_STATUS_LABELS } from "../../domain/types";
+import type { WorkDemand } from "../../application/dto/work-demand.dto";
+import { DEMAND_STATUS_LABELS } from "../../application/dto/work-demand.dto";
 
 interface CalendarWidgetProps {
   demands: WorkDemand[];

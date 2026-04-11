@@ -1,5 +1,11 @@
 import { z } from "@lib-zod";
 
+/**
+ * Application-layer DTO re-exports for the feed subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+
 const AccountScopeSchema = z.object({
   accountId: z.string().min(1),
 });

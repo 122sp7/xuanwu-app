@@ -1,8 +1,8 @@
 import type { WorkspaceEntity } from "@/modules/workspace/api";
 
-import { resolveSourceOrganizationId } from "../../domain/services/resolve-source-organization-id.service";
 import type { WorkspaceFileListItemDto } from "../../application/dto/source-file.dto";
-import type { RagDocumentRecord } from "../../domain/entities/RagDocument";
+import { resolveSourceOrganizationId } from "../../application/dto/source.dto";
+import type { RagDocumentRecord } from "../../application/dto/source.dto";
 import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../../api/factories";
 import { ListSourceFilesUseCase } from "../../application/use-cases/list-source-files.use-case";
 

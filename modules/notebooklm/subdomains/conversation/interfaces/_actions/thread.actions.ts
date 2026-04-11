@@ -1,6 +1,6 @@
 "use server";
 
-import type { Thread } from "../../domain/entities/thread";
+import type { Thread } from "../../application/dto/conversation.dto";
 import { makeThreadRepo } from "../../api/factories";
 
 export async function saveThread(accountId: string, thread: Thread): Promise<void> {

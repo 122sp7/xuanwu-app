@@ -11,7 +11,7 @@ import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
 
 import { getDatabase } from "../queries";
 import { DatabaseFormView } from "./DatabaseFormView";
-import type { DatabaseSnapshot as Database } from "../../domain/aggregates/Database";
+import type { DatabaseSnapshot as Database } from "../../application/dto/database.dto";
 import { Button } from "@ui-shadcn/ui/button";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";

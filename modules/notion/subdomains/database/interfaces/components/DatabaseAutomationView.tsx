@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState, useTransition } from "react";
-import type { DatabaseAutomationSnapshot, AutomationTrigger, AutomationActionType } from "../../domain/aggregates/DatabaseAutomation";
+import type { DatabaseAutomationSnapshot, AutomationTrigger, AutomationActionType } from "../../application/dto/database.dto";
 import { getAutomations } from "../queries";
 import { createAutomation, updateAutomation, deleteAutomation } from "../_actions/database.actions";
 

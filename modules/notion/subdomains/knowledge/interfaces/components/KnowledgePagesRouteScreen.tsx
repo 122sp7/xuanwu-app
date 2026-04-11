@@ -8,7 +8,7 @@ import { useAuth } from "@/modules/platform/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-import type { KnowledgePageTreeNode } from "../../domain/aggregates/KnowledgePage";
+import type { KnowledgePageTreeNode } from "../../application/dto/knowledge.dto";
 import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
 import { PageTreeView } from "./PageTreeView";
 

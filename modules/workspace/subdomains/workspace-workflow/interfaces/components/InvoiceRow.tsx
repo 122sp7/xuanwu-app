@@ -6,8 +6,8 @@ import type { CommandResult } from "@shared-types";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 
-import type { Invoice } from "../../domain/entities/Invoice";
-import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import type { Invoice } from "../../application/dto/workflow.dto";
+import type { InvoiceStatus } from "../../application/dto/workflow.dto";
 import {
   wfApproveInvoice,
   wfCloseInvoice,

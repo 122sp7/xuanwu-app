@@ -1,5 +1,5 @@
 /**
- * Module: platform/subdomains/organization/subdomains/team
+ * Module: platform/subdomains/team
  * Layer: domain/entities
  * Purpose: Team entity and related input types owned by the team subdomain.
  */

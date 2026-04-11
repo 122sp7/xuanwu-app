@@ -1,5 +1,5 @@
 /**
- * Module: platform/subdomains/organization/subdomains/team
+ * Module: platform/subdomains/team
  * Layer: domain/repositories
  * Purpose: TeamRepository port — team-scoped operations only.
  *          Implemented in the firebase adapter.

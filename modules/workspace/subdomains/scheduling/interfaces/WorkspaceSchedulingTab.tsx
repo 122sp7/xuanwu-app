@@ -15,8 +15,8 @@ import { Plus } from "lucide-react";
 
 import type { WorkspaceEntity } from "@/modules/workspace/api";
 
-import type { WorkDemand } from "../domain/types";
-import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../domain/types";
+import type { WorkDemand } from "../application/dto/work-demand.dto";
+import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../application/dto/work-demand.dto";
 import { submitWorkDemand } from "./_actions/work-demand.actions";
 import { getWorkspaceDemands } from "./queries/work-demand.queries";
 import { CalendarWidget } from "./components/CalendarWidget";

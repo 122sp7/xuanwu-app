@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import type { AuditLogEntity } from "../../domain/entities/AuditLog";
+import type { AuditLogEntity } from "../../application/dto/audit.dto";
 import {
   Card,
   CardContent,

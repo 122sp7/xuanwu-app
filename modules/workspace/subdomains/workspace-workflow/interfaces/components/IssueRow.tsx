@@ -6,8 +6,8 @@ import type { CommandResult } from "@shared-types";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 
-import type { Issue } from "../../domain/entities/Issue";
-import type { IssueStage } from "../../domain/value-objects/IssueStage";
+import type { Issue } from "../../application/dto/workflow.dto";
+import type { IssueStage } from "../../application/dto/workflow.dto";
 import {
   wfCloseIssue,
   wfFailIssueRetest,

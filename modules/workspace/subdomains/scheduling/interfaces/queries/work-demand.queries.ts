@@ -1,6 +1,6 @@
 "use server";
 
-import type { WorkDemand } from "../../domain/types";
+import type { WorkDemand } from "../../application/dto/work-demand.dto";
 import {
   ListWorkspaceDemandsUseCase,
   ListAccountDemandsUseCase,

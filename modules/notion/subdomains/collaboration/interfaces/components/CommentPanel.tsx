@@ -10,7 +10,7 @@ import { Separator } from "@ui-shadcn/ui/separator";
 
 import { subscribeComments } from "../queries";
 import { createComment, resolveComment, deleteComment } from "../_actions/comment.actions";
-import type { CommentSnapshot } from "../../domain/aggregates/Comment";
+import type { CommentSnapshot } from "../../application/dto/collaboration.dto";
 
 interface CommentPanelProps {
   accountId: string;

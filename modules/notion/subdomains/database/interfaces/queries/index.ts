@@ -10,10 +10,7 @@ import {
   makeRecordRepo,
   makeViewRepo,
 } from "../../api/factories";
-import type { DatabaseSnapshot } from "../../domain/aggregates/Database";
-import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
-import type { ViewSnapshot } from "../../domain/aggregates/View";
-import type { DatabaseAutomationSnapshot } from "../../domain/aggregates/DatabaseAutomation";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot, ViewSnapshot, DatabaseAutomationSnapshot } from "../../application/dto/database.dto";
 
 export async function getDatabases(accountId: string, workspaceId: string): Promise<DatabaseSnapshot[]> {
   return makeDatabaseRepo().listByWorkspace(accountId, workspaceId);

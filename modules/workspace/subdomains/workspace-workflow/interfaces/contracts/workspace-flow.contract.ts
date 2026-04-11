@@ -7,10 +7,10 @@
  * @todo Expand with view-model contracts as UI adapters are added
  */
 
-import type { Task } from "../../domain/entities/Task";
-import type { Issue } from "../../domain/entities/Issue";
-import type { Invoice } from "../../domain/entities/Invoice";
-import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
+import type { Task } from "../../application/dto/workflow.dto";
+import type { Issue } from "../../application/dto/workflow.dto";
+import type { Invoice } from "../../application/dto/workflow.dto";
+import type { InvoiceItem } from "../../application/dto/workflow.dto";
 
 // ── Summary read models (lean projections for UI) ─────────────────────────────
 
