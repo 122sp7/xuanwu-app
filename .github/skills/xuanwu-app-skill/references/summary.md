@@ -38,13 +38,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1555 files | 72,717 lines
+1560 files | 72,987 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1051 | 35,258 |
+| TypeScript | 1051 | 35,283 |
 | Markdown | 201 | 8,738 |
-| TypeScript (TSX) | 185 | 23,376 |
+| TypeScript (TSX) | 190 | 23,621 |
 | Python | 61 | 3,823 |
 | No Extension | 41 | 125 |
 | JSON | 7 | 822 |
@@ -56,7 +56,6 @@ This skill contains the following reference files:
 
 **Largest files:**
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
-- `modules/platform/interfaces/web/components/DashboardSidebar.tsx` (552 lines)
 - `app/(shell)/dev-tools/page.tsx` (475 lines)
 - `firestore.indexes.json` (437 lines)
 - `modules/platform/interfaces/web/components/AppRail.tsx` (358 lines)
@@ -65,3 +64,4 @@ This skill contains the following reference files:
 - `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (341 lines)
 - `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)
 - `modules/platform/interfaces/web/components/ShellLayout.tsx` (338 lines)
+- `modules/workspace/domain/aggregates/Workspace.ts` (305 lines)
