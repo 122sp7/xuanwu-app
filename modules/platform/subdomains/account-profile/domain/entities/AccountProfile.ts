@@ -1,0 +1,29 @@
+import { z } from "@lib-zod";
+
+export const AccountProfileIdSchema = z.string().min(1).brand("AccountProfileId");
+export type AccountProfileId = z.infer<typeof AccountProfileIdSchema>;
+
+export const AccountProfileThemeSchema = z.object({
+  primary: z.string().min(1),
+  background: z.string().min(1),
+  accent: z.string().min(1),
+});
+export type AccountProfileTheme = z.infer<typeof AccountProfileThemeSchema>;
+
+export const AccountProfileSchema = z.object({
+  id: AccountProfileIdSchema,
+  displayName: z.string().min(1),
+  email: z.string().email().optional(),
+  photoURL: z.string().min(1).optional(),
+  bio: z.string().min(1).optional(),
+  theme: AccountProfileThemeSchema.optional(),
+});
+export type AccountProfile = z.infer<typeof AccountProfileSchema>;
+
+export function createAccountProfileId(raw: string): AccountProfileId {
+  return AccountProfileIdSchema.parse(raw);
+}
+
+export function createAccountProfile(raw: AccountProfile): AccountProfile {
+  return AccountProfileSchema.parse(raw);
+}

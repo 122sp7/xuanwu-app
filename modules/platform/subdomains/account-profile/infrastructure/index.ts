@@ -1,1 +1,6 @@
-﻿export { createLegacyAccountProfileApplicationAdapter } from "./create-legacy-account-profile-application.adapter";
+﻿export {
+	createLegacyAccountProfileQueryRepository,
+} from "./create-legacy-account-profile-application.adapter";
+export type {
+	LegacyAccountProfileDataSource,
+} from "./create-legacy-account-profile-application.adapter";
