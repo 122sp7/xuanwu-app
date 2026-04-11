@@ -1,4 +1,4 @@
-import { getUserProfile, subscribeToUserProfile } from "../../account";
+import { getUserProfile, subscribeToUserProfile } from "../../account/api";
 import type { LegacyAccountProfileApplicationPort } from "../application";
 
 export function createLegacyAccountProfileApplicationAdapter(): LegacyAccountProfileApplicationPort {

@@ -27,5 +27,5 @@ export interface AuthUser {
 // ── Cross-cutting account context type ───────────────────────────────────────
 // ActiveAccount is the union of an organization AccountEntity or a personal
 // AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
-import type { AccountEntity } from "../subdomains/account";
+import type { AccountEntity } from "../subdomains/account/api";
 export type ActiveAccount = AccountEntity | AuthUser;

@@ -43,63 +43,78 @@ import type {
 import type { CreateTeamInput } from "../subdomains/team/api";
 import type { CommandResult } from "@shared-types";
 
-const orgRepo = new FirebaseOrganizationRepository();
-const policyRepo = new FirebaseOrgPolicyRepository();
-const teamRepo = new FirebaseTeamRepository();
+let _orgRepo: FirebaseOrganizationRepository | undefined;
+let _policyRepo: FirebaseOrgPolicyRepository | undefined;
+let _teamRepo: FirebaseTeamRepository | undefined;
+
+function getOrgRepo(): FirebaseOrganizationRepository {
+  if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
+  return _orgRepo;
+}
+
+function getPolicyRepo(): FirebaseOrgPolicyRepository {
+  if (!_policyRepo) _policyRepo = new FirebaseOrgPolicyRepository();
+  return _policyRepo;
+}
+
+function getTeamRepo(): FirebaseTeamRepository {
+  if (!_teamRepo) _teamRepo = new FirebaseTeamRepository();
+  return _teamRepo;
+}
 
 export const organizationService = {
   createOrganization: (cmd: CreateOrganizationCommand): Promise<CommandResult> =>
-    new CreateOrganizationUseCase(orgRepo).execute(cmd),
+    new CreateOrganizationUseCase(getOrgRepo()).execute(cmd),
 
   createOrganizationWithTeam: (
     cmd: CreateOrganizationCommand,
     teamName: string,
     teamType: "internal" | "external" = "internal",
   ): Promise<CommandResult> =>
-    new CreateOrganizationWithTeamUseCase(orgRepo).execute(cmd, teamName, teamType),
+    new CreateOrganizationWithTeamUseCase(getOrgRepo()).execute(cmd, teamName, teamType),
 
   updateSettings: (cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> =>
-    new UpdateOrganizationSettingsUseCase(orgRepo).execute(cmd),
+    new UpdateOrganizationSettingsUseCase(getOrgRepo()).execute(cmd),
 
   deleteOrganization: (orgId: string): Promise<CommandResult> =>
-    new DeleteOrganizationUseCase(orgRepo).execute(orgId),
+    new DeleteOrganizationUseCase(getOrgRepo()).execute(orgId),
 
   inviteMember: (input: InviteMemberInput): Promise<CommandResult> =>
-    new InviteMemberUseCase(orgRepo).execute(input),
+    new InviteMemberUseCase(getOrgRepo()).execute(input),
 
   recruitMember: (orgId: string, memberId: string, name: string, email: string): Promise<CommandResult> =>
-    new RecruitMemberUseCase(orgRepo).execute(orgId, memberId, name, email),
+    new RecruitMemberUseCase(getOrgRepo()).execute(orgId, memberId, name, email),
 
   removeMember: (orgId: string, memberId: string): Promise<CommandResult> =>
-    new RemoveMemberUseCase(orgRepo).execute(orgId, memberId),
+    new RemoveMemberUseCase(getOrgRepo()).execute(orgId, memberId),
 
   updateMemberRole: (input: UpdateMemberRoleInput): Promise<CommandResult> =>
-    new UpdateMemberRoleUseCase(orgRepo).execute(input),
+    new UpdateMemberRoleUseCase(getOrgRepo()).execute(input),
 
   createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
-    new CreateTeamUseCase(teamRepo).execute(input),
+    new CreateTeamUseCase(getTeamRepo()).execute(input),
 
   deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
-    new DeleteTeamUseCase(teamRepo).execute(orgId, teamId),
+    new DeleteTeamUseCase(getTeamRepo()).execute(orgId, teamId),
 
   updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
-    new UpdateTeamMembersUseCase(teamRepo).execute(orgId, teamId, memberId, action),
+    new UpdateTeamMembersUseCase(getTeamRepo()).execute(orgId, teamId, memberId, action),
 
   createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
-    new CreatePartnerGroupUseCase(orgRepo).execute(orgId, groupName),
+    new CreatePartnerGroupUseCase(getOrgRepo()).execute(orgId, groupName),
 
   sendPartnerInvite: (orgId: string, teamId: string, email: string): Promise<CommandResult> =>
-    new SendPartnerInviteUseCase(orgRepo).execute(orgId, teamId, email),
+    new SendPartnerInviteUseCase(getOrgRepo()).execute(orgId, teamId, email),
 
   dismissPartnerMember: (orgId: string, teamId: string, memberId: string): Promise<CommandResult> =>
-    new DismissPartnerMemberUseCase(orgRepo).execute(orgId, teamId, memberId),
+    new DismissPartnerMemberUseCase(getOrgRepo()).execute(orgId, teamId, memberId),
 
   createOrgPolicy: (input: CreateOrgPolicyInput): Promise<CommandResult> =>
-    new CreateOrgPolicyUseCase(policyRepo).execute(input),
+    new CreateOrgPolicyUseCase(getPolicyRepo()).execute(input),
 
   updateOrgPolicy: (policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> =>
-    new UpdateOrgPolicyUseCase(policyRepo).execute(policyId, data),
+    new UpdateOrgPolicyUseCase(getPolicyRepo()).execute(policyId, data),
 
   deleteOrgPolicy: (policyId: string): Promise<CommandResult> =>
-    new DeleteOrgPolicyUseCase(policyRepo).execute(policyId),
+    new DeleteOrgPolicyUseCase(getPolicyRepo()).execute(policyId),
 };

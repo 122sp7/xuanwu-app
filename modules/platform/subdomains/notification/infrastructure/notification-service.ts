@@ -11,20 +11,25 @@ import {
 import type { DispatchNotificationInput } from "../domain/entities/Notification";
 import type { CommandResult } from "@shared-types";
 
-const notificationRepo = new FirebaseNotificationRepository();
+let _notificationRepo: FirebaseNotificationRepository | undefined;
+
+function getNotifRepo(): FirebaseNotificationRepository {
+  if (!_notificationRepo) _notificationRepo = new FirebaseNotificationRepository();
+  return _notificationRepo;
+}
 
 export const notificationService = {
   dispatch: (input: DispatchNotificationInput): Promise<CommandResult> =>
-    new DispatchNotificationUseCase(notificationRepo).execute(input),
+    new DispatchNotificationUseCase(getNotifRepo()).execute(input),
 
   markAsRead: (notificationId: string, recipientId: string): Promise<CommandResult> =>
-    new MarkNotificationReadUseCase(notificationRepo).execute(notificationId, recipientId),
+    new MarkNotificationReadUseCase(getNotifRepo()).execute(notificationId, recipientId),
 
   markAllAsRead: (recipientId: string): Promise<CommandResult> =>
-    new MarkAllNotificationsReadUseCase(notificationRepo).execute(recipientId),
+    new MarkAllNotificationsReadUseCase(getNotifRepo()).execute(recipientId),
 
   getForRecipient: (recipientId: string, maxCount?: number) =>
-    notificationRepo.findByRecipient(recipientId, maxCount),
+    getNotifRepo().findByRecipient(recipientId, maxCount),
 
-  getUnreadCount: (recipientId: string) => notificationRepo.getUnreadCount(recipientId),
+  getUnreadCount: (recipientId: string) => getNotifRepo().getUnreadCount(recipientId),
 };

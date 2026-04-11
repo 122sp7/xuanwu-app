@@ -6,17 +6,27 @@ import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/Fi
 import { FirebaseOrgPolicyRepository } from "../../infrastructure/firebase/FirebaseOrgPolicyRepository";
 import type { MemberReference, Team, OrgPolicy } from "../../domain/entities/Organization";
 
-const orgRepo = new FirebaseOrganizationRepository();
-const policyRepo = new FirebaseOrgPolicyRepository();
+let _orgRepo: FirebaseOrganizationRepository | undefined;
+let _policyRepo: FirebaseOrgPolicyRepository | undefined;
+
+function getOrgRepo(): FirebaseOrganizationRepository {
+  if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
+  return _orgRepo;
+}
+
+function getPolicyRepo(): FirebaseOrgPolicyRepository {
+  if (!_policyRepo) _policyRepo = new FirebaseOrgPolicyRepository();
+  return _policyRepo;
+}
 
 export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
-  return orgRepo.getMembers(organizationId);
+  return getOrgRepo().getMembers(organizationId);
 }
 
 export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
-  return orgRepo.getTeams(organizationId);
+  return getOrgRepo().getTeams(organizationId);
 }
 
 export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
-  return policyRepo.getPolicies(orgId);
+  return getPolicyRepo().getPolicies(orgId);
 }

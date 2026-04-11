@@ -24,36 +24,46 @@ import type { UpdateProfileInput, OrganizationRole } from "../domain/entities/Ac
 import type { CreatePolicyInput, UpdatePolicyInput } from "../domain/entities/AccountPolicy";
 import type { CommandResult } from "@shared-types";
 
-const accountRepo = new FirebaseAccountRepository();
-const policyRepo = new FirebaseAccountPolicyRepository();
+let _accountRepo: FirebaseAccountRepository | undefined;
+let _policyRepo: FirebaseAccountPolicyRepository | undefined;
+
+function getAccountRepo(): FirebaseAccountRepository {
+  if (!_accountRepo) _accountRepo = new FirebaseAccountRepository();
+  return _accountRepo;
+}
+
+function getAcctPolicyRepo(): FirebaseAccountPolicyRepository {
+  if (!_policyRepo) _policyRepo = new FirebaseAccountPolicyRepository();
+  return _policyRepo;
+}
 
 export const accountService = {
   createUserAccount: (userId: string, name: string, email: string): Promise<CommandResult> =>
-    new CreateUserAccountUseCase(accountRepo).execute(userId, name, email),
+    new CreateUserAccountUseCase(getAccountRepo()).execute(userId, name, email),
 
   updateUserProfile: (userId: string, data: UpdateProfileInput): Promise<CommandResult> =>
-    new UpdateUserProfileUseCase(accountRepo).execute(userId, data),
+    new UpdateUserProfileUseCase(getAccountRepo()).execute(userId, data),
 
   creditWallet: (accountId: string, amount: number, description: string): Promise<CommandResult> =>
-    new CreditWalletUseCase(accountRepo).execute(accountId, amount, description),
+    new CreditWalletUseCase(getAccountRepo()).execute(accountId, amount, description),
 
   debitWallet: (accountId: string, amount: number, description: string): Promise<CommandResult> =>
-    new DebitWalletUseCase(accountRepo).execute(accountId, amount, description),
+    new DebitWalletUseCase(getAccountRepo()).execute(accountId, amount, description),
 
   assignRole: (accountId: string, role: OrganizationRole, grantedBy: string, traceId?: string): Promise<CommandResult> =>
-    new AssignAccountRoleUseCase(accountRepo, tokenRefreshAdapter).execute(accountId, role, grantedBy, traceId),
+    new AssignAccountRoleUseCase(getAccountRepo(), tokenRefreshAdapter).execute(accountId, role, grantedBy, traceId),
 
   revokeRole: (accountId: string): Promise<CommandResult> =>
-    new RevokeAccountRoleUseCase(accountRepo, tokenRefreshAdapter).execute(accountId),
+    new RevokeAccountRoleUseCase(getAccountRepo(), tokenRefreshAdapter).execute(accountId),
 
   createPolicy: (input: CreatePolicyInput): Promise<CommandResult> =>
-    new CreateAccountPolicyUseCase(policyRepo, tokenRefreshAdapter).execute(input),
+    new CreateAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(input),
 
   updatePolicy: (policyId: string, accountId: string, data: UpdatePolicyInput, traceId?: string): Promise<CommandResult> =>
-    new UpdateAccountPolicyUseCase(policyRepo, tokenRefreshAdapter).execute(policyId, accountId, data, traceId),
+    new UpdateAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(policyId, accountId, data, traceId),
 
   deletePolicy: (policyId: string, accountId: string): Promise<CommandResult> =>
-    new DeleteAccountPolicyUseCase(policyRepo, tokenRefreshAdapter).execute(policyId, accountId),
+    new DeleteAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(policyId, accountId),
 };
 
 /**

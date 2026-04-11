@@ -8,9 +8,9 @@
 
 export * from "./contracts";
 export * from "./facade";
-export * from "../subdomains/identity";
-export * from "../subdomains/account";
-export * from "../subdomains/notification";
+export * from "../subdomains/identity/api";
+export * from "../subdomains/account/api";
+export * from "../subdomains/notification/api";
 
 // organization — explicit to avoid re-export conflicts with account subdomain
 export type {
@@ -32,7 +32,7 @@ export type {
   UpdateOrgPolicyInput,
   OrganizationRepository,
   OrgPolicyRepository,
-} from "../subdomains/organization";
+} from "../subdomains/organization/api";
 export {
   organizationService,
   getOrganizationMembers,
@@ -79,11 +79,11 @@ export {
   TeamsPage,
   PermissionsPage,
   OrganizationAuditPage,
-} from "../subdomains/organization";
-export type { MembersPageProps, TeamsPageProps, PermissionsPageProps, OrganizationAuditPageProps } from "../subdomains/organization";
+} from "../subdomains/organization/api";
+export type { MembersPageProps, TeamsPageProps, PermissionsPageProps, OrganizationAuditPageProps } from "../subdomains/organization/api";
 
 // background-job — knowledge ingestion pipeline management
-export * from "../subdomains/background-job";
+export * from "../subdomains/background-job/api";
 
 // platform-level interfaces (HeaderControls, TranslationSwitcher)
 export * from "../interfaces";

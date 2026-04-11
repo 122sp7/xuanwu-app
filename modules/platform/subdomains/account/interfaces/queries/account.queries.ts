@@ -8,28 +8,33 @@ import type { AccountEntity, WalletTransaction, AccountRoleRecord } from "../../
 import type { WalletBalanceSnapshot, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
 import type { AccountPolicy } from "../../domain/entities/AccountPolicy";
 
-const accountQueryRepo = new FirebaseAccountQueryRepository();
+let _accountQueryRepo: FirebaseAccountQueryRepository | undefined;
+
+function getAccountQueryRepo(): FirebaseAccountQueryRepository {
+  if (!_accountQueryRepo) _accountQueryRepo = new FirebaseAccountQueryRepository();
+  return _accountQueryRepo;
+}
 
 export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
-  return accountQueryRepo.getUserProfile(userId);
+  return getAccountQueryRepo().getUserProfile(userId);
 }
 
 export function subscribeToUserProfile(
   userId: string,
   onUpdate: (profile: AccountEntity | null) => void,
 ): Unsubscribe {
-  return accountQueryRepo.subscribeToUserProfile(userId, onUpdate);
+  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
 }
 
 export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
-  return accountQueryRepo.getWalletBalance(accountId);
+  return getAccountQueryRepo().getWalletBalance(accountId);
 }
 
 export function subscribeToWalletBalance(
   accountId: string,
   onUpdate: (snapshot: WalletBalanceSnapshot) => void,
 ): Unsubscribe {
-  return accountQueryRepo.subscribeToWalletBalance(accountId, onUpdate);
+  return getAccountQueryRepo().subscribeToWalletBalance(accountId, onUpdate);
 }
 
 export function subscribeToWalletTransactions(
@@ -37,25 +42,25 @@ export function subscribeToWalletTransactions(
   maxCount: number,
   onUpdate: (txs: WalletTransaction[]) => void,
 ): Unsubscribe {
-  return accountQueryRepo.subscribeToWalletTransactions(accountId, maxCount, onUpdate);
+  return getAccountQueryRepo().subscribeToWalletTransactions(accountId, maxCount, onUpdate);
 }
 
 export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
-  return accountQueryRepo.getAccountRole(accountId);
+  return getAccountQueryRepo().getAccountRole(accountId);
 }
 
 export function subscribeToAccountRoles(
   accountId: string,
   onUpdate: (record: AccountRoleRecord | null) => void,
 ): Unsubscribe {
-  return accountQueryRepo.subscribeToAccountRoles(accountId, onUpdate);
+  return getAccountQueryRepo().subscribeToAccountRoles(accountId, onUpdate);
 }
 
 export function subscribeToAccountsForUser(
   userId: string,
   onUpdate: (accounts: Record<string, AccountEntity>) => void,
 ): Unsubscribe {
-  return accountQueryRepo.subscribeToAccountsForUser(userId, onUpdate);
+  return getAccountQueryRepo().subscribeToAccountsForUser(userId, onUpdate);
 }
 
 export async function getAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {

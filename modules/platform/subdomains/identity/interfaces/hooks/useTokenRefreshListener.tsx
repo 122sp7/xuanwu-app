@@ -4,14 +4,19 @@ import { getFirebaseAuth } from "@integration-firebase";
 import { useEffect } from "react";
 import { FirebaseTokenRefreshRepository } from "../../infrastructure/firebase/FirebaseTokenRefreshRepository";
 
-const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
+let _tokenRefreshRepo: FirebaseTokenRefreshRepository | undefined;
+
+function getTokenRefreshRepo(): FirebaseTokenRefreshRepository {
+	if (!_tokenRefreshRepo) _tokenRefreshRepo = new FirebaseTokenRefreshRepository();
+	return _tokenRefreshRepo;
+}
 
 export function useTokenRefreshListener(accountId: string | null | undefined): void {
 	useEffect(() => {
 		if (!accountId) return;
 		if (!/^[\w-]+$/.test(accountId)) return;
 
-		const unsubscribe = tokenRefreshRepo.subscribe(accountId, () => {
+		const unsubscribe = getTokenRefreshRepo().subscribe(accountId, () => {
 			const auth = getFirebaseAuth();
 			const currentUser = auth.currentUser;
 			if (!currentUser) return;
