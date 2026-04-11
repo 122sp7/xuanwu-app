@@ -39,10 +39,5 @@ export class DeleteAutomationUseCase {
   }
 }
 
-export class ListAutomationsUseCase {
-  constructor(private readonly repo: IAutomationRepository) {}
-
-  async execute(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
-    return this.repo.listByDatabase(accountId, databaseId);
-  }
-}
+// Re-export read queries for backward compatibility
+export { ListAutomationsUseCase } from "../queries/automation.queries";

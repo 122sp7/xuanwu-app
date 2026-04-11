@@ -40,11 +40,5 @@ export class DeleteRecordUseCase {
   }
 }
 
-export class ListRecordsUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-  async execute(input: ListRecordsDto): Promise<DatabaseRecordSnapshot[]> {
-    const parsed = ListRecordsSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByDatabase(parsed.data.accountId, parsed.data.databaseId);
-  }
-}
+// Re-export read queries for backward compatibility
+export { ListRecordsUseCase } from "../queries/record.queries";

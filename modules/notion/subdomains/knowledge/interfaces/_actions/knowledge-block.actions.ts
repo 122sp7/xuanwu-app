@@ -6,7 +6,7 @@ import {
   AddContentBlockUseCase,
   UpdateContentBlockUseCase,
   DeleteContentBlockUseCase,
-} from "../../application/use-cases/ContentBlockUseCases";
+} from "../../application/queries/content-block.queries";
 import type { AddKnowledgeBlockDto as AddContentBlockDto, UpdateKnowledgeBlockDto as UpdateContentBlockDto, DeleteKnowledgeBlockDto as DeleteContentBlockDto } from "../../application/dto/ContentBlockDto";
 
 export async function addKnowledgeBlock(input: AddContentBlockDto): Promise<CommandResult> {

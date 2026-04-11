@@ -1,7 +1,7 @@
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import { v7 as generateId } from "@lib-uuid";
 import { KnowledgeCollection } from "../../domain/aggregates/KnowledgeCollection";
-import type { KnowledgeCollectionSnapshot, CollectionColumn } from "../../domain/aggregates/KnowledgeCollection";
+import type { CollectionColumn } from "../../domain/aggregates/KnowledgeCollection";
 import type { IKnowledgeCollectionRepository } from "../../domain/repositories/IKnowledgeCollectionRepository";
 import {
   CreateKnowledgeCollectionSchema, type CreateKnowledgeCollectionDto,
@@ -11,6 +11,13 @@ import {
   AddCollectionColumnSchema, type AddCollectionColumnDto,
   ArchiveKnowledgeCollectionSchema, type ArchiveKnowledgeCollectionDto,
 } from "../dto/KnowledgeCollectionDto";
+
+// Re-export read queries for backward compatibility
+export {
+  GetKnowledgeCollectionUseCase,
+  ListKnowledgeCollectionsUseCase,
+  ListKnowledgeCollectionsByWorkspaceUseCase,
+} from "../queries/knowledge-collection.queries";
 
 export class CreateKnowledgeCollectionUseCase {
   constructor(private readonly repo: IKnowledgeCollectionRepository) {}
@@ -97,29 +104,5 @@ export class ArchiveKnowledgeCollectionUseCase {
     collection.archive();
     await this.repo.save(collection);
     return commandSuccess(collection.id, Date.now());
-  }
-}
-
-export class GetKnowledgeCollectionUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
-  async execute(accountId: string, collectionId: string): Promise<KnowledgeCollectionSnapshot | null> {
-    const c = await this.repo.findById(accountId, collectionId);
-    return c ? c.getSnapshot() : null;
-  }
-}
-
-export class ListKnowledgeCollectionsUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
-  async execute(accountId: string): Promise<KnowledgeCollectionSnapshot[]> {
-    const cs = await this.repo.listByAccountId(accountId);
-    return cs.map(c => c.getSnapshot());
-  }
-}
-
-export class ListKnowledgeCollectionsByWorkspaceUseCase {
-  constructor(private readonly repo: IKnowledgeCollectionRepository) {}
-  async execute(accountId: string, workspaceId: string): Promise<KnowledgeCollectionSnapshot[]> {
-    const cs = await this.repo.listByWorkspaceId(accountId, workspaceId);
-    return cs.map(c => c.getSnapshot());
   }
 }

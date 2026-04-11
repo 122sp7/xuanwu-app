@@ -40,11 +40,5 @@ export class DeleteViewUseCase {
   }
 }
 
-export class ListViewsUseCase {
-  constructor(private readonly repo: IViewRepository) {}
-  async execute(input: ListViewsDto): Promise<ViewSnapshot[]> {
-    const parsed = ListViewsSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByDatabase(parsed.data.accountId, parsed.data.databaseId);
-  }
-}
+// Re-export read queries for backward compatibility
+export { ListViewsUseCase } from "../queries/view.queries";

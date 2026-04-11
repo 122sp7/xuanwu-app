@@ -20,7 +20,7 @@ import {
   UpdatePageIconUseCase,
   UpdatePageCoverUseCase,
 } from "../../application/use-cases/KnowledgePageAppearanceUseCases";
-import { PublishKnowledgeVersionUseCase } from "../../application/use-cases/KnowledgeVersionUseCases";
+import { PublishKnowledgeVersionUseCase } from "../../application/queries/knowledge-version.queries";
 import type {
   CreateKnowledgePageDto,
   RenameKnowledgePageDto,
