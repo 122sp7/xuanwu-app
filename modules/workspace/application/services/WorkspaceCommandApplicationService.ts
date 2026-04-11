@@ -1,10 +1,6 @@
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 
 import {
-  CreateWorkspaceUseCase,
-  CreateWorkspaceWithCapabilitiesUseCase,
-  UpdateWorkspaceSettingsUseCase,
-  DeleteWorkspaceUseCase,
   MountCapabilitiesUseCase,
   GrantTeamAccessUseCase,
   GrantIndividualAccessUseCase,
@@ -15,7 +11,6 @@ import type {
   WorkspaceAccessRepository,
   WorkspaceCapabilityRepository,
   WorkspaceDomainEventPublisher,
-  WorkspaceEventPublishMetadata,
   WorkspaceLocationRepository,
   WorkspaceRepository,
 } from "../../domain/ports";
@@ -26,12 +21,7 @@ import type {
   WorkspaceGrant,
   WorkspaceLocation,
 } from "../../domain/aggregates/Workspace";
-import {
-  createWorkspaceCreatedEvent,
-  createWorkspaceLifecycleTransitionedEvent,
-  createWorkspaceVisibilityChangedEvent,
-  type WorkspaceDomainEvent,
-} from "../../domain/events/workspace.events";
+import { WorkspaceLifecycleApplicationService } from "../../subdomains/lifecycle/api";
 
 interface WorkspaceCommandApplicationServiceDependencies {
   workspaceRepo: WorkspaceRepository;
@@ -42,138 +32,42 @@ interface WorkspaceCommandApplicationServiceDependencies {
 }
 
 export class WorkspaceCommandApplicationService implements WorkspaceCommandPort {
+  private readonly lifecycleService: WorkspaceLifecycleApplicationService;
+
   constructor(
     private readonly dependencies: WorkspaceCommandApplicationServiceDependencies,
-  ) {}
+  ) {
+    this.lifecycleService = new WorkspaceLifecycleApplicationService({
+      workspaceRepo: dependencies.workspaceRepo,
+      workspaceCapabilityRepo: dependencies.workspaceCapabilityRepo,
+      eventPublisher: dependencies.workspaceDomainEventPublisher,
+    });
+  }
+
+  // ─── Lifecycle (delegated to lifecycle subdomain) ───────────────────────────
 
   async createWorkspace(command: CreateWorkspaceCommand): Promise<CommandResult> {
-    try {
-      const result = await new CreateWorkspaceUseCase(this.dependencies.workspaceRepo).execute(command);
-      if (result.success) {
-        await this.publishWorkspaceDomainEvent(
-          createWorkspaceCreatedEvent({
-            workspaceId: result.aggregateId,
-            accountId: command.accountId,
-            accountType: command.accountType,
-            name: command.name,
-          }),
-          this.createWorkspaceEventMetadata(
-            result.aggregateId,
-            command.accountId,
-            command.accountType,
-          ),
-        );
-      }
-      return result;
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_FAILED",
-        err instanceof Error ? err.message : "Unexpected error",
-      );
-    }
+    return this.lifecycleService.createWorkspace(command);
   }
 
   async createWorkspaceWithCapabilities(
     command: CreateWorkspaceCommand,
     capabilities: Capability[],
   ): Promise<CommandResult> {
-    try {
-      const result = await new CreateWorkspaceWithCapabilitiesUseCase(
-        this.dependencies.workspaceRepo,
-        this.dependencies.workspaceCapabilityRepo,
-      ).execute(command, capabilities);
-      if (result.success) {
-        await this.publishWorkspaceDomainEvent(
-          createWorkspaceCreatedEvent({
-            workspaceId: result.aggregateId,
-            accountId: command.accountId,
-            accountType: command.accountType,
-            name: command.name,
-          }),
-          this.createWorkspaceEventMetadata(
-            result.aggregateId,
-            command.accountId,
-            command.accountType,
-          ),
-        );
-      }
-      return result;
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_FAILED",
-        err instanceof Error ? err.message : "Unexpected error",
-      );
-    }
+    return this.lifecycleService.createWorkspaceWithCapabilities(command, capabilities);
   }
 
   async updateWorkspaceSettings(
     command: UpdateWorkspaceSettingsCommand,
   ): Promise<CommandResult> {
-    try {
-      const previous = await this.dependencies.workspaceRepo.findByIdForAccount(
-        command.accountId,
-        command.workspaceId,
-      );
-      const result = await new UpdateWorkspaceSettingsUseCase(this.dependencies.workspaceRepo).execute(
-        command,
-      );
-
-      if (result.success && previous) {
-        if (
-          command.lifecycleState !== undefined &&
-          command.lifecycleState !== previous.lifecycleState
-        ) {
-          await this.publishWorkspaceDomainEvent(
-            createWorkspaceLifecycleTransitionedEvent({
-              workspaceId: command.workspaceId,
-              accountId: command.accountId,
-              fromState: previous.lifecycleState,
-              toState: command.lifecycleState,
-            }),
-            this.createWorkspaceEventMetadata(
-              command.workspaceId,
-              command.accountId,
-              previous.accountType,
-            ),
-          );
-        }
-
-        if (command.visibility !== undefined && command.visibility !== previous.visibility) {
-          await this.publishWorkspaceDomainEvent(
-            createWorkspaceVisibilityChangedEvent({
-              workspaceId: command.workspaceId,
-              accountId: command.accountId,
-              fromVisibility: previous.visibility,
-              toVisibility: command.visibility,
-            }),
-            this.createWorkspaceEventMetadata(
-              command.workspaceId,
-              command.accountId,
-              previous.accountType,
-            ),
-          );
-        }
-      }
-
-      return result;
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_UPDATE_FAILED",
-        err instanceof Error ? err.message : "Unexpected error",
-      );
-    }
+    return this.lifecycleService.updateWorkspaceSettings(command);
   }
 
   async deleteWorkspace(workspaceId: string): Promise<CommandResult> {
-    try {
-      return await new DeleteWorkspaceUseCase(this.dependencies.workspaceRepo).execute(workspaceId);
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_DELETE_FAILED",
-        err instanceof Error ? err.message : "Unexpected error",
-      );
-    }
+    return this.lifecycleService.deleteWorkspace(workspaceId);
   }
+
+  // ─── Capabilities (root-level, pending subdomain assignment) ────────────────
 
   async mountCapabilities(
     workspaceId: string,
@@ -191,6 +85,8 @@ export class WorkspaceCommandApplicationService implements WorkspaceCommandPort 
       );
     }
   }
+
+  // ─── Access (root-level, pending sharing subdomain sink) ────────────────────
 
   async authorizeWorkspaceTeam(workspaceId: string, teamId: string): Promise<CommandResult> {
     try {
@@ -223,6 +119,8 @@ export class WorkspaceCommandApplicationService implements WorkspaceCommandPort 
     }
   }
 
+  // ─── Location (root-level, part of Workspace operational profile) ───────────
+
   async createWorkspaceLocation(
     workspaceId: string,
     location: Omit<WorkspaceLocation, "locationId">,
@@ -238,23 +136,5 @@ export class WorkspaceCommandApplicationService implements WorkspaceCommandPort 
         err instanceof Error ? err.message : "Unexpected error",
       );
     }
-  }
-
-  private async publishWorkspaceDomainEvent(
-    event: WorkspaceDomainEvent,
-    metadata?: WorkspaceEventPublishMetadata,
-  ): Promise<void> {
-    await this.dependencies.workspaceDomainEventPublisher.publish(event, metadata);
-  }
-
-  private createWorkspaceEventMetadata(
-    workspaceId: string,
-    accountId: string,
-    accountType?: "user" | "organization",
-  ): WorkspaceEventPublishMetadata {
-    return {
-      workspaceId,
-      organizationId: accountType === "organization" ? accountId : undefined,
-    };
   }
 }
