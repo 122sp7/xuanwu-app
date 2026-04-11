@@ -10,20 +10,20 @@ platform 是治理與營運支撐主域。依 bounded context 原則，它應把
 
 | Cluster | Subdomains |
 |---|---|
-| Identity and Organization | identity, account, account-profile, organization |
-| Governance | access-control, security-policy, platform-config, feature-flag, onboarding, compliance |
-| Commercial | billing, subscription, referral |
-| Delivery and Operations | ai, integration, workflow, notification, background-job |
+| Identity and Organization | identity, account, account-profile, organization, team, tenant |
+| Governance | access-control, security-policy, platform-config, feature-flag, onboarding, compliance, consent |
+| Commercial | billing, subscription, referral, entitlement |
+| Delivery and Operations | ai, integration, workflow, notification, background-job, secret-management |
 | Intelligence and Audit | content, search, audit-log, observability, analytics, support |
 
-## Recommended Gap Bounded Contexts
+## Strategic Reinforcement Focus
 
-| Subdomain | Why It Should Exist | Gap If Missing |
+| Subdomain | Why It Stays A Focus | Risk If Under-Specified |
 |---|---|---|
-| tenant | 承接多租戶隔離與 tenant-scoped 規則 | organization 無法完整覆蓋租戶隔離模型 |
-| entitlement | 承接有效權益與功能可用性解算 | subscription、feature-flag、policy 之間缺少統一決策點 |
-| secret-management | 承接憑證、token、rotation 與 secret audit | integration 容易承載過多敏感治理責任 |
-| consent | 承接同意、偏好、資料使用授權 | compliance 會被迫承接過細的使用者授權語意 |
+| tenant | 收斂多租戶隔離與 tenant-scoped 規則 | organization 會被迫承載過多租戶治理語義 |
+| entitlement | 收斂有效權益與功能可用性解算 | subscription、feature-flag、policy 難以一致決策 |
+| secret-management | 收斂憑證、token、rotation 與 secret audit | integration 容易承載過多敏感治理責任 |
+| consent | 收斂同意、偏好、資料使用授權語義 | compliance 會被迫承接過細的授權決策 |
 
 ## Domain Invariants
 

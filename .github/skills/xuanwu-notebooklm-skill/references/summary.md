@@ -1,4 +1,5 @@
 This file is a merged representation of a subset of the codebase, containing specifically included files and files not matching ignore patterns, combined into a single document by Repomix.
+The content has been processed where content has been formatted for parsing in markdown style.
 
 # Summary
 
@@ -31,28 +32,31 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: **/*.md
-- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, .github/workflows/**, .github/skills/**, docs/architecture/**, diagrams/**, public/**, .tmp-eslint*.json, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
+- Only files matching these patterns are included: modules/platform/subdomains/**, modules/platform/domain/**, modules/platform/application/**, modules/platform/infrastructure/**, modules/platform/interfaces/**, **/*.md
+- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
+- Content has been formatted for parsing in markdown style
 - Files are sorted by Git change count (files with more changes are at the bottom)
 
 ## Statistics
 
-201 files | 8,738 lines
+876 files | 115,852 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 201 | 8,738 |
+| TypeScript | 525 | 13,851 |
+| Markdown | 321 | 98,124 |
+| TypeScript (TSX) | 30 | 3,877 |
 
 **Largest files:**
-- `py_fn/README.md` (265 lines)
-- `.github/prompts/serena-hexagonal-ddd-refactor.prompt.md` (215 lines)
-- `docs/bounded-context-subdomain-template.md` (186 lines)
-- `.github/prompts/playwright-mcp-inspect.prompt.md` (163 lines)
-- `docs/contexts/_template.md` (144 lines)
-- `.github/prompts/playwright-mcp-test.prompt.md` (127 lines)
-- `docs/contexts/platform/README.md` (125 lines)
-- `.github/instructions/domain-modeling.instructions.md` (124 lines)
-- `docs/contexts/platform/AGENT.md` (117 lines)
-- `docs/contexts/notion/README.md` (115 lines)
+- `.github/skills/xuanwu-app-platform-skill/references/files.md` (21,250 lines)
+- `.github/skills/xuanwu-app-skill/references/files.md` (20,636 lines)
+- `.github/skills/xuanwu-app-workspace-skill/references/files.md` (18,082 lines)
+- `.github/skills/xuanwu-notion-skill/references/files.md` (10,186 lines)
+- `.github/skills/xuanwu-app-markdown-skill/references/files.md` (10,186 lines)
+- `.github/skills/xuanwu-app-platform-skill/references/project-structure.md` (604 lines)
+- `.github/skills/xuanwu-app-skill/references/project-structure.md` (593 lines)
+- `.github/skills/hexagonal-ddd/SKILL.md` (415 lines)
+- `.github/skills/playwright-mcp-testing/SKILL.md` (358 lines)
+- `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)

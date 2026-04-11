@@ -6,7 +6,7 @@
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { notificationService } from "../../api";
-import type { DispatchNotificationInput } from "../../application/dto/notification.dto";
+import type { DispatchNotificationInput } from "../../application/dtos/notification.dto";
 
 export async function dispatchNotification(input: DispatchNotificationInput): Promise<CommandResult> {
   try {

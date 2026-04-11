@@ -23,8 +23,8 @@ Read from high level to detail:
 2. `.github/copilot-instructions.md` (Copilot session contract)
 3. `.github/agents/knowledge-base.md` (Hexagonal DDD foundation)
 4. `.github/agents/commands.md` (Validation and deployment)
-5. `.github/instructions/ubiquitous-language.instructions.md` (Terminology rules)
-6. `.github/instructions/bounded-context-rules.instructions.md` (Module isolation rules)
+5. `.github/instructions/docs-authority-and-language.instructions.md` (Terminology and docs authority rules)
+6. `.github/instructions/architecture-core.instructions.md` (Module isolation and dependency rules)
 7. `docs/ubiquitous-language.md` (Canonical terminology)
 8. `docs/bounded-contexts.md` (Context ownership matrix)
 9. `docs/subdomains.md` (Strategic classification)
@@ -35,8 +35,8 @@ Read from high level to detail:
 | Topic | Location |
 |-------|----------|
 | Copilot customization & session contract | `.github/copilot-instructions.md` |
-| Module boundaries & dependency rules | `.github/instructions/bounded-context-rules.instructions.md` |
-| Terminology and naming conventions | `.github/instructions/ubiquitous-language.instructions.md` |
+| Module boundaries & dependency rules | `.github/instructions/architecture-core.instructions.md` |
+| Terminology and naming conventions | `.github/instructions/docs-authority-and-language.instructions.md` |
 | Commit and branching strategy | `.github/instructions/` |
 | Architecture overview & MDDD patterns | `.github/agents/knowledge-base.md` |
 | Build, lint, test commands | `.github/agents/commands.md` |

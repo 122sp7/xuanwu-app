@@ -25,8 +25,8 @@ handoffs:
 - `modules/**/application/machines/**`
 - `docs/ubiquitous-language.md`
 - `docs/contexts/*/**`
-- `.github/instructions/ubiquitous-language.instructions.md`
-- `.github/instructions/bounded-context-rules.instructions.md`
+- `.github/instructions/docs-authority-and-language.instructions.md`
+- `.github/instructions/architecture-core.instructions.md`
 - `.github/instructions/domain-modeling.instructions.md`
 - `.github/instructions/event-driven-state.instructions.md`
 
@@ -41,8 +41,8 @@ handoffs:
 - `docs/subdomains.md`
 - `docs/bounded-contexts.md`
 - `docs/contexts/<context>/*`
-- `.github/instructions/ubiquitous-language.instructions.md`
-- `.github/instructions/bounded-context-rules.instructions.md`
+- `.github/instructions/docs-authority-and-language.instructions.md`
+- `.github/instructions/architecture-core.instructions.md`
 - `.github/instructions/domain-modeling.instructions.md`
 - `.github/instructions/event-driven-state.instructions.md`
 

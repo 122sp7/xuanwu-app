@@ -39,14 +39,14 @@ const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
   },
   {
     href: "/workspace/{workspaceId}?tab=Files",
-    label: "Files",
+    label: "檔案",
     icon: <FolderOpen className="size-3.5" />,
     isActive: (pathname: string, options) =>
       pathname.startsWith("/workspace/") && options?.tab === "Files",
   },
   {
     href: "/workspace/{workspaceId}?tab=Members",
-    label: "Members",
+    label: "成員",
     icon: <Users className="size-3.5" />,
     isActive: (pathname: string, options) =>
       pathname.startsWith("/workspace/") && options?.tab === "Members",

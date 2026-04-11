@@ -11,11 +11,29 @@
 | Upstream | Downstream | Published Language |
 |---|---|---|
 | platform | workspace | actor reference、organization scope、access decision、entitlement signal |
-| platform | notion | actor reference、organization scope、access decision、entitlement signal |
-| platform | notebooklm | actor reference、organization scope、access decision、entitlement signal |
+| platform | notion | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
+| platform | notebooklm | actor reference、organization scope、access decision、entitlement signal、ai capability signal |
 | workspace | notion | workspaceId、membership scope、share scope |
 | workspace | notebooklm | workspaceId、membership scope、share scope |
 | notion | notebooklm | knowledge artifact reference、attachment reference、taxonomy hint |
+
+## Detailed Language Crosswalk
+
+| Relationship | Upstream Canonical Terms | Published Language | Downstream Protected Terms |
+|---|---|---|---|
+| platform -> workspace | Actor, Tenant, Entitlement, Consent | actor reference, organization scope, access decision, entitlement signal | Workspace, Membership, ShareScope |
+| platform -> notion | Actor, Tenant, Entitlement, Secret | actor reference, organization scope, access decision, entitlement signal, ai capability signal | KnowledgeArtifact, Taxonomy, Relation, Publication |
+| platform -> notebooklm | Actor, Tenant, Entitlement, Secret | actor reference, organization scope, access decision, entitlement signal, ai capability signal | Notebook, Ingestion, Retrieval, Grounding, Synthesis, Evaluation |
+| workspace -> notion | Workspace, Membership, ShareScope | workspaceId, membership scope, share scope | KnowledgeArtifact, Taxonomy, Relation |
+| workspace -> notebooklm | Workspace, Membership, ShareScope | workspaceId, membership scope, share scope | Notebook, Retrieval, Grounding, Synthesis |
+| notion -> notebooklm | KnowledgeArtifact, Taxonomy, Relation | knowledge artifact reference, attachment reference, taxonomy hint | Notebook, Retrieval, Grounding, Synthesis, Evaluation |
+
+## Relationship Notes
+
+- `platform -> workspace` 只提供治理判定與權益訊號；workspace 保留協作範疇語言。
+- `platform -> notion` 與 `platform -> notebooklm` 可提供 shared AI capability 訊號，但不移轉內容或推理所有權。
+- `workspace -> notion` 與 `workspace -> notebooklm` 只提供 scope 與 membership 邊界，不輸出 workspace 內部模型。
+- `notion -> notebooklm` 僅提供可引用內容語言，不允許 notebooklm 直接回寫 notion 正典內容。
 
 ## Pattern Rules
 

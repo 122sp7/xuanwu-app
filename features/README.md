@@ -1,42 +1,92 @@
----
-name: features-layer
-description: Feature（Use Case）層設計規範，負責跨 Bounded Context 的協調與流程編排
----
+# features/
 
-# 📦 Features Layer（Use Case Orchestration）
-
-## 🎯 目的
-
-`features/` 是系統的 **Use Case 層（應用層）**，負責：
-
-- 將多個 `modules/（Bounded Context）` 串接成「一個完整功能」
-- 作為 **唯一的功能入口（Single Entry Point）**
-- 控制流程（Flow orchestration）
-- 隔離 UI 與 Domain 的耦合
+> **Behaviour layer** — user-facing feature slices composed from domain modules.
 
 ---
 
-## 🧠 核心概念
+## What is a "feature"?
 
-| 概念 | 說明 |
-|------|------|
-| Feature | 使用者可感知的功能（Use Case） |
-| Orchestration | 跨多個 modules 的流程編排 |
-| Application Layer | 不包含業務規則，只負責調度 |
-| Stateless | 不持有狀態，僅控制流程 |
+A feature is anything a user can **do** in the application — a discrete, nameable action with its own UI, state, and logic.
+
+```
+"I want to sync this note to Notion."          → features/sync-to-notion/
+"I want to import from NotebookLM."            → features/import-from-notebooklm/
+"I want to switch my active workspace."        → features/workspace-switcher/
+"I want to search across all modules."         → features/global-search/
+```
+
+If you can complete the sentence _"As a user, I want to ___"_ with the folder name, it belongs here.
 
 ---
 
-## 📁 結構設計
+## Folder structure
 
-```bash
-/features
-  /<feature-name>
-    usecase.ts        # 核心流程（唯一入口）
-    route.ts          # API / Server Action（Next.js）
-    schema.ts         # input/output validation（zod）
-    dto.ts            # 資料轉換（可選）
-    ui/               # UI（shadcn）
-      *.tsx
-    hooks/            # React hooks（可選）
-    state/            # client state（可選）
+```
+features/
+├── sync-to-notion/
+│   ├── ui/
+│   │   └── SyncToNotionButton.tsx
+│   ├── model/
+│   │   └── useSyncToNotion.ts
+│   └── index.ts
+│
+├── import-from-notebooklm/
+│   ├── ui/
+│   │   └── ImportDialog.tsx
+│   ├── model/
+│   │   └── useImportFromNotebooklm.ts
+│   ├── api/
+│   │   └── importApi.ts
+│   └── index.ts
+│
+├── workspace-switcher/
+│   ├── ui/
+│   │   └── WorkspaceSwitcher.tsx
+│   ├── model/
+│   │   └── useWorkspaceSwitcher.ts
+│   └── index.ts
+│
+└── auth-guard/
+    ├── ui/
+    │   └── AuthGuard.tsx
+    ├── model/
+    │   └── useAuthGuard.ts
+    └── index.ts
+```
+
+---
+
+## Layer relationship
+
+```
+app/              → orchestrates features into pages & layouts
+  features/       → composes modules into user actions
+    modules/      → domain logic, API clients, data models
+      shared/     → primitives, utilities, constants
+```
+
+Features sit **above** modules and **below** the app routing layer.
+
+---
+
+## Rules
+
+| Rule | Reason |
+|------|--------|
+| Import from `modules/*` via their `index.ts` only | Keeps module internals encapsulated |
+| Never import from another `features/*` sibling | Prevents hidden coupling; cross-feature logic goes in `app/` |
+| Export only the public surface in `index.ts` | Consumers should not depend on internal file paths |
+| Name folders as `<verb>-<noun>` | Signals this is an action, not a data domain |
+| Keep business logic in `model/`, not in `ui/` | Testability and separation of concerns |
+
+---
+
+## Quick reference
+
+| I want to… | Location |
+|------------|----------|
+| Add a new user-facing action | `features/<verb>-<noun>/` |
+| Add a reusable UI component | `shared/ui/` |
+| Add an API integration for a platform | `modules/<platform>/` |
+| Add a page or route | `app/` |
+| Add a cross-feature utility | `shared/lib/` |

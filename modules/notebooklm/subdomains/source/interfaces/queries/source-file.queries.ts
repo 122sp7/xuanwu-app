@@ -4,7 +4,7 @@ import type { WorkspaceFileListItemDto } from "../../application/dto/source-file
 import { resolveSourceOrganizationId } from "../../application/dto/source.dto";
 import type { RagDocumentRecord } from "../../application/dto/source.dto";
 import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../../api/factories";
-import { ListSourceFilesUseCase } from "../../application/use-cases/list-source-files.use-case";
+import { ListSourceFilesUseCase } from "../../application/queries/source-file.queries";
 
 export async function getWorkspaceFiles(
   workspace: WorkspaceEntity,

@@ -6,4 +6,4 @@ export type {
 	AccountProfileTheme,
 	Unsubscribe,
 	UpdateAccountProfileInput,
-} from "./dto/account-profile.dto";
+} from "./dtos/account-profile.dto";

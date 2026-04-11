@@ -1,67 +1,38 @@
 /**
  * platform application use-cases barrel.
  *
- * Consolidates commands, queries, handlers, and shared utilities
- * previously split across separate commands/, queries/, handlers/, utils/ directories.
+ * Each file follows the kebab-case convention: verb-noun.use-cases.ts
+ *
+ * Commands:
+ *   register-platform-context
+ *   publish-policy-catalog
+ *   apply-configuration-profile
+ *   register-integration-contract
+ *   activate-subscription-agreement
+ *   fire-workflow-trigger
+ *   request-notification-dispatch
+ *   record-audit-signal
+ *   emit-observability-signal
+ *
+ * Queries:
+ *   get-platform-context-view
+ *   list-enabled-capabilities
+ *   get-policy-catalog-view
+ *   get-subscription-entitlements
+ *   get-workflow-policy-view
  */
 
-// ── Commands ──────────────────────────────────────────────────────────────────
-
-export const PLATFORM_APPLICATION_COMMANDS = [
-	"RegisterPlatformContext",
-	"PublishPolicyCatalog",
-	"ApplyConfigurationProfile",
-	"RegisterIntegrationContract",
-	"ActivateSubscriptionAgreement",
-	"FireWorkflowTrigger",
-	"RequestNotificationDispatch",
-	"RecordAuditSignal",
-	"EmitObservabilitySignal",
-] as const;
-
-export type PlatformApplicationCommand = (typeof PLATFORM_APPLICATION_COMMANDS)[number];
-
-// ── Queries ───────────────────────────────────────────────────────────────────
-
-export const PLATFORM_APPLICATION_QUERIES = [
-	"GetPlatformContextView",
-	"ListEnabledCapabilities",
-	"GetPolicyCatalogView",
-	"GetSubscriptionEntitlements",
-	"GetWorkflowPolicyView",
-] as const;
-
-export type PlatformApplicationQuery = (typeof PLATFORM_APPLICATION_QUERIES)[number];
-
-// ── Handlers ──────────────────────────────────────────────────────────────────
-
-export const PLATFORM_APPLICATION_HANDLERS = [
-	"RegisterPlatformContextHandler.execute",
-	"PublishPolicyCatalogHandler.execute",
-	"ApplyConfigurationProfileHandler.execute",
-	"RegisterIntegrationContractHandler.execute",
-	"ActivateSubscriptionAgreementHandler.execute",
-	"FireWorkflowTriggerHandler.execute",
-	"RequestNotificationDispatchHandler.execute",
-	"RecordAuditSignalHandler.execute",
-	"EmitObservabilitySignalHandler.execute",
-	"GetPlatformContextViewHandler.execute",
-	"ListEnabledCapabilitiesHandler.execute",
-	"GetPolicyCatalogViewHandler.execute",
-	"GetSubscriptionEntitlementsHandler.execute",
-	"GetWorkflowPolicyViewHandler.execute",
-] as const;
-
-export type PlatformApplicationHandler = (typeof PLATFORM_APPLICATION_HANDLERS)[number];
-
-// ── Shared utilities ──────────────────────────────────────────────────────────
-
-export const PLATFORM_SHARED_UTILITY_FUNCTIONS = [
-	"buildCorrelationId",
-	"buildCausationId",
-	"toIsoTimestamp",
-	"assertNever",
-] as const;
-
-export type PlatformSharedUtilityFunction =
-	(typeof PLATFORM_SHARED_UTILITY_FUNCTIONS)[number];
+export { RegisterPlatformContextUseCase } from "./register-platform-context.use-cases";
+export { PublishPolicyCatalogUseCase } from "./publish-policy-catalog.use-cases";
+export { ApplyConfigurationProfileUseCase } from "./apply-configuration-profile.use-cases";
+export { RegisterIntegrationContractUseCase } from "./register-integration-contract.use-cases";
+export { ActivateSubscriptionAgreementUseCase } from "./activate-subscription-agreement.use-cases";
+export { FireWorkflowTriggerUseCase } from "./fire-workflow-trigger.use-cases";
+export { RequestNotificationDispatchUseCase } from "./request-notification-dispatch.use-cases";
+export { RecordAuditSignalUseCase } from "./record-audit-signal.use-cases";
+export { EmitObservabilitySignalUseCase } from "./emit-observability-signal.use-cases";
+export { GetPlatformContextViewUseCase } from "../queries/get-platform-context-view.queries";
+export { ListEnabledCapabilitiesUseCase } from "../queries/list-enabled-capabilities.queries";
+export { GetPolicyCatalogViewUseCase } from "../queries/get-policy-catalog-view.queries";
+export { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-entitlements.queries";
+export { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";

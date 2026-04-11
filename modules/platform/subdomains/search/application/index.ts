@@ -1,1 +1,6 @@
-﻿// Purpose: Application layer placeholder for platform subdomain 'search'.
+﻿// Purpose: Application layer for platform subdomain 'search'.
+
+export {
+	listShellCommandCatalogItems,
+	type ShellCommandCatalogItem,
+} from "./services/shell-command-catalog";

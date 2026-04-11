@@ -1,16 +1,9 @@
 ﻿/**
- * platform domain service placeholder module.
+ * platform domain services barrel.
+ *
+ * Domain Services carry business rules and invariants that cannot naturally
+ * fall on a single Entity or Value Object.
  */
 
-export const PLATFORM_DOMAIN_SERVICE_FUNCTIONS = [
-	"evaluateCapabilityEntitlement",
-	"resolvePermissionDecision",
-	"composeConfigurationProfile",
-	"validateIntegrationCompatibility",
-	"decideWorkflowDispatch",
-	"decideNotificationRouting",
-	"classifyAuditSignal",
-	"correlateObservabilitySignal",
-] as const;
-
-export type PlatformDomainServiceFunction = (typeof PLATFORM_DOMAIN_SERVICE_FUNCTIONS)[number];
+export { assertNever } from "./assert-never";
+export { toIsoTimestamp } from "./to-iso-timestamp";

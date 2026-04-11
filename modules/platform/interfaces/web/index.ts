@@ -1,11 +1,14 @@
-export { HeaderControls } from "./components/HeaderControls";
-export { TranslationSwitcher } from "./components/TranslationSwitcher";
-export { AppBreadcrumbs } from "./components/AppBreadcrumbs";
-export { GlobalSearchDialog, useGlobalSearch } from "./components/GlobalSearchDialog";
-export { AppRail } from "./components/AppRail";
-export { DashboardSidebar } from "./components/DashboardSidebar";
-export { ShellLayout } from "./components/ShellLayout";
-export type { DashboardSidebarProps, NavSection } from "./navigation/sidebar-nav-data";
+export { ShellHeaderControls } from "./shell/header/components/ShellHeaderControls";
+export { ShellThemeToggle } from "./shell/header/components/ShellThemeToggle";
+export { ShellNotificationButton } from "./shell/header/components/ShellNotificationButton";
+export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
+export { ShellTranslationSwitcher } from "./shell/header/components/ShellTranslationSwitcher";
+export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
+export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
+export { AppRail } from "./shell/sidebar/ShellAppRail";
+export { ShellDashboardSidebar } from "./shell/navigation/components/ShellDashboardSidebar";
+export { ShellLayout } from "./shell/layout/ShellRootLayout";
+export type { DashboardSidebarProps, NavSection } from "./shell/navigation/data/ShellSidebarNavData";
 export {
   resolveNavSection,
   isActiveOrganizationAccount,
@@ -17,7 +20,7 @@ export {
   sidebarSectionTitleClass,
   sidebarGroupButtonClass,
   SimpleNavLinks,
-} from "./navigation/sidebar-nav-data";
+} from "./shell/navigation/data/ShellSidebarNavData";
 
 // providers
 export {
@@ -26,6 +29,6 @@ export {
   type AppAction,
   type AppContextValue,
   type ActiveAccount,
-} from "./providers/app-context";
-export { AppProvider, useApp } from "./providers/app-provider";
-export { Providers } from "./providers/providers";
+} from "./providers/ShellAppProvider";
+export { AppProvider, useApp } from "./providers/ShellAppProvider";
+export { Providers } from "./providers/ShellProviders";

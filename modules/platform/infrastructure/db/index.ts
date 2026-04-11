@@ -1,12 +1,11 @@
-﻿/**
- * platform database infrastructure placeholder module.
+/**
+ * platform database infrastructure barrel.
  */
 
-export const PLATFORM_INFRA_DB_FACTORIES = [
-	"createDbPlatformContextRepository",
-	"createDbPolicyCatalogRepository",
-	"createDbIntegrationContractRepository",
-	"createDbSubscriptionAgreementRepository",
-] as const;
-
-export type PlatformInfraDbFactory = (typeof PLATFORM_INFRA_DB_FACTORIES)[number];
+export { FirebasePlatformContextRepository } from "./FirebasePlatformContextRepository";
+export { FirebasePolicyCatalogRepository } from "./FirebasePolicyCatalogRepository";
+export { FirebaseIntegrationContractRepository } from "./FirebaseIntegrationContractRepository";
+export { FirebaseSubscriptionAgreementRepository } from "./FirebaseSubscriptionAgreementRepository";
+export { FirebaseWorkflowPolicyRepository } from "./FirebaseWorkflowPolicyRepository";
+export { FirebaseConfigurationProfileStore } from "./FirebaseConfigurationProfileStore";
+export { EnvSecretReferenceResolver } from "./EnvSecretReferenceResolver";

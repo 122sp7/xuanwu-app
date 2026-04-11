@@ -1,1 +1,22 @@
-﻿// Purpose: Application layer placeholder for platform subdomain 'platform-config'.
+﻿// Purpose: Application layer for platform-config subdomain.
+
+export {
+	SHELL_ACCOUNT_SECTION_MATCHERS,
+	SHELL_ACCOUNT_NAV_ITEMS,
+	SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
+	SHELL_SECTION_LABELS,
+	SHELL_RAIL_CATALOG_ITEMS,
+	SHELL_CONTEXT_SECTION_CONFIG,
+	SHELL_MOBILE_NAV_ITEMS,
+	SHELL_ORG_PRIMARY_NAV_ITEMS,
+	SHELL_ORG_SECONDARY_NAV_ITEMS,
+	isExactOrChildPath,
+	listShellRailCatalogItems,
+	resolveShellBreadcrumbLabel,
+	resolveShellNavSection,
+	resolveShellPageTitle,
+	type ShellNavItem,
+	type ShellNavSection,
+	type ShellRailCatalogItem,
+	type ShellContextSectionConfig,
+} from "./services/shell-navigation-catalog";

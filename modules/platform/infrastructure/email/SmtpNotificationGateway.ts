@@ -1,25 +1,19 @@
 /**
  * SmtpNotificationGateway — Email Adapter (Driven Adapter)
  *
- * Implements: NotificationGateway (for email channel)
- *
- * Delivers email notifications via a transactional email provider
- * (e.g., Resend, SendGrid, SMTP relay).
- *
- * Responsibilities:
- *   - Accept a normalised NotificationDispatch request
- *   - Resolve template by templateKey
- *   - Render template with recipient data
- *   - Deliver via configured email provider
- *   - Return PlatformCommandResult (ok / failure)
- *
- * Rules:
- *   - Must not expose provider SDK types outside this file
- *   - Template resolution uses the platform content subdomain, not hardcoded strings
- *   - Channel-specific logic (HTML vs plain-text) is encapsulated here
- *
- * @see ports/output/index.ts — NotificationGateway interface
- * @see subdomains/notification/ — notification subdomain
+ * Implements: NotificationGateway
+ * Delivers notifications. In production, replace console.info with
+ * a Resend / SendGrid / SMTP relay API call.
  */
 
-// TODO: implement SmtpNotificationGateway
+import type { NotificationGateway } from "../../domain/ports/output";
+import type { PlatformCommandResult } from "../../domain/ports/input";
+
+export class SmtpNotificationGateway implements NotificationGateway {
+async dispatch(request: Record<string, unknown>): Promise<PlatformCommandResult> {
+if (process.env.NODE_ENV !== "test") {
+console.info("[SmtpNotificationGateway] dispatch", request);
+}
+return { ok: true, code: "NOTIFICATION_DISPATCHED" };
+}
+}

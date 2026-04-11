@@ -2,7 +2,7 @@ import type { AuditLogEntity } from "../../application/dto/audit.dto";
 import {
   ListOrganizationAuditLogsUseCase,
   ListWorkspaceAuditLogsUseCase,
-} from "../../application/use-cases/list-audit-logs.use-cases";
+} from "../../application/queries/list-audit-logs.queries";
 import { makeAuditRepo } from "../../api/factories";
 
 const auditRepo = makeAuditRepo();

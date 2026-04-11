@@ -6,9 +6,8 @@
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { IDatabaseRecordRepository } from "../../domain/repositories/IDatabaseRecordRepository";
-import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
-import { CreateRecordSchema, UpdateRecordSchema, DeleteRecordSchema, ListRecordsSchema } from "../dto/DatabaseDto";
-import type { CreateRecordDto, UpdateRecordDto, DeleteRecordDto, ListRecordsDto } from "../dto/DatabaseDto";
+import { CreateRecordSchema, UpdateRecordSchema, DeleteRecordSchema } from "../dto/DatabaseDto";
+import type { CreateRecordDto, UpdateRecordDto, DeleteRecordDto } from "../dto/DatabaseDto";
 
 export class CreateRecordUseCase {
   constructor(private readonly repo: IDatabaseRecordRepository) {}
@@ -40,11 +39,5 @@ export class DeleteRecordUseCase {
   }
 }
 
-export class ListRecordsUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-  async execute(input: ListRecordsDto): Promise<DatabaseRecordSnapshot[]> {
-    const parsed = ListRecordsSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByDatabase(parsed.data.accountId, parsed.data.databaseId);
-  }
-}
+// Re-export read queries for backward compatibility
+export { ListRecordsUseCase } from "../queries/record.queries";

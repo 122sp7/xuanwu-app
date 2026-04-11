@@ -17,7 +17,7 @@ argument-hint: 提供觸發事件的業務操作名稱、所屬聚合、Payload 
 
 ## 工作流程
 
-1. 確認事件名稱符合**過去式**命名規範（查閱 `ubiquitous-language.instructions.md`）。
+1. 確認事件名稱符合**過去式**命名規範（查閱 `docs-authority-and-language.instructions.md`）。
 2. 確認 `discriminant` 格式為 `<module-name>.<action>`，例如 `workspace.created`。
 3. 確認 `occurredAt` 使用 ISO string，遵循 `modules/shared/domain/events.ts` 的 `DomainEvent` 介面。
 4. 在 `modules/<context>/domain/events/<EventName>.ts` 建立事件定義。

@@ -2,23 +2,34 @@
  * FirebaseSubscriptionAgreementRepository — Firestore Repository (Driven Adapter)
  *
  * Implements: SubscriptionAgreementRepository
- * Stores:     SubscriptionAgreement aggregate
  * Collection: "subscription-agreements"
- *
- * Responsibilities:
- *   - Read/write SubscriptionAgreement aggregate documents to Firestore
- *   - Use adapters/persistence mappers for serialisation/deserialisation
- *   - Reconstitute aggregates via domain factory (create*Aggregate with reconstitute flag)
- *
- * Rules:
- *   - Must implement the SubscriptionAgreementRepository interface contract exactly
- *   - Must not import from application/ or interfaces/ layers
- *   - Must not expose Firestore types outside this file
- *   - Errors are translated to typed domain errors, not raw Firestore errors
- *
- * @see ports/output/index.ts — SubscriptionAgreementRepository interface
- * @see adapters/persistence/ — serialisation mappers
- * @see docs/repositories.md — Firestore collection contract
  */
 
-// TODO: implement FirebaseSubscriptionAgreementRepository Firestore repository
+import { getFirestore, collection, query, where, getDocs, limit, setDoc, doc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { SubscriptionAgreementRepository } from "../../domain/ports/output";
+
+export class FirebaseSubscriptionAgreementRepository implements SubscriptionAgreementRepository {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	async findEffectiveByContextId(contextId: string): Promise<unknown | null> {
+		const q = query(
+			collection(this.db, "subscription-agreements"),
+			where("contextId", "==", contextId),
+			where("billingState", "==", "active"),
+			limit(1),
+		);
+		const snap = await getDocs(q);
+		if (snap.empty) return null;
+		const d = snap.docs[0];
+		return { ...(d.data() as Record<string, unknown>), subscriptionAgreementId: d.id };
+	}
+
+	async save(agreement: unknown): Promise<void> {
+		const record = agreement as Record<string, unknown>;
+		const id = record.subscriptionAgreementId as string;
+		await setDoc(doc(this.db, "subscription-agreements", id), record, { merge: true });
+	}
+}

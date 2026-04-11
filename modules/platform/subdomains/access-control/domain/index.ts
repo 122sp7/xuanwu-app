@@ -1,1 +1,4 @@
-﻿// Purpose: Domain layer placeholder for platform subdomain 'access-control'.
+export * from "./aggregates";
+export * from "./events";
+export * from "./repositories";
+export * from "./value-objects";

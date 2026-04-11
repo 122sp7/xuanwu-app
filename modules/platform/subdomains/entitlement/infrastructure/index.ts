@@ -1,1 +1,2 @@
-// Purpose: Infrastructure layer placeholder for platform subdomain 'entitlement'.
+export * from "./entitlement-service";
+export { FirebaseEntitlementGrantRepository } from "./firebase/FirebaseEntitlementGrantRepository";

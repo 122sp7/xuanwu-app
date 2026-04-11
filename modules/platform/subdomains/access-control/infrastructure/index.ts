@@ -1,1 +1,2 @@
-﻿// Purpose: Infrastructure layer placeholder for platform subdomain 'access-control'.
+export * from "./access-control-service";
+export { FirebaseAccessPolicyRepository } from "./firebase/FirebaseAccessPolicyRepository";
