@@ -27,7 +27,7 @@ modules/                                        # 系統所有業務模組（bou
     ├── api/                                    # 對其他 bounded context 的公開 API 邊界（ACL 入口）
     │   └── index.ts                            # 只匯出安全能力，隱藏內部結構與實作細節
     ├── application/                            # 應用層：負責 use case orchestration
-    │   ├── dto/                                # 輸入/輸出資料契約，僅資料不含業務邏輯
+    │   ├── dtos/                                # 輸入/輸出資料契約，僅資料不含業務邏輯
     │   ├── use-cases/                          # 一檔一用例，承擔流程控制與副作用協調
     │   └── services/                           # Application Service：流程共用輔助，不承載核心業務規則
     ├── domain/                                 # 領域層：核心商業邏輯與不變條件
