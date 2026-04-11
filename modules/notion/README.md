@@ -24,7 +24,7 @@ modules/notion/
 
 > **Premature stubs** — The following directories exist but are not recommended for expansion. They represent aspirational splits whose responsibilities are already covered by active subdomains or are infrastructure/read-model concerns:
 > `automation/`, `knowledge-analytics/`, `knowledge-integration/`, `knowledge-versioning/`, `notes/`, `relations/`, `templates/`.
-> See [Premature Stubs](#premature-stubs已存在目錄但不建議擴充) for details.
+> See [Premature Stubs](#premature-stubs) for details.
 
 ## Subdomains
 
@@ -45,7 +45,9 @@ modules/notion/
 | publishing | 跨內容類型的正式發布流程與對外交付邊界 | 發布工作流需要跨 authoring 與 knowledge 統一管理 |
 | attachments | 附件與媒體的獨立生命週期管理 | 附件需要獨立於頁面的保留策略或版本管理 |
 
-### Premature Stubs（已存在目錄但不建議擴充）
+### Premature Stubs
+
+The following directories exist but are not recommended for expansion:
 
 | Subdomain | Reason |
 |-----------|--------|
@@ -97,9 +99,9 @@ modules/notion/
 | DatabaseRecord | Database 中的單筆記錄 | database |
 | View (DatabaseView) | 對 Database 的投影與檢視配置 | database |
 | DatabaseAutomation | Database 事件觸發的自動化動作 | database |
-| Taxonomy | 標籤、分類法、主題樹等語義組織結構 | taxonomy（未來） |
-| Publication | 對外可見且可交付的內容狀態 | publishing（未來） |
-| Attachment | 綁定於知識內容的檔案或媒體 | attachments（未來） |
+| Taxonomy | 標籤、分類法、主題樹等語義組織結構 | taxonomy (planned) |
+| Publication | 對外可見且可交付的內容狀態 | publishing (planned) |
+| Attachment | 綁定於知識內容的檔案或媒體 | attachments (planned) |
 | Template | 可重複套用的內容結構起點 | authoring |
 
 ### Language Rules
@@ -116,8 +118,8 @@ modules/notion/
 |-------|-------------|
 | Wiki | KnowledgePage 或 Article |
 | Table | Database 或 DatabaseView |
-| Tag System | Category（現有）或 Taxonomy（未來） |
-| Content Link | BacklinkIndex（現有）或 Relation（未來） |
+| Tag System | Category (current) or Taxonomy (planned) |
+| Content Link | BacklinkIndex (current) or Relation (planned) |
 | Publish Action | Publication 或 ArticlePublication |
 
 ## Dependency Direction

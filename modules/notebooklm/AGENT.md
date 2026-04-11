@@ -4,7 +4,7 @@
 
 ## Mission
 
-保護 notebooklm 主域作為對話、來源處理、檢索、grounding、synthesis 與評估邊界。核心 pipeline 為：source → retrieval → grounding → synthesis → evaluation。notebooklm 擁有衍生推理流程，不擁有正典知識內容。
+保護 notebooklm 主域作為對話、來源處理、檢索、grounding、synthesis 與評估邊界。核心 pipeline 為：source (ingestion) → retrieval → grounding → synthesis → evaluation。notebooklm 擁有衍生推理流程，不擁有正典知識內容。
 
 ## Route Here When
 
