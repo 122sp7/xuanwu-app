@@ -3,7 +3,7 @@
  */
 
 import { FirebaseNotificationRepository } from "../../infrastructure/firebase/FirebaseNotificationRepository";
-import type { NotificationEntity } from "../../domain/entities/Notification";
+import type { NotificationEntity } from "../../application/dto/notification.dto";
 
 let _notificationRepo: FirebaseNotificationRepository | undefined;
 

@@ -4,9 +4,7 @@
  */
 
 import { FirebaseAccountQueryRepository } from "../../infrastructure/firebase/FirebaseAccountQueryRepository";
-import type { AccountEntity, WalletTransaction, AccountRoleRecord } from "../../domain/entities/Account";
-import type { WalletBalanceSnapshot, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
-import type { AccountPolicy } from "../../domain/entities/AccountPolicy";
+import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dto/account.dto";
 
 let _accountQueryRepo: FirebaseAccountQueryRepository | undefined;
 
