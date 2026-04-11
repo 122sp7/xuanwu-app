@@ -19,7 +19,7 @@ import { type AccountEntity } from "../../../../subdomains/account/api";
 import { subscribeToProfile, type AccountProfile } from "../../../../subdomains/account-profile/api";
 import { AccountSwitcher } from "../../../../subdomains/organization/api";
 import { ShellAppBreadcrumbs } from "../breadcrumbs/ShellAppBreadcrumbs";
-import { AppRail } from "../sidebar/components/ShellAppRail";
+import { AppRail } from "../sidebar/ShellAppRail";
 import { ShellDashboardSidebar } from "../navigation/components/ShellDashboardSidebar";
 import { ShellGlobalSearchDialog, useShellGlobalSearch } from "../search/ShellGlobalSearchDialog";
 import { HeaderControls as ShellHeaderControls } from "../header/components/HeaderControls";

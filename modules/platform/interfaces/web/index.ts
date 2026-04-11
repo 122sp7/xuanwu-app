@@ -5,7 +5,7 @@ export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
 export { ShellTranslationSwitcher } from "./shell/header/components/ShellTranslationSwitcher";
 export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
 export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
-export { AppRail } from "./shell/sidebar/components/ShellAppRail";
+export { AppRail } from "./shell/sidebar/ShellAppRail";
 export { ShellDashboardSidebar } from "./shell/navigation/components/ShellDashboardSidebar";
 export { ShellLayout } from "./shell/layout/ShellRootLayout";
 export type { DashboardSidebarProps, NavSection } from "./shell/navigation/data/ShellSidebarNavData";
