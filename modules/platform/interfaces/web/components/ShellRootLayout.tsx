@@ -15,31 +15,32 @@ import { PanelLeftOpen, Search } from "lucide-react";
 
 import { useApp } from "../providers/app-provider";
 import { useAuth, ShellGuard } from "../../../subdomains/identity/api";
-import { type AccountEntity, HeaderUserAvatar } from "../../../subdomains/account/api";
+import { type AccountEntity } from "../../../subdomains/account/api";
 import { subscribeToProfile, type AccountProfile } from "../../../subdomains/account-profile/api";
 import { AccountSwitcher } from "../../../subdomains/organization/api";
-import { AppBreadcrumbs } from "./AppBreadcrumbs";
-import { AppRail } from "./AppRail";
+import { ShellAppBreadcrumbs } from "./ShellAppBreadcrumbs";
+import { AppRail } from "./ShellAppRail";
 import { DashboardSidebar } from "./DashboardSidebar";
-import { GlobalSearchDialog, useGlobalSearch } from "./GlobalSearchDialog";
+import { ShellGlobalSearchDialog, useShellGlobalSearch } from "./ShellGlobalSearchDialog";
 import { HeaderControls } from "./HeaderControls";
+import { ShellUserAvatar } from "./ShellUserAvatar";
 
 const routeTitles: Record<string, string> = {
   "/organization": "組織治理",
-  "/organization/daily": "Account · 每日",
-  "/organization/schedule": "Account · 排程",
-  "/organization/schedule/dispatcher": "Account · 調度台",
-  "/organization/audit": "Account · 稽核",
+  "/organization/daily": "帳號 · 每日",
+  "/organization/schedule": "帳號 · 排程",
+  "/organization/schedule/dispatcher": "帳號 · 調度台",
+  "/organization/audit": "帳號 · 稽核",
   "/workspace": "工作區中心",
-  "/knowledge": "Knowledge Hub",
-  "/knowledge/pages": "Knowledge · 頁面",
-  "/knowledge/block-editor": "Knowledge · 區塊編輯器",
-  "/knowledge-base/articles": "Knowledge Base · 文章",
-  "/knowledge-database/databases": "Knowledge Database · 資料庫",
-  "/source/documents": "Source · 文件來源",
-  "/source/libraries": "Source · Libraries",
-  "/notebook/rag-query": "Notebook · Ask / Cite",
-  "/ai-chat": "AI Chat",
+  "/knowledge": "知識中心",
+  "/knowledge/pages": "知識 · 頁面",
+  "/knowledge/block-editor": "知識 · 區塊編輯器",
+  "/knowledge-base/articles": "知識庫 · 文章",
+  "/knowledge-database/databases": "知識資料庫 · 資料庫",
+  "/source/documents": "來源 · 文件",
+  "/source/libraries": "來源 · 資料庫",
+  "/notebook/rag-query": "筆記本 · 問答 / 引用",
+  "/ai-chat": "AI 對話",
   "/dev-tools": "開發工具",
 };
 
@@ -92,12 +93,11 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
   const { state: appState, dispatch } = useApp();
   const [logoutError, setLogoutError] = useState<string | null>(null);
   const [accountProfileState, setAccountProfileState] = useState<{ actorId: string; profile: AccountProfile | null } | null>(null);
-  const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
+  const { open: searchOpen, setOpen: setSearchOpen } = useShellGlobalSearch();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
   });
-
   function toggleSidebar() {
     setSidebarCollapsed((prev) => {
       const next = !prev;
@@ -179,7 +179,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <ShellGuard>
-      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <ShellGlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
       <div className="flex h-screen overflow-hidden bg-background">
         <AppRail
           pathname={pathname}
@@ -226,7 +226,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
                   </button>
                 )}
                 <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
-                <AppBreadcrumbs />
+                <ShellAppBreadcrumbs />
                 {/* Global search */}
                 <button
                   type="button"
@@ -242,7 +242,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
 
               <div className="ml-auto flex items-center gap-3">
                 <HeaderControls />
-                <HeaderUserAvatar
+                <ShellUserAvatar
                   name={scopedProfile?.displayName ?? authState.user?.name ?? "Dimension Member"}
                   email={scopedProfile?.email ?? authState.user?.email ?? "—"}
                   onSignOut={() => {

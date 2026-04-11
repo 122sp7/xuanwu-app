@@ -2,19 +2,19 @@
 
 import { PanelLeftClose, SlidersHorizontal } from "lucide-react";
 
-interface DashboardSidebarHeaderProps {
+interface ShellSidebarHeaderProps {
   sectionLabel: string;
   sectionIcon: React.ReactNode;
   onOpenCustomize: () => void;
   onToggleCollapsed: () => void;
 }
 
-export function DashboardSidebarHeader({
+export function ShellSidebarHeader({
   sectionLabel,
   sectionIcon,
   onOpenCustomize,
   onToggleCollapsed,
-}: DashboardSidebarHeaderProps) {
+}: ShellSidebarHeaderProps) {
   return (
     <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
       <span className="flex flex-1 items-center gap-1.5 px-1 text-[11px] font-semibold tracking-tight text-foreground/80">

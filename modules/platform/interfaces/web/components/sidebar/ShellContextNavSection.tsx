@@ -7,7 +7,7 @@ interface ContextScopedNavItem {
   label: string;
 }
 
-interface ContextScopedNavSectionProps {
+interface ShellContextNavSectionProps {
   title: string;
   items: readonly ContextScopedNavItem[];
   isActiveRoute: (href: string) => boolean;
@@ -35,23 +35,23 @@ function withContextQuery(href: string, accountId: string | null, workspaceId: s
   return query.length > 0 ? `${path}?${query}` : path;
 }
 
-export function ContextScopedNavSection({
+export function ShellContextNavSection({
   title,
   items,
   isActiveRoute,
   activeAccountId,
   activeWorkspaceId,
-}: ContextScopedNavSectionProps) {
+}: ShellContextNavSectionProps) {
   return (
-    <nav className="space-y-0.5" aria-label={`${title} navigation`}>
+    <nav className="space-y-0.5" aria-label={`${title}導覽`}>
       <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
         {title}
       </p>
       {(activeAccountId || activeWorkspaceId) && (
         <p className="px-2 pb-1 text-[11px] text-muted-foreground">
-          {activeAccountId ? `Account: ${activeAccountId.slice(0, 8)}` : "Account: -"}
+          {activeAccountId ? `帳號: ${activeAccountId.slice(0, 8)}` : "帳號: -"}
           {" · "}
-          {activeWorkspaceId ? `Workspace: ${activeWorkspaceId.slice(0, 8)}` : "Workspace: -"}
+          {activeWorkspaceId ? `工作區: ${activeWorkspaceId.slice(0, 8)}` : "工作區: -"}
         </p>
       )}
       {items.map((item) => {

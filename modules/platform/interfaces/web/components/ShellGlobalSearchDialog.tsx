@@ -32,12 +32,12 @@ const GROUP_ICONS: Record<string, React.ReactNode> = {
   "Source": <FileText className="size-4 mr-2 opacity-60" />,
 };
 
-interface GlobalSearchDialogProps {
+interface ShellGlobalSearchDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
 }
 
-export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogProps) {
+export function ShellGlobalSearchDialog({ open, onOpenChange }: ShellGlobalSearchDialogProps) {
   const router = useRouter();
 
   function handleSelect(href: string) {
@@ -77,7 +77,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
 }
 
 /** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
-export function useGlobalSearch() {
+export function useShellGlobalSearch() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {

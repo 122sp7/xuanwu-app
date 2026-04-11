@@ -1,11 +1,14 @@
 export { HeaderControls } from "./components/HeaderControls";
-export { TranslationSwitcher } from "./components/TranslationSwitcher";
-export { AppBreadcrumbs } from "./components/AppBreadcrumbs";
-export { GlobalSearchDialog, useGlobalSearch } from "./components/GlobalSearchDialog";
-export { AppRail } from "./components/AppRail";
+export { ShellThemeToggle } from "./components/ShellThemeToggle";
+export { ShellNotificationButton } from "./components/ShellNotificationButton";
+export { ShellUserAvatar } from "./components/ShellUserAvatar";
+export { ShellTranslationSwitcher } from "./components/ShellTranslationSwitcher";
+export { ShellAppBreadcrumbs } from "./components/ShellAppBreadcrumbs";
+export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./components/ShellGlobalSearchDialog";
+export { AppRail } from "./components/ShellAppRail";
 export { DashboardSidebar } from "./components/DashboardSidebar";
-export { ShellLayout } from "./components/ShellLayout";
-export type { DashboardSidebarProps, NavSection } from "./navigation/sidebar-nav-data";
+export { ShellLayout } from "./components/ShellRootLayout";
+export type { DashboardSidebarProps, NavSection } from "./navigation/ShellSidebarNavData";
 export {
   resolveNavSection,
   isActiveOrganizationAccount,
@@ -17,7 +20,7 @@ export {
   sidebarSectionTitleClass,
   sidebarGroupButtonClass,
   SimpleNavLinks,
-} from "./navigation/sidebar-nav-data";
+} from "./navigation/ShellSidebarNavData";
 
 // providers
 export {

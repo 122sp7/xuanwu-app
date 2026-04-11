@@ -4,7 +4,7 @@
  * Module: dashboard-sidebar.tsx
  * Purpose: render the secondary navigation panel of the authenticated shell.
  * Responsibilities: account switcher, search hint, org management sub-nav, and
- *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
+ *   recent workspace quick-access list. Top-level section navigation is in ShellAppRail.
  * Constraints: UI-only; workspace data sourced from module interfaces.
  */
 
@@ -32,9 +32,9 @@ import {
   SECTION_TITLES,
   resolveNavSection,
   isActiveOrganizationAccount,
-} from "../navigation/sidebar-nav-data";
-import { DashboardSidebarHeader } from "./sidebar/DashboardSidebarHeader";
-import { DashboardSidebarBody } from "./sidebar/DashboardSidebarBody";
+} from "../navigation/ShellSidebarNavData";
+import { ShellSidebarHeader } from "./sidebar/ShellSidebarHeader";
+import { DashboardSidebarBody } from "./sidebar/ShellSidebarBody";
 
 export function DashboardSidebar({
   pathname,
@@ -198,7 +198,7 @@ export function DashboardSidebar({
           collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
         }`}
       >
-        <DashboardSidebarHeader
+        <ShellSidebarHeader
           sectionLabel={sectionMeta.label}
           sectionIcon={sectionMeta.icon}
           onOpenCustomize={() => {

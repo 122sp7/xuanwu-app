@@ -13,8 +13,8 @@ import {
   type NavSection,
   sidebarItemClass,
   sidebarSectionTitleClass,
-} from "../../navigation/sidebar-nav-data";
-import { ContextScopedNavSection } from "./ContextScopedNavSection";
+} from "../../navigation/ShellSidebarNavData";
+import { ShellContextNavSection } from "./ShellContextNavSection";
 
 interface NavItem {
   id: string;
@@ -28,7 +28,7 @@ interface WorkspaceLink {
   href: string;
 }
 
-interface DashboardSidebarBodyProps {
+interface ShellSidebarBodyProps {
   section: NavSection;
   isActiveRoute: (href: string) => boolean;
   activeAccountId: string | null;
@@ -107,22 +107,22 @@ export function DashboardSidebarBody({
   currentSearchWorkspaceId,
   creatingKind,
   onQuickCreatePage,
-}: DashboardSidebarBodyProps) {
+}: ShellSidebarBodyProps) {
   return (
     <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
       {section === "account" && (
         <div className="space-y-2">
           {showAccountManagement && visibleAccountItems.length > 0 && (
             <ManagedNavGroup
-              title="Account"
-              ariaLabel="Account navigation"
+              title="帳號"
+              ariaLabel="帳號導覽"
               items={visibleAccountItems}
               isActiveRoute={isActiveRoute}
             />
           )}
           {!showAccountManagement && (
             <p className="px-2 py-4 text-[11px] text-muted-foreground">
-              請切換到組織帳號以查看 Account 選項。
+              請切換到組織帳號以查看帳號選項。
             </p>
           )}
         </div>
@@ -133,7 +133,7 @@ export function DashboardSidebarBody({
           {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
             <ManagedNavGroup
               title="組織管理"
-              ariaLabel="Organization management"
+              ariaLabel="組織管理導覽"
               items={visibleOrganizationManagementItems}
               isActiveRoute={isActiveRoute}
             />
@@ -180,7 +180,7 @@ export function DashboardSidebarBody({
       )}
 
       {section === "knowledge-base" && (
-        <ContextScopedNavSection
+        <ShellContextNavSection
           title="知識庫"
           items={[{ href: "/knowledge-base/articles", label: "文章" }]}
           isActiveRoute={isActiveRoute}
@@ -190,7 +190,7 @@ export function DashboardSidebarBody({
       )}
 
       {section === "knowledge-database" && (
-        <ContextScopedNavSection
+        <ShellContextNavSection
           title="資料庫"
           items={[{ href: "/knowledge-database/databases", label: "資料庫" }]}
           isActiveRoute={isActiveRoute}
@@ -200,9 +200,9 @@ export function DashboardSidebarBody({
       )}
 
       {section === "source" && (
-        <ContextScopedNavSection
+        <ShellContextNavSection
           title="來源文件"
-          items={[{ href: "/source/libraries", label: "Libraries" }]}
+          items={[{ href: "/source/libraries", label: "資料庫" }]}
           isActiveRoute={isActiveRoute}
           activeAccountId={activeAccountId}
           activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
@@ -210,9 +210,9 @@ export function DashboardSidebarBody({
       )}
 
       {section === "notebook" && (
-        <ContextScopedNavSection
-          title="Notebook"
-          items={[{ href: "/notebook/rag-query", label: "Ask / Cite" }]}
+        <ShellContextNavSection
+          title="筆記本"
+          items={[{ href: "/notebook/rag-query", label: "問答 / 引用" }]}
           isActiveRoute={isActiveRoute}
           activeAccountId={activeAccountId}
           activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
@@ -220,9 +220,9 @@ export function DashboardSidebarBody({
       )}
 
       {section === "ai-chat" && (
-        <ContextScopedNavSection
-          title="Notebook / AI"
-          items={[{ href: "/ai-chat", label: "Notebook shell" }]}
+        <ShellContextNavSection
+          title="筆記本 / AI"
+          items={[{ href: "/ai-chat", label: "筆記本介面" }]}
           isActiveRoute={isActiveRoute}
           activeAccountId={activeAccountId}
           activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}

@@ -31,7 +31,7 @@ function segmentLabel(segment: string) {
   return SEGMENT_LABELS[segment] ?? segment;
 }
 
-export function AppBreadcrumbs() {
+export function ShellAppBreadcrumbs() {
   const pathname = usePathname();
   const segments = pathname.split("/").filter(Boolean);
 

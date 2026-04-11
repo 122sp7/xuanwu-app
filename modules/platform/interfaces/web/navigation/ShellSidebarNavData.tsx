@@ -58,13 +58,13 @@ export const ACCOUNT_SECTION_MATCHERS = [
 
 export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
   workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  knowledge: { label: "Knowledge", icon: <BookOpen className="size-3" /> },
-  "knowledge-base": { label: "Knowledge Base", icon: <BookOpen className="size-3" /> },
-  "knowledge-database": { label: "Knowledge Database", icon: <Database className="size-3" /> },
-  source: { label: "Source", icon: <FileText className="size-3" /> },
-  notebook: { label: "Notebook", icon: <Brain className="size-3" /> },
-  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
-  account: { label: "Account", icon: <UserRound className="size-3" /> },
+  knowledge: { label: "知識", icon: <BookOpen className="size-3" /> },
+  "knowledge-base": { label: "知識庫", icon: <BookOpen className="size-3" /> },
+  "knowledge-database": { label: "知識資料庫", icon: <Database className="size-3" /> },
+  source: { label: "來源", icon: <FileText className="size-3" /> },
+  notebook: { label: "筆記本", icon: <Brain className="size-3" /> },
+  "ai-chat": { label: "AI 對話", icon: <Bot className="size-3" /> },
+  account: { label: "帳號", icon: <UserRound className="size-3" /> },
   organization: { label: "組織", icon: <Users className="size-3" /> },
   other: { label: "導覽", icon: null },
 };
@@ -123,7 +123,7 @@ export function SimpleNavLinks({
   isActiveRoute: (href: string) => boolean;
 }) {
   return (
-    <nav className="space-y-0.5" aria-label={`${title} navigation`}>
+    <nav className="space-y-0.5" aria-label={`${title}導覽`}>
       <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
         {title}
       </p>

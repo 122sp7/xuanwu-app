@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Module: translation-switcher.tsx
+ * Module: shell-translation-switcher.tsx
  * Purpose: provide a reusable locale switch control for shell-level UI.
  * Responsibilities: persist locale preference and sync html lang attribute.
  * Constraints: keep state client-side and avoid coupling to business modules.
@@ -33,7 +33,7 @@ function isLocaleValue(value: string | null): value is LocaleValue {
   return value === "en" || value === "zh-TW";
 }
 
-export function TranslationSwitcher() {
+export function ShellTranslationSwitcher() {
   const [locale, setLocale] = useState<LocaleValue>(() => {
     if (typeof window === "undefined") {
       return "en";
@@ -55,14 +55,14 @@ export function TranslationSwitcher() {
           type="button"
           variant="outline"
           size="icon-sm"
-          aria-label="Switch language"
+          aria-label="切換語言"
           className="text-muted-foreground"
         >
           <Languages className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-40">
-        <DropdownMenuLabel>Language</DropdownMenuLabel>
+        <DropdownMenuLabel>語言</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={locale} onValueChange={(value) => {
           if (isLocaleValue(value)) {
             setLocale(value);
