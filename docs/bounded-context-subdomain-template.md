@@ -27,7 +27,16 @@ modules/
     ├── api/
     │   └── index.ts
     ├── application/
+    │   ├── dto/
+    │   ├── use-cases/
+    │   └── services/
     ├── domain/
+    │   ├── entities/
+    │   ├── value-objects/
+    │   ├── services/
+    │   ├── repositories/
+    │   ├── events/
+    │   └── ports/
     ├── docs/
     │   ├── README.md
     │   ├── bounded-context.md
@@ -40,7 +49,15 @@ modules/
     │   ├── application-services.md
     │   └── domain-services.md
     ├── infrastructure/
+    │   ├── adapters/
+    │   ├── persistence/
+    │   └── repositories/
     ├── interfaces/
+    │   ├── api/
+    │   ├── components/
+    │   ├── hooks/
+    │   ├── queries/
+    │   └── _actions/
     └── subdomains/
         ├── <subdomain-a>/
         │   ├── README.md
