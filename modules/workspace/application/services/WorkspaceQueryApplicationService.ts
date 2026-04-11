@@ -9,7 +9,7 @@ import {
   listWorkspacesForAccount,
   subscribeToWorkspacesForAccount,
 } from "../queries/workspace.queries";
-import { fetchWorkspaceMembers } from "../queries/workspace-member.queries";
+import { fetchWorkspaceMembers } from "../../subdomains/membership/api";
 import { buildWikiContentTree } from "../queries/wiki-content-tree.queries";
 import type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";
 import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";

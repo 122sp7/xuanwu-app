@@ -2,8 +2,6 @@ import { commandFailureFrom, type CommandResult } from "@shared-types";
 
 import {
   MountCapabilitiesUseCase,
-  GrantTeamAccessUseCase,
-  GrantIndividualAccessUseCase,
   CreateWorkspaceLocationUseCase,
 } from "../use-cases/workspace.use-cases";
 import type { WorkspaceCommandPort } from "../../domain/ports/input/WorkspaceCommandPort";
@@ -22,6 +20,7 @@ import type {
   WorkspaceLocation,
 } from "../../domain/aggregates/Workspace";
 import { WorkspaceLifecycleApplicationService } from "../../subdomains/lifecycle/api";
+import { WorkspaceSharingApplicationService } from "../../subdomains/sharing/api";
 
 interface WorkspaceCommandApplicationServiceDependencies {
   workspaceRepo: WorkspaceRepository;
@@ -33,6 +32,7 @@ interface WorkspaceCommandApplicationServiceDependencies {
 
 export class WorkspaceCommandApplicationService implements WorkspaceCommandPort {
   private readonly lifecycleService: WorkspaceLifecycleApplicationService;
+  private readonly sharingService: WorkspaceSharingApplicationService;
 
   constructor(
     private readonly dependencies: WorkspaceCommandApplicationServiceDependencies,
@@ -41,6 +41,9 @@ export class WorkspaceCommandApplicationService implements WorkspaceCommandPort 
       workspaceRepo: dependencies.workspaceRepo,
       workspaceCapabilityRepo: dependencies.workspaceCapabilityRepo,
       eventPublisher: dependencies.workspaceDomainEventPublisher,
+    });
+    this.sharingService = new WorkspaceSharingApplicationService({
+      workspaceAccessRepo: dependencies.workspaceAccessRepo,
     });
   }
 
@@ -67,6 +70,19 @@ export class WorkspaceCommandApplicationService implements WorkspaceCommandPort 
     return this.lifecycleService.deleteWorkspace(workspaceId);
   }
 
+  // ─── Sharing (delegated to sharing subdomain) ──────────────────────────────
+
+  async authorizeWorkspaceTeam(workspaceId: string, teamId: string): Promise<CommandResult> {
+    return this.sharingService.authorizeWorkspaceTeam(workspaceId, teamId);
+  }
+
+  async grantIndividualWorkspaceAccess(
+    workspaceId: string,
+    grant: WorkspaceGrant,
+  ): Promise<CommandResult> {
+    return this.sharingService.grantIndividualWorkspaceAccess(workspaceId, grant);
+  }
+
   // ─── Capabilities (root-level, pending subdomain assignment) ────────────────
 
   async mountCapabilities(
@@ -81,39 +97,6 @@ export class WorkspaceCommandApplicationService implements WorkspaceCommandPort 
     } catch (err) {
       return commandFailureFrom(
         "CAPABILITIES_MOUNT_FAILED",
-        err instanceof Error ? err.message : "Unexpected error",
-      );
-    }
-  }
-
-  // ─── Access (root-level, pending sharing subdomain sink) ────────────────────
-
-  async authorizeWorkspaceTeam(workspaceId: string, teamId: string): Promise<CommandResult> {
-    try {
-      return await new GrantTeamAccessUseCase(this.dependencies.workspaceAccessRepo).execute(
-        workspaceId,
-        teamId,
-      );
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_TEAM_AUTHORIZE_FAILED",
-        err instanceof Error ? err.message : "Unexpected error",
-      );
-    }
-  }
-
-  async grantIndividualWorkspaceAccess(
-    workspaceId: string,
-    grant: WorkspaceGrant,
-  ): Promise<CommandResult> {
-    try {
-      return await new GrantIndividualAccessUseCase(this.dependencies.workspaceAccessRepo).execute(
-        workspaceId,
-        grant,
-      );
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_GRANT_FAILED",
         err instanceof Error ? err.message : "Unexpected error",
       );
     }
