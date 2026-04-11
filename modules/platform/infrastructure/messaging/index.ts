@@ -1,11 +1,7 @@
-﻿/**
- * platform messaging infrastructure placeholder module.
+/**
+ * platform messaging infrastructure barrel.
  */
 
-export const PLATFORM_INFRA_MESSAGING_FACTORIES = [
-	"createMessagingDomainEventPublisher",
-	"createMessagingWorkflowDispatcher",
-	"createMessagingJobQueuePort",
-] as const;
-
-export type PlatformInfraMessagingFactory = (typeof PLATFORM_INFRA_MESSAGING_FACTORIES)[number];
+export { QStashDomainEventPublisher } from "./QStashDomainEventPublisher";
+export { QStashWorkflowDispatcher } from "./QStashWorkflowDispatcher";
+export { QStashJobQueuePort } from "./QStashJobQueuePort";

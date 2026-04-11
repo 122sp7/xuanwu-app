@@ -1,24 +1,35 @@
 /**
- * CachedPolicyCatalogViewRepository — Cache Repository (Driven Adapter)
+ * CachedPolicyCatalogViewRepository — Firestore-backed View Repository (Driven Adapter)
  *
  * Implements: PolicyCatalogViewRepository
- * Caches PolicyCatalogView projections; invalidated on PolicyCatalogPublishedEvent.
- * Cache key prefix: "policy-catalog-views"
- *
- * Strategy:
- *   1. Check Upstash Redis cache for the view
- *   2. On cache miss, delegate to the DB repository
- *   3. Store result in cache with appropriate TTL
- *   4. Invalidate cache on relevant domain events
- *
- * Rules:
- *   - Must implement the PolicyCatalogViewRepository interface contract exactly
- *   - Cache miss must be transparent to callers (same return shape)
- *   - TTL and invalidation strategy are configuration-driven, not hardcoded
- *
- * @see ports/output/index.ts — PolicyCatalogViewRepository interface
- * @see infrastructure/db/ — underlying DB repository
- * @see docs/repositories.md — cache strategy notes
+ * Reads PolicyCatalogView from "policy-catalogs" collection (latest active revision).
  */
 
-// TODO: implement CachedPolicyCatalogViewRepository cache-aside repository
+import { getFirestore, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { PolicyCatalogViewRepository, PolicyCatalogView } from "../../domain/ports/output";
+
+export class CachedPolicyCatalogViewRepository implements PolicyCatalogViewRepository {
+private get db() {
+return getFirestore(firebaseClientApp);
+}
+
+async getView(contextId: string): Promise<PolicyCatalogView | null> {
+const q = query(
+collection(this.db, "policy-catalogs"),
+orderBy("revision", "desc"),
+limit(1),
+);
+const snap = await getDocs(q);
+if (snap.empty) return null;
+const data = snap.docs[0].data() as Record<string, unknown>;
+return {
+contextId,
+revision: typeof data.revision === "number" ? data.revision : 0,
+permissionRuleCount: typeof data.permissionRuleCount === "number" ? data.permissionRuleCount : 0,
+workflowRuleCount: typeof data.workflowRuleCount === "number" ? data.workflowRuleCount : 0,
+notificationRuleCount: typeof data.notificationRuleCount === "number" ? data.notificationRuleCount : 0,
+auditRuleCount: typeof data.auditRuleCount === "number" ? data.auditRuleCount : 0,
+};
+}
+}

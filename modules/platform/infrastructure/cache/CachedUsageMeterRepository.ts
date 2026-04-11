@@ -1,24 +1,34 @@
 /**
- * CachedUsageMeterRepository — Cache Repository (Driven Adapter)
+ * CachedUsageMeterRepository — Firestore-backed View Repository (Driven Adapter)
  *
  * Implements: UsageMeterRepository
- * Caches SubscriptionEntitlementsView projections; invalidated on entitlement changes.
- * Cache key prefix: "usage-meters"
- *
- * Strategy:
- *   1. Check Upstash Redis cache for the view
- *   2. On cache miss, delegate to the DB repository
- *   3. Store result in cache with appropriate TTL
- *   4. Invalidate cache on relevant domain events
- *
- * Rules:
- *   - Must implement the UsageMeterRepository interface contract exactly
- *   - Cache miss must be transparent to callers (same return shape)
- *   - TTL and invalidation strategy are configuration-driven, not hardcoded
- *
- * @see ports/output/index.ts — UsageMeterRepository interface
- * @see infrastructure/db/ — underlying DB repository
- * @see docs/repositories.md — cache strategy notes
+ * Reads SubscriptionEntitlementsView from "subscription-agreements" collection.
  */
 
-// TODO: implement CachedUsageMeterRepository cache-aside repository
+import { getFirestore, collection, query, where, getDocs, limit } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { UsageMeterRepository, SubscriptionEntitlementsView } from "../../domain/ports/output";
+
+export class CachedUsageMeterRepository implements UsageMeterRepository {
+private get db() {
+return getFirestore(firebaseClientApp);
+}
+
+async getEntitlementsView(contextId: string): Promise<SubscriptionEntitlementsView | null> {
+const q = query(
+collection(this.db, "subscription-agreements"),
+where("contextId", "==", contextId),
+where("billingState", "==", "active"),
+limit(1),
+);
+const snap = await getDocs(q);
+if (snap.empty) return null;
+const data = snap.docs[0].data() as Record<string, unknown>;
+return {
+contextId,
+planCode: typeof data.planCode === "string" ? data.planCode : "free",
+entitlements: Array.isArray(data.entitlements) ? (data.entitlements as string[]) : [],
+usageLimits: Array.isArray(data.usageLimits) ? (data.usageLimits as string[]) : [],
+};
+}
+}

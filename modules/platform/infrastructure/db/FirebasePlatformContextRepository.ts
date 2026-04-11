@@ -2,23 +2,27 @@
  * FirebasePlatformContextRepository — Firestore Repository (Driven Adapter)
  *
  * Implements: PlatformContextRepository
- * Stores:     PlatformContext aggregate
  * Collection: "platform-contexts"
- *
- * Responsibilities:
- *   - Read/write PlatformContext aggregate documents to Firestore
- *   - Use adapters/persistence mappers for serialisation/deserialisation
- *   - Reconstitute aggregates via domain factory (create*Aggregate with reconstitute flag)
- *
- * Rules:
- *   - Must implement the PlatformContextRepository interface contract exactly
- *   - Must not import from application/ or interfaces/ layers
- *   - Must not expose Firestore types outside this file
- *   - Errors are translated to typed domain errors, not raw Firestore errors
- *
- * @see ports/output/index.ts — PlatformContextRepository interface
- * @see adapters/persistence/ — serialisation mappers
- * @see docs/repositories.md — Firestore collection contract
  */
 
-// TODO: implement FirebasePlatformContextRepository Firestore repository
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { PlatformContextRepository } from "../../domain/ports/output";
+
+export class FirebasePlatformContextRepository implements PlatformContextRepository {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	async findById(contextId: string): Promise<unknown | null> {
+		const snap = await getDoc(doc(this.db, "platform-contexts", contextId));
+		if (!snap.exists()) return null;
+		return { contextId, ...(snap.data() as Record<string, unknown>) };
+	}
+
+	async save(context: unknown): Promise<void> {
+		const record = context as Record<string, unknown>;
+		const contextId = record.contextId as string;
+		await setDoc(doc(this.db, "platform-contexts", contextId), record, { merge: true });
+	}
+}

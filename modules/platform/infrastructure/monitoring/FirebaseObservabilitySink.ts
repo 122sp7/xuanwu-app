@@ -2,21 +2,17 @@
  * FirebaseObservabilitySink — Monitoring Adapter (Driven Adapter)
  *
  * Implements: ObservabilitySink
- *
- * Emits observability signals (metrics, traces, alerts) to a monitoring
- * backend (e.g., Google Cloud Monitoring, Datadog, or custom sink).
- *
- * Responsibilities:
- *   - Receive a normalised ObservabilitySignal domain type
- *   - Translate to the provider-specific format
- *   - Emit via configured monitoring SDK
- *
- * Rules:
- *   - Must not expose monitoring provider types outside this file
- *   - Signal enrichment (labels, resource attributes) is handled here
- *
- * @see ports/output/index.ts — ObservabilitySink interface
- * @see subdomains/observability/ — observability subdomain
+ * Emits observability signals as structured console telemetry suitable for
+ * Cloud Logging ingestion. Extend with a provider SDK (Datadog, GCM, etc.) as needed.
  */
 
-// TODO: implement FirebaseObservabilitySink
+import type { ObservabilitySink } from "../../domain/ports/output";
+
+export class FirebaseObservabilitySink implements ObservabilitySink {
+async emit(signal: Record<string, unknown>): Promise<void> {
+const entry = { type: "observability", ...signal, emittedAt: new Date().toISOString() };
+if (process.env.NODE_ENV !== "test") {
+console.info("[ObservabilitySink]", JSON.stringify(entry));
+}
+}
+}
