@@ -1,4 +1,4 @@
-import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto";
 import {
   GetWorkspaceFeedPostUseCase,
   ListAccountWorkspaceFeedUseCase,

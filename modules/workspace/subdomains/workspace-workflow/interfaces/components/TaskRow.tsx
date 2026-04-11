@@ -8,9 +8,9 @@ import type { CommandResult } from "@shared-types";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 
-import type { Issue } from "../../domain/entities/Issue";
-import type { Task } from "../../domain/entities/Task";
-import type { TaskStatus } from "../../domain/value-objects/TaskStatus";
+import type { Issue } from "../../application/dto/workflow.dto";
+import type { Task } from "../../application/dto/workflow.dto";
+import type { TaskStatus } from "../../application/dto/workflow.dto";
 import {
   wfApproveTaskAcceptance,
   wfArchiveTask,

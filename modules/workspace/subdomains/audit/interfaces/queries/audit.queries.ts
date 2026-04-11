@@ -1,4 +1,4 @@
-import type { AuditLogEntity } from "../../domain/entities/AuditLog";
+import type { AuditLogEntity } from "../../application/dto/audit.dto";
 import {
   ListOrganizationAuditLogsUseCase,
   ListWorkspaceAuditLogsUseCase,

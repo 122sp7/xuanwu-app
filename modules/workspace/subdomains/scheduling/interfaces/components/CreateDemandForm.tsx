@@ -23,8 +23,8 @@ import {
 } from "@ui-shadcn/ui/select";
 import { Textarea } from "@ui-shadcn/ui/textarea";
 
-import { DEMAND_PRIORITY_LABELS } from "../../domain/types";
-import type { DemandPriority } from "../../domain/types";
+import { DEMAND_PRIORITY_LABELS } from "../../application/dto/work-demand.dto";
+import type { DemandPriority } from "../../application/dto/work-demand.dto";
 
 export interface CreateDemandFormValues {
   title: string;

@@ -30,8 +30,8 @@ import {
 } from "@ui-shadcn/ui/card";
 import { Separator } from "@ui-shadcn/ui/separator";
 
-import type { Invoice } from "../../domain/entities/Invoice";
-import type { Task } from "../../domain/entities/Task";
+import type { Invoice } from "../../application/dto/workflow.dto";
+import type { Task } from "../../application/dto/workflow.dto";
 import { wfCreateInvoice } from "../_actions/workspace-flow.actions";
 import {
   getWorkspaceFlowInvoices,

@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@ui-shadcn/ui/avatar";
 import { Button } from "@ui-shadcn/ui/button";
 import { Textarea } from "@ui-shadcn/ui/textarea";
 import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
-import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto";
 
 interface WorkspaceFeedWorkspaceViewProps {
   readonly accountId: string;

@@ -1,3 +1,9 @@
+/**
+ * Application-layer DTO re-exports for workspace root interfaces.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+
+// --- Aggregate types ---
 export type {
   Address,
   AddressInput,
@@ -16,8 +22,9 @@ export type {
   WorkspacePersonnelCustomRole,
   WorkspaceVisibility,
   WorkspaceVisibilityInput,
-} from "../../../application/dtos/workspace-interfaces.dto";
+} from "../../domain/aggregates/Workspace";
 
+// --- Value-object helpers (values, not just types) ---
 export {
   WORKSPACE_LIFECYCLE_STATES,
   WORKSPACE_VISIBILITIES,
@@ -29,14 +36,15 @@ export {
   isTerminalWorkspaceLifecycleState,
   isWorkspaceVisible,
   workspaceNameEquals,
-} from "../../../application/dtos/workspace-interfaces.dto";
+} from "../../domain/value-objects";
 
+// --- Domain events ---
 export type {
   WorkspaceCreatedEvent,
   WorkspaceDomainEvent,
   WorkspaceLifecycleTransitionedEvent,
   WorkspaceVisibilityChangedEvent,
-} from "../../../application/dtos/workspace-interfaces.dto";
+} from "../../domain/events/workspace.events";
 
 export {
   WORKSPACE_CREATED_EVENT_TYPE,
@@ -45,4 +53,8 @@ export {
   createWorkspaceCreatedEvent,
   createWorkspaceLifecycleTransitionedEvent,
   createWorkspaceVisibilityChangedEvent,
-} from "../../../application/dtos/workspace-interfaces.dto";
+} from "../../domain/events/workspace.events";
+
+// --- Ports ---
+export type { WorkspaceCommandPort } from "../../domain/ports/input/WorkspaceCommandPort";
+export type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";

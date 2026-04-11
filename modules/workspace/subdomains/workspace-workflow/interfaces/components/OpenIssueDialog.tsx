@@ -15,7 +15,7 @@ import { Input } from "@ui-shadcn/ui/input";
 import { Label } from "@ui-shadcn/ui/label";
 import { Textarea } from "@ui-shadcn/ui/textarea";
 
-import type { IssueStage } from "../../domain/value-objects/IssueStage";
+import type { IssueStage } from "../../application/dto/workflow.dto";
 import { wfOpenIssue } from "../_actions/workspace-flow.actions";
 import { ISSUE_STAGE_LABEL } from "./IssueRow";
 
