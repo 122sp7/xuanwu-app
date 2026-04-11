@@ -29,6 +29,6 @@ export {
   type AppAction,
   type AppContextValue,
   type ActiveAccount,
-} from "./providers/ShellAppContext";
+} from "./providers/ShellAppProvider";
 export { AppProvider, useApp } from "./providers/ShellAppProvider";
 export { Providers } from "./providers/ShellProviders";
