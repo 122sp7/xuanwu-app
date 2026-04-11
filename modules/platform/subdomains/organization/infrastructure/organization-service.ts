@@ -21,7 +21,8 @@ import {
   DeleteTeamUseCase,
   UpdateTeamMembersUseCase,
 } from "../application/use-cases/organization-team.use-cases";
-import { FirebaseTeamRepository } from "../../team/api";
+import type { TeamRepository } from "../../team/api";
+import { createTeamRepository } from "../../team/api";
 import {
   CreatePartnerGroupUseCase,
   SendPartnerInviteUseCase,
@@ -45,7 +46,7 @@ import type { CommandResult } from "@shared-types";
 
 let _orgRepo: FirebaseOrganizationRepository | undefined;
 let _policyRepo: FirebaseOrgPolicyRepository | undefined;
-let _teamRepo: FirebaseTeamRepository | undefined;
+let _teamRepo: TeamRepository | undefined;
 
 function getOrgRepo(): FirebaseOrganizationRepository {
   if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
@@ -57,8 +58,8 @@ function getPolicyRepo(): FirebaseOrgPolicyRepository {
   return _policyRepo;
 }
 
-function getTeamRepo(): FirebaseTeamRepository {
-  if (!_teamRepo) _teamRepo = new FirebaseTeamRepository();
+function getTeamRepo(): TeamRepository {
+  if (!_teamRepo) _teamRepo = createTeamRepository();
   return _teamRepo;
 }
 

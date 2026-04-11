@@ -3,13 +3,14 @@
  * NOT Server Actions — callable from React components/hooks directly.
  */
 
-import { FirebaseAccountQueryRepository } from "../../api";
+import { createAccountQueryRepository } from "../../api";
+import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
 import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dto/account.dto";
 
-let _accountQueryRepo: FirebaseAccountQueryRepository | undefined;
+let _accountQueryRepo: AccountQueryRepository | undefined;
 
-function getAccountQueryRepo(): FirebaseAccountQueryRepository {
-  if (!_accountQueryRepo) _accountQueryRepo = new FirebaseAccountQueryRepository();
+function getAccountQueryRepo(): AccountQueryRepository {
+  if (!_accountQueryRepo) _accountQueryRepo = createAccountQueryRepository();
   return _accountQueryRepo;
 }
 

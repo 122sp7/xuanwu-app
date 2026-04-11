@@ -4,7 +4,7 @@
  */
 
 export * from "../application";
-export * from "../infrastructure";
+export { accountService, createClientAccountUseCases, createAccountQueryRepository } from "../infrastructure";
 export type {
   AccountEntity,
   AccountType,
@@ -23,4 +23,5 @@ export type {
   UpdatePolicyInput,
 } from "../domain/entities/AccountPolicy";
 export type { WalletBalanceSnapshot, Unsubscribe } from "../domain/repositories/AccountQueryRepository";
+export type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
 export * from "../interfaces";

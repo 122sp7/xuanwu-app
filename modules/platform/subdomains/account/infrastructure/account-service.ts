@@ -78,3 +78,8 @@ export function createClientAccountUseCases() {
 }
 
 export { FirebaseAccountQueryRepository };
+
+/** Factory that returns a wired AccountQueryRepository without leaking the concrete class. */
+export function createAccountQueryRepository(): FirebaseAccountQueryRepository {
+  return new FirebaseAccountQueryRepository();
+}
