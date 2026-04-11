@@ -1,8 +1,11 @@
 /**
- * PublishPolicyCatalogHandler — Use Case Handler
+ * publish-policy-catalog — use case.
  *
- * Implements: PlatformCommandPort
- * Use case:   PublishPolicyCatalog
+ * Command:  PublishPolicyCatalog
+ * Purpose:  Publishes a new PolicyCatalog revision.
+ *
+ * Payload fields:
+ *   contextId, revision
  *
  * Orchestration steps:
  *   1. Load PolicyCatalog aggregate via PolicyCatalogRepository
@@ -11,18 +14,13 @@
  *   4. Publish PolicyCatalogPublishedEvent via DomainEventPublisher
  *   5. Return PlatformCommandResult
  *
- * Output ports used:
+ * Output ports:
  *   PolicyCatalogRepository, DomainEventPublisher
  *
  * Returns: PlatformCommandResult (ok, code, message, metadata)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
  *
  * @see docs/application-services.md
  * @see ports/input/index.ts — PlatformCommandPort
  */
 
-// TODO: implement PublishPolicyCatalogHandler use case handler class
+// TODO: implement PublishPolicyCatalogUseCase

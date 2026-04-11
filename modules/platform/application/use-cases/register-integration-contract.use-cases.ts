@@ -1,8 +1,11 @@
 /**
- * RegisterIntegrationContractHandler — Use Case Handler
+ * register-integration-contract — use case.
  *
- * Implements: PlatformCommandPort
- * Use case:   RegisterIntegrationContract
+ * Command:  RegisterIntegrationContract
+ * Purpose:  Creates or updates an external integration contract.
+ *
+ * Payload fields:
+ *   contextId, integrationContractId, endpointRef, protocol
  *
  * Orchestration steps:
  *   1. Resolve secret reference via SecretReferenceResolver
@@ -12,18 +15,13 @@
  *   5. Publish IntegrationContractRegisteredEvent
  *   6. Return PlatformCommandResult
  *
- * Output ports used:
+ * Output ports:
  *   IntegrationContractRepository, SecretReferenceResolver, DomainEventPublisher
  *
  * Returns: PlatformCommandResult (ok, code, message, metadata)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
  *
  * @see docs/application-services.md
  * @see ports/input/index.ts — PlatformCommandPort
  */
 
-// TODO: implement RegisterIntegrationContractHandler use case handler class
+// TODO: implement RegisterIntegrationContractUseCase

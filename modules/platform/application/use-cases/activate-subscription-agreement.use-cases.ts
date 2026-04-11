@@ -1,8 +1,11 @@
 /**
- * ActivateSubscriptionAgreementHandler — Use Case Handler
+ * activate-subscription-agreement — use case.
  *
- * Implements: PlatformCommandPort
- * Use case:   ActivateSubscriptionAgreement
+ * Command:  ActivateSubscriptionAgreement
+ * Purpose:  Activates, renews, or suspends a subscription agreement.
+ *
+ * Payload fields:
+ *   contextId, subscriptionAgreementId, planCode
  *
  * Orchestration steps:
  *   1. Load SubscriptionAgreement aggregate
@@ -12,18 +15,13 @@
  *   5. Publish SubscriptionAgreementActivatedEvent
  *   6. Return PlatformCommandResult
  *
- * Output ports used:
+ * Output ports:
  *   SubscriptionAgreementRepository, PlatformContextRepository, DomainEventPublisher
  *
  * Returns: PlatformCommandResult (ok, code, message, metadata)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
  *
  * @see docs/application-services.md
  * @see ports/input/index.ts — PlatformCommandPort
  */
 
-// TODO: implement ActivateSubscriptionAgreementHandler use case handler class
+// TODO: implement ActivateSubscriptionAgreementUseCase

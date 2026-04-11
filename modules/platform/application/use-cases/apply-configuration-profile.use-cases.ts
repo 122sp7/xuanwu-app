@@ -1,8 +1,11 @@
 /**
- * ApplyConfigurationProfileHandler — Use Case Handler
+ * apply-configuration-profile — use case.
  *
- * Implements: PlatformCommandPort
- * Use case:   ApplyConfigurationProfile
+ * Command:  ApplyConfigurationProfile
+ * Purpose:  Applies a configuration profile and updates capability toggles.
+ *
+ * Payload fields:
+ *   contextId, profileRef
  *
  * Orchestration steps:
  *   1. Load ConfigurationProfile via ConfigurationProfileStore
@@ -12,18 +15,13 @@
  *   5. Persist and publish ConfigProfileAppliedEvent
  *   6. Return PlatformCommandResult
  *
- * Output ports used:
+ * Output ports:
  *   PlatformContextRepository, ConfigurationProfileStore, DomainEventPublisher
  *
  * Returns: PlatformCommandResult (ok, code, message, metadata)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
  *
  * @see docs/application-services.md
  * @see ports/input/index.ts — PlatformCommandPort
  */
 
-// TODO: implement ApplyConfigurationProfileHandler use case handler class
+// TODO: implement ApplyConfigurationProfileUseCase

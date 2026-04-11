@@ -1,8 +1,11 @@
 /**
- * RecordAuditSignalHandler — Use Case Handler
+ * record-audit-signal — use case.
  *
- * Implements: PlatformCommandPort
- * Use case:   RecordAuditSignal
+ * Command:  RecordAuditSignal
+ * Purpose:  Writes a decision or behavior as an immutable audit signal.
+ *
+ * Payload fields:
+ *   contextId, signalType, severity
  *
  * Orchestration steps:
  *   1. Classify signal via AuditClassificationService domain service
@@ -10,18 +13,13 @@
  *   3. Publish AuditSignalRecordedEvent via DomainEventPublisher
  *   4. Return PlatformCommandResult
  *
- * Output ports used:
+ * Output ports:
  *   AuditSignalStore, DomainEventPublisher
  *
  * Returns: PlatformCommandResult (ok, code, message, metadata)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
  *
  * @see docs/application-services.md
  * @see ports/input/index.ts — PlatformCommandPort
  */
 
-// TODO: implement RecordAuditSignalHandler use case handler class
+// TODO: implement RecordAuditSignalUseCase

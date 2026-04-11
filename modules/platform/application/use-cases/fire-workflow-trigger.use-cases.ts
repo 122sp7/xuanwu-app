@@ -1,8 +1,11 @@
 /**
- * FireWorkflowTriggerHandler — Use Case Handler
+ * fire-workflow-trigger — use case.
  *
- * Implements: PlatformCommandPort
- * Use case:   FireWorkflowTrigger
+ * Command:  FireWorkflowTrigger
+ * Purpose:  Emits a workflow trigger and delegates execution to downstream adapter.
+ *
+ * Payload fields:
+ *   contextId, triggerKey, triggeredBy
  *
  * Orchestration steps:
  *   1. Load WorkflowPolicy via WorkflowPolicyRepository
@@ -11,18 +14,13 @@
  *   4. Publish WorkflowTriggerFiredEvent
  *   5. Return PlatformCommandResult
  *
- * Output ports used:
+ * Output ports:
  *   WorkflowPolicyRepository, WorkflowDispatcherPort, DomainEventPublisher
  *
  * Returns: PlatformCommandResult (ok, code, message, metadata)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
  *
  * @see docs/application-services.md
  * @see ports/input/index.ts — PlatformCommandPort
  */
 
-// TODO: implement FireWorkflowTriggerHandler use case handler class
+// TODO: implement FireWorkflowTriggerUseCase
