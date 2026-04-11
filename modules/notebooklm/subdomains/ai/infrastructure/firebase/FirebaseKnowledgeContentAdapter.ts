@@ -1,7 +1,7 @@
 /**
  * Module: notebooklm/subdomains/ai
  * Layer: infrastructure/firebase
- * Purpose: FirebaseWikiContentAdapter — implements IWikiContentRepository via
+ * Purpose: FirebaseKnowledgeContentAdapter — implements IKnowledgeContentRepository via
  *          Firebase Functions calls (RAG query, reindex) and Firestore reads
  *          (list parsed documents).
  *
@@ -14,12 +14,12 @@ import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firest
 import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
 
 import type {
-  IWikiContentRepository,
-  WikiCitation,
-  WikiParsedDocument,
-  WikiRagQueryResult,
-  WikiReindexInput,
-} from "../../domain/repositories/IWikiContentRepository";
+  IKnowledgeContentRepository,
+  KnowledgeCitation,
+  KnowledgeParsedDocument,
+  KnowledgeRagQueryResult,
+  KnowledgeReindexInput,
+} from "../../domain/repositories/IKnowledgeContentRepository";
 
 const FUNCTIONS_REGION = "asia-southeast1";
 
@@ -46,7 +46,7 @@ function toDateOrNull(value: unknown): Date | null {
   return null;
 }
 
-function normaliseCitations(raw: unknown): WikiCitation[] {
+function normaliseCitations(raw: unknown): KnowledgeCitation[] {
   if (!Array.isArray(raw)) return [];
   return raw.map((item) => {
     if (!isRecord(item)) return {};
@@ -81,7 +81,7 @@ function resolveFilename(data: Record<string, unknown>): string {
   return "";
 }
 
-function mapToParsedDocument(id: string, data: Record<string, unknown>): WikiParsedDocument {
+function mapToParsedDocument(id: string, data: Record<string, unknown>): KnowledgeParsedDocument {
   const source = objectOrEmpty(data.source);
   const parsed = objectOrEmpty(data.parsed);
   const rag = objectOrEmpty(data.rag);
@@ -111,7 +111,7 @@ function mapToParsedDocument(id: string, data: Record<string, unknown>): WikiPar
 
 // --- Adapter ------------------------------------------------------------------
 
-export class FirebaseWikiContentAdapter implements IWikiContentRepository {
+export class FirebaseKnowledgeContentAdapter implements IKnowledgeContentRepository {
   async runRagQuery(
     query: string,
     accountId: string,
@@ -122,7 +122,7 @@ export class FirebaseWikiContentAdapter implements IWikiContentRepository {
       maxAgeDays?: number;
       requireReady?: boolean;
     } = {},
-  ): Promise<WikiRagQueryResult> {
+  ): Promise<KnowledgeRagQueryResult> {
     const functions = getFirebaseFunctions(FUNCTIONS_REGION);
     const callable = functionsApi.httpsCallable(functions, "rag_query");
     const result = await callable({
@@ -153,7 +153,7 @@ export class FirebaseWikiContentAdapter implements IWikiContentRepository {
     };
   }
 
-  async reindexDocument(input: WikiReindexInput): Promise<void> {
+  async reindexDocument(input: KnowledgeReindexInput): Promise<void> {
     const functions = getFirebaseFunctions(FUNCTIONS_REGION);
     const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
     await callable({
@@ -166,7 +166,7 @@ export class FirebaseWikiContentAdapter implements IWikiContentRepository {
     });
   }
 
-  async listParsedDocuments(accountId: string, limitCount: number): Promise<WikiParsedDocument[]> {
+  async listParsedDocuments(accountId: string, limitCount: number): Promise<KnowledgeParsedDocument[]> {
     if (!accountId) throw new Error("accountId is required");
     const db = getFirebaseFirestore();
     const ref = firestoreApi.collection(db, "accounts", accountId, "documents");

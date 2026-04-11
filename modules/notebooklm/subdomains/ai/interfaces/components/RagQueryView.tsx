@@ -24,7 +24,7 @@ import {
 } from "@ui-shadcn/ui/card";
 import { Textarea } from "@ui-shadcn/ui/textarea";
 
-import { runWikiRagQuery, type WikiCitation } from "../../api";
+import { runKnowledgeRagQuery, type KnowledgeCitation } from "../../api";
 
 interface RagQueryViewProps {
   readonly workspaceId?: string;
@@ -44,7 +44,7 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [answer, setAnswer] = useState("");
-  const [citations, setCitations] = useState<readonly WikiCitation[]>([]);
+  const [citations, setCitations] = useState<readonly KnowledgeCitation[]>([]);
   const [queried, setQueried] = useState(false);
 
   async function handleSubmit() {

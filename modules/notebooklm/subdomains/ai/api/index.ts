@@ -9,12 +9,12 @@ export type { RagRetrievedChunk, RagCitation, RagRetrievalSummary } from "../dom
 export type { IVectorStore, VectorDocument, VectorSearchResult } from "../domain/ports/IVectorStore";
 export type { IRagRetrievalRepository, RetrieveChunksInput } from "../domain/repositories/IRagRetrievalRepository";
 export type {
-  IWikiContentRepository,
-  WikiCitation,
-  WikiParsedDocument,
-  WikiRagQueryResult,
-  WikiReindexInput,
-} from "../domain/repositories/IWikiContentRepository";
+  IKnowledgeContentRepository,
+  KnowledgeCitation,
+  KnowledgeParsedDocument,
+  KnowledgeRagQueryResult,
+  KnowledgeReindexInput,
+} from "../domain/repositories/IKnowledgeContentRepository";
 
 // --- Domain types (qa) -------------------------------------------------------
 
@@ -39,40 +39,40 @@ export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-r
 
 // --- Wiki convenience wrappers with default repository -----------------------
 
-import { FirebaseWikiContentAdapter } from "../infrastructure/firebase/FirebaseWikiContentAdapter";
-import type { WikiParsedDocument, WikiRagQueryResult, WikiReindexInput } from "../domain/repositories/IWikiContentRepository";
+import { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
+import type { KnowledgeParsedDocument, KnowledgeRagQueryResult, KnowledgeReindexInput } from "../domain/repositories/IKnowledgeContentRepository";
 
-let _wikiContentRepository: FirebaseWikiContentAdapter | undefined;
+let _knowledgeContentRepository: FirebaseKnowledgeContentAdapter | undefined;
 
-function getWikiContentRepository(): FirebaseWikiContentAdapter {
-  if (!_wikiContentRepository) {
-    _wikiContentRepository = new FirebaseWikiContentAdapter();
+function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter {
+  if (!_knowledgeContentRepository) {
+    _knowledgeContentRepository = new FirebaseKnowledgeContentAdapter();
   }
-  return _wikiContentRepository;
+  return _knowledgeContentRepository;
 }
 
-export function runWikiRagQuery(
+export function runKnowledgeRagQuery(
   query: string,
   accountId: string,
   workspaceId: string,
   topK = 4,
   options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
-): Promise<WikiRagQueryResult> {
-  return getWikiContentRepository().runRagQuery(query, accountId, workspaceId, topK, options);
+): Promise<KnowledgeRagQueryResult> {
+  return getKnowledgeContentRepository().runRagQuery(query, accountId, workspaceId, topK, options);
 }
 
-export function reindexWikiDocument(input: WikiReindexInput): Promise<void> {
-  return getWikiContentRepository().reindexDocument(input);
+export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void> {
+  return getKnowledgeContentRepository().reindexDocument(input);
 }
 
-export function listWikiParsedDocuments(accountId: string, limitCount = 20): Promise<WikiParsedDocument[]> {
-  return getWikiContentRepository().listParsedDocuments(accountId, limitCount);
+export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]> {
+  return getKnowledgeContentRepository().listParsedDocuments(accountId, limitCount);
 }
 
 // --- Infrastructure adapters (client-safe, for composition roots) ------------
 
 export { FirebaseRagRetrievalAdapter } from "../infrastructure/firebase/FirebaseRagRetrievalAdapter";
-export { FirebaseWikiContentAdapter } from "../infrastructure/firebase/FirebaseWikiContentAdapter";
+export { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
 export { FirebaseRagQueryFeedbackAdapter } from "../infrastructure/firebase/FirebaseRagQueryFeedbackAdapter";
 
 // --- UI components -----------------------------------------------------------

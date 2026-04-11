@@ -7,8 +7,8 @@ export * from "./ports/IVectorStore";
 export * from "./repositories/IRagGenerationRepository";
 export * from "./repositories/IRagQueryFeedbackRepository";
 export * from "./repositories/IRagRetrievalRepository";
-export * from "./repositories/IWikiContentRepository";
+export * from "./repositories/IKnowledgeContentRepository";
 export * from "./services";
 export * from "./value-objects";
 // Ports layer — driven port aliases
-export type { IRagGenerationPort, IRagQueryFeedbackPort, IRagRetrievalPort, IWikiContentPort } from "./ports";
+export type { IRagGenerationPort, IRagQueryFeedbackPort, IRagRetrievalPort, IKnowledgeContentPort } from "./ports";

@@ -1,15 +1,15 @@
 /**
  * Module: notebooklm/subdomains/ai
  * Layer: domain/repositories
- * Purpose: IWikiContentRepository — output port for wiki-style RAG document
+ * Purpose: IKnowledgeContentRepository — output port for knowledge corpus RAG
  *          operations (run query, reindex, list parsed documents).
  *
  * Design notes:
- * - "Wiki" here refers to the knowledge-base document corpus used for RAG.
+ * - Knowledge content refers to the knowledge artifact corpus used for RAG retrieval.
  * - Firebase Functions back-end implements this port; the domain remains clean.
  */
 
-export interface WikiCitation {
+export interface KnowledgeCitation {
   provider?: "vector" | "search";
   chunk_id?: string;
   doc_id?: string;
@@ -25,9 +25,9 @@ export interface WikiCitation {
   indexed_at?: string;
 }
 
-export interface WikiRagQueryResult {
+export interface KnowledgeRagQueryResult {
   readonly answer: string;
-  readonly citations: readonly WikiCitation[];
+  readonly citations: readonly KnowledgeCitation[];
   readonly cache: "hit" | "miss";
   readonly vectorHits: number;
   readonly searchHits: number;
@@ -38,7 +38,7 @@ export interface WikiRagQueryResult {
   readonly requireReady?: boolean;
 }
 
-export interface WikiParsedDocument {
+export interface KnowledgeParsedDocument {
   readonly id: string;
   readonly filename: string;
   readonly workspaceId: string;
@@ -50,7 +50,7 @@ export interface WikiParsedDocument {
   readonly uploadedAt: Date | null;
 }
 
-export interface WikiReindexInput {
+export interface KnowledgeReindexInput {
   readonly accountId: string;
   readonly docId: string;
   readonly jsonGcsUri: string;
@@ -59,7 +59,7 @@ export interface WikiReindexInput {
   readonly pageCount: number;
 }
 
-export interface IWikiContentRepository {
+export interface IKnowledgeContentRepository {
   runRagQuery(
     query: string,
     accountId: string,
@@ -70,7 +70,7 @@ export interface IWikiContentRepository {
       maxAgeDays?: number;
       requireReady?: boolean;
     },
-  ): Promise<WikiRagQueryResult>;
-  reindexDocument(input: WikiReindexInput): Promise<void>;
-  listParsedDocuments(accountId: string, limitCount: number): Promise<WikiParsedDocument[]>;
+  ): Promise<KnowledgeRagQueryResult>;
+  reindexDocument(input: KnowledgeReindexInput): Promise<void>;
+  listParsedDocuments(accountId: string, limitCount: number): Promise<KnowledgeParsedDocument[]>;
 }
