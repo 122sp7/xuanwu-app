@@ -68,6 +68,22 @@ flowchart LR
 	Taxonomy --> Publication
 ```
 
+## Domain Layer Flow (enforced per subdomain)
+
+```mermaid
+flowchart LR
+  Domain["domain/ (aggregates, entities, ports/)"]
+  Application["application/ (use-cases, dtos)"]
+  Ports["domain/ports/ (IXxxPort interfaces)"]
+  Infrastructure["infrastructure/ (adapters, firebase, composition root)"]
+  Interfaces["interfaces/ (actions, queries, components)"]
+
+  Domain --> Application
+  Application --> Ports
+  Ports --> Infrastructure
+  Infrastructure --> Interfaces
+```
+
 ## Document Network
 
 - [README.md](./README.md)
