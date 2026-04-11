@@ -6,19 +6,25 @@
   "output": {
     "filePath": "repomix-output.json",
     "style": "json",
-    "parsableStyle": false,
+    "parsableStyle": true,
+
     "fileSummary": true,
     "directoryStructure": true,
     "files": true,
+
     "removeComments": false,
     "removeEmptyLines": false,
+
     "compress": false,
-    "topFilesLength": 5,
+
+    "topFilesLength": 10,
+
     "showLineNumbers": false,
     "truncateBase64": false,
     "copyToClipboard": false,
-    "includeFullDirectoryStructure": false,
-    "tokenCountTree": false,
+    "includeFullDirectoryStructure": true,
+    "tokenCountTree": true,
+
     "git": {
       "sortByChanges": true,
       "sortByChangesMaxCommits": 100,
@@ -82,13 +88,10 @@
       ".stylelintcache",
 
       ".git/**",
-      ".github/workflows/**",
-      ".github/skills/**",
+
       "docs/architecture/**",
       "diagrams/**",
 
-      "public/**",
-      ".tmp-eslint*.json",
       "*.png",
       "*.jpg",
       "*.jpeg",

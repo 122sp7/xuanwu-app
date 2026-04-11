@@ -17,6 +17,7 @@ import {
   SHELL_ACCOUNT_NAV_ITEMS,
   SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
   SHELL_SECTION_LABELS,
+  isExactOrChildPath,
   resolveShellNavSection,
   type ShellNavSection,
 } from "@/modules/platform/subdomains/platform-config/api";
@@ -85,7 +86,7 @@ export function resolveNavSection(pathname: string): NavSection {
 }
 
 export function isActiveRoute(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
+  return isExactOrChildPath(href, pathname);
 }
 
 export function isActiveOrganizationAccount(

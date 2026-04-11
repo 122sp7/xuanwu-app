@@ -10782,6 +10782,52 @@ export {};
 // Purpose: Infrastructure layer placeholder for platform subdomain 'workflow'.
 ````
 
+## File: modules/platform/AGENT.md
+````markdown
+# Platform Agent
+
+> Strategic agent documentation: [docs/contexts/platform/AGENT.md](../../docs/contexts/platform/AGENT.md)
+
+## Mission
+
+保護 platform 主域作為治理、身份、組織、權益、策略與營運支撐邊界。
+
+## Route Here When
+
+- 問題核心是 actor、organization、tenant、access、policy、entitlement 或商業權益。
+- 問題核心是通知治理、背景任務、平台級搜尋、觀測與支援。
+- 問題核心是共享 AI provider、模型政策、配額、安全護欄或下游主域共同消費的 AI capability。
+- 問題需要提供其他主域共同消費的治理結果。
+
+## Route Elsewhere When
+
+- 工作區生命週期、成員關係、共享與存在感屬於 workspace。
+- 知識內容建立、分類、關聯與發布屬於 notion。
+- 對話、來源、retrieval、grounding、synthesis 屬於 notebooklm。
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order (Strangler Pattern)
+
+New features:
+1. Define Domain (entities, value objects, aggregates, events)
+2. Define Application (use cases, DTOs)
+3. Define Ports (only if boundary isolation needed)
+4. Implement Infrastructure (adapters, persistence)
+5. Implement Interfaces (UI, actions, hooks)
+
+Legacy migration:
+1. Find a Use Case to extract
+2. Build Domain model for that use case
+3. Converge Application layer
+4. Isolate legacy via Ports
+5. Replace Infrastructure adapter
+````
+
 ## File: modules/platform/api/api.instructions.md
 ````markdown
 ---
@@ -11202,17 +11248,50 @@ export function buildCorrelationId(): string {
 }
 ````
 
-## File: modules/platform/application/services/index.ts
+## File: modules/platform/application/services/shell-quick-create.ts
 ````typescript
 /**
- * platform application services barrel.
+ * Shell quick-create orchestrator.
  *
- * Application Services handle flow coordination, transaction boundaries and
- * cross-aggregate orchestration.  They do not carry core business invariants.
+ * Context-wide application service that coordinates cross-bounded-context
+ * creation actions triggered from the platform shell UI.
+ * Delegates to the target module's public API boundary only.
  */
 
-export { buildCausationId } from "./build-causation-id";
-export { buildCorrelationId } from "./build-correlation-id";
+import { createKnowledgePage } from "@/modules/notion/api";
+
+// ── Input / output contracts ──────────────────────────────────────────────────
+
+export interface QuickCreatePageInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+}
+
+export interface QuickCreatePageResult {
+  readonly success: boolean;
+  readonly error?: { message: string };
+}
+
+// ── Orchestration ─────────────────────────────────────────────────────────────
+
+export async function quickCreateKnowledgePage(
+  input: QuickCreatePageInput,
+): Promise<QuickCreatePageResult> {
+  if (!input.accountId) {
+    return { success: false, error: { message: "目前沒有 active account，無法建立" } };
+  }
+  if (!input.workspaceId) {
+    return { success: false, error: { message: "請先切換到工作區，再建立頁面" } };
+  }
+  return createKnowledgePage({
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    title: "未命名頁面",
+    parentPageId: null,
+    createdByUserId: input.createdByUserId,
+  });
+}
 ````
 
 ## File: modules/platform/docs/docs.instructions.md
@@ -11237,6 +11316,34 @@ For full reference, align with `.github/instructions/docs-authority-and-language
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
+````
+
+## File: modules/platform/docs/README.md
+````markdown
+# Platform Documentation
+
+Implementation-level documentation for the platform bounded context.
+
+## Strategic Documentation (Authority)
+
+Strategic architecture documentation lives in `docs/contexts/platform/`:
+
+- [README.md](../../../docs/contexts/platform/README.md) — Context overview
+- [subdomains.md](../../../docs/contexts/platform/subdomains.md) — Subdomain inventory
+- [bounded-contexts.md](../../../docs/contexts/platform/bounded-contexts.md) — Ownership map
+- [context-map.md](../../../docs/contexts/platform/context-map.md) — Relationships
+- [ubiquitous-language.md](../../../docs/contexts/platform/ubiquitous-language.md) — Terminology
+
+## Architecture Reference
+
+- [Bounded Context Template](../../../docs/bounded-context-subdomain-template.md) — Standard structure
+- [Architecture Overview](../../../docs/architecture-overview.md) — System-wide architecture
+- [Integration Guidelines](../../../docs/integration-guidelines.md) — Cross-context rules
+
+## Conflict Resolution
+
+- Strategic docs in `docs/contexts/platform/` are the authority for naming, ownership, and boundaries.
+- This `docs/` folder is for implementation-aligned detail only.
 ````
 
 ## File: modules/platform/domain/domain-modeling.instructions.md
@@ -12350,368 +12457,6 @@ export function ShellTranslationSwitcher() {
 }
 ````
 
-## File: modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
-````typescript
-"use client";
-
-/**
- * Module: app-rail.tsx
- * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
- * Responsibilities: app logo, account context switcher, top-level section icon nav with
- *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
- * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
- *   `h-full` ensures it fills the parent `h-screen` container.
- */
-
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
-import { CreateOrganizationDialog } from "@/modules/platform/api";
-import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-
-interface RailItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  /** When false the item is hidden; defaults to true */
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-
-function isExactOrChildPath(targetPath: string, pathname: string) {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
-}
-
-function getInitial(name: string | undefined | null): string {
-  return name?.trim().charAt(0).toUpperCase() || "U";
-}
-
-export function AppRail({
-  pathname,
-  user,
-  activeAccount,
-  organizationAccounts,
-  workspaces,
-  workspacesHydrated,
-  isOrganizationAccount,
-  onSelectPersonal,
-  onSelectOrganization,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onOrganizationCreated,
-  onSignOut: _onSignOut,
-}: AppRailProps) {
-  const router = useRouter();
-  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const railItems: RailItem[] = [
-    // ── Organization / hub layer ─────────────────────────────────────
-    {
-      href: "/workspace",
-      label: "工作區中心",
-      icon: <Building2 className="size-[18px]" />,
-    },
-    // ── People (org-only) ─────────────────────────────────────────
-    {
-      href: "/organization/members",
-      label: "成員",
-      icon: <UserRound className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
-    },
-    {
-      href: "/organization/teams",
-      label: "團隊",
-      icon: <Users className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
-    },
-    // ── Operations (org-only) ─────────────────────────────────────
-    {
-      href: "/organization/daily",
-      label: "每日",
-      icon: <NotebookText className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
-    },
-    {
-      href: "/organization/schedule",
-      label: "排程",
-      icon: <CalendarDays className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
-    },
-    // ── Admin (org-only) ──────────────────────────────────────────
-    {
-      href: "/organization/audit",
-      label: "稽核",
-      icon: <ClipboardList className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
-    },
-    {
-      href: "/organization/permissions",
-      label: "權限",
-      icon: <SlidersHorizontal className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
-    },
-    // ── Developer ────────────────────────────────────────────────
-    {
-      href: "/dev-tools",
-      label: "開發工具",
-      icon: <FlaskConical className="size-[18px]" />,
-    },
-  ];
-
-  const visibleRailItems = railItems.filter((item) => item.show !== false);
-
-  const sortedWorkspaces = useMemo(
-    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces],
-  );
-
-  const accountName = activeAccount?.name ?? user?.name ?? "—";
-
-  return (
-    <TooltipProvider delayDuration={400}>
-      <aside
-        aria-label="App navigation rail"
-        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
-      >
-        {/* ── Workspace / account logo tile ─────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
-                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[180px]">
-              <p className="text-xs font-medium">{accountName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => {
-                  onSelectOrganization(account);
-                }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                setIsCreateOrgOpen(true);
-              }}
-              className="gap-2 text-primary"
-            >
-              <Plus className="size-3.5 shrink-0" />
-              <span>建立組織</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="my-2 h-px w-7 bg-border/50" />
-
-        {/* ── Section nav icons ─────────────────────────────────────── */}
-        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
-          {visibleRailItems.map((item) => {
-            const active = item.isActive?.(pathname) ?? isActive(item.href);
-
-            if (item.href === "/workspace") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="工作區中心：切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">工作區中心：切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        router.push("/workspace");
-                      }}
-                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
-                    >
-                      工作區中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(`/workspace/${workspace.id}`);
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setIsCreateWorkspaceOpen(true);
-                      }}
-                      className="gap-2 text-primary"
-                    >
-                      <Plus className="size-3.5 shrink-0" />
-                      <span>建立工作區</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">{item.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
-
-        {/* ── Spacer ────────────────────────────────────────────────── */}
-        <div className="flex-1" />
-
-        <div className="h-1" />
-      </aside>
-
-      {/* ── Create organization dialog ─────────────────────────────── */}
-      <CreateOrganizationDialog
-        open={isCreateOrgOpen}
-        onOpenChange={setIsCreateOrgOpen}
-        user={user}
-        onOrganizationCreated={onOrganizationCreated}
-        onNavigate={(href) => { router.push(href); }}
-      />
-
-      {/* ── Create workspace dialog ────────────────────────────────── */}
-      <CreateWorkspaceDialogRail
-        open={isCreateWorkspaceOpen}
-        onOpenChange={setIsCreateWorkspaceOpen}
-        accountId={activeAccount?.id ?? null}
-        accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
-        creatorUserId={user?.id}
-        onNavigate={(href: string) => { router.push(href); }}
-      />
-    </TooltipProvider>
-  );
-}
-````
-
 ## File: modules/platform/interfaces/web/shell/sidebar/ShellSidebarHeader.tsx
 ````typescript
 "use client";
@@ -13265,6 +13010,23 @@ export * from "./access-control-service";
 export { FirebaseAccessPolicyRepository } from "./firebase/FirebaseAccessPolicyRepository";
 ````
 
+## File: modules/platform/subdomains/access-control/README.md
+````markdown
+# Access Control
+
+Access control policies and permission resolution.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/account-profile/application/dtos/account-profile.dto.ts
 ````typescript
 /**
@@ -13596,6 +13358,23 @@ export async function updateAccountProfile(
 }
 ````
 
+## File: modules/platform/subdomains/account-profile/README.md
+````markdown
+# Account Profile
+
+User profile preferences and settings.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/account/api/index.ts
 ````typescript
 /**
@@ -13851,6 +13630,38 @@ export async function revokeAccountRole(accountId: string): Promise<CommandResul
 }
 ````
 
+## File: modules/platform/subdomains/account/README.md
+````markdown
+# Account
+
+User account lifecycle management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/ai/api/index.ts
 ````typescript
 /**
@@ -13873,6 +13684,58 @@ export {};
 ## File: modules/platform/subdomains/ai/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'ai'.
+````
+
+## File: modules/platform/subdomains/ai/README.md
+````markdown
+# Ai
+
+共享 AI provider 路由、模型政策、配額與安全護欄。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Baseline
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/analytics/README.md
+````markdown
+# Analytics
+
+Platform-wide analytics and metrics.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/audit-log/README.md
+````markdown
+# Audit Log
+
+Platform audit logging.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/background-job/api/index.ts
@@ -13961,6 +13824,57 @@ export type IngestionJobDomainEventType =
 export type { IIngestionJobRepository as IIngestionJobPort } from "../repositories/IIngestionJobRepository";
 ````
 
+## File: modules/platform/subdomains/background-job/README.md
+````markdown
+# Background Job
+
+Background job scheduling and execution.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/billing/README.md
+````markdown
+# Billing
+
+Billing and payment processing.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/compliance/README.md
+````markdown
+# Compliance
+
+Regulatory compliance management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/consent/api/index.ts
 ````typescript
 /**
@@ -13983,6 +13897,41 @@ export {};
 ## File: modules/platform/subdomains/consent/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'consent'.
+````
+
+## File: modules/platform/subdomains/consent/README.md
+````markdown
+# Consent
+
+把同意與資料使用授權從 compliance 中切開。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/content/README.md
+````markdown
+# Content
+
+Platform content management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/entitlement/application/dtos/entitlement.dto.ts
@@ -14400,6 +14349,41 @@ export class FirebaseEntitlementGrantRepository implements EntitlementGrantRepos
 }
 ````
 
+## File: modules/platform/subdomains/entitlement/README.md
+````markdown
+# Entitlement
+
+建立有效權益與功能可用性的統一解算上下文。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/feature-flag/README.md
+````markdown
+# Feature Flag
+
+Feature flag management and rollout.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/identity/domain/index.ts
 ````typescript
 export type { IdentityEntity, RegistrationInput, SignInCredentials } from "./entities/Identity";
@@ -14423,6 +14407,55 @@ export * from "./value-objects";
  */
 export type { IdentityRepository as IIdentityPort } from "../repositories/IdentityRepository";
 export type { TokenRefreshRepository as ITokenRefreshPort } from "../repositories/TokenRefreshRepository";
+````
+
+## File: modules/platform/subdomains/identity/README.md
+````markdown
+# Identity
+
+Authentication, identity tokens, and session management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/integration/README.md
+````markdown
+# Integration
+
+External system integration management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/notification/api/index.ts
@@ -15123,6 +15156,72 @@ export async function getNotificationsForRecipient(recipientId: string, maxCount
 }
 ````
 
+## File: modules/platform/subdomains/notification/README.md
+````markdown
+# Notification
+
+Notification delivery and preference management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/observability/README.md
+````markdown
+# Observability
+
+System observability and monitoring.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/onboarding/README.md
+````markdown
+# Onboarding
+
+User and organization onboarding flows.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/organization/application/dtos/organization.dto.ts
 ````typescript
 /**
@@ -15434,6 +15533,38 @@ export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 }
 ````
 
+## File: modules/platform/subdomains/organization/README.md
+````markdown
+# Organization
+
+Organization structure, membership, and team management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/platform-config/api/index.ts
 ````typescript
 /**
@@ -15443,139 +15574,38 @@ export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 export * from "../application";
 ````
 
-## File: modules/platform/subdomains/platform-config/application/index.ts
-````typescript
-// Purpose: Application layer for platform-config subdomain.
+## File: modules/platform/subdomains/platform-config/README.md
+````markdown
+# Platform Config
 
-export {
-	SHELL_ACCOUNT_SECTION_MATCHERS,
-	SHELL_ACCOUNT_NAV_ITEMS,
-	SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
-	SHELL_SECTION_LABELS,
-	resolveShellBreadcrumbLabel,
-	resolveShellNavSection,
-	resolveShellPageTitle,
-	type ShellNavItem,
-	type ShellNavSection,
-} from "./services/shell-navigation-catalog";
+Platform configuration management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
-````typescript
-export type ShellNavSection =
-  | "workspace"
-  | "knowledge"
-  | "knowledge-base"
-  | "knowledge-database"
-  | "source"
-  | "notebook"
-  | "ai-chat"
-  | "account"
-  | "organization"
-  | "other";
+## File: modules/platform/subdomains/referral/README.md
+````markdown
+# Referral
 
-export interface ShellNavItem {
-  readonly id: string;
-  readonly label: string;
-  readonly href: string;
-}
+Referral program management.
 
-export const SHELL_ACCOUNT_SECTION_MATCHERS = [
-  "/organization/daily",
-  "/organization/schedule",
-  "/organization/audit",
-] as const;
+## Ownership
 
-const ROUTE_TITLES: Record<string, string> = {
-  "/organization": "組織治理",
-  "/organization/daily": "帳號 · 每日",
-  "/organization/schedule": "帳號 · 排程",
-  "/organization/schedule/dispatcher": "帳號 · 調度台",
-  "/organization/audit": "帳號 · 稽核",
-  "/workspace": "工作區中心",
-  "/knowledge": "知識中心",
-  "/knowledge/pages": "知識 · 頁面",
-  "/knowledge/block-editor": "知識 · 區塊編輯器",
-  "/knowledge-base/articles": "知識庫 · 文章",
-  "/knowledge-database/databases": "知識資料庫 · 資料庫",
-  "/source/documents": "來源 · 文件",
-  "/source/libraries": "來源 · 資料庫",
-  "/notebook/rag-query": "筆記本 · 問答 / 引用",
-  "/ai-chat": "AI 對話",
-  "/dev-tools": "開發工具",
-};
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
 
-const BREADCRUMB_LABELS: Record<string, string> = {
-  organization: "組織",
-  workspace: "工作區",
-  wiki: "Account Wiki",
-  "rag-query": "Ask / Cite",
-  documents: "文件",
-  libraries: "Libraries",
-  pages: "頁面",
-  "pages-dnd": "頁面 (DnD)",
-  "block-editor": "區塊編輯器",
-  "rag-reindex": "RAG 重新索引",
-  "ai-chat": "Notebook",
-  "dev-tools": "開發工具",
-  namespaces: "命名空間",
-  members: "成員",
-  teams: "團隊",
-  permissions: "權限",
-  workspaces: "工作區清單",
-  schedule: "排程",
-  daily: "每日",
-  audit: "稽核",
-};
+## Development Order
 
-export const SHELL_ORGANIZATION_MANAGEMENT_ITEMS: readonly ShellNavItem[] = [];
-
-export const SHELL_ACCOUNT_NAV_ITEMS: readonly ShellNavItem[] = [
-  { id: "schedule", label: "排程", href: "/organization/schedule" },
-  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
-  { id: "daily", label: "每日", href: "/organization/daily" },
-  { id: "audit", label: "稽核", href: "/organization/audit" },
-] as const;
-
-export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
-  workspace: "工作區",
-  knowledge: "知識",
-  "knowledge-base": "知識庫",
-  "knowledge-database": "知識資料庫",
-  source: "來源",
-  notebook: "筆記本",
-  "ai-chat": "AI 對話",
-  account: "帳號",
-  organization: "組織",
-  other: "導覽",
-};
-
-export function resolveShellNavSection(pathname: string): ShellNavSection {
-  if (pathname.startsWith("/workspace")) return "workspace";
-  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
-  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
-  if (pathname.startsWith("/knowledge")) return "knowledge";
-  if (pathname.startsWith("/source")) return "source";
-  if (pathname.startsWith("/notebook")) return "notebook";
-  if (pathname.startsWith("/ai-chat")) return "ai-chat";
-  if (
-    SHELL_ACCOUNT_SECTION_MATCHERS.some(
-      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-    )
-  ) {
-    return "account";
-  }
-  if (pathname.startsWith("/organization")) return "organization";
-  return "other";
-}
-
-export function resolveShellPageTitle(pathname: string): string {
-  return ROUTE_TITLES[pathname] ?? "工作區";
-}
-
-export function resolveShellBreadcrumbLabel(segment: string): string {
-  return BREADCRUMB_LABELS[segment] ?? segment;
-}
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/search/api/index.ts
@@ -15622,6 +15652,23 @@ export function listShellCommandCatalogItems(): readonly ShellCommandCatalogItem
 }
 ````
 
+## File: modules/platform/subdomains/search/README.md
+````markdown
+# Search
+
+Platform-wide search capabilities.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/secret-management/api/index.ts
 ````typescript
 /**
@@ -15644,6 +15691,41 @@ export {};
 ## File: modules/platform/subdomains/secret-management/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'secret-management'.
+````
+
+## File: modules/platform/subdomains/secret-management/README.md
+````markdown
+# Secret Management
+
+把憑證、token、rotation 從 integration 中切開。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/security-policy/README.md
+````markdown
+# Security Policy
+
+Security policy enforcement.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/subdomains.instructions.md
@@ -16185,6 +16267,40 @@ export const subscriptionService = {
 };
 ````
 
+## File: modules/platform/subdomains/subscription/README.md
+````markdown
+# Subscription
+
+Subscription plan management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/support/README.md
+````markdown
+# Support
+
+Customer support management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/team/api/index.ts
 ````typescript
 /**
@@ -16442,6 +16558,23 @@ export {
 } from "./_actions/team.actions";
 ````
 
+## File: modules/platform/subdomains/team/README.md
+````markdown
+# Team
+
+Team management within organizations.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/tenant/api/index.ts
 ````typescript
 /**
@@ -16466,50 +16599,39 @@ export {};
 // Purpose: Infrastructure layer placeholder for platform subdomain 'tenant'.
 ````
 
-## File: modules/platform/AGENT.md
+## File: modules/platform/subdomains/tenant/README.md
 ````markdown
-# Platform Agent
+# Tenant
 
-> Strategic agent documentation: [docs/contexts/platform/AGENT.md](../../docs/contexts/platform/AGENT.md)
+建立多租戶隔離與 tenant-scoped 規則的正典邊界。
 
-## Mission
+## Ownership
 
-保護 platform 主域作為治理、身份、組織、權益、策略與營運支撐邊界。
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
 
-## Route Here When
+## Development Order
 
-- 問題核心是 actor、organization、tenant、access、policy、entitlement 或商業權益。
-- 問題核心是通知治理、背景任務、平台級搜尋、觀測與支援。
-- 問題核心是共享 AI provider、模型政策、配額、安全護欄或下游主域共同消費的 AI capability。
-- 問題需要提供其他主域共同消費的治理結果。
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
 
-## Route Elsewhere When
+## File: modules/platform/subdomains/workflow/README.md
+````markdown
+# Workflow
 
-- 工作區生命週期、成員關係、共享與存在感屬於 workspace。
-- 知識內容建立、分類、關聯與發布屬於 notion。
-- 對話、來源、retrieval、grounding、synthesis 屬於 notebooklm。
+Platform-level workflow orchestration.
 
-## Dependency Direction
+## Ownership
 
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
 
-## Development Order (Strangler Pattern)
+## Development Order
 
-New features:
-1. Define Domain (entities, value objects, aggregates, events)
-2. Define Application (use cases, DTOs)
-3. Define Ports (only if boundary isolation needed)
-4. Implement Infrastructure (adapters, persistence)
-5. Implement Interfaces (UI, actions, hooks)
-
-Legacy migration:
-1. Find a Use Case to extract
-2. Build Domain model for that use case
-3. Converge Application layer
-4. Isolate legacy via Ports
-5. Replace Infrastructure adapter
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/application/handlers/index.ts
@@ -16602,6 +16724,24 @@ export { ListEnabledCapabilitiesUseCase } from "./list-enabled-capabilities.quer
 export { GetPolicyCatalogViewUseCase } from "./get-policy-catalog-view.queries";
 export { GetSubscriptionEntitlementsUseCase } from "./get-subscription-entitlements.queries";
 export { GetWorkflowPolicyViewUseCase } from "./get-workflow-policy-view.queries";
+````
+
+## File: modules/platform/application/services/index.ts
+````typescript
+/**
+ * platform application services barrel.
+ *
+ * Application Services handle flow coordination, transaction boundaries and
+ * cross-aggregate orchestration.  They do not carry core business invariants.
+ */
+
+export { buildCausationId } from "./build-causation-id";
+export { buildCorrelationId } from "./build-correlation-id";
+export {
+  quickCreateKnowledgePage,
+  type QuickCreatePageInput,
+  type QuickCreatePageResult,
+} from "./shell-quick-create";
 ````
 
 ## File: modules/platform/application/use-cases/activate-subscription-agreement.use-cases.ts
@@ -17191,34 +17331,6 @@ export class RequestNotificationDispatchUseCase {
 }
 ````
 
-## File: modules/platform/docs/README.md
-````markdown
-# Platform Documentation
-
-Implementation-level documentation for the platform bounded context.
-
-## Strategic Documentation (Authority)
-
-Strategic architecture documentation lives in `docs/contexts/platform/`:
-
-- [README.md](../../../docs/contexts/platform/README.md) — Context overview
-- [subdomains.md](../../../docs/contexts/platform/subdomains.md) — Subdomain inventory
-- [bounded-contexts.md](../../../docs/contexts/platform/bounded-contexts.md) — Ownership map
-- [context-map.md](../../../docs/contexts/platform/context-map.md) — Relationships
-- [ubiquitous-language.md](../../../docs/contexts/platform/ubiquitous-language.md) — Terminology
-
-## Architecture Reference
-
-- [Bounded Context Template](../../../docs/bounded-context-subdomain-template.md) — Standard structure
-- [Architecture Overview](../../../docs/architecture-overview.md) — System-wide architecture
-- [Integration Guidelines](../../../docs/integration-guidelines.md) — Cross-context rules
-
-## Conflict Resolution
-
-- Strategic docs in `docs/contexts/platform/` are the authority for naming, ownership, and boundaries.
-- This `docs/` folder is for implementation-aligned detail only.
-````
-
 ## File: modules/platform/interfaces/web/shell/breadcrumbs/ShellAppBreadcrumbs.tsx
 ````typescript
 "use client";
@@ -17384,6 +17496,331 @@ export function useShellGlobalSearch() {
 }
 ````
 
+## File: modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
+````typescript
+"use client";
+
+/**
+ * Module: app-rail.tsx
+ * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
+ * Responsibilities: app logo, account context switcher, top-level section icon nav with
+ *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
+ * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
+ *   `h-full` ensures it fills the parent `h-screen` container.
+ */
+
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
+import { CreateOrganizationDialog } from "@/modules/platform/api";
+import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
+import {
+  listShellRailCatalogItems,
+  isExactOrChildPath,
+  type ShellRailCatalogItem,
+} from "@/modules/platform/subdomains/platform-config/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+
+interface RailItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  /** When false the item is hidden; defaults to true */
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
+}
+
+/** Icon map keyed by rail catalog item id. Icons are UI concern — stay in interfaces. */
+const RAIL_ICON_MAP: Record<string, React.ReactNode> = {
+  workspace: <Building2 className="size-[18px]" />,
+  "org-members": <UserRound className="size-[18px]" />,
+  "org-teams": <Users className="size-[18px]" />,
+  "org-daily": <NotebookText className="size-[18px]" />,
+  "org-schedule": <CalendarDays className="size-[18px]" />,
+  "org-audit": <ClipboardList className="size-[18px]" />,
+  "org-permissions": <SlidersHorizontal className="size-[18px]" />,
+  "dev-tools": <FlaskConical className="size-[18px]" />,
+};
+
+export function AppRail({
+  pathname,
+  user,
+  activeAccount,
+  organizationAccounts,
+  workspaces,
+  workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOrganizationCreated,
+  onSignOut: _onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  const visibleRailItems: RailItem[] = useMemo(() => {
+    const catalogItems = listShellRailCatalogItems(isOrganizationAccount);
+    return catalogItems.map((item: ShellRailCatalogItem) => ({
+      href: item.href,
+      label: item.label,
+      icon: RAIL_ICON_MAP[item.id] ?? null,
+      isActive: item.activeRoutePrefix
+        ? (currentPathname: string) => isExactOrChildPath(item.activeRoutePrefix!, currentPathname)
+        : undefined,
+    }));
+  }, [isOrganizationAccount]);
+
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces],
+  );
+
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
+
+  return (
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        {/* ── Workspace / account logo tile ─────────────────────────── */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => {
+                  onSelectOrganization(account);
+                }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setIsCreateOrgOpen(true);
+              }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="my-2 h-px w-7 bg-border/50" />
+
+        {/* ── Section nav icons ─────────────────────────────────────── */}
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
+
+            if (item.href === "/workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        router.push("/workspace");
+                      }}
+                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
+                    >
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(`/workspace/${workspace.id}`);
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsCreateWorkspaceOpen(true);
+                      }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        {/* ── Spacer ────────────────────────────────────────────────── */}
+        <div className="flex-1" />
+
+        <div className="h-1" />
+      </aside>
+
+      {/* ── Create organization dialog ─────────────────────────────── */}
+      <CreateOrganizationDialog
+        open={isCreateOrgOpen}
+        onOpenChange={setIsCreateOrgOpen}
+        user={user}
+        onOrganizationCreated={onOrganizationCreated}
+        onNavigate={(href) => { router.push(href); }}
+      />
+
+      {/* ── Create workspace dialog ────────────────────────────────── */}
+      <CreateWorkspaceDialogRail
+        open={isCreateWorkspaceOpen}
+        onOpenChange={setIsCreateWorkspaceOpen}
+        accountId={activeAccount?.id ?? null}
+        accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
+        creatorUserId={user?.id}
+        onNavigate={(href: string) => { router.push(href); }}
+      />
+    </TooltipProvider>
+  );
+}
+````
+
 ## File: modules/platform/interfaces/web/shell/sidebar/ShellContextNavSection.tsx
 ````typescript
 "use client";
@@ -17449,213 +17886,105 @@ export function ShellContextNavSection({
 }
 ````
 
-## File: modules/platform/interfaces/web/shell/sidebar/ShellSidebarBody.tsx
-````typescript
-"use client";
+## File: modules/platform/README.md
+````markdown
+# Platform
 
-import Link from "next/link";
+治理與營運支撐主域
 
-import { KnowledgeSidebarSection } from "@/modules/notion/api";
-import {
-  WorkspaceSectionContent,
-  type NavPreferences,
-  type SidebarLocaleBundle,
-} from "@/modules/workspace/api";
+## Implementation Structure
 
-import {
-  type NavSection,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-} from "../navigation/data/ShellSidebarNavData";
-import { ShellContextNavSection } from "./ShellContextNavSection";
+```text
+modules/platform/
+├── api/              # Public API boundary
+├── application/      # Context-wide orchestration
+├── domain/           # Context-wide domain concepts
+├── infrastructure/   # Context-wide driven adapters
+├── interfaces/       # Context-wide driving adapters
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── account/
+    ├── account-profile/
+    ├── access-control/
+    ├── ai/
+    ├── analytics/
+    ├── audit-log/
+    ├── background-job/
+    ├── billing/
+    ├── compliance/
+    ├── consent/
+    ├── content/
+    ├── entitlement/
+    ├── feature-flag/
+    ├── identity/
+    ├── integration/
+    ├── notification/
+    ├── observability/
+    ├── onboarding/
+    ├── organization/
+    ├── platform-config/
+    ├── referral/
+    ├── search/
+    ├── secret-management/
+    ├── security-policy/
+    ├── subscription/
+    ├── support/
+    ├── tenant/
+    ├── team/
+    └── workflow/
+```
 
-interface NavItem {
-  id: string;
-  label: string;
-  href: string;
-}
+## Subdomains
 
-interface WorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
+| Subdomain | Status | Purpose |
+|-----------|--------|---------|
+| account | Active | 帳號管理與帳號生命週期 |
+| identity | Active | 身份驗證與身份聯邦 |
+| notification | Active | 通知治理與遞送 |
+| organization | Active | 組織管理與租戶結構 |
+| team | Active | 團隊管理與成員關係 |
+| account-profile | Stub | 帳號個人檔案與偏好 |
+| access-control | Stub | 存取控制與權限策略 |
+| ai | Stub | 共享 AI provider 路由與能力治理 |
+| analytics | Stub | 平台級分析與指標 |
+| audit-log | Stub | 平台稽核日誌 |
+| background-job | Stub | 背景任務排程與管理 |
+| billing | Stub | 計費與支付管理 |
+| compliance | Stub | 合規與法遵管理 |
+| consent | Stub | 同意與資料使用授權治理 |
+| content | Stub | 平台內容管理 |
+| entitlement | Stub | 權益解算與功能可用性治理 |
+| feature-flag | Stub | 功能旗標與漸進式發布 |
+| integration | Stub | 外部系統整合 |
+| observability | Stub | 觀測與監控 |
+| onboarding | Stub | 使用者引導流程 |
+| platform-config | Stub | 平台組態管理 |
+| referral | Stub | 推薦與邀請機制 |
+| search | Stub | 平台級搜尋能力 |
+| secret-management | Stub | 憑證與 token 生命週期治理 |
+| security-policy | Stub | 安全策略管理 |
+| subscription | Stub | 訂閱與方案管理 |
+| support | Stub | 客戶支援管理 |
+| tenant | Stub | 多租戶隔離與 tenant-scoped 規則 |
+| workflow | Stub | 平台級工作流引擎 |
 
-interface ShellSidebarBodyProps {
-  section: NavSection;
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  showAccountManagement: boolean;
-  visibleAccountItems: readonly NavItem[];
-  visibleOrganizationManagementItems: readonly NavItem[];
-  workspacePathId: string | null;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-  showRecentWorkspaces: boolean;
-  visibleRecentWorkspaceLinks: WorkspaceLink[];
-  hasOverflow: boolean;
-  isExpanded: boolean;
-  activeWorkspaceId: string | null;
-  onSelectWorkspace: (workspaceId: string | null) => void;
-  onToggleExpanded: () => void;
-  pathname: string;
-  workspacesHydrated: boolean;
-  allWorkspaceLinks: WorkspaceLink[];
-  currentSearchWorkspaceId: string;
-  creatingKind: "page" | "database" | null;
-  onQuickCreatePage: () => void;
-}
+## Dependency Direction
 
-const CONTEXT_SECTION_CONFIG: Partial<
-  Record<NavSection, { title: string; items: readonly { href: string; label: string }[] }>
-> = {
-  "knowledge-base": { title: "知識庫", items: [{ href: "/knowledge-base/articles", label: "文章" }] },
-  "knowledge-database": { title: "資料庫", items: [{ href: "/knowledge-database/databases", label: "資料庫" }] },
-  source: { title: "來源文件", items: [{ href: "/source/libraries", label: "資料庫" }] },
-  notebook: { title: "筆記本", items: [{ href: "/notebook/rag-query", label: "問答 / 引用" }] },
-  "ai-chat": { title: "筆記本 / AI", items: [{ href: "/ai-chat", label: "筆記本介面" }] },
-};
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
 
-function ManagedNavGroup({
-  title,
-  ariaLabel,
-  items,
-  isActiveRoute,
-}: {
-  title: string;
-  ariaLabel: string;
-  items: readonly NavItem[];
-  isActiveRoute: (href: string) => boolean;
-}) {
-  return (
-    <nav className="space-y-0.5" aria-label={ariaLabel}>
-      <p className={sidebarSectionTitleClass}>{title}</p>
-      {items.map((item) => {
-        const active = isActiveRoute(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={sidebarItemClass(active)}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
+- `api/` is the only cross-module public boundary.
+- Domain must not import infrastructure, interfaces, or external frameworks.
+- Cross-module collaboration goes through `api/` only.
 
-export function DashboardSidebarBody({
-  section,
-  isActiveRoute,
-  activeAccountId,
-  showAccountManagement,
-  visibleAccountItems,
-  visibleOrganizationManagementItems,
-  workspacePathId,
-  navPrefs,
-  localeBundle,
-  showRecentWorkspaces,
-  visibleRecentWorkspaceLinks,
-  hasOverflow,
-  isExpanded,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onToggleExpanded,
-  pathname,
-  workspacesHydrated,
-  allWorkspaceLinks,
-  currentSearchWorkspaceId,
-  creatingKind,
-  onQuickCreatePage,
-}: ShellSidebarBodyProps) {
-  const contextSection = CONTEXT_SECTION_CONFIG[section];
+## Strategic Documentation
 
-  return (
-    <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
-      {section === "account" && (
-        <div className="space-y-2">
-          {showAccountManagement && visibleAccountItems.length > 0 && (
-            <ManagedNavGroup
-              title="帳號"
-              ariaLabel="帳號導覽"
-              items={visibleAccountItems}
-              isActiveRoute={isActiveRoute}
-            />
-          )}
-          {!showAccountManagement && (
-            <p className="px-2 py-4 text-[11px] text-muted-foreground">
-              請切換到組織帳號以查看帳號選項。
-            </p>
-          )}
-        </div>
-      )}
-
-      {section === "organization" && (
-        <div className="space-y-2">
-          {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
-            <ManagedNavGroup
-              title="組織管理"
-              ariaLabel="組織管理導覽"
-              items={visibleOrganizationManagementItems}
-              isActiveRoute={isActiveRoute}
-            />
-          )}
-          {!showAccountManagement && (
-            <p className="px-2 py-4 text-[11px] text-muted-foreground">
-              請切換到組織帳號以查看管理選項。
-            </p>
-          )}
-        </div>
-      )}
-
-      {section === "workspace" && (
-        <div className="space-y-2">
-          <WorkspaceSectionContent
-            workspacePathId={workspacePathId}
-            navPrefs={navPrefs}
-            localeBundle={localeBundle}
-            showRecentWorkspaces={showRecentWorkspaces}
-            visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-            hasOverflow={hasOverflow}
-            isExpanded={isExpanded}
-            activeWorkspaceId={activeWorkspaceId}
-            isActiveRoute={isActiveRoute}
-            onSelectWorkspace={onSelectWorkspace}
-            onToggleExpanded={onToggleExpanded}
-            getItemClassName={sidebarItemClass}
-            sectionTitleClassName={sidebarSectionTitleClass}
-          />
-        </div>
-      )}
-
-      {section === "knowledge" && (
-        <KnowledgeSidebarSection
-          pathname={pathname}
-          workspacesHydrated={workspacesHydrated}
-          allWorkspaceLinks={allWorkspaceLinks}
-          activeAccountId={activeAccountId}
-          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
-          creatingKind={creatingKind}
-          onSelectWorkspace={onSelectWorkspace}
-          onQuickCreatePage={onQuickCreatePage}
-        />
-      )}
-
-      {contextSection && (
-        <ShellContextNavSection
-          title={contextSection.title}
-          items={contextSection.items}
-          isActiveRoute={isActiveRoute}
-          activeAccountId={activeAccountId}
-          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
-        />
-      )}
-    </div>
-  );
-}
+- [Context README](../../docs/contexts/platform/README.md)
+- [Subdomains](../../docs/contexts/platform/subdomains.md)
+- [Context Map](../../docs/contexts/platform/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/platform/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
 ## File: modules/platform/subdomains/access-control/api/index.ts
@@ -17683,23 +18012,6 @@ export {
 export * from "./dtos";
 export * from "./use-cases";
 export * from "./services/shell-account-access";
-````
-
-## File: modules/platform/subdomains/access-control/README.md
-````markdown
-# Access Control
-
-Access control policies and permission resolution.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/account-profile/domain/aggregates/AccountProfileAggregate.ts
@@ -17899,23 +18211,6 @@ export function subscribeToProfile(
 ): Unsubscribe {
   return subscribeToAccountProfile(actorId, onUpdate);
 }
-````
-
-## File: modules/platform/subdomains/account-profile/README.md
-````markdown
-# Account Profile
-
-User profile preferences and settings.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/account/application/services/resolve-active-account.ts
@@ -18147,90 +18442,6 @@ export async function getActiveAccountPolicies(_accountId: string): Promise<Acco
 }
 ````
 
-## File: modules/platform/subdomains/account/README.md
-````markdown
-# Account
-
-User account lifecycle management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/ai/README.md
-````markdown
-# Ai
-
-共享 AI provider 路由、模型政策、配額與安全護欄。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/analytics/README.md
-````markdown
-# Analytics
-
-Platform-wide analytics and metrics.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/audit-log/README.md
-````markdown
-# Audit Log
-
-Platform audit logging.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/background-job/domain/index.ts
 ````typescript
 export type { IngestionDocument } from "./entities/IngestionDocument";
@@ -18240,92 +18451,6 @@ export { canTransitionIngestionStatus } from "./entities/IngestionJob";
 export type { IIngestionJobRepository } from "./repositories/IIngestionJobRepository";
 export type { IIngestionJobPort } from "./ports";
 export * from "./events";
-````
-
-## File: modules/platform/subdomains/background-job/README.md
-````markdown
-# Background Job
-
-Background job scheduling and execution.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/billing/README.md
-````markdown
-# Billing
-
-Billing and payment processing.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/compliance/README.md
-````markdown
-# Compliance
-
-Regulatory compliance management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/consent/README.md
-````markdown
-# Consent
-
-把同意與資料使用授權從 compliance 中切開。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/content/README.md
-````markdown
-# Content
-
-Platform content management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/entitlement/api/index.ts
@@ -18487,90 +18612,6 @@ export * from "./entitlement-service";
 export { FirebaseEntitlementGrantRepository } from "./firebase/FirebaseEntitlementGrantRepository";
 ````
 
-## File: modules/platform/subdomains/entitlement/README.md
-````markdown
-# Entitlement
-
-建立有效權益與功能可用性的統一解算上下文。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/feature-flag/README.md
-````markdown
-# Feature Flag
-
-Feature flag management and rollout.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/identity/README.md
-````markdown
-# Identity
-
-Authentication, identity tokens, and session management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/integration/README.md
-````markdown
-# Integration
-
-External system integration management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/notification/application/use-cases/notification.use-cases.ts
 ````typescript
 /**
@@ -18637,72 +18678,6 @@ export type { INotificationPort } from "./ports";
 export * from "./aggregates";
 export * from "./events";
 export * from "./value-objects";
-````
-
-## File: modules/platform/subdomains/notification/README.md
-````markdown
-# Notification
-
-Notification delivery and preference management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/observability/README.md
-````markdown
-# Observability
-
-System observability and monitoring.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/onboarding/README.md
-````markdown
-# Onboarding
-
-User and organization onboarding flows.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/organization/infrastructure/organization-service.ts
@@ -18843,122 +18818,233 @@ export const organizationQueryService = {
 };
 ````
 
-## File: modules/platform/subdomains/organization/README.md
-````markdown
-# Organization
+## File: modules/platform/subdomains/platform-config/application/index.ts
+````typescript
+// Purpose: Application layer for platform-config subdomain.
 
-Organization structure, membership, and team management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+export {
+	SHELL_ACCOUNT_SECTION_MATCHERS,
+	SHELL_ACCOUNT_NAV_ITEMS,
+	SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
+	SHELL_SECTION_LABELS,
+	SHELL_RAIL_CATALOG_ITEMS,
+	SHELL_CONTEXT_SECTION_CONFIG,
+	SHELL_MOBILE_NAV_ITEMS,
+	SHELL_ORG_PRIMARY_NAV_ITEMS,
+	SHELL_ORG_SECONDARY_NAV_ITEMS,
+	isExactOrChildPath,
+	listShellRailCatalogItems,
+	resolveShellBreadcrumbLabel,
+	resolveShellNavSection,
+	resolveShellPageTitle,
+	type ShellNavItem,
+	type ShellNavSection,
+	type ShellRailCatalogItem,
+	type ShellContextSectionConfig,
+} from "./services/shell-navigation-catalog";
 ````
 
-## File: modules/platform/subdomains/platform-config/README.md
-````markdown
-# Platform Config
+## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
+````typescript
+// ── Types ──────────────────────────────────────────────────────────────────────
 
-Platform configuration management.
+export type ShellNavSection =
+  | "workspace"
+  | "knowledge"
+  | "knowledge-base"
+  | "knowledge-database"
+  | "source"
+  | "notebook"
+  | "ai-chat"
+  | "account"
+  | "organization"
+  | "other";
 
-## Ownership
+export interface ShellNavItem {
+  readonly id: string;
+  readonly label: string;
+  readonly href: string;
+}
 
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
+export interface ShellRailCatalogItem {
+  readonly id: string;
+  readonly href: string;
+  readonly label: string;
+  /** If true, this item is only visible to organization accounts. */
+  readonly requiresOrganization: boolean;
+  /** Route prefix for active-state matching. When absent, defaults to href. */
+  readonly activeRoutePrefix?: string;
+}
 
-## Development Order
+export interface ShellContextSectionConfig {
+  readonly title: string;
+  readonly items: readonly { href: string; label: string }[];
+}
 
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
+// ── Route-matching utility ────────────────────────────────────────────────────
 
-## File: modules/platform/subdomains/referral/README.md
-````markdown
-# Referral
+export function isExactOrChildPath(targetPath: string, pathname: string): boolean {
+  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+}
 
-Referral program management.
+// ── Account section matchers ──────────────────────────────────────────────────
 
-## Ownership
+export const SHELL_ACCOUNT_SECTION_MATCHERS = [
+  "/organization/daily",
+  "/organization/schedule",
+  "/organization/audit",
+] as const;
 
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
+// ── Route titles & breadcrumb labels ──────────────────────────────────────────
 
-## Development Order
+const ROUTE_TITLES: Record<string, string> = {
+  "/organization": "組織治理",
+  "/organization/daily": "帳號 · 每日",
+  "/organization/schedule": "帳號 · 排程",
+  "/organization/schedule/dispatcher": "帳號 · 調度台",
+  "/organization/audit": "帳號 · 稽核",
+  "/workspace": "工作區中心",
+  "/knowledge": "知識中心",
+  "/knowledge/pages": "知識 · 頁面",
+  "/knowledge/block-editor": "知識 · 區塊編輯器",
+  "/knowledge-base/articles": "知識庫 · 文章",
+  "/knowledge-database/databases": "知識資料庫 · 資料庫",
+  "/source/documents": "來源 · 文件",
+  "/source/libraries": "來源 · 資料庫",
+  "/notebook/rag-query": "筆記本 · 問答 / 引用",
+  "/ai-chat": "AI 對話",
+  "/dev-tools": "開發工具",
+};
 
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
+const BREADCRUMB_LABELS: Record<string, string> = {
+  organization: "組織",
+  workspace: "工作區",
+  wiki: "Account Wiki",
+  "rag-query": "Ask / Cite",
+  documents: "文件",
+  libraries: "Libraries",
+  pages: "頁面",
+  "pages-dnd": "頁面 (DnD)",
+  "block-editor": "區塊編輯器",
+  "rag-reindex": "RAG 重新索引",
+  "ai-chat": "Notebook",
+  "dev-tools": "開發工具",
+  namespaces: "命名空間",
+  members: "成員",
+  teams: "團隊",
+  permissions: "權限",
+  workspaces: "工作區清單",
+  schedule: "排程",
+  daily: "每日",
+  audit: "稽核",
+};
 
-## File: modules/platform/subdomains/search/README.md
-````markdown
-# Search
+// ── Organization management items ─────────────────────────────────────────────
 
-Platform-wide search capabilities.
+export const SHELL_ORGANIZATION_MANAGEMENT_ITEMS: readonly ShellNavItem[] = [];
 
-## Ownership
+// ── Account nav items ─────────────────────────────────────────────────────────
 
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
+export const SHELL_ACCOUNT_NAV_ITEMS: readonly ShellNavItem[] = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
+] as const;
 
-## Development Order
+// ── Section labels ────────────────────────────────────────────────────────────
 
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
+export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
+  workspace: "工作區",
+  knowledge: "知識",
+  "knowledge-base": "知識庫",
+  "knowledge-database": "知識資料庫",
+  source: "來源",
+  notebook: "筆記本",
+  "ai-chat": "AI 對話",
+  account: "帳號",
+  organization: "組織",
+  other: "導覽",
+};
 
-## File: modules/platform/subdomains/secret-management/README.md
-````markdown
-# Secret Management
+// ── Rail catalog ──────────────────────────────────────────────────────────────
 
-把憑證、token、rotation 從 integration 中切開。
+export const SHELL_RAIL_CATALOG_ITEMS: readonly ShellRailCatalogItem[] = [
+  { id: "workspace", href: "/workspace", label: "工作區中心", requiresOrganization: false },
+  { id: "org-members", href: "/organization/members", label: "成員", requiresOrganization: true, activeRoutePrefix: "/organization/members" },
+  { id: "org-teams", href: "/organization/teams", label: "團隊", requiresOrganization: true, activeRoutePrefix: "/organization/teams" },
+  { id: "org-daily", href: "/organization/daily", label: "每日", requiresOrganization: true, activeRoutePrefix: "/organization/daily" },
+  { id: "org-schedule", href: "/organization/schedule", label: "排程", requiresOrganization: true, activeRoutePrefix: "/organization/schedule" },
+  { id: "org-audit", href: "/organization/audit", label: "稽核", requiresOrganization: true, activeRoutePrefix: "/organization/audit" },
+  { id: "org-permissions", href: "/organization/permissions", label: "權限", requiresOrganization: true, activeRoutePrefix: "/organization/permissions" },
+  { id: "dev-tools", href: "/dev-tools", label: "開發工具", requiresOrganization: false },
+];
 
-## Ownership
+export function listShellRailCatalogItems(isOrganization: boolean): readonly ShellRailCatalogItem[] {
+  return SHELL_RAIL_CATALOG_ITEMS.filter(
+    (item) => !item.requiresOrganization || isOrganization,
+  );
+}
 
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
+// ── Context section config ────────────────────────────────────────────────────
 
-## Development Order
+export const SHELL_CONTEXT_SECTION_CONFIG: Partial<
+  Record<ShellNavSection, ShellContextSectionConfig>
+> = {
+  "knowledge-base": { title: "知識庫", items: [{ href: "/knowledge-base/articles", label: "文章" }] },
+  "knowledge-database": { title: "資料庫", items: [{ href: "/knowledge-database/databases", label: "資料庫" }] },
+  source: { title: "來源文件", items: [{ href: "/source/libraries", label: "資料庫" }] },
+  notebook: { title: "筆記本", items: [{ href: "/notebook/rag-query", label: "問答 / 引用" }] },
+  "ai-chat": { title: "筆記本 / AI", items: [{ href: "/ai-chat", label: "筆記本介面" }] },
+};
 
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
+// ── Mobile & organization nav items ───────────────────────────────────────────
 
-## File: modules/platform/subdomains/security-policy/README.md
-````markdown
-# Security Policy
+export const SHELL_MOBILE_NAV_ITEMS: readonly ShellNavItem[] = [
+  { id: "workspace", label: "工作區", href: "/workspace" },
+];
 
-Security policy enforcement.
+export const SHELL_ORG_PRIMARY_NAV_ITEMS: readonly ShellNavItem[] = [
+  { id: "members", label: "成員", href: "/organization/members" },
+  { id: "teams", label: "團隊", href: "/organization/teams" },
+  { id: "permissions", label: "權限", href: "/organization/permissions" },
+  { id: "workspaces", label: "工作區", href: "/organization/workspaces" },
+];
 
-## Ownership
+export const SHELL_ORG_SECONDARY_NAV_ITEMS: readonly ShellNavItem[] = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
+];
 
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
+// ── Section resolvers ─────────────────────────────────────────────────────────
 
-## Development Order
+export function resolveShellNavSection(pathname: string): ShellNavSection {
+  if (pathname.startsWith("/workspace")) return "workspace";
+  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
+  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
+  if (pathname.startsWith("/knowledge")) return "knowledge";
+  if (pathname.startsWith("/source")) return "source";
+  if (pathname.startsWith("/notebook")) return "notebook";
+  if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  if (
+    SHELL_ACCOUNT_SECTION_MATCHERS.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    )
+  ) {
+    return "account";
+  }
+  if (pathname.startsWith("/organization")) return "organization";
+  return "other";
+}
 
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+export function resolveShellPageTitle(pathname: string): string {
+  return ROUTE_TITLES[pathname] ?? "工作區";
+}
+
+export function resolveShellBreadcrumbLabel(segment: string): string {
+  return BREADCRUMB_LABELS[segment] ?? segment;
+}
 ````
 
 ## File: modules/platform/subdomains/subscription/application/use-cases/subscription.use-cases.ts
@@ -19085,40 +19171,6 @@ export class MarkSubscriptionPastDueUseCase {
     }
   }
 }
-````
-
-## File: modules/platform/subdomains/subscription/README.md
-````markdown
-# Subscription
-
-Subscription plan management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/support/README.md
-````markdown
-# Support
-
-Customer support management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/team/domain/aggregates/OrganizationTeam.ts
@@ -19271,58 +19323,6 @@ export class OrganizationTeam {
     return events;
   }
 }
-````
-
-## File: modules/platform/subdomains/team/README.md
-````markdown
-# Team
-
-Team management within organizations.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/tenant/README.md
-````markdown
-# Tenant
-
-建立多租戶隔離與 tenant-scoped 規則的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/workflow/README.md
-````markdown
-# Workflow
-
-Platform-level workflow orchestration.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/api/index.ts
@@ -19703,348 +19703,204 @@ export function useApp() {
 }
 ````
 
-## File: modules/platform/interfaces/web/shell/navigation/components/ShellDashboardSidebar.tsx
+## File: modules/platform/interfaces/web/shell/sidebar/ShellSidebarBody.tsx
 ````typescript
 "use client";
 
-/**
- * Module: shell-dashboard-sidebar.tsx
- * Purpose: render the secondary navigation panel of the authenticated shell.
- * Responsibilities: account switcher, search hint, org management sub-nav, and
- *   recent workspace quick-access list. Top-level section navigation is in ShellAppRail.
- * Constraints: UI-only; workspace data sourced from module interfaces.
- */
+import Link from "next/link";
 
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { toast } from "sonner";
-
-import { createKnowledgePage } from "@/modules/notion/api";
+import { KnowledgeSidebarSection } from "@/modules/notion/api";
 import {
-  buildWorkspaceQuickAccessItems,
-  CustomizeNavigationDialog,
-  getWorkspaceIdFromPath,
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  readNavPreferences,
-  buildWorkspaceContextHref,
-  supportsWorkspaceSearchContext,
+  WorkspaceSectionContent,
   type NavPreferences,
-  useRecentWorkspaces,
-  useSidebarLocale,
-  WorkspaceQuickAccessRow,
+  type SidebarLocaleBundle,
 } from "@/modules/workspace/api";
+import { SHELL_CONTEXT_SECTION_CONFIG } from "@/modules/platform/subdomains/platform-config/api";
 
 import {
-  type DashboardSidebarProps,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  ACCOUNT_NAV_ITEMS,
-  SECTION_TITLES,
-  resolveNavSection,
+  type NavSection,
+  sidebarItemClass,
+  sidebarSectionTitleClass,
+} from "../navigation/data/ShellSidebarNavData";
+import { ShellContextNavSection } from "./ShellContextNavSection";
+
+interface NavItem {
+  id: string;
+  label: string;
+  href: string;
+}
+
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+
+interface ShellSidebarBodyProps {
+  section: NavSection;
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  showAccountManagement: boolean;
+  visibleAccountItems: readonly NavItem[];
+  visibleOrganizationManagementItems: readonly NavItem[];
+  workspacePathId: string | null;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+  showRecentWorkspaces: boolean;
+  visibleRecentWorkspaceLinks: WorkspaceLink[];
+  hasOverflow: boolean;
+  isExpanded: boolean;
+  activeWorkspaceId: string | null;
+  onSelectWorkspace: (workspaceId: string | null) => void;
+  onToggleExpanded: () => void;
+  pathname: string;
+  workspacesHydrated: boolean;
+  allWorkspaceLinks: WorkspaceLink[];
+  currentSearchWorkspaceId: string;
+  creatingKind: "page" | "database" | null;
+  onQuickCreatePage: () => void;
+}
+
+function ManagedNavGroup({
+  title,
+  ariaLabel,
+  items,
   isActiveRoute,
-  isActiveOrganizationAccount,
-} from "../data/ShellSidebarNavData";
-import { ShellSidebarHeader } from "../../sidebar/ShellSidebarHeader";
-import { DashboardSidebarBody } from "../../sidebar/ShellSidebarBody";
+}: {
+  title: string;
+  ariaLabel: string;
+  items: readonly NavItem[];
+  isActiveRoute: (href: string) => boolean;
+}) {
+  return (
+    <nav className="space-y-0.5" aria-label={ariaLabel}>
+      <p className={sidebarSectionTitleClass}>{title}</p>
+      {items.map((item) => {
+        const active = isActiveRoute(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={sidebarItemClass(active)}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
 
-export function ShellDashboardSidebar({
-  pathname,
-  userId,
-  activeAccount,
-  workspaces,
-  workspacesHydrated,
+export function DashboardSidebarBody({
+  section,
+  isActiveRoute,
+  activeAccountId,
+  showAccountManagement,
+  visibleAccountItems,
+  visibleOrganizationManagementItems,
+  workspacePathId,
+  navPrefs,
+  localeBundle,
+  showRecentWorkspaces,
+  visibleRecentWorkspaceLinks,
+  hasOverflow,
+  isExpanded,
   activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
   onSelectWorkspace,
-}: DashboardSidebarProps) {
-  const searchParams = useSearchParams();
-
-  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
-    activeAccount?.id,
-    pathname,
-    workspaces,
-  );
-  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
-  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
-  const [customizeOpen, setCustomizeOpen] = useState(false);
-  const localeBundle = useSidebarLocale();
-
-  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
-
-  const visibleOrganizationManagementItems = useMemo(
-    () => ORGANIZATION_MANAGEMENT_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
-    [navPrefs.pinnedWorkspace],
-  );
-
-  const visibleAccountItems = useMemo(
-    () => ACCOUNT_NAV_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
-    [navPrefs.pinnedWorkspace],
-  );
-
-  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
-
-  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
-    ? navPrefs.maxWorkspaces
-    : MAX_VISIBLE_RECENT_WORKSPACES;
-
-  const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-
-  useEffect(() => {
-    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
-    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(pathWorkspaceId);
-      return;
-    }
-
-    if (!supportsWorkspaceSearchContext(pathname)) {
-      return;
-    }
-
-    if (currentSearchWorkspaceId && currentSearchWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(currentSearchWorkspaceId);
-    }
-  }, [pathname, activeWorkspaceId, currentSearchWorkspaceId, onSelectWorkspace]);
-
-  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
-  const visibleRecentWorkspaceLinks = isExpanded
-    ? recentWorkspaceLinks
-    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
-
-  const allWorkspaceLinks = useMemo(
-    () =>
-      workspaces
-        .map((workspace) => ({
-          id: workspace.id,
-          name: workspace.name,
-          href: buildWorkspaceContextHref(pathname, workspace.id),
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces, pathname],
-  );
-
-  const section = resolveNavSection(pathname);
-  const sectionMeta = SECTION_TITLES[section];
-  const workspacePathId = getWorkspaceIdFromPath(pathname);
-  const currentPanel = searchParams.get("panel");
-  const currentWorkspaceTab = searchParams.get("tab");
-  const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
-  const hasWorkspaceToolContext =
-    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
-    (section === "knowledge" ||
-      section === "knowledge-base" ||
-      section === "source" ||
-      section === "notebook");
-  const workspaceQuickAccessId =
-    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
-  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
-  const workspaceSettingsHref = workspaceQuickAccessId
-    ? `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
-    : "";
-  const workspaceQuickAccessItems = useMemo(
-    () =>
-      showWorkspaceQuickAccess && workspaceQuickAccessId
-        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId)
-        : [],
-    [showWorkspaceQuickAccess, workspaceQuickAccessId],
-  );
-
-  async function handleQuickCreatePage() {
-    const accountId = activeAccount?.id ?? "";
-    if (!accountId) {
-      toast.error("目前沒有 active account，無法建立");
-      return;
-    }
-    if (!activeWorkspaceId) {
-      toast.error("請先切換到工作區，再建立頁面");
-      return;
-    }
-    setCreatingKind("page");
-    try {
-      const result = await createKnowledgePage({
-        accountId,
-        workspaceId: activeWorkspaceId,
-        title: "未命名頁面",
-        parentPageId: null,
-        createdByUserId: userId ?? accountId,
-      });
-      if (result.success) {
-        toast.success("已建立頁面");
-      } else {
-        toast.error(result.error?.message ?? "建立頁面失敗");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("建立頁面失敗");
-    } finally {
-      setCreatingKind(null);
-    }
-  }
+  onToggleExpanded,
+  pathname,
+  workspacesHydrated,
+  allWorkspaceLinks,
+  currentSearchWorkspaceId,
+  creatingKind,
+  onQuickCreatePage,
+}: ShellSidebarBodyProps) {
+  const contextSection = SHELL_CONTEXT_SECTION_CONFIG[section];
 
   return (
-    <div className="contents">
-      <aside
-        aria-label="Secondary navigation"
-        className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
-          collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
-        }`}
-      >
-        <ShellSidebarHeader
-          sectionLabel={sectionMeta.label}
-          sectionIcon={sectionMeta.icon}
-          onOpenCustomize={() => {
-            setCustomizeOpen(true);
-          }}
-          onToggleCollapsed={onToggleCollapsed}
-        />
+    <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
+      {section === "account" && (
+        <div className="space-y-2">
+          {showAccountManagement && visibleAccountItems.length > 0 && (
+            <ManagedNavGroup
+              title="帳號"
+              ariaLabel="帳號導覽"
+              items={visibleAccountItems}
+              isActiveRoute={isActiveRoute}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看帳號選項。
+            </p>
+          )}
+        </div>
+      )}
 
-        <WorkspaceQuickAccessRow
-          items={workspaceQuickAccessItems}
-          pathname={pathname}
-          currentPanel={currentPanel}
-          currentWorkspaceTab={currentWorkspaceTab}
-          workspaceSettingsHref={workspaceSettingsHref}
-          isActiveRoute={(href) => isActiveRoute(pathname, href)}
-        />
+      {section === "organization" && (
+        <div className="space-y-2">
+          {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
+            <ManagedNavGroup
+              title="組織管理"
+              ariaLabel="組織管理導覽"
+              items={visibleOrganizationManagementItems}
+              isActiveRoute={isActiveRoute}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看管理選項。
+            </p>
+          )}
+        </div>
+      )}
 
-        <DashboardSidebarBody
-          section={section}
-          isActiveRoute={(href) => isActiveRoute(pathname, href)}
-          activeAccountId={activeAccount?.id ?? null}
-          showAccountManagement={showAccountManagement}
-          visibleAccountItems={visibleAccountItems}
-          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
-          workspacePathId={workspacePathId}
-          navPrefs={navPrefs}
-          localeBundle={localeBundle}
-          showRecentWorkspaces={showRecentWorkspaces}
-          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-          hasOverflow={hasOverflow}
-          isExpanded={isExpanded}
-          activeWorkspaceId={activeWorkspaceId}
-          onSelectWorkspace={onSelectWorkspace}
-          onToggleExpanded={() => {
-            setIsExpanded((prev) => !prev);
-          }}
+      {section === "workspace" && (
+        <div className="space-y-2">
+          <WorkspaceSectionContent
+            workspacePathId={workspacePathId}
+            navPrefs={navPrefs}
+            localeBundle={localeBundle}
+            showRecentWorkspaces={showRecentWorkspaces}
+            visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+            hasOverflow={hasOverflow}
+            isExpanded={isExpanded}
+            activeWorkspaceId={activeWorkspaceId}
+            isActiveRoute={isActiveRoute}
+            onSelectWorkspace={onSelectWorkspace}
+            onToggleExpanded={onToggleExpanded}
+            getItemClassName={sidebarItemClass}
+            sectionTitleClassName={sidebarSectionTitleClass}
+          />
+        </div>
+      )}
+
+      {section === "knowledge" && (
+        <KnowledgeSidebarSection
           pathname={pathname}
           workspacesHydrated={workspacesHydrated}
           allWorkspaceLinks={allWorkspaceLinks}
-          currentSearchWorkspaceId={currentSearchWorkspaceId}
+          activeAccountId={activeAccountId}
+          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
           creatingKind={creatingKind}
-          onQuickCreatePage={() => {
-            void handleQuickCreatePage();
-          }}
+          onSelectWorkspace={onSelectWorkspace}
+          onQuickCreatePage={onQuickCreatePage}
         />
-      </aside>
+      )}
 
-      <CustomizeNavigationDialog
-        open={customizeOpen}
-        onOpenChange={setCustomizeOpen}
-        onPreferencesChange={setNavPrefs}
-      />
+      {contextSection && (
+        <ShellContextNavSection
+          title={contextSection.title}
+          items={contextSection.items}
+          isActiveRoute={isActiveRoute}
+          activeAccountId={activeAccountId}
+          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
+        />
+      )}
     </div>
   );
 }
-````
-
-## File: modules/platform/README.md
-````markdown
-# Platform
-
-治理與營運支撐主域
-
-## Implementation Structure
-
-```text
-modules/platform/
-├── api/              # Public API boundary
-├── application/      # Context-wide orchestration
-├── domain/           # Context-wide domain concepts
-├── infrastructure/   # Context-wide driven adapters
-├── interfaces/       # Context-wide driving adapters
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── account/
-    ├── account-profile/
-    ├── access-control/
-    ├── ai/
-    ├── analytics/
-    ├── audit-log/
-    ├── background-job/
-    ├── billing/
-    ├── compliance/
-    ├── consent/
-    ├── content/
-    ├── entitlement/
-    ├── feature-flag/
-    ├── identity/
-    ├── integration/
-    ├── notification/
-    ├── observability/
-    ├── onboarding/
-    ├── organization/
-    ├── platform-config/
-    ├── referral/
-    ├── search/
-    ├── secret-management/
-    ├── security-policy/
-    ├── subscription/
-    ├── support/
-    ├── tenant/
-    ├── team/
-    └── workflow/
-```
-
-## Subdomains
-
-| Subdomain | Status | Purpose |
-|-----------|--------|---------|
-| account | Active | 帳號管理與帳號生命週期 |
-| identity | Active | 身份驗證與身份聯邦 |
-| notification | Active | 通知治理與遞送 |
-| organization | Active | 組織管理與租戶結構 |
-| team | Active | 團隊管理與成員關係 |
-| account-profile | Stub | 帳號個人檔案與偏好 |
-| access-control | Stub | 存取控制與權限策略 |
-| ai | Stub | 共享 AI provider 路由與能力治理 |
-| analytics | Stub | 平台級分析與指標 |
-| audit-log | Stub | 平台稽核日誌 |
-| background-job | Stub | 背景任務排程與管理 |
-| billing | Stub | 計費與支付管理 |
-| compliance | Stub | 合規與法遵管理 |
-| consent | Stub | 同意與資料使用授權治理 |
-| content | Stub | 平台內容管理 |
-| entitlement | Stub | 權益解算與功能可用性治理 |
-| feature-flag | Stub | 功能旗標與漸進式發布 |
-| integration | Stub | 外部系統整合 |
-| observability | Stub | 觀測與監控 |
-| onboarding | Stub | 使用者引導流程 |
-| platform-config | Stub | 平台組態管理 |
-| referral | Stub | 推薦與邀請機制 |
-| search | Stub | 平台級搜尋能力 |
-| secret-management | Stub | 憑證與 token 生命週期治理 |
-| security-policy | Stub | 安全策略管理 |
-| subscription | Stub | 訂閱與方案管理 |
-| support | Stub | 客戶支援管理 |
-| tenant | Stub | 多租戶隔離與 tenant-scoped 規則 |
-| workflow | Stub | 平台級工作流引擎 |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `api/` is the only cross-module public boundary.
-- Domain must not import infrastructure, interfaces, or external frameworks.
-- Cross-module collaboration goes through `api/` only.
-
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/platform/README.md)
-- [Subdomains](../../docs/contexts/platform/subdomains.md)
-- [Context Map](../../docs/contexts/platform/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/platform/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
 ## File: modules/platform/subdomains/access-control/application/use-cases/access-control.use-cases.ts
@@ -20606,6 +20462,243 @@ export { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-
 export { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
 ````
 
+## File: modules/platform/interfaces/web/shell/navigation/components/ShellDashboardSidebar.tsx
+````typescript
+"use client";
+
+/**
+ * Module: shell-dashboard-sidebar.tsx
+ * Purpose: render the secondary navigation panel of the authenticated shell.
+ * Responsibilities: account switcher, search hint, org management sub-nav, and
+ *   recent workspace quick-access list. Top-level section navigation is in ShellAppRail.
+ * Constraints: UI-only; workspace data sourced from module interfaces.
+ */
+
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+
+import { quickCreateKnowledgePage } from "@/modules/platform/application/services/shell-quick-create";
+import {
+  buildWorkspaceQuickAccessItems,
+  CustomizeNavigationDialog,
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  readNavPreferences,
+  buildWorkspaceContextHref,
+  supportsWorkspaceSearchContext,
+  type NavPreferences,
+  useRecentWorkspaces,
+  useSidebarLocale,
+  WorkspaceQuickAccessRow,
+} from "@/modules/workspace/api";
+
+import {
+  type DashboardSidebarProps,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  ACCOUNT_NAV_ITEMS,
+  SECTION_TITLES,
+  resolveNavSection,
+  isActiveRoute,
+  isActiveOrganizationAccount,
+} from "../data/ShellSidebarNavData";
+import { ShellSidebarHeader } from "../../sidebar/ShellSidebarHeader";
+import { DashboardSidebarBody } from "../../sidebar/ShellSidebarBody";
+
+export function ShellDashboardSidebar({
+  pathname,
+  userId,
+  activeAccount,
+  workspaces,
+  workspacesHydrated,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps) {
+  const searchParams = useSearchParams();
+
+  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
+    activeAccount?.id,
+    pathname,
+    workspaces,
+  );
+  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
+  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const localeBundle = useSidebarLocale();
+
+  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
+
+  const visibleOrganizationManagementItems = useMemo(
+    () => ORGANIZATION_MANAGEMENT_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
+    [navPrefs.pinnedWorkspace],
+  );
+
+  const visibleAccountItems = useMemo(
+    () => ACCOUNT_NAV_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
+    [navPrefs.pinnedWorkspace],
+  );
+
+  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
+
+  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
+    ? navPrefs.maxWorkspaces
+    : MAX_VISIBLE_RECENT_WORKSPACES;
+
+  const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+
+  useEffect(() => {
+    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
+    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(pathWorkspaceId);
+      return;
+    }
+
+    if (!supportsWorkspaceSearchContext(pathname)) {
+      return;
+    }
+
+    if (currentSearchWorkspaceId && currentSearchWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(currentSearchWorkspaceId);
+    }
+  }, [pathname, activeWorkspaceId, currentSearchWorkspaceId, onSelectWorkspace]);
+
+  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
+  const visibleRecentWorkspaceLinks = isExpanded
+    ? recentWorkspaceLinks
+    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
+
+  const allWorkspaceLinks = useMemo(
+    () =>
+      workspaces
+        .map((workspace) => ({
+          id: workspace.id,
+          name: workspace.name,
+          href: buildWorkspaceContextHref(pathname, workspace.id),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces, pathname],
+  );
+
+  const section = resolveNavSection(pathname);
+  const sectionMeta = SECTION_TITLES[section];
+  const workspacePathId = getWorkspaceIdFromPath(pathname);
+  const currentPanel = searchParams.get("panel");
+  const currentWorkspaceTab = searchParams.get("tab");
+  const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
+  const hasWorkspaceToolContext =
+    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
+    (section === "knowledge" ||
+      section === "knowledge-base" ||
+      section === "source" ||
+      section === "notebook");
+  const workspaceQuickAccessId =
+    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
+  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
+  const workspaceSettingsHref = workspaceQuickAccessId
+    ? `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
+    : "";
+  const workspaceQuickAccessItems = useMemo(
+    () =>
+      showWorkspaceQuickAccess && workspaceQuickAccessId
+        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId)
+        : [],
+    [showWorkspaceQuickAccess, workspaceQuickAccessId],
+  );
+
+  async function handleQuickCreatePage() {
+    const accountId = activeAccount?.id ?? "";
+    if (!accountId || !activeWorkspaceId) {
+      toast.error(!accountId ? "目前沒有 active account，無法建立" : "請先切換到工作區，再建立頁面");
+      return;
+    }
+    setCreatingKind("page");
+    try {
+      const result = await quickCreateKnowledgePage({
+        accountId,
+        workspaceId: activeWorkspaceId,
+        createdByUserId: userId ?? accountId,
+      });
+      if (result.success) {
+        toast.success("已建立頁面");
+      } else {
+        toast.error(result.error?.message ?? "建立頁面失敗");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("建立頁面失敗");
+    } finally {
+      setCreatingKind(null);
+    }
+  }
+
+  return (
+    <div className="contents">
+      <aside
+        aria-label="Secondary navigation"
+        className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
+          collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
+        }`}
+      >
+        <ShellSidebarHeader
+          sectionLabel={sectionMeta.label}
+          sectionIcon={sectionMeta.icon}
+          onOpenCustomize={() => {
+            setCustomizeOpen(true);
+          }}
+          onToggleCollapsed={onToggleCollapsed}
+        />
+
+        <WorkspaceQuickAccessRow
+          items={workspaceQuickAccessItems}
+          pathname={pathname}
+          currentPanel={currentPanel}
+          currentWorkspaceTab={currentWorkspaceTab}
+          workspaceSettingsHref={workspaceSettingsHref}
+          isActiveRoute={(href) => isActiveRoute(pathname, href)}
+        />
+
+        <DashboardSidebarBody
+          section={section}
+          isActiveRoute={(href) => isActiveRoute(pathname, href)}
+          activeAccountId={activeAccount?.id ?? null}
+          showAccountManagement={showAccountManagement}
+          visibleAccountItems={visibleAccountItems}
+          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
+          workspacePathId={workspacePathId}
+          navPrefs={navPrefs}
+          localeBundle={localeBundle}
+          showRecentWorkspaces={showRecentWorkspaces}
+          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+          hasOverflow={hasOverflow}
+          isExpanded={isExpanded}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={onSelectWorkspace}
+          onToggleExpanded={() => {
+            setIsExpanded((prev) => !prev);
+          }}
+          pathname={pathname}
+          workspacesHydrated={workspacesHydrated}
+          allWorkspaceLinks={allWorkspaceLinks}
+          currentSearchWorkspaceId={currentSearchWorkspaceId}
+          creatingKind={creatingKind}
+          onQuickCreatePage={() => {
+            void handleQuickCreatePage();
+          }}
+        />
+      </aside>
+
+      <CustomizeNavigationDialog
+        open={customizeOpen}
+        onOpenChange={setCustomizeOpen}
+        onPreferencesChange={setNavPrefs}
+      />
+    </div>
+  );
+}
+````
+
 ## File: modules/platform/interfaces/web/shell/navigation/data/ShellSidebarNavData.tsx
 ````typescript
 import {
@@ -20627,6 +20720,7 @@ import {
   SHELL_ACCOUNT_NAV_ITEMS,
   SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
   SHELL_SECTION_LABELS,
+  isExactOrChildPath,
   resolveShellNavSection,
   type ShellNavSection,
 } from "@/modules/platform/subdomains/platform-config/api";
@@ -20695,7 +20789,7 @@ export function resolveNavSection(pathname: string): NavSection {
 }
 
 export function isActiveRoute(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
+  return isExactOrChildPath(href, pathname);
 }
 
 export function isActiveOrganizationAccount(
@@ -20854,33 +20948,20 @@ import {
 } from "../../../../subdomains/access-control/api";
 import { type AccountEntity } from "../../../../subdomains/account/api";
 import { subscribeToProfile, type AccountProfile } from "../../../../subdomains/account-profile/api";
-import { resolveShellPageTitle } from "../../../../subdomains/platform-config/api";
+import {
+  resolveShellPageTitle,
+  isExactOrChildPath,
+  SHELL_MOBILE_NAV_ITEMS,
+  SHELL_ORG_PRIMARY_NAV_ITEMS,
+  SHELL_ORG_SECONDARY_NAV_ITEMS,
+} from "../../../../subdomains/platform-config/api";
 import { AccountSwitcher } from "../../../../subdomains/organization/api";
 import { ShellAppBreadcrumbs } from "../breadcrumbs/ShellAppBreadcrumbs";
 import { AppRail } from "../sidebar/ShellAppRail";
 import { ShellDashboardSidebar } from "../navigation/components/ShellDashboardSidebar";
-import { isActiveRoute } from "../navigation/data/ShellSidebarNavData";
 import { ShellGlobalSearchDialog, useShellGlobalSearch } from "../search/ShellGlobalSearchDialog";
 import { ShellHeaderControls } from "../header/components/ShellHeaderControls";
 import { ShellUserAvatar } from "../header/components/ShellUserAvatar";
-
-/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
-const mobileNavItems = [
-  { href: "/workspace", label: "工作區" },
-];
-
-const orgPrimaryItems = [
-  { label: "成員", href: "/organization/members" },
-  { label: "團隊", href: "/organization/teams" },
-  { label: "權限", href: "/organization/permissions" },
-  { label: "工作區", href: "/organization/workspaces" },
-] as const;
-
-const orgSecondaryItems = [
-  { label: "排程", href: "/organization/schedule" },
-  { label: "每日", href: "/organization/daily" },
-  { label: "稽核", href: "/organization/audit" },
-] as const;
 
 export function ShellLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -21058,8 +21139,8 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
             {showAccountManagement && (
               <>
                 <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
-                  {orgPrimaryItems.map((item) => {
-                    const isActive = isActiveRoute(pathname, item.href);
+                  {SHELL_ORG_PRIMARY_NAV_ITEMS.map((item) => {
+                    const isActive = isExactOrChildPath(item.href, pathname);
                     return (
                       <Link
                         key={item.href}
@@ -21077,8 +21158,8 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
                   })}
                 </nav>
                 <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
-                  {orgSecondaryItems.map((item) => {
-                    const isActive = isActiveRoute(pathname, item.href);
+                  {SHELL_ORG_SECONDARY_NAV_ITEMS.map((item) => {
+                    const isActive = isExactOrChildPath(item.href, pathname);
                     return (
                       <Link
                         key={item.href}
@@ -21098,8 +21179,8 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
               </>
             )}
             <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
-              {mobileNavItems.map((item) => {
-                const isActive = isActiveRoute(pathname, item.href);
+              {SHELL_MOBILE_NAV_ITEMS.map((item) => {
+                const isActive = isExactOrChildPath(item.href, pathname);
                 return (
                   <Link
                     key={item.href}
