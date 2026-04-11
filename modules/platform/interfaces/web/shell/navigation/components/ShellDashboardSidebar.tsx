@@ -31,6 +31,7 @@ import {
   ACCOUNT_NAV_ITEMS,
   SECTION_TITLES,
   resolveNavSection,
+  isActiveRoute,
   isActiveOrganizationAccount,
 } from "../data/ShellSidebarNavData";
 import { ShellSidebarHeader } from "../../sidebar/ShellSidebarHeader";
@@ -76,10 +77,6 @@ export function ShellDashboardSidebar({
   const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
     ? navPrefs.maxWorkspaces
     : MAX_VISIBLE_RECENT_WORKSPACES;
-
-  function isActiveRoute(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
 
   const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
 
@@ -213,12 +210,12 @@ export function ShellDashboardSidebar({
           currentPanel={currentPanel}
           currentWorkspaceTab={currentWorkspaceTab}
           workspaceSettingsHref={workspaceSettingsHref}
-          isActiveRoute={isActiveRoute}
+          isActiveRoute={(href) => isActiveRoute(pathname, href)}
         />
 
         <DashboardSidebarBody
           section={section}
-          isActiveRoute={isActiveRoute}
+          isActiveRoute={(href) => isActiveRoute(pathname, href)}
           activeAccountId={activeAccount?.id ?? null}
           showAccountManagement={showAccountManagement}
           visibleAccountItems={visibleAccountItems}

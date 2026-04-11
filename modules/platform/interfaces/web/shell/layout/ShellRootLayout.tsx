@@ -21,6 +21,7 @@ import { AccountSwitcher } from "../../../../subdomains/organization/api";
 import { ShellAppBreadcrumbs } from "../breadcrumbs/ShellAppBreadcrumbs";
 import { AppRail } from "../sidebar/ShellAppRail";
 import { ShellDashboardSidebar } from "../navigation/components/ShellDashboardSidebar";
+import { isActiveRoute } from "../navigation/data/ShellSidebarNavData";
 import { ShellGlobalSearchDialog, useShellGlobalSearch } from "../search/ShellGlobalSearchDialog";
 import { ShellHeaderControls } from "../header/components/ShellHeaderControls";
 import { ShellUserAvatar } from "../header/components/ShellUserAvatar";
@@ -112,10 +113,6 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
   const organizationAccounts = Object.values(appState.accounts ?? {});
   const accountWorkspaces = Object.values(appState.workspaces ?? {});
   const showAccountManagement = isOrganizationAccount(appState.activeAccount);
-
-  function isActiveRoute(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
 
   function handleSelectOrganization(account: AccountEntity) {
     dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
@@ -267,7 +264,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
               <>
                 <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
                   {orgPrimaryItems.map((item) => {
-                    const isActive = isActiveRoute(item.href);
+                    const isActive = isActiveRoute(pathname, item.href);
                     return (
                       <Link
                         key={item.href}
@@ -286,7 +283,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
                 </nav>
                 <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
                   {orgSecondaryItems.map((item) => {
-                    const isActive = isActiveRoute(item.href);
+                    const isActive = isActiveRoute(pathname, item.href);
                     return (
                       <Link
                         key={item.href}
@@ -307,7 +304,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
             )}
             <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
               {mobileNavItems.map((item) => {
-                const isActive = isActiveRoute(item.href);
+                const isActive = isActiveRoute(pathname, item.href);
                 return (
                   <Link
                     key={item.href}

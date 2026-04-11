@@ -101,6 +101,10 @@ export function resolveNavSection(pathname: string): NavSection {
   return "other";
 }
 
+export function isActiveRoute(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function isActiveOrganizationAccount(
   activeAccount: ActiveAccount | null,
 ): activeAccount is AccountEntity & { accountType: "organization" } {

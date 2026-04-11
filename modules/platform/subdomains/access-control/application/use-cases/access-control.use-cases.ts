@@ -6,7 +6,7 @@ import { AccessPolicy } from "../../domain/aggregates/AccessPolicy";
 import {
   allowDecision,
   denyDecision,
-} from "../../../../../domain/value-objects/PermissionDecision";
+} from "../../domain/value-objects/PermissionDecision";
 import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
 import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
 import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
