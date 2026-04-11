@@ -22,7 +22,7 @@ import { ShellAppBreadcrumbs } from "../breadcrumbs/ShellAppBreadcrumbs";
 import { AppRail } from "../sidebar/ShellAppRail";
 import { ShellDashboardSidebar } from "../navigation/components/ShellDashboardSidebar";
 import { ShellGlobalSearchDialog, useShellGlobalSearch } from "../search/ShellGlobalSearchDialog";
-import { HeaderControls as ShellHeaderControls } from "../header/components/HeaderControls";
+import { ShellHeaderControls } from "../header/components/ShellHeaderControls";
 import { ShellUserAvatar } from "../header/components/ShellUserAvatar";
 
 const routeTitles: Record<string, string> = {

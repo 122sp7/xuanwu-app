@@ -1,6 +1,6 @@
 "use client";
 
-import { NotificationBell } from "../../../subdomains/notification/api";
+import { NotificationBell } from "../../../../../subdomains/notification/api";
 
 interface ShellNotificationButtonProps {
   readonly recipientId: string;

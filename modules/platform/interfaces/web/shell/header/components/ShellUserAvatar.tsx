@@ -1,6 +1,6 @@
 "use client";
 
-import { HeaderUserAvatar } from "../../../subdomains/account/api";
+import { HeaderUserAvatar } from "../../../../../subdomains/account/api";
 
 interface ShellUserAvatarProps {
   readonly name: string;

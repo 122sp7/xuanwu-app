@@ -1,4 +1,4 @@
-export { HeaderControls as ShellHeaderControls } from "./shell/header/components/HeaderControls";
+export { ShellHeaderControls } from "./shell/header/components/ShellHeaderControls";
 export { ShellThemeToggle } from "./shell/header/components/ShellThemeToggle";
 export { ShellNotificationButton } from "./shell/header/components/ShellNotificationButton";
 export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
