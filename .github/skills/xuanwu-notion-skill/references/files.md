@@ -1,50 +1,5 @@
 # Files
 
-## File: modules/notion/AGENT.md
-````markdown
-# Notion Agent
-
-> Strategic agent documentation: [docs/contexts/notion/AGENT.md](../../docs/contexts/notion/AGENT.md)
-
-## Mission
-
-保護 notion 主域作為知識內容生命週期邊界。
-
-## Route Here When
-
-- 問題核心是知識頁面、文章、內容結構、分類、關聯、模板與發布。
-- 問題需要把輸入吸收成正式知識內容的正典狀態。
-- 問題需要定義內容版本、內容協作與內容交付。
-
-## Route Elsewhere When
-
-- 身份、租戶、授權、權益、憑證治理屬於 platform。
-- 工作區生命週期、共享、存在感與工作區流程屬於 workspace。
-- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order (Strangler Pattern)
-
-New features:
-1. Define Domain (entities, value objects, aggregates, events)
-2. Define Application (use cases, DTOs)
-3. Define Ports (only if boundary isolation needed)
-4. Implement Infrastructure (adapters, persistence)
-5. Implement Interfaces (UI, actions, hooks)
-
-Legacy migration:
-1. Find a Use Case to extract
-2. Build Domain model for that use case
-3. Converge Application layer
-4. Isolate legacy via Ports
-5. Replace Infrastructure adapter
-````
-
 ## File: modules/notion/docs/README.md
 ````markdown
 # Notion Documentation
@@ -10289,6 +10244,132 @@ export {};
 // Purpose: Infrastructure layer placeholder for notion subdomain 'templates'.
 ````
 
+## File: modules/notion/AGENT.md
+````markdown
+# Notion Agent
+
+> Strategic agent documentation: [docs/contexts/notion/AGENT.md](../../docs/contexts/notion/AGENT.md)
+
+## Mission
+
+保護 notion 主域作為知識內容生命週期邊界。notion 擁有正式知識內容（KnowledgePage、Article、Database），不擁有治理、工作區範疇或推理輸出。
+
+## Bounded Context Summary
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 正典知識內容生命週期 |
+| Upstream | platform（治理、AI capability）、workspace（workspaceId、membership scope、share scope） |
+| Downstream | notebooklm（knowledge artifact reference、attachment reference、taxonomy hint） |
+| Core invariant | notion 只能修改自己的正典內容，不可直接呼叫 notebooklm 的推理流程 |
+| Published language | KnowledgeArtifact reference、attachment reference、taxonomy hint |
+
+## Route Here When
+
+- 問題核心是知識頁面（KnowledgePage）、內容區塊（ContentBlock）、知識集合（KnowledgeCollection）。
+- 問題需要把內容建立、編輯、分類、關聯、版本或交付收斂到正典狀態。
+- 問題涉及知識庫文章（Article）、分類（Category）、樣板（Template）。
+- 問題涉及結構化資料視圖（Database、DatabaseView、Record）。
+- 問題涉及協作留言（Comment）、細粒度權限（Permission）或版本快照（Version）。
+- 問題涉及附件媒體、知識事件觸發、外部系統知識同步。
+
+## Route Elsewhere When
+
+- 身份、租戶、授權、權益、憑證治理屬於 platform。
+- 工作區生命週期、成員管理、共享範圍屬於 workspace。
+- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
+- 共享 AI provider、模型政策、配額屬於 platform.ai。
+
+## Subdomain Delivery Tiers
+
+### Tier 1 — Core (Active)
+
+| Subdomain | Purpose | Key Aggregates |
+|-----------|---------|----------------|
+| knowledge | KnowledgePage 生命週期、ContentBlock 編輯、BacklinkIndex | KnowledgePage, ContentBlock, KnowledgeCollection, BacklinkIndex |
+| authoring | 知識庫文章建立、驗證、分類與發布工作流程 | Article, Category |
+| collaboration | 協作留言、細粒度權限與版本快照 | Comment, Permission, Version |
+| database | 結構化資料多視圖（Table/Board/Calendar/Gallery） | Database, DatabaseRecord, View, DatabaseAutomation |
+
+### Tier 2 — Near-Term (Stubs — High Business Value)
+
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| taxonomy | 分類法、標籤樹與語義組織（跨頁面分類的正典邊界） | BacklinkIndex 在 knowledge 內；taxonomy 負責語義分類圖 |
+| relations | 內容之間的正式語義關聯與 backlink 管理 | 不同於 BacklinkIndex（自動）；relations 是明確語義圖 |
+| templates | 頁面範本管理與套用 | 加速建立標準化內容頁面 |
+| attachments | 附件與媒體關聯儲存 | 檔案儲存整合的正典邊界 |
+
+### Tier 3 — Medium-Term (Stubs)
+
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| publishing | 正式發布與對外交付（Publication 狀態邊界） | authoring 的 `ArticlePublicationUseCases` 是前置邊界 |
+| notes | 個人輕量筆記（與 KnowledgePage 不同的低儀式物件） | - |
+| knowledge-versioning | 全域版本快照策略（workspace-level checkpoint、保留政策） | ≠ collaboration.Version（細粒度編輯歷史） |
+
+### Tier 4 — Deferred (Stubs)
+
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| automation | 知識事件觸發自動化動作 | database.DatabaseAutomation 是局部實作；automation 是跨內容類型的事件規則 |
+| knowledge-analytics | 知識使用行為量測與分析 | 消費 platform.analytics 介面 |
+| knowledge-integration | 知識與外部系統雙向同步（Confluence、GitHub wiki） | 消費 platform.integration 介面 |
+
+## Subdomain Analysis — 子域數量合理性
+
+**14 個子域（4 Active + 10 Stubs），分析如下：**
+
+1. **`knowledge` 與 `authoring` 不重疊**：`knowledge` 是 KnowledgePage + ContentBlock（自由形式的 wiki 頁面）；`authoring` 是 Article + Category（有工作流程的結構化 KB 文章）。
+2. **`collaboration.Version` 與 `knowledge-versioning` 不重疊**：`collaboration.Version` 是逐次編輯快照（per-change history）；`knowledge-versioning` 是全域 checkpoint 策略（workspace-level snapshot policy）。這兩個責任需要明確分開。
+3. **`database.DatabaseAutomation` 與 `automation` 分工**：`database.DatabaseAutomation` 是資料庫範疇的規則；`automation` 是跨內容類型的知識事件觸發規則（不同上下文）。
+4. **`relations` 與 `knowledge.BacklinkIndex` 不重疊**：`BacklinkIndex` 是自動反向連結索引；`relations` 是明確的語義關係圖（有類型、有方向的關聯）。
+5. **無子域需要刪除**：每個子域有清楚的邊界責任。
+6. **需要的卻可能被忽略**：`taxonomy` 是 Notion 語義組織的核心，應從 Gap Stub 提升到 Tier 2 的優先事項，因為 `authoring.Category` 只是局部分類，不等於全域 taxonomy。
+
+## Ubiquitous Language
+
+| Term | Meaning | Do Not Use |
+|------|---------|------------|
+| KnowledgeArtifact | notion 主域擁有的知識內容總稱 | Doc, Wiki (混指) |
+| KnowledgePage | 正典頁面型知識單位（block-based） | Wiki, Page (generic) |
+| Article | 經過撰寫與驗證流程的知識庫文章 | Post, Content |
+| Database | 結構化知識集合（可投影為 Table/Board/Calendar） | Table, Spreadsheet |
+| DatabaseView | 對 Database 的投影與檢視配置 | View (generic) |
+| ContentBlock | 知識頁面的最小可組合內容單位 | Block (generic) |
+| Taxonomy | 分類法、標籤樹等語義組織結構 | Tag System, Category (混稱全域分類) |
+| Relation | 內容對內容之間的正式語義關聯 | Link, Connection |
+| CollaborationThread | 內容附著的協作討論邊界 | Chat, Discussion |
+| Attachment | 綁定於知識內容的檔案或媒體 | File, Upload |
+| Template | 可重複套用的內容結構起點 | Preset, Layout |
+| Publication | 對外可見且可交付的內容狀態 | Published, Public |
+| VersionSnapshot | 某一時點的不可變全域快照（知識版本策略） | Backup, History |
+| KnowledgeCollection | 頁面集合容器（非 Database） | Folder, Section |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+api/ ← 唯一跨模組入口
+```
+
+## Development Order (Domain-First)
+
+New features:
+1. Define Domain (entities, value objects, aggregates, events)
+2. Define Application (use cases, DTOs)
+3. Define Ports (only if boundary isolation needed)
+4. Implement Infrastructure (adapters, persistence)
+5. Implement Interfaces (UI, actions, hooks)
+
+Legacy migration (Strangler Pattern):
+1. Find a Use Case to extract
+2. Build Domain model in the owning subdomain
+3. Converge Application layer
+4. Isolate legacy via Ports
+5. Replace Infrastructure adapter; remove old path when stable
+````
+
 ## File: modules/notion/api/api.instructions.md
 ````markdown
 ---
@@ -10570,89 +10651,6 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
-````
-
-## File: modules/notion/README.md
-````markdown
-# Notion
-
-知識內容生命週期主域
-
-## Implementation Structure
-
-```text
-modules/notion/
-├── api/              # Public API boundary
-├── application/      # Context-wide orchestration
-├── domain/           # Context-wide domain concepts
-├── infrastructure/   # Context-wide driven adapters
-├── interfaces/       # Context-wide driving adapters
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── authoring/           # Baseline — Active
-    ├── collaboration/        # Baseline — Active
-    ├── database/             # Baseline — Active
-    ├── knowledge/            # Baseline — Active
-    ├── attachments/          # Baseline — Stub
-    ├── automation/           # Baseline — Stub
-    ├── knowledge-analytics/  # Baseline — Stub
-    ├── knowledge-integration/ # Baseline — Stub
-    ├── knowledge-versioning/ # Baseline — Stub
-    ├── notes/                # Baseline — Stub
-    ├── templates/            # Baseline — Stub
-    ├── publishing/           # Recommended Gap — Stub
-    ├── relations/            # Recommended Gap — Stub
-    └── taxonomy/             # Recommended Gap — Stub
-```
-
-## Subdomains
-
-### Baseline — Active
-
-| Subdomain | Purpose |
-|-----------|--------|
-| authoring | 知識庫文章建立、驗證與分類 |
-| collaboration | 協作留言、細粒度權限與版本快照 |
-| database | 結構化資料多視圖管理 |
-| knowledge | 頁面建立、組織、版本化與交付 |
-
-### Baseline — Stub
-
-| Subdomain | Purpose |
-|-----------|--------|
-| attachments | 附件與媒體關聯儲存 |
-| automation | 知識事件觸發自動化動作 |
-| knowledge-analytics | 知識使用行為量測 |
-| knowledge-integration | 知識與外部系統雙向整合 |
-| knowledge-versioning | 全域版本快照策略管理 |
-| notes | 個人輕量筆記與正式知識協作 |
-| templates | 頁面範本管理與套用 |
-
-### Recommended Gap — Stub
-
-| Subdomain | Purpose |
-|-----------|--------|
-| publishing | 建立正式發布與對外交付的正典邊界 |
-| relations | 建立內容之間關聯與 backlink 的正典邊界 |
-| taxonomy | 建立分類法與語義組織的正典邊界 |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `api/` is the only cross-module public boundary.
-- Domain must not import infrastructure, interfaces, or external frameworks.
-- Cross-module collaboration goes through `api/` only.
-
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/notion/README.md)
-- [Subdomains](../../docs/contexts/notion/subdomains.md)
-- [Context Map](../../docs/contexts/notion/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/notion/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
 ## File: modules/notion/subdomains/attachments/README.md
@@ -11060,8 +11058,17 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Ownership
 
 - **Bounded Context**: notion
-- **Subdomain Type**: Baseline
+- **Subdomain Type**: Tier 3 — Medium-Term Stub
 - **Status**: Stub — awaiting use case definition
+
+## Distinction from `collaboration.Version`
+
+| | `collaboration.Version` | `knowledge-versioning` |
+|---|---|---|
+| Granularity | 每次編輯的細粒度快照（per-change history） | 全域 Checkpoint 策略（workspace-level snapshot） |
+| Trigger | 協作動作（comment, edit event） | 策略性里程碑（release, sprint end） |
+| Retention | 短期逐次紀錄 | 長期保留策略 |
+| Owner | collaboration subdomain | knowledge-versioning subdomain |
 
 ## Layers
 
@@ -12332,6 +12339,137 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/README.md
+````markdown
+# Notion
+
+知識內容生命週期主域
+
+## Bounded Context
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 正典知識內容生命週期（頁面、文章、資料庫、協作、版本） |
+| Upstream | platform（治理、AI capability）、workspace（workspaceId、membership scope、share scope） |
+| Downstream | notebooklm（knowledge artifact reference、attachment reference、taxonomy hint） |
+| Core principle | notion 擁有正典知識內容，不擁有治理或推理過程 |
+| Cross-module boundary | `api/` only — no direct import of platform/workspace/notebooklm internals |
+
+## Ubiquitous Language
+
+| Term | Meaning |
+|------|---------|
+| KnowledgeArtifact | notion 主域擁有的知識內容總稱 |
+| KnowledgePage | 正典頁面型知識單位（block-based 自由頁面） |
+| ContentBlock | 知識頁面的最小可組合內容單位（段落、標題、程式碼等） |
+| KnowledgeCollection | 頁面集合容器（分組 KnowledgePage，非 Database） |
+| BacklinkIndex | 自動反向連結索引（哪些頁面引用了此頁面） |
+| Article | 經過撰寫與驗證工作流程的知識庫文章 |
+| Database | 結構化知識集合（可投影多種視圖） |
+| DatabaseView | 對 Database 的投影配置（Table/Board/Calendar/Gallery/Form） |
+| DatabaseRecord | Database 中的一筆記錄 |
+| Taxonomy | 跨頁面的分類法與語義組織結構 |
+| Relation | 內容對內容之間的正式語義關聯（有類型、有方向） |
+| Publication | 對外可見且可交付的內容狀態 |
+| VersionSnapshot | 全域版本 checkpoint 策略的不可變快照（≠ 逐次編輯 Version） |
+| Template | 可重複套用的內容結構起點 |
+| Attachment | 綁定於知識內容的檔案或媒體 |
+
+## Implementation Structure
+
+```text
+modules/notion/
+├── api/              # Public API boundary — cross-module entry point only
+├── application/      # Context-wide orchestration (empty, use subdomain layers)
+├── domain/           # Context-wide domain concepts (empty, use subdomain layers)
+├── infrastructure/   # Context-wide driven adapters (empty, use subdomain layers)
+├── interfaces/       # Context-wide driving adapters (empty, use subdomain layers)
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── knowledge/            # Tier 1 — Active (KnowledgePage, ContentBlock)
+    ├── authoring/            # Tier 1 — Active (Article, Category)
+    ├── collaboration/        # Tier 1 — Active (Comment, Permission, Version)
+    ├── database/             # Tier 1 — Active (Database, Record, View)
+    ├── taxonomy/             # Tier 2 — Stub (semantic classification)
+    ├── relations/            # Tier 2 — Stub (explicit semantic graph)
+    ├── templates/            # Tier 2 — Stub (reusable content structures)
+    ├── attachments/          # Tier 2 — Stub (file/media association)
+    ├── publishing/           # Tier 3 — Stub (external delivery boundary)
+    ├── notes/                # Tier 3 — Stub (lightweight personal notes)
+    ├── knowledge-versioning/ # Tier 3 — Stub (global snapshot policy)
+    ├── automation/           # Tier 4 — Stub (cross-content event rules)
+    ├── knowledge-analytics/  # Tier 4 — Stub (content usage measurement)
+    └── knowledge-integration/ # Tier 4 — Stub (external system sync)
+```
+
+## Subdomains
+
+### Tier 1 — Core (Active)
+
+| Subdomain | Purpose | Key Aggregates / Entities |
+|-----------|---------|--------------------------|
+| knowledge | KnowledgePage 生命週期、ContentBlock 編輯、BacklinkIndex、版本查詢 | KnowledgePage, ContentBlock, KnowledgeCollection, BacklinkIndex |
+| authoring | 知識庫文章建立、驗證工作流程與分類目錄 | Article, Category |
+| collaboration | 協作留言、細粒度權限與版本快照（逐次編輯歷史） | Comment, Permission, Version |
+| database | 結構化資料視圖（Table/Board/Calendar/Gallery/Form）、記錄、自動化 | Database, DatabaseRecord, View, DatabaseAutomation |
+
+### Tier 2 — Near-Term (Stubs — High Business Value)
+
+| Subdomain | Purpose | Distinction |
+|-----------|---------|------------|
+| taxonomy | 跨頁面分類法與語義組織（全域標籤樹、主題分類） | ≠ authoring.Category（局部文章分類）；taxonomy 是全域語義網 |
+| relations | 內容對內容的明確語義關聯（有類型、方向） | ≠ knowledge.BacklinkIndex（自動反向連結）；relations 是主動宣告的語義圖 |
+| templates | 頁面範本管理與套用、範本庫 | 加速建立標準化知識結構 |
+| attachments | 附件與媒體關聯儲存（Storage 整合正典邊界） | 獨立於知識頁面內容模型 |
+
+### Tier 3 — Medium-Term (Stubs)
+
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| publishing | 正式對外交付的 Publication 狀態邊界 | authoring 的 `ArticlePublicationUseCases` 是過渡邊界 |
+| notes | 個人輕量筆記（低儀式、快速捕捉，≠ KnowledgePage） | 獨立於正式 Article 與 KnowledgePage 工作流程 |
+| knowledge-versioning | 全域版本 checkpoint 策略（workspace-level, 保留政策） | ≠ collaboration.Version（per-edit 歷史）；是策略量，不是操作量 |
+
+### Tier 4 — Deferred (Stubs)
+
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| automation | 跨內容類型的知識事件觸發規則 | ≠ database.DatabaseAutomation（資料庫局部規則）；automation 是 cross-content event rules |
+| knowledge-analytics | 知識使用行為量測（頁面閱讀、搜尋詞） | 消費 platform.analytics 介面 |
+| knowledge-integration | 知識與外部系統雙向同步 | 消費 platform.integration 介面 |
+
+## Subdomain Analysis
+
+**14 個子域（4 Active + 10 Stubs），分析如下：**
+
+- ✅ `knowledge` 與 `authoring` 分工正確：自由頁面（block-based wiki）vs. 結構化文章（KB article workflow）。
+- ✅ `collaboration.Version`（逐次編輯快照）與 `knowledge-versioning`（全域 checkpoint 策略）是不同責任，分開正確。
+- ✅ `database.DatabaseAutomation`（資料庫局部）與 `automation`（跨內容事件）不重疊。
+- ✅ `knowledge.BacklinkIndex`（自動反向索引）與 `relations`（明確語義圖）不重疊。
+- ✅ 無子域需要刪除：每個有清楚邊界責任。
+- ⚠️ **`taxonomy` 應提升優先度**：全域語義組織是 Notion-style 系統的核心，但 `authoring.Category` 僅覆蓋 KB 文章局部分類，不等於全域 taxonomy。應從 Gap Stub 提升到 Tier 2 Near-Term。
+- ⚠️ `knowledge-versioning` 需要明確說明與 `collaboration.Version` 的分界，避免實作者混淆。
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `api/` is the only cross-module public boundary.
+- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
+- Cross-module collaboration goes through `api/` only.
+
+## Strategic Documentation
+
+- [Context README](../../docs/contexts/notion/README.md)
+- [Subdomains](../../docs/contexts/notion/subdomains.md)
+- [Bounded Context](../../docs/contexts/notion/bounded-contexts.md)
+- [Context Map](../../docs/contexts/notion/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/notion/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
 ## File: modules/notion/subdomains/database/application/use-cases/AutomationUseCases.ts

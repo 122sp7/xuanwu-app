@@ -1,62 +1,5 @@
 # Files
 
-## File: modules/notebooklm/AGENT.md
-````markdown
-# NotebookLM Agent
-
-> Strategic agent documentation: [docs/contexts/notebooklm/AGENT.md](../../docs/contexts/notebooklm/AGENT.md)
-
-## Mission
-
-保護 notebooklm 主域作為對話、來源處理、檢索、grounding、synthesis、評估與筆記邊界。核心 pipeline 為：ingestion → retrieval → grounding → synthesis → evaluation。
-
-## Route Here When
-
-- 問題核心是 notebook、conversation、source ingestion、retrieval、grounding、synthesis。
-- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
-- 問題要把知識來源轉成可對話與可綜合的推理材料。
-- 問題涉及 RAG 問答、向量檢索、chunks 召回、generation 品質。
-- 問題涉及 evaluation、品質評估、回歸比較或 grounding 可信度。
-- 問題涉及 note（輕量個人筆記）或 conversation-versioning（對話快照策略）。
-
-## Route Elsewhere When
-
-- 正典知識頁面、內容分類、正式發布屬於 notion。
-- 身份、授權、權益、憑證治理屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
-- 工作區生命週期、共享與存在感屬於 workspace。
-
-## Architecture Note — ai Subdomain Tech Debt
-
-`ai` 子域目前是此主域的過渡 adapter，持有 RAG 查詢 (`IKnowledgeContentRepository`)、向量檢索實體 (`RagRetrievedChunk`)、引用實體 (`RagCitation`)、synthesis use case (`AnswerRagQueryUseCase`) 與早期 feedback 流程。
-
-這些責任長期應依戰略清單逐步遷移至：`retrieval`、`grounding`、`synthesis`、`evaluation`。
-
-新功能應**優先加進目標子域**（如新的 retrieval 策略請放 `retrieval/`），不要繼續擴大 `ai` 子域範圍。用 Strangler Pattern：只在搬遷時加入 use case contract，不做一次性大改。
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order (Strangler Pattern)
-
-New features:
-1. Define Domain (entities, value objects, aggregates, events)
-2. Define Application (use cases, DTOs)
-3. Define Ports (only if boundary isolation needed)
-4. Implement Infrastructure (adapters, persistence)
-5. Implement Interfaces (UI, actions, hooks)
-
-Legacy migration:
-1. Find a Use Case to extract
-2. Build Domain model for that use case
-3. Converge Application layer
-4. Isolate legacy via Ports
-5. Replace Infrastructure adapter
-````
-
 ## File: modules/notebooklm/api/factories.ts
 ````typescript
 export { makeThreadRepo } from "../subdomains/conversation/api/factories";
@@ -203,91 +146,6 @@ Strategic architecture documentation lives in `docs/contexts/notebooklm/`:
 ## File: modules/notebooklm/interfaces/.gitkeep
 ````
 
-````
-
-## File: modules/notebooklm/README.md
-````markdown
-# NotebookLM
-
-對話、來源處理與推理主域
-
-## Implementation Structure
-
-```text
-modules/notebooklm/
-├── api/              # Public API boundary
-├── application/      # Context-wide orchestration
-├── domain/           # Context-wide domain concepts
-├── infrastructure/   # Context-wide driven adapters
-├── interfaces/       # Context-wide driving adapters
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── ai/                      # Active ⚠️
-    ├── conversation/            # Active
-    ├── notebook/                # Active
-    ├── source/                  # Active
-    ├── conversation-versioning/ # Stub (Baseline)
-    ├── note/                    # Stub (Baseline)
-    ├── synthesis/               # Stub (Baseline)
-    ├── evaluation/              # Stub (Gap)
-    ├── grounding/               # Stub (Gap)
-    ├── ingestion/               # Stub (Gap)
-    └── retrieval/               # Stub (Gap)
-```
-
-## Subdomains
-
-### Active
-
-| Subdomain | Status | Purpose |
-|-----------|--------|---------|
-| ai | Active ⚠️ | RAG 問答、檢索、grounded 生成與回饋收集。命名技術債：此子域非戰略清單中的合法子域，長期目標為拆分至 retrieval / grounding / synthesis，詳見 Architecture Note。 |
-| conversation | Active | 對話 Thread 與 Message 生命週期管理 |
-| notebook | Active | Notebook 容器組合與 GenKit 回應生成 |
-| source | Active | 來源文件匯入生命週期、RagDocument 狀態機與 WikiLibrary 結構化庫 |
-
-### Baseline Stubs
-
-| Subdomain | Status | Purpose |
-|-----------|--------|---------|
-| conversation-versioning | Stub | 對話版本快照策略（長期拆出 conversation） |
-| note | Stub | 輕量個人筆記與知識連結 |
-| synthesis | Stub | RAG 合成、摘要與洞察生成（長期接收 ai 子域的合成責任） |
-
-### Recommended Gap Stubs
-
-| Subdomain | Status | Purpose |
-|-----------|--------|---------|
-| evaluation | Stub | 品質評估與回歸比較（獨立於 ai 子域的早期回饋收集） |
-| grounding | Stub | 引用對齊與可追溯證據（長期接收 ai 子域的 citation 責任） |
-| ingestion | Stub | 來源匯入、正規化與前處理（長期接收 source 子域的匯入責任） |
-| retrieval | Stub | 查詢召回與排序策略（長期接收 ai 子域的向量檢索責任） |
-
-## Architecture Note
-
-`ai` 子域是此模組的主要架構技術債。它在早期開發中吸收了四個戰略子域的責任（retrieval、grounding、synthesis、early evaluation），但 `ai` 本身並不在 [strategic subdomain docs](../../docs/contexts/notebooklm/subdomains.md) 的合法清單中。
-
-**現況**：`ai` 持有 `IKnowledgeContentRepository` port、`RagRetrievedChunk` / `RagCitation` entities、`AnswerRagQueryUseCase` orchestration、以及 `submit-rag-feedback` 回饋流程。
-
-**長期目標**：以單個 use case 為單位，漸進將各責任遷移至 `retrieval`、`grounding`、`synthesis`、`evaluation` 子域（Strangler Pattern）。在遷移完成前，`ai` 子域保留作為過渡 adapter。
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `api/` is the only cross-module public boundary.
-- Domain must not import infrastructure, interfaces, or external frameworks.
-- Cross-module collaboration goes through `api/` only.
-
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/notebooklm/README.md)
-- [Subdomains](../../docs/contexts/notebooklm/subdomains.md)
-- [Context Map](../../docs/contexts/notebooklm/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
 ## File: modules/notebooklm/subdomains/ai/api/server.ts
@@ -1413,38 +1271,6 @@ export class GenkitRagGenerationAdapter implements IRagGenerationRepository {
 }
 ````
 
-## File: modules/notebooklm/subdomains/ai/README.md
-````markdown
-# AI
-
-AI-powered grounding, QA, and synthesis.
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/notebooklm/subdomains/conversation-versioning/api/index.ts
 ````typescript
 /**
@@ -2135,24 +1961,6 @@ export {};
 // Purpose: Infrastructure layer placeholder for notebooklm subdomain 'evaluation'.
 ````
 
-## File: modules/notebooklm/subdomains/evaluation/README.md
-````markdown
-# Evaluation
-
-建立品質評估與回歸比較的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/notebooklm/subdomains/grounding/api/index.ts
 ````typescript
 /**
@@ -2175,24 +1983,6 @@ export {};
 ## File: modules/notebooklm/subdomains/grounding/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for notebooklm subdomain 'grounding'.
-````
-
-## File: modules/notebooklm/subdomains/grounding/README.md
-````markdown
-# Grounding
-
-建立引用對齊與可追溯證據的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notebooklm/subdomains/ingestion/api/index.ts
@@ -2522,24 +2312,6 @@ export {};
 ## File: modules/notebooklm/subdomains/retrieval/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for notebooklm subdomain 'retrieval'.
-````
-
-## File: modules/notebooklm/subdomains/retrieval/README.md
-````markdown
-# Retrieval
-
-建立查詢召回與排序策略的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notebooklm/subdomains/source/api/factories.ts
@@ -6851,24 +6623,6 @@ export {};
 // Purpose: Infrastructure layer placeholder for notebooklm subdomain 'synthesis'.
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/README.md
-````markdown
-# Synthesis
-
-RAG 合成、摘要與洞察生成。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/notebooklm/api/api.instructions.md
 ````markdown
 ---
@@ -7353,6 +7107,702 @@ export class FirebaseKnowledgeContentAdapter implements IKnowledgeContentReposit
 }
 ````
 
+## File: modules/notebooklm/subdomains/ai/README.md
+````markdown
+# AI (TRANSITIONAL — Non-Strategic)
+
+> ⚠️ 此子域為過渡性（Transitional）邊界，不是最終戰略設計。
+> 所有責任應遷移至 Tier 2 目標子域後逐步移除。
+
+AI-powered RAG pipeline（過渡中）。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain Type**: Transitional (Tech Debt — Migration in Progress)
+- **Status**: Active but non-strategic — Strangler Pattern migration target
+
+## Migration Responsibility Map
+
+| 現有類別 | 遷移目標 |
+|---------|---------|
+| `AnswerRagQueryUseCase` | → synthesis |
+| `SubmitRagFeedbackUseCase` | → evaluation |
+| `RagPromptBuilder` | → synthesis |
+| `GenkitRagGenerationAdapter` | → synthesis |
+| `RagCitationBuilder`, `RagCitation` | → grounding |
+| `RelevanceScore` | → grounding |
+| `IRagRetrievalRepository`, `RagScoringService` | → retrieval |
+| `IKnowledgeContentRepository` | → retrieval |
+| `IRagQueryFeedbackRepository` | → evaluation |
+| `RagRetrievedChunk` (entity) | → retrieval |
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+新功能**不得**在此子域開發。一律在目標子域 (retrieval/grounding/synthesis/evaluation) 建立新能力，再用 Strangler Pattern 將此子域的現有類別遷移過去。
+````
+
+## File: modules/notebooklm/subdomains/conversation/domain/index.ts
+````typescript
+/**
+ * notebooklm/conversation domain — public exports.
+ */
+export type { Thread } from "./entities/thread";
+export type { Message } from "./entities/message";
+export type { IThreadRepository } from "./repositories/IThreadRepository";
+export * from "./ports";
+````
+
+## File: modules/notebooklm/subdomains/conversation/domain/ports/index.ts
+````typescript
+/**
+ * notebooklm/conversation domain/ports — driven port interfaces for the conversation subdomain.
+ *
+ * Re-exports repository contracts from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
+export type { IThreadRepository as IThreadPort } from "../repositories/IThreadRepository";
+````
+
+## File: modules/notebooklm/subdomains/evaluation/README.md
+````markdown
+# Evaluation
+
+建立品質評估與回歸比較的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain Type**: Tier 2 — RAG Pipeline (Migration Target)
+- **Status**: Stub — receiving migration from `ai` subdomain
+
+## Migration From `ai`
+
+| Class | Migration source |
+|-------|------------------|
+| `SubmitRagFeedbackUseCase` | ai/application/use-cases |
+| `IRagQueryFeedbackRepository` | ai/domain/repositories |
+| `RagFeedback` | ai/domain/entities |
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/subdomains/grounding/README.md
+````markdown
+# Grounding
+
+建立引用對齊與可追溯證據的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain Type**: Tier 2 — RAG Pipeline (Migration Target)
+- **Status**: Stub — receiving migration from `ai` subdomain
+
+## Migration From `ai`
+
+| Class | Migration source |
+|-------|------------------|
+| `RagCitationBuilder` | ai/domain/services |
+| `RagCitation` | ai/domain/entities |
+| `RelevanceScore` | ai/domain/value-objects |
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/subdomains/notebook/domain/index.ts
+````typescript
+/**
+ * notebooklm/notebook domain — public exports.
+ */
+export type { NotebookRepository } from "./repositories/NotebookRepository";
+export * from "./ports";
+````
+
+## File: modules/notebooklm/subdomains/notebook/domain/ports/index.ts
+````typescript
+/**
+ * notebooklm/notebook domain/ports — driven port interfaces for the notebook subdomain.
+ *
+ * Re-exports repository contracts from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
+export type { NotebookRepository as INotebookPort } from "../repositories/NotebookRepository";
+````
+
+## File: modules/notebooklm/subdomains/retrieval/README.md
+````markdown
+# Retrieval
+
+建立查詢召回與排序策略的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain Type**: Tier 2 — RAG Pipeline (Migration Target)
+- **Status**: Stub — receiving migration from `ai` subdomain
+
+## Migration From `ai`
+
+| Class | Migration source |
+|-------|------------------|
+| `IRagRetrievalRepository` | ai/domain/repositories |
+| `IKnowledgeContentRepository` | ai/domain/repositories |
+| `RagScoringService` | ai/domain/services |
+| `RagRetrievedChunk` (entity) | ai/domain/entities |
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/subdomains/source/application/queries/source-file.queries.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: application/use-cases
+ * Use Case: ListSourceFilesUseCase — lists workspace files as view-model DTOs.
+ */
+
+import type { ListSourceFilesScope } from "../../domain/repositories/ISourceFileRepository";
+import type { ISourceFileRepository } from "../../domain/repositories/ISourceFileRepository";
+import type { WorkspaceFileListItemDto } from "../dto/source-file.dto";
+
+const DEFAULT_FILE_SOURCE = "source-module";
+const DEFAULT_FILE_DETAIL = "File metadata mapped from current workspace context.";
+
+export class ListSourceFilesUseCase {
+  constructor(private readonly fileRepository: ISourceFileRepository) {}
+
+  async execute(scope: ListSourceFilesScope): Promise<WorkspaceFileListItemDto[]> {
+    const workspaceId = scope.workspaceId.trim();
+    const organizationId = scope.organizationId.trim();
+    const actorAccountId = scope.actorAccountId.trim();
+
+    if (!workspaceId || !organizationId || !actorAccountId) {
+      return [];
+    }
+
+    const files = await this.fileRepository.listByWorkspace({ workspaceId, organizationId, actorAccountId });
+
+    return files.map((file) => ({
+      id: file.id,
+      workspaceId: file.workspaceId,
+      organizationId: file.organizationId,
+      name: file.name,
+      status: file.status,
+      kind: file.classification,
+      source: file.source ?? DEFAULT_FILE_SOURCE,
+      detail: file.detail ?? DEFAULT_FILE_DETAIL,
+      href: file.href,
+    }));
+  }
+}
+````
+
+## File: modules/notebooklm/subdomains/source/domain/index.ts
+````typescript
+/**
+ * notebooklm/source domain — public exports.
+ */
+export type { IRagDocumentRepository } from "./repositories/IRagDocumentRepository";
+export type { ISourceFileRepository } from "./repositories/ISourceFileRepository";
+export type { IWikiLibraryRepository } from "./repositories/IWikiLibraryRepository";
+export * from "./ports";
+````
+
+## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
+````typescript
+/**
+ * notebooklm/source domain/ports — driven port interfaces for the source subdomain.
+ *
+ * ISourceDocumentCommandPort and IParsedDocumentPort are the primary driven ports.
+ * IRagDocumentPort, ISourceFilePort, IWikiLibraryPort re-export the legacy
+ * repository contracts, making the Ports layer explicitly visible.
+ */
+export type { ISourceDocumentCommandPort } from "./ISourceDocumentPort";
+export type { IParsedDocumentPort } from "./IParsedDocumentPort";
+export type { IRagDocumentRepository as IRagDocumentPort } from "../repositories/IRagDocumentRepository";
+export type { ISourceFileRepository as ISourceFilePort } from "../repositories/ISourceFileRepository";
+export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";
+````
+
+## File: modules/notebooklm/subdomains/source/interfaces/queries/source-file.queries.ts
+````typescript
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+import type { WorkspaceFileListItemDto } from "../../application/dto/source-file.dto";
+import { resolveSourceOrganizationId } from "../../application/dto/source.dto";
+import type { RagDocumentRecord } from "../../application/dto/source.dto";
+import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../../api/factories";
+import { ListSourceFilesUseCase } from "../../application/queries/source-file.queries";
+
+export async function getWorkspaceFiles(
+  workspace: WorkspaceEntity,
+): Promise<WorkspaceFileListItemDto[]> {
+  const useCase = new ListSourceFilesUseCase(makeSourceFileAdapter());
+  const organizationId = resolveSourceOrganizationId(workspace.accountType, workspace.accountId);
+  return useCase.execute({ workspaceId: workspace.id, organizationId, actorAccountId: workspace.accountId });
+}
+
+export async function getWorkspaceRagDocuments(
+  workspace: WorkspaceEntity,
+): Promise<readonly RagDocumentRecord[]> {
+  const organizationId = resolveSourceOrganizationId(workspace.accountType, workspace.accountId);
+  return makeRagDocumentAdapter().findByWorkspace({
+    organizationId,
+    workspaceId: workspace.id,
+  });
+}
+````
+
+## File: modules/notebooklm/subdomains/subdomains.instructions.md
+````markdown
+---
+description: 'NotebookLM subdomains structural rules: hexagonal shape per subdomain, RAG pipeline ownership, cross-subdomain collaboration, and stub promotion criteria.'
+applyTo: 'modules/notebooklm/subdomains/**/*.{ts,tsx}'
+---
+
+# NotebookLM Subdomains Layer (Local)
+
+Use this file as execution guardrails for `modules/notebooklm/subdomains/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notebooklm/subdomains.md`.
+
+## Core Rules
+
+- Every subdomain must maintain the full hexagonal shape: `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`.
+- Stub subdomains must not be promoted to Active without a corresponding ADR and `README.md` update.
+- Cross-subdomain collaboration within notebooklm goes through the **subdomain's own `api/`** — never import a sibling's internals directly.
+- RAG pipeline ownership is fixed: `source` → ingestion boundary; `ai` → generation and scoring; `grounding` → citation alignment; `retrieval` → recall and ranking; `synthesis` → summarisation output.
+- Domain events use the discriminant format `notebooklm.<subdomain>.<action>` (e.g. `notebooklm.source.document-registered`).
+- `source` subdomain may read `notion` knowledge artifacts via ACL adapter — never import notion domain types directly.
+- Dependency direction inside each subdomain: `interfaces → application → domain ← infrastructure`.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+#use skill rag-architecture
+````
+
+## File: modules/notebooklm/subdomains/synthesis/README.md
+````markdown
+# Synthesis
+
+RAG 合成、摘要與洞察生成。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain Type**: Tier 2 — RAG Pipeline (Migration Target)
+- **Status**: Stub — receiving migration from `ai` subdomain
+
+## Migration From `ai`
+
+| Class | Migration source |
+|-------|------------------|
+| `AnswerRagQueryUseCase` | ai/application/use-cases |
+| `RagPromptBuilder` | ai/domain/services |
+| `GenkitRagGenerationAdapter` | ai/infrastructure |
+| `IRagGenerationRepository` (port) | ai/domain/repositories |
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/AGENT.md
+````markdown
+# NotebookLM Agent
+
+> Strategic agent documentation: [docs/contexts/notebooklm/AGENT.md](../../docs/contexts/notebooklm/AGENT.md)
+
+## Mission
+
+保護 notebooklm 主域作為對話、來源處理、推理輸出、引用對齊、衍生評估與輕量筆記的邊界。核心 RAG pipeline 為：**ingestion → retrieval → grounding → synthesis → evaluation**。notebooklm 擁有衍生推理流程，不擁有正典知識內容。
+
+## Bounded Context Summary
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 對話、來源處理與推理輸出 |
+| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact reference） |
+| Downstream | 無固定主域級下游；輸出可被其他主域吸收 |
+| Core invariant | notebooklm 只能持有衍生推理輸出，不得直接修改 notion 的正典內容 |
+| Published language | Notebook reference、Conversation reference、SourceReference、GroundedAnswer |
+
+## Route Here When
+
+- 問題核心是 notebook、conversation、source ingestion、retrieval、grounding、synthesis。
+- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
+- 問題要把知識來源（notion artifact、uploaded file）轉成可對話與可綜合的推理材料。
+- 問題涉及 RAG 問答、向量檢索、chunks 召回、generation 品質。
+- 問題涉及 evaluation、品質評估、回歸比較或 grounding 可信度。
+- 問題涉及 note（輕量個人筆記）或 conversation-versioning（對話快照策略）。
+
+## Route Elsewhere When
+
+- 正典知識頁面、文章、分類、正式發布屬於 notion。
+- 身份、授權、權益、憑證治理屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
+- 工作區生命週期、成員管理、共享範圍屬於 workspace。
+
+## Subdomain Delivery Tiers
+
+### Tier 1 — Core (Active)
+
+| Subdomain | Purpose | Status |
+|-----------|---------|--------|
+| conversation | 對話 Thread 與 Message 生命週期管理 | Active |
+| notebook | Notebook 容器組合與 GenKit 回應生成 | Active |
+| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary | Active |
+
+### Tier 2 — RAG Pipeline (Gap Stubs → Migration Target)
+
+這四個子域是 RAG pipeline 的戰略清單邊界，`ai` 子域的所有責任最終應遷移至此。
+
+| Subdomain | Purpose | Migration From `ai` |
+|-----------|---------|---------------------|
+| retrieval | 查詢召回與排序策略、向量搜尋 | `IKnowledgeContentRepository`、`IRagRetrievalRepository`、`RagScoringService` |
+| grounding | 引用對齊與可追溯證據、`RagCitation` | `RagCitationBuilder`、`RagRetrievedChunk` |
+| synthesis | RAG 合成、摘要與洞察生成 | `AnswerRagQueryUseCase`、`RagPromptBuilder`、`GenkitRagGenerationAdapter` |
+| evaluation | 品質評估、feedback 收集與回歸比較 | `submit-rag-feedback`、`IRagQueryFeedbackRepository` |
+
+### Tier 3 — Baseline Stubs (Low Priority)
+
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| ingestion | 來源匯入、正規化與前處理的正典邊界 | TypeScript 側協調 py_fn 匯入任務 |
+| note | 輕量個人筆記與 Notebook 知識連結 | 獨立於 conversation 的筆記物件 |
+| conversation-versioning | 對話版本與快照策略 | 長期從 conversation 切出 |
+
+## Subdomain Analysis — 子域數量合理性
+
+**10 個戰略子域 + 1 個過渡子域（ai），分析如下：**
+
+1. 所有 10 個戰略子域均有獨立語言與責任邊界，不過度重疊。
+2. Tier 2（retrieval/grounding/synthesis/evaluation）是 `ai` 過渡子域的遷移目標，不是額外增加的子域。
+3. `conversation-versioning` 與 `note` 雖低優先，但保留作為清楚邊界比合併進 `conversation` 更安全。
+4. `ingestion` 與 `source` 有分工：`source` 負責來源文件的 TypeScript 側狀態機；`ingestion` 負責 py_fn 工人觸發的協調邊界。分開是正確的。
+5. **沒有子域需要刪除**；缺少的是執行優先順序的清楚標示（本次已補上 Tier 標籤）。
+
+## Ubiquitous Language
+
+| Term | Meaning | Do Not Use |
+|------|---------|------------|
+| Notebook | 聚合對話、來源與衍生筆記的工作單位 | Project, Workspace |
+| Conversation | Notebook 內的對話執行邊界（Thread + Messages） | Chat, Session |
+| Message | 一則輸入或輸出對話項 | Turn, Exchange |
+| Source | 被引用與推理的來源材料 | File, Document (generic) |
+| Ingestion | 來源匯入、正規化與前處理流程 | File Import, Upload |
+| Retrieval | 從來源中召回候選 Chunk 的查詢能力 | Search, Lookup |
+| Grounding | 把輸出對齊到來源證據的能力 | Verification, Factcheck |
+| Citation | 輸出指回來源證據的引用關係 | Reference, Link |
+| Synthesis | 綜合多來源後生成的衍生輸出 | Answer, Response (generic) |
+| Note | 與 Notebook 關聯的輕量摘記 | Comment, Annotation |
+| Evaluation | 對輸出品質、回歸結果與效果的評估 | Analytics, Metrics (generic) |
+| VersionSnapshot | 對話或 Notebook 某一時點的不可變快照 | History, Backup |
+
+## Architecture Note — ai Subdomain Tech Debt
+
+`ai` 子域是此模組的主要架構技術債。它在早期開發中吸收了四個戰略子域的責任，但 `ai` 本身不在戰略子域清單中。
+
+**現況持有責任**：
+- `retrieval`：`IKnowledgeContentRepository`、`IRagRetrievalRepository`、`RagRetrievedChunk`、`RagScoringService`
+- `grounding`：`RagCitationBuilder`、`RagCitation`、`RelevanceScore`
+- `synthesis`：`AnswerRagQueryUseCase`、`RagPromptBuilder`、`GenkitRagGenerationAdapter`
+- `evaluation`：`submit-rag-feedback`、`IRagQueryFeedbackRepository`、`RagFeedback`
+
+**遷移規則**：
+- 新功能必須加進對應 Tier 2 目標子域，不得繼續擴大 `ai`。
+- 遷移以單個 use case 為單位（Strangler Pattern），不做一次性大改。
+- 遷移優先順序：retrieval → grounding → synthesis → evaluation。
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+api/ ← 唯一跨模組入口
+```
+
+## Development Order (Domain-First)
+
+New features:
+1. Define Domain (entities, value objects, aggregates, events)
+2. Define Application (use cases, DTOs)
+3. Define Ports (only if boundary isolation needed)
+4. Implement Infrastructure (adapters, persistence)
+5. Implement Interfaces (UI, actions, hooks)
+
+Legacy migration (Strangler Pattern):
+1. Find a Use Case to extract from `ai`
+2. Build Domain model in the target Tier 2 subdomain
+3. Converge Application layer; route old entry to new use case
+4. Isolate legacy via Ports
+5. Replace Infrastructure adapter; remove old path when stable
+````
+
+## File: modules/notebooklm/README.md
+````markdown
+# NotebookLM
+
+對話、來源處理與推理主域
+
+## Bounded Context
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 對話、來源處理、檢索與推理輸出 |
+| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact, attachment reference） |
+| Downstream | 無固定主域級下游；GroundedAnswer 可被其他主域消費 |
+| Core principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
+| Cross-module boundary | `api/` only — no direct import of notion/platform/workspace internals |
+
+## Ubiquitous Language
+
+| Term | Meaning |
+|------|---------|
+| Notebook | 聚合對話、來源與衍生筆記的工作單位 |
+| Conversation | Notebook 內的對話執行邊界（Thread + Messages） |
+| Message | 一則輸入或輸出對話項 |
+| Source | 被引用與推理的來源材料 |
+| Ingestion | 來源匯入、正規化與前處理流程（TypeScript 側協調 py_fn） |
+| Retrieval | 從來源中召回候選 Chunk 的查詢能力（向量搜尋） |
+| Grounding | 把輸出對齊到來源證據、建立 Citation 的能力 |
+| Citation | 輸出指回來源證據的引用關係 |
+| Synthesis | 綜合多來源後生成的衍生輸出（RAG generation） |
+| Note | 與 Notebook 關聯的輕量摘記 |
+| Evaluation | 對輸出品質、feedback 與回歸結果的評估 |
+| VersionSnapshot | 對話或 Notebook 某一時點的不可變快照 |
+
+## Implementation Structure
+
+```text
+modules/notebooklm/
+├── api/              # Public API boundary — cross-module entry point only
+├── application/      # Context-wide orchestration (empty, use subdomain layers)
+├── domain/           # Context-wide domain concepts (empty, use subdomain layers)
+├── infrastructure/   # Context-wide driven adapters (empty, use subdomain layers)
+├── interfaces/       # Context-wide driving adapters (empty, use subdomain layers)
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── ai/                      # ⚠️ TRANSITIONAL ONLY — migrating to Tier 2
+    ├── conversation/            # Tier 1 — Active
+    ├── notebook/                # Tier 1 — Active
+    ├── source/                  # Tier 1 — Active
+    ├── retrieval/               # Tier 2 — Stub (migration target from ai)
+    ├── grounding/               # Tier 2 — Stub (migration target from ai)
+    ├── synthesis/               # Tier 2 — Stub (migration target from ai)
+    ├── evaluation/              # Tier 2 — Stub (migration target from ai)
+    ├── ingestion/               # Tier 3 — Stub (py_fn orchestration boundary)
+    ├── note/                    # Tier 3 — Stub (lightweight notebook notes)
+    └── conversation-versioning/ # Tier 3 — Stub (snapshot strategy)
+```
+
+## Subdomains
+
+### Tier 1 — Core (Active)
+
+| Subdomain | Purpose | Key Aggregates / Entities |
+|-----------|---------|--------------------------|
+| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
+| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration |
+| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary | RagDocument, WikiLibrary |
+
+### Tier 2 — RAG Pipeline Stubs (Migration Target from `ai`)
+
+這四個子域是 `ai` 過渡子域的戰略接收邊界。每次新的 RAG pipeline 功能，優先在此實作，不得擴大 `ai`。
+
+| Subdomain | Purpose | 遷移自 `ai` 的責任 |
+|-----------|---------|------------------|
+| retrieval | 查詢召回與排序策略、向量搜尋 | `IRagRetrievalRepository`、`RagScoringService`、`RagRetrievedChunk` |
+| grounding | 引用對齊與可追溯證據 | `RagCitationBuilder`、`RagCitation`、`RelevanceScore` |
+| synthesis | RAG 合成、摘要與洞察生成 | `AnswerRagQueryUseCase`、`RagPromptBuilder`、`GenkitRagGenerationAdapter` |
+| evaluation | 品質評估、feedback 收集與回歸比較 | `IRagQueryFeedbackRepository`、`submit-rag-feedback`、`RagFeedback` |
+
+### Tier 3 — Baseline Stubs (Low Priority)
+
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| ingestion | 來源匯入、正規化與前處理（TypeScript 側協調 py_fn 任務） | source 負責狀態機；ingestion 負責工人觸發協調 |
+| note | 輕量個人筆記與 Notebook 知識連結 | 獨立於 conversation thread 的筆記物件 |
+| conversation-versioning | 對話版本與快照策略 | 長期從 conversation 切出；保留邊界比合併安全 |
+
+### Transitional (Non-Strategic)
+
+| Subdomain | Status | Migration Path |
+|-----------|--------|---------------|
+| ai | ⚠️ Tech debt — 零新功能 | Tier 2：retrieval → grounding → synthesis → evaluation（Strangler Pattern） |
+
+## Subdomain Analysis
+
+**子域數量分析（10 戰略 + 1 過渡 = 11 目錄）**
+
+- ✅ 無子域需要刪除：每個子域有獨立語言邊界。
+- ✅ `ingestion` 與 `source` 分工正確：`source` 是 TypeScript 側的文件狀態機；`ingestion` 是 py_fn 工人觸發的協調邊界。
+- ✅ `retrieval`/`grounding`/`synthesis`/`evaluation` 是 RAG pipeline 的正確戰略切割，不是額外增加——它們是 `ai` 的替代品。
+- ✅ `conversation-versioning` 與 `note` 保留為獨立邊界比合併進 `conversation` 更符合 DDD。
+- ⚠️ `ai` 是唯一需要主動縮小的子域——新功能一律導向 Tier 2。
+
+## Architecture Note — ai Subdomain Migration
+
+`ai` 子域在早期開發中吸收了四個戰略子域的責任，形成技術債：
+
+| `ai` 中的責任 | 遷移目標 |
+|-------------|---------|
+| `IKnowledgeContentRepository` | `retrieval` |
+| `IRagRetrievalRepository`、`RagScoringService` | `retrieval` |
+| `RagCitationBuilder`、`RagCitation` | `grounding` |
+| `AnswerRagQueryUseCase`、`RagPromptBuilder` | `synthesis` |
+| `GenkitRagGenerationAdapter` | `synthesis` |
+| `IRagQueryFeedbackRepository`、feedback | `evaluation` |
+
+遷移規則：以單個 use case 為單位（Strangler Pattern）；每個 use case 先在目標子域建立 domain model → application use case → infrastructure adapter → 切換入口 → 移除舊路徑。
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `api/` is the only cross-module public boundary.
+- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
+- Cross-module collaboration goes through `api/` only.
+
+## Strategic Documentation
+
+- [Context README](../../docs/contexts/notebooklm/README.md)
+- [Subdomains](../../docs/contexts/notebooklm/subdomains.md)
+- [Bounded Context](../../docs/contexts/notebooklm/bounded-contexts.md)
+- [Context Map](../../docs/contexts/notebooklm/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
+````
+
+## File: modules/notebooklm/subdomains/ai/api/index.ts
+````typescript
+/**
+ * Public API boundary for the ai subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+
+// --- Domain types (grounding) ------------------------------------------------
+
+export type { RagRetrievedChunk, RagCitation, RagRetrievalSummary } from "../domain/entities/retrieval.entities";
+export type { IVectorStore, VectorDocument, VectorSearchResult } from "../domain/ports/IVectorStore";
+export type { IRagRetrievalRepository, RetrieveChunksInput } from "../domain/repositories/IRagRetrievalRepository";
+export type {
+  IKnowledgeContentRepository,
+  KnowledgeCitation,
+  KnowledgeParsedDocument,
+  KnowledgeRagQueryResult,
+  KnowledgeReindexInput,
+} from "../domain/repositories/IKnowledgeContentRepository";
+
+// --- Domain types (qa) -------------------------------------------------------
+
+export type { AnswerRagQueryInput, AnswerRagQueryOutput, AnswerRagQueryResult, RagStreamEvent } from "../domain/entities/rag-query.entities";
+export type { RagQueryFeedback, RagFeedbackRating, SubmitRagQueryFeedbackInput } from "../domain/entities/rag-feedback.entities";
+export type { IRagQueryFeedbackRepository } from "../domain/repositories/IRagQueryFeedbackRepository";
+
+// --- Domain types (synthesis) ------------------------------------------------
+
+export type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerOutput,
+  GenerateRagAnswerResult,
+  GenerationCitation,
+} from "../domain/entities/generation.entities";
+export type { IRagGenerationRepository } from "../domain/repositories/IRagGenerationRepository";
+
+// --- Use-case classes (for DI composition) -----------------------------------
+
+export { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
+export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-rag-feedback.use-case";
+
+// --- Wiki convenience wrappers with default repository -----------------------
+
+import { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
+import type { KnowledgeParsedDocument, KnowledgeRagQueryResult, KnowledgeReindexInput } from "../domain/repositories/IKnowledgeContentRepository";
+
+let _knowledgeContentRepository: FirebaseKnowledgeContentAdapter | undefined;
+
+function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter {
+  if (!_knowledgeContentRepository) {
+    _knowledgeContentRepository = new FirebaseKnowledgeContentAdapter();
+  }
+  return _knowledgeContentRepository;
+}
+
+export function runKnowledgeRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
+): Promise<KnowledgeRagQueryResult> {
+  return getKnowledgeContentRepository().runRagQuery(query, accountId, workspaceId, topK, options);
+}
+
+export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void> {
+  return getKnowledgeContentRepository().reindexDocument(input);
+}
+
+export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]> {
+  return getKnowledgeContentRepository().listParsedDocuments(accountId, limitCount);
+}
+
+// --- Infrastructure adapters (client-safe, for composition roots) ------------
+
+export { FirebaseRagRetrievalAdapter } from "../infrastructure/firebase/FirebaseRagRetrievalAdapter";
+export { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
+export { FirebaseRagQueryFeedbackAdapter } from "../infrastructure/firebase/FirebaseRagQueryFeedbackAdapter";
+
+// --- UI components -----------------------------------------------------------
+
+export { RagQueryView } from "../interfaces/components/RagQueryView";
+````
+
+## File: modules/notebooklm/subdomains/ai/domain/index.ts
+````typescript
+export * from "./entities/generation.entities";
+export * from "./entities/rag-feedback.entities";
+export * from "./entities/rag-query.entities";
+export * from "./entities/retrieval.entities";
+export * from "./events";
+export * from "./ports/IVectorStore";
+export * from "./repositories/IRagGenerationRepository";
+export * from "./repositories/IRagQueryFeedbackRepository";
+export * from "./repositories/IRagRetrievalRepository";
+export * from "./repositories/IKnowledgeContentRepository";
+export * from "./services";
+export * from "./value-objects";
+// Ports layer — driven port aliases
+export type { IRagGenerationPort, IRagQueryFeedbackPort, IRagRetrievalPort, IKnowledgeContentPort } from "./ports";
+````
+
 ## File: modules/notebooklm/subdomains/ai/interfaces/components/RagQueryView.tsx
 ````typescript
 "use client";
@@ -7542,277 +7992,6 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
 }
 ````
 
-## File: modules/notebooklm/subdomains/conversation/domain/index.ts
-````typescript
-/**
- * notebooklm/conversation domain — public exports.
- */
-export type { Thread } from "./entities/thread";
-export type { Message } from "./entities/message";
-export type { IThreadRepository } from "./repositories/IThreadRepository";
-export * from "./ports";
-````
-
-## File: modules/notebooklm/subdomains/conversation/domain/ports/index.ts
-````typescript
-/**
- * notebooklm/conversation domain/ports — driven port interfaces for the conversation subdomain.
- *
- * Re-exports repository contracts from domain/repositories/, making the Ports layer
- * explicitly visible in the directory structure.
- */
-export type { IThreadRepository as IThreadPort } from "../repositories/IThreadRepository";
-````
-
-## File: modules/notebooklm/subdomains/notebook/domain/index.ts
-````typescript
-/**
- * notebooklm/notebook domain — public exports.
- */
-export type { NotebookRepository } from "./repositories/NotebookRepository";
-export * from "./ports";
-````
-
-## File: modules/notebooklm/subdomains/notebook/domain/ports/index.ts
-````typescript
-/**
- * notebooklm/notebook domain/ports — driven port interfaces for the notebook subdomain.
- *
- * Re-exports repository contracts from domain/repositories/, making the Ports layer
- * explicitly visible in the directory structure.
- */
-export type { NotebookRepository as INotebookPort } from "../repositories/NotebookRepository";
-````
-
-## File: modules/notebooklm/subdomains/source/application/queries/source-file.queries.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: application/use-cases
- * Use Case: ListSourceFilesUseCase — lists workspace files as view-model DTOs.
- */
-
-import type { ListSourceFilesScope } from "../../domain/repositories/ISourceFileRepository";
-import type { ISourceFileRepository } from "../../domain/repositories/ISourceFileRepository";
-import type { WorkspaceFileListItemDto } from "../dto/source-file.dto";
-
-const DEFAULT_FILE_SOURCE = "source-module";
-const DEFAULT_FILE_DETAIL = "File metadata mapped from current workspace context.";
-
-export class ListSourceFilesUseCase {
-  constructor(private readonly fileRepository: ISourceFileRepository) {}
-
-  async execute(scope: ListSourceFilesScope): Promise<WorkspaceFileListItemDto[]> {
-    const workspaceId = scope.workspaceId.trim();
-    const organizationId = scope.organizationId.trim();
-    const actorAccountId = scope.actorAccountId.trim();
-
-    if (!workspaceId || !organizationId || !actorAccountId) {
-      return [];
-    }
-
-    const files = await this.fileRepository.listByWorkspace({ workspaceId, organizationId, actorAccountId });
-
-    return files.map((file) => ({
-      id: file.id,
-      workspaceId: file.workspaceId,
-      organizationId: file.organizationId,
-      name: file.name,
-      status: file.status,
-      kind: file.classification,
-      source: file.source ?? DEFAULT_FILE_SOURCE,
-      detail: file.detail ?? DEFAULT_FILE_DETAIL,
-      href: file.href,
-    }));
-  }
-}
-````
-
-## File: modules/notebooklm/subdomains/source/domain/index.ts
-````typescript
-/**
- * notebooklm/source domain — public exports.
- */
-export type { IRagDocumentRepository } from "./repositories/IRagDocumentRepository";
-export type { ISourceFileRepository } from "./repositories/ISourceFileRepository";
-export type { IWikiLibraryRepository } from "./repositories/IWikiLibraryRepository";
-export * from "./ports";
-````
-
-## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
-````typescript
-/**
- * notebooklm/source domain/ports — driven port interfaces for the source subdomain.
- *
- * ISourceDocumentCommandPort and IParsedDocumentPort are the primary driven ports.
- * IRagDocumentPort, ISourceFilePort, IWikiLibraryPort re-export the legacy
- * repository contracts, making the Ports layer explicitly visible.
- */
-export type { ISourceDocumentCommandPort } from "./ISourceDocumentPort";
-export type { IParsedDocumentPort } from "./IParsedDocumentPort";
-export type { IRagDocumentRepository as IRagDocumentPort } from "../repositories/IRagDocumentRepository";
-export type { ISourceFileRepository as ISourceFilePort } from "../repositories/ISourceFileRepository";
-export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";
-````
-
-## File: modules/notebooklm/subdomains/source/interfaces/queries/source-file.queries.ts
-````typescript
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-
-import type { WorkspaceFileListItemDto } from "../../application/dto/source-file.dto";
-import { resolveSourceOrganizationId } from "../../application/dto/source.dto";
-import type { RagDocumentRecord } from "../../application/dto/source.dto";
-import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../../api/factories";
-import { ListSourceFilesUseCase } from "../../application/queries/source-file.queries";
-
-export async function getWorkspaceFiles(
-  workspace: WorkspaceEntity,
-): Promise<WorkspaceFileListItemDto[]> {
-  const useCase = new ListSourceFilesUseCase(makeSourceFileAdapter());
-  const organizationId = resolveSourceOrganizationId(workspace.accountType, workspace.accountId);
-  return useCase.execute({ workspaceId: workspace.id, organizationId, actorAccountId: workspace.accountId });
-}
-
-export async function getWorkspaceRagDocuments(
-  workspace: WorkspaceEntity,
-): Promise<readonly RagDocumentRecord[]> {
-  const organizationId = resolveSourceOrganizationId(workspace.accountType, workspace.accountId);
-  return makeRagDocumentAdapter().findByWorkspace({
-    organizationId,
-    workspaceId: workspace.id,
-  });
-}
-````
-
-## File: modules/notebooklm/subdomains/subdomains.instructions.md
-````markdown
----
-description: 'NotebookLM subdomains structural rules: hexagonal shape per subdomain, RAG pipeline ownership, cross-subdomain collaboration, and stub promotion criteria.'
-applyTo: 'modules/notebooklm/subdomains/**/*.{ts,tsx}'
----
-
-# NotebookLM Subdomains Layer (Local)
-
-Use this file as execution guardrails for `modules/notebooklm/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/notebooklm/subdomains.md`.
-
-## Core Rules
-
-- Every subdomain must maintain the full hexagonal shape: `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`.
-- Stub subdomains must not be promoted to Active without a corresponding ADR and `README.md` update.
-- Cross-subdomain collaboration within notebooklm goes through the **subdomain's own `api/`** — never import a sibling's internals directly.
-- RAG pipeline ownership is fixed: `source` → ingestion boundary; `ai` → generation and scoring; `grounding` → citation alignment; `retrieval` → recall and ranking; `synthesis` → summarisation output.
-- Domain events use the discriminant format `notebooklm.<subdomain>.<action>` (e.g. `notebooklm.source.document-registered`).
-- `source` subdomain may read `notion` knowledge artifacts via ACL adapter — never import notion domain types directly.
-- Dependency direction inside each subdomain: `interfaces → application → domain ← infrastructure`.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-#use skill rag-architecture
-````
-
-## File: modules/notebooklm/subdomains/ai/api/index.ts
-````typescript
-/**
- * Public API boundary for the ai subdomain.
- * Cross-module consumers must import through this entry point.
- */
-
-// --- Domain types (grounding) ------------------------------------------------
-
-export type { RagRetrievedChunk, RagCitation, RagRetrievalSummary } from "../domain/entities/retrieval.entities";
-export type { IVectorStore, VectorDocument, VectorSearchResult } from "../domain/ports/IVectorStore";
-export type { IRagRetrievalRepository, RetrieveChunksInput } from "../domain/repositories/IRagRetrievalRepository";
-export type {
-  IKnowledgeContentRepository,
-  KnowledgeCitation,
-  KnowledgeParsedDocument,
-  KnowledgeRagQueryResult,
-  KnowledgeReindexInput,
-} from "../domain/repositories/IKnowledgeContentRepository";
-
-// --- Domain types (qa) -------------------------------------------------------
-
-export type { AnswerRagQueryInput, AnswerRagQueryOutput, AnswerRagQueryResult, RagStreamEvent } from "../domain/entities/rag-query.entities";
-export type { RagQueryFeedback, RagFeedbackRating, SubmitRagQueryFeedbackInput } from "../domain/entities/rag-feedback.entities";
-export type { IRagQueryFeedbackRepository } from "../domain/repositories/IRagQueryFeedbackRepository";
-
-// --- Domain types (synthesis) ------------------------------------------------
-
-export type {
-  GenerateRagAnswerInput,
-  GenerateRagAnswerOutput,
-  GenerateRagAnswerResult,
-  GenerationCitation,
-} from "../domain/entities/generation.entities";
-export type { IRagGenerationRepository } from "../domain/repositories/IRagGenerationRepository";
-
-// --- Use-case classes (for DI composition) -----------------------------------
-
-export { AnswerRagQueryUseCase } from "../application/use-cases/answer-rag-query.use-case";
-export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-rag-feedback.use-case";
-
-// --- Wiki convenience wrappers with default repository -----------------------
-
-import { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
-import type { KnowledgeParsedDocument, KnowledgeRagQueryResult, KnowledgeReindexInput } from "../domain/repositories/IKnowledgeContentRepository";
-
-let _knowledgeContentRepository: FirebaseKnowledgeContentAdapter | undefined;
-
-function getKnowledgeContentRepository(): FirebaseKnowledgeContentAdapter {
-  if (!_knowledgeContentRepository) {
-    _knowledgeContentRepository = new FirebaseKnowledgeContentAdapter();
-  }
-  return _knowledgeContentRepository;
-}
-
-export function runKnowledgeRagQuery(
-  query: string,
-  accountId: string,
-  workspaceId: string,
-  topK = 4,
-  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
-): Promise<KnowledgeRagQueryResult> {
-  return getKnowledgeContentRepository().runRagQuery(query, accountId, workspaceId, topK, options);
-}
-
-export function reindexKnowledgeDocument(input: KnowledgeReindexInput): Promise<void> {
-  return getKnowledgeContentRepository().reindexDocument(input);
-}
-
-export function listKnowledgeParsedDocuments(accountId: string, limitCount = 20): Promise<KnowledgeParsedDocument[]> {
-  return getKnowledgeContentRepository().listParsedDocuments(accountId, limitCount);
-}
-
-// --- Infrastructure adapters (client-safe, for composition roots) ------------
-
-export { FirebaseRagRetrievalAdapter } from "../infrastructure/firebase/FirebaseRagRetrievalAdapter";
-export { FirebaseKnowledgeContentAdapter } from "../infrastructure/firebase/FirebaseKnowledgeContentAdapter";
-export { FirebaseRagQueryFeedbackAdapter } from "../infrastructure/firebase/FirebaseRagQueryFeedbackAdapter";
-
-// --- UI components -----------------------------------------------------------
-
-export { RagQueryView } from "../interfaces/components/RagQueryView";
-````
-
-## File: modules/notebooklm/subdomains/ai/domain/index.ts
-````typescript
-export * from "./entities/generation.entities";
-export * from "./entities/rag-feedback.entities";
-export * from "./entities/rag-query.entities";
-export * from "./entities/retrieval.entities";
-export * from "./events";
-export * from "./ports/IVectorStore";
-export * from "./repositories/IRagGenerationRepository";
-export * from "./repositories/IRagQueryFeedbackRepository";
-export * from "./repositories/IRagRetrievalRepository";
-export * from "./repositories/IKnowledgeContentRepository";
-export * from "./services";
-export * from "./value-objects";
-// Ports layer — driven port aliases
-export type { IRagGenerationPort, IRagQueryFeedbackPort, IRagRetrievalPort, IKnowledgeContentPort } from "./ports";
-````
-
 ## File: modules/notebooklm/subdomains/ai/domain/ports/index.ts
 ````typescript
 /**
@@ -7825,6 +8004,6 @@ export type { IRagGenerationPort, IRagQueryFeedbackPort, IRagRetrievalPort, IKno
 export type { IRagGenerationRepository as IRagGenerationPort } from "../repositories/IRagGenerationRepository";
 export type { IRagQueryFeedbackRepository as IRagQueryFeedbackPort } from "../repositories/IRagQueryFeedbackRepository";
 export type { IRagRetrievalRepository as IRagRetrievalPort } from "../repositories/IRagRetrievalRepository";
-export type { IWikiContentRepository as IKnowledgeContentPort } from "../repositories/IKnowledgeContentRepository";
+export type { IKnowledgeContentRepository as IKnowledgeContentPort } from "../repositories/IKnowledgeContentRepository";
 export type { IVectorStore } from "./IVectorStore";
 ````

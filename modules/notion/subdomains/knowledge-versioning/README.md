@@ -5,8 +5,17 @@
 ## Ownership
 
 - **Bounded Context**: notion
-- **Subdomain Type**: Baseline
+- **Subdomain Type**: Tier 3 — Medium-Term Stub
 - **Status**: Stub — awaiting use case definition
+
+## Distinction from `collaboration.Version`
+
+| | `collaboration.Version` | `knowledge-versioning` |
+|---|---|---|
+| Granularity | 每次編輯的細粒度快照（per-change history） | 全域 Checkpoint 策略（workspace-level snapshot） |
+| Trigger | 協作動作（comment, edit event） | 策略性里程碑（release, sprint end） |
+| Retention | 短期逐次紀錄 | 長期保留策略 |
+| Owner | collaboration subdomain | knowledge-versioning subdomain |
 
 ## Layers
 
