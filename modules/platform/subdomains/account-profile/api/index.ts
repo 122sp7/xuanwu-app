@@ -4,10 +4,10 @@
  */
 
 import {
-	getUserProfile as getLegacyUserProfile,
-	subscribeToUserProfile as subscribeToLegacyUserProfile,
-	accountService,
-} from "../../account/api";
+	getLegacyUserProfile,
+	subscribeToLegacyUserProfile,
+	updateLegacyUserProfile,
+} from "../../account/api/legacy-account-profile.bridge";
 import {
 	GetAccountProfileUseCase,
 	SubscribeAccountProfileUseCase,
@@ -35,7 +35,7 @@ function getLegacyDataSource(): LegacyAccountProfileDataSource {
 	_legacyDataSource = {
 		getUserProfile: getLegacyUserProfile,
 		subscribeToUserProfile: subscribeToLegacyUserProfile,
-		updateUserProfile: (userId, input) => accountService.updateUserProfile(userId, input).then(() => undefined),
+		updateUserProfile: updateLegacyUserProfile,
 	};
 	return _legacyDataSource;
 }
@@ -91,7 +91,8 @@ export async function updateAccountProfile(
 // Legacy compatibility exports for migration window.
 export const getUserProfile = getAccountProfile;
 export const subscribeToUserProfile = subscribeToAccountProfile;
-export const updateUserProfile = updateAccountProfile;
+
+export { getProfile, subscribeToProfile, updateProfile } from "../interfaces";
 
 export * from "../application";
 export * from "../domain";
