@@ -101,5 +101,6 @@ export type { MembersPageProps, TeamsPageProps, PermissionsPageProps, Organizati
 // background-job — knowledge ingestion pipeline management
 export * from "../subdomains/background-job/api";
 
-// platform-level interfaces (HeaderControls, TranslationSwitcher)
-export * from "../interfaces";
+// Cross-module and app-composition hooks from interfaces layer.
+// Only selective exports — do NOT wildcard re-export "../interfaces".
+export { useApp, Providers, ShellLayout, isActiveOrganizationAccount } from "../interfaces";
