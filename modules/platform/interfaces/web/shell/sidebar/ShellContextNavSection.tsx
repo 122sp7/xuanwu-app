@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { appendWorkspaceContextQuery } from "@/modules/workspace/api";
 
 interface ContextScopedNavItem {
   href: string;
@@ -13,26 +14,6 @@ interface ShellContextNavSectionProps {
   isActiveRoute: (href: string) => boolean;
   activeAccountId: string | null;
   activeWorkspaceId: string | null;
-}
-
-function withContextQuery(href: string, accountId: string | null, workspaceId: string | null): string {
-  if (!accountId && !workspaceId) {
-    return href;
-  }
-
-  const [path, search = ""] = href.split("?");
-  const params = new URLSearchParams(search);
-
-  if (accountId) {
-    params.set("accountId", accountId);
-  }
-
-  if (workspaceId) {
-    params.set("workspaceId", workspaceId);
-  }
-
-  const query = params.toString();
-  return query.length > 0 ? `${path}?${query}` : path;
 }
 
 export function ShellContextNavSection({
@@ -56,7 +37,10 @@ export function ShellContextNavSection({
       )}
       {items.map((item) => {
         const active = isActiveRoute(item.href);
-        const contextualHref = withContextQuery(item.href, activeAccountId, activeWorkspaceId);
+        const contextualHref = appendWorkspaceContextQuery(item.href, {
+          accountId: activeAccountId,
+          workspaceId: activeWorkspaceId,
+        });
         return (
           <Link
             key={item.href}

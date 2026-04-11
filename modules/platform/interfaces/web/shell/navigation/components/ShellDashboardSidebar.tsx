@@ -8,7 +8,7 @@
  * Constraints: UI-only; workspace data sourced from module interfaces.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
@@ -19,6 +19,8 @@ import {
   getWorkspaceIdFromPath,
   MAX_VISIBLE_RECENT_WORKSPACES,
   readNavPreferences,
+  buildWorkspaceContextHref,
+  supportsWorkspaceSearchContext,
   type NavPreferences,
   useRecentWorkspaces,
   useSidebarLocale,
@@ -87,12 +89,7 @@ export function ShellDashboardSidebar({
       return;
     }
 
-    const supportsWorkspaceSearchContext =
-      pathname.startsWith("/knowledge") ||
-      pathname.startsWith("/source") ||
-      pathname.startsWith("/notebook");
-
-    if (!supportsWorkspaceSearchContext) {
+    if (!supportsWorkspaceSearchContext(pathname)) {
       return;
     }
 
@@ -106,27 +103,16 @@ export function ShellDashboardSidebar({
     ? recentWorkspaceLinks
     : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
 
-  const buildWorkspaceContextHref = useCallback(
-    (workspaceId: string): string => {
-      if (pathname.startsWith("/knowledge")) {
-        const targetPath = pathname === "/knowledge" ? "/knowledge/pages" : pathname;
-        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
-      }
-      return `/workspace/${workspaceId}`;
-    },
-    [pathname],
-  );
-
   const allWorkspaceLinks = useMemo(
     () =>
       workspaces
         .map((workspace) => ({
           id: workspace.id,
           name: workspace.name,
-          href: buildWorkspaceContextHref(workspace.id),
+          href: buildWorkspaceContextHref(pathname, workspace.id),
         }))
         .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces, buildWorkspaceContextHref],
+    [workspaces, pathname],
   );
 
   const section = resolveNavSection(pathname);

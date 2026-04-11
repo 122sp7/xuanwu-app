@@ -4,6 +4,8 @@ export type AccountBootstrapPhase = "idle" | "seeded" | "hydrated";
 
 interface PersonalAccountIdentity {
   readonly id: string;
+  readonly name: string;
+  readonly email: string;
 }
 
 export type SelectableActiveAccount = AccountEntity | PersonalAccountIdentity;
