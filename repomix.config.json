@@ -37,11 +37,7 @@
   "include": [
     "app/**",
     "modules/**",
-    "modules/platform/subdomains/**",
-    "modules/platform/domain/**",
-    "modules/platform/application/**",
-    "modules/platform/infrastructure/**",
-    "modules/platform/interfaces/**"
+    "packages/**"
   ],
   "ignore": {
     "useGitignore": true,

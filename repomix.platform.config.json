@@ -1,0 +1,10 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "include": [
+    "modules/platform/**"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true
+  }
+}

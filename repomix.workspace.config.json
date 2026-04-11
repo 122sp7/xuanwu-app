@@ -1,0 +1,10 @@
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "include": [
+    "modules/workspace/**"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true
+  }
+}
