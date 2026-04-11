@@ -39,13 +39,14 @@ This skill contains the following reference files:
 
 ## Statistics
 
-542 files | 16,371 lines
+543 files | 16,372 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 483 | 11,735 |
 | Markdown | 32 | 595 |
 | TypeScript (TSX) | 27 | 4,041 |
+| No Extension | 1 | 1 |
 
 **Largest files:**
 - `modules/platform/interfaces/web/components/AppRail.tsx` (358 lines)

@@ -54,6 +54,7 @@ modules/platform/application/queries/GetSubscriptionEntitlementsQuery.ts (18 lin
 modules/platform/application/queries/GetWorkflowPolicyViewQuery.ts (18 lines)
 modules/platform/application/queries/index.ts (13 lines)
 modules/platform/application/queries/ListEnabledCapabilitiesQuery.ts (18 lines)
+modules/platform/application/use-cases/.gitkeep (0 lines)
 modules/platform/application/utils/assertNever.ts (17 lines)
 modules/platform/application/utils/buildCausationId.ts (14 lines)
 modules/platform/application/utils/buildCorrelationId.ts (14 lines)

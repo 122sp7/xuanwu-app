@@ -596,6 +596,103 @@ export interface WorkspaceOperationalProfile extends WorkspaceLocationCatalog {
 export type { Address, AddressInput } from "../value-objects/Address";
 ````
 
+## File: modules/workspace/domain/events/workspace.events.ts
+````typescript
+import { v7 } from "@lib-uuid";
+import type { DomainEvent } from "@shared-types";
+
+import type {
+  WorkspaceLifecycleState,
+  WorkspaceVisibility,
+} from "../aggregates/Workspace";
+
+export const WORKSPACE_CREATED_EVENT_TYPE = "workspace.created" as const;
+export const WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE = "workspace.lifecycle_transitioned" as const;
+export const WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE = "workspace.visibility_changed" as const;
+
+interface WorkspaceEventBase extends DomainEvent {
+  readonly workspaceId: string;
+  readonly accountId: string;
+}
+
+export interface WorkspaceCreatedEvent extends WorkspaceEventBase {
+  readonly type: typeof WORKSPACE_CREATED_EVENT_TYPE;
+  readonly accountType: "user" | "organization";
+  readonly name: string;
+}
+
+export interface WorkspaceLifecycleTransitionedEvent extends WorkspaceEventBase {
+  readonly type: typeof WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE;
+  readonly fromState: WorkspaceLifecycleState;
+  readonly toState: WorkspaceLifecycleState;
+}
+
+export interface WorkspaceVisibilityChangedEvent extends WorkspaceEventBase {
+  readonly type: typeof WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE;
+  readonly fromVisibility: WorkspaceVisibility;
+  readonly toVisibility: WorkspaceVisibility;
+}
+
+export type WorkspaceDomainEvent =
+  | WorkspaceCreatedEvent
+  | WorkspaceLifecycleTransitionedEvent
+  | WorkspaceVisibilityChangedEvent;
+
+export function createWorkspaceCreatedEvent(input: {
+  workspaceId: string;
+  accountId: string;
+  accountType: "user" | "organization";
+  name: string;
+}): WorkspaceCreatedEvent {
+  return {
+    eventId: v7(),
+    type: WORKSPACE_CREATED_EVENT_TYPE,
+    aggregateId: input.workspaceId,
+    occurredAt: new Date().toISOString(),
+    workspaceId: input.workspaceId,
+    accountId: input.accountId,
+    accountType: input.accountType,
+    name: input.name,
+  };
+}
+
+export function createWorkspaceLifecycleTransitionedEvent(input: {
+  workspaceId: string;
+  accountId: string;
+  fromState: WorkspaceLifecycleState;
+  toState: WorkspaceLifecycleState;
+}): WorkspaceLifecycleTransitionedEvent {
+  return {
+    eventId: v7(),
+    type: WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
+    aggregateId: input.workspaceId,
+    occurredAt: new Date().toISOString(),
+    workspaceId: input.workspaceId,
+    accountId: input.accountId,
+    fromState: input.fromState,
+    toState: input.toState,
+  };
+}
+
+export function createWorkspaceVisibilityChangedEvent(input: {
+  workspaceId: string;
+  accountId: string;
+  fromVisibility: WorkspaceVisibility;
+  toVisibility: WorkspaceVisibility;
+}): WorkspaceVisibilityChangedEvent {
+  return {
+    eventId: v7(),
+    type: WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
+    aggregateId: input.workspaceId,
+    occurredAt: new Date().toISOString(),
+    workspaceId: input.workspaceId,
+    accountId: input.accountId,
+    fromVisibility: input.fromVisibility,
+    toVisibility: input.toVisibility,
+  };
+}
+````
+
 ## File: modules/workspace/domain/factories/WorkspaceFactory.ts
 ````typescript
 import {
@@ -4604,6 +4701,40 @@ export interface AuditRepository {
 }
 ````
 
+## File: modules/workspace/subdomains/audit/domain/schema.ts
+````typescript
+/**
+ * Audit subdomain schema — immutable operation records.
+ */
+
+import { z } from "@lib-zod";
+import { BaseEntitySchema } from "@shared-types";
+
+export const AUDIT_ACTIONS = ["create", "update", "delete", "login", "export"] as const;
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+export const AUDIT_SEVERITIES = ["low", "medium", "high", "critical"] as const;
+export type AuditSeverity = (typeof AUDIT_SEVERITIES)[number];
+
+const ChangeRecordSchema = z.object({
+  field: z.string(),
+  oldValue: z.unknown(),
+  newValue: z.unknown(),
+});
+
+export type ChangeRecord = z.infer<typeof ChangeRecordSchema>;
+
+export const AuditLogSchema = BaseEntitySchema.extend({
+  action: z.enum(AUDIT_ACTIONS),
+  resourceType: z.string(),
+  resourceId: z.string(),
+  severity: z.enum(AUDIT_SEVERITIES),
+  changes: z.array(ChangeRecordSchema).optional(),
+});
+
+export type AuditLog = z.infer<typeof AuditLogSchema>;
+````
+
 ## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
 ````typescript
 import {
@@ -5226,38 +5357,6 @@ export type WorkspaceFeedDomainEvent =
   | WorkspaceFeedPostViewedEvent
   | WorkspaceFeedPostBookmarkedEvent
   | WorkspaceFeedPostSharedEvent;
-````
-
-## File: modules/workspace/subdomains/feed/domain/index.ts
-````typescript
-export type {
-  WorkspaceFeedPost,
-  WorkspaceFeedPostType,
-  CreateWorkspaceFeedPostInput,
-  CreateWorkspaceFeedReplyInput,
-  CreateWorkspaceFeedRepostInput,
-  WorkspaceFeedCounterPatch,
-} from "./entities/workspace-feed-post.entity";
-
-export { WORKSPACE_FEED_POST_TYPES } from "./entities/workspace-feed-post.entity";
-
-export type {
-  WorkspaceFeedDomainEvent,
-  WorkspaceFeedPostCreatedEvent,
-  WorkspaceFeedReplyCreatedEvent,
-  WorkspaceFeedRepostCreatedEvent,
-  WorkspaceFeedPostLikedEvent,
-  WorkspaceFeedPostViewedEvent,
-  WorkspaceFeedPostBookmarkedEvent,
-  WorkspaceFeedPostSharedEvent,
-} from "./events/workspace-feed.events";
-
-export { WORKSPACE_FEED_EVENT_TYPES } from "./events/workspace-feed.events";
-
-export type {
-  WorkspaceFeedPostRepository,
-  WorkspaceFeedInteractionRepository,
-} from "./repositories/workspace-feed.repositories";
 ````
 
 ## File: modules/workspace/subdomains/feed/domain/repositories/workspace-feed.repositories.ts
@@ -6784,103 +6883,6 @@ export {
 } from "./workspace-query.use-cases";
 ````
 
-## File: modules/workspace/domain/events/workspace.events.ts
-````typescript
-import { v7 } from "@lib-uuid";
-import type { DomainEvent } from "@shared-types";
-
-import type {
-  WorkspaceLifecycleState,
-  WorkspaceVisibility,
-} from "../aggregates/Workspace";
-
-export const WORKSPACE_CREATED_EVENT_TYPE = "workspace.created" as const;
-export const WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE = "workspace.lifecycle_transitioned" as const;
-export const WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE = "workspace.visibility_changed" as const;
-
-interface WorkspaceEventBase extends DomainEvent {
-  readonly workspaceId: string;
-  readonly accountId: string;
-}
-
-export interface WorkspaceCreatedEvent extends WorkspaceEventBase {
-  readonly type: typeof WORKSPACE_CREATED_EVENT_TYPE;
-  readonly accountType: "user" | "organization";
-  readonly name: string;
-}
-
-export interface WorkspaceLifecycleTransitionedEvent extends WorkspaceEventBase {
-  readonly type: typeof WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE;
-  readonly fromState: WorkspaceLifecycleState;
-  readonly toState: WorkspaceLifecycleState;
-}
-
-export interface WorkspaceVisibilityChangedEvent extends WorkspaceEventBase {
-  readonly type: typeof WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE;
-  readonly fromVisibility: WorkspaceVisibility;
-  readonly toVisibility: WorkspaceVisibility;
-}
-
-export type WorkspaceDomainEvent =
-  | WorkspaceCreatedEvent
-  | WorkspaceLifecycleTransitionedEvent
-  | WorkspaceVisibilityChangedEvent;
-
-export function createWorkspaceCreatedEvent(input: {
-  workspaceId: string;
-  accountId: string;
-  accountType: "user" | "organization";
-  name: string;
-}): WorkspaceCreatedEvent {
-  return {
-    eventId: v7(),
-    type: WORKSPACE_CREATED_EVENT_TYPE,
-    aggregateId: input.workspaceId,
-    occurredAt: new Date().toISOString(),
-    workspaceId: input.workspaceId,
-    accountId: input.accountId,
-    accountType: input.accountType,
-    name: input.name,
-  };
-}
-
-export function createWorkspaceLifecycleTransitionedEvent(input: {
-  workspaceId: string;
-  accountId: string;
-  fromState: WorkspaceLifecycleState;
-  toState: WorkspaceLifecycleState;
-}): WorkspaceLifecycleTransitionedEvent {
-  return {
-    eventId: v7(),
-    type: WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
-    aggregateId: input.workspaceId,
-    occurredAt: new Date().toISOString(),
-    workspaceId: input.workspaceId,
-    accountId: input.accountId,
-    fromState: input.fromState,
-    toState: input.toState,
-  };
-}
-
-export function createWorkspaceVisibilityChangedEvent(input: {
-  workspaceId: string;
-  accountId: string;
-  fromVisibility: WorkspaceVisibility;
-  toVisibility: WorkspaceVisibility;
-}): WorkspaceVisibilityChangedEvent {
-  return {
-    eventId: v7(),
-    type: WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
-    aggregateId: input.workspaceId,
-    occurredAt: new Date().toISOString(),
-    workspaceId: input.workspaceId,
-    accountId: input.accountId,
-    fromVisibility: input.fromVisibility,
-    toVisibility: input.toVisibility,
-  };
-}
-````
-
 ## File: modules/workspace/domain/ports/index.ts
 ````typescript
 /**
@@ -6912,6 +6914,71 @@ export type {
   WorkspaceDomainEventPublisher,
   WorkspaceEventPublishMetadata,
 } from "./output/WorkspaceDomainEventPublisher";
+````
+
+## File: modules/workspace/infrastructure/events/SharedWorkspaceDomainEventPublisher.ts
+````typescript
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+  QStashEventBusRepository,
+} from "@shared-events";
+import type {
+  WorkspaceDomainEventPublisher,
+  WorkspaceEventPublishMetadata,
+} from "../../domain/ports/output/WorkspaceDomainEventPublisher";
+import type { WorkspaceDomainEvent } from "../../domain/events/workspace.events";
+
+function toEventPayload(event: WorkspaceDomainEvent) {
+  const {
+    eventId: _eventId,
+    type: _type,
+    aggregateId: _aggregateId,
+    occurredAt: _occurredAt,
+    ...payload
+  } = event;
+
+  return payload as Record<string, unknown>;
+}
+
+export class SharedWorkspaceDomainEventPublisher
+  implements WorkspaceDomainEventPublisher
+{
+  private readonly publishDomainEventUseCase: PublishDomainEventUseCase;
+
+  constructor() {
+    const eventBus = process.env.QSTASH_TOKEN
+      ? new QStashEventBusRepository()
+      : new NoopEventBusRepository();
+
+    this.publishDomainEventUseCase = new PublishDomainEventUseCase(
+      new InMemoryEventStoreRepository(),
+      eventBus,
+    );
+  }
+
+  async publish(
+    event: WorkspaceDomainEvent,
+    metadata?: WorkspaceEventPublishMetadata,
+  ): Promise<void> {
+    try {
+      await this.publishDomainEventUseCase.execute({
+        id: event.eventId,
+        eventName: event.type,
+        aggregateType: "Workspace",
+        aggregateId: event.aggregateId,
+        occurredAt: new Date(event.occurredAt),
+        payload: toEventPayload(event),
+        metadata,
+      });
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[workspace.events] Failed to publish workspace domain event:", error);
+      }
+    }
+  }
+}
 ````
 
 ## File: modules/workspace/infrastructure/firebase/FirebaseWikiWorkspaceRepository.ts
@@ -8375,53 +8442,15 @@ export type {
 } from "./AuditDomainEvent";
 ````
 
-## File: modules/workspace/subdomains/audit/domain/index.ts
-````typescript
-// ── Existing domain types ────────────────────────────────────────────────────
-export type { AuditLogEntity, AuditLogSource } from "./entities/AuditLog";
-export type { AuditLog, AuditAction, AuditSeverity, ChangeRecord } from "./schema";
-export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "./schema";
-export type { AuditRepository } from "./repositories/AuditRepository";
-
-// ── Rich DDD additions ──────────────────────────────────────────────────────
-export * from "./aggregates";
-export * from "./events";
-export * from "./services";
-export * from "./value-objects";
-````
-
-## File: modules/workspace/subdomains/audit/domain/schema.ts
+## File: modules/workspace/subdomains/audit/domain/ports/index.ts
 ````typescript
 /**
- * Audit subdomain schema — immutable operation records.
+ * workspace/audit domain/ports — driven port interfaces for the audit subdomain.
+ *
+ * Re-exports the repository contract from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
  */
-
-import { z } from "@lib-zod";
-import { BaseEntitySchema } from "@shared-types";
-
-export const AUDIT_ACTIONS = ["create", "update", "delete", "login", "export"] as const;
-export type AuditAction = (typeof AUDIT_ACTIONS)[number];
-
-export const AUDIT_SEVERITIES = ["low", "medium", "high", "critical"] as const;
-export type AuditSeverity = (typeof AUDIT_SEVERITIES)[number];
-
-const ChangeRecordSchema = z.object({
-  field: z.string(),
-  oldValue: z.unknown(),
-  newValue: z.unknown(),
-});
-
-export type ChangeRecord = z.infer<typeof ChangeRecordSchema>;
-
-export const AuditLogSchema = BaseEntitySchema.extend({
-  action: z.enum(AUDIT_ACTIONS),
-  resourceType: z.string(),
-  resourceId: z.string(),
-  severity: z.enum(AUDIT_SEVERITIES),
-  changes: z.array(ChangeRecordSchema).optional(),
-});
-
-export type AuditLog = z.infer<typeof AuditLogSchema>;
+export type { AuditRepository as IAuditPort } from "../repositories/AuditRepository";
 ````
 
 ## File: modules/workspace/subdomains/audit/domain/services/AuditRecordingService.ts
@@ -8895,6 +8924,55 @@ export const ListAccountFeedSchema = AccountScopeSchema.extend({
 });
 
 export type ListAccountFeedDto = z.infer<typeof ListAccountFeedSchema>;
+````
+
+## File: modules/workspace/subdomains/feed/domain/index.ts
+````typescript
+export type {
+  WorkspaceFeedPost,
+  WorkspaceFeedPostType,
+  CreateWorkspaceFeedPostInput,
+  CreateWorkspaceFeedReplyInput,
+  CreateWorkspaceFeedRepostInput,
+  WorkspaceFeedCounterPatch,
+} from "./entities/workspace-feed-post.entity";
+
+export { WORKSPACE_FEED_POST_TYPES } from "./entities/workspace-feed-post.entity";
+
+export type {
+  WorkspaceFeedDomainEvent,
+  WorkspaceFeedPostCreatedEvent,
+  WorkspaceFeedReplyCreatedEvent,
+  WorkspaceFeedRepostCreatedEvent,
+  WorkspaceFeedPostLikedEvent,
+  WorkspaceFeedPostViewedEvent,
+  WorkspaceFeedPostBookmarkedEvent,
+  WorkspaceFeedPostSharedEvent,
+} from "./events/workspace-feed.events";
+
+export { WORKSPACE_FEED_EVENT_TYPES } from "./events/workspace-feed.events";
+
+export type {
+  WorkspaceFeedPostRepository,
+  WorkspaceFeedInteractionRepository,
+} from "./repositories/workspace-feed.repositories";
+
+// ── Ports layer ──────────────────────────────────────────────────────────────
+export type { IWorkspaceFeedPostPort, IWorkspaceFeedInteractionPort } from "./ports";
+````
+
+## File: modules/workspace/subdomains/feed/domain/ports/index.ts
+````typescript
+/**
+ * workspace/feed domain/ports — driven port interfaces for the feed subdomain.
+ *
+ * Re-exports repository contracts from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
+export type {
+  WorkspaceFeedPostRepository as IWorkspaceFeedPostPort,
+  WorkspaceFeedInteractionRepository as IWorkspaceFeedInteractionPort,
+} from "../repositories/workspace-feed.repositories";
 ````
 
 ## File: modules/workspace/subdomains/feed/interfaces/_actions/workspace-feed.actions.ts
@@ -13104,6 +13182,44 @@ export type TaskEvent =
   | TaskStatusChangedEvent;
 ````
 
+## File: modules/workspace/subdomains/workspace-workflow/domain/index.ts
+````typescript
+/**
+ * workspace/workspace-workflow domain — public exports.
+ */
+export type { InvoiceRepository } from "./repositories/InvoiceRepository";
+export type { IssueRepository } from "./repositories/IssueRepository";
+export type { TaskRepository } from "./repositories/TaskRepository";
+export * from "./events/TaskEvent";
+export * from "./events/IssueEvent";
+export * from "./events/InvoiceEvent";
+export * from "./value-objects/InvoiceId";
+export * from "./value-objects/InvoiceItemId";
+export * from "./value-objects/InvoiceStatus";
+export * from "./value-objects/IssueId";
+export * from "./value-objects/IssueStage";
+export * from "./value-objects/IssueStatus";
+export * from "./value-objects/SourceReference";
+export * from "./value-objects/TaskId";
+export * from "./value-objects/TaskStatus";
+export * from "./value-objects/UserId";
+// Ports layer — driven port aliases
+export type { IInvoicePort, IIssuePort, ITaskPort } from "./ports";
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/domain/ports/index.ts
+````typescript
+/**
+ * workspace/workspace-workflow domain/ports — driven port interfaces for the workflow subdomain.
+ *
+ * Re-exports repository contracts from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
+export type { InvoiceRepository as IInvoicePort } from "../repositories/InvoiceRepository";
+export type { IssueRepository as IIssuePort } from "../repositories/IssueRepository";
+export type { TaskRepository as ITaskPort } from "../repositories/TaskRepository";
+````
+
 ## File: modules/workspace/subdomains/workspace-workflow/domain/repositories/InvoiceRepository.ts
 ````typescript
 /**
@@ -15447,71 +15563,6 @@ export interface WorkspaceRepository {
 }
 ````
 
-## File: modules/workspace/infrastructure/events/SharedWorkspaceDomainEventPublisher.ts
-````typescript
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-  QStashEventBusRepository,
-} from "@shared-events";
-import type {
-  WorkspaceDomainEventPublisher,
-  WorkspaceEventPublishMetadata,
-} from "../../domain/ports/output/WorkspaceDomainEventPublisher";
-import type { WorkspaceDomainEvent } from "../../domain/events/workspace.events";
-
-function toEventPayload(event: WorkspaceDomainEvent) {
-  const {
-    eventId: _eventId,
-    type: _type,
-    aggregateId: _aggregateId,
-    occurredAt: _occurredAt,
-    ...payload
-  } = event;
-
-  return payload as Record<string, unknown>;
-}
-
-export class SharedWorkspaceDomainEventPublisher
-  implements WorkspaceDomainEventPublisher
-{
-  private readonly publishDomainEventUseCase: PublishDomainEventUseCase;
-
-  constructor() {
-    const eventBus = process.env.QSTASH_TOKEN
-      ? new QStashEventBusRepository()
-      : new NoopEventBusRepository();
-
-    this.publishDomainEventUseCase = new PublishDomainEventUseCase(
-      new InMemoryEventStoreRepository(),
-      eventBus,
-    );
-  }
-
-  async publish(
-    event: WorkspaceDomainEvent,
-    metadata?: WorkspaceEventPublishMetadata,
-  ): Promise<void> {
-    try {
-      await this.publishDomainEventUseCase.execute({
-        id: event.eventId,
-        eventName: event.type,
-        aggregateType: "Workspace",
-        aggregateId: event.aggregateId,
-        occurredAt: new Date(event.occurredAt),
-        payload: toEventPayload(event),
-        metadata,
-      });
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[workspace.events] Failed to publish workspace domain event:", error);
-      }
-    }
-  }
-}
-````
-
 ## File: modules/workspace/interfaces/api/runtime/workspace-session-context.ts
 ````typescript
 import type { WorkspaceCommandPort } from "../../../application/dtos/workspace-interfaces.dto";
@@ -15633,6 +15684,24 @@ export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly Work
 export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[] {
   return WORKSPACE_TAB_SIDEBAR_GROUP_ORDER.flatMap((group) => getWorkspaceTabsByGroup(group));
 }
+````
+
+## File: modules/workspace/subdomains/audit/domain/index.ts
+````typescript
+// ── Existing domain types ────────────────────────────────────────────────────
+export type { AuditLogEntity, AuditLogSource } from "./entities/AuditLog";
+export type { AuditLog, AuditAction, AuditSeverity, ChangeRecord } from "./schema";
+export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "./schema";
+export type { AuditRepository } from "./repositories/AuditRepository";
+
+// ── Rich DDD additions ──────────────────────────────────────────────────────
+export * from "./aggregates";
+export * from "./events";
+export * from "./services";
+export * from "./value-objects";
+
+// ── Ports layer ──────────────────────────────────────────────────────────────
+export type { IAuditPort } from "./ports";
 ````
 
 ## File: modules/workspace/subdomains/audit/interfaces/queries/audit.queries.ts

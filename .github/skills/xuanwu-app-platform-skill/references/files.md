@@ -6382,6 +6382,11 @@ export type PlatformEventMapperFunction = (typeof PLATFORM_EVENT_MAPPER_FUNCTION
 // TODO: implement mapIngressEventToCommand mapper function
 ````
 
+## File: modules/platform/application/use-cases/.gitkeep
+````
+
+````
+
 ## File: modules/platform/application/utils/assertNever.ts
 ````typescript
 /**
