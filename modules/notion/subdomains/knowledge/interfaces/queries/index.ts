@@ -17,9 +17,7 @@ import {
   GetKnowledgeCollectionUseCase,
   ListKnowledgeCollectionsUseCase,
 } from "../../application/use-cases/KnowledgeCollectionUseCases";
-import type { KnowledgePageSnapshot } from "../../domain/aggregates/KnowledgePage";
-import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
-import type { KnowledgeCollectionSnapshot } from "../../domain/aggregates/KnowledgeCollection";
+import type { KnowledgePageSnapshot, ContentBlockSnapshot, KnowledgeCollectionSnapshot } from "../../application/dto/knowledge.dto";
 
 export async function getKnowledgePage(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
   return new GetKnowledgePageUseCase(makePageRepo()).execute(accountId, pageId);

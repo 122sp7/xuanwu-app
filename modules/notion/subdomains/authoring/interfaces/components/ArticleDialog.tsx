@@ -29,8 +29,8 @@ import {
 } from "@ui-shadcn/ui/select";
 
 import { createArticle, updateArticle } from "../_actions/article.actions";
-import type { ArticleSnapshot } from "../../domain/aggregates/Article";
-import type { CategorySnapshot } from "../../domain/aggregates/Category";
+import type { ArticleSnapshot } from "../../application/dto/authoring.dto";
+import type { CategorySnapshot } from "../../application/dto/authoring.dto";
 
 interface ArticleDialogProps {
   open: boolean;

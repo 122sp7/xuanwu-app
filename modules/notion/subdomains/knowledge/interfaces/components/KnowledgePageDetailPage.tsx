@@ -11,7 +11,7 @@ import {
   updateKnowledgePageIcon,
   updateKnowledgePageCover,
 } from "../_actions/knowledge-page.actions";
-import type { KnowledgePageSnapshot as KnowledgePage } from "../../domain/aggregates/KnowledgePage";
+import type { KnowledgePageSnapshot as KnowledgePage } from "../../application/dto/knowledge.dto";
 import { PageEditorView } from "./PageEditorView";
 import { CommentPanel } from "@/modules/notion/api";
 import { Button } from "@ui-shadcn/ui/button";

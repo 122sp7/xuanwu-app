@@ -15,7 +15,7 @@ import { Label } from "@ui-shadcn/ui/label";
 import { Textarea } from "@ui-shadcn/ui/textarea";
 
 import { createRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, Field } from "../../domain/aggregates/Database";
+import type { DatabaseSnapshot, Field } from "../../application/dto/database.dto";
 
 interface DatabaseFormViewProps {
   database: DatabaseSnapshot;

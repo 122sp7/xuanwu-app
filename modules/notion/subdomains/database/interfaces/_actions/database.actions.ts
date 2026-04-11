@@ -28,7 +28,7 @@ import {
   UpdateAutomationUseCase,
   DeleteAutomationUseCase,
 } from "../../application/use-cases";
-import type { CreateAutomationInput, UpdateAutomationInput } from "../../domain/repositories/IAutomationRepository";
+import type { CreateAutomationInput, UpdateAutomationInput } from "../../application/dto/database.dto";
 import type {
   CreateDatabaseDto,
   UpdateDatabaseDto,

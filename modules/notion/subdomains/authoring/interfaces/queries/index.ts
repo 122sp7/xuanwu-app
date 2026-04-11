@@ -7,8 +7,8 @@
  */
 
 import { makeArticleRepo, makeCategoryRepo } from "../../api/factories";
-import type { ArticleSnapshot, ArticleStatus } from "../../domain/aggregates/Article";
-import type { CategorySnapshot } from "../../domain/aggregates/Category";
+import type { ArticleSnapshot, ArticleStatus } from "../../application/dto/authoring.dto";
+import type { CategorySnapshot } from "../../application/dto/authoring.dto";
 
 export async function getArticles(params: {
   accountId: string;

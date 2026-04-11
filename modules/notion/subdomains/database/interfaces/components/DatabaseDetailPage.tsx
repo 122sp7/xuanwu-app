@@ -24,7 +24,7 @@ import { DatabaseCalendarView } from "./DatabaseCalendarView";
 import { DatabaseGalleryView } from "./DatabaseGalleryView";
 import { DatabaseAutomationView } from "./DatabaseAutomationView";
 import { AddFieldDialog } from "./DatabaseAddFieldDialog";
-import type { DatabaseSnapshot as Database, FieldType } from "../../domain/aggregates/Database";
+import type { DatabaseSnapshot as Database, FieldType } from "../../application/dto/database.dto";
 import { Button } from "@ui-shadcn/ui/button";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 

@@ -9,7 +9,7 @@ import { Badge } from "@ui-shadcn/ui/badge";
 
 import { getVersions } from "../queries";
 import { deleteVersion } from "../_actions/version.actions";
-import type { VersionSnapshot } from "../../domain/aggregates/Version";
+import type { VersionSnapshot } from "../../application/dto/collaboration.dto";
 
 interface VersionHistoryPanelProps {
   accountId: string;

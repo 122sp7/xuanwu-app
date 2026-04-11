@@ -14,8 +14,7 @@ import { Skeleton } from "@ui-shadcn/ui/skeleton";
 import { Badge } from "@ui-shadcn/ui/badge";
 
 import { getRecords } from "../queries";
-import type { DatabaseSnapshot } from "../../domain/aggregates/Database";
-import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
 
 interface DatabaseCalendarViewProps {
   database: DatabaseSnapshot;

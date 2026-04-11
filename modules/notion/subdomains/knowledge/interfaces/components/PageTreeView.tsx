@@ -3,7 +3,7 @@
 import { ChevronDown, ChevronRight, FilePlus, FileText } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@ui-shadcn/ui/button";
-import type { KnowledgePageTreeNode } from "../../domain/aggregates/KnowledgePage";
+import type { KnowledgePageTreeNode } from "../../application/dto/knowledge.dto";
 import { PageDialog } from "./PageDialog";
 
 export interface PageTreeViewProps {

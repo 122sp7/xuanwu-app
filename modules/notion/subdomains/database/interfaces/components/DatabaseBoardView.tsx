@@ -15,8 +15,7 @@ import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
 import { getRecords } from "../queries";
 import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot } from "../../domain/aggregates/Database";
-import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../application/dto/database.dto";
 
 interface DatabaseBoardViewProps {
   database: DatabaseSnapshot;

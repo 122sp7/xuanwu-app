@@ -10,7 +10,7 @@ import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-import type { DatabaseSnapshot as Database } from "../../domain/aggregates/Database";
+import type { DatabaseSnapshot as Database } from "../../application/dto/database.dto";
 import { getDatabases } from "../queries";
 import { DatabaseDialog } from "./DatabaseDialog";
 

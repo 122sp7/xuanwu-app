@@ -5,10 +5,7 @@
  */
 
 import { makeCommentRepo, makePermissionRepo, makeVersionRepo } from "../../api/factories";
-import type { CommentSnapshot } from "../../domain/aggregates/Comment";
-import type { CommentUnsubscribe } from "../../domain/repositories/ICommentRepository";
-import type { VersionSnapshot } from "../../domain/aggregates/Version";
-import type { PermissionSnapshot } from "../../domain/aggregates/Permission";
+import type { CommentSnapshot, CommentUnsubscribe, VersionSnapshot, PermissionSnapshot } from "../../application/dto/collaboration.dto";
 
 export async function getComments(accountId: string, contentId: string): Promise<CommentSnapshot[]> {
   return makeCommentRepo().listByContent(accountId, contentId);

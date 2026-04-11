@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, FolderOpen, Layers } from "lucide-react";
 
-import type { CategorySnapshot as Category } from "../../domain/aggregates/Category";
+import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
 
 // ── Category tree helpers ────────────────────────────────────────────────────
 

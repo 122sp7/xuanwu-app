@@ -11,8 +11,8 @@ import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../domain/aggregates/Article";
-import type { CategorySnapshot as Category } from "../../domain/aggregates/Category";
+import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
 import { getArticles, getCategories } from "../queries";
 import { ArticleDialog } from "./ArticleDialog";
 import { CategoryTreePanel } from "./CategoryTreePanel";
