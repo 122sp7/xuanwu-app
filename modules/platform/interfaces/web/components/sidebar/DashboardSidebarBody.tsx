@@ -9,8 +9,8 @@ import {
   type NavSection,
   sidebarItemClass,
   sidebarSectionTitleClass,
-  SimpleNavLinks,
 } from "../../navigation/sidebar-nav-data";
+import { ContextScopedNavSection } from "./ContextScopedNavSection";
 import { WorkspaceSectionContent } from "./WorkspaceSectionContent";
 
 interface NavItem {
@@ -28,6 +28,7 @@ interface WorkspaceLink {
 interface DashboardSidebarBodyProps {
   section: NavSection;
   isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
   showAccountManagement: boolean;
   visibleAccountItems: readonly NavItem[];
   visibleOrganizationManagementItems: readonly NavItem[];
@@ -83,6 +84,7 @@ function ManagedNavGroup({
 export function DashboardSidebarBody({
   section,
   isActiveRoute,
+  activeAccountId,
   showAccountManagement,
   visibleAccountItems,
   visibleOrganizationManagementItems,
@@ -164,6 +166,7 @@ export function DashboardSidebarBody({
           pathname={pathname}
           workspacesHydrated={workspacesHydrated}
           allWorkspaceLinks={allWorkspaceLinks}
+          activeAccountId={activeAccountId}
           activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
           creatingKind={creatingKind}
           onSelectWorkspace={onSelectWorkspace}
@@ -172,42 +175,52 @@ export function DashboardSidebarBody({
       )}
 
       {section === "knowledge-base" && (
-        <SimpleNavLinks
+        <ContextScopedNavSection
           title="知識庫"
           items={[{ href: "/knowledge-base/articles", label: "文章" }]}
           isActiveRoute={isActiveRoute}
+          activeAccountId={activeAccountId}
+          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
         />
       )}
 
       {section === "knowledge-database" && (
-        <SimpleNavLinks
+        <ContextScopedNavSection
           title="資料庫"
           items={[{ href: "/knowledge-database/databases", label: "資料庫" }]}
           isActiveRoute={isActiveRoute}
+          activeAccountId={activeAccountId}
+          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
         />
       )}
 
       {section === "source" && (
-        <SimpleNavLinks
+        <ContextScopedNavSection
           title="來源文件"
           items={[{ href: "/source/libraries", label: "Libraries" }]}
           isActiveRoute={isActiveRoute}
+          activeAccountId={activeAccountId}
+          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
         />
       )}
 
       {section === "notebook" && (
-        <SimpleNavLinks
+        <ContextScopedNavSection
           title="Notebook"
           items={[{ href: "/notebook/rag-query", label: "Ask / Cite" }]}
           isActiveRoute={isActiveRoute}
+          activeAccountId={activeAccountId}
+          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
         />
       )}
 
       {section === "ai-chat" && (
-        <SimpleNavLinks
+        <ContextScopedNavSection
           title="Notebook / AI"
           items={[{ href: "/ai-chat", label: "Notebook shell" }]}
           isActiveRoute={isActiveRoute}
+          activeAccountId={activeAccountId}
+          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
         />
       )}
     </div>

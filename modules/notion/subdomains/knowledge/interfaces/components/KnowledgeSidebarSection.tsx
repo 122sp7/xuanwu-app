@@ -14,6 +14,7 @@ interface KnowledgeSidebarSectionProps {
   readonly pathname: string;
   readonly workspacesHydrated: boolean;
   readonly allWorkspaceLinks: WorkspaceLinkItem[];
+  readonly activeAccountId: string | null;
   readonly activeWorkspaceId: string | null;
   readonly creatingKind: "page" | "database" | null;
   readonly onSelectWorkspace: (workspaceId: string | null) => void;
@@ -24,10 +25,31 @@ function isActiveRoute(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function withContextQuery(href: string, accountId: string | null, workspaceId: string | null): string {
+  if (!accountId && !workspaceId) {
+    return href;
+  }
+
+  const [path, search = ""] = href.split("?");
+  const params = new URLSearchParams(search);
+
+  if (accountId) {
+    params.set("accountId", accountId);
+  }
+
+  if (workspaceId) {
+    params.set("workspaceId", workspaceId);
+  }
+
+  const query = params.toString();
+  return query.length > 0 ? `${path}?${query}` : path;
+}
+
 export function KnowledgeSidebarSection({
   pathname,
   workspacesHydrated,
   allWorkspaceLinks,
+  activeAccountId,
   activeWorkspaceId,
   creatingKind,
   onSelectWorkspace,
@@ -36,24 +58,24 @@ export function KnowledgeSidebarSection({
   const [isKnowledgeWorkspacesExpanded, setIsKnowledgeWorkspacesExpanded] = useState(
     () => Boolean(activeWorkspaceId),
   );
-  // Track prop changes without useEffect to avoid cascading renders.
-  // When activeWorkspaceId transitions from absent → present, auto-expand.
-  const [prevActiveWorkspaceId, setPrevActiveWorkspaceId] = useState(activeWorkspaceId);
-  if (prevActiveWorkspaceId !== activeWorkspaceId) {
-    setPrevActiveWorkspaceId(activeWorkspaceId);
-    if (activeWorkspaceId && !isKnowledgeWorkspacesExpanded) {
-      setIsKnowledgeWorkspacesExpanded(true);
-    }
-  }
+
+  const contextualPagesHref = withContextQuery("/knowledge/pages", activeAccountId, activeWorkspaceId);
 
   return (
     <nav className="space-y-0.5" aria-label="Knowledge navigation">
       <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
         知識管理
       </p>
+      {(activeAccountId || activeWorkspaceId) && (
+        <p className="px-2 pb-1 text-[11px] text-muted-foreground">
+          {activeAccountId ? `Account: ${activeAccountId.slice(0, 8)}` : "Account: -"}
+          {" · "}
+          {activeWorkspaceId ? `Workspace: ${activeWorkspaceId.slice(0, 8)}` : "Workspace: -"}
+        </p>
+      )}
       <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
         <Link
-          href="/knowledge/pages"
+          href={contextualPagesHref}
           aria-current={isActiveRoute(pathname, "/knowledge/pages") ? "page" : undefined}
           className={`flex-1 ${
             isActiveRoute(pathname, "/knowledge/pages")
@@ -81,10 +103,11 @@ export function KnowledgeSidebarSection({
         ] as const
       ).map((item) => {
         const active = isActiveRoute(pathname, item.href);
+        const contextualHref = withContextQuery(item.href, activeAccountId, activeWorkspaceId);
         return (
           <Link
             key={item.href}
-            href={item.href}
+            href={contextualHref}
             aria-current={active ? "page" : undefined}
             className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
               active

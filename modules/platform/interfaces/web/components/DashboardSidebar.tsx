@@ -219,6 +219,7 @@ export function DashboardSidebar({
         <DashboardSidebarBody
           section={section}
           isActiveRoute={isActiveRoute}
+          activeAccountId={activeAccount?.id ?? null}
           showAccountManagement={showAccountManagement}
           visibleAccountItems={visibleAccountItems}
           visibleOrganizationManagementItems={visibleOrganizationManagementItems}
