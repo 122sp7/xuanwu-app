@@ -14,9 +14,9 @@ import { useEffect, useState } from "react";
 import { PanelLeftOpen, Search } from "lucide-react";
 
 import { useApp } from "../providers/app-provider";
-import { useAuth, ShellGuard } from "../../../subdomains/identity";
-import { type AccountEntity, HeaderUserAvatar } from "../../../subdomains/account";
-import { AccountSwitcher } from "../../../subdomains/organization";
+import { useAuth, ShellGuard } from "../../../subdomains/identity/api";
+import { type AccountEntity, HeaderUserAvatar } from "../../../subdomains/account/api";
+import { AccountSwitcher } from "../../../subdomains/organization/api";
 import { AppBreadcrumbs } from "./AppBreadcrumbs";
 import { AppRail } from "./AppRail";
 import { DashboardSidebar } from "./DashboardSidebar";

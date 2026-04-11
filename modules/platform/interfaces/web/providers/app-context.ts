@@ -11,7 +11,7 @@
 import { createContext, type Dispatch } from "react";
 
 import type { AuthUser } from "@/modules/platform/api/contracts";
-import type { AccountEntity } from "../../../subdomains/account";
+import type { AccountEntity } from "../../../subdomains/account/api";
 import type { WorkspaceEntity } from "@/modules/workspace/api";
 import type { ActiveAccount } from "@/modules/platform/api/contracts";
 export type { ActiveAccount };

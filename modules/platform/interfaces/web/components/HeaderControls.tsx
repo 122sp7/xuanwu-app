@@ -8,8 +8,8 @@
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { useAuth } from "../../../subdomains/identity";
-import { NotificationBell } from "../../../subdomains/notification";
+import { useAuth } from "../../../subdomains/identity/api";
+import { NotificationBell } from "../../../subdomains/notification/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { TranslationSwitcher } from "./TranslationSwitcher";
 

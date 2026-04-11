@@ -21,8 +21,8 @@ import {
 import {
   subscribeToAccountsForUser,
   type AccountEntity,
-} from "../../../subdomains/account";
-import { type AuthUser, useAuth } from "../../../subdomains/identity";
+} from "../../../subdomains/account/api";
+import { type AuthUser, useAuth } from "../../../subdomains/identity/api";
 import {
   subscribeToWorkspacesForAccount,
   getWorkspaceStorageKey,

@@ -5,4 +5,4 @@
 
 export * from "../application";
 export * from "../infrastructure";
-export { getUserProfile, subscribeToUserProfile } from "../../account";
+export { getUserProfile, subscribeToUserProfile } from "../../account/api";
