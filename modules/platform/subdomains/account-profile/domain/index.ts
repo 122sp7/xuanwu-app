@@ -14,6 +14,7 @@ export type {
 
 export type { Unsubscribe, AccountProfileQueryRepository } from "./repositories/AccountProfileQueryRepository";
 export type { AccountProfileCommandRepository } from "./repositories/AccountProfileCommandRepository";
+export type { IAccountProfileQueryPort, IAccountProfileCommandPort } from "./ports";
 export * from "./aggregates";
 export * from "./events";
 export * from "./value-objects";

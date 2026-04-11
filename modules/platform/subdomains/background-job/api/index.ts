@@ -4,8 +4,8 @@
  */
 
 export * from "../application";
-export * from "../infrastructure";
+export { ingestionService } from "../infrastructure/ingestion-service";
 export type { IngestionDocument } from "../domain/entities/IngestionDocument";
 export type { IngestionChunk, IngestionChunkMetadata } from "../domain/entities/IngestionChunk";
-export type { IngestionJob } from "../domain/entities/IngestionJob";
+export type { IngestionJob, IngestionStatus } from "../domain/entities/IngestionJob";
 export { canTransitionIngestionStatus } from "../domain/entities/IngestionJob";
