@@ -2,7 +2,5 @@
  * platform application layer barrel.
  */
 
-export * from "./commands";
-export * from "./queries";
-export * from "./handlers";
+export * from "./use-cases";
 export * from "./dtos";
