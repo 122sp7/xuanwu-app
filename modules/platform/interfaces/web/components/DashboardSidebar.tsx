@@ -22,6 +22,7 @@ import {
   type NavPreferences,
   useRecentWorkspaces,
   useSidebarLocale,
+  WorkspaceQuickAccessRow,
 } from "@/modules/workspace/api";
 
 import {
@@ -34,7 +35,6 @@ import {
 } from "../navigation/sidebar-nav-data";
 import { DashboardSidebarHeader } from "./sidebar/DashboardSidebarHeader";
 import { DashboardSidebarBody } from "./sidebar/DashboardSidebarBody";
-import { WorkspaceQuickAccessRow } from "./sidebar/WorkspaceQuickAccessRow";
 
 export function DashboardSidebar({
   pathname,

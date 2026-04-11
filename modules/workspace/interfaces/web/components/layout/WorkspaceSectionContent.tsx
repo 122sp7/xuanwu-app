@@ -2,16 +2,8 @@
 
 import Link from "next/link";
 
-import {
-  type NavPreferences,
-  type SidebarLocaleBundle,
-  WorkspaceSidebarSection,
-} from "@/modules/workspace/api";
-
-import {
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-} from "../../navigation/sidebar-nav-data";
+import type { NavPreferences, SidebarLocaleBundle } from "../../navigation/nav-preferences-data";
+import { WorkspaceSidebarSection } from "./WorkspaceSidebarSection";
 
 interface RecentWorkspaceLink {
   id: string;
@@ -31,6 +23,8 @@ interface WorkspaceSectionContentProps {
   isActiveRoute: (href: string) => boolean;
   onSelectWorkspace: (workspaceId: string | null) => void;
   onToggleExpanded: () => void;
+  getItemClassName: (isActive: boolean) => string;
+  sectionTitleClassName: string;
 }
 
 export function WorkspaceSectionContent({
@@ -45,6 +39,8 @@ export function WorkspaceSectionContent({
   isActiveRoute,
   onSelectWorkspace,
   onToggleExpanded,
+  getItemClassName,
+  sectionTitleClassName,
 }: WorkspaceSectionContentProps) {
   if (workspacePathId) {
     return (
@@ -52,7 +48,7 @@ export function WorkspaceSectionContent({
         workspacePathId={workspacePathId}
         navPrefs={navPrefs}
         localeBundle={localeBundle}
-        getItemClassName={sidebarItemClass}
+        getItemClassName={getItemClassName}
       />
     );
   }
@@ -63,11 +59,9 @@ export function WorkspaceSectionContent({
 
   return (
     <div className="space-y-0.5">
-      <p className={sidebarSectionTitleClass}>最近工作區</p>
+      <p className={sectionTitleClassName}>最近工作區</p>
       {visibleRecentWorkspaceLinks.length === 0 ? (
-        <p className="px-2 py-2 text-[11px] text-muted-foreground">
-          尚無最近開啟的工作區。
-        </p>
+        <p className="px-2 py-2 text-[11px] text-muted-foreground">尚無最近開啟的工作區。</p>
       ) : (
         visibleRecentWorkspaceLinks.map((workspace) => (
           <Link

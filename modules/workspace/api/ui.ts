@@ -26,6 +26,8 @@ export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/Workspace
 // ── Layout components ────────────────────────────────────────────────────────
 
 export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
+export { WorkspaceQuickAccessRow } from "../interfaces/web/components/layout/WorkspaceQuickAccessRow";
+export { WorkspaceSectionContent } from "../interfaces/web/components/layout/WorkspaceSectionContent";
 
 // ── Rail components ──────────────────────────────────────────────────────────
 

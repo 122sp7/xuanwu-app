@@ -3,7 +3,11 @@
 import Link from "next/link";
 
 import { KnowledgeSidebarSection } from "@/modules/notion/api";
-import type { NavPreferences, SidebarLocaleBundle } from "@/modules/workspace/api";
+import {
+  WorkspaceSectionContent,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+} from "@/modules/workspace/api";
 
 import {
   type NavSection,
@@ -11,7 +15,6 @@ import {
   sidebarSectionTitleClass,
 } from "../../navigation/sidebar-nav-data";
 import { ContextScopedNavSection } from "./ContextScopedNavSection";
-import { WorkspaceSectionContent } from "./WorkspaceSectionContent";
 
 interface NavItem {
   id: string;
@@ -157,6 +160,8 @@ export function DashboardSidebarBody({
             isActiveRoute={isActiveRoute}
             onSelectWorkspace={onSelectWorkspace}
             onToggleExpanded={onToggleExpanded}
+            getItemClassName={sidebarItemClass}
+            sectionTitleClassName={sidebarSectionTitleClass}
           />
         </div>
       )}

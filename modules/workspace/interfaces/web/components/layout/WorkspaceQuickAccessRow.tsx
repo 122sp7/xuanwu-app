@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Settings } from "lucide-react";
 import { useRef } from "react";
 
-import type { WorkspaceQuickAccessItem } from "@/modules/workspace/api";
+import type { WorkspaceQuickAccessItem } from "../navigation/workspace-quick-access";
 
 interface WorkspaceQuickAccessRowProps {
   items: WorkspaceQuickAccessItem[];
