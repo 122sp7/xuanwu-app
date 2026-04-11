@@ -15100,6 +15100,368 @@ export function AppBreadcrumbs() {
 }
 ````
 
+## File: modules/platform/interfaces/web/components/AppRail.tsx
+````typescript
+"use client";
+
+/**
+ * Module: app-rail.tsx
+ * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
+ * Responsibilities: app logo, account context switcher, top-level section icon nav with
+ *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
+ * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
+ *   `h-full` ensures it fills the parent `h-screen` container.
+ */
+
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
+import { CreateOrganizationDialog } from "@/modules/platform/api";
+import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+
+interface RailItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  /** When false the item is hidden; defaults to true */
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+
+function isExactOrChildPath(targetPath: string, pathname: string) {
+  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+}
+
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
+}
+
+export function AppRail({
+  pathname,
+  user,
+  activeAccount,
+  organizationAccounts,
+  workspaces,
+  workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOrganizationCreated,
+  onSignOut: _onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  const railItems: RailItem[] = [
+    // ── Organization / hub layer ─────────────────────────────────────
+    {
+      href: "/workspace",
+      label: "工作區中心",
+      icon: <Building2 className="size-[18px]" />,
+    },
+    // ── People (org-only) ─────────────────────────────────────────
+    {
+      href: "/organization/members",
+      label: "成員",
+      icon: <UserRound className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
+    },
+    {
+      href: "/organization/teams",
+      label: "團隊",
+      icon: <Users className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
+    },
+    // ── Operations (org-only) ─────────────────────────────────────
+    {
+      href: "/organization/daily",
+      label: "每日",
+      icon: <NotebookText className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
+    },
+    {
+      href: "/organization/schedule",
+      label: "排程",
+      icon: <CalendarDays className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
+    },
+    // ── Admin (org-only) ──────────────────────────────────────────
+    {
+      href: "/organization/audit",
+      label: "稽核",
+      icon: <ClipboardList className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
+    },
+    {
+      href: "/organization/permissions",
+      label: "權限",
+      icon: <SlidersHorizontal className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
+    },
+    // ── Developer ────────────────────────────────────────────────
+    {
+      href: "/dev-tools",
+      label: "開發工具",
+      icon: <FlaskConical className="size-[18px]" />,
+    },
+  ];
+
+  const visibleRailItems = railItems.filter((item) => item.show !== false);
+
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces],
+  );
+
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
+
+  return (
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        {/* ── Workspace / account logo tile ─────────────────────────── */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => {
+                  onSelectOrganization(account);
+                }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setIsCreateOrgOpen(true);
+              }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="my-2 h-px w-7 bg-border/50" />
+
+        {/* ── Section nav icons ─────────────────────────────────────── */}
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
+
+            if (item.href === "/workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        router.push("/workspace");
+                      }}
+                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
+                    >
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(`/workspace/${workspace.id}`);
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsCreateWorkspaceOpen(true);
+                      }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        {/* ── Spacer ────────────────────────────────────────────────── */}
+        <div className="flex-1" />
+
+        <div className="h-1" />
+      </aside>
+
+      {/* ── Create organization dialog ─────────────────────────────── */}
+      <CreateOrganizationDialog
+        open={isCreateOrgOpen}
+        onOpenChange={setIsCreateOrgOpen}
+        user={user}
+        onOrganizationCreated={onOrganizationCreated}
+        onNavigate={(href) => { router.push(href); }}
+      />
+
+      {/* ── Create workspace dialog ────────────────────────────────── */}
+      <CreateWorkspaceDialogRail
+        open={isCreateWorkspaceOpen}
+        onOpenChange={setIsCreateWorkspaceOpen}
+        accountId={activeAccount?.id ?? null}
+        accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
+        creatorUserId={user?.id}
+        onNavigate={(href: string) => { router.push(href); }}
+      />
+    </TooltipProvider>
+  );
+}
+````
+
 ## File: modules/platform/interfaces/web/components/TranslationSwitcher.tsx
 ````typescript
 "use client";
@@ -15180,6 +15542,159 @@ export function TranslationSwitcher() {
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+````
+
+## File: modules/platform/interfaces/web/navigation/sidebar-nav-data.tsx
+````typescript
+import {
+  BookOpen,
+  Bot,
+  Brain,
+  Building2,
+  Database,
+  FileText,
+  UserRound,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
+
+import type { AccountEntity, ActiveAccount } from "@/modules/platform/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly userId: string | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+
+export type NavSection =
+  | "workspace"
+  | "knowledge"
+  | "knowledge-base"
+  | "knowledge-database"
+  | "source"
+  | "notebook"
+  | "ai-chat"
+  | "account"
+  | "organization"
+  | "other";
+
+// ── Static nav constants ──────────────────────────────────────────────────────
+
+export const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
+
+export const ACCOUNT_NAV_ITEMS = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
+] as const;
+
+export const ACCOUNT_SECTION_MATCHERS = [
+  "/organization/daily",
+  "/organization/schedule",
+  "/organization/audit",
+] as const;
+
+export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
+  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
+  knowledge: { label: "Knowledge", icon: <BookOpen className="size-3" /> },
+  "knowledge-base": { label: "Knowledge Base", icon: <BookOpen className="size-3" /> },
+  "knowledge-database": { label: "Knowledge Database", icon: <Database className="size-3" /> },
+  source: { label: "Source", icon: <FileText className="size-3" /> },
+  notebook: { label: "Notebook", icon: <Brain className="size-3" /> },
+  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
+  account: { label: "Account", icon: <UserRound className="size-3" /> },
+  organization: { label: "組織", icon: <Users className="size-3" /> },
+  other: { label: "導覽", icon: null },
+};
+
+// ── CSS class helpers ─────────────────────────────────────────────────────────
+
+export function sidebarItemClass(active: boolean) {
+  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
+    active
+      ? "border-primary/30 bg-primary/10 text-primary"
+      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
+  }`;
+}
+
+export const sidebarSectionTitleClass =
+  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
+
+export const sidebarGroupButtonClass =
+  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
+
+// ── Pure section helpers ──────────────────────────────────────────────────────
+
+export function resolveNavSection(pathname: string): NavSection {
+  if (pathname.startsWith("/workspace")) return "workspace";
+  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
+  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
+  if (pathname.startsWith("/knowledge")) return "knowledge";
+  if (pathname.startsWith("/source")) return "source";
+  if (pathname.startsWith("/notebook")) return "notebook";
+  if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)))
+    return "account";
+  if (pathname.startsWith("/organization")) return "organization";
+  return "other";
+}
+
+export function isActiveOrganizationAccount(
+  activeAccount: ActiveAccount | null,
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
+// ── Simple section nav component ──────────────────────────────────────────────
+
+export function SimpleNavLinks({
+  items,
+  title,
+  isActiveRoute,
+}: {
+  items: readonly { href: string; label: string }[];
+  title: string;
+  isActiveRoute: (href: string) => boolean;
+}) {
+  return (
+    <nav className="space-y-0.5" aria-label={`${title} navigation`}>
+      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+        {title}
+      </p>
+      {items.map((item) => {
+        const active = isActiveRoute(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
 ````
@@ -26078,16 +26593,6 @@ export class MockDemandRepository implements IDemandRepository {
     return store.find((d) => d.id === id) ?? null;
   }
 }
-````
-
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/dev/types/routes.d.ts";
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````
 
 ## File: next.config.ts
@@ -52511,364 +53016,558 @@ export type PlatformAdapterCliFunction = (typeof PLATFORM_ADAPTER_CLI_FUNCTIONS)
 // TODO: implement runPlatformCliCommand CLI entrypoint
 ````
 
-## File: modules/platform/interfaces/web/components/AppRail.tsx
+## File: modules/platform/interfaces/web/components/DashboardSidebar.tsx
 ````typescript
 "use client";
 
 /**
- * Module: app-rail.tsx
- * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
- * Responsibilities: app logo, account context switcher, top-level section icon nav with
- *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
- * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
- *   `h-full` ensures it fills the parent `h-screen` container.
+ * Module: dashboard-sidebar.tsx
+ * Purpose: render the secondary navigation panel of the authenticated shell.
+ * Responsibilities: account switcher, search hint, org management sub-nav, and
+ *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
+ * Constraints: UI-only; workspace data sourced from module interfaces.
  */
 
 import Link from "next/link";
 import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  NotebookText,
-  Plus,
+  PanelLeftClose,
+  Settings,
   SlidersHorizontal,
-  UserRound,
-  Users,
 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
-import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
-import { CreateOrganizationDialog } from "@/modules/platform/api";
-import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
+import { createKnowledgePage, KnowledgeSidebarSection } from "@/modules/notion/api";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
+  buildWorkspaceQuickAccessItems,
+  CustomizeNavigationDialog,
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  readNavPreferences,
+  type NavPreferences,
+  useRecentWorkspaces,
+  useSidebarLocale,
+  WorkspaceSidebarSection,
+} from "@/modules/workspace/api";
+
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
+  type DashboardSidebarProps,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  ACCOUNT_NAV_ITEMS,
+  SECTION_TITLES,
+  sidebarItemClass,
+  sidebarSectionTitleClass,
+  resolveNavSection,
+  isActiveOrganizationAccount,
+  SimpleNavLinks,
+} from "../navigation/sidebar-nav-data";
 
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-
-interface RailItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  /** When false the item is hidden; defaults to true */
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-
-function isExactOrChildPath(targetPath: string, pathname: string) {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
-}
-
-function getInitial(name: string | undefined | null): string {
-  return name?.trim().charAt(0).toUpperCase() || "U";
-}
-
-export function AppRail({
+export function DashboardSidebar({
   pathname,
-  user,
+  userId,
   activeAccount,
-  organizationAccounts,
   workspaces,
   workspacesHydrated,
-  isOrganizationAccount,
-  onSelectPersonal,
-  onSelectOrganization,
   activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
   onSelectWorkspace,
-  onOrganizationCreated,
-  onSignOut: _onSignOut,
-}: AppRailProps) {
-  const router = useRouter();
-  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+}: DashboardSidebarProps) {
+  const searchParams = useSearchParams();
+  const quickAccessDragStateRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startScrollLeft: number;
+    didDrag: boolean;
+  } | null>(null);
+  const suppressQuickAccessClickRef = useRef(false);
 
-  function isActive(href: string) {
+  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
+    activeAccount?.id,
+    pathname,
+    workspaces,
+  );
+  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
+  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const localeBundle = useSidebarLocale();
+
+  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
+
+  const visibleOrganizationManagementItems = useMemo(
+    () => ORGANIZATION_MANAGEMENT_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
+    [navPrefs.pinnedWorkspace],
+  );
+
+  const visibleAccountItems = useMemo(
+    () => ACCOUNT_NAV_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
+    [navPrefs.pinnedWorkspace],
+  );
+
+  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
+
+  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
+    ? navPrefs.maxWorkspaces
+    : MAX_VISIBLE_RECENT_WORKSPACES;
+
+  function isActiveRoute(href: string) {
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
-  const railItems: RailItem[] = [
-    // ── Organization / hub layer ─────────────────────────────────────
-    {
-      href: "/workspace",
-      label: "工作區中心",
-      icon: <Building2 className="size-[18px]" />,
-    },
-    // ── People (org-only) ─────────────────────────────────────────
-    {
-      href: "/organization/members",
-      label: "成員",
-      icon: <UserRound className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
-    },
-    {
-      href: "/organization/teams",
-      label: "團隊",
-      icon: <Users className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
-    },
-    // ── Operations (org-only) ─────────────────────────────────────
-    {
-      href: "/organization/daily",
-      label: "每日",
-      icon: <NotebookText className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
-    },
-    {
-      href: "/organization/schedule",
-      label: "排程",
-      icon: <CalendarDays className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
-    },
-    // ── Admin (org-only) ──────────────────────────────────────────
-    {
-      href: "/organization/audit",
-      label: "稽核",
-      icon: <ClipboardList className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
-    },
-    {
-      href: "/organization/permissions",
-      label: "權限",
-      icon: <SlidersHorizontal className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
-    },
-    // ── Developer ────────────────────────────────────────────────
-    {
-      href: "/dev-tools",
-      label: "開發工具",
-      icon: <FlaskConical className="size-[18px]" />,
-    },
-  ];
+  const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
 
-  const visibleRailItems = railItems.filter((item) => item.show !== false);
+  useEffect(() => {
+    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
+    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(pathWorkspaceId);
+      return;
+    }
 
-  const sortedWorkspaces = useMemo(
-    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces],
+    const supportsWorkspaceSearchContext =
+      pathname.startsWith("/knowledge") ||
+      pathname.startsWith("/source") ||
+      pathname.startsWith("/notebook");
+
+    if (!supportsWorkspaceSearchContext) {
+      return;
+    }
+
+    if (currentSearchWorkspaceId && currentSearchWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(currentSearchWorkspaceId);
+    }
+  }, [pathname, activeWorkspaceId, currentSearchWorkspaceId, onSelectWorkspace]);
+
+  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
+  const visibleRecentWorkspaceLinks = isExpanded
+    ? recentWorkspaceLinks
+    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
+
+  const buildWorkspaceContextHref = useCallback(
+    (workspaceId: string): string => {
+      if (pathname.startsWith("/knowledge")) {
+        const targetPath = pathname === "/knowledge" ? "/knowledge/pages" : pathname;
+        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
+      }
+      return `/workspace/${workspaceId}`;
+    },
+    [pathname],
   );
 
-  const accountName = activeAccount?.name ?? user?.name ?? "—";
+  const allWorkspaceLinks = useMemo(
+    () =>
+      workspaces
+        .map((workspace) => ({
+          id: workspace.id,
+          name: workspace.name,
+          href: buildWorkspaceContextHref(workspace.id),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces, buildWorkspaceContextHref],
+  );
+
+  const section = resolveNavSection(pathname);
+  const sectionMeta = SECTION_TITLES[section];
+  const workspacePathId = getWorkspaceIdFromPath(pathname);
+  const currentPanel = searchParams.get("panel");
+  const currentWorkspaceTab = searchParams.get("tab");
+  const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
+  const hasWorkspaceToolContext =
+    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
+    (section === "knowledge" ||
+      section === "knowledge-base" ||
+      section === "source" ||
+      section === "notebook");
+  const workspaceQuickAccessId =
+    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
+  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
+  const workspaceSettingsHref = workspaceQuickAccessId
+    ? `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
+    : "";
+  const workspaceQuickAccessItems = useMemo(
+    () =>
+      showWorkspaceQuickAccess && workspaceQuickAccessId
+        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId)
+        : [],
+    [showWorkspaceQuickAccess, workspaceQuickAccessId],
+  );
+
+  async function handleQuickCreatePage() {
+    const accountId = activeAccount?.id ?? "";
+    if (!accountId) {
+      toast.error("目前沒有 active account，無法建立");
+      return;
+    }
+    if (!activeWorkspaceId) {
+      toast.error("請先切換到工作區，再建立頁面");
+      return;
+    }
+    setCreatingKind("page");
+    try {
+      const result = await createKnowledgePage({
+        accountId,
+        workspaceId: activeWorkspaceId,
+        title: "未命名頁面",
+        parentPageId: null,
+        createdByUserId: userId ?? accountId,
+      });
+      if (result.success) {
+        toast.success("已建立頁面");
+      } else {
+        toast.error(result.error?.message ?? "建立頁面失敗");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("建立頁面失敗");
+    } finally {
+      setCreatingKind(null);
+    }
+  }
+
+  function handleQuickAccessPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.pointerType !== "mouse") {
+      return;
+    }
+
+    const container = event.currentTarget;
+    if (container.scrollWidth <= container.clientWidth) {
+      return;
+    }
+
+    quickAccessDragStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startScrollLeft: container.scrollLeft,
+      didDrag: false,
+    };
+  }
+
+  function handleQuickAccessPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const dragState = quickAccessDragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - dragState.startX;
+    if (!dragState.didDrag && Math.abs(deltaX) > 4) {
+      dragState.didDrag = true;
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+    }
+
+    if (!dragState.didDrag) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.scrollLeft = dragState.startScrollLeft - deltaX;
+  }
+
+  function finishQuickAccessPointer(event: React.PointerEvent<HTMLDivElement>) {
+    const dragState = quickAccessDragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (dragState.didDrag) {
+      suppressQuickAccessClickRef.current = true;
+      window.setTimeout(() => {
+        suppressQuickAccessClickRef.current = false;
+      }, 0);
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    quickAccessDragStateRef.current = null;
+  }
+
+  function handleQuickAccessItemClick(event: React.MouseEvent<HTMLAnchorElement>) {
+    if (!suppressQuickAccessClickRef.current) {
+      return;
+    }
+
+    suppressQuickAccessClickRef.current = false;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function handleQuickAccessDragStart(event: React.DragEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+  }
 
   return (
-    <TooltipProvider delayDuration={400}>
+    <div className="contents">
       <aside
-        aria-label="App navigation rail"
-        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+        aria-label="Secondary navigation"
+        className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
+          collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
+        }`}
       >
-        {/* ── Workspace / account logo tile ─────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
-                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[180px]">
-              <p className="text-xs font-medium">{accountName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => {
-                  onSelectOrganization(account);
-                }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                setIsCreateOrgOpen(true);
-              }}
-              className="gap-2 text-primary"
+        {/* ── Sidebar title bar ──────────────────────────────────── */}
+        <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
+          <span className="flex flex-1 items-center gap-1.5 px-1 text-[11px] font-semibold tracking-tight text-foreground/80">
+            {sectionMeta.icon}
+            {sectionMeta.label}
+          </span>
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              title="設定"
+              aria-label="設定"
+              onClick={() => { setCustomizeOpen(true); }}
+              className="flex size-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
             >
-              <Plus className="size-3.5 shrink-0" />
-              <span>建立組織</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <SlidersHorizontal className="size-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={onToggleCollapsed}
+              aria-label="收起側欄"
+              title="收起側欄"
+              className="flex size-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
+            >
+              <PanelLeftClose className="size-3.5" />
+            </button>
+          </div>
+        </div>
 
-        <div className="my-2 h-px w-7 bg-border/50" />
+        {/* ── Quick access row ───────────────────────────────────── */}
+        {workspaceQuickAccessItems.length > 0 ? (
+          <div className="shrink-0 border-b border-border/30 px-2 py-2">
+            <div className="flex items-center gap-1">
+              <div
+                className="min-w-0 flex-1 cursor-grab overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden active:cursor-grabbing"
+                onPointerDown={handleQuickAccessPointerDown}
+                onPointerMove={handleQuickAccessPointerMove}
+                onPointerUp={finishQuickAccessPointer}
+                onPointerCancel={finishQuickAccessPointer}
+              >
+                <div className="flex w-max items-center gap-1 pr-1 select-none">
+                  {workspaceQuickAccessItems.map((item) => {
+                    const active = item.isActive?.(pathname, {
+                      panel: currentPanel,
+                      tab: currentWorkspaceTab,
+                    }) ?? isActiveRoute(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-label={item.label}
+                        aria-current={active ? "page" : undefined}
+                        onClick={handleQuickAccessItemClick}
+                        onDragStart={handleQuickAccessDragStart}
+                        draggable={false}
+                        className={`flex size-7 shrink-0 items-center justify-center rounded-md transition ${
+                          active
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                        }`}
+                      >
+                        {item.icon}
+                        <span className="sr-only">{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+              {workspaceSettingsHref ? (
+                <Link
+                  href={workspaceSettingsHref}
+                  aria-label="工作區設定"
+                  aria-current={currentPanel === "settings" ? "page" : undefined}
+                  onClick={handleQuickAccessItemClick}
+                  onDragStart={handleQuickAccessDragStart}
+                  draggable={false}
+                  className={`ml-auto flex size-7 items-center justify-center rounded-md transition ${
+                    currentPanel === "settings"
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                  }`}
+                >
+                  <Settings className="size-3.5" />
+                  <span className="sr-only">工作區設定</span>
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
 
-        {/* ── Section nav icons ─────────────────────────────────────── */}
-        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
-          {visibleRailItems.map((item) => {
-            const active = item.isActive?.(pathname) ?? isActive(item.href);
+        {/* ── Scrollable nav body ─── section-specific ──────────── */}
+        <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
 
-            if (item.href === "/workspace") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
+          {section === "account" && (
+            <div className="space-y-2">
+              {showAccountManagement && visibleAccountItems.length > 0 && (
+                <nav className="space-y-0.5" aria-label="Account navigation">
+                  <p className={sidebarSectionTitleClass}>Account</p>
+                  {visibleAccountItems.map((item) => {
+                    const active = isActiveRoute(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={active ? "page" : undefined}
+                        className={sidebarItemClass(active)}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              )}
+              {!showAccountManagement && (
+                <p className="px-2 py-4 text-[11px] text-muted-foreground">
+                  請切換到組織帳號以查看 Account 選項。
+                </p>
+              )}
+            </div>
+          )}
+
+          {section === "organization" && (
+            <div className="space-y-2">
+              {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
+                <nav className="space-y-0.5" aria-label="Organization management">
+                  <p className={sidebarSectionTitleClass}>組織管理</p>
+                  {visibleOrganizationManagementItems.map((item) => {
+                    const active = isActiveRoute(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={active ? "page" : undefined}
+                        className={sidebarItemClass(active)}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              )}
+              {!showAccountManagement && (
+                <p className="px-2 py-4 text-[11px] text-muted-foreground">
+                  請切換到組織帳號以查看管理選項。
+                </p>
+              )}
+            </div>
+          )}
+
+          {section === "workspace" && (
+            <div className="space-y-2">
+              {workspacePathId ? (
+                <WorkspaceSidebarSection
+                  workspacePathId={workspacePathId}
+                  navPrefs={navPrefs}
+                  localeBundle={localeBundle}
+                  getItemClassName={sidebarItemClass}
+                />
+              ) : (
+                <div>
+                  {showRecentWorkspaces && (
+                    <div className="space-y-0.5">
+                      <p className={sidebarSectionTitleClass}>最近工作區</p>
+                      {visibleRecentWorkspaceLinks.length === 0 ? (
+                        <p className="px-2 py-2 text-[11px] text-muted-foreground">
+                          尚無最近開啟的工作區。
+                        </p>
+                      ) : (
+                        visibleRecentWorkspaceLinks.map((ws) => (
+                          <Link
+                            key={ws.id}
+                            href={ws.href}
+                            onClick={() => { onSelectWorkspace(ws.id); }}
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                              activeWorkspaceId === ws.id || isActiveRoute(ws.href)
+                                ? "border border-primary/30 bg-primary/10 text-primary"
+                                : "border border-transparent text-foreground/80 hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
+                            }`}
+                            title={ws.name}
+                          >
+                            <span className="truncate">{ws.name}</span>
+                          </Link>
+                        ))
+                      )}
+                      {hasOverflow && (
                         <button
                           type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="工作區中心：切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
+                          onClick={() => { setIsExpanded((prev) => !prev); }}
+                          className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
                         >
-                          {item.icon}
+                          {isExpanded ? "收起" : "顯示更多"}
                         </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">工作區中心：切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        router.push("/workspace");
-                      }}
-                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
-                    >
-                      工作區中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(`/workspace/${workspace.id}`);
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setIsCreateWorkspaceOpen(true);
-                      }}
-                      className="gap-2 text-primary"
-                    >
-                      <Plus className="size-3.5 shrink-0" />
-                      <span>建立工作區</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
+          {section === "knowledge" && (
+            <KnowledgeSidebarSection
+              pathname={pathname}
+              workspacesHydrated={workspacesHydrated}
+              allWorkspaceLinks={allWorkspaceLinks}
+              activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
+              creatingKind={creatingKind}
+              onSelectWorkspace={onSelectWorkspace}
+              onQuickCreatePage={() => { void handleQuickCreatePage(); }}
+            />
+          )}
 
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">{item.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
+          {section === "knowledge-base" && (
+            <SimpleNavLinks
+              title="知識庫"
+              items={[{ href: "/knowledge-base/articles", label: "文章" }]}
+              isActiveRoute={isActiveRoute}
+            />
+          )}
 
-        {/* ── Spacer ────────────────────────────────────────────────── */}
-        <div className="flex-1" />
+          {section === "knowledge-database" && (
+            <SimpleNavLinks
+              title="資料庫"
+              items={[{ href: "/knowledge-database/databases", label: "資料庫" }]}
+              isActiveRoute={isActiveRoute}
+            />
+          )}
 
-        <div className="h-1" />
+          {section === "source" && (
+            <SimpleNavLinks
+              title="來源文件"
+              items={[
+                { href: "/source/libraries", label: "Libraries" },
+              ]}
+              isActiveRoute={isActiveRoute}
+            />
+          )}
+
+          {section === "notebook" && (
+            <SimpleNavLinks
+              title="Notebook"
+              items={[{ href: "/notebook/rag-query", label: "Ask / Cite" }]}
+              isActiveRoute={isActiveRoute}
+            />
+          )}
+
+          {section === "ai-chat" && (
+            <SimpleNavLinks
+              title="Notebook / AI"
+              items={[{ href: "/ai-chat", label: "Notebook shell" }]}
+              isActiveRoute={isActiveRoute}
+            />
+          )}
+
+        </div>
       </aside>
 
-      {/* ── Create organization dialog ─────────────────────────────── */}
-      <CreateOrganizationDialog
-        open={isCreateOrgOpen}
-        onOpenChange={setIsCreateOrgOpen}
-        user={user}
-        onOrganizationCreated={onOrganizationCreated}
-        onNavigate={(href) => { router.push(href); }}
+      <CustomizeNavigationDialog
+        open={customizeOpen}
+        onOpenChange={setCustomizeOpen}
+        onPreferencesChange={setNavPrefs}
       />
-
-      {/* ── Create workspace dialog ────────────────────────────────── */}
-      <CreateWorkspaceDialogRail
-        open={isCreateWorkspaceOpen}
-        onOpenChange={setIsCreateWorkspaceOpen}
-        accountId={activeAccount?.id ?? null}
-        accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
-        creatorUserId={user?.id}
-        onNavigate={(href: string) => { router.push(href); }}
-      />
-    </TooltipProvider>
+    </div>
   );
 }
 ````
@@ -52972,157 +53671,39 @@ export function useGlobalSearch() {
 }
 ````
 
-## File: modules/platform/interfaces/web/navigation/sidebar-nav-data.tsx
+## File: modules/platform/interfaces/web/index.ts
 ````typescript
-import {
-  BookOpen,
-  Bot,
-  Brain,
-  Building2,
-  Database,
-  FileText,
-  UserRound,
-  Users,
-} from "lucide-react";
-import Link from "next/link";
+export { HeaderControls } from "./components/HeaderControls";
+export { TranslationSwitcher } from "./components/TranslationSwitcher";
+export { AppBreadcrumbs } from "./components/AppBreadcrumbs";
+export { GlobalSearchDialog, useGlobalSearch } from "./components/GlobalSearchDialog";
+export { AppRail } from "./components/AppRail";
+export { DashboardSidebar } from "./components/DashboardSidebar";
+export { ShellLayout } from "./components/ShellLayout";
+export type { DashboardSidebarProps, NavSection } from "./navigation/sidebar-nav-data";
+export {
+  resolveNavSection,
+  isActiveOrganizationAccount,
+  SECTION_TITLES,
+  ACCOUNT_NAV_ITEMS,
+  ACCOUNT_SECTION_MATCHERS,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  sidebarItemClass,
+  sidebarSectionTitleClass,
+  sidebarGroupButtonClass,
+  SimpleNavLinks,
+} from "./navigation/sidebar-nav-data";
 
-import type { AccountEntity, ActiveAccount } from "@/modules/platform/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly userId: string | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-
-export type NavSection =
-  | "workspace"
-  | "knowledge"
-  | "knowledge-base"
-  | "knowledge-database"
-  | "source"
-  | "notebook"
-  | "ai-chat"
-  | "account"
-  | "organization"
-  | "other";
-
-// ── Static nav constants ──────────────────────────────────────────────────────
-
-export const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
-
-export const ACCOUNT_NAV_ITEMS = [
-  { id: "schedule", label: "排程", href: "/organization/schedule" },
-  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
-  { id: "daily", label: "每日", href: "/organization/daily" },
-  { id: "audit", label: "稽核", href: "/organization/audit" },
-] as const;
-
-export const ACCOUNT_SECTION_MATCHERS = [
-  "/organization/daily",
-  "/organization/schedule",
-  "/organization/audit",
-] as const;
-
-export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
-  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  knowledge: { label: "Knowledge", icon: <BookOpen className="size-3" /> },
-  "knowledge-base": { label: "Knowledge Base", icon: <BookOpen className="size-3" /> },
-  "knowledge-database": { label: "Knowledge Database", icon: <Database className="size-3" /> },
-  source: { label: "Source", icon: <FileText className="size-3" /> },
-  notebook: { label: "Notebook", icon: <Brain className="size-3" /> },
-  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
-  account: { label: "Account", icon: <UserRound className="size-3" /> },
-  organization: { label: "組織", icon: <Users className="size-3" /> },
-  other: { label: "導覽", icon: null },
-};
-
-// ── CSS class helpers ─────────────────────────────────────────────────────────
-
-export function sidebarItemClass(active: boolean) {
-  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
-    active
-      ? "border-primary/30 bg-primary/10 text-primary"
-      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
-  }`;
-}
-
-export const sidebarSectionTitleClass =
-  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
-
-export const sidebarGroupButtonClass =
-  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
-
-// ── Pure section helpers ──────────────────────────────────────────────────────
-
-export function resolveNavSection(pathname: string): NavSection {
-  if (pathname.startsWith("/workspace")) return "workspace";
-  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
-  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
-  if (pathname.startsWith("/knowledge")) return "knowledge";
-  if (pathname.startsWith("/source")) return "source";
-  if (pathname.startsWith("/notebook")) return "notebook";
-  if (pathname.startsWith("/ai-chat")) return "ai-chat";
-  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)))
-    return "account";
-  if (pathname.startsWith("/organization")) return "organization";
-  return "other";
-}
-
-export function isActiveOrganizationAccount(
-  activeAccount: ActiveAccount | null,
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-// ── Simple section nav component ──────────────────────────────────────────────
-
-export function SimpleNavLinks({
-  items,
-  title,
-  isActiveRoute,
-}: {
-  items: readonly { href: string; label: string }[];
-  title: string;
-  isActiveRoute: (href: string) => boolean;
-}) {
-  return (
-    <nav className="space-y-0.5" aria-label={`${title} navigation`}>
-      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-        {title}
-      </p>
-      {items.map((item) => {
-        const active = isActiveRoute(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-              active
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
+// providers
+export {
+  AppContext,
+  type AppState,
+  type AppAction,
+  type AppContextValue,
+  type ActiveAccount,
+} from "./providers/app-context";
+export { AppProvider, useApp } from "./providers/app-provider";
+export { Providers } from "./providers/providers";
 ````
 
 ## File: modules/platform/README.md
@@ -65794,6 +66375,16 @@ api/
 🔨 Migration-Pending — scaffold only
 ````
 
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+````
+
 ## File: packages/shared-types/index.ts
 ````typescript
 import { z } from "@lib-zod";
@@ -69843,6 +70434,41 @@ export const useBlockEditorStore = create<BlockEditorState>((set, get) => ({
 }));
 ````
 
+## File: modules/platform/api/contracts.ts
+````typescript
+/**
+ * platform API contracts boundary.
+ *
+ * Keep the source of truth in application/domain and re-export here for API consumers.
+ */
+
+export * from "../application/dtos";
+export type {
+	PlatformContextView,
+	PolicyCatalogView,
+	SubscriptionEntitlementsView,
+	WorkflowPolicyView,
+} from "../domain/ports/output";
+export * from "../domain/events";
+
+// ── Identity session types ────────────────────────────────────────────────────
+// AuthUser is the canonical projection of an authenticated identity subject.
+// Platform/Identity BC owns this DTO; app/providers/auth-context re-exports it.
+
+/** Minimal authenticated user record surfaced from identity auth state. */
+export interface AuthUser {
+	readonly id: string;
+	readonly name: string;
+	readonly email: string;
+}
+
+// ── Cross-cutting account context type ───────────────────────────────────────
+// ActiveAccount is the union of an organization AccountEntity or a personal
+// AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
+import type { AccountEntity } from "../subdomains/account/api";
+export type ActiveAccount = AccountEntity | AuthUser;
+````
+
 ## File: modules/platform/domain/events/contracts/index.ts
 ````typescript
 /**
@@ -70056,597 +70682,6 @@ export interface JobQueuePort {
 export interface SearchIndexPort {
 	index(document: Record<string, unknown>): Promise<void>;
 }
-````
-
-## File: modules/platform/interfaces/web/components/DashboardSidebar.tsx
-````typescript
-"use client";
-
-/**
- * Module: dashboard-sidebar.tsx
- * Purpose: render the secondary navigation panel of the authenticated shell.
- * Responsibilities: account switcher, search hint, org management sub-nav, and
- *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
- * Constraints: UI-only; workspace data sourced from module interfaces.
- */
-
-import Link from "next/link";
-import {
-  PanelLeftClose,
-  Settings,
-  SlidersHorizontal,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { toast } from "sonner";
-
-import { createKnowledgePage, KnowledgeSidebarSection } from "@/modules/notion/api";
-import {
-  buildWorkspaceQuickAccessItems,
-  CustomizeNavigationDialog,
-  getWorkspaceIdFromPath,
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  readNavPreferences,
-  type NavPreferences,
-  useRecentWorkspaces,
-  useSidebarLocale,
-  WorkspaceSidebarSection,
-} from "@/modules/workspace/api";
-
-import {
-  type DashboardSidebarProps,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  ACCOUNT_NAV_ITEMS,
-  SECTION_TITLES,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-  resolveNavSection,
-  isActiveOrganizationAccount,
-  SimpleNavLinks,
-} from "../navigation/sidebar-nav-data";
-
-export function DashboardSidebar({
-  pathname,
-  userId,
-  activeAccount,
-  workspaces,
-  workspacesHydrated,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps) {
-  const searchParams = useSearchParams();
-  const quickAccessDragStateRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startScrollLeft: number;
-    didDrag: boolean;
-  } | null>(null);
-  const suppressQuickAccessClickRef = useRef(false);
-
-  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
-    activeAccount?.id,
-    pathname,
-    workspaces,
-  );
-  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
-  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
-  const [customizeOpen, setCustomizeOpen] = useState(false);
-  const localeBundle = useSidebarLocale();
-
-  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
-
-  const visibleOrganizationManagementItems = useMemo(
-    () => ORGANIZATION_MANAGEMENT_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
-    [navPrefs.pinnedWorkspace],
-  );
-
-  const visibleAccountItems = useMemo(
-    () => ACCOUNT_NAV_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
-    [navPrefs.pinnedWorkspace],
-  );
-
-  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
-
-  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
-    ? navPrefs.maxWorkspaces
-    : MAX_VISIBLE_RECENT_WORKSPACES;
-
-  function isActiveRoute(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-
-  useEffect(() => {
-    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
-    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(pathWorkspaceId);
-      return;
-    }
-
-    const supportsWorkspaceSearchContext =
-      pathname.startsWith("/knowledge") ||
-      pathname.startsWith("/source") ||
-      pathname.startsWith("/notebook");
-
-    if (!supportsWorkspaceSearchContext) {
-      return;
-    }
-
-    if (currentSearchWorkspaceId && currentSearchWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(currentSearchWorkspaceId);
-    }
-  }, [pathname, activeWorkspaceId, currentSearchWorkspaceId, onSelectWorkspace]);
-
-  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
-  const visibleRecentWorkspaceLinks = isExpanded
-    ? recentWorkspaceLinks
-    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
-
-  const buildWorkspaceContextHref = useCallback(
-    (workspaceId: string): string => {
-      if (pathname.startsWith("/knowledge")) {
-        const targetPath = pathname === "/knowledge" ? "/knowledge/pages" : pathname;
-        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
-      }
-      return `/workspace/${workspaceId}`;
-    },
-    [pathname],
-  );
-
-  const allWorkspaceLinks = useMemo(
-    () =>
-      workspaces
-        .map((workspace) => ({
-          id: workspace.id,
-          name: workspace.name,
-          href: buildWorkspaceContextHref(workspace.id),
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces, buildWorkspaceContextHref],
-  );
-
-  const section = resolveNavSection(pathname);
-  const sectionMeta = SECTION_TITLES[section];
-  const workspacePathId = getWorkspaceIdFromPath(pathname);
-  const currentPanel = searchParams.get("panel");
-  const currentWorkspaceTab = searchParams.get("tab");
-  const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
-  const hasWorkspaceToolContext =
-    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
-    (section === "knowledge" ||
-      section === "knowledge-base" ||
-      section === "source" ||
-      section === "notebook");
-  const workspaceQuickAccessId =
-    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
-  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
-  const workspaceSettingsHref = workspaceQuickAccessId
-    ? `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
-    : "";
-  const workspaceQuickAccessItems = useMemo(
-    () =>
-      showWorkspaceQuickAccess && workspaceQuickAccessId
-        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId)
-        : [],
-    [showWorkspaceQuickAccess, workspaceQuickAccessId],
-  );
-
-  async function handleQuickCreatePage() {
-    const accountId = activeAccount?.id ?? "";
-    if (!accountId) {
-      toast.error("目前沒有 active account，無法建立");
-      return;
-    }
-    if (!activeWorkspaceId) {
-      toast.error("請先切換到工作區，再建立頁面");
-      return;
-    }
-    setCreatingKind("page");
-    try {
-      const result = await createKnowledgePage({
-        accountId,
-        workspaceId: activeWorkspaceId,
-        title: "未命名頁面",
-        parentPageId: null,
-        createdByUserId: userId ?? accountId,
-      });
-      if (result.success) {
-        toast.success("已建立頁面");
-      } else {
-        toast.error(result.error?.message ?? "建立頁面失敗");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("建立頁面失敗");
-    } finally {
-      setCreatingKind(null);
-    }
-  }
-
-  function handleQuickAccessPointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    if (event.pointerType !== "mouse") {
-      return;
-    }
-
-    const container = event.currentTarget;
-    if (container.scrollWidth <= container.clientWidth) {
-      return;
-    }
-
-    quickAccessDragStateRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startScrollLeft: container.scrollLeft,
-      didDrag: false,
-    };
-  }
-
-  function handleQuickAccessPointerMove(event: React.PointerEvent<HTMLDivElement>) {
-    const dragState = quickAccessDragStateRef.current;
-    if (!dragState || dragState.pointerId !== event.pointerId) {
-      return;
-    }
-
-    const deltaX = event.clientX - dragState.startX;
-    if (!dragState.didDrag && Math.abs(deltaX) > 4) {
-      dragState.didDrag = true;
-      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }
-    }
-
-    if (!dragState.didDrag) {
-      return;
-    }
-
-    event.preventDefault();
-    event.currentTarget.scrollLeft = dragState.startScrollLeft - deltaX;
-  }
-
-  function finishQuickAccessPointer(event: React.PointerEvent<HTMLDivElement>) {
-    const dragState = quickAccessDragStateRef.current;
-    if (!dragState || dragState.pointerId !== event.pointerId) {
-      return;
-    }
-
-    if (dragState.didDrag) {
-      suppressQuickAccessClickRef.current = true;
-      window.setTimeout(() => {
-        suppressQuickAccessClickRef.current = false;
-      }, 0);
-    }
-
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-
-    quickAccessDragStateRef.current = null;
-  }
-
-  function handleQuickAccessItemClick(event: React.MouseEvent<HTMLAnchorElement>) {
-    if (!suppressQuickAccessClickRef.current) {
-      return;
-    }
-
-    suppressQuickAccessClickRef.current = false;
-    event.preventDefault();
-    event.stopPropagation();
-  }
-
-  function handleQuickAccessDragStart(event: React.DragEvent<HTMLAnchorElement>) {
-    event.preventDefault();
-  }
-
-  return (
-    <div className="contents">
-      <aside
-        aria-label="Secondary navigation"
-        className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
-          collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
-        }`}
-      >
-        {/* ── Sidebar title bar ──────────────────────────────────── */}
-        <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
-          <span className="flex flex-1 items-center gap-1.5 px-1 text-[11px] font-semibold tracking-tight text-foreground/80">
-            {sectionMeta.icon}
-            {sectionMeta.label}
-          </span>
-          <div className="flex items-center gap-0.5">
-            <button
-              type="button"
-              title="設定"
-              aria-label="設定"
-              onClick={() => { setCustomizeOpen(true); }}
-              className="flex size-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
-            >
-              <SlidersHorizontal className="size-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={onToggleCollapsed}
-              aria-label="收起側欄"
-              title="收起側欄"
-              className="flex size-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
-            >
-              <PanelLeftClose className="size-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* ── Quick access row ───────────────────────────────────── */}
-        {workspaceQuickAccessItems.length > 0 ? (
-          <div className="shrink-0 border-b border-border/30 px-2 py-2">
-            <div className="flex items-center gap-1">
-              <div
-                className="min-w-0 flex-1 cursor-grab overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden active:cursor-grabbing"
-                onPointerDown={handleQuickAccessPointerDown}
-                onPointerMove={handleQuickAccessPointerMove}
-                onPointerUp={finishQuickAccessPointer}
-                onPointerCancel={finishQuickAccessPointer}
-              >
-                <div className="flex w-max items-center gap-1 pr-1 select-none">
-                  {workspaceQuickAccessItems.map((item) => {
-                    const active = item.isActive?.(pathname, {
-                      panel: currentPanel,
-                      tab: currentWorkspaceTab,
-                    }) ?? isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-label={item.label}
-                        aria-current={active ? "page" : undefined}
-                        onClick={handleQuickAccessItemClick}
-                        onDragStart={handleQuickAccessDragStart}
-                        draggable={false}
-                        className={`flex size-7 shrink-0 items-center justify-center rounded-md transition ${
-                          active
-                            ? "bg-primary/10 text-primary"
-                            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                        }`}
-                      >
-                        {item.icon}
-                        <span className="sr-only">{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-              {workspaceSettingsHref ? (
-                <Link
-                  href={workspaceSettingsHref}
-                  aria-label="工作區設定"
-                  aria-current={currentPanel === "settings" ? "page" : undefined}
-                  onClick={handleQuickAccessItemClick}
-                  onDragStart={handleQuickAccessDragStart}
-                  draggable={false}
-                  className={`ml-auto flex size-7 items-center justify-center rounded-md transition ${
-                    currentPanel === "settings"
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                  }`}
-                >
-                  <Settings className="size-3.5" />
-                  <span className="sr-only">工作區設定</span>
-                </Link>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
-
-        {/* ── Scrollable nav body ─── section-specific ──────────── */}
-        <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
-
-          {section === "account" && (
-            <div className="space-y-2">
-              {showAccountManagement && visibleAccountItems.length > 0 && (
-                <nav className="space-y-0.5" aria-label="Account navigation">
-                  <p className={sidebarSectionTitleClass}>Account</p>
-                  {visibleAccountItems.map((item) => {
-                    const active = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={active ? "page" : undefined}
-                        className={sidebarItemClass(active)}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-              )}
-              {!showAccountManagement && (
-                <p className="px-2 py-4 text-[11px] text-muted-foreground">
-                  請切換到組織帳號以查看 Account 選項。
-                </p>
-              )}
-            </div>
-          )}
-
-          {section === "organization" && (
-            <div className="space-y-2">
-              {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
-                <nav className="space-y-0.5" aria-label="Organization management">
-                  <p className={sidebarSectionTitleClass}>組織管理</p>
-                  {visibleOrganizationManagementItems.map((item) => {
-                    const active = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={active ? "page" : undefined}
-                        className={sidebarItemClass(active)}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-              )}
-              {!showAccountManagement && (
-                <p className="px-2 py-4 text-[11px] text-muted-foreground">
-                  請切換到組織帳號以查看管理選項。
-                </p>
-              )}
-            </div>
-          )}
-
-          {section === "workspace" && (
-            <div className="space-y-2">
-              {workspacePathId ? (
-                <WorkspaceSidebarSection
-                  workspacePathId={workspacePathId}
-                  navPrefs={navPrefs}
-                  localeBundle={localeBundle}
-                  getItemClassName={sidebarItemClass}
-                />
-              ) : (
-                <div>
-                  {showRecentWorkspaces && (
-                    <div className="space-y-0.5">
-                      <p className={sidebarSectionTitleClass}>最近工作區</p>
-                      {visibleRecentWorkspaceLinks.length === 0 ? (
-                        <p className="px-2 py-2 text-[11px] text-muted-foreground">
-                          尚無最近開啟的工作區。
-                        </p>
-                      ) : (
-                        visibleRecentWorkspaceLinks.map((ws) => (
-                          <Link
-                            key={ws.id}
-                            href={ws.href}
-                            onClick={() => { onSelectWorkspace(ws.id); }}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              activeWorkspaceId === ws.id || isActiveRoute(ws.href)
-                                ? "border border-primary/30 bg-primary/10 text-primary"
-                                : "border border-transparent text-foreground/80 hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
-                            }`}
-                            title={ws.name}
-                          >
-                            <span className="truncate">{ws.name}</span>
-                          </Link>
-                        ))
-                      )}
-                      {hasOverflow && (
-                        <button
-                          type="button"
-                          onClick={() => { setIsExpanded((prev) => !prev); }}
-                          className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
-                        >
-                          {isExpanded ? "收起" : "顯示更多"}
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {section === "knowledge" && (
-            <KnowledgeSidebarSection
-              pathname={pathname}
-              workspacesHydrated={workspacesHydrated}
-              allWorkspaceLinks={allWorkspaceLinks}
-              activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
-              creatingKind={creatingKind}
-              onSelectWorkspace={onSelectWorkspace}
-              onQuickCreatePage={() => { void handleQuickCreatePage(); }}
-            />
-          )}
-
-          {section === "knowledge-base" && (
-            <SimpleNavLinks
-              title="知識庫"
-              items={[{ href: "/knowledge-base/articles", label: "文章" }]}
-              isActiveRoute={isActiveRoute}
-            />
-          )}
-
-          {section === "knowledge-database" && (
-            <SimpleNavLinks
-              title="資料庫"
-              items={[{ href: "/knowledge-database/databases", label: "資料庫" }]}
-              isActiveRoute={isActiveRoute}
-            />
-          )}
-
-          {section === "source" && (
-            <SimpleNavLinks
-              title="來源文件"
-              items={[
-                { href: "/source/libraries", label: "Libraries" },
-              ]}
-              isActiveRoute={isActiveRoute}
-            />
-          )}
-
-          {section === "notebook" && (
-            <SimpleNavLinks
-              title="Notebook"
-              items={[{ href: "/notebook/rag-query", label: "Ask / Cite" }]}
-              isActiveRoute={isActiveRoute}
-            />
-          )}
-
-          {section === "ai-chat" && (
-            <SimpleNavLinks
-              title="Notebook / AI"
-              items={[{ href: "/ai-chat", label: "Notebook shell" }]}
-              isActiveRoute={isActiveRoute}
-            />
-          )}
-
-        </div>
-      </aside>
-
-      <CustomizeNavigationDialog
-        open={customizeOpen}
-        onOpenChange={setCustomizeOpen}
-        onPreferencesChange={setNavPrefs}
-      />
-    </div>
-  );
-}
-````
-
-## File: modules/platform/interfaces/web/index.ts
-````typescript
-export { HeaderControls } from "./components/HeaderControls";
-export { TranslationSwitcher } from "./components/TranslationSwitcher";
-export { AppBreadcrumbs } from "./components/AppBreadcrumbs";
-export { GlobalSearchDialog, useGlobalSearch } from "./components/GlobalSearchDialog";
-export { AppRail } from "./components/AppRail";
-export { DashboardSidebar } from "./components/DashboardSidebar";
-export { ShellLayout } from "./components/ShellLayout";
-export type { DashboardSidebarProps, NavSection } from "./navigation/sidebar-nav-data";
-export {
-  resolveNavSection,
-  isActiveOrganizationAccount,
-  SECTION_TITLES,
-  ACCOUNT_NAV_ITEMS,
-  ACCOUNT_SECTION_MATCHERS,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-  sidebarGroupButtonClass,
-  SimpleNavLinks,
-} from "./navigation/sidebar-nav-data";
-
-// providers
-export {
-  AppContext,
-  type AppState,
-  type AppAction,
-  type AppContextValue,
-  type ActiveAccount,
-} from "./providers/app-context";
-export { AppProvider, useApp } from "./providers/app-provider";
-export { Providers } from "./providers/providers";
 ````
 
 ## File: modules/platform/interfaces/web/providers/app-context.ts
@@ -71329,6 +71364,145 @@ export {};
 ## File: modules/platform/subdomains/organization/infrastructure/index.ts
 ````typescript
 export { organizationService, organizationQueryService } from "./organization-service";
+````
+
+## File: modules/platform/subdomains/organization/interfaces/components/CreateOrganizationDialog.tsx
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+
+import type { AuthUser } from "@/modules/platform/api";
+import type { AccountEntity } from "../../../../api";
+import { createOrganization } from "../_actions/organization.actions";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+interface CreateOrganizationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: AuthUser | null;
+  onOrganizationCreated?: (account: AccountEntity) => void;
+  onNavigate: (href: string) => void;
+}
+
+export function CreateOrganizationDialog({
+  open,
+  onOpenChange,
+  user,
+  onOrganizationCreated,
+  onNavigate,
+}: CreateOrganizationDialogProps) {
+  const [orgName, setOrgName] = useState("");
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  function reset() {
+    setOrgName("");
+    setOrgError(null);
+    setIsCreating(false);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user) {
+      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+    const name = orgName.trim();
+    if (!name) {
+      setOrgError("請輸入組織名稱。");
+      return;
+    }
+    setIsCreating(true);
+    setOrgError(null);
+    const result = await createOrganization({
+      organizationName: name,
+      ownerId: user.id,
+      ownerName: user.name,
+      ownerEmail: user.email,
+    });
+    if (!result.success) {
+      setOrgError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+    const newAccount: AccountEntity = {
+      id: result.aggregateId,
+      name,
+      accountType: "organization",
+      ownerId: user.id,
+    };
+    onOrganizationCreated?.(newAccount);
+    reset();
+    onOpenChange(false);
+    onNavigate("/organization");
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        onOpenChange(isOpen);
+        if (!isOpen) reset();
+      }}
+    >
+      <DialogContent aria-describedby="rail-create-org-description">
+        <DialogHeader>
+          <DialogTitle>建立新組織</DialogTitle>
+          <DialogDescription id="rail-create-org-description">
+            輸入名稱後會直接建立組織並切換到新的組織內容。
+          </DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
+              組織名稱
+            </label>
+            <Input
+              id="rail-organization-name"
+              value={orgName}
+              onChange={(e) => {
+                setOrgName(e.target.value);
+                if (orgError) setOrgError(null);
+              }}
+              placeholder="例如：Gig Team"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+              disabled={isCreating}
+              maxLength={80}
+            />
+            {orgError && <p className="text-sm text-destructive">{orgError}</p>}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                reset();
+                onOpenChange(false);
+              }}
+              disabled={isCreating}
+            >
+              取消
+            </Button>
+            <Button type="submit" disabled={isCreating || !user}>
+              {isCreating ? "建立中…" : "直接建立"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 ````
 
 ## File: modules/platform/subdomains/platform-config/api/index.ts
@@ -76476,41 +76650,6 @@ export function KnowledgePageDetailPage({
 }
 ````
 
-## File: modules/platform/api/contracts.ts
-````typescript
-/**
- * platform API contracts boundary.
- *
- * Keep the source of truth in application/domain and re-export here for API consumers.
- */
-
-export * from "../application/dtos";
-export type {
-	PlatformContextView,
-	PolicyCatalogView,
-	SubscriptionEntitlementsView,
-	WorkflowPolicyView,
-} from "../domain/ports/output";
-export * from "../domain/events";
-
-// ── Identity session types ────────────────────────────────────────────────────
-// AuthUser is the canonical projection of an authenticated identity subject.
-// Platform/Identity BC owns this DTO; app/providers/auth-context re-exports it.
-
-/** Minimal authenticated user record surfaced from identity auth state. */
-export interface AuthUser {
-	readonly id: string;
-	readonly name: string;
-	readonly email: string;
-}
-
-// ── Cross-cutting account context type ───────────────────────────────────────
-// ActiveAccount is the union of an organization AccountEntity or a personal
-// AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
-import type { AccountEntity } from "../subdomains/account/api";
-export type ActiveAccount = AccountEntity | AuthUser;
-````
-
 ## File: modules/platform/api/index.ts
 ````typescript
 /**
@@ -77400,14 +77539,15 @@ export { organizationService, organizationQueryService } from "../infrastructure
 export * from "../interfaces";
 ````
 
-## File: modules/platform/subdomains/organization/interfaces/components/CreateOrganizationDialog.tsx
+## File: modules/platform/subdomains/organization/interfaces/components/AccountSwitcher.tsx
 ````typescript
 "use client";
 
 import { type FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import type { AuthUser } from "@/modules/platform/api";
-import type { AccountEntity } from "../../../../api";
+import type { AccountEntity, AuthUser } from "../../../../api";
+import { useApp } from "../../../../api";
 import { createOrganization } from "../_actions/organization.actions";
 import { Button } from "@ui-shadcn/ui/button";
 import {
@@ -77420,121 +77560,185 @@ import {
 } from "@ui-shadcn/ui/dialog";
 import { Input } from "@ui-shadcn/ui/input";
 
-interface CreateOrganizationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  user: AuthUser | null;
+interface AccountSwitcherProps {
+  personalAccount: AuthUser | null;
+  organizationAccounts: AccountEntity[];
+  activeAccountId: string | null;
+  onSelectPersonal: () => void;
+  onSelectOrganization: (account: AccountEntity) => void;
   onOrganizationCreated?: (account: AccountEntity) => void;
-  onNavigate: (href: string) => void;
 }
 
-export function CreateOrganizationDialog({
-  open,
-  onOpenChange,
-  user,
+export function AccountSwitcher({
+  personalAccount,
+  organizationAccounts,
+  activeAccountId,
+  onSelectPersonal,
+  onSelectOrganization,
   onOrganizationCreated,
-  onNavigate,
-}: CreateOrganizationDialogProps) {
-  const [orgName, setOrgName] = useState("");
-  const [orgError, setOrgError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
+}: AccountSwitcherProps) {
+  const router = useRouter();
+  const {
+    state: { accountsHydrated, bootstrapPhase },
+  } = useApp();
+  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
+  const [organizationName, setOrganizationName] = useState("");
+  const [organizationError, setOrganizationError] = useState<string | null>(null);
+  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
 
-  function reset() {
-    setOrgName("");
-    setOrgError(null);
-    setIsCreating(false);
+  function resetCreateOrganizationDialog() {
+    setOrganizationName("");
+    setOrganizationError(null);
+    setIsCreatingOrganization(false);
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!user) {
-      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
+
+    if (!personalAccount) {
+      setOrganizationError("帳號資訊已失效，請重新登入後再建立組織。");
       return;
     }
-    const name = orgName.trim();
-    if (!name) {
-      setOrgError("請輸入組織名稱。");
+
+    const nextOrganizationName = organizationName.trim();
+    if (!nextOrganizationName) {
+      setOrganizationError("請輸入組織名稱。");
       return;
     }
-    setIsCreating(true);
-    setOrgError(null);
+
+    setIsCreatingOrganization(true);
+    setOrganizationError(null);
+
     const result = await createOrganization({
-      organizationName: name,
-      ownerId: user.id,
-      ownerName: user.name,
-      ownerEmail: user.email,
+      organizationName: nextOrganizationName,
+      ownerId: personalAccount.id,
+      ownerName: personalAccount.name,
+      ownerEmail: personalAccount.email,
     });
+
     if (!result.success) {
-      setOrgError(result.error.message);
-      setIsCreating(false);
+      setOrganizationError(result.error.message);
+      setIsCreatingOrganization(false);
       return;
     }
-    const newAccount: AccountEntity = {
+
+    onOrganizationCreated?.({
       id: result.aggregateId,
-      name,
+      name: nextOrganizationName,
       accountType: "organization",
-      ownerId: user.id,
-    };
-    onOrganizationCreated?.(newAccount);
-    reset();
-    onOpenChange(false);
-    onNavigate("/organization");
+      ownerId: personalAccount.id,
+    });
+
+    resetCreateOrganizationDialog();
+    setIsCreateOrganizationOpen(false);
+    router.push("/organization");
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(isOpen) => {
-        onOpenChange(isOpen);
-        if (!isOpen) reset();
-      }}
-    >
-      <DialogContent aria-describedby="rail-create-org-description">
-        <DialogHeader>
-          <DialogTitle>建立新組織</DialogTitle>
-          <DialogDescription id="rail-create-org-description">
-            輸入名稱後會直接建立組織並切換到新的組織內容。
-          </DialogDescription>
-        </DialogHeader>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
-              組織名稱
-            </label>
-            <Input
-              id="rail-organization-name"
-              value={orgName}
-              onChange={(e) => {
-                setOrgName(e.target.value);
-                if (orgError) setOrgError(null);
-              }}
-              placeholder="例如：Gig Team"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-              disabled={isCreating}
-              maxLength={80}
-            />
-            {orgError && <p className="text-sm text-destructive">{orgError}</p>}
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                reset();
-                onOpenChange(false);
-              }}
-              disabled={isCreating}
-            >
-              取消
-            </Button>
-            <Button type="submit" disabled={isCreating || !user}>
-              {isCreating ? "建立中…" : "直接建立"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <>
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          帳號情境
+        </p>
+        <select
+          aria-label="切換帳號情境"
+          value={activeAccountId ?? ""}
+          onChange={(event) => {
+            const nextId = event.target.value;
+            if (nextId === "__create_organization__") {
+              setIsCreateOrganizationOpen(true);
+              return;
+            }
+
+            if (!nextId || nextId === personalAccount?.id) {
+              onSelectPersonal();
+              return;
+            }
+
+            const nextAccount = organizationAccounts.find((account) => account.id === nextId);
+            if (nextAccount) {
+              onSelectOrganization(nextAccount);
+            }
+          }}
+          className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground"
+        >
+          {personalAccount && (
+            <option value={personalAccount.id}>{personalAccount.name}（個人）</option>
+          )}
+          {organizationAccounts.map((account) => (
+            <option key={account.id} value={account.id}>
+              {account.name}（組織）
+            </option>
+          ))}
+          <option value="__create_organization__">+建立組織</option>
+        </select>
+        {!accountsHydrated && (
+          <p className="text-xs text-muted-foreground">
+            {bootstrapPhase === "seeded" ? "正在同步組織上下文…" : "正在載入帳號上下文…"}
+          </p>
+        )}
+      </div>
+
+      <Dialog
+        open={isCreateOrganizationOpen}
+        onOpenChange={(open) => {
+          setIsCreateOrganizationOpen(open);
+          if (!open) {
+            resetCreateOrganizationDialog();
+          }
+        }}
+      >
+        <DialogContent aria-describedby="create-organization-description">
+          <DialogHeader>
+            <DialogTitle>建立新組織</DialogTitle>
+            <DialogDescription id="create-organization-description">
+              輸入名稱後會直接建立組織並切換到新的組織內容。
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="space-y-4" onSubmit={handleCreateOrganization}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="organization-name">
+                組織名稱
+              </label>
+              <Input
+                id="organization-name"
+                value={organizationName}
+                onChange={(event) => {
+                  setOrganizationName(event.target.value);
+                  if (organizationError) {
+                    setOrganizationError(null);
+                  }
+                }}
+                placeholder="例如：Gig Team"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                disabled={isCreatingOrganization}
+                maxLength={80}
+              />
+              {organizationError && <p className="text-sm text-destructive">{organizationError}</p>}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetCreateOrganizationDialog();
+                  setIsCreateOrganizationOpen(false);
+                }}
+                disabled={isCreatingOrganization}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingOrganization || !personalAccount}>
+                {isCreatingOrganization ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 ````
@@ -80715,210 +80919,6 @@ export async function dismissPartnerMember(
 ): Promise<CommandResult> {
   try { return await organizationService.dismissPartnerMember(organizationId, teamId, memberId); }
   catch (err) { return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-````
-
-## File: modules/platform/subdomains/organization/interfaces/components/AccountSwitcher.tsx
-````typescript
-"use client";
-
-import { type FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import type { AccountEntity, AuthUser } from "../../../../api";
-import { useApp } from "../../../../api";
-import { createOrganization } from "../_actions/organization.actions";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-interface AccountSwitcherProps {
-  personalAccount: AuthUser | null;
-  organizationAccounts: AccountEntity[];
-  activeAccountId: string | null;
-  onSelectPersonal: () => void;
-  onSelectOrganization: (account: AccountEntity) => void;
-  onOrganizationCreated?: (account: AccountEntity) => void;
-}
-
-export function AccountSwitcher({
-  personalAccount,
-  organizationAccounts,
-  activeAccountId,
-  onSelectPersonal,
-  onSelectOrganization,
-  onOrganizationCreated,
-}: AccountSwitcherProps) {
-  const router = useRouter();
-  const {
-    state: { accountsHydrated, bootstrapPhase },
-  } = useApp();
-  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
-  const [organizationName, setOrganizationName] = useState("");
-  const [organizationError, setOrganizationError] = useState<string | null>(null);
-  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
-
-  function resetCreateOrganizationDialog() {
-    setOrganizationName("");
-    setOrganizationError(null);
-    setIsCreatingOrganization(false);
-  }
-
-  async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!personalAccount) {
-      setOrganizationError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-
-    const nextOrganizationName = organizationName.trim();
-    if (!nextOrganizationName) {
-      setOrganizationError("請輸入組織名稱。");
-      return;
-    }
-
-    setIsCreatingOrganization(true);
-    setOrganizationError(null);
-
-    const result = await createOrganization({
-      organizationName: nextOrganizationName,
-      ownerId: personalAccount.id,
-      ownerName: personalAccount.name,
-      ownerEmail: personalAccount.email,
-    });
-
-    if (!result.success) {
-      setOrganizationError(result.error.message);
-      setIsCreatingOrganization(false);
-      return;
-    }
-
-    onOrganizationCreated?.({
-      id: result.aggregateId,
-      name: nextOrganizationName,
-      accountType: "organization",
-      ownerId: personalAccount.id,
-    });
-
-    resetCreateOrganizationDialog();
-    setIsCreateOrganizationOpen(false);
-    router.push("/organization");
-  }
-
-  return (
-    <>
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          帳號情境
-        </p>
-        <select
-          aria-label="切換帳號情境"
-          value={activeAccountId ?? ""}
-          onChange={(event) => {
-            const nextId = event.target.value;
-            if (nextId === "__create_organization__") {
-              setIsCreateOrganizationOpen(true);
-              return;
-            }
-
-            if (!nextId || nextId === personalAccount?.id) {
-              onSelectPersonal();
-              return;
-            }
-
-            const nextAccount = organizationAccounts.find((account) => account.id === nextId);
-            if (nextAccount) {
-              onSelectOrganization(nextAccount);
-            }
-          }}
-          className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground"
-        >
-          {personalAccount && (
-            <option value={personalAccount.id}>{personalAccount.name}（個人）</option>
-          )}
-          {organizationAccounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.name}（組織）
-            </option>
-          ))}
-          <option value="__create_organization__">+建立組織</option>
-        </select>
-        {!accountsHydrated && (
-          <p className="text-xs text-muted-foreground">
-            {bootstrapPhase === "seeded" ? "正在同步組織上下文…" : "正在載入帳號上下文…"}
-          </p>
-        )}
-      </div>
-
-      <Dialog
-        open={isCreateOrganizationOpen}
-        onOpenChange={(open) => {
-          setIsCreateOrganizationOpen(open);
-          if (!open) {
-            resetCreateOrganizationDialog();
-          }
-        }}
-      >
-        <DialogContent aria-describedby="create-organization-description">
-          <DialogHeader>
-            <DialogTitle>建立新組織</DialogTitle>
-            <DialogDescription id="create-organization-description">
-              輸入名稱後會直接建立組織並切換到新的組織內容。
-            </DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={handleCreateOrganization}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="organization-name">
-                組織名稱
-              </label>
-              <Input
-                id="organization-name"
-                value={organizationName}
-                onChange={(event) => {
-                  setOrganizationName(event.target.value);
-                  if (organizationError) {
-                    setOrganizationError(null);
-                  }
-                }}
-                placeholder="例如：Gig Team"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreatingOrganization}
-                maxLength={80}
-              />
-              {organizationError && <p className="text-sm text-destructive">{organizationError}</p>}
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetCreateOrganizationDialog();
-                  setIsCreateOrganizationOpen(false);
-                }}
-                disabled={isCreatingOrganization}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingOrganization || !personalAccount}>
-                {isCreatingOrganization ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
 }
 ````
 
