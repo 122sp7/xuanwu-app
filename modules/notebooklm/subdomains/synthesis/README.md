@@ -5,8 +5,17 @@ RAG 合成、摘要與洞察生成。
 ## Ownership
 
 - **Bounded Context**: notebooklm
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
+- **Subdomain Type**: Tier 2 — RAG Pipeline (Migration Target)
+- **Status**: Stub — receiving migration from `ai` subdomain
+
+## Migration From `ai`
+
+| Class | Migration source |
+|-------|------------------|
+| `AnswerRagQueryUseCase` | ai/application/use-cases |
+| `RagPromptBuilder` | ai/domain/services |
+| `GenkitRagGenerationAdapter` | ai/infrastructure |
+| `IRagGenerationRepository` (port) | ai/domain/repositories |
 
 ## Development Order
 

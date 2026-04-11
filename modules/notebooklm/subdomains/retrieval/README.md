@@ -5,8 +5,17 @@
 ## Ownership
 
 - **Bounded Context**: notebooklm
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
+- **Subdomain Type**: Tier 2 — RAG Pipeline (Migration Target)
+- **Status**: Stub — receiving migration from `ai` subdomain
+
+## Migration From `ai`
+
+| Class | Migration source |
+|-------|------------------|
+| `IRagRetrievalRepository` | ai/domain/repositories |
+| `IKnowledgeContentRepository` | ai/domain/repositories |
+| `RagScoringService` | ai/domain/services |
+| `RagRetrievedChunk` (entity) | ai/domain/entities |
 
 ## Development Order
 
