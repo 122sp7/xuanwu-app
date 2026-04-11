@@ -118,3 +118,14 @@ export const organizationService = {
   deleteOrgPolicy: (policyId: string): Promise<CommandResult> =>
     new DeleteOrgPolicyUseCase(getPolicyRepo()).execute(policyId),
 };
+
+/**
+ * OrganizationQueryService — read-model queries for client-side data.
+ * Composition root: wires Firebase repos for queries; interfaces/ must use this
+ * via the subdomain api/ boundary instead of importing infrastructure directly.
+ */
+export const organizationQueryService = {
+  getMembers: (organizationId: string) => getOrgRepo().getMembers(organizationId),
+  getTeams: (organizationId: string) => getOrgRepo().getTeams(organizationId),
+  getOrgPolicies: (orgId: string) => getPolicyRepo().getPolicies(orgId),
+};

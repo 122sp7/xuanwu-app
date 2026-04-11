@@ -5,7 +5,7 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { organizationService } from "../../infrastructure/organization-service";
+import { organizationService } from "../../api";
 import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../application/dto/organization.dto";
 
 export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {

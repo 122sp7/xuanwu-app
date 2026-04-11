@@ -1,17 +1,10 @@
 /**
- * Notification Queries — direct repo reads for client-side data.
+ * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
  */
 
-import { FirebaseNotificationRepository } from "../../infrastructure/firebase/FirebaseNotificationRepository";
+import { notificationService } from "../../api";
 import type { NotificationEntity } from "../../application/dto/notification.dto";
 
-let _notificationRepo: FirebaseNotificationRepository | undefined;
-
-function getNotificationRepo(): FirebaseNotificationRepository {
-  if (!_notificationRepo) _notificationRepo = new FirebaseNotificationRepository();
-  return _notificationRepo;
-}
-
 export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
-  return getNotificationRepo().findByRecipient(recipientId, maxCount);
+  return notificationService.getForRecipient(recipientId, maxCount);
 }
