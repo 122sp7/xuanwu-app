@@ -10,6 +10,10 @@ export const WORKSPACE_TAB_VALUES = [
   "Schedule",
   "Audit",
   "Tasks",
+  "TaskQa",
+  "TaskAcceptance",
+  "TaskIssues",
+  "TaskFinance",
   "Feed",
 ] as const;
 
@@ -29,7 +33,11 @@ export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
   Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
   Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
   Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
-  Tasks: { label: "Workflow", prefId: "tasks", group: "modules", status: "🏗️" },
+  Tasks: { label: "任務", prefId: "tasks", group: "modules", status: "🏗️" },
+  TaskQa: { label: "質檢", prefId: "task-qa", group: "modules", status: "🏗️" },
+  TaskAcceptance: { label: "驗收", prefId: "task-acceptance", group: "modules", status: "🏗️" },
+  TaskIssues: { label: "問題單", prefId: "task-issues", group: "modules", status: "🏗️" },
+  TaskFinance: { label: "財務", prefId: "task-finance", group: "modules", status: "🏗️" },
   Feed: { label: "Feed", prefId: "feed", group: "modules", status: "🏗️" },
 };
 
@@ -38,7 +46,17 @@ export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceT
   spaces: [],
   databases: [],
   library: ["Files", "Members"],
-  modules: ["Daily", "Schedule", "Audit", "Tasks", "Feed"],
+  modules: [
+    "Daily",
+    "Schedule",
+    "Audit",
+    "Tasks",
+    "TaskQa",
+    "TaskAcceptance",
+    "TaskIssues",
+    "TaskFinance",
+    "Feed",
+  ],
 };
 
 const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);

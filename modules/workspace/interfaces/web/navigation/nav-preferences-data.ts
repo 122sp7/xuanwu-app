@@ -94,12 +94,30 @@ const VALID_WORKSPACE_ITEM_IDS = new Set([
   ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
 ]);
 
+const WORKFLOW_PIN_MIGRATION_IDS = [
+  "task-qa",
+  "task-acceptance",
+  "task-issues",
+  "task-finance",
+] as const;
+
 function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
   if (!Array.isArray(ids)) return fallback;
   const normalized = ids
     .filter((id): id is string => typeof id === "string")
     .filter((id) => validSet.has(id));
   return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
+}
+
+function migrateWorkflowPins(ids: string[]): string[] {
+  if (!ids.includes("tasks")) return ids;
+  const next = [...ids];
+  for (const id of WORKFLOW_PIN_MIGRATION_IDS) {
+    if (!next.includes(id) && VALID_WORKSPACE_ITEM_IDS.has(id)) {
+      next.push(id);
+    }
+  }
+  return next;
 }
 
 // ── localStorage helpers ───────────────────────────────────────────────────
@@ -110,17 +128,18 @@ export function readNavPreferences(): NavPreferences {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_PREFS;
     const parsed = JSON.parse(raw) as Partial<NavPreferences>;
+    const normalizedWorkspacePinned = normalizePinnedIds(
+      parsed.pinnedWorkspace,
+      VALID_WORKSPACE_ITEM_IDS,
+      DEFAULT_PREFS.pinnedWorkspace,
+    );
     return {
       pinnedPersonal: normalizePinnedIds(
         parsed.pinnedPersonal,
         VALID_PERSONAL_ITEM_IDS,
         DEFAULT_PREFS.pinnedPersonal,
       ),
-      pinnedWorkspace: normalizePinnedIds(
-        parsed.pinnedWorkspace,
-        VALID_WORKSPACE_ITEM_IDS,
-        DEFAULT_PREFS.pinnedWorkspace,
-      ),
+      pinnedWorkspace: migrateWorkflowPins(normalizedWorkspacePinned),
       showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
       maxWorkspaces:
         typeof parsed.maxWorkspaces === "number"

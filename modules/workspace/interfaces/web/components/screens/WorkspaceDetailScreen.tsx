@@ -120,7 +120,45 @@ export function WorkspaceDetailScreen({
       case "Audit":
         return <WorkspaceAuditTab workspaceId={workspace.id} />;
       case "Tasks":
-        return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="tasks"
+          />
+        );
+      case "TaskQa":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="qa"
+          />
+        );
+      case "TaskAcceptance":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="acceptance"
+          />
+        );
+      case "TaskIssues":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="issues"
+          />
+        );
+      case "TaskFinance":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="invoices"
+          />
+        );
       case "Feed":
         return (
           <WorkspaceFeedWorkspaceView

@@ -16,7 +16,7 @@
  * @since 2026-03-27
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Plus } from "lucide-react";
 
@@ -31,31 +31,40 @@ import {
 import { Separator } from "@ui-shadcn/ui/separator";
 
 import type { Invoice } from "../../application/dto/workflow.dto";
+import type { Issue } from "../../application/dto/workflow.dto";
 import type { Task } from "../../application/dto/workflow.dto";
 import { wfCreateInvoice } from "../_actions/workspace-flow.actions";
 import {
+  getWorkspaceFlowIssues,
   getWorkspaceFlowInvoices,
   getWorkspaceFlowTasks,
 } from "../queries/workspace-flow.queries";
 import { CreateTaskDialog } from "./CreateTaskDialog";
+import { IssueRow } from "./IssueRow";
 import { InvoiceRow } from "./InvoiceRow";
 import { TaskRow } from "./TaskRow";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-type FlowSection = "tasks" | "invoices";
+type FlowSection = "tasks" | "qa" | "acceptance" | "issues" | "invoices";
 
 interface WorkspaceFlowTabProps {
   readonly workspaceId: string;
   readonly currentUserId?: string;
+  readonly initialSection?: FlowSection;
 }
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
-export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: WorkspaceFlowTabProps) {
-  const [section, setSection] = useState<FlowSection>("tasks");
+export function WorkspaceFlowTab({
+  workspaceId,
+  currentUserId = "anonymous",
+  initialSection = "tasks",
+}: WorkspaceFlowTabProps) {
+  const [section, setSection] = useState<FlowSection>(initialSection);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [issues, setIssues] = useState<Issue[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [creatingInvoice, setCreatingInvoice] = useState(false);
@@ -68,8 +77,18 @@ export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: W
         getWorkspaceFlowTasks(workspaceId),
         getWorkspaceFlowInvoices(workspaceId),
       ]);
+      const issueMatrix = await Promise.all(
+        nextTasks.map(async (task) => {
+          try {
+            return await getWorkspaceFlowIssues(task.id);
+          } catch {
+            return [] as Issue[];
+          }
+        }),
+      );
       setTasks(nextTasks);
       setInvoices(nextInvoices);
+      setIssues(issueMatrix.flat());
       setLoadState("loaded");
     } catch (err) {
       if (process.env.NODE_ENV !== "production") {
@@ -82,6 +101,20 @@ export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: W
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    setSection(initialSection);
+  }, [initialSection]);
+
+  const qaTasks = useMemo(
+    () => tasks.filter((task) => task.status === "qa"),
+    [tasks],
+  );
+
+  const acceptanceTasks = useMemo(
+    () => tasks.filter((task) => task.status === "acceptance" || task.status === "accepted"),
+    [tasks],
+  );
 
   async function handleCreateInvoice() {
     setCreatingInvoice(true);
@@ -109,11 +142,32 @@ export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: W
           任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
         </Button>
         <Button
+          variant={section === "qa" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("qa")}
+        >
+          質檢{loadState === "loaded" ? ` (${qaTasks.length})` : ""}
+        </Button>
+        <Button
+          variant={section === "acceptance" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("acceptance")}
+        >
+          驗收{loadState === "loaded" ? ` (${acceptanceTasks.length})` : ""}
+        </Button>
+        <Button
+          variant={section === "issues" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("issues")}
+        >
+          問題單{loadState === "loaded" ? ` (${issues.length})` : ""}
+        </Button>
+        <Button
           variant={section === "invoices" ? "default" : "outline"}
           size="sm"
           onClick={() => setSection("invoices")}
         >
-          發票{loadState === "loaded" ? ` (${invoices.length})` : ""}
+          財務{loadState === "loaded" ? ` (${invoices.length})` : ""}
         </Button>
       </div>
 
@@ -165,13 +219,84 @@ export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: W
         </Card>
       )}
 
+      {/* ── QA section ────────────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "qa" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle>質檢</CardTitle>
+            <CardDescription>等待 QA 審查或處於 QA 階段的任務。</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {qaTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前沒有等待質檢的任務。</p>
+            ) : (
+              qaTasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  currentUserId={currentUserId}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Acceptance section ────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "acceptance" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle>驗收</CardTitle>
+            <CardDescription>進行驗收中與已完成驗收的任務。</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {acceptanceTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前沒有驗收中的任務。</p>
+            ) : (
+              acceptanceTasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  currentUserId={currentUserId}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Issues section ────────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "issues" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle>問題單</CardTitle>
+            <CardDescription>跨任務檢視所有議題狀態與處理進度。</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {issues.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前沒有問題單。</p>
+            ) : (
+              issues.map((issue) => (
+                <IssueRow
+                  key={issue.id}
+                  issue={issue}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* ── Invoices section ──────────────────────────────────────────── */}
       {loadState === "loaded" && section === "invoices" && (
         <Card className="border border-border/50">
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <CardTitle>發票</CardTitle>
+                <CardTitle>財務</CardTitle>
                 <CardDescription>工作區帳務請款紀錄。</CardDescription>
               </div>
               <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
