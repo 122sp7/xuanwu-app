@@ -1,5 +1,3 @@
-"use server";
-
 import type { WorkDemand } from "../../application/dto/work-demand.dto";
 import {
   ListWorkspaceDemandsUseCase,
@@ -12,9 +10,17 @@ function makeRepo() {
 }
 
 export async function getWorkspaceDemands(workspaceId: string): Promise<WorkDemand[]> {
-  return new ListWorkspaceDemandsUseCase(makeRepo()).execute(workspaceId);
+  const normalizedWorkspaceId = workspaceId.trim();
+  if (!normalizedWorkspaceId) {
+    return [];
+  }
+  return new ListWorkspaceDemandsUseCase(makeRepo()).execute(normalizedWorkspaceId);
 }
 
 export async function getAccountDemands(accountId: string): Promise<WorkDemand[]> {
-  return new ListAccountDemandsUseCase(makeRepo()).execute(accountId);
+  const normalizedAccountId = accountId.trim();
+  if (!normalizedAccountId) {
+    return [];
+  }
+  return new ListAccountDemandsUseCase(makeRepo()).execute(normalizedAccountId);
 }
