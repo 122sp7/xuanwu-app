@@ -11,6 +11,8 @@
  * RagDocument without creating a duplicate.
  */
 
+import { randomUUID } from "node:crypto";
+
 import type { ISourceFileRepository } from "../../domain/repositories/ISourceFileRepository";
 import type { IRagDocumentRepository } from "../../domain/repositories/IRagDocumentRepository";
 import { completeUploadSourceFile } from "../../domain/services/complete-upload-source-file.service";
@@ -19,7 +21,6 @@ import type {
   UploadCompleteFileInputDto,
   UploadCompleteFileOutputDto,
 } from "../dto/source-file.dto";
-import { RegisterUploadedRagDocumentUseCase } from "./register-rag-document.use-case";
 import type { SourceFile } from "../../domain/entities/SourceFile";
 
 type UploadCompleteSourceFileResult =
@@ -99,24 +100,30 @@ export class UploadCompleteSourceFileUseCase {
       ragDocumentId = existingRagDocument.id;
       ragDocumentStatus = existingRagDocument.status;
     } else {
-      const registerUseCase = new RegisterUploadedRagDocumentUseCase(this.ragDocumentRepository);
-      const ragResult = await registerUseCase.execute({
+      const nowISO = new Date().toISOString();
+      ragDocumentId = `rag-document-${randomUUID()}`;
+
+      await this.ragDocumentRepository.saveUploaded({
+        id: ragDocumentId,
         organizationId,
         workspaceId,
         accountId: actorAccountId,
+        displayName: file.name,
         title: file.name,
         sourceFileName: file.name,
         mimeType: file.mimeType,
         storagePath: version.storagePath,
         sizeBytes: file.sizeBytes,
+        status: "uploaded",
         checksum: version.checksum,
+        versionGroupId: ragDocumentId,
         versionNumber: version.versionNumber,
+        isLatest: true,
+        createdAtISO: nowISO,
+        updatedAtISO: nowISO,
       });
-      if (!ragResult.ok) {
-        return { ok: false, error: { code: "FILE_RAG_REGISTRATION_FAILED", message: ragResult.error.message } };
-      }
-      ragDocumentId = ragResult.data.documentId;
-      ragDocumentStatus = ragResult.data.status;
+
+      ragDocumentStatus = "uploaded";
     }
 
     return {
