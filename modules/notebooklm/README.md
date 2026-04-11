@@ -2,65 +2,116 @@
 
 對話、來源處理與推理主域
 
+## Bounded Context
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 對話、來源處理、檢索與推理輸出 |
+| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact, attachment reference） |
+| Downstream | 無固定主域級下游；GroundedAnswer 可被其他主域消費 |
+| Core principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
+| Cross-module boundary | `api/` only — no direct import of notion/platform/workspace internals |
+
+## Ubiquitous Language
+
+| Term | Meaning |
+|------|---------|
+| Notebook | 聚合對話、來源與衍生筆記的工作單位 |
+| Conversation | Notebook 內的對話執行邊界（Thread + Messages） |
+| Message | 一則輸入或輸出對話項 |
+| Source | 被引用與推理的來源材料 |
+| Ingestion | 來源匯入、正規化與前處理流程（TypeScript 側協調 py_fn） |
+| Retrieval | 從來源中召回候選 Chunk 的查詢能力（向量搜尋） |
+| Grounding | 把輸出對齊到來源證據、建立 Citation 的能力 |
+| Citation | 輸出指回來源證據的引用關係 |
+| Synthesis | 綜合多來源後生成的衍生輸出（RAG generation） |
+| Note | 與 Notebook 關聯的輕量摘記 |
+| Evaluation | 對輸出品質、feedback 與回歸結果的評估 |
+| VersionSnapshot | 對話或 Notebook 某一時點的不可變快照 |
+
 ## Implementation Structure
 
 ```text
 modules/notebooklm/
-├── api/              # Public API boundary
-├── application/      # Context-wide orchestration
-├── domain/           # Context-wide domain concepts
-├── infrastructure/   # Context-wide driven adapters
-├── interfaces/       # Context-wide driving adapters
+├── api/              # Public API boundary — cross-module entry point only
+├── application/      # Context-wide orchestration (empty, use subdomain layers)
+├── domain/           # Context-wide domain concepts (empty, use subdomain layers)
+├── infrastructure/   # Context-wide driven adapters (empty, use subdomain layers)
+├── interfaces/       # Context-wide driving adapters (empty, use subdomain layers)
 ├── docs/             # Links to strategic documentation
 └── subdomains/
-    ├── ai/                      # Active ⚠️
-    ├── conversation/            # Active
-    ├── notebook/                # Active
-    ├── source/                  # Active
-    ├── conversation-versioning/ # Stub (Baseline)
-    ├── note/                    # Stub (Baseline)
-    ├── synthesis/               # Stub (Baseline)
-    ├── evaluation/              # Stub (Gap)
-    ├── grounding/               # Stub (Gap)
-    ├── ingestion/               # Stub (Gap)
-    └── retrieval/               # Stub (Gap)
+    ├── ai/                      # ⚠️ TRANSITIONAL ONLY — migrating to Tier 2
+    ├── conversation/            # Tier 1 — Active
+    ├── notebook/                # Tier 1 — Active
+    ├── source/                  # Tier 1 — Active
+    ├── retrieval/               # Tier 2 — Stub (migration target from ai)
+    ├── grounding/               # Tier 2 — Stub (migration target from ai)
+    ├── synthesis/               # Tier 2 — Stub (migration target from ai)
+    ├── evaluation/              # Tier 2 — Stub (migration target from ai)
+    ├── ingestion/               # Tier 3 — Stub (py_fn orchestration boundary)
+    ├── note/                    # Tier 3 — Stub (lightweight notebook notes)
+    └── conversation-versioning/ # Tier 3 — Stub (snapshot strategy)
 ```
 
 ## Subdomains
 
-### Active
+### Tier 1 — Core (Active)
 
-| Subdomain | Status | Purpose |
-|-----------|--------|---------|
-| ai | Active ⚠️ | RAG 問答、檢索、grounded 生成與回饋收集。命名技術債：此子域非戰略清單中的合法子域，長期目標為拆分至 retrieval / grounding / synthesis，詳見 Architecture Note。 |
-| conversation | Active | 對話 Thread 與 Message 生命週期管理 |
-| notebook | Active | Notebook 容器組合與 GenKit 回應生成 |
-| source | Active | 來源文件匯入生命週期、RagDocument 狀態機與 WikiLibrary 結構化庫 |
+| Subdomain | Purpose | Key Aggregates / Entities |
+|-----------|---------|--------------------------|
+| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
+| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration |
+| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary | RagDocument, WikiLibrary |
 
-### Baseline Stubs
+### Tier 2 — RAG Pipeline Stubs (Migration Target from `ai`)
 
-| Subdomain | Status | Purpose |
-|-----------|--------|---------|
-| conversation-versioning | Stub | 對話版本快照策略（長期拆出 conversation） |
-| note | Stub | 輕量個人筆記與知識連結 |
-| synthesis | Stub | RAG 合成、摘要與洞察生成（長期接收 ai 子域的合成責任） |
+這四個子域是 `ai` 過渡子域的戰略接收邊界。每次新的 RAG pipeline 功能，優先在此實作，不得擴大 `ai`。
 
-### Recommended Gap Stubs
+| Subdomain | Purpose | 遷移自 `ai` 的責任 |
+|-----------|---------|------------------|
+| retrieval | 查詢召回與排序策略、向量搜尋 | `IRagRetrievalRepository`、`RagScoringService`、`RagRetrievedChunk` |
+| grounding | 引用對齊與可追溯證據 | `RagCitationBuilder`、`RagCitation`、`RelevanceScore` |
+| synthesis | RAG 合成、摘要與洞察生成 | `AnswerRagQueryUseCase`、`RagPromptBuilder`、`GenkitRagGenerationAdapter` |
+| evaluation | 品質評估、feedback 收集與回歸比較 | `IRagQueryFeedbackRepository`、`submit-rag-feedback`、`RagFeedback` |
 
-| Subdomain | Status | Purpose |
-|-----------|--------|---------|
-| evaluation | Stub | 品質評估與回歸比較（獨立於 ai 子域的早期回饋收集） |
-| grounding | Stub | 引用對齊與可追溯證據（長期接收 ai 子域的 citation 責任） |
-| ingestion | Stub | 來源匯入、正規化與前處理（長期接收 source 子域的匯入責任） |
-| retrieval | Stub | 查詢召回與排序策略（長期接收 ai 子域的向量檢索責任） |
+### Tier 3 — Baseline Stubs (Low Priority)
 
-## Architecture Note
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| ingestion | 來源匯入、正規化與前處理（TypeScript 側協調 py_fn 任務） | source 負責狀態機；ingestion 負責工人觸發協調 |
+| note | 輕量個人筆記與 Notebook 知識連結 | 獨立於 conversation thread 的筆記物件 |
+| conversation-versioning | 對話版本與快照策略 | 長期從 conversation 切出；保留邊界比合併安全 |
 
-`ai` 子域是此模組的主要架構技術債。它在早期開發中吸收了四個戰略子域的責任（retrieval、grounding、synthesis、early evaluation），但 `ai` 本身並不在 [strategic subdomain docs](../../docs/contexts/notebooklm/subdomains.md) 的合法清單中。
+### Transitional (Non-Strategic)
 
-**現況**：`ai` 持有 `IKnowledgeContentRepository` port、`RagRetrievedChunk` / `RagCitation` entities、`AnswerRagQueryUseCase` orchestration、以及 `submit-rag-feedback` 回饋流程。
+| Subdomain | Status | Migration Path |
+|-----------|--------|---------------|
+| ai | ⚠️ Tech debt — 零新功能 | Tier 2：retrieval → grounding → synthesis → evaluation（Strangler Pattern） |
 
-**長期目標**：以單個 use case 為單位，漸進將各責任遷移至 `retrieval`、`grounding`、`synthesis`、`evaluation` 子域（Strangler Pattern）。在遷移完成前，`ai` 子域保留作為過渡 adapter。
+## Subdomain Analysis
+
+**子域數量分析（10 戰略 + 1 過渡 = 11 目錄）**
+
+- ✅ 無子域需要刪除：每個子域有獨立語言邊界。
+- ✅ `ingestion` 與 `source` 分工正確：`source` 是 TypeScript 側的文件狀態機；`ingestion` 是 py_fn 工人觸發的協調邊界。
+- ✅ `retrieval`/`grounding`/`synthesis`/`evaluation` 是 RAG pipeline 的正確戰略切割，不是額外增加——它們是 `ai` 的替代品。
+- ✅ `conversation-versioning` 與 `note` 保留為獨立邊界比合併進 `conversation` 更符合 DDD。
+- ⚠️ `ai` 是唯一需要主動縮小的子域——新功能一律導向 Tier 2。
+
+## Architecture Note — ai Subdomain Migration
+
+`ai` 子域在早期開發中吸收了四個戰略子域的責任，形成技術債：
+
+| `ai` 中的責任 | 遷移目標 |
+|-------------|---------|
+| `IKnowledgeContentRepository` | `retrieval` |
+| `IRagRetrievalRepository`、`RagScoringService` | `retrieval` |
+| `RagCitationBuilder`、`RagCitation` | `grounding` |
+| `AnswerRagQueryUseCase`、`RagPromptBuilder` | `synthesis` |
+| `GenkitRagGenerationAdapter` | `synthesis` |
+| `IRagQueryFeedbackRepository`、feedback | `evaluation` |
+
+遷移規則：以單個 use case 為單位（Strangler Pattern）；每個 use case 先在目標子域建立 domain model → application use case → infrastructure adapter → 切換入口 → 移除舊路徑。
 
 ## Dependency Direction
 
@@ -69,13 +120,14 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ```
 
 - `api/` is the only cross-module public boundary.
-- Domain must not import infrastructure, interfaces, or external frameworks.
+- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
 - Cross-module collaboration goes through `api/` only.
 
 ## Strategic Documentation
 
 - [Context README](../../docs/contexts/notebooklm/README.md)
 - [Subdomains](../../docs/contexts/notebooklm/subdomains.md)
+- [Bounded Context](../../docs/contexts/notebooklm/bounded-contexts.md)
 - [Context Map](../../docs/contexts/notebooklm/context-map.md)
 - [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)

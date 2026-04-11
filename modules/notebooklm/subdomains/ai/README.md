@@ -1,11 +1,30 @@
-# AI
+# AI (TRANSITIONAL — Non-Strategic)
 
-AI-powered grounding, QA, and synthesis.
+> ⚠️ 此子域為過渡性（Transitional）邊界，不是最終戰略設計。
+> 所有責任應遷移至 Tier 2 目標子域後逐步移除。
+
+AI-powered RAG pipeline（過渡中）。
 
 ## Ownership
 
 - **Bounded Context**: notebooklm
-- **Status**: Active
+- **Subdomain Type**: Transitional (Tech Debt — Migration in Progress)
+- **Status**: Active but non-strategic — Strangler Pattern migration target
+
+## Migration Responsibility Map
+
+| 現有類別 | 遷移目標 |
+|---------|---------|
+| `AnswerRagQueryUseCase` | → synthesis |
+| `SubmitRagFeedbackUseCase` | → evaluation |
+| `RagPromptBuilder` | → synthesis |
+| `GenkitRagGenerationAdapter` | → synthesis |
+| `RagCitationBuilder`, `RagCitation` | → grounding |
+| `RelevanceScore` | → grounding |
+| `IRagRetrievalRepository`, `RagScoringService` | → retrieval |
+| `IKnowledgeContentRepository` | → retrieval |
+| `IRagQueryFeedbackRepository` | → evaluation |
+| `RagRetrievedChunk` (entity) | → retrieval |
 
 ## Layers
 
@@ -25,4 +44,4 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## Development Order
 
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+新功能**不得**在此子域開發。一律在目標子域 (retrieval/grounding/synthesis/evaluation) 建立新能力，再用 Strangler Pattern 將此子域的現有類別遷移過去。
