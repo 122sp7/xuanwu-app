@@ -1,7 +1,14 @@
 "use client";
 
-import { SettingsProfileRouteScreen } from "@/modules/platform/api";
+import { SettingsProfileRouteScreen, useAuth } from "@/modules/platform/api";
 
 export default function SettingsProfilePage() {
-  return <SettingsProfileRouteScreen />;
+  const { state: authState } = useAuth();
+
+  return (
+    <SettingsProfileRouteScreen
+      actorId={authState.user?.id ?? null}
+      fallbackDisplayName={authState.user?.name ?? ""}
+    />
+  );
 }

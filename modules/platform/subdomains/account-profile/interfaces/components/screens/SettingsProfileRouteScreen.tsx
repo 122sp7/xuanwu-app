@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
-import { useAuth } from "@/modules/platform/api";
 import { getProfile, updateProfile } from "../..";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
@@ -23,9 +22,16 @@ const EMPTY_FORM: FormState = {
   photoURL: "",
 };
 
-export function SettingsProfileRouteScreen() {
-  const { state: authState } = useAuth();
-  const actorId = authState.user?.id ?? "";
+interface SettingsProfileRouteScreenProps {
+  actorId: string | null;
+  fallbackDisplayName?: string | null;
+}
+
+export function SettingsProfileRouteScreen({
+  actorId,
+  fallbackDisplayName,
+}: SettingsProfileRouteScreenProps) {
+  const normalizedActorId = actorId ?? "";
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
@@ -33,7 +39,7 @@ export function SettingsProfileRouteScreen() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!actorId) {
+    if (!normalizedActorId) {
       setForm(EMPTY_FORM);
       return;
     }
@@ -44,10 +50,10 @@ export function SettingsProfileRouteScreen() {
       setLoading(true);
       setMessage(null);
       try {
-        const profile = await getProfile(actorId);
+        const profile = await getProfile(normalizedActorId);
         if (!cancelled) {
           setForm({
-            displayName: profile?.displayName ?? authState.user?.name ?? "",
+            displayName: profile?.displayName ?? fallbackDisplayName ?? "",
             bio: profile?.bio ?? "",
             photoURL: profile?.photoURL ?? "",
           });
@@ -68,7 +74,7 @@ export function SettingsProfileRouteScreen() {
     return () => {
       cancelled = true;
     };
-  }, [actorId, authState.user?.name]);
+  }, [fallbackDisplayName, normalizedActorId]);
 
   const hasChanges = useMemo(() => {
     return form.displayName.trim().length > 0 || form.bio.trim().length > 0 || form.photoURL.trim().length > 0;
@@ -77,7 +83,7 @@ export function SettingsProfileRouteScreen() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!actorId) {
+    if (!normalizedActorId) {
       setMessage("尚未登入，無法更新個人資料。");
       return;
     }
@@ -96,7 +102,7 @@ export function SettingsProfileRouteScreen() {
     setSaving(true);
     setMessage(null);
     try {
-      const result = await updateProfile(actorId, payload);
+      const result = await updateProfile(normalizedActorId, payload);
       if (result.success) {
         setMessage("已更新個人資料。");
       } else {
