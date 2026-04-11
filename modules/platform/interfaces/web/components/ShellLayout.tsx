@@ -16,6 +16,7 @@ import { PanelLeftOpen, Search } from "lucide-react";
 import { useApp } from "../providers/app-provider";
 import { useAuth, ShellGuard } from "../../../subdomains/identity/api";
 import { type AccountEntity, HeaderUserAvatar } from "../../../subdomains/account/api";
+import { subscribeToProfile, type AccountProfile } from "../../../subdomains/account-profile/api";
 import { AccountSwitcher } from "../../../subdomains/organization/api";
 import { AppBreadcrumbs } from "./AppBreadcrumbs";
 import { AppRail } from "./AppRail";
@@ -90,6 +91,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
   const { state: authState, logout } = useAuth();
   const { state: appState, dispatch } = useApp();
   const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [accountProfileState, setAccountProfileState] = useState<{ actorId: string; profile: AccountProfile | null } | null>(null);
   const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -150,6 +152,21 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
       router.replace(nextRoute);
     }
   }, [appState.accountsHydrated, appState.activeAccount, pathname, router]);
+
+  useEffect(() => {
+    const actorId = authState.user?.id;
+    if (!actorId) {
+      return;
+    }
+
+    const unsubscribe = subscribeToProfile(actorId, (profile) => setAccountProfileState({ actorId, profile }));
+
+    return () => unsubscribe();
+  }, [authState.user?.id]);
+
+  const scopedProfile = accountProfileState && accountProfileState.actorId === authState.user?.id
+    ? accountProfileState.profile
+    : null;
 
   async function handleLogout() {
     setLogoutError(null);
@@ -226,8 +243,8 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
               <div className="ml-auto flex items-center gap-3">
                 <HeaderControls />
                 <HeaderUserAvatar
-                  name={authState.user?.name ?? "Dimension Member"}
-                  email={authState.user?.email ?? "—"}
+                  name={scopedProfile?.displayName ?? authState.user?.name ?? "Dimension Member"}
+                  email={scopedProfile?.email ?? authState.user?.email ?? "—"}
                   onSignOut={() => {
                     void handleLogout();
                   }}

@@ -3,13 +3,21 @@ import {
 	type AccountProfile,
 	type AccountProfileId,
 	type AccountProfileTheme,
+	type UpdateAccountProfileInput,
 } from "../domain";
 import type {
+	AccountProfileCommandRepository,
 	AccountProfileQueryRepository,
 	Unsubscribe,
 } from "../domain";
 
 type LegacyTheme = Partial<AccountProfileTheme> | null | undefined;
+type LegacyUpdateProfileInput = {
+	name?: string;
+	bio?: string;
+	photoURL?: string;
+	theme?: AccountProfileTheme;
+};
 
 type LegacyAccountProfileRecord = {
 	id: string;
@@ -26,6 +34,7 @@ export interface LegacyAccountProfileDataSource {
 		userId: string,
 		onUpdate: (profile: LegacyAccountProfileRecord) => void,
 	): Unsubscribe;
+	updateUserProfile(userId: string, input: LegacyUpdateProfileInput): Promise<void>;
 }
 
 function normalizeTheme(theme: LegacyTheme): AccountProfileTheme | undefined {
@@ -58,7 +67,7 @@ function mapLegacyProfile(record: LegacyAccountProfileRecord): AccountProfile | 
 }
 
 class LegacyAccountProfileQueryRepository
-	implements AccountProfileQueryRepository {
+	implements AccountProfileQueryRepository, AccountProfileCommandRepository {
 	constructor(
 		private readonly legacyDataSource: LegacyAccountProfileDataSource,
 	) {}
@@ -78,10 +87,30 @@ class LegacyAccountProfileQueryRepository
 			onUpdate(mapLegacyProfile(profile));
 		});
 	}
+
+	async updateAccountProfile(
+		actorId: AccountProfileId,
+		input: UpdateAccountProfileInput,
+	): Promise<void> {
+		const legacyInput: LegacyUpdateProfileInput = {
+			name: input.displayName,
+			bio: input.bio,
+			photoURL: input.photoURL,
+			theme: input.theme,
+		};
+
+		await this.legacyDataSource.updateUserProfile(actorId, legacyInput);
+	}
 }
 
 export function createLegacyAccountProfileQueryRepository(
 	legacyDataSource: LegacyAccountProfileDataSource,
 ): AccountProfileQueryRepository {
+	return new LegacyAccountProfileQueryRepository(legacyDataSource);
+}
+
+export function createLegacyAccountProfileCommandRepository(
+	legacyDataSource: LegacyAccountProfileDataSource,
+): AccountProfileCommandRepository {
 	return new LegacyAccountProfileQueryRepository(legacyDataSource);
 }

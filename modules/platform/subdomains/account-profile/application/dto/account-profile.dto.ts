@@ -6,5 +6,6 @@ export type {
   AccountProfile,
   AccountProfileId,
   AccountProfileTheme,
+  UpdateAccountProfileInput,
 } from "../../domain/entities/AccountProfile";
 export type { Unsubscribe } from "../../domain/repositories/AccountProfileQueryRepository";

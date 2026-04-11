@@ -1,4 +1,5 @@
 ﻿export {
+	createLegacyAccountProfileCommandRepository,
 	createLegacyAccountProfileQueryRepository,
 } from "./create-legacy-account-profile-application.adapter";
 export type {
