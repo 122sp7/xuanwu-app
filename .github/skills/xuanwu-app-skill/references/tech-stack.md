@@ -94,8 +94,8 @@
 ## Configuration Files
 
 - .gitattributes
+- eslint.config.mjs
 - tsconfig.json
 - vitest.config.ts
-- eslint.config.mjs
 - package.json
 - .gitignore
