@@ -65,7 +65,8 @@ modules/
         │   │   └── index.ts
         │   ├── application/  # 與 root application 重名；此處只承擔 subdomain use case
         │   │   ├── dto/
-        │   │   └── use-cases/
+        │   │   ├── use-cases/
+        │   │   └── services/
         │   ├── domain/       # 與 root domain 重名；此處只承擔 subdomain domain model
         │   │   ├── entities/
         │   │   ├── value-objects/
@@ -102,6 +103,11 @@ modules/
 | `domain/` | 聚合根、實體、值對象、領域服務、領域事件與核心規則；若在 bounded context 根層，代表跨 subdomain 的 shared policy、published language 或 context-wide domain concept |
 | `infrastructure/` | repository / adapter 實作、持久化、外部系統整合；若在 bounded context 根層，代表 context-wide driven adapters |
 | `interfaces/` | UI、route handler、server action、query hooks 等 driving adapters；若在 bounded context 根層，代表 context-wide composition / driving adapters |
+
+## Service Folder Semantics
+
+- `application/services/`：Application Service，負責流程協調、交易邊界、跨聚合編排與 use case 共用流程；不承載核心業務不變條件。
+- `domain/services/`：Domain Service，負責無法自然落在單一 Entity/Value Object 的領域規則與政策；可承載核心業務邏輯與不變條件。
 
 ## Core Clarification
 
