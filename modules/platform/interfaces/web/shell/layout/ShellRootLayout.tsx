@@ -18,10 +18,10 @@ import { useAuth, ShellGuard } from "../../../../subdomains/identity/api";
 import { type AccountEntity } from "../../../../subdomains/account/api";
 import { subscribeToProfile, type AccountProfile } from "../../../../subdomains/account-profile/api";
 import { AccountSwitcher } from "../../../../subdomains/organization/api";
-import { ShellAppBreadcrumbs } from "../../components/ShellAppBreadcrumbs";
+import { ShellAppBreadcrumbs } from "../breadcrumbs/ShellAppBreadcrumbs";
 import { AppRail } from "../sidebar/components/ShellAppRail";
 import { ShellDashboardSidebar } from "../navigation/components/ShellDashboardSidebar";
-import { ShellGlobalSearchDialog, useShellGlobalSearch } from "../../components/ShellGlobalSearchDialog";
+import { ShellGlobalSearchDialog, useShellGlobalSearch } from "../search/ShellGlobalSearchDialog";
 import { ShellHeaderControls } from "../../components/ShellHeaderControls";
 import { ShellUserAvatar } from "../../components/ShellUserAvatar";
 
