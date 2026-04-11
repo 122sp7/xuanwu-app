@@ -10486,20 +10486,6 @@ export {
 export { createOrgPolicy, updateOrgPolicy, deleteOrgPolicy } from "./_actions/organization-policy.actions";
 ````
 
-## File: modules/platform/subdomains/platform-config/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/platform/subdomains/platform-config/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'platform-config'.
-````
-
 ## File: modules/platform/subdomains/platform-config/domain/index.ts
 ````typescript
 // Purpose: Domain layer placeholder for platform subdomain 'platform-config'.
@@ -10532,20 +10518,6 @@ export {};
 ## File: modules/platform/subdomains/referral/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'referral'.
-````
-
-## File: modules/platform/subdomains/search/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/platform/subdomains/search/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for platform subdomain 'search'.
 ````
 
 ## File: modules/platform/subdomains/search/domain/index.ts
@@ -12222,75 +12194,6 @@ export function Providers({ children }: { children: ReactNode }) {
 }
 ````
 
-## File: modules/platform/interfaces/web/shell/breadcrumbs/ShellAppBreadcrumbs.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ChevronRight } from "lucide-react";
-
-const SEGMENT_LABELS: Record<string, string> = {
-  "organization": "組織",
-  "workspace": "工作區",
-  "wiki": "Account Wiki",
-  "rag-query": "Ask / Cite",
-  "documents": "文件",
-  "libraries": "Libraries",
-  "pages": "頁面",
-  "pages-dnd": "頁面 (DnD)",
-  "block-editor": "區塊編輯器",
-  "rag-reindex": "RAG 重新索引",
-  "ai-chat": "Notebook",
-  "dev-tools": "開發工具",
-  "namespaces": "命名空間",
-  "members": "成員",
-  "teams": "團隊",
-  "permissions": "權限",
-  "workspaces": "工作區清單",
-  "schedule": "排程",
-  "daily": "每日",
-  "audit": "稽核",
-};
-
-function segmentLabel(segment: string) {
-  return SEGMENT_LABELS[segment] ?? segment;
-}
-
-export function ShellAppBreadcrumbs() {
-  const pathname = usePathname();
-  const segments = pathname.split("/").filter(Boolean);
-
-  // Only render when there's more than one segment (i.e., not just root page).
-  if (segments.length <= 1) return null;
-
-  const crumbs: { label: string; href: string }[] = segments.map((seg, idx) => ({
-    label: segmentLabel(seg),
-    href: "/" + segments.slice(0, idx + 1).join("/"),
-  }));
-
-  return (
-    <nav aria-label="Breadcrumb" className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
-      {crumbs.map((crumb, idx) => (
-        <span key={crumb.href} className="flex items-center gap-1">
-          {idx > 0 && <ChevronRight className="size-3 opacity-40" />}
-          {idx < crumbs.length - 1 ? (
-            <Link
-              href={crumb.href}
-              className="transition hover:text-foreground"
-            >
-              {crumb.label}
-            </Link>
-          ) : (
-            <span className="font-medium text-foreground">{crumb.label}</span>
-          )}
-        </span>
-      ))}
-    </nav>
-  );
-}
-````
-
 ## File: modules/platform/interfaces/web/shell/header/components/ShellHeaderControls.tsx
 ````typescript
 "use client";
@@ -12444,105 +12347,6 @@ export function ShellTranslationSwitcher() {
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
-````
-
-## File: modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { FileText, Layout } from "lucide-react";
-
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandShortcut,
-} from "@ui-shadcn/ui/command";
-
-const NAV_ITEMS = [
-  { href: "/workspace", label: "Workspace Hub", group: "導覽" },
-  { href: "/knowledge", label: "Knowledge Hub", group: "導覽" },
-  { href: "/knowledge-base/articles", label: "Knowledge Base", group: "導覽" },
-  { href: "/knowledge-database/databases", label: "Knowledge Database", group: "導覽" },
-  { href: "/notebook/rag-query", label: "Notebook / AI", group: "導覽" },
-  { href: "/ai-chat", label: "AI Chat", group: "導覽" },
-  { href: "/knowledge/pages", label: "頁面管理", group: "Knowledge" },
-  { href: "/knowledge/block-editor", label: "區塊編輯器", group: "Knowledge" },
-  { href: "/source/libraries", label: "Libraries 表格", group: "Source" },
-] as const;
-
-const GROUP_ICONS: Record<string, React.ReactNode> = {
-  "導覽": <Layout className="size-4 mr-2 opacity-60" />,
-  "Knowledge": <FileText className="size-4 mr-2 opacity-60" />,
-  "Source": <FileText className="size-4 mr-2 opacity-60" />,
-};
-
-interface ShellGlobalSearchDialogProps {
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-}
-
-export function ShellGlobalSearchDialog({ open, onOpenChange }: ShellGlobalSearchDialogProps) {
-  const router = useRouter();
-
-  function handleSelect(href: string) {
-    onOpenChange(false);
-    router.push(href);
-  }
-
-  const groups = Array.from(new Set(NAV_ITEMS.map((i) => i.group)));
-
-  return (
-    <CommandDialog
-      title="全域搜尋"
-      description="搜尋頁面或功能"
-      open={open}
-      onOpenChange={onOpenChange}
-    >
-      <CommandInput placeholder="搜尋頁面或功能…" />
-      <CommandList>
-        <CommandEmpty>找不到結果。</CommandEmpty>
-        {groups.map((group) => (
-          <CommandGroup key={group} heading={group}>
-            {NAV_ITEMS.filter((i) => i.group === group).map((item) => (
-              <CommandItem
-                key={item.href}
-                onSelect={() => handleSelect(item.href)}
-              >
-                {GROUP_ICONS[group]}
-                {item.label}
-                <CommandShortcut className="text-[10px] opacity-50">{item.href}</CommandShortcut>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        ))}
-      </CommandList>
-    </CommandDialog>
-  );
-}
-
-/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
-export function useShellGlobalSearch() {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-        event.preventDefault();
-        setOpen((prev) => !prev);
-      }
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  return { open, setOpen };
 }
 ````
 
@@ -15630,6 +15434,194 @@ export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 }
 ````
 
+## File: modules/platform/subdomains/platform-config/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export * from "../application";
+````
+
+## File: modules/platform/subdomains/platform-config/application/index.ts
+````typescript
+// Purpose: Application layer for platform-config subdomain.
+
+export {
+	SHELL_ACCOUNT_SECTION_MATCHERS,
+	SHELL_ACCOUNT_NAV_ITEMS,
+	SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
+	SHELL_SECTION_LABELS,
+	resolveShellBreadcrumbLabel,
+	resolveShellNavSection,
+	resolveShellPageTitle,
+	type ShellNavItem,
+	type ShellNavSection,
+} from "./services/shell-navigation-catalog";
+````
+
+## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
+````typescript
+export type ShellNavSection =
+  | "workspace"
+  | "knowledge"
+  | "knowledge-base"
+  | "knowledge-database"
+  | "source"
+  | "notebook"
+  | "ai-chat"
+  | "account"
+  | "organization"
+  | "other";
+
+export interface ShellNavItem {
+  readonly id: string;
+  readonly label: string;
+  readonly href: string;
+}
+
+export const SHELL_ACCOUNT_SECTION_MATCHERS = [
+  "/organization/daily",
+  "/organization/schedule",
+  "/organization/audit",
+] as const;
+
+const ROUTE_TITLES: Record<string, string> = {
+  "/organization": "組織治理",
+  "/organization/daily": "帳號 · 每日",
+  "/organization/schedule": "帳號 · 排程",
+  "/organization/schedule/dispatcher": "帳號 · 調度台",
+  "/organization/audit": "帳號 · 稽核",
+  "/workspace": "工作區中心",
+  "/knowledge": "知識中心",
+  "/knowledge/pages": "知識 · 頁面",
+  "/knowledge/block-editor": "知識 · 區塊編輯器",
+  "/knowledge-base/articles": "知識庫 · 文章",
+  "/knowledge-database/databases": "知識資料庫 · 資料庫",
+  "/source/documents": "來源 · 文件",
+  "/source/libraries": "來源 · 資料庫",
+  "/notebook/rag-query": "筆記本 · 問答 / 引用",
+  "/ai-chat": "AI 對話",
+  "/dev-tools": "開發工具",
+};
+
+const BREADCRUMB_LABELS: Record<string, string> = {
+  organization: "組織",
+  workspace: "工作區",
+  wiki: "Account Wiki",
+  "rag-query": "Ask / Cite",
+  documents: "文件",
+  libraries: "Libraries",
+  pages: "頁面",
+  "pages-dnd": "頁面 (DnD)",
+  "block-editor": "區塊編輯器",
+  "rag-reindex": "RAG 重新索引",
+  "ai-chat": "Notebook",
+  "dev-tools": "開發工具",
+  namespaces: "命名空間",
+  members: "成員",
+  teams: "團隊",
+  permissions: "權限",
+  workspaces: "工作區清單",
+  schedule: "排程",
+  daily: "每日",
+  audit: "稽核",
+};
+
+export const SHELL_ORGANIZATION_MANAGEMENT_ITEMS: readonly ShellNavItem[] = [];
+
+export const SHELL_ACCOUNT_NAV_ITEMS: readonly ShellNavItem[] = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
+] as const;
+
+export const SHELL_SECTION_LABELS: Record<ShellNavSection, string> = {
+  workspace: "工作區",
+  knowledge: "知識",
+  "knowledge-base": "知識庫",
+  "knowledge-database": "知識資料庫",
+  source: "來源",
+  notebook: "筆記本",
+  "ai-chat": "AI 對話",
+  account: "帳號",
+  organization: "組織",
+  other: "導覽",
+};
+
+export function resolveShellNavSection(pathname: string): ShellNavSection {
+  if (pathname.startsWith("/workspace")) return "workspace";
+  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
+  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
+  if (pathname.startsWith("/knowledge")) return "knowledge";
+  if (pathname.startsWith("/source")) return "source";
+  if (pathname.startsWith("/notebook")) return "notebook";
+  if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  if (
+    SHELL_ACCOUNT_SECTION_MATCHERS.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    )
+  ) {
+    return "account";
+  }
+  if (pathname.startsWith("/organization")) return "organization";
+  return "other";
+}
+
+export function resolveShellPageTitle(pathname: string): string {
+  return ROUTE_TITLES[pathname] ?? "工作區";
+}
+
+export function resolveShellBreadcrumbLabel(segment: string): string {
+  return BREADCRUMB_LABELS[segment] ?? segment;
+}
+````
+
+## File: modules/platform/subdomains/search/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export * from "../application";
+````
+
+## File: modules/platform/subdomains/search/application/index.ts
+````typescript
+// Purpose: Application layer for platform subdomain 'search'.
+
+export {
+	listShellCommandCatalogItems,
+	type ShellCommandCatalogItem,
+} from "./services/shell-command-catalog";
+````
+
+## File: modules/platform/subdomains/search/application/services/shell-command-catalog.ts
+````typescript
+export interface ShellCommandCatalogItem {
+  readonly href: string;
+  readonly label: string;
+  readonly group: "導覽" | "Knowledge" | "Source";
+}
+
+const SHELL_COMMAND_CATALOG_ITEMS: readonly ShellCommandCatalogItem[] = [
+  { href: "/workspace", label: "Workspace Hub", group: "導覽" },
+  { href: "/knowledge", label: "Knowledge Hub", group: "導覽" },
+  { href: "/knowledge-base/articles", label: "Knowledge Base", group: "導覽" },
+  { href: "/knowledge-database/databases", label: "Knowledge Database", group: "導覽" },
+  { href: "/notebook/rag-query", label: "Notebook / AI", group: "導覽" },
+  { href: "/ai-chat", label: "AI Chat", group: "導覽" },
+  { href: "/knowledge/pages", label: "頁面管理", group: "Knowledge" },
+  { href: "/knowledge/block-editor", label: "區塊編輯器", group: "Knowledge" },
+  { href: "/source/libraries", label: "Libraries 表格", group: "Source" },
+] as const;
+
+export function listShellCommandCatalogItems(): readonly ShellCommandCatalogItem[] {
+  return SHELL_COMMAND_CATALOG_ITEMS;
+}
+````
+
 ## File: modules/platform/subdomains/secret-management/api/index.ts
 ````typescript
 /**
@@ -17227,6 +17219,49 @@ Strategic architecture documentation lives in `docs/contexts/platform/`:
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
+## File: modules/platform/interfaces/web/shell/breadcrumbs/ShellAppBreadcrumbs.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ChevronRight } from "lucide-react";
+import { resolveShellBreadcrumbLabel } from "../../../../subdomains/platform-config/api";
+
+export function ShellAppBreadcrumbs() {
+  const pathname = usePathname();
+  const segments = pathname.split("/").filter(Boolean);
+
+  // Only render when there's more than one segment (i.e., not just root page).
+  if (segments.length <= 1) return null;
+
+  const crumbs: { label: string; href: string }[] = segments.map((seg, idx) => ({
+    label: resolveShellBreadcrumbLabel(seg),
+    href: "/" + segments.slice(0, idx + 1).join("/"),
+  }));
+
+  return (
+    <nav aria-label="Breadcrumb" className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
+      {crumbs.map((crumb, idx) => (
+        <span key={crumb.href} className="flex items-center gap-1">
+          {idx > 0 && <ChevronRight className="size-3 opacity-40" />}
+          {idx < crumbs.length - 1 ? (
+            <Link
+              href={crumb.href}
+              className="transition hover:text-foreground"
+            >
+              {crumb.label}
+            </Link>
+          ) : (
+            <span className="font-medium text-foreground">{crumb.label}</span>
+          )}
+        </span>
+      ))}
+    </nav>
+  );
+}
+````
+
 ## File: modules/platform/interfaces/web/shell/header/components/ShellNotificationButton.tsx
 ````typescript
 "use client";
@@ -17256,6 +17291,96 @@ interface ShellUserAvatarProps {
 
 export function ShellUserAvatar({ name, email, onSignOut }: ShellUserAvatarProps) {
   return <HeaderUserAvatar name={name} email={email} onSignOut={onSignOut} />;
+}
+````
+
+## File: modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FileText, Layout } from "lucide-react";
+import { listShellCommandCatalogItems } from "../../../../subdomains/search/api";
+
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from "@ui-shadcn/ui/command";
+
+const NAV_ITEMS = listShellCommandCatalogItems();
+
+const GROUP_ICONS: Record<string, React.ReactNode> = {
+  "導覽": <Layout className="size-4 mr-2 opacity-60" />,
+  "Knowledge": <FileText className="size-4 mr-2 opacity-60" />,
+  "Source": <FileText className="size-4 mr-2 opacity-60" />,
+};
+
+interface ShellGlobalSearchDialogProps {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+}
+
+export function ShellGlobalSearchDialog({ open, onOpenChange }: ShellGlobalSearchDialogProps) {
+  const router = useRouter();
+
+  function handleSelect(href: string) {
+    onOpenChange(false);
+    router.push(href);
+  }
+
+  const groups = Array.from(new Set(NAV_ITEMS.map((i) => i.group)));
+
+  return (
+    <CommandDialog
+      title="全域搜尋"
+      description="搜尋頁面或功能"
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <CommandInput placeholder="搜尋頁面或功能…" />
+      <CommandList>
+        <CommandEmpty>找不到結果。</CommandEmpty>
+        {groups.map((group) => (
+          <CommandGroup key={group} heading={group}>
+            {NAV_ITEMS.filter((i) => i.group === group).map((item) => (
+              <CommandItem
+                key={item.href}
+                onSelect={() => handleSelect(item.href)}
+              >
+                {GROUP_ICONS[group]}
+                {item.label}
+                <CommandShortcut className="text-[10px] opacity-50">{item.href}</CommandShortcut>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ))}
+      </CommandList>
+    </CommandDialog>
+  );
+}
+
+/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
+export function useShellGlobalSearch() {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        setOpen((prev) => !prev);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  return { open, setOpen };
 }
 ````
 
@@ -19821,160 +19946,6 @@ export function ShellDashboardSidebar({
 }
 ````
 
-## File: modules/platform/interfaces/web/shell/navigation/data/ShellSidebarNavData.tsx
-````typescript
-import {
-  BookOpen,
-  Bot,
-  Brain,
-  Building2,
-  Database,
-  FileText,
-  UserRound,
-  Users,
-} from "lucide-react";
-import Link from "next/link";
-
-import type { AccountEntity, ActiveAccount } from "@/modules/platform/api";
-import { isOrganizationActor } from "@/modules/platform/subdomains/access-control/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly userId: string | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-
-export type NavSection =
-  | "workspace"
-  | "knowledge"
-  | "knowledge-base"
-  | "knowledge-database"
-  | "source"
-  | "notebook"
-  | "ai-chat"
-  | "account"
-  | "organization"
-  | "other";
-
-// ── Static nav constants ──────────────────────────────────────────────────────
-
-export const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
-
-export const ACCOUNT_NAV_ITEMS = [
-  { id: "schedule", label: "排程", href: "/organization/schedule" },
-  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
-  { id: "daily", label: "每日", href: "/organization/daily" },
-  { id: "audit", label: "稽核", href: "/organization/audit" },
-] as const;
-
-export const ACCOUNT_SECTION_MATCHERS = [
-  "/organization/daily",
-  "/organization/schedule",
-  "/organization/audit",
-] as const;
-
-export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
-  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  knowledge: { label: "知識", icon: <BookOpen className="size-3" /> },
-  "knowledge-base": { label: "知識庫", icon: <BookOpen className="size-3" /> },
-  "knowledge-database": { label: "知識資料庫", icon: <Database className="size-3" /> },
-  source: { label: "來源", icon: <FileText className="size-3" /> },
-  notebook: { label: "筆記本", icon: <Brain className="size-3" /> },
-  "ai-chat": { label: "AI 對話", icon: <Bot className="size-3" /> },
-  account: { label: "帳號", icon: <UserRound className="size-3" /> },
-  organization: { label: "組織", icon: <Users className="size-3" /> },
-  other: { label: "導覽", icon: null },
-};
-
-// ── CSS class helpers ─────────────────────────────────────────────────────────
-
-export function sidebarItemClass(active: boolean) {
-  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
-    active
-      ? "border-primary/30 bg-primary/10 text-primary"
-      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
-  }`;
-}
-
-export const sidebarSectionTitleClass =
-  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
-
-export const sidebarGroupButtonClass =
-  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
-
-// ── Pure section helpers ──────────────────────────────────────────────────────
-
-export function resolveNavSection(pathname: string): NavSection {
-  if (pathname.startsWith("/workspace")) return "workspace";
-  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
-  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
-  if (pathname.startsWith("/knowledge")) return "knowledge";
-  if (pathname.startsWith("/source")) return "source";
-  if (pathname.startsWith("/notebook")) return "notebook";
-  if (pathname.startsWith("/ai-chat")) return "ai-chat";
-  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)))
-    return "account";
-  if (pathname.startsWith("/organization")) return "organization";
-  return "other";
-}
-
-export function isActiveRoute(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-export function isActiveOrganizationAccount(
-  activeAccount: ActiveAccount | null,
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return isOrganizationActor(activeAccount);
-}
-
-// ── Simple section nav component ──────────────────────────────────────────────
-
-export function SimpleNavLinks({
-  items,
-  title,
-  isActiveRoute,
-}: {
-  items: readonly { href: string; label: string }[];
-  title: string;
-  isActiveRoute: (href: string) => boolean;
-}) {
-  return (
-    <nav className="space-y-0.5" aria-label={`${title}導覽`}>
-      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-        {title}
-      </p>
-      {items.map((item) => {
-        const active = isActiveRoute(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-              active
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-````
-
 ## File: modules/platform/README.md
 ````markdown
 # Platform
@@ -20635,6 +20606,142 @@ export { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-
 export { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
 ````
 
+## File: modules/platform/interfaces/web/shell/navigation/data/ShellSidebarNavData.tsx
+````typescript
+import {
+  BookOpen,
+  Bot,
+  Brain,
+  Building2,
+  Database,
+  FileText,
+  UserRound,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
+
+import type { AccountEntity, ActiveAccount } from "@/modules/platform/api";
+import { isOrganizationActor } from "@/modules/platform/subdomains/access-control/api";
+import {
+  SHELL_ACCOUNT_SECTION_MATCHERS,
+  SHELL_ACCOUNT_NAV_ITEMS,
+  SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
+  SHELL_SECTION_LABELS,
+  resolveShellNavSection,
+  type ShellNavSection,
+} from "@/modules/platform/subdomains/platform-config/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly userId: string | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+
+export type NavSection = ShellNavSection;
+
+// ── Static nav constants ──────────────────────────────────────────────────────
+
+export const ORGANIZATION_MANAGEMENT_ITEMS = SHELL_ORGANIZATION_MANAGEMENT_ITEMS;
+
+export const ACCOUNT_NAV_ITEMS = SHELL_ACCOUNT_NAV_ITEMS;
+
+export const ACCOUNT_SECTION_MATCHERS = SHELL_ACCOUNT_SECTION_MATCHERS;
+
+export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
+  workspace: { label: SHELL_SECTION_LABELS.workspace, icon: <Building2 className="size-3" /> },
+  knowledge: { label: SHELL_SECTION_LABELS.knowledge, icon: <BookOpen className="size-3" /> },
+  "knowledge-base": { label: SHELL_SECTION_LABELS["knowledge-base"], icon: <BookOpen className="size-3" /> },
+  "knowledge-database": {
+    label: SHELL_SECTION_LABELS["knowledge-database"],
+    icon: <Database className="size-3" />,
+  },
+  source: { label: SHELL_SECTION_LABELS.source, icon: <FileText className="size-3" /> },
+  notebook: { label: SHELL_SECTION_LABELS.notebook, icon: <Brain className="size-3" /> },
+  "ai-chat": { label: SHELL_SECTION_LABELS["ai-chat"], icon: <Bot className="size-3" /> },
+  account: { label: SHELL_SECTION_LABELS.account, icon: <UserRound className="size-3" /> },
+  organization: { label: SHELL_SECTION_LABELS.organization, icon: <Users className="size-3" /> },
+  other: { label: SHELL_SECTION_LABELS.other, icon: null },
+};
+
+// ── CSS class helpers ─────────────────────────────────────────────────────────
+
+export function sidebarItemClass(active: boolean) {
+  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
+    active
+      ? "border-primary/30 bg-primary/10 text-primary"
+      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
+  }`;
+}
+
+export const sidebarSectionTitleClass =
+  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
+
+export const sidebarGroupButtonClass =
+  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
+
+// ── Pure section helpers ──────────────────────────────────────────────────────
+
+export function resolveNavSection(pathname: string): NavSection {
+  return resolveShellNavSection(pathname);
+}
+
+export function isActiveRoute(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function isActiveOrganizationAccount(
+  activeAccount: ActiveAccount | null,
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return isOrganizationActor(activeAccount);
+}
+
+// ── Simple section nav component ──────────────────────────────────────────────
+
+export function SimpleNavLinks({
+  items,
+  title,
+  isActiveRoute,
+}: {
+  items: readonly { href: string; label: string }[];
+  title: string;
+  isActiveRoute: (href: string) => boolean;
+}) {
+  return (
+    <nav className="space-y-0.5" aria-label={`${title}導覽`}>
+      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+        {title}
+      </p>
+      {items.map((item) => {
+        const active = isActiveRoute(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+````
+
 ## File: modules/platform/subdomains/account-profile/api/index.ts
 ````typescript
 /**
@@ -20747,6 +20854,7 @@ import {
 } from "../../../../subdomains/access-control/api";
 import { type AccountEntity } from "../../../../subdomains/account/api";
 import { subscribeToProfile, type AccountProfile } from "../../../../subdomains/account-profile/api";
+import { resolveShellPageTitle } from "../../../../subdomains/platform-config/api";
 import { AccountSwitcher } from "../../../../subdomains/organization/api";
 import { ShellAppBreadcrumbs } from "../breadcrumbs/ShellAppBreadcrumbs";
 import { AppRail } from "../sidebar/ShellAppRail";
@@ -20755,25 +20863,6 @@ import { isActiveRoute } from "../navigation/data/ShellSidebarNavData";
 import { ShellGlobalSearchDialog, useShellGlobalSearch } from "../search/ShellGlobalSearchDialog";
 import { ShellHeaderControls } from "../header/components/ShellHeaderControls";
 import { ShellUserAvatar } from "../header/components/ShellUserAvatar";
-
-const routeTitles: Record<string, string> = {
-  "/organization": "組織治理",
-  "/organization/daily": "帳號 · 每日",
-  "/organization/schedule": "帳號 · 排程",
-  "/organization/schedule/dispatcher": "帳號 · 調度台",
-  "/organization/audit": "帳號 · 稽核",
-  "/workspace": "工作區中心",
-  "/knowledge": "知識中心",
-  "/knowledge/pages": "知識 · 頁面",
-  "/knowledge/block-editor": "知識 · 區塊編輯器",
-  "/knowledge-base/articles": "知識庫 · 文章",
-  "/knowledge-database/databases": "知識資料庫 · 資料庫",
-  "/source/documents": "來源 · 文件",
-  "/source/libraries": "來源 · 資料庫",
-  "/notebook/rag-query": "筆記本 · 問答 / 引用",
-  "/ai-chat": "AI 對話",
-  "/dev-tools": "開發工具",
-};
 
 /** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
 const mobileNavItems = [
@@ -20815,7 +20904,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
     });
   }
 
-  const pageTitle = routeTitles[pathname] ?? "工作區";
+  const pageTitle = resolveShellPageTitle(pathname);
   const organizationAccounts = Object.values(appState.accounts ?? {});
   const accountWorkspaces = Object.values(appState.workspaces ?? {});
   const showAccountManagement = isOrganizationActor(appState.activeAccount);
