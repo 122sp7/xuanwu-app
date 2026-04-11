@@ -3,7 +3,7 @@
 import type {
   GenerateNotebookResponseInput,
   GenerateNotebookResponseResult,
-} from "../../domain/entities/AgentGeneration";
+} from "../../application/dto/notebook.dto";
 import { GenerateNotebookResponseUseCase } from "../../application/use-cases/generate-notebook-response.use-case";
 import { makeNotebookRepo } from "../../api/factories";
 

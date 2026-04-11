@@ -13,7 +13,7 @@ import { Input } from "@ui-shadcn/ui/input";
 import { Label } from "@ui-shadcn/ui/label";
 
 import type { WorkspaceFileListItemDto } from "../../application/dto/source-file.dto";
-import { resolveSourceOrganizationId } from "../../domain/services/resolve-source-organization-id.service";
+import { resolveSourceOrganizationId } from "../../application/dto/source.dto";
 import { getWorkspaceFiles } from "../queries/source-file.queries";
 import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
 import { FileProcessingDialog } from "./FileProcessingDialog";
