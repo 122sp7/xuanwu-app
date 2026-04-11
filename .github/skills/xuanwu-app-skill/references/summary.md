@@ -1,4 +1,4 @@
-This file is a merged representation of a subset of the codebase, containing specifically included files and files not matching ignore patterns, combined into a single document by Repomix.
+This file is a merged representation of a subset of the codebase, containing files not matching ignore patterns, combined into a single document by Repomix.
 
 # Summary
 
@@ -31,7 +31,6 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: apps/web/**
 - Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, .github/workflows/**, .github/skills/**, docs/architecture/**, diagrams/**, public/**, .tmp-eslint*.json, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -39,7 +38,30 @@ This skill contains the following reference files:
 
 ## Statistics
 
-0 files | 0 lines
+1613 files | 74,305 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
+| TypeScript | 1100 | 36,363 |
+| Markdown | 201 | 8,839 |
+| TypeScript (TSX) | 191 | 23,749 |
+| Python | 61 | 3,823 |
+| No Extension | 44 | 129 |
+| JSON | 7 | 827 |
+| Text | 3 | 107 |
+| RULES | 2 | 18 |
+| JavaScript (ESM) | 2 | 189 |
+| CSS | 1 | 197 |
+| Other | 1 | 64 |
+
+**Largest files:**
+- `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
+- `app/(shell)/dev-tools/page.tsx` (475 lines)
+- `firestore.indexes.json` (437 lines)
+- `modules/platform/interfaces/web/components/AppRail.tsx` (358 lines)
+- `packages/ui-shadcn/ui/chart.tsx` (356 lines)
+- `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
+- `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (341 lines)
+- `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)
+- `modules/platform/interfaces/web/components/ShellLayout.tsx` (338 lines)
+- `modules/workspace/domain/aggregates/Workspace.ts` (305 lines)

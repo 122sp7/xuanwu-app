@@ -21,7 +21,7 @@ import {
   DeleteTeamUseCase,
   UpdateTeamMembersUseCase,
 } from "../application/use-cases/organization-team.use-cases";
-import type { TeamRepository } from "../../team/api";
+import type { IOrganizationTeamPort } from "../domain/ports/IOrganizationTeamPort";
 import { createTeamRepository } from "../../team/api";
 import {
   CreatePartnerGroupUseCase,
@@ -41,12 +41,12 @@ import type {
   CreateOrgPolicyInput,
   UpdateOrgPolicyInput,
 } from "../domain/entities/Organization";
-import type { CreateTeamInput } from "../../team/api";
+import type { CreateTeamInput } from "../domain/entities/Organization";
 import type { CommandResult } from "@shared-types";
 
 let _orgRepo: FirebaseOrganizationRepository | undefined;
 let _policyRepo: FirebaseOrgPolicyRepository | undefined;
-let _teamRepo: TeamRepository | undefined;
+let _teamPort: IOrganizationTeamPort | undefined;
 
 function getOrgRepo(): FirebaseOrganizationRepository {
   if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
@@ -58,9 +58,11 @@ function getPolicyRepo(): FirebaseOrgPolicyRepository {
   return _policyRepo;
 }
 
-function getTeamRepo(): TeamRepository {
-  if (!_teamRepo) _teamRepo = createTeamRepository();
-  return _teamRepo;
+function getTeamPort(): IOrganizationTeamPort {
+  // createTeamRepository() returns a TeamRepository that structurally satisfies IOrganizationTeamPort.
+  // The infrastructure layer is the correct place to wire cross-subdomain adapters.
+  if (!_teamPort) _teamPort = createTeamRepository();
+  return _teamPort;
 }
 
 export const organizationService = {
@@ -93,13 +95,13 @@ export const organizationService = {
     new UpdateMemberRoleUseCase(getOrgRepo()).execute(input),
 
   createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
-    new CreateTeamUseCase(getTeamRepo()).execute(input),
+    new CreateTeamUseCase(getTeamPort()).execute(input),
 
   deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
-    new DeleteTeamUseCase(getTeamRepo()).execute(orgId, teamId),
+    new DeleteTeamUseCase(getTeamPort()).execute(orgId, teamId),
 
   updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
-    new UpdateTeamMembersUseCase(getTeamRepo()).execute(orgId, teamId, memberId, action),
+    new UpdateTeamMembersUseCase(getTeamPort()).execute(orgId, teamId, memberId, action),
 
   createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
     new CreatePartnerGroupUseCase(getOrgRepo()).execute(orgId, groupName),

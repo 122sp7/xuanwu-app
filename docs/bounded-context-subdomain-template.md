@@ -24,10 +24,19 @@ modules/
 └── <bounded-context>/
     ├── README.md
     ├── AGENT.md
-    ├── api/
+    ├── api/                  # 與 subdomain/api 重名；此處是 bounded context 對外邊界
     │   └── index.ts
-    ├── application/
-    ├── domain/
+    ├── application/          # 與 subdomain/application 重名；此處是 context-wide orchestration
+    │   ├── dto/
+    │   ├── use-cases/
+    │   └── services/
+    ├── domain/               # 與 subdomain/domain 重名；此處是 context-wide domain concept
+    │   ├── entities/
+    │   ├── value-objects/
+    │   ├── services/
+    │   ├── repositories/
+    │   ├── events/
+    │   └── ports/
     ├── docs/
     │   ├── README.md
     │   ├── bounded-context.md
@@ -39,28 +48,37 @@ modules/
     │   ├── repositories.md
     │   ├── application-services.md
     │   └── domain-services.md
-    ├── infrastructure/
-    ├── interfaces/
+    ├── infrastructure/       # 與 subdomain/infrastructure 重名；此處是 context-wide driven adapters
+    │   ├── adapters/
+    │   ├── persistence/
+    │   └── repositories/
+    ├── interfaces/           # 與 subdomain/interfaces 重名；此處是 context-wide driving adapters
+    │   ├── api/
+    │   ├── components/
+    │   ├── hooks/
+    │   ├── queries/
+    │   └── _actions/
     └── subdomains/
         ├── <subdomain-a>/
         │   ├── README.md
-        │   ├── api/
+        │   ├── api/          # 與 root api 重名；此處是 subdomain 對外邊界
         │   │   └── index.ts
-        │   ├── application/
+        │   ├── application/  # 與 root application 重名；此處只承擔 subdomain use case
         │   │   ├── dto/
-        │   │   └── use-cases/
-        │   ├── domain/
+        │   │   ├── use-cases/
+        │   │   └── services/
+        │   ├── domain/       # 與 root domain 重名；此處只承擔 subdomain domain model
         │   │   ├── entities/
         │   │   ├── value-objects/
         │   │   ├── services/
         │   │   ├── repositories/
         │   │   ├── events/
         │   │   └── ports/
-        │   ├── infrastructure/
+        │   ├── infrastructure/ # 與 root infrastructure 重名；此處只承擔 subdomain adapters
         │   │   ├── adapters/
         │   │   ├── persistence/
         │   │   └── repositories/
-        │   └── interfaces/
+        │   └── interfaces/   # 與 root interfaces 重名；此處只承擔 subdomain UI/transport
         │       ├── api/
         │       ├── components/
         │       ├── hooks/
@@ -68,6 +86,13 @@ modules/
         │       └── _actions/
         └── <subdomain-b>/
 ```
+
+## Duplicate Folder Name Notes
+
+- `api`、`application`、`domain`、`infrastructure`、`interfaces` 在 root 與 subdomain 都會出現，屬於**刻意重名**。
+- 判斷責任時，先看父路徑：`<bounded-context>/...` 代表 context-wide；`subdomains/<name>/...` 代表 subdomain-local。
+- 同名的下一層目錄（如 `dto`、`use-cases`、`services`、`repositories`、`adapters`、`api`、`components`、`hooks`、`queries`、`_actions`）也遵循同一條父路徑判斷規則。
+- 重名不代表可互相直接 import；跨 subdomain 或跨 bounded context 仍必須走 `api/` 邊界。
 
 ## Layer Responsibilities
 
@@ -78,6 +103,11 @@ modules/
 | `domain/` | 聚合根、實體、值對象、領域服務、領域事件與核心規則；若在 bounded context 根層，代表跨 subdomain 的 shared policy、published language 或 context-wide domain concept |
 | `infrastructure/` | repository / adapter 實作、持久化、外部系統整合；若在 bounded context 根層，代表 context-wide driven adapters |
 | `interfaces/` | UI、route handler、server action、query hooks 等 driving adapters；若在 bounded context 根層，代表 context-wide composition / driving adapters |
+
+## Service Folder Semantics
+
+- `application/services/`：Application Service，負責流程協調、交易邊界、跨聚合編排與 use case 共用流程；不承載核心業務不變條件。
+- `domain/services/`：Domain Service，負責無法自然落在單一 Entity/Value Object 的領域規則與政策；可承載核心業務邏輯與不變條件。
 
 ## Core Clarification
 

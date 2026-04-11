@@ -10,3 +10,5 @@ export * from "./repositories/IRagRetrievalRepository";
 export * from "./repositories/IWikiContentRepository";
 export * from "./services";
 export * from "./value-objects";
+// Ports layer — driven port aliases
+export type { IRagGenerationPort, IRagQueryFeedbackPort, IRagRetrievalPort, IWikiContentPort } from "./ports";
