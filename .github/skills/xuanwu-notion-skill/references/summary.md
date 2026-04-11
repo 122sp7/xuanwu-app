@@ -41,22 +41,22 @@ This skill contains the following reference files:
 
 ## Statistics
 
-876 files | 225,702 lines
+876 files | 708,080 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 525 | 13,851 |
-| Markdown | 321 | 207,974 |
+| Markdown | 321 | 690,352 |
 | TypeScript (TSX) | 30 | 3,877 |
 
 **Largest files:**
+- `.github/skills/xuanwu-app-markdown-skill/references/files.md` (470,396 lines)
 - `.github/skills/xuanwu-notebooklm-skill/references/files.md` (119,357 lines)
+- `.github/skills/xuanwu-app-workspace-skill/references/files.md` (38,972 lines)
 - `.github/skills/xuanwu-app-platform-skill/references/files.md` (21,250 lines)
 - `.github/skills/xuanwu-app-skill/references/files.md` (20,636 lines)
-- `.github/skills/xuanwu-app-workspace-skill/references/files.md` (18,082 lines)
-- `.github/skills/xuanwu-app-markdown-skill/references/files.md` (10,186 lines)
+- `.github/skills/xuanwu-app-workspace-skill/references/project-structure.md` (889 lines)
 - `.github/skills/xuanwu-notebooklm-skill/references/project-structure.md` (880 lines)
+- `.github/skills/xuanwu-app-markdown-skill/references/project-structure.md` (880 lines)
 - `.github/skills/xuanwu-app-platform-skill/references/project-structure.md` (604 lines)
 - `.github/skills/xuanwu-app-skill/references/project-structure.md` (593 lines)
-- `.github/skills/hexagonal-ddd/SKILL.md` (415 lines)
-- `.github/skills/playwright-mcp-testing/SKILL.md` (358 lines)
