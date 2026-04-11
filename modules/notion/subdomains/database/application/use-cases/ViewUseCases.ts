@@ -6,9 +6,8 @@
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { IViewRepository } from "../../domain/repositories/IViewRepository";
-import type { ViewSnapshot } from "../../domain/aggregates/View";
-import { CreateViewSchema, UpdateViewSchema, DeleteViewSchema, ListViewsSchema } from "../dto/DatabaseDto";
-import type { CreateViewDto, UpdateViewDto, DeleteViewDto, ListViewsDto } from "../dto/DatabaseDto";
+import { CreateViewSchema, UpdateViewSchema, DeleteViewSchema } from "../dto/DatabaseDto";
+import type { CreateViewDto, UpdateViewDto, DeleteViewDto } from "../dto/DatabaseDto";
 
 export class CreateViewUseCase {
   constructor(private readonly repo: IViewRepository) {}

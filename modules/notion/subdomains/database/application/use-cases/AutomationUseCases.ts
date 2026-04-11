@@ -5,7 +5,6 @@
  */
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { DatabaseAutomationSnapshot } from "../../domain/aggregates/DatabaseAutomation";
 import type { IAutomationRepository, CreateAutomationInput, UpdateAutomationInput } from "../../domain/repositories/IAutomationRepository";
 
 export class CreateAutomationUseCase {

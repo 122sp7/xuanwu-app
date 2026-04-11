@@ -6,9 +6,8 @@
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { IDatabaseRepository } from "../../domain/repositories/IDatabaseRepository";
-import type { DatabaseSnapshot } from "../../domain/aggregates/Database";
-import { CreateDatabaseSchema, UpdateDatabaseSchema, AddFieldSchema, ArchiveDatabaseSchema, GetDatabaseSchema, ListDatabasesSchema } from "../dto/DatabaseDto";
-import type { CreateDatabaseDto, UpdateDatabaseDto, AddFieldDto, ArchiveDatabaseDto, GetDatabaseDto, ListDatabasesDto } from "../dto/DatabaseDto";
+import { CreateDatabaseSchema, UpdateDatabaseSchema, AddFieldSchema, ArchiveDatabaseSchema } from "../dto/DatabaseDto";
+import type { CreateDatabaseDto, UpdateDatabaseDto, AddFieldDto, ArchiveDatabaseDto } from "../dto/DatabaseDto";
 
 export class CreateDatabaseUseCase {
   constructor(private readonly repo: IDatabaseRepository) {}
