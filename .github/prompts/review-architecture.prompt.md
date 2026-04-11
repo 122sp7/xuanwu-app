@@ -10,8 +10,8 @@ argument-hint: Provide plan reference, changed files, and architecture concerns.
 Return findings first by severity: boundary breaks, dependency inversions, contract drift, and missing docs.
 
 Require checks against:
-- `instructions/ubiquitous-language.instructions.md`
-- `instructions/bounded-context-rules.instructions.md`
+- `instructions/docs-authority-and-language.instructions.md`
+- `instructions/architecture-core.instructions.md`
 - target module `context-map.md`
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
