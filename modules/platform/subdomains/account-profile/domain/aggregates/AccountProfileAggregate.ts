@@ -47,12 +47,12 @@ export class AccountProfileAggregate {
   update(input: UpdateAccountProfileInput): void {
     const changedFields: string[] = [];
     const now = new Date().toISOString();
-    if (input.displayName !== undefined) {
+    if (input.displayName !== undefined && input.displayName !== this._props.displayName) {
       createProfileDisplayName(input.displayName);
       changedFields.push("displayName");
     }
-    if (input.bio !== undefined) changedFields.push("bio");
-    if (input.photoURL !== undefined) changedFields.push("photoURL");
+    if (input.bio !== undefined && input.bio !== this._props.bio) changedFields.push("bio");
+    if (input.photoURL !== undefined && input.photoURL !== this._props.photoURL) changedFields.push("photoURL");
     if (input.theme !== undefined) changedFields.push("theme");
     this._props = {
       ...this._props,
