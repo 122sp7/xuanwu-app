@@ -4,7 +4,7 @@
  */
 
 export * from "../application";
-export * from "../infrastructure";
+export { notificationService } from "../infrastructure/notification-service";
 export type {
   NotificationEntity,
   NotificationType,

@@ -5,10 +5,12 @@
 import { FirebaseNotificationRepository } from "./firebase/FirebaseNotificationRepository";
 import {
   DispatchNotificationUseCase,
+  GetNotificationsForRecipientUseCase,
+  GetUnreadCountUseCase,
   MarkNotificationReadUseCase,
   MarkAllNotificationsReadUseCase,
 } from "../application/use-cases/notification.use-cases";
-import type { DispatchNotificationInput } from "../domain/entities/Notification";
+import type { DispatchNotificationInput, NotificationEntity } from "../domain/entities/Notification";
 import type { CommandResult } from "@shared-types";
 
 let _notificationRepo: FirebaseNotificationRepository | undefined;
@@ -28,8 +30,9 @@ export const notificationService = {
   markAllAsRead: (recipientId: string): Promise<CommandResult> =>
     new MarkAllNotificationsReadUseCase(getNotifRepo()).execute(recipientId),
 
-  getForRecipient: (recipientId: string, maxCount?: number) =>
-    getNotifRepo().findByRecipient(recipientId, maxCount),
+  getForRecipient: (recipientId: string, maxCount?: number): Promise<NotificationEntity[]> =>
+    new GetNotificationsForRecipientUseCase(getNotifRepo()).execute(recipientId, maxCount),
 
-  getUnreadCount: (recipientId: string) => getNotifRepo().getUnreadCount(recipientId),
+  getUnreadCount: (recipientId: string): Promise<number> =>
+    new GetUnreadCountUseCase(getNotifRepo()).execute(recipientId),
 };
