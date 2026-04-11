@@ -88,55 +88,28 @@ Strategic architecture documentation lives in `docs/contexts/notion/`:
 
 ````
 
-## File: modules/notion/README.md
-````markdown
-# Notion
+## File: modules/notion/subdomains/attachments/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
 
-知識內容生命週期主域
+## File: modules/notion/subdomains/attachments/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notion subdomain 'attachments'.
+````
 
-## Implementation Structure
+## File: modules/notion/subdomains/attachments/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notion subdomain 'attachments'.
+````
 
-```text
-modules/notion/
-├── api/              # Public API boundary
-├── application/      # Context-wide orchestration
-├── domain/           # Context-wide domain concepts
-├── infrastructure/   # Context-wide driven adapters
-├── interfaces/       # Context-wide driving adapters
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── authoring/
-    ├── collaboration/
-    ├── database/
-    └── knowledge/
-```
-
-## Subdomains
-
-| Subdomain | Status | Purpose |
-|-----------|--------|---------|
-| authoring | Active | 內容建立與編輯 |
-| collaboration | Active | 內容協作與共同編輯 |
-| database | Active | 結構化資料與資料庫管理 |
-| knowledge | Active | 知識內容正典狀態管理 |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `api/` is the only cross-module public boundary.
-- Domain must not import infrastructure, interfaces, or external frameworks.
-- Cross-module collaboration goes through `api/` only.
-
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/notion/README.md)
-- [Subdomains](../../docs/contexts/notion/subdomains.md)
-- [Context Map](../../docs/contexts/notion/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/notion/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
+## File: modules/notion/subdomains/attachments/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notion subdomain 'attachments'.
 ````
 
 ## File: modules/notion/subdomains/authoring/api/factories.ts
@@ -595,34 +568,6 @@ export class DeleteCategoryUseCase {
     return commandSuccess(parsed.data.id, 0);
   }
 }
-````
-
-## File: modules/notion/subdomains/authoring/application/use-cases/index.ts
-````typescript
-// TODO: export CreateArticleUseCase, UpdateArticleUseCase, PublishArticleUseCase
-// TODO: export ArchiveArticleUseCase, PromotePageToArticleUseCase
-// TODO: export CreateCategoryUseCase, MoveCategoryUseCase
-
-export {
-  CreateArticleUseCase,
-  UpdateArticleUseCase,
-  ArchiveArticleUseCase,
-  DeleteArticleUseCase,
-} from "./ArticleLifecycleUseCases";
-
-export { PublishArticleUseCase } from "./ArticlePublicationUseCases";
-
-export {
-  VerifyArticleUseCase,
-  RequestArticleReviewUseCase,
-} from "./ArticleVerificationUseCases";
-
-export {
-  CreateCategoryUseCase,
-  RenameCategoryUseCase,
-  MoveCategoryUseCase,
-  DeleteCategoryUseCase,
-} from "./CategoryUseCases";
 ````
 
 ## File: modules/notion/subdomains/authoring/domain/aggregates/Article.ts
@@ -2300,6 +2245,30 @@ export async function getBacklinks(accountId: string, articleId: string): Promis
 // TODO: export useArticleEditorStore
 
 export {};
+````
+
+## File: modules/notion/subdomains/automation/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/notion/subdomains/automation/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notion subdomain 'automation'.
+````
+
+## File: modules/notion/subdomains/automation/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notion subdomain 'automation'.
+````
+
+## File: modules/notion/subdomains/automation/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notion subdomain 'automation'.
 ````
 
 ## File: modules/notion/subdomains/collaboration/api/factories.ts
@@ -7009,6 +6978,78 @@ export async function getAutomations(accountId: string, databaseId: string): Pro
 export {};
 ````
 
+## File: modules/notion/subdomains/knowledge-analytics/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/notion/subdomains/knowledge-analytics/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notion subdomain 'knowledge-analytics'.
+````
+
+## File: modules/notion/subdomains/knowledge-analytics/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notion subdomain 'knowledge-analytics'.
+````
+
+## File: modules/notion/subdomains/knowledge-analytics/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notion subdomain 'knowledge-analytics'.
+````
+
+## File: modules/notion/subdomains/knowledge-integration/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/notion/subdomains/knowledge-integration/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notion subdomain 'knowledge-integration'.
+````
+
+## File: modules/notion/subdomains/knowledge-integration/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notion subdomain 'knowledge-integration'.
+````
+
+## File: modules/notion/subdomains/knowledge-integration/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notion subdomain 'knowledge-integration'.
+````
+
+## File: modules/notion/subdomains/knowledge-versioning/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/notion/subdomains/knowledge-versioning/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notion subdomain 'knowledge-versioning'.
+````
+
+## File: modules/notion/subdomains/knowledge-versioning/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notion subdomain 'knowledge-versioning'.
+````
+
+## File: modules/notion/subdomains/knowledge-versioning/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notion subdomain 'knowledge-versioning'.
+````
+
 ## File: modules/notion/subdomains/knowledge/api/factories.ts
 ````typescript
 import { FirebaseContentBlockRepository } from "../infrastructure/firebase/FirebaseContentBlockRepository";
@@ -7173,14 +7214,6 @@ export const UnnestKnowledgeBlockSchema = z.object({
 export type UnnestKnowledgeBlockDto = z.infer<typeof UnnestKnowledgeBlockSchema>;
 ````
 
-## File: modules/notion/subdomains/knowledge/application/dto/index.ts
-````typescript
-export * from "./KnowledgePageDto";
-export * from "./ContentBlockDto";
-export * from "./KnowledgeCollectionDto";
-export * from "./KnowledgeWikiDto";
-````
-
 ## File: modules/notion/subdomains/knowledge/application/dto/knowledge.dto.ts
 ````typescript
 /**
@@ -7329,244 +7362,6 @@ export const CreateKnowledgeVersionSchema = AccountScopeSchema.extend({
   createdByUserId: z.string().min(1),
 });
 export type CreateKnowledgeVersionDto = z.infer<typeof CreateKnowledgeVersionSchema>;
-````
-
-## File: modules/notion/subdomains/knowledge/application/dto/KnowledgeWikiDto.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: application/dto
- * Purpose: Zod-validated input schemas for wiki/knowledge-base use cases.
- */
-
-import { z } from "@lib-zod";
-
-const AccountScopeSchema = z.object({ accountId: z.string().min(1) });
-
-export const VerifyKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  verifiedByUserId: z.string().min(1),
-  verificationExpiresAtISO: z.string().datetime({ offset: true }).optional(),
-});
-export type VerifyKnowledgePageDto = z.infer<typeof VerifyKnowledgePageSchema>;
-
-export const RequestPageReviewSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  requestedByUserId: z.string().min(1),
-});
-export type RequestPageReviewDto = z.infer<typeof RequestPageReviewSchema>;
-
-export const AssignPageOwnerSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  ownerId: z.string().min(1),
-  assignedByUserId: z.string().min(1),
-});
-export type AssignPageOwnerDto = z.infer<typeof AssignPageOwnerSchema>;
-
-export const CreateWikiSpaceSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1).optional(),
-  name: z.string().min(1).max(300),
-  description: z.string().max(1000).optional(),
-  createdByUserId: z.string().min(1),
-});
-export type CreateWikiSpaceDto = z.infer<typeof CreateWikiSpaceSchema>;
-
-export const UpdatePageIconSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  iconUrl: z.string().max(2000),
-});
-export type UpdatePageIconDto = z.infer<typeof UpdatePageIconSchema>;
-
-export const UpdatePageCoverSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  coverUrl: z.string().max(2000),
-});
-export type UpdatePageCoverDto = z.infer<typeof UpdatePageCoverSchema>;
-````
-
-## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageAppearanceUseCases.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: application/use-cases
- * Purpose: Page appearance use cases — update icon, update cover.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
-import {
-  UpdatePageIconSchema,
-  type UpdatePageIconDto,
-  UpdatePageCoverSchema,
-  type UpdatePageCoverDto,
-} from "../dto/KnowledgeWikiDto";
-
-export class UpdatePageIconUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: UpdatePageIconDto): Promise<CommandResult> {
-    const parsed = UpdatePageIconSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, iconUrl } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.updateIcon(iconUrl);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class UpdatePageCoverUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: UpdatePageCoverDto): Promise<CommandResult> {
-    const parsed = UpdatePageCoverSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, coverUrl } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.updateCover(coverUrl);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-````
-
-## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageReviewUseCases.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: application/use-cases
- * Purpose: Page review/wiki use cases — approve, verify, request review, assign owner.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
-
-import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
-import {
-  PublishDomainEventUseCase,
-  type IEventStoreRepository,
-  type IEventBusRepository,
-} from "@shared-events";
-import {
-  ApproveKnowledgePageSchema,
-  type ApproveKnowledgePageDto,
-} from "../dto/KnowledgePageDto";
-import {
-  VerifyKnowledgePageSchema,
-  type VerifyKnowledgePageDto,
-  RequestPageReviewSchema,
-  type RequestPageReviewDto,
-  AssignPageOwnerSchema,
-  type AssignPageOwnerDto,
-} from "../dto/KnowledgeWikiDto";
-
-export class ApproveKnowledgePageUseCase {
-  constructor(
-    private readonly repo: IKnowledgePageRepository,
-    private readonly eventStore: IEventStoreRepository,
-    private readonly eventBus: IEventBusRepository,
-  ) {}
-
-  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = ApproveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const {
-      accountId,
-      pageId,
-      actorId,
-      causationId: inputCausationId,
-      extractedTasks,
-      extractedInvoices,
-      correlationId: inputCorrelationId,
-      workspaceId,
-    } = parsed.data;
-
-    const causationId = inputCausationId ?? generateId();
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    if (page.status === "archived") return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
-    if (page.approvalState === "approved") return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
-
-    const nowISO = new Date().toISOString();
-    page.approve(actorId, nowISO);
-    await this.repo.save(page);
-
-    const correlationId = inputCorrelationId ?? generateId();
-    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
-      id: generateId(),
-      eventName: "knowledge.page_approved",
-      aggregateType: "KnowledgePage",
-      aggregateId: pageId,
-      payload: {
-        pageId,
-        accountId,
-        workspaceId: workspaceId ?? page.workspaceId,
-        extractedTasks,
-        extractedInvoices,
-        actorId,
-        causationId: inputCausationId,
-        correlationId,
-      },
-      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
-    });
-
-    return commandSuccess(pageId, Date.now());
-  }
-}
-
-export class VerifyKnowledgePageUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
-    const parsed = VerifyKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.verify(verifiedByUserId, verificationExpiresAtISO);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class RequestPageReviewUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
-    const parsed = RequestPageReviewSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, requestedByUserId } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.requestReview(requestedByUserId);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class AssignPageOwnerUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
-    const parsed = AssignPageOwnerSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, ownerId } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.assignOwner(ownerId);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
 ````
 
 ## File: modules/notion/subdomains/knowledge/domain/aggregates/BacklinkIndex.ts
@@ -10374,6 +10169,126 @@ export const useBlockEditorStore = create<BlockEditorState>((set, get) => ({
 }));
 ````
 
+## File: modules/notion/subdomains/notes/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/notion/subdomains/notes/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notion subdomain 'notes'.
+````
+
+## File: modules/notion/subdomains/notes/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notion subdomain 'notes'.
+````
+
+## File: modules/notion/subdomains/notes/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notion subdomain 'notes'.
+````
+
+## File: modules/notion/subdomains/publishing/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/notion/subdomains/publishing/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notion subdomain 'publishing'.
+````
+
+## File: modules/notion/subdomains/publishing/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notion subdomain 'publishing'.
+````
+
+## File: modules/notion/subdomains/publishing/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notion subdomain 'publishing'.
+````
+
+## File: modules/notion/subdomains/relations/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/notion/subdomains/relations/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notion subdomain 'relations'.
+````
+
+## File: modules/notion/subdomains/relations/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notion subdomain 'relations'.
+````
+
+## File: modules/notion/subdomains/relations/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notion subdomain 'relations'.
+````
+
+## File: modules/notion/subdomains/taxonomy/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/notion/subdomains/taxonomy/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notion subdomain 'taxonomy'.
+````
+
+## File: modules/notion/subdomains/taxonomy/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notion subdomain 'taxonomy'.
+````
+
+## File: modules/notion/subdomains/taxonomy/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notion subdomain 'taxonomy'.
+````
+
+## File: modules/notion/subdomains/templates/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/notion/subdomains/templates/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notion subdomain 'templates'.
+````
+
+## File: modules/notion/subdomains/templates/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notion subdomain 'templates'.
+````
+
+## File: modules/notion/subdomains/templates/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notion subdomain 'templates'.
+````
+
 ## File: modules/notion/api/api.instructions.md
 ````markdown
 ---
@@ -10657,28 +10572,143 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/notion/subdomains/attachments/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
+## File: modules/notion/README.md
+````markdown
+# Notion
+
+知識內容生命週期主域
+
+## Implementation Structure
+
+```text
+modules/notion/
+├── api/              # Public API boundary
+├── application/      # Context-wide orchestration
+├── domain/           # Context-wide domain concepts
+├── infrastructure/   # Context-wide driven adapters
+├── interfaces/       # Context-wide driving adapters
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── authoring/           # Baseline — Active
+    ├── collaboration/        # Baseline — Active
+    ├── database/             # Baseline — Active
+    ├── knowledge/            # Baseline — Active
+    ├── attachments/          # Baseline — Stub
+    ├── automation/           # Baseline — Stub
+    ├── knowledge-analytics/  # Baseline — Stub
+    ├── knowledge-integration/ # Baseline — Stub
+    ├── knowledge-versioning/ # Baseline — Stub
+    ├── notes/                # Baseline — Stub
+    ├── templates/            # Baseline — Stub
+    ├── publishing/           # Recommended Gap — Stub
+    ├── relations/            # Recommended Gap — Stub
+    └── taxonomy/             # Recommended Gap — Stub
+```
+
+## Subdomains
+
+### Baseline — Active
+
+| Subdomain | Purpose |
+|-----------|--------|
+| authoring | 知識庫文章建立、驗證與分類 |
+| collaboration | 協作留言、細粒度權限與版本快照 |
+| database | 結構化資料多視圖管理 |
+| knowledge | 頁面建立、組織、版本化與交付 |
+
+### Baseline — Stub
+
+| Subdomain | Purpose |
+|-----------|--------|
+| attachments | 附件與媒體關聯儲存 |
+| automation | 知識事件觸發自動化動作 |
+| knowledge-analytics | 知識使用行為量測 |
+| knowledge-integration | 知識與外部系統雙向整合 |
+| knowledge-versioning | 全域版本快照策略管理 |
+| notes | 個人輕量筆記與正式知識協作 |
+| templates | 頁面範本管理與套用 |
+
+### Recommended Gap — Stub
+
+| Subdomain | Purpose |
+|-----------|--------|
+| publishing | 建立正式發布與對外交付的正典邊界 |
+| relations | 建立內容之間關聯與 backlink 的正典邊界 |
+| taxonomy | 建立分類法與語義組織的正典邊界 |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `api/` is the only cross-module public boundary.
+- Domain must not import infrastructure, interfaces, or external frameworks.
+- Cross-module collaboration goes through `api/` only.
+
+## Strategic Documentation
+
+- [Context README](../../docs/contexts/notion/README.md)
+- [Subdomains](../../docs/contexts/notion/subdomains.md)
+- [Context Map](../../docs/contexts/notion/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/notion/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
-## File: modules/notion/subdomains/attachments/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notion subdomain 'attachments'.
+## File: modules/notion/subdomains/attachments/README.md
+````markdown
+# Attachments
+
+附件與媒體關聯儲存。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Baseline
+- **Status**: Stub — awaiting use case definition
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notion/subdomains/attachments/domain/index.ts
+## File: modules/notion/subdomains/authoring/application/use-cases/index.ts
 ````typescript
-// Purpose: Domain layer placeholder for notion subdomain 'attachments'.
-````
+export {
+  CreateArticleUseCase,
+  UpdateArticleUseCase,
+  ArchiveArticleUseCase,
+  DeleteArticleUseCase,
+} from "./ArticleLifecycleUseCases";
 
-## File: modules/notion/subdomains/attachments/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notion subdomain 'attachments'.
+export { PublishArticleUseCase } from "./ArticlePublicationUseCases";
+
+export {
+  VerifyArticleUseCase,
+  RequestArticleReviewUseCase,
+} from "./ArticleVerificationUseCases";
+
+export {
+  CreateCategoryUseCase,
+  RenameCategoryUseCase,
+  MoveCategoryUseCase,
+  DeleteCategoryUseCase,
+} from "./CategoryUseCases";
 ````
 
 ## File: modules/notion/subdomains/authoring/domain/index.ts
@@ -10736,28 +10766,36 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notion/subdomains/automation/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
+## File: modules/notion/subdomains/automation/README.md
+````markdown
+# Automation
 
-## File: modules/notion/subdomains/automation/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notion subdomain 'automation'.
-````
+知識事件觸發自動化動作。
 
-## File: modules/notion/subdomains/automation/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notion subdomain 'automation'.
-````
+## Ownership
 
-## File: modules/notion/subdomains/automation/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notion subdomain 'automation'.
+- **Bounded Context**: notion
+- **Subdomain Type**: Baseline
+- **Status**: Stub — awaiting use case definition
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notion/subdomains/collaboration/domain/index.ts
@@ -10949,76 +10987,153 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notion/subdomains/knowledge-analytics/api/index.ts
+## File: modules/notion/subdomains/knowledge-analytics/README.md
+````markdown
+# Knowledge Analytics
+
+知識使用行為量測。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Baseline
+- **Status**: Stub — awaiting use case definition
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/subdomains/knowledge-integration/README.md
+````markdown
+# Knowledge Integration
+
+知識與外部系統雙向整合。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Baseline
+- **Status**: Stub — awaiting use case definition
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/subdomains/knowledge-versioning/README.md
+````markdown
+# Knowledge Versioning
+
+全域版本快照策略管理。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Baseline
+- **Status**: Stub — awaiting use case definition
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/subdomains/knowledge/application/dto/index.ts
+````typescript
+export * from "./KnowledgePageDto";
+export * from "./ContentBlockDto";
+export * from "./KnowledgeCollectionDto";
+export * from "./KnowledgePageLifecycleDto";
+````
+
+## File: modules/notion/subdomains/knowledge/application/dto/KnowledgePageLifecycleDto.ts
 ````typescript
 /**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
+ * Module: notion/subdomains/knowledge
+ * Layer: application/dto
+ * Purpose: Zod-validated input schemas for knowledge page lifecycle use cases.
  */
-export {};
-````
 
-## File: modules/notion/subdomains/knowledge-analytics/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notion subdomain 'knowledge-analytics'.
-````
+import { z } from "@lib-zod";
 
-## File: modules/notion/subdomains/knowledge-analytics/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notion subdomain 'knowledge-analytics'.
-````
+const AccountScopeSchema = z.object({ accountId: z.string().min(1) });
 
-## File: modules/notion/subdomains/knowledge-analytics/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notion subdomain 'knowledge-analytics'.
-````
+export const VerifyKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  verifiedByUserId: z.string().min(1),
+  verificationExpiresAtISO: z.string().datetime({ offset: true }).optional(),
+});
+export type VerifyKnowledgePageDto = z.infer<typeof VerifyKnowledgePageSchema>;
 
-## File: modules/notion/subdomains/knowledge-integration/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
+export const RequestPageReviewSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  requestedByUserId: z.string().min(1),
+});
+export type RequestPageReviewDto = z.infer<typeof RequestPageReviewSchema>;
 
-## File: modules/notion/subdomains/knowledge-integration/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notion subdomain 'knowledge-integration'.
-````
+export const AssignPageOwnerSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  ownerId: z.string().min(1),
+  assignedByUserId: z.string().min(1),
+});
+export type AssignPageOwnerDto = z.infer<typeof AssignPageOwnerSchema>;
 
-## File: modules/notion/subdomains/knowledge-integration/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notion subdomain 'knowledge-integration'.
-````
+export const UpdatePageIconSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  iconUrl: z.string().max(2000),
+});
+export type UpdatePageIconDto = z.infer<typeof UpdatePageIconSchema>;
 
-## File: modules/notion/subdomains/knowledge-integration/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notion subdomain 'knowledge-integration'.
-````
-
-## File: modules/notion/subdomains/knowledge-versioning/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/notion/subdomains/knowledge-versioning/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notion subdomain 'knowledge-versioning'.
-````
-
-## File: modules/notion/subdomains/knowledge-versioning/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notion subdomain 'knowledge-versioning'.
-````
-
-## File: modules/notion/subdomains/knowledge-versioning/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notion subdomain 'knowledge-versioning'.
+export const UpdatePageCoverSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  coverUrl: z.string().max(2000),
+});
+export type UpdatePageCoverDto = z.infer<typeof UpdatePageCoverSchema>;
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/queries/backlink.queries.ts
@@ -11401,6 +11516,191 @@ export class ArchiveKnowledgeCollectionUseCase {
 }
 ````
 
+## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageAppearanceUseCases.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: application/use-cases
+ * Purpose: Page appearance use cases — update icon, update cover.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+import {
+  UpdatePageIconSchema,
+  type UpdatePageIconDto,
+  UpdatePageCoverSchema,
+  type UpdatePageCoverDto,
+} from "../dto/KnowledgePageLifecycleDto";
+
+export class UpdatePageIconUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: UpdatePageIconDto): Promise<CommandResult> {
+    const parsed = UpdatePageIconSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, iconUrl } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.updateIcon(iconUrl);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class UpdatePageCoverUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: UpdatePageCoverDto): Promise<CommandResult> {
+    const parsed = UpdatePageCoverSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, coverUrl } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.updateCover(coverUrl);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageReviewUseCases.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: application/use-cases
+ * Purpose: Page review/wiki use cases — approve, verify, request review, assign owner.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import { v7 as generateId } from "@lib-uuid";
+
+import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+import {
+  PublishDomainEventUseCase,
+  type IEventStoreRepository,
+  type IEventBusRepository,
+} from "@shared-events";
+import {
+  ApproveKnowledgePageSchema,
+  type ApproveKnowledgePageDto,
+} from "../dto/KnowledgePageDto";
+import {
+  VerifyKnowledgePageSchema,
+  type VerifyKnowledgePageDto,
+  RequestPageReviewSchema,
+  type RequestPageReviewDto,
+  AssignPageOwnerSchema,
+  type AssignPageOwnerDto,
+} from "../dto/KnowledgePageLifecycleDto";
+
+export class ApproveKnowledgePageUseCase {
+  constructor(
+    private readonly repo: IKnowledgePageRepository,
+    private readonly eventStore: IEventStoreRepository,
+    private readonly eventBus: IEventBusRepository,
+  ) {}
+
+  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ApproveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const {
+      accountId,
+      pageId,
+      actorId,
+      causationId: inputCausationId,
+      extractedTasks,
+      extractedInvoices,
+      correlationId: inputCorrelationId,
+      workspaceId,
+    } = parsed.data;
+
+    const causationId = inputCausationId ?? generateId();
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    if (page.status === "archived") return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
+    if (page.approvalState === "approved") return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
+
+    const nowISO = new Date().toISOString();
+    page.approve(actorId, nowISO);
+    await this.repo.save(page);
+
+    const correlationId = inputCorrelationId ?? generateId();
+    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
+      id: generateId(),
+      eventName: "knowledge.page_approved",
+      aggregateType: "KnowledgePage",
+      aggregateId: pageId,
+      payload: {
+        pageId,
+        accountId,
+        workspaceId: workspaceId ?? page.workspaceId,
+        extractedTasks,
+        extractedInvoices,
+        actorId,
+        causationId: inputCausationId,
+        correlationId,
+      },
+      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
+    });
+
+    return commandSuccess(pageId, Date.now());
+  }
+}
+
+export class VerifyKnowledgePageUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+    const parsed = VerifyKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.verify(verifiedByUserId, verificationExpiresAtISO);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class RequestPageReviewUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
+    const parsed = RequestPageReviewSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, requestedByUserId } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.requestReview(requestedByUserId);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class AssignPageOwnerUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
+    const parsed = AssignPageOwnerSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, ownerId } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.assignOwner(ownerId);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+````
+
 ## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageUseCases.ts
 ````typescript
 /**
@@ -11579,116 +11879,6 @@ export async function updateKnowledgeBlock(input: UpdateContentBlockDto): Promis
 export async function deleteKnowledgeBlock(input: DeleteContentBlockDto): Promise<CommandResult> {
   try { return await new DeleteContentBlockUseCase(makeBlockRepo()).execute(input); }
   catch (e) { return commandFailureFrom("BLOCK_DELETE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/_actions/knowledge-page.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import type { IEventStoreRepository, IEventBusRepository } from "@shared-events";
-import { makePageRepo } from "../../api/factories";
-import {
-  CreateKnowledgePageUseCase,
-  RenameKnowledgePageUseCase,
-  MoveKnowledgePageUseCase,
-  ArchiveKnowledgePageUseCase,
-  ReorderKnowledgePageBlocksUseCase,
-} from "../../application/use-cases/KnowledgePageUseCases";
-import {
-  ApproveKnowledgePageUseCase,
-  VerifyKnowledgePageUseCase,
-  RequestPageReviewUseCase,
-  AssignPageOwnerUseCase,
-} from "../../application/use-cases/KnowledgePageReviewUseCases";
-import {
-  UpdatePageIconUseCase,
-  UpdatePageCoverUseCase,
-} from "../../application/use-cases/KnowledgePageAppearanceUseCases";
-import { PublishKnowledgeVersionUseCase } from "../../application/queries/knowledge-version.queries";
-import type {
-  CreateKnowledgePageDto,
-  RenameKnowledgePageDto,
-  MoveKnowledgePageDto,
-  ArchiveKnowledgePageDto,
-  ReorderKnowledgePageBlocksDto,
-  ApproveKnowledgePageDto,
-} from "../../application/dto/KnowledgePageDto";
-import type { VerifyKnowledgePageDto, RequestPageReviewDto, AssignPageOwnerDto, UpdatePageIconDto, UpdatePageCoverDto } from "../../application/dto/KnowledgeWikiDto";
-
-/** Stub event store — persists nothing. Replace with a real impl once infrastructure is wired. */
-const makeEventStore = (): IEventStoreRepository => ({
-  save: async () => {},
-  findById: async () => null,
-  findByAggregate: async () => [],
-  findUndispatched: async () => [],
-  markDispatched: async () => {},
-});
-
-/** Stub event bus — publishes nothing. Replace with QStash/Firestore publish once infrastructure is wired. */
-const makeEventBus = (): IEventBusRepository => ({
-  publish: async () => {},
-});
-
-export async function createKnowledgePage(input: CreateKnowledgePageDto): Promise<CommandResult> {
-  try { return await new CreateKnowledgePageUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_CREATE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function renameKnowledgePage(input: RenameKnowledgePageDto): Promise<CommandResult> {
-  try { return await new RenameKnowledgePageUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_RENAME_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function moveKnowledgePage(input: MoveKnowledgePageDto): Promise<CommandResult> {
-  try { return await new MoveKnowledgePageUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_MOVE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function archiveKnowledgePage(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
-  try { return await new ArchiveKnowledgePageUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function reorderKnowledgePageBlocks(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
-  try { return await new ReorderKnowledgePageBlocksUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_REORDER_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function publishKnowledgeVersion(input: { accountId: string; pageId: string; createdByUserId: string }): Promise<CommandResult> {
-  try { return await new PublishKnowledgeVersionUseCase().execute(input); }
-  catch (e) { return commandFailureFrom("VERSION_PUBLISH_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Promise<CommandResult> {
-  try { return await new ApproveKnowledgePageUseCase(makePageRepo(), makeEventStore(), makeEventBus()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_APPROVE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function verifyKnowledgePage(input: VerifyKnowledgePageDto): Promise<CommandResult> {
-  try { return await new VerifyKnowledgePageUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_VERIFY_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function requestKnowledgePageReview(input: RequestPageReviewDto): Promise<CommandResult> {
-  try { return await new RequestPageReviewUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_REVIEW_REQUEST_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function assignKnowledgePageOwner(input: AssignPageOwnerDto): Promise<CommandResult> {
-  try { return await new AssignPageOwnerUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_OWNER_ASSIGN_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function updateKnowledgePageIcon(input: UpdatePageIconDto): Promise<CommandResult> {
-  try { return await new UpdatePageIconUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_ICON_UPDATE_FAILED", (e as Error)?.message ?? "Unknown"); }
-}
-
-export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promise<CommandResult> {
-  try { return await new UpdatePageCoverUseCase(makePageRepo()).execute(input); }
-  catch (e) { return commandFailureFrom("PAGE_COVER_UPDATE_FAILED", (e as Error)?.message ?? "Unknown"); }
 }
 ````
 
@@ -11958,76 +12148,100 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notion/subdomains/notes/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
+## File: modules/notion/subdomains/notes/README.md
+````markdown
+# Notes
+
+個人輕量筆記與正式知識協作。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Baseline
+- **Status**: Stub — awaiting use case definition
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notion/subdomains/notes/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notion subdomain 'notes'.
+## File: modules/notion/subdomains/publishing/README.md
+````markdown
+# Publishing
+
+建立正式發布與對外交付的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notion/subdomains/notes/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notion subdomain 'notes'.
-````
+## File: modules/notion/subdomains/relations/README.md
+````markdown
+# Relations
 
-## File: modules/notion/subdomains/notes/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notion subdomain 'notes'.
-````
+建立內容之間關聯與 backlink 的正典邊界。
 
-## File: modules/notion/subdomains/publishing/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
+## Ownership
 
-## File: modules/notion/subdomains/publishing/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notion subdomain 'publishing'.
-````
+- **Bounded Context**: notion
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
 
-## File: modules/notion/subdomains/publishing/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notion subdomain 'publishing'.
-````
+## Layers
 
-## File: modules/notion/subdomains/publishing/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notion subdomain 'publishing'.
-````
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
 
-## File: modules/notion/subdomains/relations/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
+## Dependency Direction
 
-## File: modules/notion/subdomains/relations/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notion subdomain 'relations'.
-````
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
 
-## File: modules/notion/subdomains/relations/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notion subdomain 'relations'.
-````
+## Development Order
 
-## File: modules/notion/subdomains/relations/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notion subdomain 'relations'.
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notion/subdomains/subdomains.instructions.md
@@ -12056,64 +12270,16 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/notion/subdomains/taxonomy/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/notion/subdomains/taxonomy/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notion subdomain 'taxonomy'.
-````
-
-## File: modules/notion/subdomains/taxonomy/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notion subdomain 'taxonomy'.
-````
-
-## File: modules/notion/subdomains/taxonomy/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notion subdomain 'taxonomy'.
-````
-
-## File: modules/notion/subdomains/templates/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/notion/subdomains/templates/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notion subdomain 'templates'.
-````
-
-## File: modules/notion/subdomains/templates/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notion subdomain 'templates'.
-````
-
-## File: modules/notion/subdomains/templates/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notion subdomain 'templates'.
-````
-
-## File: modules/notion/subdomains/attachments/README.md
+## File: modules/notion/subdomains/taxonomy/README.md
 ````markdown
-# Attachments
+# Taxonomy
 
-附件與媒體關聯儲存。
+建立分類法與語義組織的正典邊界。
 
 ## Ownership
 
 - **Bounded Context**: notion
-- **Subdomain Type**: Baseline
+- **Subdomain Type**: Recommended Gap
 - **Status**: Stub — awaiting use case definition
 
 ## Layers
@@ -12136,11 +12302,11 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notion/subdomains/automation/README.md
+## File: modules/notion/subdomains/templates/README.md
 ````markdown
-# Automation
+# Templates
 
-知識事件觸發自動化動作。
+頁面範本管理與套用。
 
 ## Ownership
 
@@ -12365,258 +12531,112 @@ export class DeleteViewUseCase {
 export { ListViewsUseCase } from "../queries/view.queries";
 ````
 
-## File: modules/notion/subdomains/knowledge-analytics/README.md
-````markdown
-# Knowledge Analytics
-
-知識使用行為量測。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/knowledge-integration/README.md
-````markdown
-# Knowledge Integration
-
-知識與外部系統雙向整合。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/knowledge-versioning/README.md
-````markdown
-# Knowledge Versioning
-
-全域版本快照策略管理。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/notes/README.md
-````markdown
-# Notes
-
-個人輕量筆記與正式知識協作。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/publishing/README.md
-````markdown
-# Publishing
-
-建立正式發布與對外交付的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/relations/README.md
-````markdown
-# Relations
-
-建立內容之間關聯與 backlink 的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/taxonomy/README.md
-````markdown
-# Taxonomy
-
-建立分類法與語義組織的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/templates/README.md
-````markdown
-# Templates
-
-頁面範本管理與套用。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+## File: modules/notion/subdomains/knowledge/interfaces/_actions/knowledge-page.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import type { IEventStoreRepository, IEventBusRepository } from "@shared-events";
+import { makePageRepo } from "../../api/factories";
+import {
+  CreateKnowledgePageUseCase,
+  RenameKnowledgePageUseCase,
+  MoveKnowledgePageUseCase,
+  ArchiveKnowledgePageUseCase,
+  ReorderKnowledgePageBlocksUseCase,
+} from "../../application/use-cases/KnowledgePageUseCases";
+import {
+  ApproveKnowledgePageUseCase,
+  VerifyKnowledgePageUseCase,
+  RequestPageReviewUseCase,
+  AssignPageOwnerUseCase,
+} from "../../application/use-cases/KnowledgePageReviewUseCases";
+import {
+  UpdatePageIconUseCase,
+  UpdatePageCoverUseCase,
+} from "../../application/use-cases/KnowledgePageAppearanceUseCases";
+import { PublishKnowledgeVersionUseCase } from "../../application/queries/knowledge-version.queries";
+import type {
+  CreateKnowledgePageDto,
+  RenameKnowledgePageDto,
+  MoveKnowledgePageDto,
+  ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksDto,
+  ApproveKnowledgePageDto,
+} from "../../application/dto/KnowledgePageDto";
+import type { VerifyKnowledgePageDto, RequestPageReviewDto, AssignPageOwnerDto, UpdatePageIconDto, UpdatePageCoverDto } from "../../application/dto/KnowledgePageLifecycleDto";
+
+/** Stub event store — persists nothing. Replace with a real impl once infrastructure is wired. */
+const makeEventStore = (): IEventStoreRepository => ({
+  save: async () => {},
+  findById: async () => null,
+  findByAggregate: async () => [],
+  findUndispatched: async () => [],
+  markDispatched: async () => {},
+});
+
+/** Stub event bus — publishes nothing. Replace with QStash/Firestore publish once infrastructure is wired. */
+const makeEventBus = (): IEventBusRepository => ({
+  publish: async () => {},
+});
+
+export async function createKnowledgePage(input: CreateKnowledgePageDto): Promise<CommandResult> {
+  try { return await new CreateKnowledgePageUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_CREATE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function renameKnowledgePage(input: RenameKnowledgePageDto): Promise<CommandResult> {
+  try { return await new RenameKnowledgePageUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_RENAME_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function moveKnowledgePage(input: MoveKnowledgePageDto): Promise<CommandResult> {
+  try { return await new MoveKnowledgePageUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_MOVE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function archiveKnowledgePage(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
+  try { return await new ArchiveKnowledgePageUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function reorderKnowledgePageBlocks(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
+  try { return await new ReorderKnowledgePageBlocksUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_REORDER_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function publishKnowledgeVersion(input: { accountId: string; pageId: string; createdByUserId: string }): Promise<CommandResult> {
+  try { return await new PublishKnowledgeVersionUseCase().execute(input); }
+  catch (e) { return commandFailureFrom("VERSION_PUBLISH_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+  try { return await new ApproveKnowledgePageUseCase(makePageRepo(), makeEventStore(), makeEventBus()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_APPROVE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function verifyKnowledgePage(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+  try { return await new VerifyKnowledgePageUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_VERIFY_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function requestKnowledgePageReview(input: RequestPageReviewDto): Promise<CommandResult> {
+  try { return await new RequestPageReviewUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_REVIEW_REQUEST_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function assignKnowledgePageOwner(input: AssignPageOwnerDto): Promise<CommandResult> {
+  try { return await new AssignPageOwnerUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_OWNER_ASSIGN_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function updateKnowledgePageIcon(input: UpdatePageIconDto): Promise<CommandResult> {
+  try { return await new UpdatePageIconUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_ICON_UPDATE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promise<CommandResult> {
+  try { return await new UpdatePageCoverUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_COVER_UPDATE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
 ````

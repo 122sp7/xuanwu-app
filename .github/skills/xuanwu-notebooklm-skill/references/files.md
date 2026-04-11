@@ -1856,6 +1856,48 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/notebooklm/subdomains/conversation-versioning/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/notebooklm/subdomains/conversation-versioning/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notebooklm subdomain 'conversation-versioning'.
+````
+
+## File: modules/notebooklm/subdomains/conversation-versioning/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notebooklm subdomain 'conversation-versioning'.
+````
+
+## File: modules/notebooklm/subdomains/conversation-versioning/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'conversation-versioning'.
+````
+
+## File: modules/notebooklm/subdomains/conversation-versioning/README.md
+````markdown
+# Conversation Versioning
+
+對話版本與快照策略。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain Type**: Baseline
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/notebooklm/subdomains/conversation/api/factories.ts
 ````typescript
 import { FirebaseThreadRepository } from "../infrastructure/firebase/FirebaseThreadRepository";
@@ -2480,6 +2522,174 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/notebooklm/subdomains/evaluation/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/notebooklm/subdomains/evaluation/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notebooklm subdomain 'evaluation'.
+````
+
+## File: modules/notebooklm/subdomains/evaluation/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notebooklm subdomain 'evaluation'.
+````
+
+## File: modules/notebooklm/subdomains/evaluation/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'evaluation'.
+````
+
+## File: modules/notebooklm/subdomains/evaluation/README.md
+````markdown
+# Evaluation
+
+建立品質評估與回歸比較的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/subdomains/grounding/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/notebooklm/subdomains/grounding/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notebooklm subdomain 'grounding'.
+````
+
+## File: modules/notebooklm/subdomains/grounding/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notebooklm subdomain 'grounding'.
+````
+
+## File: modules/notebooklm/subdomains/grounding/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'grounding'.
+````
+
+## File: modules/notebooklm/subdomains/grounding/README.md
+````markdown
+# Grounding
+
+建立引用對齊與可追溯證據的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/subdomains/ingestion/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/notebooklm/subdomains/ingestion/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notebooklm subdomain 'ingestion'.
+````
+
+## File: modules/notebooklm/subdomains/ingestion/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notebooklm subdomain 'ingestion'.
+````
+
+## File: modules/notebooklm/subdomains/ingestion/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'ingestion'.
+````
+
+## File: modules/notebooklm/subdomains/ingestion/README.md
+````markdown
+# Ingestion
+
+建立來源匯入、正規化與前處理的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/subdomains/note/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/notebooklm/subdomains/note/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notebooklm subdomain 'note'.
+````
+
+## File: modules/notebooklm/subdomains/note/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notebooklm subdomain 'note'.
+````
+
+## File: modules/notebooklm/subdomains/note/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'note'.
+````
+
+## File: modules/notebooklm/subdomains/note/README.md
+````markdown
+# Note
+
+輕量筆記與知識連結。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain Type**: Baseline
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/notebooklm/subdomains/notebook/api/factories.ts
 ````typescript
 import { GenkitNotebookRepository } from "../infrastructure/genkit/GenkitNotebookRepository";
@@ -2693,6 +2903,48 @@ Notebook container and organization.
 ## Ownership
 
 - **Bounded Context**: notebooklm
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/subdomains/retrieval/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/notebooklm/subdomains/retrieval/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notebooklm subdomain 'retrieval'.
+````
+
+## File: modules/notebooklm/subdomains/retrieval/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notebooklm subdomain 'retrieval'.
+````
+
+## File: modules/notebooklm/subdomains/retrieval/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'retrieval'.
+````
+
+## File: modules/notebooklm/subdomains/retrieval/README.md
+````markdown
+# Retrieval
+
+建立查詢召回與排序策略的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain Type**: Recommended Gap
 - **Status**: Stub — awaiting use case definition
 
 ## Development Order
@@ -5848,6 +6100,48 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/notebooklm/subdomains/synthesis/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
+## File: modules/notebooklm/subdomains/synthesis/application/index.ts
+````typescript
+// Purpose: Application layer placeholder for notebooklm subdomain 'synthesis'.
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/index.ts
+````typescript
+// Purpose: Domain layer placeholder for notebooklm subdomain 'synthesis'.
+````
+
+## File: modules/notebooklm/subdomains/synthesis/infrastructure/index.ts
+````typescript
+// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'synthesis'.
+````
+
+## File: modules/notebooklm/subdomains/synthesis/README.md
+````markdown
+# Synthesis
+
+RAG 合成、摘要與洞察生成。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain Type**: Baseline
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/notebooklm/api/api.instructions.md
 ````markdown
 ---
@@ -6183,48 +6477,6 @@ export type { IWikiContentRepository as IWikiContentPort } from "../repositories
 export type { IVectorStore } from "./IVectorStore";
 ````
 
-## File: modules/notebooklm/subdomains/conversation-versioning/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/notebooklm/subdomains/conversation-versioning/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notebooklm subdomain 'conversation-versioning'.
-````
-
-## File: modules/notebooklm/subdomains/conversation-versioning/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notebooklm subdomain 'conversation-versioning'.
-````
-
-## File: modules/notebooklm/subdomains/conversation-versioning/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'conversation-versioning'.
-````
-
-## File: modules/notebooklm/subdomains/conversation-versioning/README.md
-````markdown
-# Conversation Versioning
-
-對話版本與快照策略。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/notebooklm/subdomains/conversation/domain/index.ts
 ````typescript
 /**
@@ -6247,174 +6499,6 @@ export * from "./ports";
 export type { IThreadRepository as IThreadPort } from "../repositories/IThreadRepository";
 ````
 
-## File: modules/notebooklm/subdomains/evaluation/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/notebooklm/subdomains/evaluation/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notebooklm subdomain 'evaluation'.
-````
-
-## File: modules/notebooklm/subdomains/evaluation/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notebooklm subdomain 'evaluation'.
-````
-
-## File: modules/notebooklm/subdomains/evaluation/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'evaluation'.
-````
-
-## File: modules/notebooklm/subdomains/evaluation/README.md
-````markdown
-# Evaluation
-
-建立品質評估與回歸比較的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notebooklm/subdomains/grounding/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/notebooklm/subdomains/grounding/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notebooklm subdomain 'grounding'.
-````
-
-## File: modules/notebooklm/subdomains/grounding/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notebooklm subdomain 'grounding'.
-````
-
-## File: modules/notebooklm/subdomains/grounding/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'grounding'.
-````
-
-## File: modules/notebooklm/subdomains/grounding/README.md
-````markdown
-# Grounding
-
-建立引用對齊與可追溯證據的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notebooklm/subdomains/ingestion/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/notebooklm/subdomains/ingestion/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notebooklm subdomain 'ingestion'.
-````
-
-## File: modules/notebooklm/subdomains/ingestion/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notebooklm subdomain 'ingestion'.
-````
-
-## File: modules/notebooklm/subdomains/ingestion/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'ingestion'.
-````
-
-## File: modules/notebooklm/subdomains/ingestion/README.md
-````markdown
-# Ingestion
-
-建立來源匯入、正規化與前處理的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notebooklm/subdomains/note/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/notebooklm/subdomains/note/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notebooklm subdomain 'note'.
-````
-
-## File: modules/notebooklm/subdomains/note/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notebooklm subdomain 'note'.
-````
-
-## File: modules/notebooklm/subdomains/note/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'note'.
-````
-
-## File: modules/notebooklm/subdomains/note/README.md
-````markdown
-# Note
-
-輕量筆記與知識連結。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/notebooklm/subdomains/notebook/domain/index.ts
 ````typescript
 /**
@@ -6433,48 +6517,6 @@ export * from "./ports";
  * explicitly visible in the directory structure.
  */
 export type { NotebookRepository as INotebookPort } from "../repositories/NotebookRepository";
-````
-
-## File: modules/notebooklm/subdomains/retrieval/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/notebooklm/subdomains/retrieval/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notebooklm subdomain 'retrieval'.
-````
-
-## File: modules/notebooklm/subdomains/retrieval/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notebooklm subdomain 'retrieval'.
-````
-
-## File: modules/notebooklm/subdomains/retrieval/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'retrieval'.
-````
-
-## File: modules/notebooklm/subdomains/retrieval/README.md
-````markdown
-# Retrieval
-
-建立查詢召回與排序策略的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notebooklm/subdomains/source/api/factories.ts
@@ -7740,46 +7782,4 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill rag-architecture
-````
-
-## File: modules/notebooklm/subdomains/synthesis/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/notebooklm/subdomains/synthesis/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for notebooklm subdomain 'synthesis'.
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notebooklm subdomain 'synthesis'.
-````
-
-## File: modules/notebooklm/subdomains/synthesis/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for notebooklm subdomain 'synthesis'.
-````
-
-## File: modules/notebooklm/subdomains/synthesis/README.md
-````markdown
-# Synthesis
-
-RAG 合成、摘要與洞察生成。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
