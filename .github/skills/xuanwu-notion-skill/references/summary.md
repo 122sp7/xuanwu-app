@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: modules/platform/subdomains/**, modules/platform/domain/**, modules/platform/application/**, modules/platform/infrastructure/**, modules/platform/interfaces/**, **/*.md
+- Only files matching these patterns are included: modules/platform/subdomains/**, modules/platform/domain/**, modules/platform/application/**, modules/platform/infrastructure/**, modules/platform/interfaces/**, modules/notion/**
 - Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -41,22 +41,23 @@ This skill contains the following reference files:
 
 ## Statistics
 
-876 files | 708,080 lines
+852 files | 29,664 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 525 | 13,851 |
-| Markdown | 321 | 690,352 |
-| TypeScript (TSX) | 30 | 3,877 |
+| TypeScript | 730 | 20,717 |
+| Markdown | 59 | 1,107 |
+| TypeScript (TSX) | 56 | 7,833 |
+| No Extension | 7 | 7 |
 
 **Largest files:**
-- `.github/skills/xuanwu-app-markdown-skill/references/files.md` (470,396 lines)
-- `.github/skills/xuanwu-notebooklm-skill/references/files.md` (119,357 lines)
-- `.github/skills/xuanwu-app-workspace-skill/references/files.md` (38,972 lines)
-- `.github/skills/xuanwu-app-platform-skill/references/files.md` (21,250 lines)
-- `.github/skills/xuanwu-app-skill/references/files.md` (20,636 lines)
-- `.github/skills/xuanwu-app-workspace-skill/references/project-structure.md` (889 lines)
-- `.github/skills/xuanwu-notebooklm-skill/references/project-structure.md` (880 lines)
-- `.github/skills/xuanwu-app-markdown-skill/references/project-structure.md` (880 lines)
-- `.github/skills/xuanwu-app-platform-skill/references/project-structure.md` (604 lines)
-- `.github/skills/xuanwu-app-skill/references/project-structure.md` (593 lines)
+- `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
+- `modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx` (321 lines)
+- `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
+- `modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx` (298 lines)
+- `modules/platform/subdomains/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts` (293 lines)
+- `modules/platform/interfaces/web/shell/layout/ShellRootLayout.tsx` (284 lines)
+- `modules/platform/interfaces/web/providers/ShellAppProvider.tsx` (265 lines)
+- `modules/notion/subdomains/database/interfaces/components/DatabaseDetailPage.tsx` (258 lines)
+- `modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageDetailPage.tsx` (245 lines)
+- `modules/platform/interfaces/web/shell/navigation/components/ShellDashboardSidebar.tsx` (233 lines)
