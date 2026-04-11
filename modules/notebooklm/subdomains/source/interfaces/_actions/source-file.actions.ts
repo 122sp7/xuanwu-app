@@ -1,9 +1,5 @@
 "use server";
 
-import { deleteDoc, doc, getFirestore, serverTimestamp, updateDoc } from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-
 import type {
   UploadCompleteFileInputDto,
   UploadCompleteFileOutputDto,
@@ -14,10 +10,12 @@ import type {
   RegisterUploadedRagDocumentInputDto,
   RegisterUploadedRagDocumentResult,
 } from "../../application/dto/rag-document.dto";
-import { makeRagDocumentAdapter, makeSourceFileAdapter } from "../../api/factories";
+import { makeRagDocumentAdapter, makeSourceDocumentCommandAdapter, makeSourceFileAdapter } from "../../api/factories";
 import { UploadInitSourceFileUseCase } from "../../application/use-cases/upload-init-source-file.use-case";
 import { UploadCompleteSourceFileUseCase } from "../../application/use-cases/upload-complete-source-file.use-case";
 import { RegisterUploadedRagDocumentUseCase } from "../../application/use-cases/register-rag-document.use-case";
+import { DeleteSourceDocumentUseCase } from "../../application/use-cases/delete-source-document.use-case";
+import { RenameSourceDocumentUseCase } from "../../application/use-cases/rename-source-document.use-case";
 import type { SourceFileCommandResult } from "../contracts/source-command-result";
 
 function createCommandId(idempotencyKey?: string): string {
@@ -58,16 +56,9 @@ export async function deleteSourceDocument(
   documentId: string,
 ): Promise<SourceFileCommandResult<{ documentId: string }>> {
   const commandId = `source-delete-${crypto.randomUUID()}`;
-  if (!accountId.trim() || !documentId.trim()) {
-    return { ok: false, error: { code: "FILE_INVALID_INPUT", message: "accountId and documentId are required." }, commandId };
-  }
-  try {
-    const db = getFirestore(firebaseClientApp);
-    await deleteDoc(doc(db, "accounts", accountId, "documents", documentId));
-    return { ok: true, data: { documentId }, commandId };
-  } catch (err) {
-    return { ok: false, error: { code: "FILE_DELETE_FAILED", message: err instanceof Error ? err.message : "Delete failed." }, commandId };
-  }
+  const useCase = new DeleteSourceDocumentUseCase(makeSourceDocumentCommandAdapter());
+  const result = await useCase.execute({ accountId, documentId });
+  return { ...result, commandId };
 }
 
 export async function renameSourceDocument(
@@ -76,19 +67,7 @@ export async function renameSourceDocument(
   newName: string,
 ): Promise<SourceFileCommandResult<{ documentId: string }>> {
   const commandId = `source-rename-${crypto.randomUUID()}`;
-  if (!accountId.trim() || !documentId.trim() || !newName.trim()) {
-    return { ok: false, error: { code: "FILE_INVALID_INPUT", message: "accountId, documentId and newName are required." }, commandId };
-  }
-  try {
-    const db = getFirestore(firebaseClientApp);
-    await updateDoc(doc(db, "accounts", accountId, "documents", documentId), {
-      title: newName,
-      "source.filename": newName,
-      "metadata.filename": newName,
-      updatedAt: serverTimestamp(),
-    });
-    return { ok: true, data: { documentId }, commandId };
-  } catch (err) {
-    return { ok: false, error: { code: "FILE_RENAME_FAILED", message: err instanceof Error ? err.message : "Rename failed." }, commandId };
-  }
+  const useCase = new RenameSourceDocumentUseCase(makeSourceDocumentCommandAdapter());
+  const result = await useCase.execute({ accountId, documentId, newName });
+  return { ...result, commandId };
 }

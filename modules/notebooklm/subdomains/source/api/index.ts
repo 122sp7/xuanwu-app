@@ -89,7 +89,7 @@ export function getWikiLibrarySnapshot(accountId: string, libraryId: string): Re
 }
 
 // ---------------------------------------------------------------------------
-// Hooks
+// Live document DTOs
 // ---------------------------------------------------------------------------
 
 export type {
@@ -97,12 +97,21 @@ export type {
   SourceLiveDocument,
   AssetDocument,
   AssetLiveDocument,
+} from "../application/dto/source-live-document.dto";
+export {
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../application/dto/source-live-document.dto";
+
+// ---------------------------------------------------------------------------
+// Hooks
+// ---------------------------------------------------------------------------
+
+export type {
   UseSourceDocumentsSnapshotResult,
 } from "../interfaces/hooks/useSourceDocumentsSnapshot";
 export {
   useSourceDocumentsSnapshot,
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
 } from "../interfaces/hooks/useSourceDocumentsSnapshot";
 
 // ---------------------------------------------------------------------------
@@ -143,3 +152,6 @@ export { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSo
 export { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
 export { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
 export { InMemoryWikiLibraryAdapter } from "../infrastructure/memory/InMemoryWikiLibraryAdapter";
+export { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
+export { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
+export { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
