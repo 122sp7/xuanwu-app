@@ -1,8 +1,9 @@
 /**
  * buildCausationId — derive a causation identifier from a triggering event or command.
  *
- * The causation ID links each domain event back to the event or command that
- * triggered it, forming an observable causal chain.
+ * Application-level helper used when publishing domain events: links each
+ * event back to the command or event that triggered it, forming an observable
+ * causal chain.
  *
  * Convention:
  *   commandCausation — pass the commandId from the triggering PlatformCommand.

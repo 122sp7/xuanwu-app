@@ -2,8 +2,9 @@
  * assertNever — exhaustive union check utility.
  *
  * TypeScript compile-time guard: throws a runtime Error if a discriminated
- * union branch is reached that should be unreachable.  Useful in switch/if
- * chains to guarantee all variants are handled.
+ * union branch is reached that should be unreachable.  Useful in domain
+ * switch/if chains to guarantee all variants of a discriminated type are
+ * handled.
  *
  * Usage:
  *   switch (state) {
