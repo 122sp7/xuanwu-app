@@ -7,7 +7,7 @@ import { getAccountProfile, subscribeToAccountProfile } from "../../api";
 import type {
   AccountProfile,
   Unsubscribe,
-} from "../../application/dto/account-profile.dto";
+} from "../../application/dtos/account-profile.dto";
 
 export async function getProfile(actorId: string): Promise<AccountProfile | null> {
   return getAccountProfile(actorId);
