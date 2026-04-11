@@ -87,7 +87,7 @@ export class GetActiveSubscriptionUseCase {
   async execute(contextId: string): Promise<CommandResult> {
     try {
       const snapshot = await this.repo.findActiveByContextId(contextId);
-      return commandSuccess(snapshot, Date.now());
+      return commandSuccess(JSON.stringify(snapshot), Date.now());
     } catch (err) {
       return commandFailureFrom(
         "GET_ACTIVE_SUBSCRIPTION_FAILED",
