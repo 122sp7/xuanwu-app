@@ -4,13 +4,13 @@ import type {
 } from "../../domain/entities/WikiContentTree";
 import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMemberView";
 import {
-  GetWorkspaceByIdForAccountUseCase,
-  GetWorkspaceByIdUseCase,
-  ListWorkspacesForAccountUseCase,
-  SubscribeToWorkspacesForAccountUseCase,
+  getWorkspaceByIdForAccount,
+  getWorkspaceById,
+  listWorkspacesForAccount,
+  subscribeToWorkspacesForAccount,
 } from "../queries/workspace.queries";
-import { FetchWorkspaceMembersUseCase } from "../use-cases/workspace-member.use-cases";
-import { buildWikiContentTree } from "../use-cases/wiki-content-tree.use-case";
+import { fetchWorkspaceMembers } from "../../subdomains/membership/api";
+import { buildWikiContentTree } from "../queries/wiki-content-tree.queries";
 import type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";
 import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
 import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
@@ -29,34 +29,33 @@ export class WorkspaceQueryApplicationService implements WorkspaceQueryPort {
   ) {}
 
   getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]> {
-    return new ListWorkspacesForAccountUseCase(this.dependencies.workspaceRepo).execute(accountId);
+    return listWorkspacesForAccount(this.dependencies.workspaceRepo, accountId);
   }
 
   subscribeToWorkspacesForAccount(
     accountId: string,
     onUpdate: (workspaces: WorkspaceEntity[]) => void,
   ) {
-    return new SubscribeToWorkspacesForAccountUseCase(
+    return subscribeToWorkspacesForAccount(
       this.dependencies.workspaceQueryRepo,
-    ).execute(accountId, onUpdate);
+      accountId,
+      onUpdate,
+    );
   }
 
   getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null> {
-    return new GetWorkspaceByIdUseCase(this.dependencies.workspaceRepo).execute(workspaceId);
+    return getWorkspaceById(this.dependencies.workspaceRepo, workspaceId);
   }
 
   getWorkspaceByIdForAccount(
     accountId: string,
     workspaceId: string,
   ): Promise<WorkspaceEntity | null> {
-    return new GetWorkspaceByIdForAccountUseCase(this.dependencies.workspaceRepo).execute(
-      accountId,
-      workspaceId,
-    );
+    return getWorkspaceByIdForAccount(this.dependencies.workspaceRepo, accountId, workspaceId);
   }
 
   getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    return new FetchWorkspaceMembersUseCase(this.dependencies.workspaceQueryRepo).execute(workspaceId);
+    return fetchWorkspaceMembers(this.dependencies.workspaceQueryRepo, workspaceId);
   }
 
   buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {

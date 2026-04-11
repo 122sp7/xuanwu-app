@@ -1,5 +1,30 @@
 /**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
+ * Lifecycle Subdomain — Public API Boundary
+ *
+ * Cross-subdomain and cross-module consumers import through this entry point.
  */
-export {};
+
+// --- Application service ---
+export {
+  WorkspaceLifecycleApplicationService,
+} from "../application";
+export type { LifecycleServiceDependencies } from "../application";
+
+// --- Domain types (published language for lifecycle) ---
+export type {
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceEntity,
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+  WorkspaceCreatedEvent,
+  WorkspaceDomainEvent,
+  WorkspaceLifecycleTransitionedEvent,
+  WorkspaceVisibilityChangedEvent,
+} from "../domain";
+
+export {
+  createWorkspaceCreatedEvent,
+  createWorkspaceLifecycleTransitionedEvent,
+  createWorkspaceVisibilityChangedEvent,
+} from "../domain";

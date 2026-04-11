@@ -1,5 +1,17 @@
 /**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
+ * Sharing Subdomain — Public API Boundary
+ *
+ * Cross-subdomain and cross-module consumers import through this entry point.
  */
-export {};
+
+// --- Application service ---
+export {
+  WorkspaceSharingApplicationService,
+} from "../application";
+export type { SharingServiceDependencies } from "../application";
+
+// --- Domain types (published language for sharing) ---
+export type {
+  WorkspaceGrant,
+  WorkspaceAccessPolicy,
+} from "../domain";

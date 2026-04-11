@@ -1,31 +1,15 @@
 /**
  * Module: workspace
  * Layer: application/use-cases
- * Purpose: Re-export barrel for all workspace use cases.
- *          Split by subdomain for Hexagonal DDD single-responsibility:
- *  - workspace-lifecycle.use-cases.ts  (create, update, delete)
- *  - workspace-capabilities.use-cases.ts (mount capabilities)
- *  - workspace-access.use-cases.ts      (team grants, individual grants, locations)
+ * Purpose: Re-export barrel for workspace command use cases that remain at root level.
+ *          Lifecycle use cases → subdomains/lifecycle/
+ *          Sharing use cases → subdomains/sharing/
+ *          Queries → application/queries/
+ *
+ * DDD Rule 12: Command → use-cases/
+ * DDD Rule 13: Read → queries/
  */
-
-export {
-  CreateWorkspaceUseCase,
-  CreateWorkspaceWithCapabilitiesUseCase,
-  UpdateWorkspaceSettingsUseCase,
-  DeleteWorkspaceUseCase,
-} from "./workspace-lifecycle.use-cases";
 
 export { MountCapabilitiesUseCase } from "./workspace-capabilities.use-cases";
 
-export {
-  GrantTeamAccessUseCase,
-  GrantIndividualAccessUseCase,
-  CreateWorkspaceLocationUseCase,
-} from "./workspace-access.use-cases";
-
-export {
-  GetWorkspaceByIdForAccountUseCase,
-  GetWorkspaceByIdUseCase,
-  ListWorkspacesForAccountUseCase,
-  SubscribeToWorkspacesForAccountUseCase,
-} from "../queries/workspace.queries";
+export { CreateWorkspaceLocationUseCase } from "./workspace-location.use-cases";
