@@ -1,8 +1,12 @@
 /**
  * Module: workspace
- * Layer: application/use-cases
+ * Layer: application/queries
  * Purpose: Build the workspace content-tree from account/workspace seeds.
- *          Lives in workspace because it aggregates workspace-scoped content nodes.
+ *          This is a query projection, not a use case — it aggregates
+ *          workspace-scoped content nodes for read-only display.
+ *
+ * DDD Rule 5:  Pure reads → Query, not Use Case.
+ * DDD Rule 13: Read → queries/
  */
 
 import type {

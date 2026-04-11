@@ -1,7 +1,12 @@
 /**
  * Module: workspace
- * Layer: application/use-cases
- * Purpose: Workspace read use cases — thin query orchestration.
+ * Layer: application/queries
+ * Purpose: Workspace read query handlers — pure reads with input normalization.
+ *
+ * DDD Rule 5:  Pure reads without business logic → Query, not Use Case.
+ * DDD Rule 13: Read → queries/
+ * DDD Rule 16: GetXxxUseCase → should be Query.
+ * DDD Rule 18: Use Case wrapping a single call → over-design.
  */
 
 import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
@@ -11,65 +16,52 @@ import type {
   WorkspaceQueryRepository,
 } from "../../domain/ports/output/WorkspaceQueryRepository";
 
-export class ListWorkspacesForAccountUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+// ─── Input Normalization ──────────────────────────────────────────────────────
 
-  async execute(accountId: string): Promise<WorkspaceEntity[]> {
-    const normalizedAccountId = accountId.trim();
-    if (!normalizedAccountId) {
-      return [];
-    }
-
-    return this.workspaceRepo.findAllByAccountId(normalizedAccountId);
-  }
+function normalizeId(value: string): string {
+  return value.trim();
 }
 
-export class SubscribeToWorkspacesForAccountUseCase {
-  constructor(private readonly workspaceQueryRepo: WorkspaceQueryRepository) {}
+// ─── Query Handlers ───────────────────────────────────────────────────────────
 
-  execute(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ): Unsubscribe {
-    const normalizedAccountId = accountId.trim();
-    if (!normalizedAccountId) {
-      onUpdate([]);
-      return () => {};
-    }
-
-    return this.workspaceQueryRepo.subscribeToWorkspacesForAccount(
-      normalizedAccountId,
-      onUpdate,
-    );
-  }
+export function listWorkspacesForAccount(
+  workspaceRepo: WorkspaceRepository,
+  accountId: string,
+): Promise<WorkspaceEntity[]> {
+  const normalized = normalizeId(accountId);
+  if (!normalized) return Promise.resolve([]);
+  return workspaceRepo.findAllByAccountId(normalized);
 }
 
-export class GetWorkspaceByIdUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(workspaceId: string): Promise<WorkspaceEntity | null> {
-    const normalizedWorkspaceId = workspaceId.trim();
-    if (!normalizedWorkspaceId) {
-      return null;
-    }
-
-    return this.workspaceRepo.findById(normalizedWorkspaceId);
+export function subscribeToWorkspacesForAccount(
+  workspaceQueryRepo: WorkspaceQueryRepository,
+  accountId: string,
+  onUpdate: (workspaces: WorkspaceEntity[]) => void,
+): Unsubscribe {
+  const normalized = normalizeId(accountId);
+  if (!normalized) {
+    onUpdate([]);
+    return () => {};
   }
+  return workspaceQueryRepo.subscribeToWorkspacesForAccount(normalized, onUpdate);
 }
 
-export class GetWorkspaceByIdForAccountUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+export function getWorkspaceById(
+  workspaceRepo: WorkspaceRepository,
+  workspaceId: string,
+): Promise<WorkspaceEntity | null> {
+  const normalized = normalizeId(workspaceId);
+  if (!normalized) return Promise.resolve(null);
+  return workspaceRepo.findById(normalized);
+}
 
-  async execute(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
-    const normalizedAccountId = accountId.trim();
-    const normalizedWorkspaceId = workspaceId.trim();
-    if (!normalizedAccountId || !normalizedWorkspaceId) {
-      return null;
-    }
-
-    return this.workspaceRepo.findByIdForAccount(
-      normalizedAccountId,
-      normalizedWorkspaceId,
-    );
-  }
+export function getWorkspaceByIdForAccount(
+  workspaceRepo: WorkspaceRepository,
+  accountId: string,
+  workspaceId: string,
+): Promise<WorkspaceEntity | null> {
+  const normalizedAccountId = normalizeId(accountId);
+  const normalizedWorkspaceId = normalizeId(workspaceId);
+  if (!normalizedAccountId || !normalizedWorkspaceId) return Promise.resolve(null);
+  return workspaceRepo.findByIdForAccount(normalizedAccountId, normalizedWorkspaceId);
 }
