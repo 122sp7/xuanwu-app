@@ -66,8 +66,8 @@ function mapLegacyProfile(record: LegacyAccountProfileRecord): AccountProfile | 
 	});
 }
 
-class LegacyAccountProfileQueryRepository
-	implements AccountProfileQueryRepository, AccountProfileCommandRepository {
+/** Read-side adapter: maps legacy data source to AccountProfileQueryRepository. */
+class LegacyAccountProfileQueryAdapter implements AccountProfileQueryRepository {
 	constructor(
 		private readonly legacyDataSource: LegacyAccountProfileDataSource,
 	) {}
@@ -87,6 +87,13 @@ class LegacyAccountProfileQueryRepository
 			onUpdate(mapLegacyProfile(profile));
 		});
 	}
+}
+
+/** Write-side adapter: maps legacy data source to AccountProfileCommandRepository. */
+class LegacyAccountProfileCommandAdapter implements AccountProfileCommandRepository {
+	constructor(
+		private readonly legacyDataSource: LegacyAccountProfileDataSource,
+	) {}
 
 	async updateAccountProfile(
 		actorId: AccountProfileId,
@@ -106,11 +113,11 @@ class LegacyAccountProfileQueryRepository
 export function createLegacyAccountProfileQueryRepository(
 	legacyDataSource: LegacyAccountProfileDataSource,
 ): AccountProfileQueryRepository {
-	return new LegacyAccountProfileQueryRepository(legacyDataSource);
+	return new LegacyAccountProfileQueryAdapter(legacyDataSource);
 }
 
 export function createLegacyAccountProfileCommandRepository(
 	legacyDataSource: LegacyAccountProfileDataSource,
 ): AccountProfileCommandRepository {
-	return new LegacyAccountProfileQueryRepository(legacyDataSource);
+	return new LegacyAccountProfileCommandAdapter(legacyDataSource);
 }

@@ -1,91 +1,38 @@
 /**
  * Public API boundary for the account-profile subdomain.
  * Cross-module consumers must import through this entry point.
+ *
+ * Composition root lives in infrastructure/account-profile-service.ts;
+ * this boundary is intentionally thin — it only re-exports public contracts.
  */
 
 import {
-	getLegacyUserProfile,
-	subscribeToLegacyUserProfile,
-	updateLegacyUserProfile,
-} from "../../account/api/legacy-account-profile.bridge";
-import {
-	GetAccountProfileUseCase,
-	SubscribeAccountProfileUseCase,
-	UpdateAccountProfileUseCase,
-} from "../application";
-import {
-	createLegacyAccountProfileCommandRepository,
-	createLegacyAccountProfileQueryRepository,
-	type LegacyAccountProfileDataSource,
+	getAccountProfileFromService,
+	subscribeToAccountProfileFromService,
+	updateAccountProfileFromService,
 } from "../infrastructure";
 import type { AccountProfile, Unsubscribe } from "../domain";
 import type { UpdateAccountProfileInput } from "../application";
 import type { CommandResult } from "@shared-types";
 
-let _legacyDataSource: LegacyAccountProfileDataSource | undefined;
-let _getAccountProfileUseCase: GetAccountProfileUseCase | undefined;
-let _subscribeAccountProfileUseCase: SubscribeAccountProfileUseCase | undefined;
-let _updateAccountProfileUseCase: UpdateAccountProfileUseCase | undefined;
-
-function getLegacyDataSource(): LegacyAccountProfileDataSource {
-	if (_legacyDataSource) {
-		return _legacyDataSource;
-	}
-
-	_legacyDataSource = {
-		getUserProfile: getLegacyUserProfile,
-		subscribeToUserProfile: subscribeToLegacyUserProfile,
-		updateUserProfile: updateLegacyUserProfile,
-	};
-	return _legacyDataSource;
-}
-
-function getGetAccountProfileUseCase(): GetAccountProfileUseCase {
-	if (_getAccountProfileUseCase) {
-		return _getAccountProfileUseCase;
-	}
-
-	const repository = createLegacyAccountProfileQueryRepository(getLegacyDataSource());
-	_getAccountProfileUseCase = new GetAccountProfileUseCase(repository);
-	return _getAccountProfileUseCase;
-}
-
-function getSubscribeAccountProfileUseCase(): SubscribeAccountProfileUseCase {
-	if (_subscribeAccountProfileUseCase) {
-		return _subscribeAccountProfileUseCase;
-	}
-
-	const repository = createLegacyAccountProfileQueryRepository(getLegacyDataSource());
-	_subscribeAccountProfileUseCase = new SubscribeAccountProfileUseCase(repository);
-	return _subscribeAccountProfileUseCase;
-}
-
-function getUpdateAccountProfileUseCase(): UpdateAccountProfileUseCase {
-	if (_updateAccountProfileUseCase) {
-		return _updateAccountProfileUseCase;
-	}
-
-	const repository = createLegacyAccountProfileCommandRepository(getLegacyDataSource());
-	_updateAccountProfileUseCase = new UpdateAccountProfileUseCase(repository);
-	return _updateAccountProfileUseCase;
-}
+// ── Use-case delegators ──────────────────────────────────────────────────
 
 export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
-	return getGetAccountProfileUseCase().execute(actorId);
+	return getAccountProfileFromService(actorId);
 }
 
 export function subscribeToAccountProfile(
 	actorId: string,
 	onUpdate: (profile: AccountProfile | null) => void,
 ): Unsubscribe {
-	return getSubscribeAccountProfileUseCase().execute(actorId, onUpdate);
+	return subscribeToAccountProfileFromService(actorId, onUpdate);
 }
 
 export async function updateAccountProfile(
 	actorId: string,
 	input: UpdateAccountProfileInput,
 ): Promise<CommandResult> {
-	return getUpdateAccountProfileUseCase().execute(actorId, input);
+	return updateAccountProfileFromService(actorId, input);
 }
 
 // Legacy compatibility exports for migration window.
@@ -96,5 +43,5 @@ export { getProfile, subscribeToProfile, updateProfile } from "../interfaces";
 
 export * from "../application";
 export * from "../domain";
-export * from "../infrastructure";
-export * from "../interfaces";
+export { SettingsProfileRouteScreen } from "../interfaces";
+export type { LegacyAccountProfileDataSource } from "../infrastructure";

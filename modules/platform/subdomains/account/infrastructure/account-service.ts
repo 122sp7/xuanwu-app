@@ -22,6 +22,7 @@ import { FirebaseAccountPolicyRepository } from "./firebase/FirebaseAccountPolic
 import { tokenRefreshAdapter } from "./identity-token-refresh.adapter";
 import type { UpdateProfileInput, OrganizationRole } from "../domain/entities/Account";
 import type { CreatePolicyInput, UpdatePolicyInput } from "../domain/entities/AccountPolicy";
+import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
 import type { CommandResult } from "@shared-types";
 
 let _accountRepo: FirebaseAccountRepository | undefined;
@@ -77,4 +78,10 @@ export function createClientAccountUseCases() {
   };
 }
 
+// Internal re-export for the legacy bridge within this subdomain only.
 export { FirebaseAccountQueryRepository };
+
+/** Factory that returns a wired AccountQueryRepository without leaking the concrete class. */
+export function createAccountQueryRepository(): AccountQueryRepository {
+  return new FirebaseAccountQueryRepository();
+}

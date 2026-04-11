@@ -1,11 +1,12 @@
 import { type UpdateProfileInput } from "../application/dto/account.dto";
-import { accountService, FirebaseAccountQueryRepository } from "../infrastructure/account-service";
+import { accountService, createAccountQueryRepository } from "../infrastructure/account-service";
+import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
 
-let _accountQueryRepo: FirebaseAccountQueryRepository | undefined;
+let _accountQueryRepo: AccountQueryRepository | undefined;
 
-function getAccountQueryRepo(): FirebaseAccountQueryRepository {
+function getAccountQueryRepo(): AccountQueryRepository {
   if (!_accountQueryRepo) {
-    _accountQueryRepo = new FirebaseAccountQueryRepository();
+    _accountQueryRepo = createAccountQueryRepository();
   }
   return _accountQueryRepo;
 }
