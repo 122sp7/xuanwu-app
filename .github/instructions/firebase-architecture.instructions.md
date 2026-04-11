@@ -1,9 +1,11 @@
 ---
-description: 'Firebase architecture boundaries for Next.js orchestration, Firestore, and Python worker runtime.'
+description: '[DEPRECATED] Firebase runtime boundaries. See architecture-runtime.instructions.md.'
 applyTo: '{app,modules,packages,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 ---
 
 # Firebase Architecture
+
+> DEPRECATED: Consolidated into `.github/instructions/architecture-runtime.instructions.md`.
 
 ## Runtime Split
 

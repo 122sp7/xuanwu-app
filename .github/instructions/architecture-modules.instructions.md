@@ -1,9 +1,11 @@
 ---
-description: 'Module structure, naming, and refactor workflow rules for bounded contexts.'
+description: '[DEPRECATED] Module structure and naming rules. See architecture-core.instructions.md.'
 applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 ---
 
 # Architecture Modules
+
+> DEPRECATED: Consolidated into `.github/instructions/architecture-core.instructions.md`.
 
 ## Required Shape
 

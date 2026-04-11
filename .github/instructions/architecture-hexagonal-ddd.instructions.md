@@ -1,9 +1,11 @@
 ---
-description: 'Hexagonal Architecture with Domain-Driven Design rules for layer ownership and dependency direction.'
+description: '[DEPRECATED] Hexagonal DDD layer rules. See architecture-core.instructions.md.'
 applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 ---
 
 # Architecture Hexagonal DDD
+
+> DEPRECATED: Consolidated into `.github/instructions/architecture-core.instructions.md`.
 
 ## Layer Direction
 

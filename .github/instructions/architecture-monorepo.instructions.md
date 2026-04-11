@@ -1,9 +1,11 @@
 ---
-description: 'Monorepo boundary rules across app, modules, packages, and worker runtime.'
+description: '[DEPRECATED] Monorepo boundary rules. See architecture-runtime.instructions.md.'
 applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py,md}'
 ---
 
 # Architecture Monorepo
+
+> DEPRECATED: Consolidated into `.github/instructions/architecture-runtime.instructions.md`.
 
 ## Boundary Rules
 

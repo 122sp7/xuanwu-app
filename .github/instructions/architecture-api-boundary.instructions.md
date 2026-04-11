@@ -1,9 +1,11 @@
 ---
-description: 'Cross-boundary rules for API-only collaboration between modules and runtimes.'
+description: '[DEPRECATED] Cross-boundary rules for API-only collaboration. See architecture-core.instructions.md.'
 applyTo: '{app,modules,packages,providers,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 ---
 
 # Architecture API Boundary
+
+> DEPRECATED: Consolidated into `.github/instructions/architecture-core.instructions.md`.
 
 ## Core Rule
 

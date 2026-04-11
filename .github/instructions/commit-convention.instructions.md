@@ -1,9 +1,11 @@
 ---
-description: 'Commit message and change-summary conventions for maintainable history.'
+description: '[DEPRECATED] Commit message conventions. See process-framework.instructions.md.'
 applyTo: '**/*'
 ---
 
 # Commit Convention
+
+> DEPRECATED: Consolidated into `.github/instructions/process-framework.instructions.md`.
 
 ## Rules
 

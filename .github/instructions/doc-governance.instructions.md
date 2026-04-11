@@ -1,9 +1,11 @@
 ---
-description: 'Hexagonal Architecture with Domain-Driven Design documentation governance rules: single source of truth, docs-first authority, and anti-bloat constraints.'
+description: '[DEPRECATED] Docs governance rules. See docs-authority-and-language.instructions.md.'
 applyTo: 'docs/**/*.md'
 ---
 
 # 文件治理規範 (Documentation Governance)
+
+> DEPRECATED: 已整併至 `.github/instructions/docs-authority-and-language.instructions.md`。
 
 本規範只描述 Copilot 在 `docs/**/*` 上的行為約束。DDD 戰略知識與文件結構權威一律回到 `docs/**/*`。
 

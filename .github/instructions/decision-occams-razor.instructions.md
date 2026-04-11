@@ -1,9 +1,11 @@
 ---
-description: 'Parsimony decision rules to reduce unnecessary abstractions while preserving real boundaries.'
+description: '[DEPRECATED] Occam parsimony rules. See process-framework.instructions.md.'
 applyTo: '**/*'
 ---
 
 # Decision Occams Razor
+
+> DEPRECATED: Consolidated into `.github/instructions/process-framework.instructions.md`.
 
 ## Core Principle
 

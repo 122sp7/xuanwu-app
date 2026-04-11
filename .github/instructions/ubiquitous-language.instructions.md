@@ -1,9 +1,11 @@
 ---
-description: '強制查閱 docs/ubiquitous-language.md 並使用通用語言進行命名，遵循 Hexagonal Architecture with Domain-Driven Design 命名規範。'
+description: '[DEPRECATED] 通用語言命名規範。請改看 docs-authority-and-language.instructions.md。'
 applyTo: 'modules/**/*.{ts,tsx,js,jsx}'
 ---
 
 # 通用語言規範 (Ubiquitous Language)
+
+> DEPRECATED: 已整併至 `.github/instructions/docs-authority-and-language.instructions.md`。
 
 ## 核心規則
 

@@ -1,9 +1,11 @@
 ---
-description: 'Human-centered delivery rules using Cockburn principles: collaborate, deliver, reflect, improve.'
+description: '[DEPRECATED] Cockburn process rules. See process-framework.instructions.md.'
 applyTo: '**/*'
 ---
 
 # Process Alistair Cockburn
+
+> DEPRECATED: Consolidated into `.github/instructions/process-framework.instructions.md`.
 
 ## Core Stance
 

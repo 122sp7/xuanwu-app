@@ -1,9 +1,11 @@
 ---
-description: 'Branching and change-scope strategy for focused, reviewable delivery.'
+description: '[DEPRECATED] Branching and change-scope strategy. See process-framework.instructions.md.'
 applyTo: '**/*'
 ---
 
 # Branching Strategy
+
+> DEPRECATED: Consolidated into `.github/instructions/process-framework.instructions.md`.
 
 ## Rules
 

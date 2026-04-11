@@ -1,9 +1,11 @@
 ---
-description: '限界上下文邊界與模組依賴方向規範，遵循 Hexagonal Architecture with Domain-Driven Design 原則。'
+description: '[DEPRECATED] 限界上下文邊界規範。請改看 architecture-core.instructions.md。'
 applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 ---
 
 # 限界上下文規則 (Bounded Context Rules)
+
+> DEPRECATED: 已整併至 `.github/instructions/architecture-core.instructions.md`。
 
 > 權威邊界入口：[`docs/bounded-contexts.md`](../../docs/bounded-contexts.md) 與 `docs/contexts/<context>/*`
 

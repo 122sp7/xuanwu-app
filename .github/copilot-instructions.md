@@ -31,6 +31,14 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 5. Use [docs/bounded-context-subdomain-template.md](../docs/bounded-context-subdomain-template.md) and [docs/project-delivery-milestones.md](../docs/project-delivery-milestones.md) when scaffolding or sequencing architecture-first delivery.
 6. Use [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment validation.
 
+## Instruction Series (Phase 1)
+
+- Use [instructions/architecture-core.instructions.md](./instructions/architecture-core.instructions.md) as the consolidated module architecture rule set.
+- Use [instructions/architecture-runtime.instructions.md](./instructions/architecture-runtime.instructions.md) as the consolidated runtime split rule set.
+- Use [instructions/process-framework.instructions.md](./instructions/process-framework.instructions.md) as the consolidated delivery/decision framework.
+- Use [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) as the consolidated docs authority and terminology rule set.
+- Legacy instruction files marked DEPRECATED remain transition-only and should not be expanded.
+
 ## Operating Rules
 
 - Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
@@ -51,5 +59,5 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 
 ## Terminology
 
-- Follow [instructions/ubiquitous-language.instructions.md](./instructions/ubiquitous-language.instructions.md) and the docs it routes to.
+- Follow [instructions/docs-authority-and-language.instructions.md](./instructions/docs-authority-and-language.instructions.md) and the docs it routes to.
 - Normalize to canonical glossary terms before naming code, prompts, instructions, agents, skills, or documentation.
