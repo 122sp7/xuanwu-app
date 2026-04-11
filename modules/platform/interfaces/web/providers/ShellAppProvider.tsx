@@ -21,6 +21,7 @@ import {
 } from "react";
 
 import {
+  resolveActiveAccount,
   subscribeToAccountsForUser,
   type AccountEntity,
 } from "../../../subdomains/account/api";
@@ -98,42 +99,6 @@ const initialState: AppState = {
 
 // -- Reducer -----------------------------------------------------------------
 
-function resolveActiveAccount(
-  state: AppState,
-  accounts: Record<string, AccountEntity>,
-  user: AuthUser,
-  preferredActiveAccountId?: string | null,
-) {
-  const validIds = new Set([user.id, ...Object.keys(accounts)]);
-  const currentActiveId = state.activeAccount?.id;
-  let currentActive = null;
-
-  if (currentActiveId && validIds.has(currentActiveId)) {
-    currentActive = currentActiveId === user.id ? user : accounts[currentActiveId] ?? null;
-  }
-
-  let preferredActive = null;
-  if (preferredActiveAccountId && validIds.has(preferredActiveAccountId)) {
-    preferredActive =
-      preferredActiveAccountId === user.id
-        ? user
-        : accounts[preferredActiveAccountId] ?? null;
-  }
-
-  // During the initial seeded phase we only know about the personal account.
-  // Once the real organization snapshot arrives, prefer the last persisted
-  // account so re-login restores the user's previous working context instead of
-  // leaving them in the optimistic personal fallback.
-  if (
-    preferredActive &&
-    (!currentActive || state.bootstrapPhase === "seeded" || currentActive.id === user.id)
-  ) {
-    return preferredActive;
-  }
-
-  return currentActive ?? user;
-}
-
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case "SEED_ACTIVE_ACCOUNT":
@@ -152,7 +117,13 @@ function appReducer(state: AppState, action: AppAction): AppState {
         accounts,
         accountsHydrated: true,
         bootstrapPhase: "hydrated",
-        activeAccount: resolveActiveAccount(state, accounts, user, preferredActiveAccountId),
+        activeAccount: resolveActiveAccount({
+          currentActiveAccount: state.activeAccount,
+          accounts,
+          personalAccount: user,
+          preferredActiveAccountId,
+          bootstrapPhase: state.bootstrapPhase,
+        }),
       };
     }
     case "SET_WORKSPACES":

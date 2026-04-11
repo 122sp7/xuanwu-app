@@ -39,23 +39,22 @@ This skill contains the following reference files:
 
 ## Statistics
 
-594 files | 18,687 lines
+596 files | 18,740 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 526 | 13,850 |
+| TypeScript | 526 | 13,851 |
 | Markdown | 40 | 795 |
-| TypeScript (TSX) | 27 | 4,041 |
-| No Extension | 1 | 1 |
+| TypeScript (TSX) | 30 | 4,094 |
 
 **Largest files:**
-- `modules/platform/interfaces/web/components/AppRail.tsx` (358 lines)
+- `modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx` (358 lines)
 - `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
-- `modules/platform/interfaces/web/components/ShellLayout.tsx` (338 lines)
+- `modules/platform/interfaces/web/shell/layout/ShellRootLayout.tsx` (335 lines)
+- `modules/platform/interfaces/web/providers/ShellAppProvider.tsx` (294 lines)
 - `modules/platform/subdomains/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts` (293 lines)
-- `modules/platform/interfaces/web/components/DashboardSidebar.tsx` (256 lines)
-- `modules/platform/interfaces/web/providers/app-provider.tsx` (243 lines)
-- `modules/platform/interfaces/web/components/sidebar/DashboardSidebarBody.tsx` (233 lines)
+- `modules/platform/interfaces/web/shell/navigation/components/ShellDashboardSidebar.tsx` (253 lines)
 - `modules/platform/subdomains/organization/interfaces/components/MembersPage.tsx` (227 lines)
 - `modules/platform/subdomains/account/domain/aggregates/Account.ts` (225 lines)
 - `modules/platform/subdomains/organization/interfaces/components/PermissionsPage.tsx` (215 lines)
+- `modules/platform/subdomains/organization/interfaces/components/TeamsPage.tsx` (213 lines)

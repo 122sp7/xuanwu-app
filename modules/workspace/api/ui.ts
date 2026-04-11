@@ -104,6 +104,13 @@ export {
 
 export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-locale";
 
+export {
+  appendWorkspaceContextQuery,
+  buildWorkspaceContextHref,
+  supportsWorkspaceSearchContext,
+  type WorkspaceNavigationContext,
+} from "../interfaces/web/navigation/workspace-context-links";
+
 // ── Navigation customize dialog ───────────────────────────────────────────────
 
 export { CustomizeNavigationDialog } from "../interfaces/web/components/dialogs/CustomizeNavigationDialog";

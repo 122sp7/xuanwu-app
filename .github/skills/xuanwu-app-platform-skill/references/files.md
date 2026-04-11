@@ -1,5 +1,40 @@
 # Files
 
+## File: modules/platform/api/contracts.ts
+````typescript
+/**
+ * platform API contracts boundary.
+ *
+ * Keep the source of truth in application/domain and re-export here for API consumers.
+ */
+
+export * from "../application/dtos";
+export type {
+	PlatformContextView,
+	PolicyCatalogView,
+	SubscriptionEntitlementsView,
+	WorkflowPolicyView,
+} from "../domain/ports/output";
+export * from "../domain/events";
+
+// ── Identity session types ────────────────────────────────────────────────────
+// AuthUser is the canonical projection of an authenticated identity subject.
+// Platform/Identity BC owns this DTO; app/providers/auth-context re-exports it.
+
+/** Minimal authenticated user record surfaced from identity auth state. */
+export interface AuthUser {
+	readonly id: string;
+	readonly name: string;
+	readonly email: string;
+}
+
+// ── Cross-cutting account context type ───────────────────────────────────────
+// ActiveAccount is the union of an organization AccountEntity or a personal
+// AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
+import type { AccountEntity } from "../subdomains/account/api";
+export type ActiveAccount = AccountEntity | AuthUser;
+````
+
 ## File: modules/platform/api/facade.ts
 ````typescript
 /**
@@ -4111,773 +4146,6 @@ export type PlatformAdapterCliFunction = (typeof PLATFORM_ADAPTER_CLI_FUNCTIONS)
 export * from "./web";
 ````
 
-## File: modules/platform/interfaces/web/components/AppBreadcrumbs.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ChevronRight } from "lucide-react";
-
-const SEGMENT_LABELS: Record<string, string> = {
-  "organization": "組織",
-  "workspace": "工作區",
-  "wiki": "Account Wiki",
-  "rag-query": "Ask / Cite",
-  "documents": "文件",
-  "libraries": "Libraries",
-  "pages": "頁面",
-  "pages-dnd": "頁面 (DnD)",
-  "block-editor": "區塊編輯器",
-  "rag-reindex": "RAG 重新索引",
-  "ai-chat": "Notebook",
-  "dev-tools": "開發工具",
-  "namespaces": "命名空間",
-  "members": "成員",
-  "teams": "團隊",
-  "permissions": "權限",
-  "workspaces": "工作區清單",
-  "schedule": "排程",
-  "daily": "每日",
-  "audit": "稽核",
-};
-
-function segmentLabel(segment: string) {
-  return SEGMENT_LABELS[segment] ?? segment;
-}
-
-export function AppBreadcrumbs() {
-  const pathname = usePathname();
-  const segments = pathname.split("/").filter(Boolean);
-
-  // Only render when there's more than one segment (i.e., not just root page).
-  if (segments.length <= 1) return null;
-
-  const crumbs: { label: string; href: string }[] = segments.map((seg, idx) => ({
-    label: segmentLabel(seg),
-    href: "/" + segments.slice(0, idx + 1).join("/"),
-  }));
-
-  return (
-    <nav aria-label="Breadcrumb" className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
-      {crumbs.map((crumb, idx) => (
-        <span key={crumb.href} className="flex items-center gap-1">
-          {idx > 0 && <ChevronRight className="size-3 opacity-40" />}
-          {idx < crumbs.length - 1 ? (
-            <Link
-              href={crumb.href}
-              className="transition hover:text-foreground"
-            >
-              {crumb.label}
-            </Link>
-          ) : (
-            <span className="font-medium text-foreground">{crumb.label}</span>
-          )}
-        </span>
-      ))}
-    </nav>
-  );
-}
-````
-
-## File: modules/platform/interfaces/web/components/AppRail.tsx
-````typescript
-"use client";
-
-/**
- * Module: app-rail.tsx
- * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
- * Responsibilities: app logo, account context switcher, top-level section icon nav with
- *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
- * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
- *   `h-full` ensures it fills the parent `h-screen` container.
- */
-
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
-import { CreateOrganizationDialog } from "@/modules/platform/api";
-import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-
-interface RailItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  /** When false the item is hidden; defaults to true */
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-
-function isExactOrChildPath(targetPath: string, pathname: string) {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
-}
-
-function getInitial(name: string | undefined | null): string {
-  return name?.trim().charAt(0).toUpperCase() || "U";
-}
-
-export function AppRail({
-  pathname,
-  user,
-  activeAccount,
-  organizationAccounts,
-  workspaces,
-  workspacesHydrated,
-  isOrganizationAccount,
-  onSelectPersonal,
-  onSelectOrganization,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onOrganizationCreated,
-  onSignOut: _onSignOut,
-}: AppRailProps) {
-  const router = useRouter();
-  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const railItems: RailItem[] = [
-    // ── Organization / hub layer ─────────────────────────────────────
-    {
-      href: "/workspace",
-      label: "工作區中心",
-      icon: <Building2 className="size-[18px]" />,
-    },
-    // ── People (org-only) ─────────────────────────────────────────
-    {
-      href: "/organization/members",
-      label: "成員",
-      icon: <UserRound className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
-    },
-    {
-      href: "/organization/teams",
-      label: "團隊",
-      icon: <Users className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
-    },
-    // ── Operations (org-only) ─────────────────────────────────────
-    {
-      href: "/organization/daily",
-      label: "每日",
-      icon: <NotebookText className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
-    },
-    {
-      href: "/organization/schedule",
-      label: "排程",
-      icon: <CalendarDays className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
-    },
-    // ── Admin (org-only) ──────────────────────────────────────────
-    {
-      href: "/organization/audit",
-      label: "稽核",
-      icon: <ClipboardList className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
-    },
-    {
-      href: "/organization/permissions",
-      label: "權限",
-      icon: <SlidersHorizontal className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
-    },
-    // ── Developer ────────────────────────────────────────────────
-    {
-      href: "/dev-tools",
-      label: "開發工具",
-      icon: <FlaskConical className="size-[18px]" />,
-    },
-  ];
-
-  const visibleRailItems = railItems.filter((item) => item.show !== false);
-
-  const sortedWorkspaces = useMemo(
-    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces],
-  );
-
-  const accountName = activeAccount?.name ?? user?.name ?? "—";
-
-  return (
-    <TooltipProvider delayDuration={400}>
-      <aside
-        aria-label="App navigation rail"
-        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
-      >
-        {/* ── Workspace / account logo tile ─────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
-                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[180px]">
-              <p className="text-xs font-medium">{accountName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => {
-                  onSelectOrganization(account);
-                }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                setIsCreateOrgOpen(true);
-              }}
-              className="gap-2 text-primary"
-            >
-              <Plus className="size-3.5 shrink-0" />
-              <span>建立組織</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="my-2 h-px w-7 bg-border/50" />
-
-        {/* ── Section nav icons ─────────────────────────────────────── */}
-        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
-          {visibleRailItems.map((item) => {
-            const active = item.isActive?.(pathname) ?? isActive(item.href);
-
-            if (item.href === "/workspace") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="工作區中心：切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">工作區中心：切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        router.push("/workspace");
-                      }}
-                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
-                    >
-                      工作區中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(`/workspace/${workspace.id}`);
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setIsCreateWorkspaceOpen(true);
-                      }}
-                      className="gap-2 text-primary"
-                    >
-                      <Plus className="size-3.5 shrink-0" />
-                      <span>建立工作區</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">{item.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
-
-        {/* ── Spacer ────────────────────────────────────────────────── */}
-        <div className="flex-1" />
-
-        <div className="h-1" />
-      </aside>
-
-      {/* ── Create organization dialog ─────────────────────────────── */}
-      <CreateOrganizationDialog
-        open={isCreateOrgOpen}
-        onOpenChange={setIsCreateOrgOpen}
-        user={user}
-        onOrganizationCreated={onOrganizationCreated}
-        onNavigate={(href) => { router.push(href); }}
-      />
-
-      {/* ── Create workspace dialog ────────────────────────────────── */}
-      <CreateWorkspaceDialogRail
-        open={isCreateWorkspaceOpen}
-        onOpenChange={setIsCreateWorkspaceOpen}
-        accountId={activeAccount?.id ?? null}
-        accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
-        creatorUserId={user?.id}
-        onNavigate={(href: string) => { router.push(href); }}
-      />
-    </TooltipProvider>
-  );
-}
-````
-
-## File: modules/platform/interfaces/web/components/GlobalSearchDialog.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { FileText, Layout } from "lucide-react";
-
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandShortcut,
-} from "@ui-shadcn/ui/command";
-
-const NAV_ITEMS = [
-  { href: "/workspace", label: "Workspace Hub", group: "導覽" },
-  { href: "/knowledge", label: "Knowledge Hub", group: "導覽" },
-  { href: "/knowledge-base/articles", label: "Knowledge Base", group: "導覽" },
-  { href: "/knowledge-database/databases", label: "Knowledge Database", group: "導覽" },
-  { href: "/notebook/rag-query", label: "Notebook / AI", group: "導覽" },
-  { href: "/ai-chat", label: "AI Chat", group: "導覽" },
-  { href: "/knowledge/pages", label: "頁面管理", group: "Knowledge" },
-  { href: "/knowledge/block-editor", label: "區塊編輯器", group: "Knowledge" },
-  { href: "/source/libraries", label: "Libraries 表格", group: "Source" },
-] as const;
-
-const GROUP_ICONS: Record<string, React.ReactNode> = {
-  "導覽": <Layout className="size-4 mr-2 opacity-60" />,
-  "Knowledge": <FileText className="size-4 mr-2 opacity-60" />,
-  "Source": <FileText className="size-4 mr-2 opacity-60" />,
-};
-
-interface GlobalSearchDialogProps {
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-}
-
-export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogProps) {
-  const router = useRouter();
-
-  function handleSelect(href: string) {
-    onOpenChange(false);
-    router.push(href);
-  }
-
-  const groups = Array.from(new Set(NAV_ITEMS.map((i) => i.group)));
-
-  return (
-    <CommandDialog
-      title="全域搜尋"
-      description="搜尋頁面或功能"
-      open={open}
-      onOpenChange={onOpenChange}
-    >
-      <CommandInput placeholder="搜尋頁面或功能…" />
-      <CommandList>
-        <CommandEmpty>找不到結果。</CommandEmpty>
-        {groups.map((group) => (
-          <CommandGroup key={group} heading={group}>
-            {NAV_ITEMS.filter((i) => i.group === group).map((item) => (
-              <CommandItem
-                key={item.href}
-                onSelect={() => handleSelect(item.href)}
-              >
-                {GROUP_ICONS[group]}
-                {item.label}
-                <CommandShortcut className="text-[10px] opacity-50">{item.href}</CommandShortcut>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        ))}
-      </CommandList>
-    </CommandDialog>
-  );
-}
-
-/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
-export function useGlobalSearch() {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-        event.preventDefault();
-        setOpen((prev) => !prev);
-      }
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  return { open, setOpen };
-}
-````
-
-## File: modules/platform/interfaces/web/components/TranslationSwitcher.tsx
-````typescript
-"use client";
-
-/**
- * Module: translation-switcher.tsx
- * Purpose: provide a reusable locale switch control for shell-level UI.
- * Responsibilities: persist locale preference and sync html lang attribute.
- * Constraints: keep state client-side and avoid coupling to business modules.
- */
-
-import { Languages } from "lucide-react";
-import { useEffect, useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-
-const LOCALE_STORAGE_KEY = "xuanwu_locale";
-
-const localeOptions = [
-  { value: "en", label: "English" },
-  { value: "zh-TW", label: "繁體中文" },
-] as const;
-
-type LocaleValue = (typeof localeOptions)[number]["value"];
-
-function isLocaleValue(value: string | null): value is LocaleValue {
-  return value === "en" || value === "zh-TW";
-}
-
-export function TranslationSwitcher() {
-  const [locale, setLocale] = useState<LocaleValue>(() => {
-    if (typeof window === "undefined") {
-      return "en";
-    }
-
-    const storedValue = window.localStorage.getItem(LOCALE_STORAGE_KEY);
-    return isLocaleValue(storedValue) ? storedValue : "en";
-  });
-
-  useEffect(() => {
-    document.documentElement.lang = locale;
-    window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
-  }, [locale]);
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          aria-label="Switch language"
-          className="text-muted-foreground"
-        >
-          <Languages className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-40">
-        <DropdownMenuLabel>Language</DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={locale} onValueChange={(value) => {
-          if (isLocaleValue(value)) {
-            setLocale(value);
-          }
-        }}>
-          {localeOptions.map((option) => (
-            <DropdownMenuRadioItem key={option.value} value={option.value}>
-              {option.label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-````
-
-## File: modules/platform/interfaces/web/navigation/sidebar-nav-data.tsx
-````typescript
-import {
-  BookOpen,
-  Bot,
-  Brain,
-  Building2,
-  Database,
-  FileText,
-  UserRound,
-  Users,
-} from "lucide-react";
-import Link from "next/link";
-
-import type { AccountEntity, ActiveAccount } from "@/modules/platform/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly userId: string | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-
-export type NavSection =
-  | "workspace"
-  | "knowledge"
-  | "knowledge-base"
-  | "knowledge-database"
-  | "source"
-  | "notebook"
-  | "ai-chat"
-  | "account"
-  | "organization"
-  | "other";
-
-// ── Static nav constants ──────────────────────────────────────────────────────
-
-export const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
-
-export const ACCOUNT_NAV_ITEMS = [
-  { id: "schedule", label: "排程", href: "/organization/schedule" },
-  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
-  { id: "daily", label: "每日", href: "/organization/daily" },
-  { id: "audit", label: "稽核", href: "/organization/audit" },
-] as const;
-
-export const ACCOUNT_SECTION_MATCHERS = [
-  "/organization/daily",
-  "/organization/schedule",
-  "/organization/audit",
-] as const;
-
-export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
-  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  knowledge: { label: "Knowledge", icon: <BookOpen className="size-3" /> },
-  "knowledge-base": { label: "Knowledge Base", icon: <BookOpen className="size-3" /> },
-  "knowledge-database": { label: "Knowledge Database", icon: <Database className="size-3" /> },
-  source: { label: "Source", icon: <FileText className="size-3" /> },
-  notebook: { label: "Notebook", icon: <Brain className="size-3" /> },
-  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
-  account: { label: "Account", icon: <UserRound className="size-3" /> },
-  organization: { label: "組織", icon: <Users className="size-3" /> },
-  other: { label: "導覽", icon: null },
-};
-
-// ── CSS class helpers ─────────────────────────────────────────────────────────
-
-export function sidebarItemClass(active: boolean) {
-  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
-    active
-      ? "border-primary/30 bg-primary/10 text-primary"
-      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
-  }`;
-}
-
-export const sidebarSectionTitleClass =
-  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
-
-export const sidebarGroupButtonClass =
-  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
-
-// ── Pure section helpers ──────────────────────────────────────────────────────
-
-export function resolveNavSection(pathname: string): NavSection {
-  if (pathname.startsWith("/workspace")) return "workspace";
-  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
-  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
-  if (pathname.startsWith("/knowledge")) return "knowledge";
-  if (pathname.startsWith("/source")) return "source";
-  if (pathname.startsWith("/notebook")) return "notebook";
-  if (pathname.startsWith("/ai-chat")) return "ai-chat";
-  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)))
-    return "account";
-  if (pathname.startsWith("/organization")) return "organization";
-  return "other";
-}
-
-export function isActiveOrganizationAccount(
-  activeAccount: ActiveAccount | null,
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-// ── Simple section nav component ──────────────────────────────────────────────
-
-export function SimpleNavLinks({
-  items,
-  title,
-  isActiveRoute,
-}: {
-  items: readonly { href: string; label: string }[];
-  title: string;
-  isActiveRoute: (href: string) => boolean;
-}) {
-  return (
-    <nav className="space-y-0.5" aria-label={`${title} navigation`}>
-      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-        {title}
-      </p>
-      {items.map((item) => {
-        const active = isActiveRoute(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-              active
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-````
-
 ## File: modules/platform/subdomains/account/application/index.ts
 ````typescript
 export {
@@ -4894,6 +4162,73 @@ export {
   UpdateAccountPolicyUseCase,
   DeleteAccountPolicyUseCase,
 } from "./use-cases/account-policy.use-cases";
+
+export {
+  resolveActiveAccount,
+  type AccountBootstrapPhase,
+  type ResolveActiveAccountInput,
+  type SelectableActiveAccount,
+} from "./services/resolve-active-account";
+````
+
+## File: modules/platform/subdomains/account/application/services/resolve-active-account.ts
+````typescript
+import type { AccountEntity } from "../../domain/entities/Account";
+
+export type AccountBootstrapPhase = "idle" | "seeded" | "hydrated";
+
+interface PersonalAccountIdentity {
+  readonly id: string;
+}
+
+export type SelectableActiveAccount = AccountEntity | PersonalAccountIdentity;
+
+export interface ResolveActiveAccountInput {
+  readonly currentActiveAccount: SelectableActiveAccount | null;
+  readonly accounts: Record<string, AccountEntity>;
+  readonly personalAccount: PersonalAccountIdentity;
+  readonly preferredActiveAccountId?: string | null;
+  readonly bootstrapPhase: AccountBootstrapPhase;
+}
+
+/**
+ * Resolve the next active account from current selection, persisted preference,
+ * and latest account snapshot while preserving optimistic bootstrap behavior.
+ */
+export function resolveActiveAccount(input: ResolveActiveAccountInput): SelectableActiveAccount {
+  const {
+    currentActiveAccount,
+    accounts,
+    personalAccount,
+    preferredActiveAccountId,
+    bootstrapPhase,
+  } = input;
+
+  const validIds = new Set([personalAccount.id, ...Object.keys(accounts)]);
+  const currentActiveId = currentActiveAccount?.id;
+  let currentActive: SelectableActiveAccount | null = null;
+
+  if (currentActiveId && validIds.has(currentActiveId)) {
+    currentActive = currentActiveId === personalAccount.id ? personalAccount : accounts[currentActiveId] ?? null;
+  }
+
+  let preferredActive: SelectableActiveAccount | null = null;
+  if (preferredActiveAccountId && validIds.has(preferredActiveAccountId)) {
+    preferredActive =
+      preferredActiveAccountId === personalAccount.id
+        ? personalAccount
+        : accounts[preferredActiveAccountId] ?? null;
+  }
+
+  if (
+    preferredActive &&
+    (!currentActive || bootstrapPhase === "seeded" || currentActive.id === personalAccount.id)
+  ) {
+    return preferredActive;
+  }
+
+  return currentActive ?? personalAccount;
+}
 ````
 
 ## File: modules/platform/subdomains/account/application/use-cases/account-policy.use-cases.ts
@@ -5155,6 +4490,240 @@ export class RevokeAccountRoleUseCase {
 }
 ````
 
+## File: modules/platform/subdomains/account/domain/aggregates/Account.ts
+````typescript
+import type { AccountDomainEventType } from "../events";
+import { canClose, canReactivate, canSuspend } from "../value-objects";
+import { createAccountId, createAccountType, createWalletAmount } from "../value-objects";
+import type { AccountStatus } from "../value-objects";
+
+export interface AccountSnapshot {
+	readonly id: string;
+	readonly name: string;
+	readonly accountType: "user" | "organization";
+	readonly email: string | null;
+	readonly photoURL: string | null;
+	readonly bio: string | null;
+	readonly status: "active" | "suspended" | "closed";
+	readonly walletBalance: number;
+	readonly createdAtISO: string;
+	readonly updatedAtISO: string;
+}
+
+export interface CreateAccountInput {
+	readonly name: string;
+	readonly accountType: "user" | "organization";
+	readonly email?: string | null;
+	readonly photoURL?: string | null;
+	readonly bio?: string | null;
+}
+
+export class Account {
+	private readonly _domainEvents: AccountDomainEventType[] = [];
+
+	private constructor(private _props: AccountSnapshot) {}
+
+	static create(id: string, input: CreateAccountInput): Account {
+		createAccountId(id);
+		createAccountType(input.accountType);
+		const now = new Date().toISOString();
+		const account = new Account({
+			id,
+			name: input.name,
+			accountType: input.accountType,
+			email: input.email ?? null,
+			photoURL: input.photoURL ?? null,
+			bio: input.bio ?? null,
+			status: "active",
+			walletBalance: 0,
+			createdAtISO: now,
+			updatedAtISO: now,
+		});
+		account._domainEvents.push({
+			type: "platform.account.created",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				accountId: id,
+				name: input.name,
+				accountType: input.accountType,
+				email: input.email ?? null,
+			},
+		});
+		return account;
+	}
+
+	static reconstitute(snapshot: AccountSnapshot): Account {
+		createAccountId(snapshot.id);
+		createAccountType(snapshot.accountType);
+		if (snapshot.walletBalance < 0) {
+			throw new Error("Wallet balance cannot be negative.");
+		}
+		return new Account({ ...snapshot });
+	}
+
+	updateProfile(input: { name?: string; bio?: string | null; photoURL?: string | null }): void {
+		if (this._props.status !== "active") {
+			throw new Error("Only active account can update profile.");
+		}
+		const now = new Date().toISOString();
+		this._props = {
+			...this._props,
+			name: input.name ?? this._props.name,
+			bio: input.bio === undefined ? this._props.bio : input.bio,
+			photoURL: input.photoURL === undefined ? this._props.photoURL : input.photoURL,
+			updatedAtISO: now,
+		};
+		this._domainEvents.push({
+			type: "platform.account.profile_updated",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				accountId: this._props.id,
+				name: this._props.name,
+				bio: this._props.bio,
+				photoURL: this._props.photoURL,
+			},
+		});
+	}
+
+	creditWallet(amount: number, description: string): void {
+		const creditAmount = createWalletAmount(amount);
+		const now = new Date().toISOString();
+		this._props = {
+			...this._props,
+			walletBalance: this._props.walletBalance + creditAmount,
+			updatedAtISO: now,
+		};
+		this._domainEvents.push({
+			type: "platform.account.wallet_credited",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				accountId: this._props.id,
+				amount: creditAmount,
+				description,
+				balance: this._props.walletBalance,
+			},
+		});
+	}
+
+	debitWallet(amount: number, description: string): void {
+		const debitAmount = createWalletAmount(amount);
+		if (this._props.walletBalance < debitAmount) {
+			throw new Error("Insufficient wallet balance.");
+		}
+		const now = new Date().toISOString();
+		this._props = {
+			...this._props,
+			walletBalance: this._props.walletBalance - debitAmount,
+			updatedAtISO: now,
+		};
+		this._domainEvents.push({
+			type: "platform.account.wallet_debited",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				accountId: this._props.id,
+				amount: debitAmount,
+				description,
+				balance: this._props.walletBalance,
+			},
+		});
+	}
+
+	suspend(): void {
+		if (!canSuspend(this._props.status)) {
+			throw new Error("Only active account can be suspended.");
+		}
+		this.changeStatus("suspended", "platform.account.suspended");
+	}
+
+	close(): void {
+		if (!canClose(this._props.status)) {
+			throw new Error("Account is already closed.");
+		}
+		this.changeStatus("closed", "platform.account.closed");
+	}
+
+	reactivate(): void {
+		if (!canReactivate(this._props.status)) {
+			throw new Error("Only suspended account can be reactivated.");
+		}
+		this.changeStatus("active", "platform.account.reactivated");
+	}
+
+	get id(): string {
+		return this._props.id;
+	}
+
+	get name(): string {
+		return this._props.name;
+	}
+
+	get accountType(): "user" | "organization" {
+		return this._props.accountType;
+	}
+
+	get email(): string | null {
+		return this._props.email;
+	}
+
+	get photoURL(): string | null {
+		return this._props.photoURL;
+	}
+
+	get bio(): string | null {
+		return this._props.bio;
+	}
+
+	get status(): AccountStatus {
+		return this._props.status;
+	}
+
+	get walletBalance(): number {
+		return this._props.walletBalance;
+	}
+
+	get createdAtISO(): string {
+		return this._props.createdAtISO;
+	}
+
+	get updatedAtISO(): string {
+		return this._props.updatedAtISO;
+	}
+
+	getSnapshot(): Readonly<AccountSnapshot> {
+		return Object.freeze({ ...this._props });
+	}
+
+	pullDomainEvents(): AccountDomainEventType[] {
+		const events = [...this._domainEvents];
+		this._domainEvents.length = 0;
+		return events;
+	}
+
+	private changeStatus(
+		status: AccountStatus,
+		eventType: "platform.account.suspended" | "platform.account.closed" | "platform.account.reactivated",
+	): void {
+		const now = new Date().toISOString();
+		this._props = { ...this._props, status, updatedAtISO: now };
+		this._domainEvents.push({
+			type: eventType,
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: { accountId: this._props.id },
+		});
+	}
+}
+````
+
+## File: modules/platform/subdomains/account/domain/aggregates/index.ts
+````typescript
+export * from "./Account";
+````
+
 ## File: modules/platform/subdomains/account/domain/entities/Account.ts
 ````typescript
 /**
@@ -5295,6 +4864,91 @@ export interface UpdatePolicyInput {
 }
 ````
 
+## File: modules/platform/subdomains/account/domain/events/AccountDomainEvent.ts
+````typescript
+export interface AccountDomainEvent {
+	readonly eventId: string;
+	readonly occurredAt: string;
+	readonly type: string;
+	readonly payload: object;
+}
+
+export interface AccountCreatedEvent extends AccountDomainEvent {
+	readonly type: "platform.account.created";
+	readonly payload: {
+		readonly accountId: string;
+		readonly name: string;
+		readonly accountType: "user" | "organization";
+		readonly email: string | null;
+	};
+}
+
+export interface ProfileUpdatedEvent extends AccountDomainEvent {
+	readonly type: "platform.account.profile_updated";
+	readonly payload: {
+		readonly accountId: string;
+		readonly name: string;
+		readonly bio: string | null;
+		readonly photoURL: string | null;
+	};
+}
+
+export interface WalletCreditedEvent extends AccountDomainEvent {
+	readonly type: "platform.account.wallet_credited";
+	readonly payload: {
+		readonly accountId: string;
+		readonly amount: number;
+		readonly description: string;
+		readonly balance: number;
+	};
+}
+
+export interface WalletDebitedEvent extends AccountDomainEvent {
+	readonly type: "platform.account.wallet_debited";
+	readonly payload: {
+		readonly accountId: string;
+		readonly amount: number;
+		readonly description: string;
+		readonly balance: number;
+	};
+}
+
+export interface AccountSuspendedEvent extends AccountDomainEvent {
+	readonly type: "platform.account.suspended";
+	readonly payload: {
+		readonly accountId: string;
+	};
+}
+
+export interface AccountClosedEvent extends AccountDomainEvent {
+	readonly type: "platform.account.closed";
+	readonly payload: {
+		readonly accountId: string;
+	};
+}
+
+export interface AccountReactivatedEvent extends AccountDomainEvent {
+	readonly type: "platform.account.reactivated";
+	readonly payload: {
+		readonly accountId: string;
+	};
+}
+
+export type AccountDomainEventType =
+	| AccountCreatedEvent
+	| ProfileUpdatedEvent
+	| WalletCreditedEvent
+	| WalletDebitedEvent
+	| AccountSuspendedEvent
+	| AccountClosedEvent
+	| AccountReactivatedEvent;
+````
+
+## File: modules/platform/subdomains/account/domain/events/index.ts
+````typescript
+export * from "./AccountDomainEvent";
+````
+
 ## File: modules/platform/subdomains/account/domain/ports/TokenRefreshPort.ts
 ````typescript
 /**
@@ -5386,6 +5040,77 @@ export interface AccountRepository {
   assignRole(accountId: string, role: OrganizationRole, grantedBy: string): Promise<AccountRoleRecord>;
   revokeRole(accountId: string): Promise<void>;
   getRole(accountId: string): Promise<AccountRoleRecord | null>;
+}
+````
+
+## File: modules/platform/subdomains/account/domain/value-objects/AccountId.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const AccountIdSchema = z.string().min(1).brand("AccountId");
+export type AccountId = z.infer<typeof AccountIdSchema>;
+
+export function createAccountId(raw: string): AccountId {
+	return AccountIdSchema.parse(raw);
+}
+````
+
+## File: modules/platform/subdomains/account/domain/value-objects/AccountStatus.ts
+````typescript
+export const ACCOUNT_STATUSES = ["active", "suspended", "closed"] as const;
+export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
+
+export function canSuspend(status: AccountStatus): boolean {
+	return status === "active";
+}
+
+export function canClose(status: AccountStatus): boolean {
+	return status !== "closed";
+}
+
+export function canReactivate(status: AccountStatus): boolean {
+	return status === "suspended";
+}
+````
+
+## File: modules/platform/subdomains/account/domain/value-objects/AccountType.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const ACCOUNT_TYPES = ["user", "organization"] as const;
+export type AccountType = (typeof ACCOUNT_TYPES)[number];
+
+export const AccountTypeSchema = z.enum(ACCOUNT_TYPES);
+
+export function createAccountType(raw: string): AccountType {
+	return AccountTypeSchema.parse(raw);
+}
+````
+
+## File: modules/platform/subdomains/account/domain/value-objects/index.ts
+````typescript
+export { AccountIdSchema, createAccountId } from "./AccountId";
+export type { AccountId } from "./AccountId";
+
+export { ACCOUNT_TYPES, AccountTypeSchema, createAccountType } from "./AccountType";
+export type { AccountType } from "./AccountType";
+
+export { ACCOUNT_STATUSES, canSuspend, canClose, canReactivate } from "./AccountStatus";
+export type { AccountStatus } from "./AccountStatus";
+
+export { WalletAmountSchema, createWalletAmount } from "./WalletAmount";
+export type { WalletAmount } from "./WalletAmount";
+````
+
+## File: modules/platform/subdomains/account/domain/value-objects/WalletAmount.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const WalletAmountSchema = z.number().positive().brand("WalletAmount");
+export type WalletAmount = z.infer<typeof WalletAmountSchema>;
+
+export function createWalletAmount(raw: number): WalletAmount {
+	return WalletAmountSchema.parse(raw);
 }
 ````
 
@@ -6824,6 +6549,189 @@ export class EmitTokenRefreshSignalUseCase {
 }
 ````
 
+## File: modules/platform/subdomains/identity/domain/aggregates/index.ts
+````typescript
+export * from "./UserIdentity";
+````
+
+## File: modules/platform/subdomains/identity/domain/aggregates/UserIdentity.ts
+````typescript
+import type { IdentityDomainEventType } from "../events";
+import { canReactivate, canSuspend } from "../value-objects";
+import { createDisplayName, createEmail, createUserId } from "../value-objects";
+import type { IdentityStatus } from "../value-objects";
+
+export interface UserIdentitySnapshot {
+	readonly uid: string;
+	readonly email: string | null;
+	readonly displayName: string | null;
+	readonly photoURL: string | null;
+	readonly isAnonymous: boolean;
+	readonly emailVerified: boolean;
+	readonly status: IdentityStatus;
+	readonly lastSignInAtISO: string | null;
+	readonly createdAtISO: string;
+	readonly updatedAtISO: string;
+}
+
+export interface CreateIdentityInput {
+	readonly email: string | null;
+	readonly displayName: string | null;
+	readonly photoURL: string | null;
+	readonly isAnonymous: boolean;
+	readonly emailVerified: boolean;
+}
+
+export class UserIdentity {
+	private readonly _domainEvents: IdentityDomainEventType[] = [];
+
+	private constructor(private _props: UserIdentitySnapshot) {}
+
+	static create(uid: string, input: CreateIdentityInput): UserIdentity {
+		createUserId(uid);
+		if (input.email !== null) {
+			createEmail(input.email);
+		}
+		const normalizedDisplayName = input.displayName === null ? null : createDisplayName(input.displayName);
+		const now = new Date().toISOString();
+		const aggregate = new UserIdentity({
+			uid,
+			email: input.email,
+			displayName: normalizedDisplayName ?? null,
+			photoURL: input.photoURL,
+			isAnonymous: input.isAnonymous,
+			emailVerified: input.emailVerified,
+			status: "active",
+			lastSignInAtISO: null,
+			createdAtISO: now,
+			updatedAtISO: now,
+		});
+		aggregate._domainEvents.push({
+			type: "platform.identity.created",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				uid,
+				email: input.email,
+				isAnonymous: input.isAnonymous,
+			},
+		});
+		return aggregate;
+	}
+
+	static reconstitute(snapshot: UserIdentitySnapshot): UserIdentity {
+		return new UserIdentity({ ...snapshot });
+	}
+
+	signIn(): void {
+		if (this._props.status !== "active") {
+			throw new Error("Cannot sign in with a suspended identity.");
+		}
+		const now = new Date().toISOString();
+		this._props = { ...this._props, lastSignInAtISO: now, updatedAtISO: now };
+		this._domainEvents.push({
+			type: "platform.identity.signed_in",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: { uid: this._props.uid, signedInAtISO: now },
+		});
+	}
+
+	updateDisplayName(name: string): void {
+		const normalizedName = createDisplayName(name);
+		const previousDisplayName = this._props.displayName;
+		const now = new Date().toISOString();
+		this._props = { ...this._props, displayName: normalizedName, updatedAtISO: now };
+		this._domainEvents.push({
+			type: "platform.identity.display_name_updated",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				uid: this._props.uid,
+				previousDisplayName,
+				displayName: normalizedName,
+			},
+		});
+	}
+
+	verifyEmail(): void {
+		if (this._props.emailVerified) {
+			throw new Error("Identity email is already verified.");
+		}
+		const now = new Date().toISOString();
+		this._props = { ...this._props, emailVerified: true, updatedAtISO: now };
+		this._domainEvents.push({
+			type: "platform.identity.email_verified",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: { uid: this._props.uid, email: this._props.email },
+		});
+	}
+
+	suspend(): void {
+		if (!canSuspend(this._props.status)) {
+			throw new Error("Identity is already suspended.");
+		}
+		const now = new Date().toISOString();
+		this._props = { ...this._props, status: "suspended", updatedAtISO: now };
+		this._domainEvents.push({
+			type: "platform.identity.suspended",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: { uid: this._props.uid },
+		});
+	}
+
+	reactivate(): void {
+		if (!canReactivate(this._props.status)) {
+			throw new Error("Identity is not suspended.");
+		}
+		const now = new Date().toISOString();
+		this._props = { ...this._props, status: "active", updatedAtISO: now };
+		this._domainEvents.push({
+			type: "platform.identity.reactivated",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: { uid: this._props.uid },
+		});
+	}
+
+	get uid(): string {
+		return this._props.uid;
+	}
+
+	get email(): string | null {
+		return this._props.email;
+	}
+
+	get displayName(): string | null {
+		return this._props.displayName;
+	}
+
+	get isActive(): boolean {
+		return this._props.status === "active";
+	}
+
+	get isAnonymous(): boolean {
+		return this._props.isAnonymous;
+	}
+
+	get emailVerified(): boolean {
+		return this._props.emailVerified;
+	}
+
+	getSnapshot(): Readonly<UserIdentitySnapshot> {
+		return Object.freeze({ ...this._props });
+	}
+
+	pullDomainEvents(): IdentityDomainEventType[] {
+		const events = [...this._domainEvents];
+		this._domainEvents.length = 0;
+		return events;
+	}
+}
+````
+
 ## File: modules/platform/subdomains/identity/domain/entities/Identity.ts
 ````typescript
 /**
@@ -6870,6 +6778,77 @@ export interface TokenRefreshSignal {
 }
 ````
 
+## File: modules/platform/subdomains/identity/domain/events/IdentityDomainEvent.ts
+````typescript
+export interface IdentityDomainEvent {
+	readonly eventId: string;
+	readonly occurredAt: string;
+	readonly type: string;
+	readonly payload: object;
+}
+
+export interface IdentityCreatedEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.created";
+	readonly payload: {
+		readonly uid: string;
+		readonly email: string | null;
+		readonly isAnonymous: boolean;
+	};
+}
+
+export interface SignedInEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.signed_in";
+	readonly payload: {
+		readonly uid: string;
+		readonly signedInAtISO: string;
+	};
+}
+
+export interface DisplayNameUpdatedEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.display_name_updated";
+	readonly payload: {
+		readonly uid: string;
+		readonly previousDisplayName: string | null;
+		readonly displayName: string;
+	};
+}
+
+export interface EmailVerifiedEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.email_verified";
+	readonly payload: {
+		readonly uid: string;
+		readonly email: string | null;
+	};
+}
+
+export interface IdentitySuspendedEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.suspended";
+	readonly payload: {
+		readonly uid: string;
+	};
+}
+
+export interface IdentityReactivatedEvent extends IdentityDomainEvent {
+	readonly type: "platform.identity.reactivated";
+	readonly payload: {
+		readonly uid: string;
+	};
+}
+
+export type IdentityDomainEventType =
+	| IdentityCreatedEvent
+	| SignedInEvent
+	| DisplayNameUpdatedEvent
+	| EmailVerifiedEvent
+	| IdentitySuspendedEvent
+	| IdentityReactivatedEvent;
+````
+
+## File: modules/platform/subdomains/identity/domain/events/index.ts
+````typescript
+export * from "./IdentityDomainEvent";
+````
+
 ## File: modules/platform/subdomains/identity/domain/repositories/IdentityRepository.ts
 ````typescript
 import type { IdentityEntity, RegistrationInput, SignInCredentials } from "../entities/Identity";
@@ -6892,6 +6871,79 @@ import type { TokenRefreshSignal } from "../entities/TokenRefreshSignal";
 export interface TokenRefreshRepository {
 	emit(signal: TokenRefreshSignal): Promise<void>;
 	subscribe(accountId: string, onSignal: () => void): () => void;
+}
+````
+
+## File: modules/platform/subdomains/identity/domain/value-objects/DisplayName.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const DisplayNameSchema = z.string().min(1).max(100).trim().brand("DisplayName");
+export type DisplayName = z.infer<typeof DisplayNameSchema>;
+
+export function createDisplayName(raw: string): DisplayName {
+	return DisplayNameSchema.parse(raw);
+}
+````
+
+## File: modules/platform/subdomains/identity/domain/value-objects/Email.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const EmailSchema = z.string().email().brand("Email");
+export type Email = z.infer<typeof EmailSchema>;
+
+export function createEmail(raw: string): Email {
+	return EmailSchema.parse(raw);
+}
+
+export function unsafeEmail(raw: string): Email {
+	return raw as Email;
+}
+````
+
+## File: modules/platform/subdomains/identity/domain/value-objects/IdentityStatus.ts
+````typescript
+export const IDENTITY_STATUSES = ["active", "suspended"] as const;
+export type IdentityStatus = (typeof IDENTITY_STATUSES)[number];
+
+export function canSuspend(status: IdentityStatus): boolean {
+	return status === "active";
+}
+
+export function canReactivate(status: IdentityStatus): boolean {
+	return status === "suspended";
+}
+````
+
+## File: modules/platform/subdomains/identity/domain/value-objects/index.ts
+````typescript
+export { EmailSchema, createEmail, unsafeEmail } from "./Email";
+export type { Email } from "./Email";
+
+export { UserIdSchema, createUserId, unsafeUserId } from "./UserId";
+export type { UserId } from "./UserId";
+
+export { DisplayNameSchema, createDisplayName } from "./DisplayName";
+export type { DisplayName } from "./DisplayName";
+
+export { IDENTITY_STATUSES, canSuspend, canReactivate } from "./IdentityStatus";
+export type { IdentityStatus } from "./IdentityStatus";
+````
+
+## File: modules/platform/subdomains/identity/domain/value-objects/UserId.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const UserIdSchema = z.string().min(1).brand("UserId");
+export type UserId = z.infer<typeof UserIdSchema>;
+
+export function createUserId(raw: string): UserId {
+	return UserIdSchema.parse(raw);
+}
+
+export function unsafeUserId(raw: string): UserId {
+	return raw as UserId;
 }
 ````
 
@@ -7000,6 +7052,76 @@ export class FirebaseTokenRefreshRepository implements TokenRefreshRepository {
 			onSignal();
 		});
 	}
+}
+````
+
+## File: modules/platform/subdomains/identity/infrastructure/identity-service.ts
+````typescript
+/**
+ * identity-service.ts — Adapter-layer composition root.
+ *
+ * Wires Firebase-backed repositories into identity use cases.
+ * Lives in adapters/ because it instantiates infrastructure adapters.
+ * Dependency direction: adapters/ -> application/ -> domain/ (correct, no violation).
+ */
+
+import type { TokenRefreshReason } from "../domain";
+import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
+import {
+	RegisterUseCase,
+	SendPasswordResetEmailUseCase,
+	SignInAnonymouslyUseCase,
+	SignInUseCase,
+} from "../application/use-cases/identity.use-cases";
+import { FirebaseIdentityRepository } from "./firebase/FirebaseIdentityRepository";
+import { FirebaseTokenRefreshRepository } from "./firebase/FirebaseTokenRefreshRepository";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface EmitTokenRefreshSignalInput {
+	accountId: string;
+	reason: TokenRefreshReason;
+	traceId?: string;
+}
+
+// ─── Server-side token refresh signal emitter ─────────────────────────────────
+
+let _tokenRefreshRepo: FirebaseTokenRefreshRepository | undefined;
+let _emitUseCase: EmitTokenRefreshSignalUseCase | undefined;
+
+function getEmitUseCase(): EmitTokenRefreshSignalUseCase {
+	if (!_emitUseCase) {
+		if (!_tokenRefreshRepo) _tokenRefreshRepo = new FirebaseTokenRefreshRepository();
+		_emitUseCase = new EmitTokenRefreshSignalUseCase(_tokenRefreshRepo);
+	}
+	return _emitUseCase;
+}
+
+/**
+ * identityApi — server-side operations for identity management.
+ * Intended for use in Server Actions and server-side code paths.
+ */
+export const identityApi = {
+	async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void> {
+		await getEmitUseCase().execute(input.accountId, input.reason, input.traceId);
+	},
+} as const;
+
+// ─── Client-side use-case factory ─────────────────────────────────────────────
+
+/**
+ * createClientAuthUseCases — creates Firebase-wired client-side auth use cases.
+ * Each call returns fresh use-case instances sharing one repository instance.
+ * Use only in "use client" components or client-side hooks.
+ */
+export function createClientAuthUseCases() {
+	const repo = new FirebaseIdentityRepository();
+	return {
+		signInUseCase: new SignInUseCase(repo),
+		signInAnonymouslyUseCase: new SignInAnonymouslyUseCase(repo),
+		registerUseCase: new RegisterUseCase(repo),
+		sendPasswordResetEmailUseCase: new SendPasswordResetEmailUseCase(repo),
+	};
 }
 ````
 
@@ -7898,6 +8020,366 @@ export class DeleteOrgPolicyUseCase {
 }
 ````
 
+## File: modules/platform/subdomains/organization/domain/aggregates/index.ts
+````typescript
+export * from "./Organization";
+````
+
+## File: modules/platform/subdomains/organization/domain/aggregates/Organization.ts
+````typescript
+import type {
+	MemberAddedEvent,
+	MemberRemovedEvent,
+	MemberRoleUpdatedEvent,
+	OrganizationCreatedEvent,
+	OrganizationDissolvedEvent,
+	OrganizationDomainEventType,
+	OrganizationReactivatedEvent,
+	OrganizationSuspendedEvent,
+	SettingsUpdatedEvent,
+} from "../events";
+import type { ThemeConfig } from "../entities/Organization";
+import {
+	canDissolve,
+	canReactivate,
+	canSuspend,
+	createMemberRole,
+	createOrganizationId,
+	type MemberRole,
+	type OrganizationStatus,
+} from "../value-objects";
+
+export interface OrganizationSnapshot {
+	readonly id: string;
+	readonly name: string;
+	readonly ownerId: string;
+	readonly ownerName: string;
+	readonly ownerEmail: string;
+	readonly description: string | null;
+	readonly photoURL: string | null;
+	readonly theme: ThemeConfig | null;
+	readonly memberCount: number;
+	readonly teamCount: number;
+	readonly status: "active" | "suspended" | "dissolved";
+	readonly createdAtISO: string;
+	readonly updatedAtISO: string;
+}
+
+export interface CreateOrganizationInput {
+	readonly name: string;
+	readonly ownerId: string;
+	readonly ownerName: string;
+	readonly ownerEmail: string;
+	readonly description?: string | null;
+	readonly photoURL?: string | null;
+	readonly theme?: ThemeConfig | null;
+}
+
+export class Organization {
+	private readonly _domainEvents: OrganizationDomainEventType[] = [];
+	private readonly _memberRoles = new Map<string, MemberRole>();
+
+	private constructor(private _props: OrganizationSnapshot) {}
+
+	static create(id: string, input: CreateOrganizationInput): Organization {
+		createOrganizationId(id);
+		Organization.assertRequired(input.name, "Organization name is required.");
+		Organization.assertRequired(input.ownerId, "Owner id is required.");
+		Organization.assertRequired(input.ownerName, "Owner name is required.");
+		Organization.assertRequired(input.ownerEmail, "Owner email is required.");
+		const now = new Date().toISOString();
+		const aggregate = new Organization({
+			id,
+			name: input.name.trim(),
+			ownerId: input.ownerId.trim(),
+			ownerName: input.ownerName.trim(),
+			ownerEmail: input.ownerEmail.trim(),
+			description: input.description ?? null,
+			photoURL: input.photoURL ?? null,
+			theme: input.theme ?? null,
+			memberCount: 1,
+			teamCount: 0,
+			status: "active",
+			createdAtISO: now,
+			updatedAtISO: now,
+		});
+		aggregate._memberRoles.set(aggregate._props.ownerId, "Owner");
+		aggregate.recordEvent<OrganizationCreatedEvent>({
+			type: "platform.organization.created",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				organizationId: aggregate._props.id,
+				name: aggregate._props.name,
+				ownerId: aggregate._props.ownerId,
+				ownerName: aggregate._props.ownerName,
+				ownerEmail: aggregate._props.ownerEmail,
+				theme: aggregate._props.theme,
+			},
+		});
+		return aggregate;
+	}
+
+	static reconstitute(snapshot: OrganizationSnapshot): Organization {
+		createOrganizationId(snapshot.id);
+		if (snapshot.memberCount < 1) {
+			throw new Error("Organization memberCount must be at least 1.");
+		}
+		if (snapshot.teamCount < 0) {
+			throw new Error("Organization teamCount cannot be negative.");
+		}
+		const aggregate = new Organization({ ...snapshot });
+		aggregate._memberRoles.set(snapshot.ownerId, "Owner");
+		return aggregate;
+	}
+
+	updateSettings(input: { name?: string; description?: string | null; photoURL?: string | null; theme?: ThemeConfig | null }): void {
+		this.ensureActive("Only active organization can update settings.");
+		if (input.name !== undefined) {
+			Organization.assertRequired(input.name, "Organization name is required.");
+		}
+		const now = new Date().toISOString();
+		this._props = {
+			...this._props,
+			name: input.name === undefined ? this._props.name : input.name.trim(),
+			description: input.description === undefined ? this._props.description : input.description,
+			photoURL: input.photoURL === undefined ? this._props.photoURL : input.photoURL,
+			theme: input.theme === undefined ? this._props.theme : input.theme,
+			updatedAtISO: now,
+		};
+		this.recordEvent<SettingsUpdatedEvent>({
+			type: "platform.organization.settings_updated",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				organizationId: this._props.id,
+				name: this._props.name,
+				description: this._props.description,
+				photoURL: this._props.photoURL,
+				theme: this._props.theme,
+			},
+		});
+	}
+
+	addMember(memberId: string, name: string, email: string, role: MemberRole): void {
+		this.ensureActive("Only active organization can add members.");
+		Organization.assertRequired(memberId, "Member id is required.");
+		Organization.assertRequired(name, "Member name is required.");
+		Organization.assertRequired(email, "Member email is required.");
+		const normalizedRole = createMemberRole(role);
+		if (memberId === this._props.ownerId || this._memberRoles.has(memberId)) {
+			throw new Error("Member already exists in organization.");
+		}
+		const now = new Date().toISOString();
+		this._memberRoles.set(memberId, normalizedRole);
+		this._props = {
+			...this._props,
+			memberCount: this._props.memberCount + 1,
+			updatedAtISO: now,
+		};
+		this.recordEvent<MemberAddedEvent>({
+			type: "platform.organization.member_added",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				organizationId: this._props.id,
+				memberId,
+				name: name.trim(),
+				email: email.trim(),
+				role: normalizedRole,
+				memberCount: this._props.memberCount,
+			},
+		});
+	}
+
+	removeMember(memberId: string): void {
+		this.ensureActive("Only active organization can remove members.");
+		Organization.assertRequired(memberId, "Member id is required.");
+		if (memberId === this._props.ownerId) {
+			throw new Error("Cannot remove organization owner.");
+		}
+		if (!this._memberRoles.has(memberId)) {
+			throw new Error("Member does not exist in organization.");
+		}
+		const now = new Date().toISOString();
+		this._memberRoles.delete(memberId);
+		this._props = {
+			...this._props,
+			memberCount: this._props.memberCount - 1,
+			updatedAtISO: now,
+		};
+		this.recordEvent<MemberRemovedEvent>({
+			type: "platform.organization.member_removed",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				organizationId: this._props.id,
+				memberId,
+				memberCount: this._props.memberCount,
+			},
+		});
+	}
+
+	updateMemberRole(memberId: string, newRole: MemberRole): void {
+		this.ensureActive("Only active organization can update member roles.");
+		Organization.assertRequired(memberId, "Member id is required.");
+		if (memberId === this._props.ownerId) {
+			throw new Error("Cannot change organization owner role.");
+		}
+		if (!this._memberRoles.has(memberId)) {
+			throw new Error("Member does not exist in organization.");
+		}
+		const normalizedRole = createMemberRole(newRole);
+		const previousRole = this._memberRoles.get(memberId) ?? "Member";
+		const now = new Date().toISOString();
+		this._memberRoles.set(memberId, normalizedRole);
+		this._props = { ...this._props, updatedAtISO: now };
+		this.recordEvent<MemberRoleUpdatedEvent>({
+			type: "platform.organization.member_role_updated",
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: {
+				organizationId: this._props.id,
+				memberId,
+				previousRole,
+				role: normalizedRole,
+			},
+		});
+	}
+
+	suspend(): void {
+		if (!canSuspend(this._props.status)) {
+			throw new Error("Only active organization can be suspended.");
+		}
+		this.changeStatus("suspended", "platform.organization.suspended");
+	}
+
+	dissolve(): void {
+		if (!canDissolve(this._props.status)) {
+			throw new Error("Organization is already dissolved.");
+		}
+		this.changeStatus("dissolved", "platform.organization.dissolved");
+	}
+
+	reactivate(): void {
+		if (!canReactivate(this._props.status)) {
+			throw new Error("Only suspended organization can be reactivated.");
+		}
+		this.changeStatus("active", "platform.organization.reactivated");
+	}
+
+	get id(): string {
+		return this._props.id;
+	}
+
+	get name(): string {
+		return this._props.name;
+	}
+
+	get ownerId(): string {
+		return this._props.ownerId;
+	}
+
+	get ownerName(): string {
+		return this._props.ownerName;
+	}
+
+	get ownerEmail(): string {
+		return this._props.ownerEmail;
+	}
+
+	get description(): string | null {
+		return this._props.description;
+	}
+
+	get photoURL(): string | null {
+		return this._props.photoURL;
+	}
+
+	get theme(): ThemeConfig | null {
+		return this._props.theme;
+	}
+
+	get memberCount(): number {
+		return this._props.memberCount;
+	}
+
+	get teamCount(): number {
+		return this._props.teamCount;
+	}
+
+	get status(): OrganizationStatus {
+		return this._props.status;
+	}
+
+	get createdAtISO(): string {
+		return this._props.createdAtISO;
+	}
+
+	get updatedAtISO(): string {
+		return this._props.updatedAtISO;
+	}
+
+	getSnapshot(): Readonly<OrganizationSnapshot> {
+		return Object.freeze({ ...this._props });
+	}
+
+	pullDomainEvents(): OrganizationDomainEventType[] {
+		const events = [...this._domainEvents];
+		this._domainEvents.length = 0;
+		return events;
+	}
+
+	private changeStatus(
+		status: OrganizationStatus,
+		eventType: "platform.organization.suspended" | "platform.organization.dissolved" | "platform.organization.reactivated",
+	): void {
+		const now = new Date().toISOString();
+		this._props = { ...this._props, status, updatedAtISO: now };
+		if (eventType === "platform.organization.suspended") {
+			this.recordEvent<OrganizationSuspendedEvent>({
+				type: eventType,
+				eventId: crypto.randomUUID(),
+				occurredAt: now,
+				payload: { organizationId: this._props.id, status },
+			});
+			return;
+		}
+		if (eventType === "platform.organization.dissolved") {
+			this.recordEvent<OrganizationDissolvedEvent>({
+				type: eventType,
+				eventId: crypto.randomUUID(),
+				occurredAt: now,
+				payload: { organizationId: this._props.id, status },
+			});
+			return;
+		}
+		this.recordEvent<OrganizationReactivatedEvent>({
+			type: eventType,
+			eventId: crypto.randomUUID(),
+			occurredAt: now,
+			payload: { organizationId: this._props.id, status },
+		});
+	}
+
+	private ensureActive(message: string): void {
+		if (this._props.status !== "active") {
+			throw new Error(message);
+		}
+	}
+
+	private recordEvent<TEvent extends OrganizationDomainEventType>(event: TEvent): void {
+		this._domainEvents.push(event);
+	}
+
+	private static assertRequired(value: string, message: string): void {
+		if (value.trim().length === 0) {
+			throw new Error(message);
+		}
+	}
+}
+````
+
 ## File: modules/platform/subdomains/organization/domain/entities/Organization.ts
 ````typescript
 /**
@@ -8034,6 +8516,112 @@ export interface UpdateOrgPolicyInput {
 }
 ````
 
+## File: modules/platform/subdomains/organization/domain/events/index.ts
+````typescript
+export * from "./OrganizationDomainEvent";
+````
+
+## File: modules/platform/subdomains/organization/domain/events/OrganizationDomainEvent.ts
+````typescript
+import type { ThemeConfig } from "../entities/Organization";
+import type { MemberRole, OrganizationStatus } from "../value-objects";
+
+export interface OrganizationDomainEvent {
+	readonly eventId: string;
+	readonly occurredAt: string;
+	readonly type: string;
+	readonly payload: object;
+}
+
+export interface OrganizationCreatedEvent extends OrganizationDomainEvent {
+	readonly type: "platform.organization.created";
+	readonly payload: {
+		readonly organizationId: string;
+		readonly name: string;
+		readonly ownerId: string;
+		readonly ownerName: string;
+		readonly ownerEmail: string;
+		readonly theme: ThemeConfig | null;
+	};
+}
+
+export interface SettingsUpdatedEvent extends OrganizationDomainEvent {
+	readonly type: "platform.organization.settings_updated";
+	readonly payload: {
+		readonly organizationId: string;
+		readonly name: string;
+		readonly description: string | null;
+		readonly photoURL: string | null;
+		readonly theme: ThemeConfig | null;
+	};
+}
+
+export interface MemberAddedEvent extends OrganizationDomainEvent {
+	readonly type: "platform.organization.member_added";
+	readonly payload: {
+		readonly organizationId: string;
+		readonly memberId: string;
+		readonly name: string;
+		readonly email: string;
+		readonly role: MemberRole;
+		readonly memberCount: number;
+	};
+}
+
+export interface MemberRemovedEvent extends OrganizationDomainEvent {
+	readonly type: "platform.organization.member_removed";
+	readonly payload: {
+		readonly organizationId: string;
+		readonly memberId: string;
+		readonly memberCount: number;
+	};
+}
+
+export interface MemberRoleUpdatedEvent extends OrganizationDomainEvent {
+	readonly type: "platform.organization.member_role_updated";
+	readonly payload: {
+		readonly organizationId: string;
+		readonly memberId: string;
+		readonly previousRole: MemberRole;
+		readonly role: MemberRole;
+	};
+}
+
+export interface OrganizationSuspendedEvent extends OrganizationDomainEvent {
+	readonly type: "platform.organization.suspended";
+	readonly payload: {
+		readonly organizationId: string;
+		readonly status: OrganizationStatus;
+	};
+}
+
+export interface OrganizationDissolvedEvent extends OrganizationDomainEvent {
+	readonly type: "platform.organization.dissolved";
+	readonly payload: {
+		readonly organizationId: string;
+		readonly status: OrganizationStatus;
+	};
+}
+
+export interface OrganizationReactivatedEvent extends OrganizationDomainEvent {
+	readonly type: "platform.organization.reactivated";
+	readonly payload: {
+		readonly organizationId: string;
+		readonly status: OrganizationStatus;
+	};
+}
+
+export type OrganizationDomainEventType =
+	| OrganizationCreatedEvent
+	| SettingsUpdatedEvent
+	| MemberAddedEvent
+	| MemberRemovedEvent
+	| MemberRoleUpdatedEvent
+	| OrganizationSuspendedEvent
+	| OrganizationDissolvedEvent
+	| OrganizationReactivatedEvent;
+````
+
 ## File: modules/platform/subdomains/organization/domain/repositories/OrganizationRepository.ts
 ````typescript
 /**
@@ -8094,6 +8682,75 @@ export interface OrgPolicyRepository {
   updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void>;
   deletePolicy(policyId: string): Promise<void>;
   getPolicies(orgId: string): Promise<OrgPolicy[]>;
+}
+````
+
+## File: modules/platform/subdomains/organization/domain/value-objects/index.ts
+````typescript
+export { OrganizationIdSchema, createOrganizationId } from "./OrganizationId";
+export type { OrganizationId } from "./OrganizationId";
+
+export { MEMBER_ROLES, MemberRoleSchema, createMemberRole, canManageRole } from "./MemberRole";
+export type { MemberRole } from "./MemberRole";
+
+export { ORGANIZATION_STATUSES, canSuspend, canDissolve, canReactivate } from "./OrganizationStatus";
+export type { OrganizationStatus } from "./OrganizationStatus";
+````
+
+## File: modules/platform/subdomains/organization/domain/value-objects/MemberRole.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const MEMBER_ROLES = ["Owner", "Admin", "Member", "Guest"] as const;
+export const MemberRoleSchema = z.enum(MEMBER_ROLES);
+export type MemberRole = z.infer<typeof MemberRoleSchema>;
+
+const ROLE_RANK: Record<MemberRole, number> = {
+	Owner: 4,
+	Admin: 3,
+	Member: 2,
+	Guest: 1,
+};
+
+export function createMemberRole(raw: string): MemberRole {
+	return MemberRoleSchema.parse(raw);
+}
+
+export function canManageRole(managerRole: MemberRole, targetRole: MemberRole): boolean {
+	if (managerRole === "Owner") {
+		return targetRole !== "Owner";
+	}
+	return ROLE_RANK[managerRole] > ROLE_RANK[targetRole];
+}
+````
+
+## File: modules/platform/subdomains/organization/domain/value-objects/OrganizationId.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const OrganizationIdSchema = z.string().min(1).brand("OrganizationId");
+export type OrganizationId = z.infer<typeof OrganizationIdSchema>;
+
+export function createOrganizationId(raw: string): OrganizationId {
+	return OrganizationIdSchema.parse(raw);
+}
+````
+
+## File: modules/platform/subdomains/organization/domain/value-objects/OrganizationStatus.ts
+````typescript
+export const ORGANIZATION_STATUSES = ["active", "suspended", "dissolved"] as const;
+export type OrganizationStatus = (typeof ORGANIZATION_STATUSES)[number];
+
+export function canSuspend(status: OrganizationStatus): boolean {
+	return status === "active";
+}
+
+export function canDissolve(status: OrganizationStatus): boolean {
+	return status !== "dissolved";
+}
+
+export function canReactivate(status: OrganizationStatus): boolean {
+	return status === "suspended";
 }
 ````
 
@@ -8885,6 +9542,237 @@ export function CreateOrganizationDialog({
 }
 ````
 
+## File: modules/platform/subdomains/organization/interfaces/components/MembersPage.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { dismissMember, inviteMember } from "../_actions/organization.actions";
+import { getOrganizationMembers } from "../queries/organization.queries";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+
+type MemberRole = "Admin" | "Member" | "Guest";
+
+export interface MembersPageProps {
+  organizationId: string | null;
+}
+
+export function MembersPage({ organizationId }: MembersPageProps) {
+  const [members, setMembers] = useState<Awaited<ReturnType<typeof getOrganizationMembers>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<MemberRole>("Member");
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
+  async function loadMembers(orgId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getOrganizationMembers(orgId);
+      setMembers(data);
+      setLoadState("loaded");
+    } catch {
+      setMembers([]);
+      setLoadState("error");
+    }
+  }
+
+  useEffect(() => {
+    if (!organizationId) return;
+    const orgId: string = organizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrganizationMembers(orgId);
+        if (!cancelled) {
+          setMembers(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setMembers([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId]);
+
+  async function handleInvite() {
+    if (!organizationId || !inviteEmail.trim()) return;
+    setInviteSubmitting(true);
+    setInviteError(null);
+    const result = await inviteMember({
+      organizationId,
+      email: inviteEmail.trim(),
+      teamId: "",
+      role: inviteRole,
+      protocol: "email",
+    });
+    setInviteSubmitting(false);
+    if (result.success) {
+      setInviteOpen(false);
+      setInviteEmail("");
+      setInviteRole("Member");
+      await loadMembers(organizationId);
+    } else {
+      setInviteError(result.error.message);
+    }
+  }
+
+  async function handleDismiss(memberId: string) {
+    if (!organizationId) return;
+    setRemovingId(memberId);
+    await dismissMember(organizationId, memberId);
+    setRemovingId(null);
+    await loadMembers(organizationId);
+  }
+
+  if (!organizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">成員</h1>
+          <p className="mt-1 text-sm text-muted-foreground">組織成員清單與目前角色。</p>
+        </div>
+        <Button onClick={() => setInviteOpen(true)}>邀請成員</Button>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Members</CardTitle>
+          <CardDescription>組織成員清單與目前角色。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入成員資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取成員資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && members.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的成員資料。</p>
+          )}
+          {loadState === "loaded" &&
+            members.map((member) => (
+              <div
+                key={member.id}
+                className="flex items-center justify-between rounded-lg border border-border/40 px-3 py-2"
+              >
+                <div>
+                  <p className="text-sm font-medium">{member.name}</p>
+                  <p className="text-xs text-muted-foreground">{member.email}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{member.role}</Badge>
+                  <Badge variant="secondary">{member.presence}</Badge>
+                  {member.role !== "Owner" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={removingId === member.id}
+                      onClick={() => handleDismiss(member.id)}
+                    >
+                      移除
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>邀請成員</DialogTitle>
+            <DialogDescription>輸入電子信箱以邀請新成員加入組織。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="invite-email">電子信箱</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder="member@example.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="invite-role">角色</Label>
+              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as MemberRole)}>
+                <SelectTrigger id="invite-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Member">Member</SelectItem>
+                  <SelectItem value="Guest">Guest</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleInvite} disabled={inviteSubmitting || !inviteEmail.trim()}>
+              {inviteSubmitting ? "邀請中…" : "送出邀請"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+````
+
 ## File: modules/platform/subdomains/organization/interfaces/components/OrganizationAuditPage.tsx
 ````typescript
 "use client";
@@ -9035,6 +9923,442 @@ export function OrganizationAuditPage({
           <AuditStream logs={auditLogs} height={500} />
         </CardContent>
       </Card>
+    </div>
+  );
+}
+````
+
+## File: modules/platform/subdomains/organization/interfaces/components/PermissionsPage.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { createOrgPolicy } from "../_actions/organization-policy.actions";
+import { getOrgPolicies } from "../queries/organization.queries";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+
+type PolicyScope = "workspace" | "member" | "global";
+
+export interface PermissionsPageProps {
+  organizationId: string | null;
+}
+
+export function PermissionsPage({ organizationId }: PermissionsPageProps) {
+  const [policies, setPolicies] = useState<Awaited<ReturnType<typeof getOrgPolicies>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newScope, setNewScope] = useState<PolicyScope>("member");
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  async function loadPolicies(orgId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getOrgPolicies(orgId);
+      setPolicies(data);
+      setLoadState("loaded");
+    } catch {
+      setPolicies([]);
+      setLoadState("error");
+    }
+  }
+
+  useEffect(() => {
+    if (!organizationId) return;
+    const orgId: string = organizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrgPolicies(orgId);
+        if (!cancelled) {
+          setPolicies(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setPolicies([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId]);
+
+  async function handleCreate() {
+    if (!organizationId || !newName.trim()) return;
+    setCreateSubmitting(true);
+    setCreateError(null);
+    const result = await createOrgPolicy({
+      orgId: organizationId,
+      name: newName.trim(),
+      description: newDescription.trim(),
+      rules: [],
+      scope: newScope,
+    });
+    setCreateSubmitting(false);
+    if (result.success) {
+      setCreateOpen(false);
+      setNewName("");
+      setNewDescription("");
+      setNewScope("member");
+      await loadPolicies(organizationId);
+    } else {
+      setCreateError(result.error.message);
+    }
+  }
+
+  if (!organizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">權限</h1>
+          <p className="mt-1 text-sm text-muted-foreground">組織層級政策規則與 scope。</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>新增政策</Button>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Permissions</CardTitle>
+          <CardDescription>組織層級政策規則與 scope。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入政策資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取政策資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && policies.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的政策資料。</p>
+          )}
+          {loadState === "loaded" &&
+            policies.map((policy) => (
+              <div key={policy.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">{policy.name}</p>
+                  <Badge variant="outline">{policy.scope}</Badge>
+                  <Badge variant={policy.isActive ? "default" : "secondary"}>
+                    {policy.isActive ? "active" : "inactive"}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{policy.description}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Rules: {policy.rules.length}</p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新增政策</DialogTitle>
+            <DialogDescription>建立組織層級存取控制政策。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="policy-name">名稱</Label>
+              <Input
+                id="policy-name"
+                placeholder="政策名稱"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="policy-description">描述</Label>
+              <Input
+                id="policy-description"
+                placeholder="選填"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="policy-scope">Scope</Label>
+              <Select value={newScope} onValueChange={(v) => setNewScope(v as PolicyScope)}>
+                <SelectTrigger id="policy-scope">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Member（成員）</SelectItem>
+                  <SelectItem value="workspace">Workspace（工作區）</SelectItem>
+                  <SelectItem value="global">Global（全域）</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
+              {createSubmitting ? "建立中…" : "建立"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+````
+
+## File: modules/platform/subdomains/organization/interfaces/components/TeamsPage.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { createTeam } from "../_actions/organization.actions";
+import { getOrganizationTeams } from "../queries/organization.queries";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+
+export interface TeamsPageProps {
+  organizationId: string | null;
+}
+
+export function TeamsPage({ organizationId }: TeamsPageProps) {
+  const [teams, setTeams] = useState<Awaited<ReturnType<typeof getOrganizationTeams>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newType, setNewType] = useState<"internal" | "external">("internal");
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  async function loadTeams(orgId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getOrganizationTeams(orgId);
+      setTeams(data);
+      setLoadState("loaded");
+    } catch {
+      setTeams([]);
+      setLoadState("error");
+    }
+  }
+
+  useEffect(() => {
+    if (!organizationId) return;
+    const orgId: string = organizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrganizationTeams(orgId);
+        if (!cancelled) {
+          setTeams(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setTeams([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId]);
+
+  async function handleCreate() {
+    if (!organizationId || !newName.trim()) return;
+    setCreateSubmitting(true);
+    setCreateError(null);
+    const result = await createTeam({
+      organizationId,
+      name: newName.trim(),
+      description: newDescription.trim(),
+      type: newType,
+    });
+    setCreateSubmitting(false);
+    if (result.success) {
+      setCreateOpen(false);
+      setNewName("");
+      setNewDescription("");
+      setNewType("internal");
+      await loadTeams(organizationId);
+    } else {
+      setCreateError(result.error.message);
+    }
+  }
+
+  if (!organizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">團隊</h1>
+          <p className="mt-1 text-sm text-muted-foreground">組織團隊與成員關聯。</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>建立團隊</Button>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Teams</CardTitle>
+          <CardDescription>組織團隊與成員關聯。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入團隊資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取團隊資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && teams.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的團隊資料。</p>
+          )}
+          {loadState === "loaded" &&
+            teams.map((team) => (
+              <div key={team.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">{team.name}</p>
+                  <Badge variant="outline">{team.type}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{team.description || "—"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Members: {team.memberIds.length}
+                </p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>建立團隊</DialogTitle>
+            <DialogDescription>填寫團隊名稱與類型以建立新團隊。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="team-name">名稱</Label>
+              <Input
+                id="team-name"
+                placeholder="團隊名稱"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="team-description">描述</Label>
+              <Input
+                id="team-description"
+                placeholder="選填"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="team-type">類型</Label>
+              <Select
+                value={newType}
+                onValueChange={(v) => setNewType(v as "internal" | "external")}
+              >
+                <SelectTrigger id="team-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internal">Internal（內部）</SelectItem>
+                  <SelectItem value="external">External（外部）</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
+              {createSubmitting ? "建立中…" : "建立"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -9193,6 +10517,186 @@ export {};
 // Purpose: Infrastructure layer placeholder for platform subdomain 'support'.
 ````
 
+## File: modules/platform/subdomains/team/application/use-cases/team.use-cases.ts
+````typescript
+/**
+ * Module: platform/subdomains/team
+ * Layer: application/use-cases
+ * Purpose: Team management use cases — create, delete, and member updates.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { TeamRepository } from "../../domain/repositories/TeamRepository";
+import type { CreateTeamInput } from "../../domain/entities/Team";
+
+export class CreateTeamUseCase {
+  constructor(private readonly teamRepo: TeamRepository) {}
+
+  async execute(input: CreateTeamInput): Promise<CommandResult> {
+    try {
+      const teamId = await this.teamRepo.createTeam(input);
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Failed to create team");
+    }
+  }
+}
+
+export class DeleteTeamUseCase {
+  constructor(private readonly teamRepo: TeamRepository) {}
+
+  async execute(organizationId: string, teamId: string): Promise<CommandResult> {
+    try {
+      await this.teamRepo.deleteTeam(organizationId, teamId);
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Failed to delete team");
+    }
+  }
+}
+
+export class UpdateTeamMembersUseCase {
+  constructor(private readonly teamRepo: TeamRepository) {}
+
+  async execute(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+    action: "add" | "remove",
+  ): Promise<CommandResult> {
+    try {
+      if (action === "add") {
+        await this.teamRepo.addMemberToTeam(organizationId, teamId, memberId);
+      } else {
+        await this.teamRepo.removeMemberFromTeam(organizationId, teamId, memberId);
+      }
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Failed to update team members");
+    }
+  }
+}
+````
+
+## File: modules/platform/subdomains/team/domain/entities/Team.ts
+````typescript
+/**
+ * Module: platform/subdomains/team
+ * Layer: domain/entities
+ * Purpose: Team entity and related input types owned by the team subdomain.
+ */
+
+export interface Team {
+  id: string;
+  name: string;
+  description: string;
+  type: "internal" | "external";
+  memberIds: string[];
+}
+
+export interface CreateTeamInput {
+  organizationId: string;
+  name: string;
+  description: string;
+  type: "internal" | "external";
+}
+````
+
+## File: modules/platform/subdomains/team/domain/repositories/TeamRepository.ts
+````typescript
+/**
+ * Module: platform/subdomains/team
+ * Layer: domain/repositories
+ * Purpose: TeamRepository port — team-scoped operations only.
+ *          Implemented in the firebase adapter.
+ */
+
+import type { Team, CreateTeamInput } from "../entities/Team";
+
+export interface TeamRepository {
+  createTeam(input: CreateTeamInput): Promise<string>;
+  deleteTeam(organizationId: string, teamId: string): Promise<void>;
+  addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  getTeams(organizationId: string): Promise<Team[]>;
+}
+````
+
+## File: modules/platform/subdomains/team/infrastructure/firebase/FirebaseTeamRepository.ts
+````typescript
+/**
+ * Module: platform/subdomains/team
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase implementation of TeamRepository.
+ *          Directly accesses the organizations/{orgId}/teams sub-collection.
+ */
+
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  arrayUnion,
+  arrayRemove,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { TeamRepository } from "../../domain/repositories/TeamRepository";
+import type { Team, CreateTeamInput } from "../../domain/entities/Team";
+
+function toTeam(id: string, data: Record<string, unknown>): Team {
+  return {
+    id,
+    name: typeof data.name === "string" ? data.name : "",
+    description: typeof data.description === "string" ? data.description : "",
+    type: data.type === "external" ? "external" : "internal",
+    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
+  };
+}
+
+export class FirebaseTeamRepository implements TeamRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async createTeam(input: CreateTeamInput): Promise<string> {
+    const teamRef = doc(collection(this.db, "organizations", input.organizationId, "teams"));
+    await setDoc(teamRef, {
+      name: input.name,
+      description: input.description,
+      type: input.type,
+      memberIds: [],
+      createdAt: serverTimestamp(),
+    });
+    return teamRef.id;
+  }
+
+  async deleteTeam(organizationId: string, teamId: string): Promise<void> {
+    await deleteDoc(doc(this.db, "organizations", organizationId, "teams", teamId));
+  }
+
+  async addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void> {
+    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
+      memberIds: arrayUnion(memberId),
+    });
+  }
+
+  async removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void> {
+    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
+      memberIds: arrayRemove(memberId),
+    });
+  }
+
+  async getTeams(organizationId: string): Promise<Team[]> {
+    const snaps = await getDocs(collection(this.db, "organizations", organizationId, "teams"));
+    return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
 ## File: modules/platform/subdomains/workflow/api/index.ts
 ````typescript
 /**
@@ -9239,41 +10743,6 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
-````
-
-## File: modules/platform/api/contracts.ts
-````typescript
-/**
- * platform API contracts boundary.
- *
- * Keep the source of truth in application/domain and re-export here for API consumers.
- */
-
-export * from "../application/dtos";
-export type {
-	PlatformContextView,
-	PolicyCatalogView,
-	SubscriptionEntitlementsView,
-	WorkflowPolicyView,
-} from "../domain/ports/output";
-export * from "../domain/events";
-
-// ── Identity session types ────────────────────────────────────────────────────
-// AuthUser is the canonical projection of an authenticated identity subject.
-// Platform/Identity BC owns this DTO; app/providers/auth-context re-exports it.
-
-/** Minimal authenticated user record surfaced from identity auth state. */
-export interface AuthUser {
-	readonly id: string;
-	readonly name: string;
-	readonly email: string;
-}
-
-// ── Cross-cutting account context type ───────────────────────────────────────
-// ActiveAccount is the union of an organization AccountEntity or a personal
-// AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
-import type { AccountEntity } from "../subdomains/account/api";
-export type ActiveAccount = AccountEntity | AuthUser;
 ````
 
 ## File: modules/platform/api/platform-service.ts
@@ -9634,11 +11103,6 @@ export class ListEnabledCapabilitiesUseCase {
 		return view?.capabilityKeys ?? [];
 	}
 }
-````
-
-## File: modules/platform/application/services/.gitkeep
-````
-
 ````
 
 ## File: modules/platform/application/services/build-causation-id.ts
@@ -10640,35 +12104,151 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vercel-react-best-practices
 ````
 
-## File: modules/platform/interfaces/web/components/HeaderControls.tsx
+## File: modules/platform/interfaces/web/providers/ShellProviders.tsx
 ````typescript
 "use client";
 
 /**
- * HeaderControls – platform interfaces/web component.
+ * shell-providers.tsx — platform/interfaces/web layer
+ * Composed root providers tree.
+ * Import <Providers> into app/layout.tsx to wrap the entire application.
+ *
+ * Provider nesting order (outermost → innermost):
+ *   AuthProvider   — Firebase auth state
+ *   AppProvider    — Active account + org accounts (depends on AuthProvider)
+ */
+
+import type { ReactNode } from "react";
+import { Toaster } from "@ui-shadcn/ui/sonner";
+import { AuthProvider } from "../../../subdomains/identity/api";
+import { AppProvider } from "./ShellAppProvider";
+
+export function Providers({ children }: { children: ReactNode }) {
+  return (
+    <AuthProvider>
+      <AppProvider>{children}</AppProvider>
+      <Toaster richColors closeButton />
+    </AuthProvider>
+  );
+}
+````
+
+## File: modules/platform/interfaces/web/shell/breadcrumbs/ShellAppBreadcrumbs.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ChevronRight } from "lucide-react";
+
+const SEGMENT_LABELS: Record<string, string> = {
+  "organization": "組織",
+  "workspace": "工作區",
+  "wiki": "Account Wiki",
+  "rag-query": "Ask / Cite",
+  "documents": "文件",
+  "libraries": "Libraries",
+  "pages": "頁面",
+  "pages-dnd": "頁面 (DnD)",
+  "block-editor": "區塊編輯器",
+  "rag-reindex": "RAG 重新索引",
+  "ai-chat": "Notebook",
+  "dev-tools": "開發工具",
+  "namespaces": "命名空間",
+  "members": "成員",
+  "teams": "團隊",
+  "permissions": "權限",
+  "workspaces": "工作區清單",
+  "schedule": "排程",
+  "daily": "每日",
+  "audit": "稽核",
+};
+
+function segmentLabel(segment: string) {
+  return SEGMENT_LABELS[segment] ?? segment;
+}
+
+export function ShellAppBreadcrumbs() {
+  const pathname = usePathname();
+  const segments = pathname.split("/").filter(Boolean);
+
+  // Only render when there's more than one segment (i.e., not just root page).
+  if (segments.length <= 1) return null;
+
+  const crumbs: { label: string; href: string }[] = segments.map((seg, idx) => ({
+    label: segmentLabel(seg),
+    href: "/" + segments.slice(0, idx + 1).join("/"),
+  }));
+
+  return (
+    <nav aria-label="Breadcrumb" className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
+      {crumbs.map((crumb, idx) => (
+        <span key={crumb.href} className="flex items-center gap-1">
+          {idx > 0 && <ChevronRight className="size-3 opacity-40" />}
+          {idx < crumbs.length - 1 ? (
+            <Link
+              href={crumb.href}
+              className="transition hover:text-foreground"
+            >
+              {crumb.label}
+            </Link>
+          ) : (
+            <span className="font-medium text-foreground">{crumb.label}</span>
+          )}
+        </span>
+      ))}
+    </nav>
+  );
+}
+````
+
+## File: modules/platform/interfaces/web/shell/header/components/ShellHeaderControls.tsx
+````typescript
+"use client";
+
+/**
+ * ShellHeaderControls – platform interfaces/web component.
  * Composes shell header utility controls: language switch, theme toggle, notification bell.
  */
+
+import { useAuth } from "../../../../../subdomains/identity/api";
+import { ShellNotificationButton } from "./ShellNotificationButton";
+import { ShellThemeToggle } from "./ShellThemeToggle";
+import { ShellTranslationSwitcher } from "./ShellTranslationSwitcher";
+
+export function ShellHeaderControls() {
+  const { state: authState } = useAuth();
+
+  const recipientId = authState.user?.id ?? "";
+
+  return (
+    <div className="flex items-center gap-2">
+      <ShellTranslationSwitcher />
+      <ShellThemeToggle />
+      <ShellNotificationButton recipientId={recipientId} />
+    </div>
+  );
+}
+````
+
+## File: modules/platform/interfaces/web/shell/header/components/ShellThemeToggle.tsx
+````typescript
+"use client";
 
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { useAuth } from "../../../subdomains/identity/api";
-import { NotificationBell } from "../../../subdomains/notification/api";
 import { Button } from "@ui-shadcn/ui/button";
-import { TranslationSwitcher } from "./TranslationSwitcher";
 
 const THEME_KEY = "xuanwu_theme";
 
-export function HeaderControls() {
-  const { state: authState } = useAuth();
+export function ShellThemeToggle() {
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window === "undefined") return "light";
     const storedTheme = window.localStorage.getItem(THEME_KEY);
     if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
     return document.documentElement.classList.contains("dark") ? "dark" : "light";
   });
-
-  const recipientId = authState.user?.id ?? "";
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -10680,27 +12260,566 @@ export function HeaderControls() {
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <TranslationSwitcher />
-
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-sm"
-        onClick={toggleTheme}
-        aria-label="Toggle theme"
-        className="text-muted-foreground"
-      >
-        {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-      </Button>
-
-      <NotificationBell recipientId={recipientId} />
-    </div>
+    <Button
+      type="button"
+      variant="outline"
+      size="icon-sm"
+      onClick={toggleTheme}
+      aria-label="切換深淺主題"
+      className="text-muted-foreground"
+    >
+      {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+    </Button>
   );
 }
 ````
 
-## File: modules/platform/interfaces/web/components/sidebar/ContextScopedNavSection.tsx
+## File: modules/platform/interfaces/web/shell/header/components/ShellTranslationSwitcher.tsx
+````typescript
+"use client";
+
+/**
+ * Module: shell-translation-switcher.tsx
+ * Purpose: provide a reusable locale switch control for shell-level UI.
+ * Responsibilities: persist locale preference and sync html lang attribute.
+ * Constraints: keep state client-side and avoid coupling to business modules.
+ */
+
+import { Languages } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+
+const LOCALE_STORAGE_KEY = "xuanwu_locale";
+
+const localeOptions = [
+  { value: "en", label: "English" },
+  { value: "zh-TW", label: "繁體中文" },
+] as const;
+
+type LocaleValue = (typeof localeOptions)[number]["value"];
+
+function isLocaleValue(value: string | null): value is LocaleValue {
+  return value === "en" || value === "zh-TW";
+}
+
+export function ShellTranslationSwitcher() {
+  const [locale, setLocale] = useState<LocaleValue>(() => {
+    if (typeof window === "undefined") {
+      return "en";
+    }
+
+    const storedValue = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+    return isLocaleValue(storedValue) ? storedValue : "en";
+  });
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+  }, [locale]);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          aria-label="切換語言"
+          className="text-muted-foreground"
+        >
+          <Languages className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuLabel>語言</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={locale} onValueChange={(value) => {
+          if (isLocaleValue(value)) {
+            setLocale(value);
+          }
+        }}>
+          {localeOptions.map((option) => (
+            <DropdownMenuRadioItem key={option.value} value={option.value}>
+              {option.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+````
+
+## File: modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FileText, Layout } from "lucide-react";
+
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from "@ui-shadcn/ui/command";
+
+const NAV_ITEMS = [
+  { href: "/workspace", label: "Workspace Hub", group: "導覽" },
+  { href: "/knowledge", label: "Knowledge Hub", group: "導覽" },
+  { href: "/knowledge-base/articles", label: "Knowledge Base", group: "導覽" },
+  { href: "/knowledge-database/databases", label: "Knowledge Database", group: "導覽" },
+  { href: "/notebook/rag-query", label: "Notebook / AI", group: "導覽" },
+  { href: "/ai-chat", label: "AI Chat", group: "導覽" },
+  { href: "/knowledge/pages", label: "頁面管理", group: "Knowledge" },
+  { href: "/knowledge/block-editor", label: "區塊編輯器", group: "Knowledge" },
+  { href: "/source/libraries", label: "Libraries 表格", group: "Source" },
+] as const;
+
+const GROUP_ICONS: Record<string, React.ReactNode> = {
+  "導覽": <Layout className="size-4 mr-2 opacity-60" />,
+  "Knowledge": <FileText className="size-4 mr-2 opacity-60" />,
+  "Source": <FileText className="size-4 mr-2 opacity-60" />,
+};
+
+interface ShellGlobalSearchDialogProps {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+}
+
+export function ShellGlobalSearchDialog({ open, onOpenChange }: ShellGlobalSearchDialogProps) {
+  const router = useRouter();
+
+  function handleSelect(href: string) {
+    onOpenChange(false);
+    router.push(href);
+  }
+
+  const groups = Array.from(new Set(NAV_ITEMS.map((i) => i.group)));
+
+  return (
+    <CommandDialog
+      title="全域搜尋"
+      description="搜尋頁面或功能"
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <CommandInput placeholder="搜尋頁面或功能…" />
+      <CommandList>
+        <CommandEmpty>找不到結果。</CommandEmpty>
+        {groups.map((group) => (
+          <CommandGroup key={group} heading={group}>
+            {NAV_ITEMS.filter((i) => i.group === group).map((item) => (
+              <CommandItem
+                key={item.href}
+                onSelect={() => handleSelect(item.href)}
+              >
+                {GROUP_ICONS[group]}
+                {item.label}
+                <CommandShortcut className="text-[10px] opacity-50">{item.href}</CommandShortcut>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ))}
+      </CommandList>
+    </CommandDialog>
+  );
+}
+
+/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
+export function useShellGlobalSearch() {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        setOpen((prev) => !prev);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  return { open, setOpen };
+}
+````
+
+## File: modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
+````typescript
+"use client";
+
+/**
+ * Module: app-rail.tsx
+ * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
+ * Responsibilities: app logo, account context switcher, top-level section icon nav with
+ *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
+ * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
+ *   `h-full` ensures it fills the parent `h-screen` container.
+ */
+
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
+import { CreateOrganizationDialog } from "@/modules/platform/api";
+import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+
+interface RailItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  /** When false the item is hidden; defaults to true */
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+
+function isExactOrChildPath(targetPath: string, pathname: string) {
+  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+}
+
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
+}
+
+export function AppRail({
+  pathname,
+  user,
+  activeAccount,
+  organizationAccounts,
+  workspaces,
+  workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOrganizationCreated,
+  onSignOut: _onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  const railItems: RailItem[] = [
+    // ── Organization / hub layer ─────────────────────────────────────
+    {
+      href: "/workspace",
+      label: "工作區中心",
+      icon: <Building2 className="size-[18px]" />,
+    },
+    // ── People (org-only) ─────────────────────────────────────────
+    {
+      href: "/organization/members",
+      label: "成員",
+      icon: <UserRound className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
+    },
+    {
+      href: "/organization/teams",
+      label: "團隊",
+      icon: <Users className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
+    },
+    // ── Operations (org-only) ─────────────────────────────────────
+    {
+      href: "/organization/daily",
+      label: "每日",
+      icon: <NotebookText className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
+    },
+    {
+      href: "/organization/schedule",
+      label: "排程",
+      icon: <CalendarDays className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
+    },
+    // ── Admin (org-only) ──────────────────────────────────────────
+    {
+      href: "/organization/audit",
+      label: "稽核",
+      icon: <ClipboardList className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
+    },
+    {
+      href: "/organization/permissions",
+      label: "權限",
+      icon: <SlidersHorizontal className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
+    },
+    // ── Developer ────────────────────────────────────────────────
+    {
+      href: "/dev-tools",
+      label: "開發工具",
+      icon: <FlaskConical className="size-[18px]" />,
+    },
+  ];
+
+  const visibleRailItems = railItems.filter((item) => item.show !== false);
+
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces],
+  );
+
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
+
+  return (
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        {/* ── Workspace / account logo tile ─────────────────────────── */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => {
+                  onSelectOrganization(account);
+                }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setIsCreateOrgOpen(true);
+              }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="my-2 h-px w-7 bg-border/50" />
+
+        {/* ── Section nav icons ─────────────────────────────────────── */}
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
+
+            if (item.href === "/workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        router.push("/workspace");
+                      }}
+                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
+                    >
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(`/workspace/${workspace.id}`);
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsCreateWorkspaceOpen(true);
+                      }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        {/* ── Spacer ────────────────────────────────────────────────── */}
+        <div className="flex-1" />
+
+        <div className="h-1" />
+      </aside>
+
+      {/* ── Create organization dialog ─────────────────────────────── */}
+      <CreateOrganizationDialog
+        open={isCreateOrgOpen}
+        onOpenChange={setIsCreateOrgOpen}
+        user={user}
+        onOrganizationCreated={onOrganizationCreated}
+        onNavigate={(href) => { router.push(href); }}
+      />
+
+      {/* ── Create workspace dialog ────────────────────────────────── */}
+      <CreateWorkspaceDialogRail
+        open={isCreateWorkspaceOpen}
+        onOpenChange={setIsCreateWorkspaceOpen}
+        accountId={activeAccount?.id ?? null}
+        accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
+        creatorUserId={user?.id}
+        onNavigate={(href: string) => { router.push(href); }}
+      />
+    </TooltipProvider>
+  );
+}
+````
+
+## File: modules/platform/interfaces/web/shell/sidebar/ShellContextNavSection.tsx
 ````typescript
 "use client";
 
@@ -10711,7 +12830,7 @@ interface ContextScopedNavItem {
   label: string;
 }
 
-interface ContextScopedNavSectionProps {
+interface ShellContextNavSectionProps {
   title: string;
   items: readonly ContextScopedNavItem[];
   isActiveRoute: (href: string) => boolean;
@@ -10739,23 +12858,23 @@ function withContextQuery(href: string, accountId: string | null, workspaceId: s
   return query.length > 0 ? `${path}?${query}` : path;
 }
 
-export function ContextScopedNavSection({
+export function ShellContextNavSection({
   title,
   items,
   isActiveRoute,
   activeAccountId,
   activeWorkspaceId,
-}: ContextScopedNavSectionProps) {
+}: ShellContextNavSectionProps) {
   return (
-    <nav className="space-y-0.5" aria-label={`${title} navigation`}>
+    <nav className="space-y-0.5" aria-label={`${title}導覽`}>
       <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
         {title}
       </p>
       {(activeAccountId || activeWorkspaceId) && (
         <p className="px-2 pb-1 text-[11px] text-muted-foreground">
-          {activeAccountId ? `Account: ${activeAccountId.slice(0, 8)}` : "Account: -"}
+          {activeAccountId ? `帳號: ${activeAccountId.slice(0, 8)}` : "帳號: -"}
           {" · "}
-          {activeWorkspaceId ? `Workspace: ${activeWorkspaceId.slice(0, 8)}` : "Workspace: -"}
+          {activeWorkspaceId ? `工作區: ${activeWorkspaceId.slice(0, 8)}` : "工作區: -"}
         </p>
       )}
       {items.map((item) => {
@@ -10781,25 +12900,25 @@ export function ContextScopedNavSection({
 }
 ````
 
-## File: modules/platform/interfaces/web/components/sidebar/DashboardSidebarHeader.tsx
+## File: modules/platform/interfaces/web/shell/sidebar/ShellSidebarHeader.tsx
 ````typescript
 "use client";
 
 import { PanelLeftClose, SlidersHorizontal } from "lucide-react";
 
-interface DashboardSidebarHeaderProps {
+interface ShellSidebarHeaderProps {
   sectionLabel: string;
   sectionIcon: React.ReactNode;
   onOpenCustomize: () => void;
   onToggleCollapsed: () => void;
 }
 
-export function DashboardSidebarHeader({
+export function ShellSidebarHeader({
   sectionLabel,
   sectionIcon,
   onOpenCustomize,
   onToggleCollapsed,
-}: DashboardSidebarHeaderProps) {
+}: ShellSidebarHeaderProps) {
   return (
     <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
       <span className="flex flex-1 items-center gap-1.5 px-1 text-[11px] font-semibold tracking-tight text-foreground/80">
@@ -10827,351 +12946,6 @@ export function DashboardSidebarHeader({
         </button>
       </div>
     </div>
-  );
-}
-````
-
-## File: modules/platform/interfaces/web/providers/app-context.ts
-````typescript
-"use client";
-
-/**
- * app-context.ts — platform/interfaces/web layer
- * Defines the AppContext contract: the cross-cutting "active account" state.
- *
- * Holds the set of accounts visible to the current user plus the currently
- * active account selection. Consumed by feature pages and sidebar nav.
- */
-
-import { createContext, type Dispatch } from "react";
-
-import type { AuthUser } from "@/modules/platform/api/contracts";
-import type { AccountEntity } from "../../../subdomains/account/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import type { ActiveAccount } from "@/modules/platform/api/contracts";
-export type { ActiveAccount };
-
-export interface AppState {
-  /** All organization accounts visible to the signed-in user. */
-  accounts: Record<string, AccountEntity>;
-  /** True once the first Firestore snapshot has been received. */
-  accountsHydrated: boolean;
-  /** Bootstrap phase for optimistic seeding. */
-  bootstrapPhase: "idle" | "seeded" | "hydrated";
-  /** Currently selected account (personal user account or an organization). */
-  activeAccount: ActiveAccount | null;
-  /** Currently selected workspace context under the active account. */
-  activeWorkspaceId: string | null;
-  /** Workspaces visible under the active account (single source for shell UI). */
-  workspaces: Record<string, WorkspaceEntity>;
-  /** True once the first active-account workspace snapshot has been received. */
-  workspacesHydrated: boolean;
-}
-
-export type AppAction =
-  | {
-      type: "SEED_ACTIVE_ACCOUNT";
-      payload: { user: AuthUser };
-    }
-  | {
-      type: "SET_ACCOUNTS";
-      payload: {
-        accounts: Record<string, AccountEntity>;
-        user: AuthUser;
-        preferredActiveAccountId?: string | null;
-      };
-    }
-  | {
-      type: "SET_WORKSPACES";
-      payload: {
-        workspaces: Record<string, WorkspaceEntity>;
-        hydrated: boolean;
-      };
-    }
-  | { type: "SET_ACTIVE_ACCOUNT"; payload: ActiveAccount | null }
-  | { type: "SET_ACTIVE_WORKSPACE"; payload: string | null }
-  | { type: "RESET_STATE" };
-
-export interface AppContextValue {
-  state: AppState;
-  dispatch: Dispatch<AppAction>;
-}
-
-export const AppContext = createContext<AppContextValue | null>(null);
-````
-
-## File: modules/platform/interfaces/web/providers/app-provider.tsx
-````typescript
-"use client";
-
-/**
- * app-provider.tsx — platform/interfaces/web layer
- * Hosts the app-level active-account lifecycle and exposes useApp().
- *
- * Responsibilities:
- *  1. Watch AuthProvider state for sign-in / sign-out events
- *  2. Subscribe to the user's visible accounts (orgs) via account module queries
- *  3. Maintain activeAccount selection (default: personal user account from auth)
- *  4. Expose state + dispatch via AppContext
- */
-
-import {
-  useReducer,
-  useEffect,
-  useContext,
-  type ReactNode,
-} from "react";
-
-import {
-  subscribeToAccountsForUser,
-  type AccountEntity,
-} from "../../../subdomains/account/api";
-import { type AuthUser, useAuth } from "../../../subdomains/identity/api";
-import {
-  subscribeToWorkspacesForAccount,
-  getWorkspaceStorageKey,
-  toWorkspaceMap,
-} from "@/modules/workspace/api";
-
-import { AppContext, type AppState, type AppAction } from "./app-context";
-
-// -- Initial State -----------------------------------------------------------
-
-const LAST_ACTIVE_ACCOUNT_STORAGE_KEY = "xuanwu_last_active_account";
-
-const initialState: AppState = {
-  accounts: {},
-  accountsHydrated: false,
-  bootstrapPhase: "idle",
-  activeAccount: null,
-  activeWorkspaceId: null,
-  workspaces: {},
-  workspacesHydrated: false,
-};
-
-// -- Reducer -----------------------------------------------------------------
-
-function resolveActiveAccount(
-  state: AppState,
-  accounts: Record<string, AccountEntity>,
-  user: AuthUser,
-  preferredActiveAccountId?: string | null,
-) {
-  const validIds = new Set([user.id, ...Object.keys(accounts)]);
-  const currentActiveId = state.activeAccount?.id;
-  let currentActive = null;
-
-  if (currentActiveId && validIds.has(currentActiveId)) {
-    currentActive = currentActiveId === user.id ? user : accounts[currentActiveId] ?? null;
-  }
-
-  let preferredActive = null;
-  if (preferredActiveAccountId && validIds.has(preferredActiveAccountId)) {
-    preferredActive =
-      preferredActiveAccountId === user.id
-        ? user
-        : accounts[preferredActiveAccountId] ?? null;
-  }
-
-  // During the initial seeded phase we only know about the personal account.
-  // Once the real organization snapshot arrives, prefer the last persisted
-  // account so re-login restores the user's previous working context instead of
-  // leaving them in the optimistic personal fallback.
-  if (
-    preferredActive &&
-    (!currentActive || state.bootstrapPhase === "seeded" || currentActive.id === user.id)
-  ) {
-    return preferredActive;
-  }
-
-  return currentActive ?? user;
-}
-
-function appReducer(state: AppState, action: AppAction): AppState {
-  switch (action.type) {
-    case "SEED_ACTIVE_ACCOUNT":
-      return {
-        ...state,
-        accounts: {},
-        accountsHydrated: false,
-        bootstrapPhase: "seeded",
-        activeAccount: action.payload.user,
-        activeWorkspaceId: null,
-      };
-    case "SET_ACCOUNTS": {
-      const { accounts, user, preferredActiveAccountId } = action.payload;
-      return {
-        ...state,
-        accounts,
-        accountsHydrated: true,
-        bootstrapPhase: "hydrated",
-        activeAccount: resolveActiveAccount(state, accounts, user, preferredActiveAccountId),
-      };
-    }
-    case "SET_WORKSPACES":
-      return {
-        ...state,
-        workspaces: action.payload.workspaces,
-        workspacesHydrated: action.payload.hydrated,
-      };
-    case "SET_ACTIVE_ACCOUNT":
-      if (state.activeAccount?.id === action.payload?.id) return state;
-      return {
-        ...state,
-        activeAccount: action.payload,
-        activeWorkspaceId: null,
-        workspaces: {},
-        workspacesHydrated: false,
-      };
-    case "SET_ACTIVE_WORKSPACE":
-      if (state.activeWorkspaceId === action.payload) return state;
-      return { ...state, activeWorkspaceId: action.payload };
-    case "RESET_STATE":
-      return initialState;
-    default:
-      return state;
-  }
-}
-
-// -- Provider ----------------------------------------------------------------
-
-export function AppProvider({ children }: { children: ReactNode }) {
-  const { state: authState } = useAuth();
-  const { user, status } = authState;
-  const [state, dispatch] = useReducer(appReducer, initialState);
-
-  useEffect(() => {
-    if (status === "initializing") return;
-
-    if (!user) {
-      dispatch({ type: "RESET_STATE" });
-      return;
-    }
-
-    dispatch({ type: "SEED_ACTIVE_ACCOUNT", payload: { user } });
-    const preferredActiveAccountId =
-      typeof window === "undefined"
-        ? null
-        : window.localStorage.getItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
-
-    const unsubscribe = subscribeToAccountsForUser(user.id, (accounts) => {
-      dispatch({
-        type: "SET_ACCOUNTS",
-        payload: { accounts, user, preferredActiveAccountId },
-      });
-    });
-
-    return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, user?.id]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const activeAccountId = state.activeAccount?.id;
-
-    if (!user || !activeAccountId) {
-      window.localStorage.removeItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
-      return;
-    }
-
-    window.localStorage.setItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY, activeAccountId);
-  }, [state.activeAccount?.id, user]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const activeAccountId = state.activeAccount?.id;
-    if (!activeAccountId) {
-      dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: null });
-      return;
-    }
-
-    const storedWorkspaceId = window.localStorage.getItem(getWorkspaceStorageKey(activeAccountId));
-    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: storedWorkspaceId || null });
-  }, [state.activeAccount?.id]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const activeAccountId = state.activeAccount?.id;
-    if (!activeAccountId) return;
-
-    const storageKey = getWorkspaceStorageKey(activeAccountId);
-    if (!state.activeWorkspaceId) {
-      window.localStorage.removeItem(storageKey);
-      return;
-    }
-
-    window.localStorage.setItem(storageKey, state.activeWorkspaceId);
-  }, [state.activeAccount?.id, state.activeWorkspaceId]);
-
-  useEffect(() => {
-    const activeAccountId = state.activeAccount?.id;
-    if (!activeAccountId) {
-      dispatch({
-        type: "SET_WORKSPACES",
-        payload: { workspaces: {}, hydrated: true },
-      });
-      return;
-    }
-
-    dispatch({
-      type: "SET_WORKSPACES",
-      payload: { workspaces: {}, hydrated: false },
-    });
-
-    const unsubscribe = subscribeToWorkspacesForAccount(activeAccountId, (workspaces) => {
-      dispatch({
-        type: "SET_WORKSPACES",
-        payload: {
-          workspaces: toWorkspaceMap(workspaces),
-          hydrated: true,
-        },
-      });
-    });
-
-    return () => unsubscribe();
-  }, [state.activeAccount?.id]);
-
-  return (
-    <AppContext.Provider value={{ state, dispatch }}>
-      {children}
-    </AppContext.Provider>
-  );
-}
-
-// -- Hook --------------------------------------------------------------------
-
-export function useApp() {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error("useApp must be used within AppProvider");
-  return ctx;
-}
-````
-
-## File: modules/platform/interfaces/web/providers/providers.tsx
-````typescript
-"use client";
-
-/**
- * providers.tsx — platform/interfaces/web layer
- * Composed root providers tree.
- * Import <Providers> into app/layout.tsx to wrap the entire application.
- *
- * Provider nesting order (outermost → innermost):
- *   AuthProvider   — Firebase auth state
- *   AppProvider    — Active account + org accounts (depends on AuthProvider)
- */
-
-import type { ReactNode } from "react";
-import { Toaster } from "@ui-shadcn/ui/sonner";
-import { AuthProvider } from "../../../subdomains/identity/api";
-import { AppProvider } from "./app-provider";
-
-export function Providers({ children }: { children: ReactNode }) {
-  return (
-    <AuthProvider>
-      <AppProvider>{children}</AppProvider>
-      <Toaster richColors closeButton />
-    </AuthProvider>
   );
 }
 ````
@@ -11261,143 +13035,6 @@ export * from "./access-control.dto";
 ````typescript
 export * from "./dtos";
 export * from "./use-cases";
-````
-
-## File: modules/platform/subdomains/access-control/application/use-cases/access-control.use-cases.ts
-````typescript
-/**
- * Access-Control Use Cases — pure application logic.
- */
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import { AccessPolicy } from "../../domain/aggregates/AccessPolicy";
-import {
-  allowDecision,
-  denyDecision,
-} from "../../../../../domain/value-objects/PermissionDecision";
-import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
-import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
-import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
-import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
-
-// ─── Evaluate Permission ──────────────────────────────────────────────────────
-
-export class EvaluatePermissionUseCase {
-  constructor(private readonly repo: AccessPolicyRepository) {}
-
-  async execute(input: {
-    subjectId: string;
-    resourceType: string;
-    resourceId?: string;
-    action: string;
-  }): Promise<CommandResult> {
-    try {
-      const policies = await this.repo.findActiveBySubjectAndResource(
-        input.subjectId,
-        input.resourceType,
-        input.resourceId,
-      );
-
-      // Explicit deny takes priority (deny-override semantics)
-      const hasDeny = policies.some(
-        (p) => p.effect === "deny" && p.actions.includes(input.action),
-      );
-      if (hasDeny) {
-        return commandSuccess(denyDecision("Explicit deny policy matched"), Date.now());
-      }
-
-      const hasAllow = policies.some(
-        (p) => p.effect === "allow" && p.actions.includes(input.action),
-      );
-      if (hasAllow) {
-        return commandSuccess(allowDecision("Allow policy matched"), Date.now());
-      }
-
-      return commandSuccess(denyDecision("No matching allow policy"), Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "EVALUATE_PERMISSION_FAILED",
-        err instanceof Error ? err.message : "Failed to evaluate permission",
-      );
-    }
-  }
-}
-
-// ─── Create Access Policy ─────────────────────────────────────────────────────
-
-export class CreateAccessPolicyUseCase {
-  constructor(private readonly repo: AccessPolicyRepository) {}
-
-  async execute(input: {
-    subjectRef: SubjectRef;
-    resourceRef: ResourceRef;
-    actions: string[];
-    effect: PolicyEffect;
-    conditions?: string[];
-  }): Promise<CommandResult> {
-    try {
-      const id = crypto.randomUUID();
-      const policy = AccessPolicy.create(id, input);
-      await this.repo.save(policy.getSnapshot());
-      return commandSuccess(id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_ACCESS_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to create access policy",
-      );
-    }
-  }
-}
-
-// ─── Update Access Policy ─────────────────────────────────────────────────────
-
-export class UpdateAccessPolicyUseCase {
-  constructor(private readonly repo: AccessPolicyRepository) {}
-
-  async execute(
-    policyId: string,
-    input: { actions?: string[]; effect?: PolicyEffect; conditions?: string[] },
-  ): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(policyId);
-      if (!snapshot) {
-        return commandFailureFrom("POLICY_NOT_FOUND", `AccessPolicy ${policyId} not found`);
-      }
-      const policy = AccessPolicy.reconstitute(snapshot);
-      policy.update(input);
-      await this.repo.update(policy.getSnapshot());
-      return commandSuccess(policyId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_ACCESS_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to update access policy",
-      );
-    }
-  }
-}
-
-// ─── Delete (Deactivate) Access Policy ───────────────────────────────────────
-
-export class DeactivateAccessPolicyUseCase {
-  constructor(private readonly repo: AccessPolicyRepository) {}
-
-  async execute(policyId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(policyId);
-      if (!snapshot) {
-        return commandFailureFrom("POLICY_NOT_FOUND", `AccessPolicy ${policyId} not found`);
-      }
-      const policy = AccessPolicy.reconstitute(snapshot);
-      policy.deactivate();
-      await this.repo.update(policy.getSnapshot());
-      return commandSuccess(policyId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DEACTIVATE_ACCESS_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to deactivate access policy",
-      );
-    }
-  }
-}
 ````
 
 ## File: modules/platform/subdomains/access-control/application/use-cases/index.ts
@@ -11808,6 +13445,21 @@ export * from "./access-control-service";
 export { FirebaseAccessPolicyRepository } from "./firebase/FirebaseAccessPolicyRepository";
 ````
 
+## File: modules/platform/subdomains/account-profile/application/dtos/account-profile.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the account-profile subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type {
+  AccountProfile,
+  AccountProfileId,
+  AccountProfileTheme,
+  UpdateAccountProfileInput,
+} from "../../domain/entities/AccountProfile";
+export type { Unsubscribe } from "../../domain/repositories/AccountProfileQueryRepository";
+````
+
 ## File: modules/platform/subdomains/account-profile/application/use-cases/get-account-profile.use-case.ts
 ````typescript
 import {
@@ -12124,54 +13776,6 @@ export async function updateAccountProfile(
 }
 ````
 
-## File: modules/platform/subdomains/account-profile/interfaces/_actions/account-profile.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { updateAccountProfile } from "../../api";
-import type { UpdateAccountProfileInput } from "../../application/dto/account-profile.dto";
-
-export async function updateProfile(
-	actorId: string,
-	input: UpdateAccountProfileInput,
-): Promise<CommandResult> {
-	try {
-		return await updateAccountProfile(actorId, input);
-	} catch (err) {
-		return commandFailureFrom(
-			"UPDATE_ACCOUNT_PROFILE_FAILED",
-			err instanceof Error ? err.message : "Unexpected error",
-		);
-	}
-}
-````
-
-## File: modules/platform/subdomains/account-profile/interfaces/queries/account-profile.queries.ts
-````typescript
-/**
- * Account Profile Read Queries — thin wrappers over account-profile API use cases.
- * NOT Server Actions — callable from React components/hooks directly.
- */
-
-import { getAccountProfile, subscribeToAccountProfile } from "../../api";
-import type {
-  AccountProfile,
-  Unsubscribe,
-} from "../../application/dto/account-profile.dto";
-
-export async function getProfile(actorId: string): Promise<AccountProfile | null> {
-  return getAccountProfile(actorId);
-}
-
-export function subscribeToProfile(
-  actorId: string,
-  onUpdate: (profile: AccountProfile | null) => void,
-): Unsubscribe {
-  return subscribeToAccountProfile(actorId, onUpdate);
-}
-````
-
 ## File: modules/platform/subdomains/account/api/index.ts
 ````typescript
 /**
@@ -12203,7 +13807,7 @@ export type { AccountQueryRepository } from "../domain/repositories/AccountQuery
 export * from "../interfaces";
 ````
 
-## File: modules/platform/subdomains/account/application/dto/account.dto.ts
+## File: modules/platform/subdomains/account/application/dtos/account.dto.ts
 ````typescript
 /**
  * Application-layer DTO re-exports for the account subdomain.
@@ -12220,323 +13824,39 @@ export type { WalletBalanceSnapshot, Unsubscribe } from "../../domain/repositori
 export type { AccountPolicy, CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
 ````
 
-## File: modules/platform/subdomains/account/domain/aggregates/Account.ts
+## File: modules/platform/subdomains/account/domain/index.ts
 ````typescript
-import type { AccountDomainEventType } from "../events";
-import { canClose, canReactivate, canSuspend } from "../value-objects";
-import { createAccountId, createAccountType, createWalletAmount } from "../value-objects";
-import type { AccountStatus } from "../value-objects";
+export type {
+  AccountType,
+  OrganizationRole,
+  Presence,
+  ThemeConfig,
+  Wallet,
+  ExpertiseBadge,
+  MemberReference,
+  Team,
+  AccountEntity,
+  AccountRoleRecord,
+  UpdateProfileInput,
+  WalletTransaction,
+} from "./entities/Account";
 
-export interface AccountSnapshot {
-	readonly id: string;
-	readonly name: string;
-	readonly accountType: "user" | "organization";
-	readonly email: string | null;
-	readonly photoURL: string | null;
-	readonly bio: string | null;
-	readonly status: "active" | "suspended" | "closed";
-	readonly walletBalance: number;
-	readonly createdAtISO: string;
-	readonly updatedAtISO: string;
-}
+export type {
+  PolicyEffect,
+  PolicyRule,
+  AccountPolicy,
+  CreatePolicyInput,
+  UpdatePolicyInput,
+} from "./entities/AccountPolicy";
 
-export interface CreateAccountInput {
-	readonly name: string;
-	readonly accountType: "user" | "organization";
-	readonly email?: string | null;
-	readonly photoURL?: string | null;
-	readonly bio?: string | null;
-}
-
-export class Account {
-	private readonly _domainEvents: AccountDomainEventType[] = [];
-
-	private constructor(private _props: AccountSnapshot) {}
-
-	static create(id: string, input: CreateAccountInput): Account {
-		createAccountId(id);
-		createAccountType(input.accountType);
-		const now = new Date().toISOString();
-		const account = new Account({
-			id,
-			name: input.name,
-			accountType: input.accountType,
-			email: input.email ?? null,
-			photoURL: input.photoURL ?? null,
-			bio: input.bio ?? null,
-			status: "active",
-			walletBalance: 0,
-			createdAtISO: now,
-			updatedAtISO: now,
-		});
-		account._domainEvents.push({
-			type: "platform.account.created",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				accountId: id,
-				name: input.name,
-				accountType: input.accountType,
-				email: input.email ?? null,
-			},
-		});
-		return account;
-	}
-
-	static reconstitute(snapshot: AccountSnapshot): Account {
-		createAccountId(snapshot.id);
-		createAccountType(snapshot.accountType);
-		if (snapshot.walletBalance < 0) {
-			throw new Error("Wallet balance cannot be negative.");
-		}
-		return new Account({ ...snapshot });
-	}
-
-	updateProfile(input: { name?: string; bio?: string | null; photoURL?: string | null }): void {
-		if (this._props.status !== "active") {
-			throw new Error("Only active account can update profile.");
-		}
-		const now = new Date().toISOString();
-		this._props = {
-			...this._props,
-			name: input.name ?? this._props.name,
-			bio: input.bio === undefined ? this._props.bio : input.bio,
-			photoURL: input.photoURL === undefined ? this._props.photoURL : input.photoURL,
-			updatedAtISO: now,
-		};
-		this._domainEvents.push({
-			type: "platform.account.profile_updated",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				accountId: this._props.id,
-				name: this._props.name,
-				bio: this._props.bio,
-				photoURL: this._props.photoURL,
-			},
-		});
-	}
-
-	creditWallet(amount: number, description: string): void {
-		const creditAmount = createWalletAmount(amount);
-		const now = new Date().toISOString();
-		this._props = {
-			...this._props,
-			walletBalance: this._props.walletBalance + creditAmount,
-			updatedAtISO: now,
-		};
-		this._domainEvents.push({
-			type: "platform.account.wallet_credited",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				accountId: this._props.id,
-				amount: creditAmount,
-				description,
-				balance: this._props.walletBalance,
-			},
-		});
-	}
-
-	debitWallet(amount: number, description: string): void {
-		const debitAmount = createWalletAmount(amount);
-		if (this._props.walletBalance < debitAmount) {
-			throw new Error("Insufficient wallet balance.");
-		}
-		const now = new Date().toISOString();
-		this._props = {
-			...this._props,
-			walletBalance: this._props.walletBalance - debitAmount,
-			updatedAtISO: now,
-		};
-		this._domainEvents.push({
-			type: "platform.account.wallet_debited",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				accountId: this._props.id,
-				amount: debitAmount,
-				description,
-				balance: this._props.walletBalance,
-			},
-		});
-	}
-
-	suspend(): void {
-		if (!canSuspend(this._props.status)) {
-			throw new Error("Only active account can be suspended.");
-		}
-		this.changeStatus("suspended", "platform.account.suspended");
-	}
-
-	close(): void {
-		if (!canClose(this._props.status)) {
-			throw new Error("Account is already closed.");
-		}
-		this.changeStatus("closed", "platform.account.closed");
-	}
-
-	reactivate(): void {
-		if (!canReactivate(this._props.status)) {
-			throw new Error("Only suspended account can be reactivated.");
-		}
-		this.changeStatus("active", "platform.account.reactivated");
-	}
-
-	get id(): string {
-		return this._props.id;
-	}
-
-	get name(): string {
-		return this._props.name;
-	}
-
-	get accountType(): "user" | "organization" {
-		return this._props.accountType;
-	}
-
-	get email(): string | null {
-		return this._props.email;
-	}
-
-	get photoURL(): string | null {
-		return this._props.photoURL;
-	}
-
-	get bio(): string | null {
-		return this._props.bio;
-	}
-
-	get status(): AccountStatus {
-		return this._props.status;
-	}
-
-	get walletBalance(): number {
-		return this._props.walletBalance;
-	}
-
-	get createdAtISO(): string {
-		return this._props.createdAtISO;
-	}
-
-	get updatedAtISO(): string {
-		return this._props.updatedAtISO;
-	}
-
-	getSnapshot(): Readonly<AccountSnapshot> {
-		return Object.freeze({ ...this._props });
-	}
-
-	pullDomainEvents(): AccountDomainEventType[] {
-		const events = [...this._domainEvents];
-		this._domainEvents.length = 0;
-		return events;
-	}
-
-	private changeStatus(
-		status: AccountStatus,
-		eventType: "platform.account.suspended" | "platform.account.closed" | "platform.account.reactivated",
-	): void {
-		const now = new Date().toISOString();
-		this._props = { ...this._props, status, updatedAtISO: now };
-		this._domainEvents.push({
-			type: eventType,
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: { accountId: this._props.id },
-		});
-	}
-}
-````
-
-## File: modules/platform/subdomains/account/domain/aggregates/index.ts
-````typescript
-export * from "./Account";
-````
-
-## File: modules/platform/subdomains/account/domain/events/AccountDomainEvent.ts
-````typescript
-export interface AccountDomainEvent {
-	readonly eventId: string;
-	readonly occurredAt: string;
-	readonly type: string;
-	readonly payload: object;
-}
-
-export interface AccountCreatedEvent extends AccountDomainEvent {
-	readonly type: "platform.account.created";
-	readonly payload: {
-		readonly accountId: string;
-		readonly name: string;
-		readonly accountType: "user" | "organization";
-		readonly email: string | null;
-	};
-}
-
-export interface ProfileUpdatedEvent extends AccountDomainEvent {
-	readonly type: "platform.account.profile_updated";
-	readonly payload: {
-		readonly accountId: string;
-		readonly name: string;
-		readonly bio: string | null;
-		readonly photoURL: string | null;
-	};
-}
-
-export interface WalletCreditedEvent extends AccountDomainEvent {
-	readonly type: "platform.account.wallet_credited";
-	readonly payload: {
-		readonly accountId: string;
-		readonly amount: number;
-		readonly description: string;
-		readonly balance: number;
-	};
-}
-
-export interface WalletDebitedEvent extends AccountDomainEvent {
-	readonly type: "platform.account.wallet_debited";
-	readonly payload: {
-		readonly accountId: string;
-		readonly amount: number;
-		readonly description: string;
-		readonly balance: number;
-	};
-}
-
-export interface AccountSuspendedEvent extends AccountDomainEvent {
-	readonly type: "platform.account.suspended";
-	readonly payload: {
-		readonly accountId: string;
-	};
-}
-
-export interface AccountClosedEvent extends AccountDomainEvent {
-	readonly type: "platform.account.closed";
-	readonly payload: {
-		readonly accountId: string;
-	};
-}
-
-export interface AccountReactivatedEvent extends AccountDomainEvent {
-	readonly type: "platform.account.reactivated";
-	readonly payload: {
-		readonly accountId: string;
-	};
-}
-
-export type AccountDomainEventType =
-	| AccountCreatedEvent
-	| ProfileUpdatedEvent
-	| WalletCreditedEvent
-	| WalletDebitedEvent
-	| AccountSuspendedEvent
-	| AccountClosedEvent
-	| AccountReactivatedEvent;
-````
-
-## File: modules/platform/subdomains/account/domain/events/index.ts
-````typescript
-export * from "./AccountDomainEvent";
+export type { AccountRepository } from "./repositories/AccountRepository";
+export type { AccountQueryRepository, WalletBalanceSnapshot, Unsubscribe } from "./repositories/AccountQueryRepository";
+export type { AccountPolicyRepository } from "./repositories/AccountPolicyRepository";
+export type { TokenRefreshPort, TokenRefreshSignalInput } from "./ports/TokenRefreshPort";
+export type { IAccountPort, IAccountQueryPort, IAccountPolicyPort } from "./ports";
+export * from "./aggregates";
+export * from "./events";
+export * from "./value-objects";
 ````
 
 ## File: modules/platform/subdomains/account/domain/ports/index.ts
@@ -12552,77 +13872,6 @@ export type { AccountRepository as IAccountPort } from "../repositories/AccountR
 export type { AccountQueryRepository as IAccountQueryPort } from "../repositories/AccountQueryRepository";
 export type { AccountPolicyRepository as IAccountPolicyPort } from "../repositories/AccountPolicyRepository";
 export type { TokenRefreshPort } from "./TokenRefreshPort";
-````
-
-## File: modules/platform/subdomains/account/domain/value-objects/AccountId.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const AccountIdSchema = z.string().min(1).brand("AccountId");
-export type AccountId = z.infer<typeof AccountIdSchema>;
-
-export function createAccountId(raw: string): AccountId {
-	return AccountIdSchema.parse(raw);
-}
-````
-
-## File: modules/platform/subdomains/account/domain/value-objects/AccountStatus.ts
-````typescript
-export const ACCOUNT_STATUSES = ["active", "suspended", "closed"] as const;
-export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
-
-export function canSuspend(status: AccountStatus): boolean {
-	return status === "active";
-}
-
-export function canClose(status: AccountStatus): boolean {
-	return status !== "closed";
-}
-
-export function canReactivate(status: AccountStatus): boolean {
-	return status === "suspended";
-}
-````
-
-## File: modules/platform/subdomains/account/domain/value-objects/AccountType.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const ACCOUNT_TYPES = ["user", "organization"] as const;
-export type AccountType = (typeof ACCOUNT_TYPES)[number];
-
-export const AccountTypeSchema = z.enum(ACCOUNT_TYPES);
-
-export function createAccountType(raw: string): AccountType {
-	return AccountTypeSchema.parse(raw);
-}
-````
-
-## File: modules/platform/subdomains/account/domain/value-objects/index.ts
-````typescript
-export { AccountIdSchema, createAccountId } from "./AccountId";
-export type { AccountId } from "./AccountId";
-
-export { ACCOUNT_TYPES, AccountTypeSchema, createAccountType } from "./AccountType";
-export type { AccountType } from "./AccountType";
-
-export { ACCOUNT_STATUSES, canSuspend, canClose, canReactivate } from "./AccountStatus";
-export type { AccountStatus } from "./AccountStatus";
-
-export { WalletAmountSchema, createWalletAmount } from "./WalletAmount";
-export type { WalletAmount } from "./WalletAmount";
-````
-
-## File: modules/platform/subdomains/account/domain/value-objects/WalletAmount.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const WalletAmountSchema = z.number().positive().brand("WalletAmount");
-export type WalletAmount = z.infer<typeof WalletAmountSchema>;
-
-export function createWalletAmount(raw: number): WalletAmount {
-	return WalletAmountSchema.parse(raw);
-}
 ````
 
 ## File: modules/platform/subdomains/ai/api/index.ts
@@ -12775,127 +14024,6 @@ export interface EntitlementSignal {
 ## File: modules/platform/subdomains/entitlement/application/dtos/index.ts
 ````typescript
 export * from "./entitlement.dto";
-````
-
-## File: modules/platform/subdomains/entitlement/application/use-cases/entitlement.use-cases.ts
-````typescript
-/**
- * Entitlement Use Cases — pure application logic.
- * All cross-domain dependencies are injected via ports.
- */
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import { EntitlementGrant } from "../../domain/aggregates/EntitlementGrant";
-import type { EntitlementGrantRepository } from "../../domain/repositories/EntitlementGrantRepository";
-
-// ─── Grant Entitlement ────────────────────────────────────────────────────────
-
-export class GrantEntitlementUseCase {
-  constructor(private readonly repo: EntitlementGrantRepository) {}
-
-  async execute(input: {
-    contextId: string;
-    featureKey: string;
-    quota?: number | null;
-    expiresAt?: string | null;
-  }): Promise<CommandResult> {
-    try {
-      const id = crypto.randomUUID();
-      const grant = EntitlementGrant.create(id, input);
-      await this.repo.save(grant.getSnapshot());
-      return commandSuccess(id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "GRANT_ENTITLEMENT_FAILED",
-        err instanceof Error ? err.message : "Failed to grant entitlement",
-      );
-    }
-  }
-}
-
-// ─── Suspend Entitlement ──────────────────────────────────────────────────────
-
-export class SuspendEntitlementUseCase {
-  constructor(private readonly repo: EntitlementGrantRepository) {}
-
-  async execute(entitlementId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(entitlementId);
-      if (!snapshot) {
-        return commandFailureFrom("ENTITLEMENT_NOT_FOUND", `Entitlement ${entitlementId} not found`);
-      }
-      const grant = EntitlementGrant.reconstitute(snapshot);
-      grant.suspend();
-      await this.repo.update(grant.getSnapshot());
-      return commandSuccess(entitlementId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "SUSPEND_ENTITLEMENT_FAILED",
-        err instanceof Error ? err.message : "Failed to suspend entitlement",
-      );
-    }
-  }
-}
-
-// ─── Revoke Entitlement ───────────────────────────────────────────────────────
-
-export class RevokeEntitlementUseCase {
-  constructor(private readonly repo: EntitlementGrantRepository) {}
-
-  async execute(entitlementId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(entitlementId);
-      if (!snapshot) {
-        return commandFailureFrom("ENTITLEMENT_NOT_FOUND", `Entitlement ${entitlementId} not found`);
-      }
-      const grant = EntitlementGrant.reconstitute(snapshot);
-      grant.revoke();
-      await this.repo.update(grant.getSnapshot());
-      return commandSuccess(entitlementId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "REVOKE_ENTITLEMENT_FAILED",
-        err instanceof Error ? err.message : "Failed to revoke entitlement",
-      );
-    }
-  }
-}
-
-// ─── Resolve Entitlements (query-style) ───────────────────────────────────────
-
-export class ResolveEntitlementsUseCase {
-  constructor(private readonly repo: EntitlementGrantRepository) {}
-
-  async execute(contextId: string): Promise<CommandResult> {
-    try {
-      const snapshots = await this.repo.findByContextId(contextId);
-      const active = snapshots.filter((s) => s.status === "active");
-      return commandSuccess(active, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "RESOLVE_ENTITLEMENTS_FAILED",
-        err instanceof Error ? err.message : "Failed to resolve entitlements",
-      );
-    }
-  }
-}
-
-// ─── Check Feature Entitlement ────────────────────────────────────────────────
-
-export class CheckFeatureEntitlementUseCase {
-  constructor(private readonly repo: EntitlementGrantRepository) {}
-
-  async execute(contextId: string, featureKey: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findActiveByContextAndFeature(contextId, featureKey);
-      return commandSuccess({ entitled: snapshot !== null, snapshot }, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CHECK_ENTITLEMENT_FAILED",
-        err instanceof Error ? err.message : "Failed to check entitlement",
-      );
-    }
-  }
-}
 ````
 
 ## File: modules/platform/subdomains/entitlement/application/use-cases/index.ts
@@ -13295,258 +14423,16 @@ export class FirebaseEntitlementGrantRepository implements EntitlementGrantRepos
 }
 ````
 
-## File: modules/platform/subdomains/identity/domain/aggregates/index.ts
+## File: modules/platform/subdomains/identity/domain/index.ts
 ````typescript
-export * from "./UserIdentity";
-````
-
-## File: modules/platform/subdomains/identity/domain/aggregates/UserIdentity.ts
-````typescript
-import type { IdentityDomainEventType } from "../events";
-import { canReactivate, canSuspend } from "../value-objects";
-import { createDisplayName, createEmail, createUserId } from "../value-objects";
-import type { IdentityStatus } from "../value-objects";
-
-export interface UserIdentitySnapshot {
-	readonly uid: string;
-	readonly email: string | null;
-	readonly displayName: string | null;
-	readonly photoURL: string | null;
-	readonly isAnonymous: boolean;
-	readonly emailVerified: boolean;
-	readonly status: IdentityStatus;
-	readonly lastSignInAtISO: string | null;
-	readonly createdAtISO: string;
-	readonly updatedAtISO: string;
-}
-
-export interface CreateIdentityInput {
-	readonly email: string | null;
-	readonly displayName: string | null;
-	readonly photoURL: string | null;
-	readonly isAnonymous: boolean;
-	readonly emailVerified: boolean;
-}
-
-export class UserIdentity {
-	private readonly _domainEvents: IdentityDomainEventType[] = [];
-
-	private constructor(private _props: UserIdentitySnapshot) {}
-
-	static create(uid: string, input: CreateIdentityInput): UserIdentity {
-		createUserId(uid);
-		if (input.email !== null) {
-			createEmail(input.email);
-		}
-		const normalizedDisplayName = input.displayName === null ? null : createDisplayName(input.displayName);
-		const now = new Date().toISOString();
-		const aggregate = new UserIdentity({
-			uid,
-			email: input.email,
-			displayName: normalizedDisplayName ?? null,
-			photoURL: input.photoURL,
-			isAnonymous: input.isAnonymous,
-			emailVerified: input.emailVerified,
-			status: "active",
-			lastSignInAtISO: null,
-			createdAtISO: now,
-			updatedAtISO: now,
-		});
-		aggregate._domainEvents.push({
-			type: "platform.identity.created",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				uid,
-				email: input.email,
-				isAnonymous: input.isAnonymous,
-			},
-		});
-		return aggregate;
-	}
-
-	static reconstitute(snapshot: UserIdentitySnapshot): UserIdentity {
-		return new UserIdentity({ ...snapshot });
-	}
-
-	signIn(): void {
-		if (this._props.status !== "active") {
-			throw new Error("Cannot sign in with a suspended identity.");
-		}
-		const now = new Date().toISOString();
-		this._props = { ...this._props, lastSignInAtISO: now, updatedAtISO: now };
-		this._domainEvents.push({
-			type: "platform.identity.signed_in",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: { uid: this._props.uid, signedInAtISO: now },
-		});
-	}
-
-	updateDisplayName(name: string): void {
-		const normalizedName = createDisplayName(name);
-		const previousDisplayName = this._props.displayName;
-		const now = new Date().toISOString();
-		this._props = { ...this._props, displayName: normalizedName, updatedAtISO: now };
-		this._domainEvents.push({
-			type: "platform.identity.display_name_updated",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				uid: this._props.uid,
-				previousDisplayName,
-				displayName: normalizedName,
-			},
-		});
-	}
-
-	verifyEmail(): void {
-		if (this._props.emailVerified) {
-			throw new Error("Identity email is already verified.");
-		}
-		const now = new Date().toISOString();
-		this._props = { ...this._props, emailVerified: true, updatedAtISO: now };
-		this._domainEvents.push({
-			type: "platform.identity.email_verified",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: { uid: this._props.uid, email: this._props.email },
-		});
-	}
-
-	suspend(): void {
-		if (!canSuspend(this._props.status)) {
-			throw new Error("Identity is already suspended.");
-		}
-		const now = new Date().toISOString();
-		this._props = { ...this._props, status: "suspended", updatedAtISO: now };
-		this._domainEvents.push({
-			type: "platform.identity.suspended",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: { uid: this._props.uid },
-		});
-	}
-
-	reactivate(): void {
-		if (!canReactivate(this._props.status)) {
-			throw new Error("Identity is not suspended.");
-		}
-		const now = new Date().toISOString();
-		this._props = { ...this._props, status: "active", updatedAtISO: now };
-		this._domainEvents.push({
-			type: "platform.identity.reactivated",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: { uid: this._props.uid },
-		});
-	}
-
-	get uid(): string {
-		return this._props.uid;
-	}
-
-	get email(): string | null {
-		return this._props.email;
-	}
-
-	get displayName(): string | null {
-		return this._props.displayName;
-	}
-
-	get isActive(): boolean {
-		return this._props.status === "active";
-	}
-
-	get isAnonymous(): boolean {
-		return this._props.isAnonymous;
-	}
-
-	get emailVerified(): boolean {
-		return this._props.emailVerified;
-	}
-
-	getSnapshot(): Readonly<UserIdentitySnapshot> {
-		return Object.freeze({ ...this._props });
-	}
-
-	pullDomainEvents(): IdentityDomainEventType[] {
-		const events = [...this._domainEvents];
-		this._domainEvents.length = 0;
-		return events;
-	}
-}
-````
-
-## File: modules/platform/subdomains/identity/domain/events/IdentityDomainEvent.ts
-````typescript
-export interface IdentityDomainEvent {
-	readonly eventId: string;
-	readonly occurredAt: string;
-	readonly type: string;
-	readonly payload: object;
-}
-
-export interface IdentityCreatedEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.created";
-	readonly payload: {
-		readonly uid: string;
-		readonly email: string | null;
-		readonly isAnonymous: boolean;
-	};
-}
-
-export interface SignedInEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.signed_in";
-	readonly payload: {
-		readonly uid: string;
-		readonly signedInAtISO: string;
-	};
-}
-
-export interface DisplayNameUpdatedEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.display_name_updated";
-	readonly payload: {
-		readonly uid: string;
-		readonly previousDisplayName: string | null;
-		readonly displayName: string;
-	};
-}
-
-export interface EmailVerifiedEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.email_verified";
-	readonly payload: {
-		readonly uid: string;
-		readonly email: string | null;
-	};
-}
-
-export interface IdentitySuspendedEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.suspended";
-	readonly payload: {
-		readonly uid: string;
-	};
-}
-
-export interface IdentityReactivatedEvent extends IdentityDomainEvent {
-	readonly type: "platform.identity.reactivated";
-	readonly payload: {
-		readonly uid: string;
-	};
-}
-
-export type IdentityDomainEventType =
-	| IdentityCreatedEvent
-	| SignedInEvent
-	| DisplayNameUpdatedEvent
-	| EmailVerifiedEvent
-	| IdentitySuspendedEvent
-	| IdentityReactivatedEvent;
-````
-
-## File: modules/platform/subdomains/identity/domain/events/index.ts
-````typescript
-export * from "./IdentityDomainEvent";
+export type { IdentityEntity, RegistrationInput, SignInCredentials } from "./entities/Identity";
+export type { TokenRefreshReason, TokenRefreshSignal } from "./entities/TokenRefreshSignal";
+export type { IdentityRepository } from "./repositories/IdentityRepository";
+export type { TokenRefreshRepository } from "./repositories/TokenRefreshRepository";
+export type { IIdentityPort, ITokenRefreshPort } from "./ports";
+export * from "./aggregates";
+export * from "./events";
+export * from "./value-objects";
 ````
 
 ## File: modules/platform/subdomains/identity/domain/ports/index.ts
@@ -13560,149 +14446,6 @@ export * from "./IdentityDomainEvent";
  */
 export type { IdentityRepository as IIdentityPort } from "../repositories/IdentityRepository";
 export type { TokenRefreshRepository as ITokenRefreshPort } from "../repositories/TokenRefreshRepository";
-````
-
-## File: modules/platform/subdomains/identity/domain/value-objects/DisplayName.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const DisplayNameSchema = z.string().min(1).max(100).trim().brand("DisplayName");
-export type DisplayName = z.infer<typeof DisplayNameSchema>;
-
-export function createDisplayName(raw: string): DisplayName {
-	return DisplayNameSchema.parse(raw);
-}
-````
-
-## File: modules/platform/subdomains/identity/domain/value-objects/Email.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const EmailSchema = z.string().email().brand("Email");
-export type Email = z.infer<typeof EmailSchema>;
-
-export function createEmail(raw: string): Email {
-	return EmailSchema.parse(raw);
-}
-
-export function unsafeEmail(raw: string): Email {
-	return raw as Email;
-}
-````
-
-## File: modules/platform/subdomains/identity/domain/value-objects/IdentityStatus.ts
-````typescript
-export const IDENTITY_STATUSES = ["active", "suspended"] as const;
-export type IdentityStatus = (typeof IDENTITY_STATUSES)[number];
-
-export function canSuspend(status: IdentityStatus): boolean {
-	return status === "active";
-}
-
-export function canReactivate(status: IdentityStatus): boolean {
-	return status === "suspended";
-}
-````
-
-## File: modules/platform/subdomains/identity/domain/value-objects/index.ts
-````typescript
-export { EmailSchema, createEmail, unsafeEmail } from "./Email";
-export type { Email } from "./Email";
-
-export { UserIdSchema, createUserId, unsafeUserId } from "./UserId";
-export type { UserId } from "./UserId";
-
-export { DisplayNameSchema, createDisplayName } from "./DisplayName";
-export type { DisplayName } from "./DisplayName";
-
-export { IDENTITY_STATUSES, canSuspend, canReactivate } from "./IdentityStatus";
-export type { IdentityStatus } from "./IdentityStatus";
-````
-
-## File: modules/platform/subdomains/identity/domain/value-objects/UserId.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const UserIdSchema = z.string().min(1).brand("UserId");
-export type UserId = z.infer<typeof UserIdSchema>;
-
-export function createUserId(raw: string): UserId {
-	return UserIdSchema.parse(raw);
-}
-
-export function unsafeUserId(raw: string): UserId {
-	return raw as UserId;
-}
-````
-
-## File: modules/platform/subdomains/identity/infrastructure/identity-service.ts
-````typescript
-/**
- * identity-service.ts — Adapter-layer composition root.
- *
- * Wires Firebase-backed repositories into identity use cases.
- * Lives in adapters/ because it instantiates infrastructure adapters.
- * Dependency direction: adapters/ -> application/ -> domain/ (correct, no violation).
- */
-
-import type { TokenRefreshReason } from "../domain";
-import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
-import {
-	RegisterUseCase,
-	SendPasswordResetEmailUseCase,
-	SignInAnonymouslyUseCase,
-	SignInUseCase,
-} from "../application/use-cases/identity.use-cases";
-import { FirebaseIdentityRepository } from "./firebase/FirebaseIdentityRepository";
-import { FirebaseTokenRefreshRepository } from "./firebase/FirebaseTokenRefreshRepository";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface EmitTokenRefreshSignalInput {
-	accountId: string;
-	reason: TokenRefreshReason;
-	traceId?: string;
-}
-
-// ─── Server-side token refresh signal emitter ─────────────────────────────────
-
-let _tokenRefreshRepo: FirebaseTokenRefreshRepository | undefined;
-let _emitUseCase: EmitTokenRefreshSignalUseCase | undefined;
-
-function getEmitUseCase(): EmitTokenRefreshSignalUseCase {
-	if (!_emitUseCase) {
-		if (!_tokenRefreshRepo) _tokenRefreshRepo = new FirebaseTokenRefreshRepository();
-		_emitUseCase = new EmitTokenRefreshSignalUseCase(_tokenRefreshRepo);
-	}
-	return _emitUseCase;
-}
-
-/**
- * identityApi — server-side operations for identity management.
- * Intended for use in Server Actions and server-side code paths.
- */
-export const identityApi = {
-	async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void> {
-		await getEmitUseCase().execute(input.accountId, input.reason, input.traceId);
-	},
-} as const;
-
-// ─── Client-side use-case factory ─────────────────────────────────────────────
-
-/**
- * createClientAuthUseCases — creates Firebase-wired client-side auth use cases.
- * Each call returns fresh use-case instances sharing one repository instance.
- * Use only in "use client" components or client-side hooks.
- */
-export function createClientAuthUseCases() {
-	const repo = new FirebaseIdentityRepository();
-	return {
-		signInUseCase: new SignInUseCase(repo),
-		signInAnonymouslyUseCase: new SignInAnonymouslyUseCase(repo),
-		registerUseCase: new RegisterUseCase(repo),
-		sendPasswordResetEmailUseCase: new SendPasswordResetEmailUseCase(repo),
-	};
-}
 ````
 
 ## File: modules/platform/subdomains/identity/interfaces/_actions/identity.actions.ts
@@ -13766,6 +14509,40 @@ export async function signOut(): Promise<CommandResult> {
 }
 ````
 
+## File: modules/platform/subdomains/identity/interfaces/hooks/useTokenRefreshListener.tsx
+````typescript
+"use client";
+
+import { getFirebaseAuth } from "@integration-firebase";
+import { useEffect } from "react";
+import { FirebaseTokenRefreshRepository } from "../../api";
+
+let _tokenRefreshRepo: FirebaseTokenRefreshRepository | undefined;
+
+function getTokenRefreshRepo(): FirebaseTokenRefreshRepository {
+	if (!_tokenRefreshRepo) _tokenRefreshRepo = new FirebaseTokenRefreshRepository();
+	return _tokenRefreshRepo;
+}
+
+export function useTokenRefreshListener(accountId: string | null | undefined): void {
+	useEffect(() => {
+		if (!accountId) return;
+		if (!/^[\w-]+$/.test(accountId)) return;
+
+		const unsubscribe = getTokenRefreshRepo().subscribe(accountId, () => {
+			const auth = getFirebaseAuth();
+			const currentUser = auth.currentUser;
+			if (!currentUser) return;
+			void currentUser.getIdToken(true).catch(() => {
+				// Non-fatal: token refreshes naturally on next expiry cycle.
+			});
+		});
+
+		return () => unsubscribe();
+	}, [accountId]);
+}
+````
+
 ## File: modules/platform/subdomains/notification/api/index.ts
 ````typescript
 /**
@@ -13786,7 +14563,7 @@ export type { NotificationsPageProps } from "../interfaces/components/Notificati
 export * from "../interfaces";
 ````
 
-## File: modules/platform/subdomains/notification/application/dto/notification.dto.ts
+## File: modules/platform/subdomains/notification/application/dtos/notification.dto.ts
 ````typescript
 /**
  * Application-layer DTO re-exports for the notification subdomain.
@@ -14009,6 +14786,48 @@ export function createNotificationId(raw: string): NotificationId {
 }
 ````
 
+## File: modules/platform/subdomains/notification/infrastructure/notification-service.ts
+````typescript
+/**
+ * NotificationService — Composition root for notification use cases.
+ */
+
+import { FirebaseNotificationRepository } from "./firebase/FirebaseNotificationRepository";
+import {
+  DispatchNotificationUseCase,
+  GetNotificationsForRecipientUseCase,
+  GetUnreadCountUseCase,
+  MarkNotificationReadUseCase,
+  MarkAllNotificationsReadUseCase,
+} from "../application/use-cases/notification.use-cases";
+import type { DispatchNotificationInput, NotificationEntity } from "../domain/entities/Notification";
+import type { CommandResult } from "@shared-types";
+
+let _notificationRepo: FirebaseNotificationRepository | undefined;
+
+function getNotifRepo(): FirebaseNotificationRepository {
+  if (!_notificationRepo) _notificationRepo = new FirebaseNotificationRepository();
+  return _notificationRepo;
+}
+
+export const notificationService = {
+  dispatch: (input: DispatchNotificationInput): Promise<CommandResult> =>
+    new DispatchNotificationUseCase(getNotifRepo()).execute(input),
+
+  markAsRead: (notificationId: string, recipientId: string): Promise<CommandResult> =>
+    new MarkNotificationReadUseCase(getNotifRepo()).execute(notificationId, recipientId),
+
+  markAllAsRead: (recipientId: string): Promise<CommandResult> =>
+    new MarkAllNotificationsReadUseCase(getNotifRepo()).execute(recipientId),
+
+  getForRecipient: (recipientId: string, maxCount?: number): Promise<NotificationEntity[]> =>
+    new GetNotificationsForRecipientUseCase(getNotifRepo()).execute(recipientId, maxCount),
+
+  getUnreadCount: (recipientId: string): Promise<number> =>
+    new GetUnreadCountUseCase(getNotifRepo()).execute(recipientId),
+};
+````
+
 ## File: modules/platform/subdomains/notification/interfaces/components/NotificationBell.tsx
 ````typescript
 "use client";
@@ -14027,7 +14846,7 @@ import {
   markAllNotificationsRead,
 } from "../_actions/notification.actions";
 import { getNotificationsForRecipient } from "../queries/notification.queries";
-import type { NotificationEntity } from "../../application/dto/notification.dto";
+import type { NotificationEntity } from "../../application/dtos/notification.dto";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   DropdownMenu,
@@ -14211,7 +15030,7 @@ import {
   markNotificationRead,
 } from "../_actions/notification.actions";
 import { getNotificationsForRecipient } from "../queries/notification.queries";
-import type { NotificationEntity } from "../../application/dto/notification.dto";
+import type { NotificationEntity } from "../../application/dtos/notification.dto";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
@@ -14368,7 +15187,81 @@ export function NotificationsPage({ recipientId }: NotificationsPageProps) {
 }
 ````
 
-## File: modules/platform/subdomains/organization/application/dto/organization.dto.ts
+## File: modules/platform/subdomains/organization/api/index.ts
+````typescript
+/**
+ * Public API boundary for the organization subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * NOTE: We avoid `export * from "../infrastructure"` here because the
+ * infrastructure barrel pulls in Firebase repository constructors during
+ * module evaluation, which causes failures during Next.js static
+ * prerendering. Infrastructure exports are available in the server barrel
+ * (./server.ts) or via direct import from action / service files.
+ */
+
+// --- Domain types ---
+export type {
+  OrganizationEntity,
+  OrganizationRole,
+  Presence,
+  InviteState,
+  PolicyEffect,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  ThemeConfig,
+  OrgPolicy,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../domain";
+export type { OrganizationRepository, Unsubscribe } from "../domain";
+export type { OrgPolicyRepository } from "../domain";
+
+// --- Application use cases ---
+export {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "../application";
+export {
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "../application";
+export {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../application";
+export {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "../application";
+export {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "../application";
+
+// --- Infrastructure (lazy, safe for SSR) ---
+export { organizationService, organizationQueryService } from "../infrastructure";
+
+// --- Interfaces (UI, queries, actions) ---
+export * from "../interfaces";
+````
+
+## File: modules/platform/subdomains/organization/application/dtos/organization.dto.ts
 ````typescript
 /**
  * Application-layer DTO re-exports for the organization subdomain.
@@ -14388,470 +15281,107 @@ export type {
 } from "../../domain/entities/Organization";
 ````
 
-## File: modules/platform/subdomains/organization/domain/aggregates/index.ts
+## File: modules/platform/subdomains/organization/application/use-cases/organization-team.use-cases.ts
 ````typescript
-export * from "./Organization";
-````
+/**
+ * Organization Team Use Cases — team-scoped operations owned by the organization subdomain.
+ *
+ * These use cases depend only on IOrganizationTeamPort (defined in organization's own
+ * domain/ports/), keeping the application layer free from direct peer-subdomain imports.
+ * The infrastructure composition root (organization-service.ts) injects the concrete
+ * team adapter that satisfies the port.
+ */
 
-## File: modules/platform/subdomains/organization/domain/aggregates/Organization.ts
-````typescript
-import type {
-	MemberAddedEvent,
-	MemberRemovedEvent,
-	MemberRoleUpdatedEvent,
-	OrganizationCreatedEvent,
-	OrganizationDissolvedEvent,
-	OrganizationDomainEventType,
-	OrganizationReactivatedEvent,
-	OrganizationSuspendedEvent,
-	SettingsUpdatedEvent,
-} from "../events";
-import type { ThemeConfig } from "../entities/Organization";
-import {
-	canDissolve,
-	canReactivate,
-	canSuspend,
-	createMemberRole,
-	createOrganizationId,
-	type MemberRole,
-	type OrganizationStatus,
-} from "../value-objects";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { IOrganizationTeamPort } from "../../domain/ports/IOrganizationTeamPort";
+import type { CreateTeamInput } from "../../domain/entities/Organization";
 
-export interface OrganizationSnapshot {
-	readonly id: string;
-	readonly name: string;
-	readonly ownerId: string;
-	readonly ownerName: string;
-	readonly ownerEmail: string;
-	readonly description: string | null;
-	readonly photoURL: string | null;
-	readonly theme: ThemeConfig | null;
-	readonly memberCount: number;
-	readonly teamCount: number;
-	readonly status: "active" | "suspended" | "dissolved";
-	readonly createdAtISO: string;
-	readonly updatedAtISO: string;
+export class CreateTeamUseCase {
+  constructor(private readonly teamPort: IOrganizationTeamPort) {}
+
+  async execute(input: CreateTeamInput): Promise<CommandResult> {
+    try {
+      const teamId = await this.teamPort.createTeam(input);
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CREATE_TEAM_FAILED",
+        err instanceof Error ? err.message : "Failed to create team",
+      );
+    }
+  }
 }
 
-export interface CreateOrganizationInput {
-	readonly name: string;
-	readonly ownerId: string;
-	readonly ownerName: string;
-	readonly ownerEmail: string;
-	readonly description?: string | null;
-	readonly photoURL?: string | null;
-	readonly theme?: ThemeConfig | null;
+export class DeleteTeamUseCase {
+  constructor(private readonly teamPort: IOrganizationTeamPort) {}
+
+  async execute(organizationId: string, teamId: string): Promise<CommandResult> {
+    try {
+      await this.teamPort.deleteTeam(organizationId, teamId);
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "DELETE_TEAM_FAILED",
+        err instanceof Error ? err.message : "Failed to delete team",
+      );
+    }
+  }
 }
 
-export class Organization {
-	private readonly _domainEvents: OrganizationDomainEventType[] = [];
-	private readonly _memberRoles = new Map<string, MemberRole>();
+export class UpdateTeamMembersUseCase {
+  constructor(private readonly teamPort: IOrganizationTeamPort) {}
 
-	private constructor(private _props: OrganizationSnapshot) {}
-
-	static create(id: string, input: CreateOrganizationInput): Organization {
-		createOrganizationId(id);
-		Organization.assertRequired(input.name, "Organization name is required.");
-		Organization.assertRequired(input.ownerId, "Owner id is required.");
-		Organization.assertRequired(input.ownerName, "Owner name is required.");
-		Organization.assertRequired(input.ownerEmail, "Owner email is required.");
-		const now = new Date().toISOString();
-		const aggregate = new Organization({
-			id,
-			name: input.name.trim(),
-			ownerId: input.ownerId.trim(),
-			ownerName: input.ownerName.trim(),
-			ownerEmail: input.ownerEmail.trim(),
-			description: input.description ?? null,
-			photoURL: input.photoURL ?? null,
-			theme: input.theme ?? null,
-			memberCount: 1,
-			teamCount: 0,
-			status: "active",
-			createdAtISO: now,
-			updatedAtISO: now,
-		});
-		aggregate._memberRoles.set(aggregate._props.ownerId, "Owner");
-		aggregate.recordEvent<OrganizationCreatedEvent>({
-			type: "platform.organization.created",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				organizationId: aggregate._props.id,
-				name: aggregate._props.name,
-				ownerId: aggregate._props.ownerId,
-				ownerName: aggregate._props.ownerName,
-				ownerEmail: aggregate._props.ownerEmail,
-				theme: aggregate._props.theme,
-			},
-		});
-		return aggregate;
-	}
-
-	static reconstitute(snapshot: OrganizationSnapshot): Organization {
-		createOrganizationId(snapshot.id);
-		if (snapshot.memberCount < 1) {
-			throw new Error("Organization memberCount must be at least 1.");
-		}
-		if (snapshot.teamCount < 0) {
-			throw new Error("Organization teamCount cannot be negative.");
-		}
-		const aggregate = new Organization({ ...snapshot });
-		aggregate._memberRoles.set(snapshot.ownerId, "Owner");
-		return aggregate;
-	}
-
-	updateSettings(input: { name?: string; description?: string | null; photoURL?: string | null; theme?: ThemeConfig | null }): void {
-		this.ensureActive("Only active organization can update settings.");
-		if (input.name !== undefined) {
-			Organization.assertRequired(input.name, "Organization name is required.");
-		}
-		const now = new Date().toISOString();
-		this._props = {
-			...this._props,
-			name: input.name === undefined ? this._props.name : input.name.trim(),
-			description: input.description === undefined ? this._props.description : input.description,
-			photoURL: input.photoURL === undefined ? this._props.photoURL : input.photoURL,
-			theme: input.theme === undefined ? this._props.theme : input.theme,
-			updatedAtISO: now,
-		};
-		this.recordEvent<SettingsUpdatedEvent>({
-			type: "platform.organization.settings_updated",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				organizationId: this._props.id,
-				name: this._props.name,
-				description: this._props.description,
-				photoURL: this._props.photoURL,
-				theme: this._props.theme,
-			},
-		});
-	}
-
-	addMember(memberId: string, name: string, email: string, role: MemberRole): void {
-		this.ensureActive("Only active organization can add members.");
-		Organization.assertRequired(memberId, "Member id is required.");
-		Organization.assertRequired(name, "Member name is required.");
-		Organization.assertRequired(email, "Member email is required.");
-		const normalizedRole = createMemberRole(role);
-		if (memberId === this._props.ownerId || this._memberRoles.has(memberId)) {
-			throw new Error("Member already exists in organization.");
-		}
-		const now = new Date().toISOString();
-		this._memberRoles.set(memberId, normalizedRole);
-		this._props = {
-			...this._props,
-			memberCount: this._props.memberCount + 1,
-			updatedAtISO: now,
-		};
-		this.recordEvent<MemberAddedEvent>({
-			type: "platform.organization.member_added",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				organizationId: this._props.id,
-				memberId,
-				name: name.trim(),
-				email: email.trim(),
-				role: normalizedRole,
-				memberCount: this._props.memberCount,
-			},
-		});
-	}
-
-	removeMember(memberId: string): void {
-		this.ensureActive("Only active organization can remove members.");
-		Organization.assertRequired(memberId, "Member id is required.");
-		if (memberId === this._props.ownerId) {
-			throw new Error("Cannot remove organization owner.");
-		}
-		if (!this._memberRoles.has(memberId)) {
-			throw new Error("Member does not exist in organization.");
-		}
-		const now = new Date().toISOString();
-		this._memberRoles.delete(memberId);
-		this._props = {
-			...this._props,
-			memberCount: this._props.memberCount - 1,
-			updatedAtISO: now,
-		};
-		this.recordEvent<MemberRemovedEvent>({
-			type: "platform.organization.member_removed",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				organizationId: this._props.id,
-				memberId,
-				memberCount: this._props.memberCount,
-			},
-		});
-	}
-
-	updateMemberRole(memberId: string, newRole: MemberRole): void {
-		this.ensureActive("Only active organization can update member roles.");
-		Organization.assertRequired(memberId, "Member id is required.");
-		if (memberId === this._props.ownerId) {
-			throw new Error("Cannot change organization owner role.");
-		}
-		if (!this._memberRoles.has(memberId)) {
-			throw new Error("Member does not exist in organization.");
-		}
-		const normalizedRole = createMemberRole(newRole);
-		const previousRole = this._memberRoles.get(memberId) ?? "Member";
-		const now = new Date().toISOString();
-		this._memberRoles.set(memberId, normalizedRole);
-		this._props = { ...this._props, updatedAtISO: now };
-		this.recordEvent<MemberRoleUpdatedEvent>({
-			type: "platform.organization.member_role_updated",
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: {
-				organizationId: this._props.id,
-				memberId,
-				previousRole,
-				role: normalizedRole,
-			},
-		});
-	}
-
-	suspend(): void {
-		if (!canSuspend(this._props.status)) {
-			throw new Error("Only active organization can be suspended.");
-		}
-		this.changeStatus("suspended", "platform.organization.suspended");
-	}
-
-	dissolve(): void {
-		if (!canDissolve(this._props.status)) {
-			throw new Error("Organization is already dissolved.");
-		}
-		this.changeStatus("dissolved", "platform.organization.dissolved");
-	}
-
-	reactivate(): void {
-		if (!canReactivate(this._props.status)) {
-			throw new Error("Only suspended organization can be reactivated.");
-		}
-		this.changeStatus("active", "platform.organization.reactivated");
-	}
-
-	get id(): string {
-		return this._props.id;
-	}
-
-	get name(): string {
-		return this._props.name;
-	}
-
-	get ownerId(): string {
-		return this._props.ownerId;
-	}
-
-	get ownerName(): string {
-		return this._props.ownerName;
-	}
-
-	get ownerEmail(): string {
-		return this._props.ownerEmail;
-	}
-
-	get description(): string | null {
-		return this._props.description;
-	}
-
-	get photoURL(): string | null {
-		return this._props.photoURL;
-	}
-
-	get theme(): ThemeConfig | null {
-		return this._props.theme;
-	}
-
-	get memberCount(): number {
-		return this._props.memberCount;
-	}
-
-	get teamCount(): number {
-		return this._props.teamCount;
-	}
-
-	get status(): OrganizationStatus {
-		return this._props.status;
-	}
-
-	get createdAtISO(): string {
-		return this._props.createdAtISO;
-	}
-
-	get updatedAtISO(): string {
-		return this._props.updatedAtISO;
-	}
-
-	getSnapshot(): Readonly<OrganizationSnapshot> {
-		return Object.freeze({ ...this._props });
-	}
-
-	pullDomainEvents(): OrganizationDomainEventType[] {
-		const events = [...this._domainEvents];
-		this._domainEvents.length = 0;
-		return events;
-	}
-
-	private changeStatus(
-		status: OrganizationStatus,
-		eventType: "platform.organization.suspended" | "platform.organization.dissolved" | "platform.organization.reactivated",
-	): void {
-		const now = new Date().toISOString();
-		this._props = { ...this._props, status, updatedAtISO: now };
-		if (eventType === "platform.organization.suspended") {
-			this.recordEvent<OrganizationSuspendedEvent>({
-				type: eventType,
-				eventId: crypto.randomUUID(),
-				occurredAt: now,
-				payload: { organizationId: this._props.id, status },
-			});
-			return;
-		}
-		if (eventType === "platform.organization.dissolved") {
-			this.recordEvent<OrganizationDissolvedEvent>({
-				type: eventType,
-				eventId: crypto.randomUUID(),
-				occurredAt: now,
-				payload: { organizationId: this._props.id, status },
-			});
-			return;
-		}
-		this.recordEvent<OrganizationReactivatedEvent>({
-			type: eventType,
-			eventId: crypto.randomUUID(),
-			occurredAt: now,
-			payload: { organizationId: this._props.id, status },
-		});
-	}
-
-	private ensureActive(message: string): void {
-		if (this._props.status !== "active") {
-			throw new Error(message);
-		}
-	}
-
-	private recordEvent<TEvent extends OrganizationDomainEventType>(event: TEvent): void {
-		this._domainEvents.push(event);
-	}
-
-	private static assertRequired(value: string, message: string): void {
-		if (value.trim().length === 0) {
-			throw new Error(message);
-		}
-	}
+  async execute(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+    action: "add" | "remove",
+  ): Promise<CommandResult> {
+    try {
+      if (action === "add") {
+        await this.teamPort.addMemberToTeam(organizationId, teamId, memberId);
+      } else {
+        await this.teamPort.removeMemberFromTeam(organizationId, teamId, memberId);
+      }
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_TEAM_MEMBERS_FAILED",
+        err instanceof Error ? err.message : "Failed to update team members",
+      );
+    }
+  }
 }
 ````
 
-## File: modules/platform/subdomains/organization/domain/events/index.ts
+## File: modules/platform/subdomains/organization/domain/index.ts
 ````typescript
-export * from "./OrganizationDomainEvent";
-````
-
-## File: modules/platform/subdomains/organization/domain/events/OrganizationDomainEvent.ts
-````typescript
-import type { ThemeConfig } from "../entities/Organization";
-import type { MemberRole, OrganizationStatus } from "../value-objects";
-
-export interface OrganizationDomainEvent {
-	readonly eventId: string;
-	readonly occurredAt: string;
-	readonly type: string;
-	readonly payload: object;
-}
-
-export interface OrganizationCreatedEvent extends OrganizationDomainEvent {
-	readonly type: "platform.organization.created";
-	readonly payload: {
-		readonly organizationId: string;
-		readonly name: string;
-		readonly ownerId: string;
-		readonly ownerName: string;
-		readonly ownerEmail: string;
-		readonly theme: ThemeConfig | null;
-	};
-}
-
-export interface SettingsUpdatedEvent extends OrganizationDomainEvent {
-	readonly type: "platform.organization.settings_updated";
-	readonly payload: {
-		readonly organizationId: string;
-		readonly name: string;
-		readonly description: string | null;
-		readonly photoURL: string | null;
-		readonly theme: ThemeConfig | null;
-	};
-}
-
-export interface MemberAddedEvent extends OrganizationDomainEvent {
-	readonly type: "platform.organization.member_added";
-	readonly payload: {
-		readonly organizationId: string;
-		readonly memberId: string;
-		readonly name: string;
-		readonly email: string;
-		readonly role: MemberRole;
-		readonly memberCount: number;
-	};
-}
-
-export interface MemberRemovedEvent extends OrganizationDomainEvent {
-	readonly type: "platform.organization.member_removed";
-	readonly payload: {
-		readonly organizationId: string;
-		readonly memberId: string;
-		readonly memberCount: number;
-	};
-}
-
-export interface MemberRoleUpdatedEvent extends OrganizationDomainEvent {
-	readonly type: "platform.organization.member_role_updated";
-	readonly payload: {
-		readonly organizationId: string;
-		readonly memberId: string;
-		readonly previousRole: MemberRole;
-		readonly role: MemberRole;
-	};
-}
-
-export interface OrganizationSuspendedEvent extends OrganizationDomainEvent {
-	readonly type: "platform.organization.suspended";
-	readonly payload: {
-		readonly organizationId: string;
-		readonly status: OrganizationStatus;
-	};
-}
-
-export interface OrganizationDissolvedEvent extends OrganizationDomainEvent {
-	readonly type: "platform.organization.dissolved";
-	readonly payload: {
-		readonly organizationId: string;
-		readonly status: OrganizationStatus;
-	};
-}
-
-export interface OrganizationReactivatedEvent extends OrganizationDomainEvent {
-	readonly type: "platform.organization.reactivated";
-	readonly payload: {
-		readonly organizationId: string;
-		readonly status: OrganizationStatus;
-	};
-}
-
-export type OrganizationDomainEventType =
-	| OrganizationCreatedEvent
-	| SettingsUpdatedEvent
-	| MemberAddedEvent
-	| MemberRemovedEvent
-	| MemberRoleUpdatedEvent
-	| OrganizationSuspendedEvent
-	| OrganizationDissolvedEvent
-	| OrganizationReactivatedEvent;
+export type { OrganizationEntity,
+  OrganizationRole,
+  Presence,
+  InviteState,
+  PolicyEffect,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  ThemeConfig,
+  OrgPolicy,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "./entities/Organization";
+export type { OrganizationRepository, Unsubscribe } from "./repositories/OrganizationRepository";
+export type { OrgPolicyRepository } from "./repositories/OrgPolicyRepository";
+export type { IOrganizationTeamPort } from "./ports/IOrganizationTeamPort";
+export * from "./aggregates";
+export * from "./events";
+export * from "./value-objects";
 ````
 
 ## File: modules/platform/subdomains/organization/domain/ports/index.ts
@@ -14881,745 +15411,9 @@ export interface IOrganizationTeamPort {
 }
 ````
 
-## File: modules/platform/subdomains/organization/domain/value-objects/index.ts
-````typescript
-export { OrganizationIdSchema, createOrganizationId } from "./OrganizationId";
-export type { OrganizationId } from "./OrganizationId";
-
-export { MEMBER_ROLES, MemberRoleSchema, createMemberRole, canManageRole } from "./MemberRole";
-export type { MemberRole } from "./MemberRole";
-
-export { ORGANIZATION_STATUSES, canSuspend, canDissolve, canReactivate } from "./OrganizationStatus";
-export type { OrganizationStatus } from "./OrganizationStatus";
-````
-
-## File: modules/platform/subdomains/organization/domain/value-objects/MemberRole.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const MEMBER_ROLES = ["Owner", "Admin", "Member", "Guest"] as const;
-export const MemberRoleSchema = z.enum(MEMBER_ROLES);
-export type MemberRole = z.infer<typeof MemberRoleSchema>;
-
-const ROLE_RANK: Record<MemberRole, number> = {
-	Owner: 4,
-	Admin: 3,
-	Member: 2,
-	Guest: 1,
-};
-
-export function createMemberRole(raw: string): MemberRole {
-	return MemberRoleSchema.parse(raw);
-}
-
-export function canManageRole(managerRole: MemberRole, targetRole: MemberRole): boolean {
-	if (managerRole === "Owner") {
-		return targetRole !== "Owner";
-	}
-	return ROLE_RANK[managerRole] > ROLE_RANK[targetRole];
-}
-````
-
-## File: modules/platform/subdomains/organization/domain/value-objects/OrganizationId.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const OrganizationIdSchema = z.string().min(1).brand("OrganizationId");
-export type OrganizationId = z.infer<typeof OrganizationIdSchema>;
-
-export function createOrganizationId(raw: string): OrganizationId {
-	return OrganizationIdSchema.parse(raw);
-}
-````
-
-## File: modules/platform/subdomains/organization/domain/value-objects/OrganizationStatus.ts
-````typescript
-export const ORGANIZATION_STATUSES = ["active", "suspended", "dissolved"] as const;
-export type OrganizationStatus = (typeof ORGANIZATION_STATUSES)[number];
-
-export function canSuspend(status: OrganizationStatus): boolean {
-	return status === "active";
-}
-
-export function canDissolve(status: OrganizationStatus): boolean {
-	return status !== "dissolved";
-}
-
-export function canReactivate(status: OrganizationStatus): boolean {
-	return status === "suspended";
-}
-````
-
 ## File: modules/platform/subdomains/organization/infrastructure/index.ts
 ````typescript
 export { organizationService, organizationQueryService } from "./organization-service";
-````
-
-## File: modules/platform/subdomains/organization/interfaces/components/MembersPage.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import { dismissMember, inviteMember } from "../_actions/organization.actions";
-import { getOrganizationMembers } from "../queries/organization.queries";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-
-type MemberRole = "Admin" | "Member" | "Guest";
-
-export interface MembersPageProps {
-  organizationId: string | null;
-}
-
-export function MembersPage({ organizationId }: MembersPageProps) {
-  const [members, setMembers] = useState<Awaited<ReturnType<typeof getOrganizationMembers>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<MemberRole>("Member");
-  const [inviteSubmitting, setInviteSubmitting] = useState(false);
-  const [inviteError, setInviteError] = useState<string | null>(null);
-
-  const [removingId, setRemovingId] = useState<string | null>(null);
-
-  async function loadMembers(orgId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getOrganizationMembers(orgId);
-      setMembers(data);
-      setLoadState("loaded");
-    } catch {
-      setMembers([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!organizationId) return;
-    const orgId: string = organizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrganizationMembers(orgId);
-        if (!cancelled) {
-          setMembers(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setMembers([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [organizationId]);
-
-  async function handleInvite() {
-    if (!organizationId || !inviteEmail.trim()) return;
-    setInviteSubmitting(true);
-    setInviteError(null);
-    const result = await inviteMember({
-      organizationId,
-      email: inviteEmail.trim(),
-      teamId: "",
-      role: inviteRole,
-      protocol: "email",
-    });
-    setInviteSubmitting(false);
-    if (result.success) {
-      setInviteOpen(false);
-      setInviteEmail("");
-      setInviteRole("Member");
-      await loadMembers(organizationId);
-    } else {
-      setInviteError(result.error.message);
-    }
-  }
-
-  async function handleDismiss(memberId: string) {
-    if (!organizationId) return;
-    setRemovingId(memberId);
-    await dismissMember(organizationId, memberId);
-    setRemovingId(null);
-    await loadMembers(organizationId);
-  }
-
-  if (!organizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">成員</h1>
-          <p className="mt-1 text-sm text-muted-foreground">組織成員清單與目前角色。</p>
-        </div>
-        <Button onClick={() => setInviteOpen(true)}>邀請成員</Button>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Members</CardTitle>
-          <CardDescription>組織成員清單與目前角色。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入成員資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取成員資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && members.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的成員資料。</p>
-          )}
-          {loadState === "loaded" &&
-            members.map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center justify-between rounded-lg border border-border/40 px-3 py-2"
-              >
-                <div>
-                  <p className="text-sm font-medium">{member.name}</p>
-                  <p className="text-xs text-muted-foreground">{member.email}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{member.role}</Badge>
-                  <Badge variant="secondary">{member.presence}</Badge>
-                  {member.role !== "Owner" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={removingId === member.id}
-                      onClick={() => handleDismiss(member.id)}
-                    >
-                      移除
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>邀請成員</DialogTitle>
-            <DialogDescription>輸入電子信箱以邀請新成員加入組織。</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="invite-email">電子信箱</Label>
-              <Input
-                id="invite-email"
-                type="email"
-                placeholder="member@example.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="invite-role">角色</Label>
-              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as MemberRole)}>
-                <SelectTrigger id="invite-role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Admin">Admin</SelectItem>
-                  <SelectItem value="Member">Member</SelectItem>
-                  <SelectItem value="Guest">Guest</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setInviteOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleInvite} disabled={inviteSubmitting || !inviteEmail.trim()}>
-              {inviteSubmitting ? "邀請中…" : "送出邀請"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-````
-
-## File: modules/platform/subdomains/organization/interfaces/components/PermissionsPage.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import { createOrgPolicy } from "../_actions/organization-policy.actions";
-import { getOrgPolicies } from "../queries/organization.queries";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-
-type PolicyScope = "workspace" | "member" | "global";
-
-export interface PermissionsPageProps {
-  organizationId: string | null;
-}
-
-export function PermissionsPage({ organizationId }: PermissionsPageProps) {
-  const [policies, setPolicies] = useState<Awaited<ReturnType<typeof getOrgPolicies>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newScope, setNewScope] = useState<PolicyScope>("member");
-  const [createSubmitting, setCreateSubmitting] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  async function loadPolicies(orgId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getOrgPolicies(orgId);
-      setPolicies(data);
-      setLoadState("loaded");
-    } catch {
-      setPolicies([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!organizationId) return;
-    const orgId: string = organizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrgPolicies(orgId);
-        if (!cancelled) {
-          setPolicies(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setPolicies([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [organizationId]);
-
-  async function handleCreate() {
-    if (!organizationId || !newName.trim()) return;
-    setCreateSubmitting(true);
-    setCreateError(null);
-    const result = await createOrgPolicy({
-      orgId: organizationId,
-      name: newName.trim(),
-      description: newDescription.trim(),
-      rules: [],
-      scope: newScope,
-    });
-    setCreateSubmitting(false);
-    if (result.success) {
-      setCreateOpen(false);
-      setNewName("");
-      setNewDescription("");
-      setNewScope("member");
-      await loadPolicies(organizationId);
-    } else {
-      setCreateError(result.error.message);
-    }
-  }
-
-  if (!organizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">權限</h1>
-          <p className="mt-1 text-sm text-muted-foreground">組織層級政策規則與 scope。</p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>新增政策</Button>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Permissions</CardTitle>
-          <CardDescription>組織層級政策規則與 scope。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入政策資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取政策資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && policies.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的政策資料。</p>
-          )}
-          {loadState === "loaded" &&
-            policies.map((policy) => (
-              <div key={policy.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium">{policy.name}</p>
-                  <Badge variant="outline">{policy.scope}</Badge>
-                  <Badge variant={policy.isActive ? "default" : "secondary"}>
-                    {policy.isActive ? "active" : "inactive"}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{policy.description}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Rules: {policy.rules.length}</p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>新增政策</DialogTitle>
-            <DialogDescription>建立組織層級存取控制政策。</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="policy-name">名稱</Label>
-              <Input
-                id="policy-name"
-                placeholder="政策名稱"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="policy-description">描述</Label>
-              <Input
-                id="policy-description"
-                placeholder="選填"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="policy-scope">Scope</Label>
-              <Select value={newScope} onValueChange={(v) => setNewScope(v as PolicyScope)}>
-                <SelectTrigger id="policy-scope">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="member">Member（成員）</SelectItem>
-                  <SelectItem value="workspace">Workspace（工作區）</SelectItem>
-                  <SelectItem value="global">Global（全域）</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {createError && <p className="text-sm text-destructive">{createError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
-              {createSubmitting ? "建立中…" : "建立"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-````
-
-## File: modules/platform/subdomains/organization/interfaces/components/TeamsPage.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import { createTeam } from "../_actions/organization.actions";
-import { getOrganizationTeams } from "../queries/organization.queries";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-
-export interface TeamsPageProps {
-  organizationId: string | null;
-}
-
-export function TeamsPage({ organizationId }: TeamsPageProps) {
-  const [teams, setTeams] = useState<Awaited<ReturnType<typeof getOrganizationTeams>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newType, setNewType] = useState<"internal" | "external">("internal");
-  const [createSubmitting, setCreateSubmitting] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  async function loadTeams(orgId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getOrganizationTeams(orgId);
-      setTeams(data);
-      setLoadState("loaded");
-    } catch {
-      setTeams([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!organizationId) return;
-    const orgId: string = organizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrganizationTeams(orgId);
-        if (!cancelled) {
-          setTeams(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setTeams([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [organizationId]);
-
-  async function handleCreate() {
-    if (!organizationId || !newName.trim()) return;
-    setCreateSubmitting(true);
-    setCreateError(null);
-    const result = await createTeam({
-      organizationId,
-      name: newName.trim(),
-      description: newDescription.trim(),
-      type: newType,
-    });
-    setCreateSubmitting(false);
-    if (result.success) {
-      setCreateOpen(false);
-      setNewName("");
-      setNewDescription("");
-      setNewType("internal");
-      await loadTeams(organizationId);
-    } else {
-      setCreateError(result.error.message);
-    }
-  }
-
-  if (!organizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">團隊</h1>
-          <p className="mt-1 text-sm text-muted-foreground">組織團隊與成員關聯。</p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>建立團隊</Button>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Teams</CardTitle>
-          <CardDescription>組織團隊與成員關聯。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入團隊資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取團隊資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && teams.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的團隊資料。</p>
-          )}
-          {loadState === "loaded" &&
-            teams.map((team) => (
-              <div key={team.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">{team.name}</p>
-                  <Badge variant="outline">{team.type}</Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{team.description || "—"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Members: {team.memberIds.length}
-                </p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>建立團隊</DialogTitle>
-            <DialogDescription>填寫團隊名稱與類型以建立新團隊。</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="team-name">名稱</Label>
-              <Input
-                id="team-name"
-                placeholder="團隊名稱"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="team-description">描述</Label>
-              <Input
-                id="team-description"
-                placeholder="選填"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="team-type">類型</Label>
-              <Select
-                value={newType}
-                onValueChange={(v) => setNewType(v as "internal" | "external")}
-              >
-                <SelectTrigger id="team-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="internal">Internal（內部）</SelectItem>
-                  <SelectItem value="external">External（外部）</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {createError && <p className="text-sm text-destructive">{createError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
-              {createSubmitting ? "建立中…" : "建立"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
 ````
 
 ## File: modules/platform/subdomains/secret-management/api/index.ts
@@ -15716,132 +15510,6 @@ export * from "./use-cases";
 ## File: modules/platform/subdomains/subscription/application/use-cases/index.ts
 ````typescript
 export * from "./subscription.use-cases";
-````
-
-## File: modules/platform/subdomains/subscription/application/use-cases/subscription.use-cases.ts
-````typescript
-/**
- * Subscription Use Cases — pure application logic.
- */
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import { Subscription } from "../../domain/aggregates/Subscription";
-import type { SubscriptionRepository } from "../../domain/repositories/SubscriptionRepository";
-import type { BillingCycle } from "../../domain/value-objects/BillingCycle";
-
-// ─── Activate Subscription ────────────────────────────────────────────────────
-
-export class ActivateSubscriptionUseCase {
-  constructor(private readonly repo: SubscriptionRepository) {}
-
-  async execute(input: {
-    contextId: string;
-    planCode: string;
-    billingCycle: BillingCycle;
-    currentPeriodEnd?: string | null;
-  }): Promise<CommandResult> {
-    try {
-      const id = crypto.randomUUID();
-      const sub = Subscription.create(id, input);
-      await this.repo.save(sub.getSnapshot());
-      return commandSuccess(id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "ACTIVATE_SUBSCRIPTION_FAILED",
-        err instanceof Error ? err.message : "Failed to activate subscription",
-      );
-    }
-  }
-}
-
-// ─── Cancel Subscription ──────────────────────────────────────────────────────
-
-export class CancelSubscriptionUseCase {
-  constructor(private readonly repo: SubscriptionRepository) {}
-
-  async execute(subscriptionId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(subscriptionId);
-      if (!snapshot) {
-        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
-      }
-      const sub = Subscription.reconstitute(snapshot);
-      sub.cancel();
-      await this.repo.update(sub.getSnapshot());
-      return commandSuccess(subscriptionId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CANCEL_SUBSCRIPTION_FAILED",
-        err instanceof Error ? err.message : "Failed to cancel subscription",
-      );
-    }
-  }
-}
-
-// ─── Renew Subscription ───────────────────────────────────────────────────────
-
-export class RenewSubscriptionUseCase {
-  constructor(private readonly repo: SubscriptionRepository) {}
-
-  async execute(subscriptionId: string, newPeriodEnd: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(subscriptionId);
-      if (!snapshot) {
-        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
-      }
-      const sub = Subscription.reconstitute(snapshot);
-      sub.renew(newPeriodEnd);
-      await this.repo.update(sub.getSnapshot());
-      return commandSuccess(subscriptionId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "RENEW_SUBSCRIPTION_FAILED",
-        err instanceof Error ? err.message : "Failed to renew subscription",
-      );
-    }
-  }
-}
-
-// ─── Get Active Subscription (query-style) ───────────────────────────────────
-
-export class GetActiveSubscriptionUseCase {
-  constructor(private readonly repo: SubscriptionRepository) {}
-
-  async execute(contextId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findActiveByContextId(contextId);
-      return commandSuccess(snapshot, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "GET_ACTIVE_SUBSCRIPTION_FAILED",
-        err instanceof Error ? err.message : "Failed to get active subscription",
-      );
-    }
-  }
-}
-
-// ─── Mark Past Due ────────────────────────────────────────────────────────────
-
-export class MarkSubscriptionPastDueUseCase {
-  constructor(private readonly repo: SubscriptionRepository) {}
-
-  async execute(subscriptionId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(subscriptionId);
-      if (!snapshot) {
-        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
-      }
-      const sub = Subscription.reconstitute(snapshot);
-      sub.markPastDue();
-      await this.repo.update(sub.getSnapshot());
-      return commandSuccess(subscriptionId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "MARK_PAST_DUE_FAILED",
-        err instanceof Error ? err.message : "Failed to mark subscription past due",
-      );
-    }
-  }
-}
 ````
 
 ## File: modules/platform/subdomains/subscription/domain/aggregates/index.ts
@@ -16311,64 +15979,30 @@ export const subscriptionService = {
 };
 ````
 
-## File: modules/platform/subdomains/team/application/use-cases/team.use-cases.ts
+## File: modules/platform/subdomains/team/api/index.ts
 ````typescript
 /**
  * Module: platform/subdomains/team
- * Layer: application/use-cases
- * Purpose: Team management use cases — create, delete, and member updates.
+ * Layer: api (public boundary)
+ * Purpose: Exports types, use cases, and a factory function for the team
+ *          subdomain. Consumers must use the TeamRepository port interface
+ *          and the createTeamRepository factory — never the concrete adapter.
  */
 
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { TeamRepository } from "../../domain/repositories/TeamRepository";
-import type { CreateTeamInput } from "../../domain/entities/Team";
+import type { TeamRepository } from "../domain/repositories/TeamRepository";
+import { FirebaseTeamRepository } from "../infrastructure/firebase/FirebaseTeamRepository";
 
-export class CreateTeamUseCase {
-  constructor(private readonly teamRepo: TeamRepository) {}
+export type { Team, CreateTeamInput } from "../domain/entities/Team";
+export type { TeamRepository } from "../domain/repositories/TeamRepository";
+export {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../application/use-cases/team.use-cases";
 
-  async execute(input: CreateTeamInput): Promise<CommandResult> {
-    try {
-      const teamId = await this.teamRepo.createTeam(input);
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Failed to create team");
-    }
-  }
-}
-
-export class DeleteTeamUseCase {
-  constructor(private readonly teamRepo: TeamRepository) {}
-
-  async execute(organizationId: string, teamId: string): Promise<CommandResult> {
-    try {
-      await this.teamRepo.deleteTeam(organizationId, teamId);
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Failed to delete team");
-    }
-  }
-}
-
-export class UpdateTeamMembersUseCase {
-  constructor(private readonly teamRepo: TeamRepository) {}
-
-  async execute(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-    action: "add" | "remove",
-  ): Promise<CommandResult> {
-    try {
-      if (action === "add") {
-        await this.teamRepo.addMemberToTeam(organizationId, teamId, memberId);
-      } else {
-        await this.teamRepo.removeMemberFromTeam(organizationId, teamId, memberId);
-      }
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Failed to update team members");
-    }
-  }
+/** Factory — returns a TeamRepository backed by Firebase. */
+export function createTeamRepository(): TeamRepository {
+  return new FirebaseTeamRepository();
 }
 ````
 
@@ -16376,30 +16010,6 @@ export class UpdateTeamMembersUseCase {
 ````typescript
 export { OrganizationTeam } from "./OrganizationTeam";
 export type { OrganizationTeamSnapshot, CreateOrganizationTeamProps } from "./OrganizationTeam";
-````
-
-## File: modules/platform/subdomains/team/domain/entities/Team.ts
-````typescript
-/**
- * Module: platform/subdomains/team
- * Layer: domain/entities
- * Purpose: Team entity and related input types owned by the team subdomain.
- */
-
-export interface Team {
-  id: string;
-  name: string;
-  description: string;
-  type: "internal" | "external";
-  memberIds: string[];
-}
-
-export interface CreateTeamInput {
-  organizationId: string;
-  name: string;
-  description: string;
-  type: "internal" | "external";
-}
 ````
 
 ## File: modules/platform/subdomains/team/domain/events/index.ts
@@ -16516,26 +16126,6 @@ export * from "./value-objects";
 export type { TeamRepository as ITeamPort } from "../repositories/TeamRepository";
 ````
 
-## File: modules/platform/subdomains/team/domain/repositories/TeamRepository.ts
-````typescript
-/**
- * Module: platform/subdomains/team
- * Layer: domain/repositories
- * Purpose: TeamRepository port — team-scoped operations only.
- *          Implemented in the firebase adapter.
- */
-
-import type { Team, CreateTeamInput } from "../entities/Team";
-
-export interface TeamRepository {
-  createTeam(input: CreateTeamInput): Promise<string>;
-  deleteTeam(organizationId: string, teamId: string): Promise<void>;
-  addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  getTeams(organizationId: string): Promise<Team[]>;
-}
-````
-
 ## File: modules/platform/subdomains/team/domain/value-objects/index.ts
 ````typescript
 export type { TeamId } from "./TeamId";
@@ -16571,81 +16161,6 @@ import { z } from "zod";
 
 export const TeamTypeSchema = z.enum(["internal", "external"]);
 export type TeamType = z.infer<typeof TeamTypeSchema>;
-````
-
-## File: modules/platform/subdomains/team/infrastructure/firebase/FirebaseTeamRepository.ts
-````typescript
-/**
- * Module: platform/subdomains/team
- * Layer: infrastructure/firebase
- * Purpose: Firebase implementation of TeamRepository.
- *          Directly accesses the organizations/{orgId}/teams sub-collection.
- */
-
-import {
-  getFirestore,
-  doc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  getDocs,
-  arrayUnion,
-  arrayRemove,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { TeamRepository } from "../../domain/repositories/TeamRepository";
-import type { Team, CreateTeamInput } from "../../domain/entities/Team";
-
-function toTeam(id: string, data: Record<string, unknown>): Team {
-  return {
-    id,
-    name: typeof data.name === "string" ? data.name : "",
-    description: typeof data.description === "string" ? data.description : "",
-    type: data.type === "external" ? "external" : "internal",
-    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
-  };
-}
-
-export class FirebaseTeamRepository implements TeamRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async createTeam(input: CreateTeamInput): Promise<string> {
-    const teamRef = doc(collection(this.db, "organizations", input.organizationId, "teams"));
-    await setDoc(teamRef, {
-      name: input.name,
-      description: input.description,
-      type: input.type,
-      memberIds: [],
-      createdAt: serverTimestamp(),
-    });
-    return teamRef.id;
-  }
-
-  async deleteTeam(organizationId: string, teamId: string): Promise<void> {
-    await deleteDoc(doc(this.db, "organizations", organizationId, "teams", teamId));
-  }
-
-  async addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void> {
-    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
-      memberIds: arrayUnion(memberId),
-    });
-  }
-
-  async removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void> {
-    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
-      memberIds: arrayRemove(memberId),
-    });
-  }
-
-  async getTeams(organizationId: string): Promise<Team[]> {
-    const snaps = await getDocs(collection(this.db, "organizations", organizationId, "teams"));
-    return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
-  }
-}
 ````
 
 ## File: modules/platform/subdomains/team/interfaces/_actions/team.actions.ts
@@ -17498,73 +17013,704 @@ Strategic architecture documentation lives in `docs/contexts/platform/`:
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
-## File: modules/platform/interfaces/web/components/ShellLayout.tsx
+## File: modules/platform/interfaces/web/providers/ShellAppProvider.tsx
 ````typescript
 "use client";
 
 /**
- * ShellLayout — platform/interfaces/web component.
- * Authenticated shell frame: sidebar, header, and content area.
+ * shell-app-provider.tsx — platform/interfaces/web layer
+ * Hosts the app-level active-account lifecycle and exposes useApp().
  *
- * Responsibilities: account switching, route guards, and shell-level UI composition.
- * Constraints: keep business logic in modules and providers, not layout rendering.
+ * Responsibilities:
+ *  1. Watch AuthProvider state for sign-in / sign-out events
+ *  2. Subscribe to the user's visible accounts (orgs) via account module queries
+ *  3. Maintain activeAccount selection (default: personal user account from auth)
+ *  4. Expose state + dispatch via AppContext
  */
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { PanelLeftOpen, Search } from "lucide-react";
+import {
+  createContext,
+  useReducer,
+  useEffect,
+  useContext,
+  type Dispatch,
+  type ReactNode,
+} from "react";
 
-import { useApp } from "../providers/app-provider";
-import { useAuth, ShellGuard } from "../../../subdomains/identity/api";
-import { type AccountEntity, HeaderUserAvatar } from "../../../subdomains/account/api";
-import { subscribeToProfile, type AccountProfile } from "../../../subdomains/account-profile/api";
-import { AccountSwitcher } from "../../../subdomains/organization/api";
-import { AppBreadcrumbs } from "./AppBreadcrumbs";
-import { AppRail } from "./AppRail";
-import { DashboardSidebar } from "./DashboardSidebar";
-import { GlobalSearchDialog, useGlobalSearch } from "./GlobalSearchDialog";
-import { HeaderControls } from "./HeaderControls";
+import {
+  subscribeToAccountsForUser,
+  type AccountEntity,
+} from "../../../subdomains/account/api";
+import { type AuthUser, useAuth } from "../../../subdomains/identity/api";
+import {
+  subscribeToWorkspacesForAccount,
+  getWorkspaceStorageKey,
+  toWorkspaceMap,
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+import type { ActiveAccount } from "@/modules/platform/api/contracts";
+export type { ActiveAccount };
 
-const routeTitles: Record<string, string> = {
-  "/organization": "組織治理",
-  "/organization/daily": "Account · 每日",
-  "/organization/schedule": "Account · 排程",
-  "/organization/schedule/dispatcher": "Account · 調度台",
-  "/organization/audit": "Account · 稽核",
-  "/workspace": "工作區中心",
-  "/knowledge": "Knowledge Hub",
-  "/knowledge/pages": "Knowledge · 頁面",
-  "/knowledge/block-editor": "Knowledge · 區塊編輯器",
-  "/knowledge-base/articles": "Knowledge Base · 文章",
-  "/knowledge-database/databases": "Knowledge Database · 資料庫",
-  "/source/documents": "Source · 文件來源",
-  "/source/libraries": "Source · Libraries",
-  "/notebook/rag-query": "Notebook · Ask / Cite",
-  "/ai-chat": "AI Chat",
-  "/dev-tools": "開發工具",
+export interface AppState {
+  /** All organization accounts visible to the signed-in user. */
+  accounts: Record<string, AccountEntity>;
+  /** True once the first Firestore snapshot has been received. */
+  accountsHydrated: boolean;
+  /** Bootstrap phase for optimistic seeding. */
+  bootstrapPhase: "idle" | "seeded" | "hydrated";
+  /** Currently selected account (personal user account or an organization). */
+  activeAccount: ActiveAccount | null;
+  /** Currently selected workspace context under the active account. */
+  activeWorkspaceId: string | null;
+  /** Workspaces visible under the active account (single source for shell UI). */
+  workspaces: Record<string, WorkspaceEntity>;
+  /** True once the first active-account workspace snapshot has been received. */
+  workspacesHydrated: boolean;
+}
+
+export type AppAction =
+  | {
+      type: "SEED_ACTIVE_ACCOUNT";
+      payload: { user: AuthUser };
+    }
+  | {
+      type: "SET_ACCOUNTS";
+      payload: {
+        accounts: Record<string, AccountEntity>;
+        user: AuthUser;
+        preferredActiveAccountId?: string | null;
+      };
+    }
+  | {
+      type: "SET_WORKSPACES";
+      payload: {
+        workspaces: Record<string, WorkspaceEntity>;
+        hydrated: boolean;
+      };
+    }
+  | { type: "SET_ACTIVE_ACCOUNT"; payload: ActiveAccount | null }
+  | { type: "SET_ACTIVE_WORKSPACE"; payload: string | null }
+  | { type: "RESET_STATE" };
+
+export interface AppContextValue {
+  state: AppState;
+  dispatch: Dispatch<AppAction>;
+}
+
+export const AppContext = createContext<AppContextValue | null>(null);
+
+// -- Initial State -----------------------------------------------------------
+
+const LAST_ACTIVE_ACCOUNT_STORAGE_KEY = "xuanwu_last_active_account";
+
+const initialState: AppState = {
+  accounts: {},
+  accountsHydrated: false,
+  bootstrapPhase: "idle",
+  activeAccount: null,
+  activeWorkspaceId: null,
+  workspaces: {},
+  workspacesHydrated: false,
 };
 
-/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
-const mobileNavItems = [
-  { href: "/workspace", label: "工作區" },
-];
+// -- Reducer -----------------------------------------------------------------
 
-const orgPrimaryItems = [
-  { label: "成員", href: "/organization/members" },
-  { label: "團隊", href: "/organization/teams" },
-  { label: "權限", href: "/organization/permissions" },
-  { label: "工作區", href: "/organization/workspaces" },
+function resolveActiveAccount(
+  state: AppState,
+  accounts: Record<string, AccountEntity>,
+  user: AuthUser,
+  preferredActiveAccountId?: string | null,
+) {
+  const validIds = new Set([user.id, ...Object.keys(accounts)]);
+  const currentActiveId = state.activeAccount?.id;
+  let currentActive = null;
+
+  if (currentActiveId && validIds.has(currentActiveId)) {
+    currentActive = currentActiveId === user.id ? user : accounts[currentActiveId] ?? null;
+  }
+
+  let preferredActive = null;
+  if (preferredActiveAccountId && validIds.has(preferredActiveAccountId)) {
+    preferredActive =
+      preferredActiveAccountId === user.id
+        ? user
+        : accounts[preferredActiveAccountId] ?? null;
+  }
+
+  // During the initial seeded phase we only know about the personal account.
+  // Once the real organization snapshot arrives, prefer the last persisted
+  // account so re-login restores the user's previous working context instead of
+  // leaving them in the optimistic personal fallback.
+  if (
+    preferredActive &&
+    (!currentActive || state.bootstrapPhase === "seeded" || currentActive.id === user.id)
+  ) {
+    return preferredActive;
+  }
+
+  return currentActive ?? user;
+}
+
+function appReducer(state: AppState, action: AppAction): AppState {
+  switch (action.type) {
+    case "SEED_ACTIVE_ACCOUNT":
+      return {
+        ...state,
+        accounts: {},
+        accountsHydrated: false,
+        bootstrapPhase: "seeded",
+        activeAccount: action.payload.user,
+        activeWorkspaceId: null,
+      };
+    case "SET_ACCOUNTS": {
+      const { accounts, user, preferredActiveAccountId } = action.payload;
+      return {
+        ...state,
+        accounts,
+        accountsHydrated: true,
+        bootstrapPhase: "hydrated",
+        activeAccount: resolveActiveAccount(state, accounts, user, preferredActiveAccountId),
+      };
+    }
+    case "SET_WORKSPACES":
+      return {
+        ...state,
+        workspaces: action.payload.workspaces,
+        workspacesHydrated: action.payload.hydrated,
+      };
+    case "SET_ACTIVE_ACCOUNT":
+      if (state.activeAccount?.id === action.payload?.id) return state;
+      return {
+        ...state,
+        activeAccount: action.payload,
+        activeWorkspaceId: null,
+        workspaces: {},
+        workspacesHydrated: false,
+      };
+    case "SET_ACTIVE_WORKSPACE":
+      if (state.activeWorkspaceId === action.payload) return state;
+      return { ...state, activeWorkspaceId: action.payload };
+    case "RESET_STATE":
+      return initialState;
+    default:
+      return state;
+  }
+}
+
+// -- Provider ----------------------------------------------------------------
+
+export function AppProvider({ children }: { children: ReactNode }) {
+  const { state: authState } = useAuth();
+  const { user, status } = authState;
+  const [state, dispatch] = useReducer(appReducer, initialState);
+
+  useEffect(() => {
+    if (status === "initializing") return;
+
+    if (!user) {
+      dispatch({ type: "RESET_STATE" });
+      return;
+    }
+
+    dispatch({ type: "SEED_ACTIVE_ACCOUNT", payload: { user } });
+    const preferredActiveAccountId =
+      typeof window === "undefined"
+        ? null
+        : window.localStorage.getItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
+
+    const unsubscribe = subscribeToAccountsForUser(user.id, (accounts) => {
+      dispatch({
+        type: "SET_ACCOUNTS",
+        payload: { accounts, user, preferredActiveAccountId },
+      });
+    });
+
+    return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, user?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const activeAccountId = state.activeAccount?.id;
+
+    if (!user || !activeAccountId) {
+      window.localStorage.removeItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY, activeAccountId);
+  }, [state.activeAccount?.id, user]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const activeAccountId = state.activeAccount?.id;
+    if (!activeAccountId) {
+      dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: null });
+      return;
+    }
+
+    const storedWorkspaceId = window.localStorage.getItem(getWorkspaceStorageKey(activeAccountId));
+    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: storedWorkspaceId || null });
+  }, [state.activeAccount?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const activeAccountId = state.activeAccount?.id;
+    if (!activeAccountId) return;
+
+    const storageKey = getWorkspaceStorageKey(activeAccountId);
+    if (!state.activeWorkspaceId) {
+      window.localStorage.removeItem(storageKey);
+      return;
+    }
+
+    window.localStorage.setItem(storageKey, state.activeWorkspaceId);
+  }, [state.activeAccount?.id, state.activeWorkspaceId]);
+
+  useEffect(() => {
+    const activeAccountId = state.activeAccount?.id;
+    if (!activeAccountId) {
+      dispatch({
+        type: "SET_WORKSPACES",
+        payload: { workspaces: {}, hydrated: true },
+      });
+      return;
+    }
+
+    dispatch({
+      type: "SET_WORKSPACES",
+      payload: { workspaces: {}, hydrated: false },
+    });
+
+    const unsubscribe = subscribeToWorkspacesForAccount(activeAccountId, (workspaces) => {
+      dispatch({
+        type: "SET_WORKSPACES",
+        payload: {
+          workspaces: toWorkspaceMap(workspaces),
+          hydrated: true,
+        },
+      });
+    });
+
+    return () => unsubscribe();
+  }, [state.activeAccount?.id]);
+
+  return (
+    <AppContext.Provider value={{ state, dispatch }}>
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+// -- Hook --------------------------------------------------------------------
+
+export function useApp() {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error("useApp must be used within AppProvider");
+  return ctx;
+}
+````
+
+## File: modules/platform/interfaces/web/shell/header/components/ShellNotificationButton.tsx
+````typescript
+"use client";
+
+import { NotificationBell } from "../../../../../subdomains/notification/api";
+
+interface ShellNotificationButtonProps {
+  readonly recipientId: string;
+}
+
+export function ShellNotificationButton({ recipientId }: ShellNotificationButtonProps) {
+  return <NotificationBell recipientId={recipientId} />;
+}
+````
+
+## File: modules/platform/interfaces/web/shell/header/components/ShellUserAvatar.tsx
+````typescript
+"use client";
+
+import { HeaderUserAvatar } from "../../../../../subdomains/account/api";
+
+interface ShellUserAvatarProps {
+  readonly name: string;
+  readonly email: string;
+  readonly onSignOut: () => void;
+}
+
+export function ShellUserAvatar({ name, email, onSignOut }: ShellUserAvatarProps) {
+  return <HeaderUserAvatar name={name} email={email} onSignOut={onSignOut} />;
+}
+````
+
+## File: modules/platform/interfaces/web/shell/navigation/components/ShellDashboardSidebar.tsx
+````typescript
+"use client";
+
+/**
+ * Module: shell-dashboard-sidebar.tsx
+ * Purpose: render the secondary navigation panel of the authenticated shell.
+ * Responsibilities: account switcher, search hint, org management sub-nav, and
+ *   recent workspace quick-access list. Top-level section navigation is in ShellAppRail.
+ * Constraints: UI-only; workspace data sourced from module interfaces.
+ */
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+
+import { createKnowledgePage } from "@/modules/notion/api";
+import {
+  buildWorkspaceQuickAccessItems,
+  CustomizeNavigationDialog,
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  readNavPreferences,
+  type NavPreferences,
+  useRecentWorkspaces,
+  useSidebarLocale,
+  WorkspaceQuickAccessRow,
+} from "@/modules/workspace/api";
+
+import {
+  type DashboardSidebarProps,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  ACCOUNT_NAV_ITEMS,
+  SECTION_TITLES,
+  resolveNavSection,
+  isActiveRoute,
+  isActiveOrganizationAccount,
+} from "../data/ShellSidebarNavData";
+import { ShellSidebarHeader } from "../../sidebar/ShellSidebarHeader";
+import { DashboardSidebarBody } from "../../sidebar/ShellSidebarBody";
+
+export function ShellDashboardSidebar({
+  pathname,
+  userId,
+  activeAccount,
+  workspaces,
+  workspacesHydrated,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps) {
+  const searchParams = useSearchParams();
+
+  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
+    activeAccount?.id,
+    pathname,
+    workspaces,
+  );
+  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
+  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const localeBundle = useSidebarLocale();
+
+  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
+
+  const visibleOrganizationManagementItems = useMemo(
+    () => ORGANIZATION_MANAGEMENT_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
+    [navPrefs.pinnedWorkspace],
+  );
+
+  const visibleAccountItems = useMemo(
+    () => ACCOUNT_NAV_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
+    [navPrefs.pinnedWorkspace],
+  );
+
+  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
+
+  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
+    ? navPrefs.maxWorkspaces
+    : MAX_VISIBLE_RECENT_WORKSPACES;
+
+  const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+
+  useEffect(() => {
+    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
+    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(pathWorkspaceId);
+      return;
+    }
+
+    const supportsWorkspaceSearchContext =
+      pathname.startsWith("/knowledge") ||
+      pathname.startsWith("/source") ||
+      pathname.startsWith("/notebook");
+
+    if (!supportsWorkspaceSearchContext) {
+      return;
+    }
+
+    if (currentSearchWorkspaceId && currentSearchWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(currentSearchWorkspaceId);
+    }
+  }, [pathname, activeWorkspaceId, currentSearchWorkspaceId, onSelectWorkspace]);
+
+  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
+  const visibleRecentWorkspaceLinks = isExpanded
+    ? recentWorkspaceLinks
+    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
+
+  const buildWorkspaceContextHref = useCallback(
+    (workspaceId: string): string => {
+      if (pathname.startsWith("/knowledge")) {
+        const targetPath = pathname === "/knowledge" ? "/knowledge/pages" : pathname;
+        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
+      }
+      return `/workspace/${workspaceId}`;
+    },
+    [pathname],
+  );
+
+  const allWorkspaceLinks = useMemo(
+    () =>
+      workspaces
+        .map((workspace) => ({
+          id: workspace.id,
+          name: workspace.name,
+          href: buildWorkspaceContextHref(workspace.id),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces, buildWorkspaceContextHref],
+  );
+
+  const section = resolveNavSection(pathname);
+  const sectionMeta = SECTION_TITLES[section];
+  const workspacePathId = getWorkspaceIdFromPath(pathname);
+  const currentPanel = searchParams.get("panel");
+  const currentWorkspaceTab = searchParams.get("tab");
+  const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
+  const hasWorkspaceToolContext =
+    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
+    (section === "knowledge" ||
+      section === "knowledge-base" ||
+      section === "source" ||
+      section === "notebook");
+  const workspaceQuickAccessId =
+    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
+  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
+  const workspaceSettingsHref = workspaceQuickAccessId
+    ? `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
+    : "";
+  const workspaceQuickAccessItems = useMemo(
+    () =>
+      showWorkspaceQuickAccess && workspaceQuickAccessId
+        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId)
+        : [],
+    [showWorkspaceQuickAccess, workspaceQuickAccessId],
+  );
+
+  async function handleQuickCreatePage() {
+    const accountId = activeAccount?.id ?? "";
+    if (!accountId) {
+      toast.error("目前沒有 active account，無法建立");
+      return;
+    }
+    if (!activeWorkspaceId) {
+      toast.error("請先切換到工作區，再建立頁面");
+      return;
+    }
+    setCreatingKind("page");
+    try {
+      const result = await createKnowledgePage({
+        accountId,
+        workspaceId: activeWorkspaceId,
+        title: "未命名頁面",
+        parentPageId: null,
+        createdByUserId: userId ?? accountId,
+      });
+      if (result.success) {
+        toast.success("已建立頁面");
+      } else {
+        toast.error(result.error?.message ?? "建立頁面失敗");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("建立頁面失敗");
+    } finally {
+      setCreatingKind(null);
+    }
+  }
+
+  return (
+    <div className="contents">
+      <aside
+        aria-label="Secondary navigation"
+        className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
+          collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
+        }`}
+      >
+        <ShellSidebarHeader
+          sectionLabel={sectionMeta.label}
+          sectionIcon={sectionMeta.icon}
+          onOpenCustomize={() => {
+            setCustomizeOpen(true);
+          }}
+          onToggleCollapsed={onToggleCollapsed}
+        />
+
+        <WorkspaceQuickAccessRow
+          items={workspaceQuickAccessItems}
+          pathname={pathname}
+          currentPanel={currentPanel}
+          currentWorkspaceTab={currentWorkspaceTab}
+          workspaceSettingsHref={workspaceSettingsHref}
+          isActiveRoute={(href) => isActiveRoute(pathname, href)}
+        />
+
+        <DashboardSidebarBody
+          section={section}
+          isActiveRoute={(href) => isActiveRoute(pathname, href)}
+          activeAccountId={activeAccount?.id ?? null}
+          showAccountManagement={showAccountManagement}
+          visibleAccountItems={visibleAccountItems}
+          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
+          workspacePathId={workspacePathId}
+          navPrefs={navPrefs}
+          localeBundle={localeBundle}
+          showRecentWorkspaces={showRecentWorkspaces}
+          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+          hasOverflow={hasOverflow}
+          isExpanded={isExpanded}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={onSelectWorkspace}
+          onToggleExpanded={() => {
+            setIsExpanded((prev) => !prev);
+          }}
+          pathname={pathname}
+          workspacesHydrated={workspacesHydrated}
+          allWorkspaceLinks={allWorkspaceLinks}
+          currentSearchWorkspaceId={currentSearchWorkspaceId}
+          creatingKind={creatingKind}
+          onQuickCreatePage={() => {
+            void handleQuickCreatePage();
+          }}
+        />
+      </aside>
+
+      <CustomizeNavigationDialog
+        open={customizeOpen}
+        onOpenChange={setCustomizeOpen}
+        onPreferencesChange={setNavPrefs}
+      />
+    </div>
+  );
+}
+````
+
+## File: modules/platform/interfaces/web/shell/navigation/data/ShellSidebarNavData.tsx
+````typescript
+import {
+  BookOpen,
+  Bot,
+  Brain,
+  Building2,
+  Database,
+  FileText,
+  UserRound,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
+
+import type { AccountEntity, ActiveAccount } from "@/modules/platform/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly userId: string | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+
+export type NavSection =
+  | "workspace"
+  | "knowledge"
+  | "knowledge-base"
+  | "knowledge-database"
+  | "source"
+  | "notebook"
+  | "ai-chat"
+  | "account"
+  | "organization"
+  | "other";
+
+// ── Static nav constants ──────────────────────────────────────────────────────
+
+export const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
+
+export const ACCOUNT_NAV_ITEMS = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
 ] as const;
 
-const orgSecondaryItems = [
-  { label: "排程", href: "/organization/schedule" },
-  { label: "每日", href: "/organization/daily" },
-  { label: "稽核", href: "/organization/audit" },
+export const ACCOUNT_SECTION_MATCHERS = [
+  "/organization/daily",
+  "/organization/schedule",
+  "/organization/audit",
 ] as const;
 
-function isOrganizationAccount(
-  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
+export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
+  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
+  knowledge: { label: "知識", icon: <BookOpen className="size-3" /> },
+  "knowledge-base": { label: "知識庫", icon: <BookOpen className="size-3" /> },
+  "knowledge-database": { label: "知識資料庫", icon: <Database className="size-3" /> },
+  source: { label: "來源", icon: <FileText className="size-3" /> },
+  notebook: { label: "筆記本", icon: <Brain className="size-3" /> },
+  "ai-chat": { label: "AI 對話", icon: <Bot className="size-3" /> },
+  account: { label: "帳號", icon: <UserRound className="size-3" /> },
+  organization: { label: "組織", icon: <Users className="size-3" /> },
+  other: { label: "導覽", icon: null },
+};
+
+// ── CSS class helpers ─────────────────────────────────────────────────────────
+
+export function sidebarItemClass(active: boolean) {
+  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
+    active
+      ? "border-primary/30 bg-primary/10 text-primary"
+      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
+  }`;
+}
+
+export const sidebarSectionTitleClass =
+  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
+
+export const sidebarGroupButtonClass =
+  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
+
+// ── Pure section helpers ──────────────────────────────────────────────────────
+
+export function resolveNavSection(pathname: string): NavSection {
+  if (pathname.startsWith("/workspace")) return "workspace";
+  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
+  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
+  if (pathname.startsWith("/knowledge")) return "knowledge";
+  if (pathname.startsWith("/source")) return "source";
+  if (pathname.startsWith("/notebook")) return "notebook";
+  if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)))
+    return "account";
+  if (pathname.startsWith("/organization")) return "organization";
+  return "other";
+}
+
+export function isActiveRoute(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function isActiveOrganizationAccount(
+  activeAccount: ActiveAccount | null,
 ): activeAccount is AccountEntity & { accountType: "organization" } {
   return (
     activeAccount != null &&
@@ -17573,306 +17719,251 @@ function isOrganizationAccount(
   );
 }
 
-function resolveShellRouteForAccount(
-  pathname: string,
-  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
-) {
-  const nextAccountIsOrganization =
-    nextAccount != null && "accountType" in nextAccount && nextAccount.accountType === "organization";
+// ── Simple section nav component ──────────────────────────────────────────────
 
-  if (pathname === "/organization" && !nextAccountIsOrganization) {
-    return "/workspace";
-  }
-
-  return null;
-}
-
-export function ShellLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { state: authState, logout } = useAuth();
-  const { state: appState, dispatch } = useApp();
-  const [logoutError, setLogoutError] = useState<string | null>(null);
-  const [accountProfileState, setAccountProfileState] = useState<{ actorId: string; profile: AccountProfile | null } | null>(null);
-  const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
-  });
-
-  function toggleSidebar() {
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
-      }
-      return next;
-    });
-  }
-
-  const pageTitle = routeTitles[pathname] ?? "工作區";
-  const organizationAccounts = Object.values(appState.accounts ?? {});
-  const accountWorkspaces = Object.values(appState.workspaces ?? {});
-  const showAccountManagement = isOrganizationAccount(appState.activeAccount);
-
-  function isActiveRoute(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  function handleSelectOrganization(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    const nextRoute = resolveShellRouteForAccount(pathname, account);
-    if (nextRoute) {
-      router.replace(nextRoute);
-    }
-  }
-
-  function handleSelectPersonal() {
-    if (!authState.user) return;
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
-    const nextRoute = resolveShellRouteForAccount(pathname, authState.user);
-    if (nextRoute) {
-      router.replace(nextRoute);
-    }
-  }
-
-  function handleOrganizationCreated(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-  }
-
-  function handleSelectWorkspace(workspaceId: string | null) {
-    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspaceId });
-  }
-
-  useEffect(() => {
-    if (!appState.accountsHydrated || !appState.activeAccount) {
-      return;
-    }
-
-    const nextRoute = resolveShellRouteForAccount(pathname, appState.activeAccount);
-    if (nextRoute && nextRoute !== pathname) {
-      router.replace(nextRoute);
-    }
-  }, [appState.accountsHydrated, appState.activeAccount, pathname, router]);
-
-  useEffect(() => {
-    const actorId = authState.user?.id;
-    if (!actorId) {
-      return;
-    }
-
-    const unsubscribe = subscribeToProfile(actorId, (profile) => setAccountProfileState({ actorId, profile }));
-
-    return () => unsubscribe();
-  }, [authState.user?.id]);
-
-  const scopedProfile = accountProfileState && accountProfileState.actorId === authState.user?.id
-    ? accountProfileState.profile
-    : null;
-
-  async function handleLogout() {
-    setLogoutError(null);
-    try {
-      await logout();
-    } catch {
-      setLogoutError("登出失敗，請稍後再試。");
-    }
-  }
-
+export function SimpleNavLinks({
+  items,
+  title,
+  isActiveRoute,
+}: {
+  items: readonly { href: string; label: string }[];
+  title: string;
+  isActiveRoute: (href: string) => boolean;
+}) {
   return (
-    <ShellGuard>
-      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
-      <div className="flex h-screen overflow-hidden bg-background">
-        <AppRail
-          pathname={pathname}
-          user={authState.user}
-          activeAccount={appState.activeAccount}
-          organizationAccounts={organizationAccounts}
-          workspaces={accountWorkspaces}
-          workspacesHydrated={appState.workspacesHydrated}
-          isOrganizationAccount={showAccountManagement}
-          onSelectPersonal={handleSelectPersonal}
-          onSelectOrganization={handleSelectOrganization}
-          activeWorkspaceId={appState.activeWorkspaceId}
-          onSelectWorkspace={handleSelectWorkspace}
-          onOrganizationCreated={handleOrganizationCreated}
-          onSignOut={() => {
-            void handleLogout();
-          }}
-        />
-        <DashboardSidebar
-          userId={authState.user?.id ?? null}
-          pathname={pathname}
-          activeAccount={appState.activeAccount}
-          workspaces={accountWorkspaces}
-          workspacesHydrated={appState.workspacesHydrated}
-          activeWorkspaceId={appState.activeWorkspaceId}
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={toggleSidebar}
-          onSelectWorkspace={handleSelectWorkspace}
-        />
-
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
-            <div className="flex h-12 items-center justify-between gap-4">
-              <div className="min-w-0 flex items-center gap-3">
-                {sidebarCollapsed && (
-                  <button
-                    type="button"
-                    onClick={toggleSidebar}
-                    aria-label="展開側欄"
-                    title="展開側欄"
-                    className="hidden size-7 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground md:flex"
-                  >
-                    <PanelLeftOpen className="size-4" />
-                  </button>
-                )}
-                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
-                <AppBreadcrumbs />
-                {/* Global search */}
-                <button
-                  type="button"
-                  aria-label="全域搜尋"
-                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
-                  onClick={() => setSearchOpen(true)}
-                >
-                  <Search className="size-3 shrink-0" />
-                  <span>搜尋…</span>
-                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
-                </button>
-              </div>
-
-              <div className="ml-auto flex items-center gap-3">
-                <HeaderControls />
-                <HeaderUserAvatar
-                  name={scopedProfile?.displayName ?? authState.user?.name ?? "Dimension Member"}
-                  email={scopedProfile?.email ?? authState.user?.email ?? "—"}
-                  onSignOut={() => {
-                    void handleLogout();
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3 pb-3 md:hidden">
-              <AccountSwitcher
-                personalAccount={authState.user}
-                organizationAccounts={organizationAccounts}
-                activeAccountId={appState.activeAccount?.id ?? null}
-                onSelectPersonal={handleSelectPersonal}
-                onSelectOrganization={handleSelectOrganization}
-                onOrganizationCreated={handleOrganizationCreated}
-              />
-            </div>
-
-            {showAccountManagement && (
-              <>
-                <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
-                  {orgPrimaryItems.map((item) => {
-                    const isActive = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive ? "page" : undefined}
-                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "border border-border/60 text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-                <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
-                  {orgSecondaryItems.map((item) => {
-                    const isActive = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive ? "page" : undefined}
-                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "border border-border/60 text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-              </>
-            )}
-            <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
-              {mobileNavItems.map((item) => {
-                const isActive = isActiveRoute(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "border border-border/60 text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </header>
-
-          {logoutError && (
-            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
-          )}
-
-          <main className="flex-1 overflow-auto p-6">{children}</main>
-        </div>
-      </div>
-    </ShellGuard>
+    <nav className="space-y-0.5" aria-label={`${title}導覽`}>
+      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+        {title}
+      </p>
+      {items.map((item) => {
+        const active = isActiveRoute(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }
 ````
 
-## File: modules/platform/interfaces/web/index.ts
+## File: modules/platform/interfaces/web/shell/sidebar/ShellSidebarBody.tsx
 ````typescript
-export { HeaderControls } from "./components/HeaderControls";
-export { TranslationSwitcher } from "./components/TranslationSwitcher";
-export { AppBreadcrumbs } from "./components/AppBreadcrumbs";
-export { GlobalSearchDialog, useGlobalSearch } from "./components/GlobalSearchDialog";
-export { AppRail } from "./components/AppRail";
-export { DashboardSidebar } from "./components/DashboardSidebar";
-export { ShellLayout } from "./components/ShellLayout";
-export type { DashboardSidebarProps, NavSection } from "./navigation/sidebar-nav-data";
-export {
-  resolveNavSection,
-  isActiveOrganizationAccount,
-  SECTION_TITLES,
-  ACCOUNT_NAV_ITEMS,
-  ACCOUNT_SECTION_MATCHERS,
-  ORGANIZATION_MANAGEMENT_ITEMS,
+"use client";
+
+import Link from "next/link";
+
+import { KnowledgeSidebarSection } from "@/modules/notion/api";
+import {
+  WorkspaceSectionContent,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+} from "@/modules/workspace/api";
+
+import {
+  type NavSection,
   sidebarItemClass,
   sidebarSectionTitleClass,
-  sidebarGroupButtonClass,
-  SimpleNavLinks,
-} from "./navigation/sidebar-nav-data";
+} from "../navigation/data/ShellSidebarNavData";
+import { ShellContextNavSection } from "./ShellContextNavSection";
 
-// providers
-export {
-  AppContext,
-  type AppState,
-  type AppAction,
-  type AppContextValue,
-  type ActiveAccount,
-} from "./providers/app-context";
-export { AppProvider, useApp } from "./providers/app-provider";
-export { Providers } from "./providers/providers";
+interface NavItem {
+  id: string;
+  label: string;
+  href: string;
+}
+
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+
+interface ShellSidebarBodyProps {
+  section: NavSection;
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  showAccountManagement: boolean;
+  visibleAccountItems: readonly NavItem[];
+  visibleOrganizationManagementItems: readonly NavItem[];
+  workspacePathId: string | null;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+  showRecentWorkspaces: boolean;
+  visibleRecentWorkspaceLinks: WorkspaceLink[];
+  hasOverflow: boolean;
+  isExpanded: boolean;
+  activeWorkspaceId: string | null;
+  onSelectWorkspace: (workspaceId: string | null) => void;
+  onToggleExpanded: () => void;
+  pathname: string;
+  workspacesHydrated: boolean;
+  allWorkspaceLinks: WorkspaceLink[];
+  currentSearchWorkspaceId: string;
+  creatingKind: "page" | "database" | null;
+  onQuickCreatePage: () => void;
+}
+
+const CONTEXT_SECTION_CONFIG: Partial<
+  Record<NavSection, { title: string; items: readonly { href: string; label: string }[] }>
+> = {
+  "knowledge-base": { title: "知識庫", items: [{ href: "/knowledge-base/articles", label: "文章" }] },
+  "knowledge-database": { title: "資料庫", items: [{ href: "/knowledge-database/databases", label: "資料庫" }] },
+  source: { title: "來源文件", items: [{ href: "/source/libraries", label: "資料庫" }] },
+  notebook: { title: "筆記本", items: [{ href: "/notebook/rag-query", label: "問答 / 引用" }] },
+  "ai-chat": { title: "筆記本 / AI", items: [{ href: "/ai-chat", label: "筆記本介面" }] },
+};
+
+function ManagedNavGroup({
+  title,
+  ariaLabel,
+  items,
+  isActiveRoute,
+}: {
+  title: string;
+  ariaLabel: string;
+  items: readonly NavItem[];
+  isActiveRoute: (href: string) => boolean;
+}) {
+  return (
+    <nav className="space-y-0.5" aria-label={ariaLabel}>
+      <p className={sidebarSectionTitleClass}>{title}</p>
+      {items.map((item) => {
+        const active = isActiveRoute(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={sidebarItemClass(active)}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+export function DashboardSidebarBody({
+  section,
+  isActiveRoute,
+  activeAccountId,
+  showAccountManagement,
+  visibleAccountItems,
+  visibleOrganizationManagementItems,
+  workspacePathId,
+  navPrefs,
+  localeBundle,
+  showRecentWorkspaces,
+  visibleRecentWorkspaceLinks,
+  hasOverflow,
+  isExpanded,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onToggleExpanded,
+  pathname,
+  workspacesHydrated,
+  allWorkspaceLinks,
+  currentSearchWorkspaceId,
+  creatingKind,
+  onQuickCreatePage,
+}: ShellSidebarBodyProps) {
+  const contextSection = CONTEXT_SECTION_CONFIG[section];
+
+  return (
+    <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
+      {section === "account" && (
+        <div className="space-y-2">
+          {showAccountManagement && visibleAccountItems.length > 0 && (
+            <ManagedNavGroup
+              title="帳號"
+              ariaLabel="帳號導覽"
+              items={visibleAccountItems}
+              isActiveRoute={isActiveRoute}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看帳號選項。
+            </p>
+          )}
+        </div>
+      )}
+
+      {section === "organization" && (
+        <div className="space-y-2">
+          {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
+            <ManagedNavGroup
+              title="組織管理"
+              ariaLabel="組織管理導覽"
+              items={visibleOrganizationManagementItems}
+              isActiveRoute={isActiveRoute}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看管理選項。
+            </p>
+          )}
+        </div>
+      )}
+
+      {section === "workspace" && (
+        <div className="space-y-2">
+          <WorkspaceSectionContent
+            workspacePathId={workspacePathId}
+            navPrefs={navPrefs}
+            localeBundle={localeBundle}
+            showRecentWorkspaces={showRecentWorkspaces}
+            visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+            hasOverflow={hasOverflow}
+            isExpanded={isExpanded}
+            activeWorkspaceId={activeWorkspaceId}
+            isActiveRoute={isActiveRoute}
+            onSelectWorkspace={onSelectWorkspace}
+            onToggleExpanded={onToggleExpanded}
+            getItemClassName={sidebarItemClass}
+            sectionTitleClassName={sidebarSectionTitleClass}
+          />
+        </div>
+      )}
+
+      {section === "knowledge" && (
+        <KnowledgeSidebarSection
+          pathname={pathname}
+          workspacesHydrated={workspacesHydrated}
+          allWorkspaceLinks={allWorkspaceLinks}
+          activeAccountId={activeAccountId}
+          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
+          creatingKind={creatingKind}
+          onSelectWorkspace={onSelectWorkspace}
+          onQuickCreatePage={onQuickCreatePage}
+        />
+      )}
+
+      {contextSection && (
+        <ShellContextNavSection
+          title={contextSection.title}
+          items={contextSection.items}
+          isActiveRoute={isActiveRoute}
+          activeAccountId={activeAccountId}
+          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
+        />
+      )}
+    </div>
+  );
+}
 ````
 
 ## File: modules/platform/subdomains/access-control/README.md
@@ -17890,34 +17981,6 @@ Access control policies and permission resolution.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/account-profile/application/dto/account-profile.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the account-profile subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type {
-  AccountProfile,
-  AccountProfileId,
-  AccountProfileTheme,
-  UpdateAccountProfileInput,
-} from "../../domain/entities/AccountProfile";
-export type { Unsubscribe } from "../../domain/repositories/AccountProfileQueryRepository";
-````
-
-## File: modules/platform/subdomains/account-profile/application/index.ts
-````typescript
-export { GetAccountProfileUseCase, SubscribeAccountProfileUseCase } from "./use-cases/get-account-profile.use-case";
-export { UpdateAccountProfileUseCase } from "./use-cases/update-account-profile.use-case";
-export type {
-	AccountProfile,
-	AccountProfileId,
-	AccountProfileTheme,
-	Unsubscribe,
-	UpdateAccountProfileInput,
-} from "./dto/account-profile.dto";
 ````
 
 ## File: modules/platform/subdomains/account-profile/domain/aggregates/AccountProfileAggregate.ts
@@ -18071,6 +18134,54 @@ export function createUpdateAccountProfileInput(
 }
 ````
 
+## File: modules/platform/subdomains/account-profile/interfaces/_actions/account-profile.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { updateAccountProfile } from "../../api";
+import type { UpdateAccountProfileInput } from "../../application/dtos/account-profile.dto";
+
+export async function updateProfile(
+	actorId: string,
+	input: UpdateAccountProfileInput,
+): Promise<CommandResult> {
+	try {
+		return await updateAccountProfile(actorId, input);
+	} catch (err) {
+		return commandFailureFrom(
+			"UPDATE_ACCOUNT_PROFILE_FAILED",
+			err instanceof Error ? err.message : "Unexpected error",
+		);
+	}
+}
+````
+
+## File: modules/platform/subdomains/account-profile/interfaces/queries/account-profile.queries.ts
+````typescript
+/**
+ * Account Profile Read Queries — thin wrappers over account-profile API use cases.
+ * NOT Server Actions — callable from React components/hooks directly.
+ */
+
+import { getAccountProfile, subscribeToAccountProfile } from "../../api";
+import type {
+  AccountProfile,
+  Unsubscribe,
+} from "../../application/dtos/account-profile.dto";
+
+export async function getProfile(actorId: string): Promise<AccountProfile | null> {
+  return getAccountProfile(actorId);
+}
+
+export function subscribeToProfile(
+  actorId: string,
+  onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe {
+  return subscribeToAccountProfile(actorId, onUpdate);
+}
+````
+
 ## File: modules/platform/subdomains/account-profile/README.md
 ````markdown
 # Account Profile
@@ -18088,70 +18199,95 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/account/api/legacy-account-profile.bridge.ts
+## File: modules/platform/subdomains/account/infrastructure/account-service.ts
 ````typescript
-import { type UpdateProfileInput } from "../application/dto/account.dto";
-import { accountService, createAccountQueryRepository } from "../infrastructure/account-service";
+/**
+ * AccountService — Composition root for account use cases.
+ * Wires repositories and ports; provides a unified service interface.
+ */
+
+import {
+  CreateUserAccountUseCase,
+  UpdateUserProfileUseCase,
+  CreditWalletUseCase,
+  DebitWalletUseCase,
+  AssignAccountRoleUseCase,
+  RevokeAccountRoleUseCase,
+} from "../application/use-cases/account.use-cases";
+import {
+  CreateAccountPolicyUseCase,
+  UpdateAccountPolicyUseCase,
+  DeleteAccountPolicyUseCase,
+} from "../application/use-cases/account-policy.use-cases";
+import { FirebaseAccountRepository } from "./firebase/FirebaseAccountRepository";
+import { FirebaseAccountQueryRepository } from "./firebase/FirebaseAccountQueryRepository";
+import { FirebaseAccountPolicyRepository } from "./firebase/FirebaseAccountPolicyRepository";
+import { tokenRefreshAdapter } from "./identity-token-refresh.adapter";
+import type { UpdateProfileInput, OrganizationRole } from "../domain/entities/Account";
+import type { CreatePolicyInput, UpdatePolicyInput } from "../domain/entities/AccountPolicy";
 import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
+import type { CommandResult } from "@shared-types";
 
-let _accountQueryRepo: AccountQueryRepository | undefined;
+let _accountRepo: FirebaseAccountRepository | undefined;
+let _policyRepo: FirebaseAccountPolicyRepository | undefined;
 
-function getAccountQueryRepo(): AccountQueryRepository {
-  if (!_accountQueryRepo) {
-    _accountQueryRepo = createAccountQueryRepository();
-  }
-  return _accountQueryRepo;
+function getAccountRepo(): FirebaseAccountRepository {
+  if (!_accountRepo) _accountRepo = new FirebaseAccountRepository();
+  return _accountRepo;
 }
 
-export async function getLegacyUserProfile(userId: string) {
-  return getAccountQueryRepo().getUserProfile(userId);
+function getAcctPolicyRepo(): FirebaseAccountPolicyRepository {
+  if (!_policyRepo) _policyRepo = new FirebaseAccountPolicyRepository();
+  return _policyRepo;
 }
 
-export function subscribeToLegacyUserProfile(
-  userId: string,
-  onUpdate: (profile: Awaited<ReturnType<typeof getLegacyUserProfile>>) => void,
-) {
-  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
+export const accountService = {
+  createUserAccount: (userId: string, name: string, email: string): Promise<CommandResult> =>
+    new CreateUserAccountUseCase(getAccountRepo()).execute(userId, name, email),
+
+  updateUserProfile: (userId: string, data: UpdateProfileInput): Promise<CommandResult> =>
+    new UpdateUserProfileUseCase(getAccountRepo()).execute(userId, data),
+
+  creditWallet: (accountId: string, amount: number, description: string): Promise<CommandResult> =>
+    new CreditWalletUseCase(getAccountRepo()).execute(accountId, amount, description),
+
+  debitWallet: (accountId: string, amount: number, description: string): Promise<CommandResult> =>
+    new DebitWalletUseCase(getAccountRepo()).execute(accountId, amount, description),
+
+  assignRole: (accountId: string, role: OrganizationRole, grantedBy: string, traceId?: string): Promise<CommandResult> =>
+    new AssignAccountRoleUseCase(getAccountRepo(), tokenRefreshAdapter).execute(accountId, role, grantedBy, traceId),
+
+  revokeRole: (accountId: string): Promise<CommandResult> =>
+    new RevokeAccountRoleUseCase(getAccountRepo(), tokenRefreshAdapter).execute(accountId),
+
+  createPolicy: (input: CreatePolicyInput): Promise<CommandResult> =>
+    new CreateAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(input),
+
+  updatePolicy: (policyId: string, accountId: string, data: UpdatePolicyInput, traceId?: string): Promise<CommandResult> =>
+    new UpdateAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(policyId, accountId, data, traceId),
+
+  deletePolicy: (policyId: string, accountId: string): Promise<CommandResult> =>
+    new DeleteAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(policyId, accountId),
+};
+
+/**
+ * Creates a wired set of client-side account use cases.
+ * Keeps infrastructure wiring in the module boundary rather than in UI files.
+ */
+export function createClientAccountUseCases() {
+  const repo = new FirebaseAccountRepository();
+  return {
+    createUserAccountUseCase: new CreateUserAccountUseCase(repo),
+  };
 }
 
-export async function updateLegacyUserProfile(userId: string, input: UpdateProfileInput): Promise<void> {
-  await accountService.updateUserProfile(userId, input);
+// Internal re-export for the legacy bridge within this subdomain only.
+export { FirebaseAccountQueryRepository };
+
+/** Factory that returns a wired AccountQueryRepository without leaking the concrete class. */
+export function createAccountQueryRepository(): AccountQueryRepository {
+  return new FirebaseAccountQueryRepository();
 }
-````
-
-## File: modules/platform/subdomains/account/domain/index.ts
-````typescript
-export type {
-  AccountType,
-  OrganizationRole,
-  Presence,
-  ThemeConfig,
-  Wallet,
-  ExpertiseBadge,
-  MemberReference,
-  Team,
-  AccountEntity,
-  AccountRoleRecord,
-  UpdateProfileInput,
-  WalletTransaction,
-} from "./entities/Account";
-
-export type {
-  PolicyEffect,
-  PolicyRule,
-  AccountPolicy,
-  CreatePolicyInput,
-  UpdatePolicyInput,
-} from "./entities/AccountPolicy";
-
-export type { AccountRepository } from "./repositories/AccountRepository";
-export type { AccountQueryRepository, WalletBalanceSnapshot, Unsubscribe } from "./repositories/AccountQueryRepository";
-export type { AccountPolicyRepository } from "./repositories/AccountPolicyRepository";
-export type { TokenRefreshPort, TokenRefreshSignalInput } from "./ports/TokenRefreshPort";
-export type { IAccountPort, IAccountQueryPort, IAccountPolicyPort } from "./ports";
-export * from "./aggregates";
-export * from "./events";
-export * from "./value-objects";
 ````
 
 ## File: modules/platform/subdomains/account/infrastructure/index.ts
@@ -18170,7 +18306,7 @@ export { createAccountQueryRepository } from "./account-service";
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { accountService } from "../../api";
-import type { CreatePolicyInput, UpdatePolicyInput } from "../../application/dto/account.dto";
+import type { CreatePolicyInput, UpdatePolicyInput } from "../../application/dtos/account.dto";
 
 export async function createAccountPolicy(input: CreatePolicyInput): Promise<CommandResult> {
   try {
@@ -18215,7 +18351,7 @@ export async function deleteAccountPolicy(
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { accountService } from "../../api";
-import type { UpdateProfileInput, OrganizationRole } from "../../application/dto/account.dto";
+import type { UpdateProfileInput, OrganizationRole } from "../../application/dtos/account.dto";
 
 export async function createUserAccount(
   userId: string,
@@ -18491,6 +18627,127 @@ export * from "./dtos";
 export * from "./use-cases";
 ````
 
+## File: modules/platform/subdomains/entitlement/application/use-cases/entitlement.use-cases.ts
+````typescript
+/**
+ * Entitlement Use Cases — pure application logic.
+ * All cross-domain dependencies are injected via ports.
+ */
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { EntitlementGrant } from "../../domain/aggregates/EntitlementGrant";
+import type { EntitlementGrantRepository } from "../../domain/repositories/EntitlementGrantRepository";
+
+// ─── Grant Entitlement ────────────────────────────────────────────────────────
+
+export class GrantEntitlementUseCase {
+  constructor(private readonly repo: EntitlementGrantRepository) {}
+
+  async execute(input: {
+    contextId: string;
+    featureKey: string;
+    quota?: number | null;
+    expiresAt?: string | null;
+  }): Promise<CommandResult> {
+    try {
+      const id = crypto.randomUUID();
+      const grant = EntitlementGrant.create(id, input);
+      await this.repo.save(grant.getSnapshot());
+      return commandSuccess(id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "GRANT_ENTITLEMENT_FAILED",
+        err instanceof Error ? err.message : "Failed to grant entitlement",
+      );
+    }
+  }
+}
+
+// ─── Suspend Entitlement ──────────────────────────────────────────────────────
+
+export class SuspendEntitlementUseCase {
+  constructor(private readonly repo: EntitlementGrantRepository) {}
+
+  async execute(entitlementId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(entitlementId);
+      if (!snapshot) {
+        return commandFailureFrom("ENTITLEMENT_NOT_FOUND", `Entitlement ${entitlementId} not found`);
+      }
+      const grant = EntitlementGrant.reconstitute(snapshot);
+      grant.suspend();
+      await this.repo.update(grant.getSnapshot());
+      return commandSuccess(entitlementId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "SUSPEND_ENTITLEMENT_FAILED",
+        err instanceof Error ? err.message : "Failed to suspend entitlement",
+      );
+    }
+  }
+}
+
+// ─── Revoke Entitlement ───────────────────────────────────────────────────────
+
+export class RevokeEntitlementUseCase {
+  constructor(private readonly repo: EntitlementGrantRepository) {}
+
+  async execute(entitlementId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(entitlementId);
+      if (!snapshot) {
+        return commandFailureFrom("ENTITLEMENT_NOT_FOUND", `Entitlement ${entitlementId} not found`);
+      }
+      const grant = EntitlementGrant.reconstitute(snapshot);
+      grant.revoke();
+      await this.repo.update(grant.getSnapshot());
+      return commandSuccess(entitlementId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "REVOKE_ENTITLEMENT_FAILED",
+        err instanceof Error ? err.message : "Failed to revoke entitlement",
+      );
+    }
+  }
+}
+
+// ─── Resolve Entitlements (query-style) ───────────────────────────────────────
+
+export class ResolveEntitlementsUseCase {
+  constructor(private readonly repo: EntitlementGrantRepository) {}
+
+  async execute(contextId: string): Promise<CommandResult> {
+    try {
+      const snapshots = await this.repo.findByContextId(contextId);
+      const active = snapshots.filter((s) => s.status === "active");
+      return commandSuccess(JSON.stringify(active), Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "RESOLVE_ENTITLEMENTS_FAILED",
+        err instanceof Error ? err.message : "Failed to resolve entitlements",
+      );
+    }
+  }
+}
+
+// ─── Check Feature Entitlement ────────────────────────────────────────────────
+
+export class CheckFeatureEntitlementUseCase {
+  constructor(private readonly repo: EntitlementGrantRepository) {}
+
+  async execute(contextId: string, featureKey: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findActiveByContextAndFeature(contextId, featureKey);
+      return commandSuccess(JSON.stringify({ entitled: snapshot !== null, snapshot }), Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CHECK_ENTITLEMENT_FAILED",
+        err instanceof Error ? err.message : "Failed to check entitlement",
+      );
+    }
+  }
+}
+````
+
 ## File: modules/platform/subdomains/entitlement/domain/index.ts
 ````typescript
 export * from "./aggregates";
@@ -18538,52 +18795,6 @@ Feature flag management and rollout.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/identity/domain/index.ts
-````typescript
-export type { IdentityEntity, RegistrationInput, SignInCredentials } from "./entities/Identity";
-export type { TokenRefreshReason, TokenRefreshSignal } from "./entities/TokenRefreshSignal";
-export type { IdentityRepository } from "./repositories/IdentityRepository";
-export type { TokenRefreshRepository } from "./repositories/TokenRefreshRepository";
-export type { IIdentityPort, ITokenRefreshPort } from "./ports";
-export * from "./aggregates";
-export * from "./events";
-export * from "./value-objects";
-````
-
-## File: modules/platform/subdomains/identity/interfaces/hooks/useTokenRefreshListener.tsx
-````typescript
-"use client";
-
-import { getFirebaseAuth } from "@integration-firebase";
-import { useEffect } from "react";
-import { FirebaseTokenRefreshRepository } from "../../api";
-
-let _tokenRefreshRepo: FirebaseTokenRefreshRepository | undefined;
-
-function getTokenRefreshRepo(): FirebaseTokenRefreshRepository {
-	if (!_tokenRefreshRepo) _tokenRefreshRepo = new FirebaseTokenRefreshRepository();
-	return _tokenRefreshRepo;
-}
-
-export function useTokenRefreshListener(accountId: string | null | undefined): void {
-	useEffect(() => {
-		if (!accountId) return;
-		if (!/^[\w-]+$/.test(accountId)) return;
-
-		const unsubscribe = getTokenRefreshRepo().subscribe(accountId, () => {
-			const auth = getFirebaseAuth();
-			const currentUser = auth.currentUser;
-			if (!currentUser) return;
-			void currentUser.getIdToken(true).catch(() => {
-				// Non-fatal: token refreshes naturally on next expiry cycle.
-			});
-		});
-
-		return () => unsubscribe();
-	}, [accountId]);
-}
 ````
 
 ## File: modules/platform/subdomains/identity/README.md
@@ -18703,48 +18914,6 @@ export * from "./events";
 export * from "./value-objects";
 ````
 
-## File: modules/platform/subdomains/notification/infrastructure/notification-service.ts
-````typescript
-/**
- * NotificationService — Composition root for notification use cases.
- */
-
-import { FirebaseNotificationRepository } from "./firebase/FirebaseNotificationRepository";
-import {
-  DispatchNotificationUseCase,
-  GetNotificationsForRecipientUseCase,
-  GetUnreadCountUseCase,
-  MarkNotificationReadUseCase,
-  MarkAllNotificationsReadUseCase,
-} from "../application/use-cases/notification.use-cases";
-import type { DispatchNotificationInput, NotificationEntity } from "../domain/entities/Notification";
-import type { CommandResult } from "@shared-types";
-
-let _notificationRepo: FirebaseNotificationRepository | undefined;
-
-function getNotifRepo(): FirebaseNotificationRepository {
-  if (!_notificationRepo) _notificationRepo = new FirebaseNotificationRepository();
-  return _notificationRepo;
-}
-
-export const notificationService = {
-  dispatch: (input: DispatchNotificationInput): Promise<CommandResult> =>
-    new DispatchNotificationUseCase(getNotifRepo()).execute(input),
-
-  markAsRead: (notificationId: string, recipientId: string): Promise<CommandResult> =>
-    new MarkNotificationReadUseCase(getNotifRepo()).execute(notificationId, recipientId),
-
-  markAllAsRead: (recipientId: string): Promise<CommandResult> =>
-    new MarkAllNotificationsReadUseCase(getNotifRepo()).execute(recipientId),
-
-  getForRecipient: (recipientId: string, maxCount?: number): Promise<NotificationEntity[]> =>
-    new GetNotificationsForRecipientUseCase(getNotifRepo()).execute(recipientId, maxCount),
-
-  getUnreadCount: (recipientId: string): Promise<number> =>
-    new GetUnreadCountUseCase(getNotifRepo()).execute(recipientId),
-};
-````
-
 ## File: modules/platform/subdomains/notification/interfaces/_actions/notification.actions.ts
 ````typescript
 "use server";
@@ -18755,7 +18924,7 @@ export const notificationService = {
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { notificationService } from "../../api";
-import type { DispatchNotificationInput } from "../../application/dto/notification.dto";
+import type { DispatchNotificationInput } from "../../application/dtos/notification.dto";
 
 export async function dispatchNotification(input: DispatchNotificationInput): Promise<CommandResult> {
   try {
@@ -18782,6 +18951,20 @@ export async function markAllNotificationsRead(recipientId: string): Promise<Com
   } catch (err) {
     return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
+}
+````
+
+## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
+````typescript
+/**
+ * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
+ */
+
+import { notificationService } from "../../api";
+import type { NotificationEntity } from "../../application/dtos/notification.dto";
+
+export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
+  return notificationService.getForRecipient(recipientId, maxCount);
 }
 ````
 
@@ -18851,183 +19034,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/organization/api/index.ts
-````typescript
-/**
- * Public API boundary for the organization subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * NOTE: We avoid `export * from "../infrastructure"` here because the
- * infrastructure barrel pulls in Firebase repository constructors during
- * module evaluation, which causes failures during Next.js static
- * prerendering. Infrastructure exports are available in the server barrel
- * (./server.ts) or via direct import from action / service files.
- */
-
-// --- Domain types ---
-export type {
-  OrganizationEntity,
-  OrganizationRole,
-  Presence,
-  InviteState,
-  PolicyEffect,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  ThemeConfig,
-  OrgPolicy,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../domain";
-export type { OrganizationRepository, Unsubscribe } from "../domain";
-export type { OrgPolicyRepository } from "../domain";
-
-// --- Application use cases ---
-export {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-} from "../application";
-export {
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-} from "../application";
-export {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../application";
-export {
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../application";
-export {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../application";
-
-// --- Infrastructure (lazy, safe for SSR) ---
-export { organizationService, organizationQueryService } from "../infrastructure";
-
-// --- Interfaces (UI, queries, actions) ---
-export * from "../interfaces";
-````
-
-## File: modules/platform/subdomains/organization/application/use-cases/organization-team.use-cases.ts
-````typescript
-/**
- * Organization Team Use Cases — team-scoped operations owned by the organization subdomain.
- *
- * These use cases depend only on IOrganizationTeamPort (defined in organization's own
- * domain/ports/), keeping the application layer free from direct peer-subdomain imports.
- * The infrastructure composition root (organization-service.ts) injects the concrete
- * team adapter that satisfies the port.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { IOrganizationTeamPort } from "../../domain/ports/IOrganizationTeamPort";
-import type { CreateTeamInput } from "../../domain/entities/Organization";
-
-export class CreateTeamUseCase {
-  constructor(private readonly teamPort: IOrganizationTeamPort) {}
-
-  async execute(input: CreateTeamInput): Promise<CommandResult> {
-    try {
-      const teamId = await this.teamPort.createTeam(input);
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_TEAM_FAILED",
-        err instanceof Error ? err.message : "Failed to create team",
-      );
-    }
-  }
-}
-
-export class DeleteTeamUseCase {
-  constructor(private readonly teamPort: IOrganizationTeamPort) {}
-
-  async execute(organizationId: string, teamId: string): Promise<CommandResult> {
-    try {
-      await this.teamPort.deleteTeam(organizationId, teamId);
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DELETE_TEAM_FAILED",
-        err instanceof Error ? err.message : "Failed to delete team",
-      );
-    }
-  }
-}
-
-export class UpdateTeamMembersUseCase {
-  constructor(private readonly teamPort: IOrganizationTeamPort) {}
-
-  async execute(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-    action: "add" | "remove",
-  ): Promise<CommandResult> {
-    try {
-      if (action === "add") {
-        await this.teamPort.addMemberToTeam(organizationId, teamId, memberId);
-      } else {
-        await this.teamPort.removeMemberFromTeam(organizationId, teamId, memberId);
-      }
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_TEAM_MEMBERS_FAILED",
-        err instanceof Error ? err.message : "Failed to update team members",
-      );
-    }
-  }
-}
-````
-
-## File: modules/platform/subdomains/organization/domain/index.ts
-````typescript
-export type { OrganizationEntity,
-  OrganizationRole,
-  Presence,
-  InviteState,
-  PolicyEffect,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  ThemeConfig,
-  OrgPolicy,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "./entities/Organization";
-export type { OrganizationRepository, Unsubscribe } from "./repositories/OrganizationRepository";
-export type { OrgPolicyRepository } from "./repositories/OrgPolicyRepository";
-export type { IOrganizationTeamPort } from "./ports/IOrganizationTeamPort";
-export * from "./aggregates";
-export * from "./events";
-export * from "./value-objects";
-````
-
 ## File: modules/platform/subdomains/organization/interfaces/_actions/organization-policy.actions.ts
 ````typescript
 "use server";
@@ -19038,7 +19044,7 @@ export * from "./value-objects";
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { organizationService } from "../../api";
-import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../application/dto/organization.dto";
+import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../application/dtos/organization.dto";
 
 export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
   try { return await organizationService.createOrgPolicy(input); }
@@ -19072,7 +19078,7 @@ import type {
   InviteMemberInput,
   UpdateMemberRoleInput,
   CreateTeamInput,
-} from "../../application/dto/organization.dto";
+} from "../../application/dtos/organization.dto";
 
 export async function createOrganization(cmd: CreateOrganizationCommand): Promise<CommandResult> {
   try { return await organizationService.createOrganization(cmd); }
@@ -19164,6 +19170,28 @@ export async function dismissPartnerMember(
 ): Promise<CommandResult> {
   try { return await organizationService.dismissPartnerMember(organizationId, teamId, memberId); }
   catch (err) { return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+````
+
+## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
+````typescript
+/**
+ * Organization Queries — delegates to organizationQueryService via the subdomain api/ boundary.
+ */
+
+import { organizationQueryService } from "../../api";
+import type { MemberReference, Team, OrgPolicy } from "../../application/dtos/organization.dto";
+
+export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
+  return organizationQueryService.getMembers(organizationId);
+}
+
+export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
+  return organizationQueryService.getTeams(organizationId);
+}
+
+export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
+  return organizationQueryService.getOrgPolicies(orgId);
 }
 ````
 
@@ -19285,6 +19313,132 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/platform/subdomains/subscription/application/use-cases/subscription.use-cases.ts
+````typescript
+/**
+ * Subscription Use Cases — pure application logic.
+ */
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { Subscription } from "../../domain/aggregates/Subscription";
+import type { SubscriptionRepository } from "../../domain/repositories/SubscriptionRepository";
+import type { BillingCycle } from "../../domain/value-objects/BillingCycle";
+
+// ─── Activate Subscription ────────────────────────────────────────────────────
+
+export class ActivateSubscriptionUseCase {
+  constructor(private readonly repo: SubscriptionRepository) {}
+
+  async execute(input: {
+    contextId: string;
+    planCode: string;
+    billingCycle: BillingCycle;
+    currentPeriodEnd?: string | null;
+  }): Promise<CommandResult> {
+    try {
+      const id = crypto.randomUUID();
+      const sub = Subscription.create(id, input);
+      await this.repo.save(sub.getSnapshot());
+      return commandSuccess(id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "ACTIVATE_SUBSCRIPTION_FAILED",
+        err instanceof Error ? err.message : "Failed to activate subscription",
+      );
+    }
+  }
+}
+
+// ─── Cancel Subscription ──────────────────────────────────────────────────────
+
+export class CancelSubscriptionUseCase {
+  constructor(private readonly repo: SubscriptionRepository) {}
+
+  async execute(subscriptionId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(subscriptionId);
+      if (!snapshot) {
+        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
+      }
+      const sub = Subscription.reconstitute(snapshot);
+      sub.cancel();
+      await this.repo.update(sub.getSnapshot());
+      return commandSuccess(subscriptionId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CANCEL_SUBSCRIPTION_FAILED",
+        err instanceof Error ? err.message : "Failed to cancel subscription",
+      );
+    }
+  }
+}
+
+// ─── Renew Subscription ───────────────────────────────────────────────────────
+
+export class RenewSubscriptionUseCase {
+  constructor(private readonly repo: SubscriptionRepository) {}
+
+  async execute(subscriptionId: string, newPeriodEnd: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(subscriptionId);
+      if (!snapshot) {
+        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
+      }
+      const sub = Subscription.reconstitute(snapshot);
+      sub.renew(newPeriodEnd);
+      await this.repo.update(sub.getSnapshot());
+      return commandSuccess(subscriptionId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "RENEW_SUBSCRIPTION_FAILED",
+        err instanceof Error ? err.message : "Failed to renew subscription",
+      );
+    }
+  }
+}
+
+// ─── Get Active Subscription (query-style) ───────────────────────────────────
+
+export class GetActiveSubscriptionUseCase {
+  constructor(private readonly repo: SubscriptionRepository) {}
+
+  async execute(contextId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findActiveByContextId(contextId);
+      return commandSuccess(JSON.stringify(snapshot), Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "GET_ACTIVE_SUBSCRIPTION_FAILED",
+        err instanceof Error ? err.message : "Failed to get active subscription",
+      );
+    }
+  }
+}
+
+// ─── Mark Past Due ────────────────────────────────────────────────────────────
+
+export class MarkSubscriptionPastDueUseCase {
+  constructor(private readonly repo: SubscriptionRepository) {}
+
+  async execute(subscriptionId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(subscriptionId);
+      if (!snapshot) {
+        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
+      }
+      const sub = Subscription.reconstitute(snapshot);
+      sub.markPastDue();
+      await this.repo.update(sub.getSnapshot());
+      return commandSuccess(subscriptionId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "MARK_PAST_DUE_FAILED",
+        err instanceof Error ? err.message : "Failed to mark subscription past due",
+      );
+    }
+  }
+}
+````
+
 ## File: modules/platform/subdomains/subscription/README.md
 ````markdown
 # Subscription
@@ -19317,33 +19471,6 @@ Customer support management.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/team/api/index.ts
-````typescript
-/**
- * Module: platform/subdomains/team
- * Layer: api (public boundary)
- * Purpose: Exports types, use cases, and a factory function for the team
- *          subdomain. Consumers must use the TeamRepository port interface
- *          and the createTeamRepository factory — never the concrete adapter.
- */
-
-import type { TeamRepository } from "../domain/repositories/TeamRepository";
-import { FirebaseTeamRepository } from "../infrastructure/firebase/FirebaseTeamRepository";
-
-export type { Team, CreateTeamInput } from "../domain/entities/Team";
-export type { TeamRepository } from "../domain/repositories/TeamRepository";
-export {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../application/use-cases/team.use-cases";
-
-/** Factory — returns a TeamRepository backed by Firebase. */
-export function createTeamRepository(): TeamRepository {
-  return new FirebaseTeamRepository();
-}
 ````
 
 ## File: modules/platform/subdomains/team/domain/aggregates/OrganizationTeam.ts
@@ -19498,6 +19625,23 @@ export class OrganizationTeam {
 }
 ````
 
+## File: modules/platform/subdomains/team/README.md
+````markdown
+# Team
+
+Team management within organizations.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/tenant/README.md
 ````markdown
 # Tenant
@@ -19533,501 +19677,113 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/interfaces/web/components/DashboardSidebar.tsx
+## File: modules/platform/api/index.ts
 ````typescript
-"use client";
-
 /**
- * Module: dashboard-sidebar.tsx
- * Purpose: render the secondary navigation panel of the authenticated shell.
- * Responsibilities: account switcher, search hint, org management sub-nav, and
- *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
- * Constraints: UI-only; workspace data sourced from module interfaces.
+ * platform public API boundary.
+ *
+ * account is listed before organization to establish canonical definitions for
+ * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
+ * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { toast } from "sonner";
+export * from "./contracts";
+export * from "./facade";
+export { createPlatformService } from "./platform-service";
+export * from "../subdomains/identity/api";
+export * from "../subdomains/account/api";
+export * from "../subdomains/notification/api";
 
-import { createKnowledgePage } from "@/modules/notion/api";
-import {
-  buildWorkspaceQuickAccessItems,
-  CustomizeNavigationDialog,
-  getWorkspaceIdFromPath,
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  readNavPreferences,
-  type NavPreferences,
-  useRecentWorkspaces,
-  useSidebarLocale,
-  WorkspaceQuickAccessRow,
-} from "@/modules/workspace/api";
+export {
+  getProfile,
+  subscribeToProfile,
+  updateProfile,
+  SettingsProfileRouteScreen,
+  getAccountProfile,
+  subscribeToAccountProfile,
+  updateAccountProfile,
+} from "../subdomains/account-profile/api";
 
-import {
-  type DashboardSidebarProps,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  ACCOUNT_NAV_ITEMS,
-  SECTION_TITLES,
-  resolveNavSection,
-  isActiveOrganizationAccount,
-} from "../navigation/sidebar-nav-data";
-import { DashboardSidebarHeader } from "./sidebar/DashboardSidebarHeader";
-import { DashboardSidebarBody } from "./sidebar/DashboardSidebarBody";
+export type {
+  AccountProfile,
+  UpdateAccountProfileInput,
+} from "../subdomains/account-profile/api";
 
-export function DashboardSidebar({
-  pathname,
-  userId,
-  activeAccount,
-  workspaces,
-  workspacesHydrated,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps) {
-  const searchParams = useSearchParams();
+// organization — explicit to avoid re-export conflicts with account subdomain
+export type {
+  OrganizationEntity,
+  Presence,
+  InviteState,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  OrgPolicy,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+  OrganizationRepository,
+  OrgPolicyRepository,
+} from "../subdomains/organization/api";
+export {
+  organizationService,
+  getOrganizationMembers,
+  getOrganizationTeams,
+  getOrgPolicies,
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+  createOrgPolicy,
+  updateOrgPolicy,
+  deleteOrgPolicy,
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+  // UI components
+  AccountSwitcher,
+  CreateOrganizationDialog,
+  MembersPage,
+  TeamsPage,
+  PermissionsPage,
+  OrganizationAuditPage,
+} from "../subdomains/organization/api";
+export type { MembersPageProps, TeamsPageProps, PermissionsPageProps, OrganizationAuditPageProps } from "../subdomains/organization/api";
 
-  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
-    activeAccount?.id,
-    pathname,
-    workspaces,
-  );
-  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
-  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
-  const [customizeOpen, setCustomizeOpen] = useState(false);
-  const localeBundle = useSidebarLocale();
+// background-job — knowledge ingestion pipeline management
+export * from "../subdomains/background-job/api";
 
-  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
-
-  const visibleOrganizationManagementItems = useMemo(
-    () => ORGANIZATION_MANAGEMENT_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
-    [navPrefs.pinnedWorkspace],
-  );
-
-  const visibleAccountItems = useMemo(
-    () => ACCOUNT_NAV_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
-    [navPrefs.pinnedWorkspace],
-  );
-
-  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
-
-  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
-    ? navPrefs.maxWorkspaces
-    : MAX_VISIBLE_RECENT_WORKSPACES;
-
-  function isActiveRoute(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-
-  useEffect(() => {
-    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
-    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(pathWorkspaceId);
-      return;
-    }
-
-    const supportsWorkspaceSearchContext =
-      pathname.startsWith("/knowledge") ||
-      pathname.startsWith("/source") ||
-      pathname.startsWith("/notebook");
-
-    if (!supportsWorkspaceSearchContext) {
-      return;
-    }
-
-    if (currentSearchWorkspaceId && currentSearchWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(currentSearchWorkspaceId);
-    }
-  }, [pathname, activeWorkspaceId, currentSearchWorkspaceId, onSelectWorkspace]);
-
-  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
-  const visibleRecentWorkspaceLinks = isExpanded
-    ? recentWorkspaceLinks
-    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
-
-  const buildWorkspaceContextHref = useCallback(
-    (workspaceId: string): string => {
-      if (pathname.startsWith("/knowledge")) {
-        const targetPath = pathname === "/knowledge" ? "/knowledge/pages" : pathname;
-        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
-      }
-      return `/workspace/${workspaceId}`;
-    },
-    [pathname],
-  );
-
-  const allWorkspaceLinks = useMemo(
-    () =>
-      workspaces
-        .map((workspace) => ({
-          id: workspace.id,
-          name: workspace.name,
-          href: buildWorkspaceContextHref(workspace.id),
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces, buildWorkspaceContextHref],
-  );
-
-  const section = resolveNavSection(pathname);
-  const sectionMeta = SECTION_TITLES[section];
-  const workspacePathId = getWorkspaceIdFromPath(pathname);
-  const currentPanel = searchParams.get("panel");
-  const currentWorkspaceTab = searchParams.get("tab");
-  const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
-  const hasWorkspaceToolContext =
-    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
-    (section === "knowledge" ||
-      section === "knowledge-base" ||
-      section === "source" ||
-      section === "notebook");
-  const workspaceQuickAccessId =
-    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
-  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
-  const workspaceSettingsHref = workspaceQuickAccessId
-    ? `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
-    : "";
-  const workspaceQuickAccessItems = useMemo(
-    () =>
-      showWorkspaceQuickAccess && workspaceQuickAccessId
-        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId)
-        : [],
-    [showWorkspaceQuickAccess, workspaceQuickAccessId],
-  );
-
-  async function handleQuickCreatePage() {
-    const accountId = activeAccount?.id ?? "";
-    if (!accountId) {
-      toast.error("目前沒有 active account，無法建立");
-      return;
-    }
-    if (!activeWorkspaceId) {
-      toast.error("請先切換到工作區，再建立頁面");
-      return;
-    }
-    setCreatingKind("page");
-    try {
-      const result = await createKnowledgePage({
-        accountId,
-        workspaceId: activeWorkspaceId,
-        title: "未命名頁面",
-        parentPageId: null,
-        createdByUserId: userId ?? accountId,
-      });
-      if (result.success) {
-        toast.success("已建立頁面");
-      } else {
-        toast.error(result.error?.message ?? "建立頁面失敗");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("建立頁面失敗");
-    } finally {
-      setCreatingKind(null);
-    }
-  }
-
-  return (
-    <div className="contents">
-      <aside
-        aria-label="Secondary navigation"
-        className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
-          collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
-        }`}
-      >
-        <DashboardSidebarHeader
-          sectionLabel={sectionMeta.label}
-          sectionIcon={sectionMeta.icon}
-          onOpenCustomize={() => {
-            setCustomizeOpen(true);
-          }}
-          onToggleCollapsed={onToggleCollapsed}
-        />
-
-        <WorkspaceQuickAccessRow
-          items={workspaceQuickAccessItems}
-          pathname={pathname}
-          currentPanel={currentPanel}
-          currentWorkspaceTab={currentWorkspaceTab}
-          workspaceSettingsHref={workspaceSettingsHref}
-          isActiveRoute={isActiveRoute}
-        />
-
-        <DashboardSidebarBody
-          section={section}
-          isActiveRoute={isActiveRoute}
-          activeAccountId={activeAccount?.id ?? null}
-          showAccountManagement={showAccountManagement}
-          visibleAccountItems={visibleAccountItems}
-          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
-          workspacePathId={workspacePathId}
-          navPrefs={navPrefs}
-          localeBundle={localeBundle}
-          showRecentWorkspaces={showRecentWorkspaces}
-          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-          hasOverflow={hasOverflow}
-          isExpanded={isExpanded}
-          activeWorkspaceId={activeWorkspaceId}
-          onSelectWorkspace={onSelectWorkspace}
-          onToggleExpanded={() => {
-            setIsExpanded((prev) => !prev);
-          }}
-          pathname={pathname}
-          workspacesHydrated={workspacesHydrated}
-          allWorkspaceLinks={allWorkspaceLinks}
-          currentSearchWorkspaceId={currentSearchWorkspaceId}
-          creatingKind={creatingKind}
-          onQuickCreatePage={() => {
-            void handleQuickCreatePage();
-          }}
-        />
-      </aside>
-
-      <CustomizeNavigationDialog
-        open={customizeOpen}
-        onOpenChange={setCustomizeOpen}
-        onPreferencesChange={setNavPrefs}
-      />
-    </div>
-  );
-}
-````
-
-## File: modules/platform/interfaces/web/components/sidebar/DashboardSidebarBody.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-
-import { KnowledgeSidebarSection } from "@/modules/notion/api";
-import {
-  WorkspaceSectionContent,
-  type NavPreferences,
-  type SidebarLocaleBundle,
-} from "@/modules/workspace/api";
-
-import {
-  type NavSection,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-} from "../../navigation/sidebar-nav-data";
-import { ContextScopedNavSection } from "./ContextScopedNavSection";
-
-interface NavItem {
-  id: string;
-  label: string;
-  href: string;
-}
-
-interface WorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-
-interface DashboardSidebarBodyProps {
-  section: NavSection;
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  showAccountManagement: boolean;
-  visibleAccountItems: readonly NavItem[];
-  visibleOrganizationManagementItems: readonly NavItem[];
-  workspacePathId: string | null;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-  showRecentWorkspaces: boolean;
-  visibleRecentWorkspaceLinks: WorkspaceLink[];
-  hasOverflow: boolean;
-  isExpanded: boolean;
-  activeWorkspaceId: string | null;
-  onSelectWorkspace: (workspaceId: string | null) => void;
-  onToggleExpanded: () => void;
-  pathname: string;
-  workspacesHydrated: boolean;
-  allWorkspaceLinks: WorkspaceLink[];
-  currentSearchWorkspaceId: string;
-  creatingKind: "page" | "database" | null;
-  onQuickCreatePage: () => void;
-}
-
-function ManagedNavGroup({
-  title,
-  ariaLabel,
-  items,
-  isActiveRoute,
-}: {
-  title: string;
-  ariaLabel: string;
-  items: readonly NavItem[];
-  isActiveRoute: (href: string) => boolean;
-}) {
-  return (
-    <nav className="space-y-0.5" aria-label={ariaLabel}>
-      <p className={sidebarSectionTitleClass}>{title}</p>
-      {items.map((item) => {
-        const active = isActiveRoute(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={sidebarItemClass(active)}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
-export function DashboardSidebarBody({
-  section,
-  isActiveRoute,
-  activeAccountId,
-  showAccountManagement,
-  visibleAccountItems,
-  visibleOrganizationManagementItems,
-  workspacePathId,
-  navPrefs,
-  localeBundle,
-  showRecentWorkspaces,
-  visibleRecentWorkspaceLinks,
-  hasOverflow,
-  isExpanded,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onToggleExpanded,
-  pathname,
-  workspacesHydrated,
-  allWorkspaceLinks,
-  currentSearchWorkspaceId,
-  creatingKind,
-  onQuickCreatePage,
-}: DashboardSidebarBodyProps) {
-  return (
-    <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
-      {section === "account" && (
-        <div className="space-y-2">
-          {showAccountManagement && visibleAccountItems.length > 0 && (
-            <ManagedNavGroup
-              title="Account"
-              ariaLabel="Account navigation"
-              items={visibleAccountItems}
-              isActiveRoute={isActiveRoute}
-            />
-          )}
-          {!showAccountManagement && (
-            <p className="px-2 py-4 text-[11px] text-muted-foreground">
-              請切換到組織帳號以查看 Account 選項。
-            </p>
-          )}
-        </div>
-      )}
-
-      {section === "organization" && (
-        <div className="space-y-2">
-          {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
-            <ManagedNavGroup
-              title="組織管理"
-              ariaLabel="Organization management"
-              items={visibleOrganizationManagementItems}
-              isActiveRoute={isActiveRoute}
-            />
-          )}
-          {!showAccountManagement && (
-            <p className="px-2 py-4 text-[11px] text-muted-foreground">
-              請切換到組織帳號以查看管理選項。
-            </p>
-          )}
-        </div>
-      )}
-
-      {section === "workspace" && (
-        <div className="space-y-2">
-          <WorkspaceSectionContent
-            workspacePathId={workspacePathId}
-            navPrefs={navPrefs}
-            localeBundle={localeBundle}
-            showRecentWorkspaces={showRecentWorkspaces}
-            visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-            hasOverflow={hasOverflow}
-            isExpanded={isExpanded}
-            activeWorkspaceId={activeWorkspaceId}
-            isActiveRoute={isActiveRoute}
-            onSelectWorkspace={onSelectWorkspace}
-            onToggleExpanded={onToggleExpanded}
-            getItemClassName={sidebarItemClass}
-            sectionTitleClassName={sidebarSectionTitleClass}
-          />
-        </div>
-      )}
-
-      {section === "knowledge" && (
-        <KnowledgeSidebarSection
-          pathname={pathname}
-          workspacesHydrated={workspacesHydrated}
-          allWorkspaceLinks={allWorkspaceLinks}
-          activeAccountId={activeAccountId}
-          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
-          creatingKind={creatingKind}
-          onSelectWorkspace={onSelectWorkspace}
-          onQuickCreatePage={onQuickCreatePage}
-        />
-      )}
-
-      {section === "knowledge-base" && (
-        <ContextScopedNavSection
-          title="知識庫"
-          items={[{ href: "/knowledge-base/articles", label: "文章" }]}
-          isActiveRoute={isActiveRoute}
-          activeAccountId={activeAccountId}
-          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
-        />
-      )}
-
-      {section === "knowledge-database" && (
-        <ContextScopedNavSection
-          title="資料庫"
-          items={[{ href: "/knowledge-database/databases", label: "資料庫" }]}
-          isActiveRoute={isActiveRoute}
-          activeAccountId={activeAccountId}
-          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
-        />
-      )}
-
-      {section === "source" && (
-        <ContextScopedNavSection
-          title="來源文件"
-          items={[{ href: "/source/libraries", label: "Libraries" }]}
-          isActiveRoute={isActiveRoute}
-          activeAccountId={activeAccountId}
-          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
-        />
-      )}
-
-      {section === "notebook" && (
-        <ContextScopedNavSection
-          title="Notebook"
-          items={[{ href: "/notebook/rag-query", label: "Ask / Cite" }]}
-          isActiveRoute={isActiveRoute}
-          activeAccountId={activeAccountId}
-          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
-        />
-      )}
-
-      {section === "ai-chat" && (
-        <ContextScopedNavSection
-          title="Notebook / AI"
-          items={[{ href: "/ai-chat", label: "Notebook shell" }]}
-          isActiveRoute={isActiveRoute}
-          activeAccountId={activeAccountId}
-          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
-        />
-      )}
-    </div>
-  );
-}
+// platform-level interfaces (HeaderControls, TranslationSwitcher)
+export * from "../interfaces";
 ````
 
 ## File: modules/platform/README.md
@@ -20129,6 +19885,283 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Context Map](../../docs/contexts/platform/context-map.md)
 - [Ubiquitous Language](../../docs/contexts/platform/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
+````
+
+## File: modules/platform/subdomains/access-control/application/use-cases/access-control.use-cases.ts
+````typescript
+/**
+ * Access-Control Use Cases — pure application logic.
+ */
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { AccessPolicy } from "../../domain/aggregates/AccessPolicy";
+import {
+  allowDecision,
+  denyDecision,
+} from "../../../../domain/value-objects/PermissionDecision";
+import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
+import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
+import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
+import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
+
+// ─── Evaluate Permission ──────────────────────────────────────────────────────
+
+export class EvaluatePermissionUseCase {
+  constructor(private readonly repo: AccessPolicyRepository) {}
+
+  async execute(input: {
+    subjectId: string;
+    resourceType: string;
+    resourceId?: string;
+    action: string;
+  }): Promise<CommandResult> {
+    try {
+      const policies = await this.repo.findActiveBySubjectAndResource(
+        input.subjectId,
+        input.resourceType,
+        input.resourceId,
+      );
+
+      // Explicit deny takes priority (deny-override semantics)
+      const hasDeny = policies.some(
+        (p) => p.effect === "deny" && p.actions.includes(input.action),
+      );
+      if (hasDeny) {
+        return commandSuccess(JSON.stringify(denyDecision("Explicit deny policy matched")), Date.now());
+      }
+
+      const hasAllow = policies.some(
+        (p) => p.effect === "allow" && p.actions.includes(input.action),
+      );
+      if (hasAllow) {
+        return commandSuccess(JSON.stringify(allowDecision("Allow policy matched")), Date.now());
+      }
+
+      return commandSuccess(JSON.stringify(denyDecision("No matching allow policy")), Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "EVALUATE_PERMISSION_FAILED",
+        err instanceof Error ? err.message : "Failed to evaluate permission",
+      );
+    }
+  }
+}
+
+// ─── Create Access Policy ─────────────────────────────────────────────────────
+
+export class CreateAccessPolicyUseCase {
+  constructor(private readonly repo: AccessPolicyRepository) {}
+
+  async execute(input: {
+    subjectRef: SubjectRef;
+    resourceRef: ResourceRef;
+    actions: string[];
+    effect: PolicyEffect;
+    conditions?: string[];
+  }): Promise<CommandResult> {
+    try {
+      const id = crypto.randomUUID();
+      const policy = AccessPolicy.create(id, input);
+      await this.repo.save(policy.getSnapshot());
+      return commandSuccess(id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CREATE_ACCESS_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to create access policy",
+      );
+    }
+  }
+}
+
+// ─── Update Access Policy ─────────────────────────────────────────────────────
+
+export class UpdateAccessPolicyUseCase {
+  constructor(private readonly repo: AccessPolicyRepository) {}
+
+  async execute(
+    policyId: string,
+    input: { actions?: string[]; effect?: PolicyEffect; conditions?: string[] },
+  ): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(policyId);
+      if (!snapshot) {
+        return commandFailureFrom("POLICY_NOT_FOUND", `AccessPolicy ${policyId} not found`);
+      }
+      const policy = AccessPolicy.reconstitute(snapshot);
+      policy.update(input);
+      await this.repo.update(policy.getSnapshot());
+      return commandSuccess(policyId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_ACCESS_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to update access policy",
+      );
+    }
+  }
+}
+
+// ─── Delete (Deactivate) Access Policy ───────────────────────────────────────
+
+export class DeactivateAccessPolicyUseCase {
+  constructor(private readonly repo: AccessPolicyRepository) {}
+
+  async execute(policyId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(policyId);
+      if (!snapshot) {
+        return commandFailureFrom("POLICY_NOT_FOUND", `AccessPolicy ${policyId} not found`);
+      }
+      const policy = AccessPolicy.reconstitute(snapshot);
+      policy.deactivate();
+      await this.repo.update(policy.getSnapshot());
+      return commandSuccess(policyId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "DEACTIVATE_ACCESS_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to deactivate access policy",
+      );
+    }
+  }
+}
+````
+
+## File: modules/platform/subdomains/account-profile/application/index.ts
+````typescript
+export { GetAccountProfileUseCase, SubscribeAccountProfileUseCase } from "./use-cases/get-account-profile.use-case";
+export { UpdateAccountProfileUseCase } from "./use-cases/update-account-profile.use-case";
+export type {
+	AccountProfile,
+	AccountProfileId,
+	AccountProfileTheme,
+	Unsubscribe,
+	UpdateAccountProfileInput,
+} from "./dtos/account-profile.dto";
+````
+
+## File: modules/platform/subdomains/account-profile/infrastructure/create-legacy-account-profile-application.adapter.ts
+````typescript
+import {
+	createAccountProfile,
+	type AccountProfile,
+	type AccountProfileId,
+	type AccountProfileTheme,
+	type UpdateAccountProfileInput,
+} from "../domain";
+import type {
+	AccountProfileCommandRepository,
+	AccountProfileQueryRepository,
+	Unsubscribe,
+} from "../domain";
+
+type LegacyTheme = Partial<AccountProfileTheme> | null | undefined;
+type LegacyUpdateProfileInput = {
+	name?: string;
+	bio?: string;
+	photoURL?: string;
+	theme?: AccountProfileTheme;
+};
+
+type LegacyAccountProfileRecord = {
+	id: string;
+	name?: string | null;
+	email?: string | null;
+	photoURL?: string | null;
+	bio?: string | null;
+	theme?: LegacyTheme;
+} | null;
+
+export interface LegacyAccountProfileDataSource {
+	getUserProfile(userId: string): Promise<LegacyAccountProfileRecord>;
+	subscribeToUserProfile(
+		userId: string,
+		onUpdate: (profile: LegacyAccountProfileRecord) => void,
+	): Unsubscribe;
+	updateUserProfile(userId: string, input: LegacyUpdateProfileInput): Promise<void>;
+}
+
+function normalizeTheme(theme: LegacyTheme): AccountProfileTheme | undefined {
+	if (!theme?.primary || !theme?.background || !theme?.accent) {
+		return undefined;
+	}
+
+	return {
+		primary: theme.primary,
+		background: theme.background,
+		accent: theme.accent,
+	};
+}
+
+function mapLegacyProfile(record: LegacyAccountProfileRecord): AccountProfile | null {
+	if (!record) {
+		return null;
+	}
+
+	const displayName = (record.name ?? "").trim() || "Unknown Actor";
+
+	return createAccountProfile({
+		id: record.id as AccountProfileId,
+		displayName,
+		email: record.email ?? undefined,
+		photoURL: record.photoURL ?? undefined,
+		bio: record.bio ?? undefined,
+		theme: normalizeTheme(record.theme),
+	});
+}
+
+/** Read-side adapter: maps legacy data source to AccountProfileQueryRepository. */
+class LegacyAccountProfileQueryAdapter implements AccountProfileQueryRepository {
+	constructor(
+		private readonly legacyDataSource: LegacyAccountProfileDataSource,
+	) {}
+
+	async getAccountProfile(
+		actorId: AccountProfileId,
+	): Promise<AccountProfile | null> {
+		const profile = await this.legacyDataSource.getUserProfile(actorId);
+		return mapLegacyProfile(profile);
+	}
+
+	subscribeToAccountProfile(
+		actorId: AccountProfileId,
+		onUpdate: (profile: AccountProfile | null) => void,
+	): Unsubscribe {
+		return this.legacyDataSource.subscribeToUserProfile(actorId, (profile) => {
+			onUpdate(mapLegacyProfile(profile));
+		});
+	}
+}
+
+/** Write-side adapter: maps legacy data source to AccountProfileCommandRepository. */
+class LegacyAccountProfileCommandAdapter implements AccountProfileCommandRepository {
+	constructor(
+		private readonly legacyDataSource: LegacyAccountProfileDataSource,
+	) {}
+
+	async updateAccountProfile(
+		actorId: AccountProfileId,
+		input: UpdateAccountProfileInput,
+	): Promise<void> {
+		const legacyInput: LegacyUpdateProfileInput = {
+			name: input.displayName,
+			bio: input.bio,
+			photoURL: input.photoURL,
+			theme: input.theme,
+		};
+
+		await this.legacyDataSource.updateUserProfile(actorId, legacyInput);
+	}
+}
+
+export function createLegacyAccountProfileQueryRepository(
+	legacyDataSource: LegacyAccountProfileDataSource,
+): AccountProfileQueryRepository {
+	return new LegacyAccountProfileQueryAdapter(legacyDataSource);
+}
+
+export function createLegacyAccountProfileCommandRepository(
+	legacyDataSource: LegacyAccountProfileDataSource,
+): AccountProfileCommandRepository {
+	return new LegacyAccountProfileCommandAdapter(legacyDataSource);
+}
 ````
 
 ## File: modules/platform/subdomains/account-profile/infrastructure/index.ts
@@ -20340,449 +20373,34 @@ export { updateProfile } from "./_actions/account-profile.actions";
 export { SettingsProfileRouteScreen } from "./components/screens/SettingsProfileRouteScreen";
 ````
 
-## File: modules/platform/subdomains/account/infrastructure/account-service.ts
+## File: modules/platform/subdomains/account/api/legacy-account-profile.bridge.ts
 ````typescript
-/**
- * AccountService — Composition root for account use cases.
- * Wires repositories and ports; provides a unified service interface.
- */
-
-import {
-  CreateUserAccountUseCase,
-  UpdateUserProfileUseCase,
-  CreditWalletUseCase,
-  DebitWalletUseCase,
-  AssignAccountRoleUseCase,
-  RevokeAccountRoleUseCase,
-} from "../application/use-cases/account.use-cases";
-import {
-  CreateAccountPolicyUseCase,
-  UpdateAccountPolicyUseCase,
-  DeleteAccountPolicyUseCase,
-} from "../application/use-cases/account-policy.use-cases";
-import { FirebaseAccountRepository } from "./firebase/FirebaseAccountRepository";
-import { FirebaseAccountQueryRepository } from "./firebase/FirebaseAccountQueryRepository";
-import { FirebaseAccountPolicyRepository } from "./firebase/FirebaseAccountPolicyRepository";
-import { tokenRefreshAdapter } from "./identity-token-refresh.adapter";
-import type { UpdateProfileInput, OrganizationRole } from "../domain/entities/Account";
-import type { CreatePolicyInput, UpdatePolicyInput } from "../domain/entities/AccountPolicy";
+import { type UpdateProfileInput } from "../application/dtos/account.dto";
+import { accountService, createAccountQueryRepository } from "../infrastructure/account-service";
 import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
-import type { CommandResult } from "@shared-types";
 
-let _accountRepo: FirebaseAccountRepository | undefined;
-let _policyRepo: FirebaseAccountPolicyRepository | undefined;
+let _accountQueryRepo: AccountQueryRepository | undefined;
 
-function getAccountRepo(): FirebaseAccountRepository {
-  if (!_accountRepo) _accountRepo = new FirebaseAccountRepository();
-  return _accountRepo;
+function getAccountQueryRepo(): AccountQueryRepository {
+  if (!_accountQueryRepo) {
+    _accountQueryRepo = createAccountQueryRepository();
+  }
+  return _accountQueryRepo;
 }
 
-function getAcctPolicyRepo(): FirebaseAccountPolicyRepository {
-  if (!_policyRepo) _policyRepo = new FirebaseAccountPolicyRepository();
-  return _policyRepo;
+export async function getLegacyUserProfile(userId: string) {
+  return getAccountQueryRepo().getUserProfile(userId);
 }
 
-export const accountService = {
-  createUserAccount: (userId: string, name: string, email: string): Promise<CommandResult> =>
-    new CreateUserAccountUseCase(getAccountRepo()).execute(userId, name, email),
-
-  updateUserProfile: (userId: string, data: UpdateProfileInput): Promise<CommandResult> =>
-    new UpdateUserProfileUseCase(getAccountRepo()).execute(userId, data),
-
-  creditWallet: (accountId: string, amount: number, description: string): Promise<CommandResult> =>
-    new CreditWalletUseCase(getAccountRepo()).execute(accountId, amount, description),
-
-  debitWallet: (accountId: string, amount: number, description: string): Promise<CommandResult> =>
-    new DebitWalletUseCase(getAccountRepo()).execute(accountId, amount, description),
-
-  assignRole: (accountId: string, role: OrganizationRole, grantedBy: string, traceId?: string): Promise<CommandResult> =>
-    new AssignAccountRoleUseCase(getAccountRepo(), tokenRefreshAdapter).execute(accountId, role, grantedBy, traceId),
-
-  revokeRole: (accountId: string): Promise<CommandResult> =>
-    new RevokeAccountRoleUseCase(getAccountRepo(), tokenRefreshAdapter).execute(accountId),
-
-  createPolicy: (input: CreatePolicyInput): Promise<CommandResult> =>
-    new CreateAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(input),
-
-  updatePolicy: (policyId: string, accountId: string, data: UpdatePolicyInput, traceId?: string): Promise<CommandResult> =>
-    new UpdateAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(policyId, accountId, data, traceId),
-
-  deletePolicy: (policyId: string, accountId: string): Promise<CommandResult> =>
-    new DeleteAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(policyId, accountId),
-};
-
-/**
- * Creates a wired set of client-side account use cases.
- * Keeps infrastructure wiring in the module boundary rather than in UI files.
- */
-export function createClientAccountUseCases() {
-  const repo = new FirebaseAccountRepository();
-  return {
-    createUserAccountUseCase: new CreateUserAccountUseCase(repo),
-  };
+export function subscribeToLegacyUserProfile(
+  userId: string,
+  onUpdate: (profile: Awaited<ReturnType<typeof getLegacyUserProfile>>) => void,
+) {
+  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
 }
 
-// Internal re-export for the legacy bridge within this subdomain only.
-export { FirebaseAccountQueryRepository };
-
-/** Factory that returns a wired AccountQueryRepository without leaking the concrete class. */
-export function createAccountQueryRepository(): AccountQueryRepository {
-  return new FirebaseAccountQueryRepository();
-}
-````
-
-## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
-````typescript
-/**
- * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
- */
-
-import { notificationService } from "../../api";
-import type { NotificationEntity } from "../../application/dto/notification.dto";
-
-export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
-  return notificationService.getForRecipient(recipientId, maxCount);
-}
-````
-
-## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
-````typescript
-/**
- * Organization Queries — delegates to organizationQueryService via the subdomain api/ boundary.
- */
-
-import { organizationQueryService } from "../../api";
-import type { MemberReference, Team, OrgPolicy } from "../../application/dto/organization.dto";
-
-export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
-  return organizationQueryService.getMembers(organizationId);
-}
-
-export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
-  return organizationQueryService.getTeams(organizationId);
-}
-
-export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
-  return organizationQueryService.getOrgPolicies(orgId);
-}
-````
-
-## File: modules/platform/subdomains/team/README.md
-````markdown
-# Team
-
-Team management within organizations.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/api/index.ts
-````typescript
-/**
- * platform public API boundary.
- *
- * account is listed before organization to establish canonical definitions for
- * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
- * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
- */
-
-export * from "./contracts";
-export * from "./facade";
-export { createPlatformService } from "./platform-service";
-export * from "../subdomains/identity/api";
-export * from "../subdomains/account/api";
-export * from "../subdomains/notification/api";
-
-export {
-  getProfile,
-  subscribeToProfile,
-  updateProfile,
-  SettingsProfileRouteScreen,
-  getAccountProfile,
-  subscribeToAccountProfile,
-  updateAccountProfile,
-} from "../subdomains/account-profile/api";
-
-export type {
-  AccountProfile,
-  UpdateAccountProfileInput,
-} from "../subdomains/account-profile/api";
-
-// organization — explicit to avoid re-export conflicts with account subdomain
-export type {
-  OrganizationEntity,
-  Presence,
-  InviteState,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  OrgPolicy,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-  OrganizationRepository,
-  OrgPolicyRepository,
-} from "../subdomains/organization/api";
-export {
-  organizationService,
-  getOrganizationMembers,
-  getOrganizationTeams,
-  getOrgPolicies,
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-  createOrgPolicy,
-  updateOrgPolicy,
-  deleteOrgPolicy,
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-  // UI components
-  AccountSwitcher,
-  CreateOrganizationDialog,
-  MembersPage,
-  TeamsPage,
-  PermissionsPage,
-  OrganizationAuditPage,
-} from "../subdomains/organization/api";
-export type { MembersPageProps, TeamsPageProps, PermissionsPageProps, OrganizationAuditPageProps } from "../subdomains/organization/api";
-
-// background-job — knowledge ingestion pipeline management
-export * from "../subdomains/background-job/api";
-
-// platform-level interfaces (HeaderControls, TranslationSwitcher)
-export * from "../interfaces";
-````
-
-## File: modules/platform/application/use-cases/index.ts
-````typescript
-/**
- * platform application use-cases barrel.
- *
- * Each file follows the kebab-case convention: verb-noun.use-cases.ts
- *
- * Commands:
- *   register-platform-context
- *   publish-policy-catalog
- *   apply-configuration-profile
- *   register-integration-contract
- *   activate-subscription-agreement
- *   fire-workflow-trigger
- *   request-notification-dispatch
- *   record-audit-signal
- *   emit-observability-signal
- *
- * Queries:
- *   get-platform-context-view
- *   list-enabled-capabilities
- *   get-policy-catalog-view
- *   get-subscription-entitlements
- *   get-workflow-policy-view
- */
-
-export { RegisterPlatformContextUseCase } from "./register-platform-context.use-cases";
-export { PublishPolicyCatalogUseCase } from "./publish-policy-catalog.use-cases";
-export { ApplyConfigurationProfileUseCase } from "./apply-configuration-profile.use-cases";
-export { RegisterIntegrationContractUseCase } from "./register-integration-contract.use-cases";
-export { ActivateSubscriptionAgreementUseCase } from "./activate-subscription-agreement.use-cases";
-export { FireWorkflowTriggerUseCase } from "./fire-workflow-trigger.use-cases";
-export { RequestNotificationDispatchUseCase } from "./request-notification-dispatch.use-cases";
-export { RecordAuditSignalUseCase } from "./record-audit-signal.use-cases";
-export { EmitObservabilitySignalUseCase } from "./emit-observability-signal.use-cases";
-export { GetPlatformContextViewUseCase } from "../queries/get-platform-context-view.queries";
-export { ListEnabledCapabilitiesUseCase } from "../queries/list-enabled-capabilities.queries";
-export { GetPolicyCatalogViewUseCase } from "../queries/get-policy-catalog-view.queries";
-export { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-entitlements.queries";
-export { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
-````
-
-## File: modules/platform/subdomains/account-profile/domain/index.ts
-````typescript
-export {
-	AccountProfileIdSchema,
-	AccountProfileSchema,
-	createAccountProfile,
-	createAccountProfileId,
-	createUpdateAccountProfileInput,
-} from "./entities/AccountProfile";
-export type {
-	AccountProfile,
-	AccountProfileId,
-	AccountProfileTheme,
-	UpdateAccountProfileInput,
-} from "./entities/AccountProfile";
-
-export type { Unsubscribe, AccountProfileQueryRepository } from "./repositories/AccountProfileQueryRepository";
-export type { AccountProfileCommandRepository } from "./repositories/AccountProfileCommandRepository";
-export type { IAccountProfileQueryPort, IAccountProfileCommandPort } from "./ports";
-export * from "./aggregates";
-export * from "./events";
-export * from "./value-objects";
-````
-
-## File: modules/platform/subdomains/account-profile/infrastructure/create-legacy-account-profile-application.adapter.ts
-````typescript
-import {
-	createAccountProfile,
-	type AccountProfile,
-	type AccountProfileId,
-	type AccountProfileTheme,
-	type UpdateAccountProfileInput,
-} from "../domain";
-import type {
-	AccountProfileCommandRepository,
-	AccountProfileQueryRepository,
-	Unsubscribe,
-} from "../domain";
-
-type LegacyTheme = Partial<AccountProfileTheme> | null | undefined;
-type LegacyUpdateProfileInput = {
-	name?: string;
-	bio?: string;
-	photoURL?: string;
-	theme?: AccountProfileTheme;
-};
-
-type LegacyAccountProfileRecord = {
-	id: string;
-	name?: string | null;
-	email?: string | null;
-	photoURL?: string | null;
-	bio?: string | null;
-	theme?: LegacyTheme;
-} | null;
-
-export interface LegacyAccountProfileDataSource {
-	getUserProfile(userId: string): Promise<LegacyAccountProfileRecord>;
-	subscribeToUserProfile(
-		userId: string,
-		onUpdate: (profile: LegacyAccountProfileRecord) => void,
-	): Unsubscribe;
-	updateUserProfile(userId: string, input: LegacyUpdateProfileInput): Promise<void>;
-}
-
-function normalizeTheme(theme: LegacyTheme): AccountProfileTheme | undefined {
-	if (!theme?.primary || !theme?.background || !theme?.accent) {
-		return undefined;
-	}
-
-	return {
-		primary: theme.primary,
-		background: theme.background,
-		accent: theme.accent,
-	};
-}
-
-function mapLegacyProfile(record: LegacyAccountProfileRecord): AccountProfile | null {
-	if (!record) {
-		return null;
-	}
-
-	const displayName = (record.name ?? "").trim() || "Unknown Actor";
-
-	return createAccountProfile({
-		id: record.id as AccountProfileId,
-		displayName,
-		email: record.email ?? undefined,
-		photoURL: record.photoURL ?? undefined,
-		bio: record.bio ?? undefined,
-		theme: normalizeTheme(record.theme),
-	});
-}
-
-/** Read-side adapter: maps legacy data source to AccountProfileQueryRepository. */
-class LegacyAccountProfileQueryAdapter implements AccountProfileQueryRepository {
-	constructor(
-		private readonly legacyDataSource: LegacyAccountProfileDataSource,
-	) {}
-
-	async getAccountProfile(
-		actorId: AccountProfileId,
-	): Promise<AccountProfile | null> {
-		const profile = await this.legacyDataSource.getUserProfile(actorId);
-		return mapLegacyProfile(profile);
-	}
-
-	subscribeToAccountProfile(
-		actorId: AccountProfileId,
-		onUpdate: (profile: AccountProfile | null) => void,
-	): Unsubscribe {
-		return this.legacyDataSource.subscribeToUserProfile(actorId, (profile) => {
-			onUpdate(mapLegacyProfile(profile));
-		});
-	}
-}
-
-/** Write-side adapter: maps legacy data source to AccountProfileCommandRepository. */
-class LegacyAccountProfileCommandAdapter implements AccountProfileCommandRepository {
-	constructor(
-		private readonly legacyDataSource: LegacyAccountProfileDataSource,
-	) {}
-
-	async updateAccountProfile(
-		actorId: AccountProfileId,
-		input: UpdateAccountProfileInput,
-	): Promise<void> {
-		const legacyInput: LegacyUpdateProfileInput = {
-			name: input.displayName,
-			bio: input.bio,
-			photoURL: input.photoURL,
-			theme: input.theme,
-		};
-
-		await this.legacyDataSource.updateUserProfile(actorId, legacyInput);
-	}
-}
-
-export function createLegacyAccountProfileQueryRepository(
-	legacyDataSource: LegacyAccountProfileDataSource,
-): AccountProfileQueryRepository {
-	return new LegacyAccountProfileQueryAdapter(legacyDataSource);
-}
-
-export function createLegacyAccountProfileCommandRepository(
-	legacyDataSource: LegacyAccountProfileDataSource,
-): AccountProfileCommandRepository {
-	return new LegacyAccountProfileCommandAdapter(legacyDataSource);
+export async function updateLegacyUserProfile(userId: string, input: UpdateProfileInput): Promise<void> {
+  await accountService.updateUserProfile(userId, input);
 }
 ````
 
@@ -20795,7 +20413,7 @@ export function createLegacyAccountProfileCommandRepository(
 
 import { createAccountQueryRepository } from "../../api";
 import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
-import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dto/account.dto";
+import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dtos/account.dto";
 
 let _accountQueryRepo: AccountQueryRepository | undefined;
 
@@ -20860,69 +20478,6 @@ export async function getAccountPolicies(_accountId: string): Promise<AccountPol
 export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
   return [];
 }
-````
-
-## File: modules/platform/application/index.ts
-````typescript
-/**
- * platform application layer barrel.
- */
-
-export * from "./dtos";
-export * from "./services";
-export * from "./use-cases";
-export * from "./handlers";
-````
-
-## File: modules/platform/subdomains/account-profile/api/index.ts
-````typescript
-/**
- * Public API boundary for the account-profile subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * Composition root lives in infrastructure/account-profile-service.ts;
- * this boundary is intentionally thin — it only re-exports public contracts.
- */
-
-import {
-	getAccountProfileFromService,
-	subscribeToAccountProfileFromService,
-	updateAccountProfileFromService,
-} from "../infrastructure";
-import type { AccountProfile, Unsubscribe } from "../domain";
-import type { UpdateAccountProfileInput } from "../application";
-import type { CommandResult } from "@shared-types";
-
-// ── Use-case delegators ──────────────────────────────────────────────────
-
-export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
-	return getAccountProfileFromService(actorId);
-}
-
-export function subscribeToAccountProfile(
-	actorId: string,
-	onUpdate: (profile: AccountProfile | null) => void,
-): Unsubscribe {
-	return subscribeToAccountProfileFromService(actorId, onUpdate);
-}
-
-export async function updateAccountProfile(
-	actorId: string,
-	input: UpdateAccountProfileInput,
-): Promise<CommandResult> {
-	return updateAccountProfileFromService(actorId, input);
-}
-
-// Legacy compatibility exports for migration window.
-export const getUserProfile = getAccountProfile;
-export const subscribeToUserProfile = subscribeToAccountProfile;
-
-export { getProfile, subscribeToProfile, updateProfile } from "../interfaces";
-
-export * from "../application";
-export * from "../domain";
-export { SettingsProfileRouteScreen } from "../interfaces";
-export type { LegacyAccountProfileDataSource } from "../infrastructure";
 ````
 
 ## File: modules/platform/subdomains/organization/infrastructure/organization-service.ts
@@ -21061,4 +20616,510 @@ export const organizationQueryService = {
   getTeams: (organizationId: string) => getOrgRepo().getTeams(organizationId),
   getOrgPolicies: (orgId: string) => getPolicyRepo().getPolicies(orgId),
 };
+````
+
+## File: modules/platform/application/use-cases/index.ts
+````typescript
+/**
+ * platform application use-cases barrel.
+ *
+ * Each file follows the kebab-case convention: verb-noun.use-cases.ts
+ *
+ * Commands:
+ *   register-platform-context
+ *   publish-policy-catalog
+ *   apply-configuration-profile
+ *   register-integration-contract
+ *   activate-subscription-agreement
+ *   fire-workflow-trigger
+ *   request-notification-dispatch
+ *   record-audit-signal
+ *   emit-observability-signal
+ *
+ * Queries:
+ *   get-platform-context-view
+ *   list-enabled-capabilities
+ *   get-policy-catalog-view
+ *   get-subscription-entitlements
+ *   get-workflow-policy-view
+ */
+
+export { RegisterPlatformContextUseCase } from "./register-platform-context.use-cases";
+export { PublishPolicyCatalogUseCase } from "./publish-policy-catalog.use-cases";
+export { ApplyConfigurationProfileUseCase } from "./apply-configuration-profile.use-cases";
+export { RegisterIntegrationContractUseCase } from "./register-integration-contract.use-cases";
+export { ActivateSubscriptionAgreementUseCase } from "./activate-subscription-agreement.use-cases";
+export { FireWorkflowTriggerUseCase } from "./fire-workflow-trigger.use-cases";
+export { RequestNotificationDispatchUseCase } from "./request-notification-dispatch.use-cases";
+export { RecordAuditSignalUseCase } from "./record-audit-signal.use-cases";
+export { EmitObservabilitySignalUseCase } from "./emit-observability-signal.use-cases";
+export { GetPlatformContextViewUseCase } from "../queries/get-platform-context-view.queries";
+export { ListEnabledCapabilitiesUseCase } from "../queries/list-enabled-capabilities.queries";
+export { GetPolicyCatalogViewUseCase } from "../queries/get-policy-catalog-view.queries";
+export { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-entitlements.queries";
+export { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
+````
+
+## File: modules/platform/subdomains/account-profile/api/index.ts
+````typescript
+/**
+ * Public API boundary for the account-profile subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Composition root lives in infrastructure/account-profile-service.ts;
+ * this boundary is intentionally thin — it only re-exports public contracts.
+ */
+
+import {
+	getAccountProfileFromService,
+	subscribeToAccountProfileFromService,
+	updateAccountProfileFromService,
+} from "../infrastructure";
+import type { AccountProfile, Unsubscribe } from "../domain";
+import type { UpdateAccountProfileInput } from "../application";
+import type { CommandResult } from "@shared-types";
+
+// ── Use-case delegators ──────────────────────────────────────────────────
+
+export async function getAccountProfile(actorId: string): Promise<AccountProfile | null> {
+	return getAccountProfileFromService(actorId);
+}
+
+export function subscribeToAccountProfile(
+	actorId: string,
+	onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe {
+	return subscribeToAccountProfileFromService(actorId, onUpdate);
+}
+
+export async function updateAccountProfile(
+	actorId: string,
+	input: UpdateAccountProfileInput,
+): Promise<CommandResult> {
+	return updateAccountProfileFromService(actorId, input);
+}
+
+// Legacy compatibility exports for migration window.
+export const getUserProfile = getAccountProfile;
+export const subscribeToUserProfile = subscribeToAccountProfile;
+
+export { getProfile, subscribeToProfile, updateProfile } from "../interfaces";
+
+export * from "../application";
+export * from "../domain";
+export { SettingsProfileRouteScreen } from "../interfaces";
+export type { LegacyAccountProfileDataSource } from "../infrastructure";
+````
+
+## File: modules/platform/subdomains/account-profile/domain/index.ts
+````typescript
+export {
+	AccountProfileIdSchema,
+	AccountProfileSchema,
+	createAccountProfile,
+	createAccountProfileId,
+	createUpdateAccountProfileInput,
+} from "./entities/AccountProfile";
+export type {
+	AccountProfile,
+	AccountProfileId,
+	AccountProfileTheme,
+	UpdateAccountProfileInput,
+} from "./entities/AccountProfile";
+
+export type { Unsubscribe, AccountProfileQueryRepository } from "./repositories/AccountProfileQueryRepository";
+export type { AccountProfileCommandRepository } from "./repositories/AccountProfileCommandRepository";
+export type { IAccountProfileQueryPort, IAccountProfileCommandPort } from "./ports";
+export * from "./aggregates";
+export * from "./events";
+export * from "./value-objects";
+````
+
+## File: modules/platform/application/index.ts
+````typescript
+/**
+ * platform application layer barrel.
+ */
+
+export * from "./dtos";
+export * from "./services";
+export * from "./use-cases";
+export * from "./handlers";
+````
+
+## File: modules/platform/interfaces/web/shell/layout/ShellRootLayout.tsx
+````typescript
+"use client";
+
+/**
+ * ShellLayout — platform/interfaces/web component.
+ * Authenticated shell frame: sidebar, header, and content area.
+ *
+ * Responsibilities: account switching, route guards, and shell-level UI composition.
+ * Constraints: keep business logic in modules and providers, not layout rendering.
+ */
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { PanelLeftOpen, Search } from "lucide-react";
+
+import { useApp } from "../../providers/ShellAppProvider";
+import { useAuth, ShellGuard } from "../../../../subdomains/identity/api";
+import { type AccountEntity } from "../../../../subdomains/account/api";
+import { subscribeToProfile, type AccountProfile } from "../../../../subdomains/account-profile/api";
+import { AccountSwitcher } from "../../../../subdomains/organization/api";
+import { ShellAppBreadcrumbs } from "../breadcrumbs/ShellAppBreadcrumbs";
+import { AppRail } from "../sidebar/ShellAppRail";
+import { ShellDashboardSidebar } from "../navigation/components/ShellDashboardSidebar";
+import { isActiveRoute } from "../navigation/data/ShellSidebarNavData";
+import { ShellGlobalSearchDialog, useShellGlobalSearch } from "../search/ShellGlobalSearchDialog";
+import { ShellHeaderControls } from "../header/components/ShellHeaderControls";
+import { ShellUserAvatar } from "../header/components/ShellUserAvatar";
+
+const routeTitles: Record<string, string> = {
+  "/organization": "組織治理",
+  "/organization/daily": "帳號 · 每日",
+  "/organization/schedule": "帳號 · 排程",
+  "/organization/schedule/dispatcher": "帳號 · 調度台",
+  "/organization/audit": "帳號 · 稽核",
+  "/workspace": "工作區中心",
+  "/knowledge": "知識中心",
+  "/knowledge/pages": "知識 · 頁面",
+  "/knowledge/block-editor": "知識 · 區塊編輯器",
+  "/knowledge-base/articles": "知識庫 · 文章",
+  "/knowledge-database/databases": "知識資料庫 · 資料庫",
+  "/source/documents": "來源 · 文件",
+  "/source/libraries": "來源 · 資料庫",
+  "/notebook/rag-query": "筆記本 · 問答 / 引用",
+  "/ai-chat": "AI 對話",
+  "/dev-tools": "開發工具",
+};
+
+/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
+const mobileNavItems = [
+  { href: "/workspace", label: "工作區" },
+];
+
+const orgPrimaryItems = [
+  { label: "成員", href: "/organization/members" },
+  { label: "團隊", href: "/organization/teams" },
+  { label: "權限", href: "/organization/permissions" },
+  { label: "工作區", href: "/organization/workspaces" },
+] as const;
+
+const orgSecondaryItems = [
+  { label: "排程", href: "/organization/schedule" },
+  { label: "每日", href: "/organization/daily" },
+  { label: "稽核", href: "/organization/audit" },
+] as const;
+
+function isOrganizationAccount(
+  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
+function resolveShellRouteForAccount(
+  pathname: string,
+  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
+) {
+  const nextAccountIsOrganization =
+    nextAccount != null && "accountType" in nextAccount && nextAccount.accountType === "organization";
+
+  if (pathname === "/organization" && !nextAccountIsOrganization) {
+    return "/workspace";
+  }
+
+  return null;
+}
+
+export function ShellLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { state: authState, logout } = useAuth();
+  const { state: appState, dispatch } = useApp();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+  const [accountProfileState, setAccountProfileState] = useState<{ actorId: string; profile: AccountProfile | null } | null>(null);
+  const { open: searchOpen, setOpen: setSearchOpen } = useShellGlobalSearch();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
+  });
+  function toggleSidebar() {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
+      }
+      return next;
+    });
+  }
+
+  const pageTitle = routeTitles[pathname] ?? "工作區";
+  const organizationAccounts = Object.values(appState.accounts ?? {});
+  const accountWorkspaces = Object.values(appState.workspaces ?? {});
+  const showAccountManagement = isOrganizationAccount(appState.activeAccount);
+
+  function handleSelectOrganization(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+    const nextRoute = resolveShellRouteForAccount(pathname, account);
+    if (nextRoute) {
+      router.replace(nextRoute);
+    }
+  }
+
+  function handleSelectPersonal() {
+    if (!authState.user) return;
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
+    const nextRoute = resolveShellRouteForAccount(pathname, authState.user);
+    if (nextRoute) {
+      router.replace(nextRoute);
+    }
+  }
+
+  function handleOrganizationCreated(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+  }
+
+  function handleSelectWorkspace(workspaceId: string | null) {
+    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspaceId });
+  }
+
+  useEffect(() => {
+    if (!appState.accountsHydrated || !appState.activeAccount) {
+      return;
+    }
+
+    const nextRoute = resolveShellRouteForAccount(pathname, appState.activeAccount);
+    if (nextRoute && nextRoute !== pathname) {
+      router.replace(nextRoute);
+    }
+  }, [appState.accountsHydrated, appState.activeAccount, pathname, router]);
+
+  useEffect(() => {
+    const actorId = authState.user?.id;
+    if (!actorId) {
+      return;
+    }
+
+    const unsubscribe = subscribeToProfile(actorId, (profile) => setAccountProfileState({ actorId, profile }));
+
+    return () => unsubscribe();
+  }, [authState.user?.id]);
+
+  const scopedProfile = accountProfileState && accountProfileState.actorId === authState.user?.id
+    ? accountProfileState.profile
+    : null;
+
+  async function handleLogout() {
+    setLogoutError(null);
+    try {
+      await logout();
+    } catch {
+      setLogoutError("登出失敗，請稍後再試。");
+    }
+  }
+
+  return (
+    <ShellGuard>
+      <ShellGlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <div className="flex h-screen overflow-hidden bg-background">
+        <AppRail
+          pathname={pathname}
+          user={authState.user}
+          activeAccount={appState.activeAccount}
+          organizationAccounts={organizationAccounts}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={appState.workspacesHydrated}
+          isOrganizationAccount={showAccountManagement}
+          onSelectPersonal={handleSelectPersonal}
+          onSelectOrganization={handleSelectOrganization}
+          activeWorkspaceId={appState.activeWorkspaceId}
+          onSelectWorkspace={handleSelectWorkspace}
+          onOrganizationCreated={handleOrganizationCreated}
+          onSignOut={() => {
+            void handleLogout();
+          }}
+        />
+        <ShellDashboardSidebar
+          userId={authState.user?.id ?? null}
+          pathname={pathname}
+          activeAccount={appState.activeAccount}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={appState.workspacesHydrated}
+          activeWorkspaceId={appState.activeWorkspaceId}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebar}
+          onSelectWorkspace={handleSelectWorkspace}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
+            <div className="flex h-12 items-center justify-between gap-4">
+              <div className="min-w-0 flex items-center gap-3">
+                {sidebarCollapsed && (
+                  <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    aria-label="展開側欄"
+                    title="展開側欄"
+                    className="hidden size-7 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground md:flex"
+                  >
+                    <PanelLeftOpen className="size-4" />
+                  </button>
+                )}
+                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
+                <ShellAppBreadcrumbs />
+                {/* Global search */}
+                <button
+                  type="button"
+                  aria-label="全域搜尋"
+                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
+                  onClick={() => setSearchOpen(true)}
+                >
+                  <Search className="size-3 shrink-0" />
+                  <span>搜尋…</span>
+                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
+                </button>
+              </div>
+
+              <div className="ml-auto flex items-center gap-3">
+                <ShellHeaderControls />
+                <ShellUserAvatar
+                  name={scopedProfile?.displayName ?? authState.user?.name ?? "Dimension Member"}
+                  email={scopedProfile?.email ?? authState.user?.email ?? "—"}
+                  onSignOut={() => {
+                    void handleLogout();
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3 pb-3 md:hidden">
+              <AccountSwitcher
+                personalAccount={authState.user}
+                organizationAccounts={organizationAccounts}
+                activeAccountId={appState.activeAccount?.id ?? null}
+                onSelectPersonal={handleSelectPersonal}
+                onSelectOrganization={handleSelectOrganization}
+                onOrganizationCreated={handleOrganizationCreated}
+              />
+            </div>
+
+            {showAccountManagement && (
+              <>
+                <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
+                  {orgPrimaryItems.map((item) => {
+                    const isActive = isActiveRoute(pathname, item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "border border-border/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+                <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
+                  {orgSecondaryItems.map((item) => {
+                    const isActive = isActiveRoute(pathname, item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "border border-border/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </>
+            )}
+            <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
+              {mobileNavItems.map((item) => {
+                const isActive = isActiveRoute(pathname, item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "border border-border/60 text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </header>
+
+          {logoutError && (
+            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
+          )}
+
+          <main className="flex-1 overflow-auto p-6">{children}</main>
+        </div>
+      </div>
+    </ShellGuard>
+  );
+}
+````
+
+## File: modules/platform/interfaces/web/index.ts
+````typescript
+export { ShellHeaderControls } from "./shell/header/components/ShellHeaderControls";
+export { ShellThemeToggle } from "./shell/header/components/ShellThemeToggle";
+export { ShellNotificationButton } from "./shell/header/components/ShellNotificationButton";
+export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
+export { ShellTranslationSwitcher } from "./shell/header/components/ShellTranslationSwitcher";
+export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
+export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
+export { AppRail } from "./shell/sidebar/ShellAppRail";
+export { ShellDashboardSidebar } from "./shell/navigation/components/ShellDashboardSidebar";
+export { ShellLayout } from "./shell/layout/ShellRootLayout";
+export type { DashboardSidebarProps, NavSection } from "./shell/navigation/data/ShellSidebarNavData";
+export {
+  resolveNavSection,
+  isActiveOrganizationAccount,
+  SECTION_TITLES,
+  ACCOUNT_NAV_ITEMS,
+  ACCOUNT_SECTION_MATCHERS,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  sidebarItemClass,
+  sidebarSectionTitleClass,
+  sidebarGroupButtonClass,
+  SimpleNavLinks,
+} from "./shell/navigation/data/ShellSidebarNavData";
+
+// providers
+export {
+  AppContext,
+  type AppState,
+  type AppAction,
+  type AppContextValue,
+  type ActiveAccount,
+} from "./providers/ShellAppProvider";
+export { AppProvider, useApp } from "./providers/ShellAppProvider";
+export { Providers } from "./providers/ShellProviders";
 ````
