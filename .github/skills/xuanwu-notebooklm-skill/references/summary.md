@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: modules/platform/subdomains/**, modules/platform/domain/**, modules/platform/application/**, modules/platform/infrastructure/**, modules/platform/interfaces/**, modules/notebooklm/**
+- Only files matching these patterns are included: app/**, modules/**, modules/platform/subdomains/**, modules/platform/domain/**, modules/platform/application/**, modules/platform/infrastructure/**, modules/platform/interfaces/**, modules/notebooklm/**
 - Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -41,23 +41,24 @@ This skill contains the following reference files:
 
 ## Statistics
 
-758 files | 25,387 lines
+1374 files | 57,113 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 655 | 18,450 |
-| Markdown | 56 | 1,051 |
-| TypeScript (TSX) | 40 | 5,879 |
-| No Extension | 7 | 7 |
+| TypeScript | 1108 | 36,792 |
+| TypeScript (TSX) | 145 | 17,786 |
+| Markdown | 106 | 2,324 |
+| No Extension | 14 | 14 |
+| CSS | 1 | 197 |
 
 **Largest files:**
+- `app/(shell)/dev-tools/page.tsx` (475 lines)
 - `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
 - `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (341 lines)
+- `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)
 - `modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx` (321 lines)
+- `modules/workspace/domain/aggregates/Workspace.ts` (305 lines)
+- `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
+- `modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx` (298 lines)
 - `modules/platform/subdomains/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts` (293 lines)
-- `modules/platform/interfaces/web/shell/layout/ShellRootLayout.tsx` (284 lines)
-- `modules/platform/interfaces/web/providers/ShellAppProvider.tsx` (265 lines)
-- `modules/notebooklm/subdomains/source/interfaces/components/LibrariesView.tsx` (239 lines)
-- `modules/notebooklm/subdomains/source/interfaces/components/FileProcessingDialog.tsx` (235 lines)
-- `modules/platform/interfaces/web/shell/navigation/components/ShellDashboardSidebar.tsx` (233 lines)
-- `modules/notebooklm/subdomains/source/interfaces/components/LibraryTableView.tsx` (231 lines)
+- `app/(public)/page.tsx` (288 lines)

@@ -1,10 +1,11 @@
 # Database
 
-Structured database views and properties.
+結構化資料多視圖管理。
 
 ## Ownership
 
 - **Bounded Context**: notion
+- **Subdomain Type**: Baseline
 - **Status**: Active
 
 ## Layers

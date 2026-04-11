@@ -1,10 +1,11 @@
 # Collaboration
 
-Real-time collaboration and sharing.
+協作留言、細粒度權限與版本快照。
 
 ## Ownership
 
 - **Bounded Context**: notion
+- **Subdomain Type**: Baseline
 - **Status**: Active
 
 ## Layers

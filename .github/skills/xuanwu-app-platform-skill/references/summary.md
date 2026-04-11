@@ -32,7 +32,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: modules/platform/subdomains/**, modules/platform/domain/**, modules/platform/application/**, modules/platform/infrastructure/**, modules/platform/interfaces/**, modules/platform/**
+- Only files matching these patterns are included: app/**, modules/**, modules/platform/subdomains/**, modules/platform/domain/**, modules/platform/application/**, modules/platform/infrastructure/**, modules/platform/interfaces/**, modules/platform/**
 - Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -41,22 +41,24 @@ This skill contains the following reference files:
 
 ## Statistics
 
-600 files | 18,850 lines
+1374 files | 57,113 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 530 | 14,178 |
-| Markdown | 40 | 795 |
-| TypeScript (TSX) | 30 | 3,877 |
+| TypeScript | 1108 | 36,792 |
+| TypeScript (TSX) | 145 | 17,786 |
+| Markdown | 106 | 2,324 |
+| No Extension | 14 | 14 |
+| CSS | 1 | 197 |
 
 **Largest files:**
+- `app/(shell)/dev-tools/page.tsx` (475 lines)
 - `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
+- `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (341 lines)
+- `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)
 - `modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx` (321 lines)
+- `modules/workspace/domain/aggregates/Workspace.ts` (305 lines)
+- `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
+- `modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx` (298 lines)
 - `modules/platform/subdomains/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts` (293 lines)
-- `modules/platform/interfaces/web/shell/layout/ShellRootLayout.tsx` (284 lines)
-- `modules/platform/interfaces/web/providers/ShellAppProvider.tsx` (265 lines)
-- `modules/platform/interfaces/web/shell/navigation/components/ShellDashboardSidebar.tsx` (233 lines)
-- `modules/platform/subdomains/organization/interfaces/components/MembersPage.tsx` (227 lines)
-- `modules/platform/subdomains/account/domain/aggregates/Account.ts` (225 lines)
-- `modules/platform/subdomains/organization/interfaces/components/PermissionsPage.tsx` (215 lines)
-- `modules/platform/subdomains/organization/interfaces/components/TeamsPage.tsx` (213 lines)
+- `app/(public)/page.tsx` (288 lines)

@@ -1,10 +1,11 @@
 # Authoring
 
-Content authoring and page editing lifecycle.
+知識庫文章建立、驗證與分類。
 
 ## Ownership
 
 - **Bounded Context**: notion
+- **Subdomain Type**: Baseline
 - **Status**: Active
 
 ## Layers

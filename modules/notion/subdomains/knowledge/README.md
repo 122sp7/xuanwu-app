@@ -1,10 +1,11 @@
 # Knowledge
 
-Knowledge base articles and management.
+頁面建立、組織、版本化與交付。
 
 ## Ownership
 
 - **Bounded Context**: notion
+- **Subdomain Type**: Baseline
 - **Status**: Active
 
 ## Layers

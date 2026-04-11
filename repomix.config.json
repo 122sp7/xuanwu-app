@@ -35,6 +35,8 @@
     }
   },
   "include": [
+    "app/**",
+    "modules/**",
     "modules/platform/subdomains/**",
     "modules/platform/domain/**",
     "modules/platform/application/**",
