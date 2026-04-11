@@ -10,6 +10,7 @@
  *   - A team must belong to exactly one Organization (organizationId is immutable)
  *   - A member may appear in a team's memberIds at most once
  *   - teamType cannot change after creation (replace-and-recreate pattern)
+ *   - addMember and removeMember are idempotent: duplicate/absent memberId is a no-op (no event)
  */
 
 import { randomUUID } from "crypto";
@@ -71,8 +72,13 @@ export class OrganizationTeam {
 
   // ── Commands ──────────────────────────────────────────────────────────────
 
+  /**
+   * Add a member to the team.
+   * Idempotent: if memberId is already in the team the call is a no-op and
+   * no domain event is emitted, so callers may safely call this multiple times.
+   */
   addMember(memberId: string): void {
-    if (this._props.memberIds.includes(memberId)) return; // idempotent
+    if (this._props.memberIds.includes(memberId)) return; // idempotent, no event emitted
     this._props = {
       ...this._props,
       memberIds: [...this._props.memberIds, memberId],
@@ -89,8 +95,13 @@ export class OrganizationTeam {
     });
   }
 
+  /**
+   * Remove a member from the team.
+   * Idempotent: if memberId is not in the team the call is a no-op and
+   * no domain event is emitted, supporting at-least-once removal semantics.
+   */
   removeMember(memberId: string): void {
-    if (!this._props.memberIds.includes(memberId)) return; // idempotent
+    if (!this._props.memberIds.includes(memberId)) return; // idempotent, no event emitted
     this._props = {
       ...this._props,
       memberIds: this._props.memberIds.filter((id) => id !== memberId),
