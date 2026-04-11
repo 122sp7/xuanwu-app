@@ -5,8 +5,13 @@
 import { FirebaseNotificationRepository } from "../../infrastructure/firebase/FirebaseNotificationRepository";
 import type { NotificationEntity } from "../../domain/entities/Notification";
 
-const notificationRepo = new FirebaseNotificationRepository();
+let _notificationRepo: FirebaseNotificationRepository | undefined;
+
+function getNotificationRepo(): FirebaseNotificationRepository {
+  if (!_notificationRepo) _notificationRepo = new FirebaseNotificationRepository();
+  return _notificationRepo;
+}
 
 export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
-  return notificationRepo.findByRecipient(recipientId, maxCount);
+  return getNotificationRepo().findByRecipient(recipientId, maxCount);
 }

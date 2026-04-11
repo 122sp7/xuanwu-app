@@ -74,12 +74,11 @@ export function listWikiParsedDocuments(accountId: string, limitCount = 20): Pro
   return _listWikiParsedDocuments(accountId, limitCount, getWikiContentRepository());
 }
 
-// --- Infrastructure adapters (for composition roots) -------------------------
+// --- Infrastructure adapters (client-safe, for composition roots) ------------
 
 export { FirebaseRagRetrievalAdapter } from "../infrastructure/firebase/FirebaseRagRetrievalAdapter";
 export { FirebaseWikiContentAdapter } from "../infrastructure/firebase/FirebaseWikiContentAdapter";
 export { FirebaseRagQueryFeedbackAdapter } from "../infrastructure/firebase/FirebaseRagQueryFeedbackAdapter";
-export { GenkitRagGenerationAdapter } from "../infrastructure/genkit/GenkitRagGenerationAdapter";
 
 // --- UI components -----------------------------------------------------------
 
