@@ -32,9 +32,9 @@ import {
   SECTION_TITLES,
   resolveNavSection,
   isActiveOrganizationAccount,
-} from "../navigation/ShellSidebarNavData";
-import { ShellSidebarHeader } from "./sidebar/ShellSidebarHeader";
-import { DashboardSidebarBody } from "./sidebar/ShellSidebarBody";
+} from "../data/ShellSidebarNavData";
+import { ShellSidebarHeader } from "../../sidebar/ShellSidebarHeader";
+import { DashboardSidebarBody } from "../../sidebar/ShellSidebarBody";
 
 export function ShellDashboardSidebar({
   pathname,

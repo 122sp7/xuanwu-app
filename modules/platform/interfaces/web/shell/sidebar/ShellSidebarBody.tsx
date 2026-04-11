@@ -13,7 +13,7 @@ import {
   type NavSection,
   sidebarItemClass,
   sidebarSectionTitleClass,
-} from "../../navigation/ShellSidebarNavData";
+} from "../navigation/data/ShellSidebarNavData";
 import { ShellContextNavSection } from "./ShellContextNavSection";
 
 interface NavItem {

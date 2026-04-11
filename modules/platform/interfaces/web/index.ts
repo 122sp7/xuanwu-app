@@ -5,10 +5,10 @@ export { ShellUserAvatar } from "./components/ShellUserAvatar";
 export { ShellTranslationSwitcher } from "./components/ShellTranslationSwitcher";
 export { ShellAppBreadcrumbs } from "./components/ShellAppBreadcrumbs";
 export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./components/ShellGlobalSearchDialog";
-export { AppRail } from "./components/ShellAppRail";
-export { ShellDashboardSidebar } from "./components/ShellDashboardSidebar";
-export { ShellLayout } from "./components/ShellRootLayout";
-export type { DashboardSidebarProps, NavSection } from "./navigation/ShellSidebarNavData";
+export { AppRail } from "./shell/sidebar/components/ShellAppRail";
+export { ShellDashboardSidebar } from "./shell/navigation/components/ShellDashboardSidebar";
+export { ShellLayout } from "./shell/layout/ShellRootLayout";
+export type { DashboardSidebarProps, NavSection } from "./shell/navigation/data/ShellSidebarNavData";
 export {
   resolveNavSection,
   isActiveOrganizationAccount,
@@ -20,7 +20,7 @@ export {
   sidebarSectionTitleClass,
   sidebarGroupButtonClass,
   SimpleNavLinks,
-} from "./navigation/ShellSidebarNavData";
+} from "./shell/navigation/data/ShellSidebarNavData";
 
 // providers
 export {

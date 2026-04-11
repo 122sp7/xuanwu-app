@@ -13,17 +13,17 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PanelLeftOpen, Search } from "lucide-react";
 
-import { useApp } from "../providers/ShellAppProvider";
-import { useAuth, ShellGuard } from "../../../subdomains/identity/api";
-import { type AccountEntity } from "../../../subdomains/account/api";
-import { subscribeToProfile, type AccountProfile } from "../../../subdomains/account-profile/api";
-import { AccountSwitcher } from "../../../subdomains/organization/api";
-import { ShellAppBreadcrumbs } from "./ShellAppBreadcrumbs";
-import { AppRail } from "./ShellAppRail";
-import { ShellDashboardSidebar } from "./ShellDashboardSidebar";
-import { ShellGlobalSearchDialog, useShellGlobalSearch } from "./ShellGlobalSearchDialog";
-import { ShellHeaderControls } from "./ShellHeaderControls";
-import { ShellUserAvatar } from "./ShellUserAvatar";
+import { useApp } from "../../providers/ShellAppProvider";
+import { useAuth, ShellGuard } from "../../../../subdomains/identity/api";
+import { type AccountEntity } from "../../../../subdomains/account/api";
+import { subscribeToProfile, type AccountProfile } from "../../../../subdomains/account-profile/api";
+import { AccountSwitcher } from "../../../../subdomains/organization/api";
+import { ShellAppBreadcrumbs } from "../../components/ShellAppBreadcrumbs";
+import { AppRail } from "../sidebar/components/ShellAppRail";
+import { ShellDashboardSidebar } from "../navigation/components/ShellDashboardSidebar";
+import { ShellGlobalSearchDialog, useShellGlobalSearch } from "../../components/ShellGlobalSearchDialog";
+import { ShellHeaderControls } from "../../components/ShellHeaderControls";
+import { ShellUserAvatar } from "../../components/ShellUserAvatar";
 
 const routeTitles: Record<string, string> = {
   "/organization": "組織治理",
