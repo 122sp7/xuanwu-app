@@ -27,17 +27,22 @@ platform 是治理與營運支撐主域。它的責任是提供 actor、identity
 - account
 - account-profile
 - organization
+- team
+- tenant
 - access-control
 - security-policy
 - platform-config
 - feature-flag
+- entitlement
 - onboarding
 - compliance
+- consent
 - billing
 - subscription
 - referral
 - ai
 - integration
+- secret-management
 - workflow
 - notification
 - background-job
@@ -48,12 +53,13 @@ platform 是治理與營運支撐主域。它的責任是提供 actor、identity
 - analytics
 - support
 
-## Recommended Gap Subdomains
+## Strategic Reinforcement Focus
 
-- tenant
-- entitlement
-- secret-management
-- consent
+- tenant（租戶隔離模型收斂）
+- entitlement（權益解算一致性收斂）
+- secret-management（敏感憑證治理收斂）
+- consent（資料使用授權語義收斂）
+
 
 ## Key Relationships
 

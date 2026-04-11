@@ -12,6 +12,7 @@
 - account
 - account-profile
 - organization
+- team
 - tenant
 - access-control
 - security-policy

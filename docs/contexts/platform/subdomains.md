@@ -10,17 +10,22 @@
 | account | 帳號聚合根與帳號生命週期 |
 | account-profile | 主體屬性、偏好與治理設定 |
 | organization | 組織、成員與角色邊界 |
+| team | OrganizationTeam 分組與成員關係治理 |
+| tenant | 多租戶隔離與 tenant-scoped 規則治理 |
 | access-control | 主體現在能做什麼的授權判定 |
 | security-policy | 安全規則定義、版本化與發佈 |
 | platform-config | 平台設定輪廓與配置管理 |
 | feature-flag | 功能開關策略與發佈節點 |
+| entitlement | 有效權益與功能可用性統一解算 |
 | onboarding | 新主體初始設定與引導流程 |
 | compliance | 資料保留、稽核與法規執行 |
+| consent | 同意、偏好與資料使用授權治理 |
 | billing | 計費狀態、費率與財務證據 |
 | subscription | 方案、權益、配額與續期治理 |
 | referral | 推薦關係與獎勵追蹤 |
 | ai | 共享 AI provider 路由、模型政策、配額與安全護欄 |
 | integration | 外部系統整合邊界與契約 |
+| secret-management | 憑證、token 與 rotation 治理邊界 |
 | workflow | 平台級流程編排與狀態驅動執行 |
 | notification | 通知路由、偏好與投遞 |
 | background-job | 背景任務提交、排程與監控 |
@@ -31,14 +36,14 @@
 | analytics | 平台使用行為量測與分析 |
 | support | 客服工單、支援知識與處理流程 |
 
-## Recommended Gap Subdomains
+## Strategic Reinforcement Focus
 
-| Subdomain | Why Needed |
+| Focus | Why It Remains Important |
 |---|---|
-| tenant | 建立多租戶隔離與 tenant-scoped 規則的正典邊界 |
-| entitlement | 建立有效權益與功能可用性的統一解算上下文 |
-| secret-management | 把憑證、token、rotation 從 integration 中切開 |
-| consent | 把同意與資料使用授權從 compliance 中切開 |
+| tenant | 持續收斂租戶隔離語義與 organization 分工邊界 |
+| entitlement | 持續收斂 subscription、feature-flag、policy 的統一解算語言 |
+| secret-management | 持續收斂與 integration 的責任切割，避免敏感治理擴散 |
+| consent | 持續收斂 consent 與 compliance 的責任邊界 |
 
 ## Recommended Order
 
