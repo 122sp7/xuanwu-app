@@ -1,224 +1,5 @@
 # Files
 
-## File: modules/platform/application/commands/ActivateSubscriptionAgreementCommand.ts
-````typescript
-/**
- * ActivateSubscriptionAgreementCommand
- *
- * Command: ActivateSubscriptionAgreement
- * Purpose: Activates, renews, or suspends a subscription agreement.
- *
- * Typical payload fields:
- *   contextId, subscriptionAgreementId, planCode
- *
- * Handled by:  ActivateSubscriptionAgreementService
- * Output ports: SubscriptionAgreementRepository, PlatformContextRepository, DomainEventPublisher
- *
- * Result: PlatformCommandResult (ok, code, message, metadata)
- *
- * @see docs/application-services.md — Command-oriented Services
- */
-
-// TODO: implement ActivateSubscriptionAgreementCommand command payload type
-````
-
-## File: modules/platform/application/commands/ApplyConfigurationProfileCommand.ts
-````typescript
-/**
- * ApplyConfigurationProfileCommand
- *
- * Command: ApplyConfigurationProfile
- * Purpose: Applies a configuration profile and updates capability toggles.
- *
- * Typical payload fields:
- *   contextId, profileRef
- *
- * Handled by:  ApplyConfigurationProfileService
- * Output ports: PlatformContextRepository, ConfigurationProfileStore, DomainEventPublisher
- *
- * Result: PlatformCommandResult (ok, code, message, metadata)
- *
- * @see docs/application-services.md — Command-oriented Services
- */
-
-// TODO: implement ApplyConfigurationProfileCommand command payload type
-````
-
-## File: modules/platform/application/commands/EmitObservabilitySignalCommand.ts
-````typescript
-/**
- * EmitObservabilitySignalCommand
- *
- * Command: EmitObservabilitySignal
- * Purpose: Emits metrics / trace / alert signals.
- *
- * Typical payload fields:
- *   contextId, signalName, signalLevel, sourceRef
- *
- * Handled by:  EmitObservabilitySignalService
- * Output ports: ObservabilitySink, AuditSignalStore
- *
- * Result: PlatformCommandResult (ok, code, message, metadata)
- *
- * @see docs/application-services.md — Command-oriented Services
- */
-
-// TODO: implement EmitObservabilitySignalCommand command payload type
-````
-
-## File: modules/platform/application/commands/FireWorkflowTriggerCommand.ts
-````typescript
-/**
- * FireWorkflowTriggerCommand
- *
- * Command: FireWorkflowTrigger
- * Purpose: Emits a workflow trigger and delegates execution to downstream adapter.
- *
- * Typical payload fields:
- *   contextId, triggerKey, triggeredBy
- *
- * Handled by:  FireWorkflowTriggerService
- * Output ports: WorkflowPolicyRepository, WorkflowDispatcherPort, DomainEventPublisher
- *
- * Result: PlatformCommandResult (ok, code, message, metadata)
- *
- * @see docs/application-services.md — Command-oriented Services
- */
-
-// TODO: implement FireWorkflowTriggerCommand command payload type
-````
-
-## File: modules/platform/application/commands/index.ts
-````typescript
-/**
- * platform command models placeholder module.
- */
-
-export const PLATFORM_APPLICATION_COMMANDS = [
-	"RegisterPlatformContext",
-	"PublishPolicyCatalog",
-	"ApplyConfigurationProfile",
-	"RegisterIntegrationContract",
-	"ActivateSubscriptionAgreement",
-	"FireWorkflowTrigger",
-	"RequestNotificationDispatch",
-	"RecordAuditSignal",
-	"EmitObservabilitySignal",
-] as const;
-
-export type PlatformApplicationCommand = (typeof PLATFORM_APPLICATION_COMMANDS)[number];
-````
-
-## File: modules/platform/application/commands/PublishPolicyCatalogCommand.ts
-````typescript
-/**
- * PublishPolicyCatalogCommand
- *
- * Command: PublishPolicyCatalog
- * Purpose: Publishes a new PolicyCatalog revision.
- *
- * Typical payload fields:
- *   contextId, revision
- *
- * Handled by:  PublishPolicyCatalogService
- * Output ports: PolicyCatalogRepository, DomainEventPublisher
- *
- * Result: PlatformCommandResult (ok, code, message, metadata)
- *
- * @see docs/application-services.md — Command-oriented Services
- */
-
-// TODO: implement PublishPolicyCatalogCommand command payload type
-````
-
-## File: modules/platform/application/commands/RecordAuditSignalCommand.ts
-````typescript
-/**
- * RecordAuditSignalCommand
- *
- * Command: RecordAuditSignal
- * Purpose: Writes a decision or behavior as an immutable audit signal.
- *
- * Typical payload fields:
- *   contextId, signalType, severity
- *
- * Handled by:  RecordAuditSignalService
- * Output ports: AuditSignalStore, DomainEventPublisher
- *
- * Result: PlatformCommandResult (ok, code, message, metadata)
- *
- * @see docs/application-services.md — Command-oriented Services
- */
-
-// TODO: implement RecordAuditSignalCommand command payload type
-````
-
-## File: modules/platform/application/commands/RegisterIntegrationContractCommand.ts
-````typescript
-/**
- * RegisterIntegrationContractCommand
- *
- * Command: RegisterIntegrationContract
- * Purpose: Creates or updates an external integration contract.
- *
- * Typical payload fields:
- *   contextId, integrationContractId, endpointRef, protocol
- *
- * Handled by:  RegisterIntegrationContractService
- * Output ports: IntegrationContractRepository, SecretReferenceResolver, DomainEventPublisher
- *
- * Result: PlatformCommandResult (ok, code, message, metadata)
- *
- * @see docs/application-services.md — Command-oriented Services
- */
-
-// TODO: implement RegisterIntegrationContractCommand command payload type
-````
-
-## File: modules/platform/application/commands/RegisterPlatformContextCommand.ts
-````typescript
-/**
- * RegisterPlatformContextCommand
- *
- * Command: RegisterPlatformContext
- * Purpose: CreatesPlatformContext or re-activates a platform scope.
- *
- * Typical payload fields:
- *   contextId, subjectScope
- *
- * Handled by:  RegisterPlatformContextService
- * Output ports: PlatformContextRepository, SubscriptionAgreementRepository, DomainEventPublisher
- *
- * Result: PlatformCommandResult (ok, code, message, metadata)
- *
- * @see docs/application-services.md — Command-oriented Services
- */
-
-// TODO: implement RegisterPlatformContextCommand command payload type
-````
-
-## File: modules/platform/application/commands/RequestNotificationDispatchCommand.ts
-````typescript
-/**
- * RequestNotificationDispatchCommand
- *
- * Command: RequestNotificationDispatch
- * Purpose: Creates a notification dispatch request.
- *
- * Typical payload fields:
- *   contextId, channel, recipientRef, templateKey
- *
- * Handled by:  RequestNotificationDispatchService
- * Output ports: NotificationGateway, PolicyCatalogRepository, AuditSignalStore
- *
- * Result: PlatformCommandResult (ok, code, message, metadata)
- *
- * @see docs/application-services.md — Command-oriented Services
- */
-
-// TODO: implement RequestNotificationDispatchCommand command payload type
-````
-
 ## File: modules/platform/application/dtos/index.ts
 ````typescript
 /**
@@ -464,609 +245,6 @@ export interface GetWorkflowPolicyViewInput {
  */
 
 // TODO: implement WorkflowPolicyView DTO interface
-````
-
-## File: modules/platform/application/handlers/ActivateSubscriptionAgreementHandler.ts
-````typescript
-/**
- * ActivateSubscriptionAgreementHandler — Use Case Handler
- *
- * Implements: PlatformCommandPort
- * Use case:   ActivateSubscriptionAgreement
- *
- * Orchestration steps:
- *   1. Load SubscriptionAgreement aggregate
- *   2. Call CapabilityEntitlementPolicy domain service to verify plan constraints
- *   3. Activate agreement; update PlatformContext capability set
- *   4. Persist both aggregates
- *   5. Publish SubscriptionAgreementActivatedEvent
- *   6. Return PlatformCommandResult
- *
- * Output ports used:
- *   SubscriptionAgreementRepository, PlatformContextRepository, DomainEventPublisher
- *
- * Returns: PlatformCommandResult (ok, code, message, metadata)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
- *
- * @see docs/application-services.md
- * @see ports/input/index.ts — PlatformCommandPort
- */
-
-// TODO: implement ActivateSubscriptionAgreementHandler use case handler class
-````
-
-## File: modules/platform/application/handlers/ApplyConfigurationProfileHandler.ts
-````typescript
-/**
- * ApplyConfigurationProfileHandler — Use Case Handler
- *
- * Implements: PlatformCommandPort
- * Use case:   ApplyConfigurationProfile
- *
- * Orchestration steps:
- *   1. Load ConfigurationProfile via ConfigurationProfileStore
- *   2. Load PlatformContext aggregate via PlatformContextRepository
- *   3. Call domain service ConfigurationCompositionService
- *   4. Apply changes via PlatformContext.applyProfile()
- *   5. Persist and publish ConfigProfileAppliedEvent
- *   6. Return PlatformCommandResult
- *
- * Output ports used:
- *   PlatformContextRepository, ConfigurationProfileStore, DomainEventPublisher
- *
- * Returns: PlatformCommandResult (ok, code, message, metadata)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
- *
- * @see docs/application-services.md
- * @see ports/input/index.ts — PlatformCommandPort
- */
-
-// TODO: implement ApplyConfigurationProfileHandler use case handler class
-````
-
-## File: modules/platform/application/handlers/EmitObservabilitySignalHandler.ts
-````typescript
-/**
- * EmitObservabilitySignalHandler — Use Case Handler
- *
- * Implements: PlatformCommandPort
- * Use case:   EmitObservabilitySignal
- *
- * Orchestration steps:
- *   1. Correlate signal via ObservabilityCorrelationService domain service
- *   2. Emit via ObservabilitySink
- *   3. Optionally write to AuditSignalStore if classification requires it
- *   4. Return PlatformCommandResult
- *
- * Output ports used:
- *   ObservabilitySink, AuditSignalStore
- *
- * Returns: PlatformCommandResult (ok, code, message, metadata)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
- *
- * @see docs/application-services.md
- * @see ports/input/index.ts — PlatformCommandPort
- */
-
-// TODO: implement EmitObservabilitySignalHandler use case handler class
-````
-
-## File: modules/platform/application/handlers/FireWorkflowTriggerHandler.ts
-````typescript
-/**
- * FireWorkflowTriggerHandler — Use Case Handler
- *
- * Implements: PlatformCommandPort
- * Use case:   FireWorkflowTrigger
- *
- * Orchestration steps:
- *   1. Load WorkflowPolicy via WorkflowPolicyRepository
- *   2. Evaluate WorkflowDispatchPolicy domain service
- *   3. If allowed, dispatch via WorkflowDispatcherPort
- *   4. Publish WorkflowTriggerFiredEvent
- *   5. Return PlatformCommandResult
- *
- * Output ports used:
- *   WorkflowPolicyRepository, WorkflowDispatcherPort, DomainEventPublisher
- *
- * Returns: PlatformCommandResult (ok, code, message, metadata)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
- *
- * @see docs/application-services.md
- * @see ports/input/index.ts — PlatformCommandPort
- */
-
-// TODO: implement FireWorkflowTriggerHandler use case handler class
-````
-
-## File: modules/platform/application/handlers/GetPlatformContextViewHandler.ts
-````typescript
-/**
- * GetPlatformContextViewHandler — Use Case Handler
- *
- * Implements: PlatformQueryPort
- * Use case:   GetPlatformContextView
- *
- * Orchestration steps:
- *   1. Query PlatformContextViewRepository
- *   2. Return PlatformContextView read model
- *
- * Output ports used:
- *   PlatformContextViewRepository
- *
- * Returns: query projection / read model (never adapter-native type)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
- *
- * @see docs/application-services.md
- * @see ports/input/index.ts — PlatformQueryPort
- */
-
-// TODO: implement GetPlatformContextViewHandler use case handler class
-````
-
-## File: modules/platform/application/handlers/GetPolicyCatalogViewHandler.ts
-````typescript
-/**
- * GetPolicyCatalogViewHandler — Use Case Handler
- *
- * Implements: PlatformQueryPort
- * Use case:   GetPolicyCatalogView
- *
- * Orchestration steps:
- *   1. Query PolicyCatalogViewRepository
- *   2. Return PolicyCatalogView read model
- *
- * Output ports used:
- *   PolicyCatalogViewRepository
- *
- * Returns: query projection / read model (never adapter-native type)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
- *
- * @see docs/application-services.md
- * @see ports/input/index.ts — PlatformQueryPort
- */
-
-// TODO: implement GetPolicyCatalogViewHandler use case handler class
-````
-
-## File: modules/platform/application/handlers/GetSubscriptionEntitlementsHandler.ts
-````typescript
-/**
- * GetSubscriptionEntitlementsHandler — Use Case Handler
- *
- * Implements: PlatformQueryPort
- * Use case:   GetSubscriptionEntitlements
- *
- * Orchestration steps:
- *   1. Query SubscriptionAgreementRepository
- *   2. Query UsageMeterRepository for current usage
- *   3. Return SubscriptionEntitlementsView read model
- *
- * Output ports used:
- *   SubscriptionAgreementRepository, UsageMeterRepository
- *
- * Returns: query projection / read model (never adapter-native type)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
- *
- * @see docs/application-services.md
- * @see ports/input/index.ts — PlatformQueryPort
- */
-
-// TODO: implement GetSubscriptionEntitlementsHandler use case handler class
-````
-
-## File: modules/platform/application/handlers/GetWorkflowPolicyViewHandler.ts
-````typescript
-/**
- * GetWorkflowPolicyViewHandler — Use Case Handler
- *
- * Implements: PlatformQueryPort
- * Use case:   GetWorkflowPolicyView
- *
- * Orchestration steps:
- *   1. Query WorkflowPolicyRepository for trigger key
- *   2. Cross-reference with PolicyCatalogViewRepository
- *   3. Return WorkflowPolicyView read model
- *
- * Output ports used:
- *   WorkflowPolicyRepository, PolicyCatalogViewRepository
- *
- * Returns: query projection / read model (never adapter-native type)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
- *
- * @see docs/application-services.md
- * @see ports/input/index.ts — PlatformQueryPort
- */
-
-// TODO: implement GetWorkflowPolicyViewHandler use case handler class
-````
-
-## File: modules/platform/application/handlers/index.ts
-````typescript
-/**
- * platform handler placeholder module.
- */
-
-export const PLATFORM_APPLICATION_HANDLERS = [
-	"RegisterPlatformContextHandler.execute",
-	"PublishPolicyCatalogHandler.execute",
-	"ApplyConfigurationProfileHandler.execute",
-	"RegisterIntegrationContractHandler.execute",
-	"ActivateSubscriptionAgreementHandler.execute",
-	"FireWorkflowTriggerHandler.execute",
-	"RequestNotificationDispatchHandler.execute",
-	"RecordAuditSignalHandler.execute",
-	"EmitObservabilitySignalHandler.execute",
-	"GetPlatformContextViewHandler.execute",
-	"ListEnabledCapabilitiesHandler.execute",
-	"GetPolicyCatalogViewHandler.execute",
-	"GetSubscriptionEntitlementsHandler.execute",
-	"GetWorkflowPolicyViewHandler.execute",
-] as const;
-
-export type PlatformApplicationHandler = (typeof PLATFORM_APPLICATION_HANDLERS)[number];
-````
-
-## File: modules/platform/application/handlers/ListEnabledCapabilitiesHandler.ts
-````typescript
-/**
- * ListEnabledCapabilitiesHandler — Use Case Handler
- *
- * Implements: PlatformQueryPort
- * Use case:   ListEnabledCapabilities
- *
- * Orchestration steps:
- *   1. Query PlatformContextViewRepository for current capability set
- *   2. Cross-check with SubscriptionAgreementRepository entitlements
- *   3. Return capability key list
- *
- * Output ports used:
- *   PlatformContextViewRepository, SubscriptionAgreementRepository
- *
- * Returns: query projection / read model (never adapter-native type)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
- *
- * @see docs/application-services.md
- * @see ports/input/index.ts — PlatformQueryPort
- */
-
-// TODO: implement ListEnabledCapabilitiesHandler use case handler class
-````
-
-## File: modules/platform/application/handlers/PublishPolicyCatalogHandler.ts
-````typescript
-/**
- * PublishPolicyCatalogHandler — Use Case Handler
- *
- * Implements: PlatformCommandPort
- * Use case:   PublishPolicyCatalog
- *
- * Orchestration steps:
- *   1. Load PolicyCatalog aggregate via PolicyCatalogRepository
- *   2. Call aggregate.publishRevision() method
- *   3. Persist via PolicyCatalogRepository
- *   4. Publish PolicyCatalogPublishedEvent via DomainEventPublisher
- *   5. Return PlatformCommandResult
- *
- * Output ports used:
- *   PolicyCatalogRepository, DomainEventPublisher
- *
- * Returns: PlatformCommandResult (ok, code, message, metadata)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
- *
- * @see docs/application-services.md
- * @see ports/input/index.ts — PlatformCommandPort
- */
-
-// TODO: implement PublishPolicyCatalogHandler use case handler class
-````
-
-## File: modules/platform/application/handlers/RecordAuditSignalHandler.ts
-````typescript
-/**
- * RecordAuditSignalHandler — Use Case Handler
- *
- * Implements: PlatformCommandPort
- * Use case:   RecordAuditSignal
- *
- * Orchestration steps:
- *   1. Classify signal via AuditClassificationService domain service
- *   2. Write immutable record via AuditSignalStore
- *   3. Publish AuditSignalRecordedEvent via DomainEventPublisher
- *   4. Return PlatformCommandResult
- *
- * Output ports used:
- *   AuditSignalStore, DomainEventPublisher
- *
- * Returns: PlatformCommandResult (ok, code, message, metadata)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
- *
- * @see docs/application-services.md
- * @see ports/input/index.ts — PlatformCommandPort
- */
-
-// TODO: implement RecordAuditSignalHandler use case handler class
-````
-
-## File: modules/platform/application/handlers/RegisterIntegrationContractHandler.ts
-````typescript
-/**
- * RegisterIntegrationContractHandler — Use Case Handler
- *
- * Implements: PlatformCommandPort
- * Use case:   RegisterIntegrationContract
- *
- * Orchestration steps:
- *   1. Resolve secret reference via SecretReferenceResolver
- *   2. Validate compatibility via IntegrationCompatibilityService
- *   3. Create or update IntegrationContract aggregate
- *   4. Persist via IntegrationContractRepository
- *   5. Publish IntegrationContractRegisteredEvent
- *   6. Return PlatformCommandResult
- *
- * Output ports used:
- *   IntegrationContractRepository, SecretReferenceResolver, DomainEventPublisher
- *
- * Returns: PlatformCommandResult (ok, code, message, metadata)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
- *
- * @see docs/application-services.md
- * @see ports/input/index.ts — PlatformCommandPort
- */
-
-// TODO: implement RegisterIntegrationContractHandler use case handler class
-````
-
-## File: modules/platform/application/handlers/RegisterPlatformContextHandler.ts
-````typescript
-/**
- * RegisterPlatformContextHandler — Use Case Handler
- *
- * Implements: PlatformCommandPort
- * Use case:   RegisterPlatformContext
- *
- * Orchestration steps:
- *   1. Validate input (driving adapter responsibility)
- *   2. Load or create PlatformContext aggregate via PlatformContextRepository
- *   3. Call aggregate.register() method
- *   4. Persist via PlatformContextRepository
- *   5. Publish PlatformContextRegisteredEvent via DomainEventPublisher
- *   6. Return PlatformCommandResult
- *
- * Output ports used:
- *   PlatformContextRepository, SubscriptionAgreementRepository, DomainEventPublisher
- *
- * Returns: PlatformCommandResult (ok, code, message, metadata)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
- *
- * @see docs/application-services.md
- * @see ports/input/index.ts — PlatformCommandPort
- */
-
-// TODO: implement RegisterPlatformContextHandler use case handler class
-````
-
-## File: modules/platform/application/handlers/RequestNotificationDispatchHandler.ts
-````typescript
-/**
- * RequestNotificationDispatchHandler — Use Case Handler
- *
- * Implements: PlatformCommandPort
- * Use case:   RequestNotificationDispatch
- *
- * Orchestration steps:
- *   1. Load PolicyCatalog via PolicyCatalogRepository
- *   2. Evaluate NotificationRoutingPolicy domain service
- *   3. Dispatch via NotificationGateway
- *   4. Record audit signal via AuditSignalStore
- *   5. Return PlatformCommandResult
- *
- * Output ports used:
- *   NotificationGateway, PolicyCatalogRepository, AuditSignalStore
- *
- * Returns: PlatformCommandResult (ok, code, message, metadata)
- *
- * Rules:
- *   - All persistence and side effects go through output ports
- *   - Domain events are published after successful persistence
- *   - Application service must not understand HTTP status codes, queue headers, or webhook signatures
- *
- * @see docs/application-services.md
- * @see ports/input/index.ts — PlatformCommandPort
- */
-
-// TODO: implement RequestNotificationDispatchHandler use case handler class
-````
-
-## File: modules/platform/application/index.ts
-````typescript
-/**
- * platform application layer barrel.
- */
-
-export * from "./commands";
-export * from "./queries";
-export * from "./handlers";
-export * from "./dtos";
-````
-
-## File: modules/platform/application/queries/GetPlatformContextViewQuery.ts
-````typescript
-/**
- * GetPlatformContextViewQuery
- *
- * Query: GetPlatformContextView
- * Purpose: Returns a read-only summary of a platform scope.
- *
- * Input fields:
- *   contextId
- *
- * Handled by:  GetPlatformContextViewService
- * Query ports: PlatformContextViewRepository
- *
- * Result: read-only projection / view model (never adapter-native type)
- *
- * @see docs/application-services.md — Query-oriented Services
- */
-
-// TODO: implement GetPlatformContextViewQuery query input type
-````
-
-## File: modules/platform/application/queries/GetPolicyCatalogViewQuery.ts
-````typescript
-/**
- * GetPolicyCatalogViewQuery
- *
- * Query: GetPolicyCatalogView
- * Purpose: Returns the active policy version and rule summary.
- *
- * Input fields:
- *   contextId
- *
- * Handled by:  GetPolicyCatalogViewService
- * Query ports: PolicyCatalogViewRepository
- *
- * Result: read-only projection / view model (never adapter-native type)
- *
- * @see docs/application-services.md — Query-oriented Services
- */
-
-// TODO: implement GetPolicyCatalogViewQuery query input type
-````
-
-## File: modules/platform/application/queries/GetSubscriptionEntitlementsQuery.ts
-````typescript
-/**
- * GetSubscriptionEntitlementsQuery
- *
- * Query: GetSubscriptionEntitlements
- * Purpose: Returns plan entitlements and usage limits.
- *
- * Input fields:
- *   contextId
- *
- * Handled by:  GetSubscriptionEntitlementsService
- * Query ports: SubscriptionAgreementRepository, UsageMeterRepository
- *
- * Result: read-only projection / view model (never adapter-native type)
- *
- * @see docs/application-services.md — Query-oriented Services
- */
-
-// TODO: implement GetSubscriptionEntitlementsQuery query input type
-````
-
-## File: modules/platform/application/queries/GetWorkflowPolicyViewQuery.ts
-````typescript
-/**
- * GetWorkflowPolicyViewQuery
- *
- * Query: GetWorkflowPolicyView
- * Purpose: Returns the workflow policy corresponding to a trigger key.
- *
- * Input fields:
- *   contextId, triggerKey
- *
- * Handled by:  GetWorkflowPolicyViewService
- * Query ports: WorkflowPolicyRepository, PolicyCatalogViewRepository
- *
- * Result: read-only projection / view model (never adapter-native type)
- *
- * @see docs/application-services.md — Query-oriented Services
- */
-
-// TODO: implement GetWorkflowPolicyViewQuery query input type
-````
-
-## File: modules/platform/application/queries/index.ts
-````typescript
-/**
- * platform query models placeholder module.
- */
-
-export const PLATFORM_APPLICATION_QUERIES = [
-	"GetPlatformContextView",
-	"ListEnabledCapabilities",
-	"GetPolicyCatalogView",
-	"GetSubscriptionEntitlements",
-	"GetWorkflowPolicyView",
-] as const;
-
-export type PlatformApplicationQuery = (typeof PLATFORM_APPLICATION_QUERIES)[number];
-````
-
-## File: modules/platform/application/queries/ListEnabledCapabilitiesQuery.ts
-````typescript
-/**
- * ListEnabledCapabilitiesQuery
- *
- * Query: ListEnabledCapabilities
- * Purpose: Lists all currently active capabilities for a platform scope.
- *
- * Input fields:
- *   contextId
- *
- * Handled by:  ListEnabledCapabilitiesService
- * Query ports: PlatformContextViewRepository, SubscriptionAgreementRepository
- *
- * Result: read-only projection / view model (never adapter-native type)
- *
- * @see docs/application-services.md — Query-oriented Services
- */
-
-// TODO: implement ListEnabledCapabilitiesQuery query input type
 ````
 
 ## File: modules/platform/domain/aggregates/index.ts
@@ -2119,26 +1297,6 @@ export * from "./events";
 // TODO: implement ConfigurationCompositionService domain service
 ````
 
-## File: modules/platform/domain/services/index.ts
-````typescript
-/**
- * platform domain service placeholder module.
- */
-
-export const PLATFORM_DOMAIN_SERVICE_FUNCTIONS = [
-	"evaluateCapabilityEntitlement",
-	"resolvePermissionDecision",
-	"composeConfigurationProfile",
-	"validateIntegrationCompatibility",
-	"decideWorkflowDispatch",
-	"decideNotificationRouting",
-	"classifyAuditSignal",
-	"correlateObservabilitySignal",
-] as const;
-
-export type PlatformDomainServiceFunction = (typeof PLATFORM_DOMAIN_SERVICE_FUNCTIONS)[number];
-````
-
 ## File: modules/platform/domain/services/IntegrationCompatibilityService.ts
 ````typescript
 /**
@@ -2455,275 +1613,6 @@ export type PlatformDomainServiceFunction = (typeof PLATFORM_DOMAIN_SERVICE_FUNC
 // TODO: implement UsageLimit value object
 ````
 
-## File: modules/platform/infrastructure/cache/CachedPlatformContextViewRepository.ts
-````typescript
-/**
- * CachedPlatformContextViewRepository — Cache Repository (Driven Adapter)
- *
- * Implements: PlatformContextViewRepository
- * Caches PlatformContextView read model projections to reduce Firestore reads.
- * Cache key prefix: "platform-context-views"
- *
- * Strategy:
- *   1. Check Upstash Redis cache for the view
- *   2. On cache miss, delegate to the DB repository
- *   3. Store result in cache with appropriate TTL
- *   4. Invalidate cache on relevant domain events
- *
- * Rules:
- *   - Must implement the PlatformContextViewRepository interface contract exactly
- *   - Cache miss must be transparent to callers (same return shape)
- *   - TTL and invalidation strategy are configuration-driven, not hardcoded
- *
- * @see ports/output/index.ts — PlatformContextViewRepository interface
- * @see infrastructure/db/ — underlying DB repository
- * @see docs/repositories.md — cache strategy notes
- */
-
-// TODO: implement CachedPlatformContextViewRepository cache-aside repository
-````
-
-## File: modules/platform/infrastructure/cache/CachedPolicyCatalogViewRepository.ts
-````typescript
-/**
- * CachedPolicyCatalogViewRepository — Cache Repository (Driven Adapter)
- *
- * Implements: PolicyCatalogViewRepository
- * Caches PolicyCatalogView projections; invalidated on PolicyCatalogPublishedEvent.
- * Cache key prefix: "policy-catalog-views"
- *
- * Strategy:
- *   1. Check Upstash Redis cache for the view
- *   2. On cache miss, delegate to the DB repository
- *   3. Store result in cache with appropriate TTL
- *   4. Invalidate cache on relevant domain events
- *
- * Rules:
- *   - Must implement the PolicyCatalogViewRepository interface contract exactly
- *   - Cache miss must be transparent to callers (same return shape)
- *   - TTL and invalidation strategy are configuration-driven, not hardcoded
- *
- * @see ports/output/index.ts — PolicyCatalogViewRepository interface
- * @see infrastructure/db/ — underlying DB repository
- * @see docs/repositories.md — cache strategy notes
- */
-
-// TODO: implement CachedPolicyCatalogViewRepository cache-aside repository
-````
-
-## File: modules/platform/infrastructure/cache/CachedUsageMeterRepository.ts
-````typescript
-/**
- * CachedUsageMeterRepository — Cache Repository (Driven Adapter)
- *
- * Implements: UsageMeterRepository
- * Caches SubscriptionEntitlementsView projections; invalidated on entitlement changes.
- * Cache key prefix: "usage-meters"
- *
- * Strategy:
- *   1. Check Upstash Redis cache for the view
- *   2. On cache miss, delegate to the DB repository
- *   3. Store result in cache with appropriate TTL
- *   4. Invalidate cache on relevant domain events
- *
- * Rules:
- *   - Must implement the UsageMeterRepository interface contract exactly
- *   - Cache miss must be transparent to callers (same return shape)
- *   - TTL and invalidation strategy are configuration-driven, not hardcoded
- *
- * @see ports/output/index.ts — UsageMeterRepository interface
- * @see infrastructure/db/ — underlying DB repository
- * @see docs/repositories.md — cache strategy notes
- */
-
-// TODO: implement CachedUsageMeterRepository cache-aside repository
-````
-
-## File: modules/platform/infrastructure/cache/index.ts
-````typescript
-/**
- * platform cache infrastructure placeholder module.
- */
-
-export const PLATFORM_INFRA_CACHE_FACTORIES = [
-	"createCachedPlatformContextViewRepository",
-	"createCachedPolicyCatalogViewRepository",
-	"createCachedUsageMeterRepository",
-] as const;
-
-export type PlatformInfraCacheFactory = (typeof PLATFORM_INFRA_CACHE_FACTORIES)[number];
-````
-
-## File: modules/platform/infrastructure/db/FirebaseIntegrationContractRepository.ts
-````typescript
-/**
- * FirebaseIntegrationContractRepository — Firestore Repository (Driven Adapter)
- *
- * Implements: IntegrationContractRepository
- * Stores:     IntegrationContract aggregate
- * Collection: "integration-contracts"
- *
- * Responsibilities:
- *   - Read/write IntegrationContract aggregate documents to Firestore
- *   - Use adapters/persistence mappers for serialisation/deserialisation
- *   - Reconstitute aggregates via domain factory (create*Aggregate with reconstitute flag)
- *
- * Rules:
- *   - Must implement the IntegrationContractRepository interface contract exactly
- *   - Must not import from application/ or interfaces/ layers
- *   - Must not expose Firestore types outside this file
- *   - Errors are translated to typed domain errors, not raw Firestore errors
- *
- * @see ports/output/index.ts — IntegrationContractRepository interface
- * @see adapters/persistence/ — serialisation mappers
- * @see docs/repositories.md — Firestore collection contract
- */
-
-// TODO: implement FirebaseIntegrationContractRepository Firestore repository
-````
-
-## File: modules/platform/infrastructure/db/FirebasePlatformContextRepository.ts
-````typescript
-/**
- * FirebasePlatformContextRepository — Firestore Repository (Driven Adapter)
- *
- * Implements: PlatformContextRepository
- * Stores:     PlatformContext aggregate
- * Collection: "platform-contexts"
- *
- * Responsibilities:
- *   - Read/write PlatformContext aggregate documents to Firestore
- *   - Use adapters/persistence mappers for serialisation/deserialisation
- *   - Reconstitute aggregates via domain factory (create*Aggregate with reconstitute flag)
- *
- * Rules:
- *   - Must implement the PlatformContextRepository interface contract exactly
- *   - Must not import from application/ or interfaces/ layers
- *   - Must not expose Firestore types outside this file
- *   - Errors are translated to typed domain errors, not raw Firestore errors
- *
- * @see ports/output/index.ts — PlatformContextRepository interface
- * @see adapters/persistence/ — serialisation mappers
- * @see docs/repositories.md — Firestore collection contract
- */
-
-// TODO: implement FirebasePlatformContextRepository Firestore repository
-````
-
-## File: modules/platform/infrastructure/db/FirebasePolicyCatalogRepository.ts
-````typescript
-/**
- * FirebasePolicyCatalogRepository — Firestore Repository (Driven Adapter)
- *
- * Implements: PolicyCatalogRepository
- * Stores:     PolicyCatalog aggregate (all revisions)
- * Collection: "policy-catalogs"
- *
- * Responsibilities:
- *   - Read/write PolicyCatalog aggregate (all revisions) documents to Firestore
- *   - Use adapters/persistence mappers for serialisation/deserialisation
- *   - Reconstitute aggregates via domain factory (create*Aggregate with reconstitute flag)
- *
- * Rules:
- *   - Must implement the PolicyCatalogRepository interface contract exactly
- *   - Must not import from application/ or interfaces/ layers
- *   - Must not expose Firestore types outside this file
- *   - Errors are translated to typed domain errors, not raw Firestore errors
- *
- * @see ports/output/index.ts — PolicyCatalogRepository interface
- * @see adapters/persistence/ — serialisation mappers
- * @see docs/repositories.md — Firestore collection contract
- */
-
-// TODO: implement FirebasePolicyCatalogRepository Firestore repository
-````
-
-## File: modules/platform/infrastructure/db/FirebaseSubscriptionAgreementRepository.ts
-````typescript
-/**
- * FirebaseSubscriptionAgreementRepository — Firestore Repository (Driven Adapter)
- *
- * Implements: SubscriptionAgreementRepository
- * Stores:     SubscriptionAgreement aggregate
- * Collection: "subscription-agreements"
- *
- * Responsibilities:
- *   - Read/write SubscriptionAgreement aggregate documents to Firestore
- *   - Use adapters/persistence mappers for serialisation/deserialisation
- *   - Reconstitute aggregates via domain factory (create*Aggregate with reconstitute flag)
- *
- * Rules:
- *   - Must implement the SubscriptionAgreementRepository interface contract exactly
- *   - Must not import from application/ or interfaces/ layers
- *   - Must not expose Firestore types outside this file
- *   - Errors are translated to typed domain errors, not raw Firestore errors
- *
- * @see ports/output/index.ts — SubscriptionAgreementRepository interface
- * @see adapters/persistence/ — serialisation mappers
- * @see docs/repositories.md — Firestore collection contract
- */
-
-// TODO: implement FirebaseSubscriptionAgreementRepository Firestore repository
-````
-
-## File: modules/platform/infrastructure/db/index.ts
-````typescript
-/**
- * platform database infrastructure placeholder module.
- */
-
-export const PLATFORM_INFRA_DB_FACTORIES = [
-	"createDbPlatformContextRepository",
-	"createDbPolicyCatalogRepository",
-	"createDbIntegrationContractRepository",
-	"createDbSubscriptionAgreementRepository",
-] as const;
-
-export type PlatformInfraDbFactory = (typeof PLATFORM_INFRA_DB_FACTORIES)[number];
-````
-
-## File: modules/platform/infrastructure/email/index.ts
-````typescript
-/**
- * platform email infrastructure placeholder module.
- */
-
-export const PLATFORM_INFRA_EMAIL_FACTORIES = [
-	"createEmailNotificationGateway",
-] as const;
-
-export type PlatformInfraEmailFactory = (typeof PLATFORM_INFRA_EMAIL_FACTORIES)[number];
-````
-
-## File: modules/platform/infrastructure/email/SmtpNotificationGateway.ts
-````typescript
-/**
- * SmtpNotificationGateway — Email Adapter (Driven Adapter)
- *
- * Implements: NotificationGateway (for email channel)
- *
- * Delivers email notifications via a transactional email provider
- * (e.g., Resend, SendGrid, SMTP relay).
- *
- * Responsibilities:
- *   - Accept a normalised NotificationDispatch request
- *   - Resolve template by templateKey
- *   - Render template with recipient data
- *   - Deliver via configured email provider
- *   - Return PlatformCommandResult (ok / failure)
- *
- * Rules:
- *   - Must not expose provider SDK types outside this file
- *   - Template resolution uses the platform content subdomain, not hardcoded strings
- *   - Channel-specific logic (HTML vs plain-text) is encapsulated here
- *
- * @see ports/output/index.ts — NotificationGateway interface
- * @see subdomains/notification/ — notification subdomain
- */
-
-// TODO: implement SmtpNotificationGateway
-````
-
 ## File: modules/platform/infrastructure/index.ts
 ````typescript
 /**
@@ -2736,174 +1625,6 @@ export * from "./email";
 export * from "./messaging";
 export * from "./monitoring";
 export * from "./storage";
-````
-
-## File: modules/platform/infrastructure/messaging/index.ts
-````typescript
-/**
- * platform messaging infrastructure placeholder module.
- */
-
-export const PLATFORM_INFRA_MESSAGING_FACTORIES = [
-	"createMessagingDomainEventPublisher",
-	"createMessagingWorkflowDispatcher",
-	"createMessagingJobQueuePort",
-] as const;
-
-export type PlatformInfraMessagingFactory = (typeof PLATFORM_INFRA_MESSAGING_FACTORIES)[number];
-````
-
-## File: modules/platform/infrastructure/messaging/QStashDomainEventPublisher.ts
-````typescript
-/**
- * QStashDomainEventPublisher — Messaging Adapter (Driven Adapter)
- *
- * Implements: DomainEventPublisher
- * Transport:  Upstash QStash
- *
- * Publishes platform domain events to QStash topics so downstream
- * bounded contexts can react asynchronously.
- *
- * Responsibilities:
- *   - Call events/published mappers to build the Published Language envelope
- *   - Batch events into a single QStash publish request when possible
- *   - Attach deduplication keys from eventId to guarantee at-least-once semantics
- *
- * Rules:
- *   - Must not expose QStash types outside this file
- *   - Must translate QStash errors into platform-level errors
- *
- * @see ports/output/index.ts — DomainEventPublisher interface
- * @see events/published/ — envelope builders
- * @see docs/repositories.md — messaging contracts
- */
-
-// TODO: implement QStashDomainEventPublisher
-````
-
-## File: modules/platform/infrastructure/messaging/QStashJobQueuePort.ts
-````typescript
-/**
- * QStashJobQueuePort — Messaging Adapter (Driven Adapter)
- *
- * Implements: JobQueuePort
- * Transport:  Upstash QStash job queue
- *
- * Enqueues background jobs (e.g., bulk export, report generation, data sync)
- * using QStash with configurable delay and retry semantics.
- *
- * @see ports/output/index.ts — JobQueuePort interface
- * @see subdomains/background-job/ — background job subdomain
- */
-
-// TODO: implement QStashJobQueuePort
-````
-
-## File: modules/platform/infrastructure/messaging/QStashWorkflowDispatcher.ts
-````typescript
-/**
- * QStashWorkflowDispatcher — Messaging Adapter (Driven Adapter)
- *
- * Implements: WorkflowDispatcherPort
- * Transport:  Upstash QStash workflow trigger
- *
- * Sends workflow trigger messages to QStash, which invokes the
- * appropriate workflow handler endpoint asynchronously.
- *
- * Responsibilities:
- *   - Map platform trigger key + payload to QStash message format
- *   - Return dispatch result (ok / failure) as PlatformCommandResult
- *   - Respect DeliveryPolicy (timeout, retry) from IntegrationContract
- *
- * @see ports/output/index.ts — WorkflowDispatcherPort interface
- * @see docs/repositories.md — workflow dispatch contract
- */
-
-// TODO: implement QStashWorkflowDispatcher
-````
-
-## File: modules/platform/infrastructure/monitoring/FirebaseObservabilitySink.ts
-````typescript
-/**
- * FirebaseObservabilitySink — Monitoring Adapter (Driven Adapter)
- *
- * Implements: ObservabilitySink
- *
- * Emits observability signals (metrics, traces, alerts) to a monitoring
- * backend (e.g., Google Cloud Monitoring, Datadog, or custom sink).
- *
- * Responsibilities:
- *   - Receive a normalised ObservabilitySignal domain type
- *   - Translate to the provider-specific format
- *   - Emit via configured monitoring SDK
- *
- * Rules:
- *   - Must not expose monitoring provider types outside this file
- *   - Signal enrichment (labels, resource attributes) is handled here
- *
- * @see ports/output/index.ts — ObservabilitySink interface
- * @see subdomains/observability/ — observability subdomain
- */
-
-// TODO: implement FirebaseObservabilitySink
-````
-
-## File: modules/platform/infrastructure/monitoring/index.ts
-````typescript
-/**
- * platform monitoring infrastructure placeholder module.
- */
-
-export const PLATFORM_INFRA_MONITORING_FACTORIES = [
-	"createMetricsObservabilitySink",
-	"createTracingObservabilitySink",
-	"createAnalyticsSink",
-] as const;
-
-export type PlatformInfraMonitoringFactory = (typeof PLATFORM_INFRA_MONITORING_FACTORIES)[number];
-````
-
-## File: modules/platform/infrastructure/storage/FirebaseStorageAuditSignalStore.ts
-````typescript
-/**
- * FirebaseStorageAuditSignalStore — Storage Adapter (Driven Adapter)
- *
- * Implements: AuditSignalStore
- *
- * Writes immutable audit signals to Firestore (or Cloud Storage for large payloads).
- * Audit records must be append-only; no updates or deletes.
- *
- * Responsibilities:
- *   - Accept a normalised audit signal record
- *   - Write to the audit-log Firestore collection with server timestamp
- *   - Return void on success; propagate typed error on failure
- *
- * Rules:
- *   - Must not expose Firestore types outside this file
- *   - Collection path and index strategy are documented in docs/repositories.md
- *   - This adapter must never delete or overwrite existing audit records
- *
- * @see ports/output/index.ts — AuditSignalStore interface
- * @see subdomains/audit-log/ — audit-log subdomain
- * @see docs/repositories.md — audit-log collection contract
- */
-
-// TODO: implement FirebaseStorageAuditSignalStore
-````
-
-## File: modules/platform/infrastructure/storage/index.ts
-````typescript
-/**
- * platform storage infrastructure placeholder module.
- */
-
-export const PLATFORM_INFRA_STORAGE_FACTORIES = [
-	"createStorageAuditSignalStore",
-	"createStorageDeliveryHistoryRepository",
-	"createStorageContentRepository",
-] as const;
-
-export type PlatformInfraStorageFactory = (typeof PLATFORM_INFRA_STORAGE_FACTORIES)[number];
 ````
 
 ## File: modules/platform/interfaces/index.ts
@@ -6104,6 +4825,100 @@ export function createPlatformFacade(ports: {
 }
 ````
 
+## File: modules/platform/api/platform-service.ts
+````typescript
+/**
+ * createPlatformService — Composition Root
+ *
+ * Wires all infrastructure adapters to use cases via the command/query dispatchers,
+ * then builds and returns a PlatformFacade ready for use by api/ consumers.
+ *
+ * Lives in api/ because the api boundary is the legitimate composition root:
+ *   api → infrastructure → application → domain (all inward dependencies preserved).
+ */
+
+import { createPlatformFacade } from "./facade";
+import type { PlatformFacade } from "./facade";
+import { PlatformCommandDispatcher } from "../application/handlers/PlatformCommandDispatcher";
+import { PlatformQueryDispatcher } from "../application/handlers/PlatformQueryDispatcher";
+import {
+	FirebasePlatformContextRepository,
+	FirebasePolicyCatalogRepository,
+	FirebaseIntegrationContractRepository,
+	FirebaseSubscriptionAgreementRepository,
+	FirebaseWorkflowPolicyRepository,
+	FirebaseConfigurationProfileStore,
+	EnvSecretReferenceResolver,
+} from "../infrastructure/db";
+import {
+	CachedPlatformContextViewRepository,
+	CachedPolicyCatalogViewRepository,
+	CachedUsageMeterRepository,
+} from "../infrastructure/cache";
+import {
+	QStashDomainEventPublisher,
+	QStashWorkflowDispatcher,
+} from "../infrastructure/messaging";
+import { FirebaseObservabilitySink } from "../infrastructure/monitoring";
+import { FirebaseStorageAuditSignalStore } from "../infrastructure/storage";
+import { SmtpNotificationGateway } from "../infrastructure/email";
+
+let _platformFacade: PlatformFacade | undefined;
+
+/**
+ * createPlatformService — creates a singleton PlatformFacade with all adapters wired.
+ *
+ * Call this once at module startup. Subsequent calls return the cached instance.
+ */
+export function createPlatformService(): PlatformFacade {
+	if (_platformFacade) return _platformFacade;
+
+	// Output ports — infrastructure adapters
+	const contextRepo = new FirebasePlatformContextRepository();
+	const catalogRepo = new FirebasePolicyCatalogRepository();
+	const contractRepo = new FirebaseIntegrationContractRepository();
+	const agreementRepo = new FirebaseSubscriptionAgreementRepository();
+	const workflowPolicyRepo = new FirebaseWorkflowPolicyRepository();
+	const configProfileStore = new FirebaseConfigurationProfileStore();
+	const secretResolver = new EnvSecretReferenceResolver();
+	const contextViewRepo = new CachedPlatformContextViewRepository();
+	const catalogViewRepo = new CachedPolicyCatalogViewRepository();
+	const usageMeterRepo = new CachedUsageMeterRepository();
+	const eventPublisher = new QStashDomainEventPublisher();
+	const workflowDispatcher = new QStashWorkflowDispatcher();
+	const observabilitySink = new FirebaseObservabilitySink();
+	const auditStore = new FirebaseStorageAuditSignalStore();
+	const notificationGateway = new SmtpNotificationGateway();
+
+	// Input ports — application dispatchers wired to use cases
+	const commandPort = new PlatformCommandDispatcher({
+		contextRepo,
+		catalogRepo,
+		contractRepo,
+		agreementRepo,
+		workflowPolicyRepo,
+		configProfileStore,
+		secretResolver,
+		eventPublisher,
+		workflowDispatcher,
+		notificationGateway,
+		catalogViewRepo,
+		auditStore,
+		observabilitySink,
+	});
+
+	const queryPort = new PlatformQueryDispatcher({
+		contextViewRepo,
+		catalogViewRepo,
+		usageMeterRepo,
+		workflowPolicyRepo,
+	});
+
+	_platformFacade = createPlatformFacade({ commandPort, queryPort });
+	return _platformFacade;
+}
+````
+
 ## File: modules/platform/application/event-handlers/handleIngressAccountProfileAmended.ts
 ````typescript
 /**
@@ -6382,97 +5197,263 @@ export type PlatformEventMapperFunction = (typeof PLATFORM_EVENT_MAPPER_FUNCTION
 // TODO: implement mapIngressEventToCommand mapper function
 ````
 
-## File: modules/platform/application/use-cases/.gitkeep
-````
-
-````
-
-## File: modules/platform/application/utils/assertNever.ts
+## File: modules/platform/application/handlers/PlatformCommandDispatcher.ts
 ````typescript
 /**
- * assertNever — Utility Function
+ * PlatformCommandDispatcher — Application-layer Command Router
  *
- * TypeScript exhaustive check helper.
- * Throws a compile-time error if a discriminated union is not fully handled.
+ * Implements: PlatformCommandPort
+ * Routes commands by name to the appropriate use case class.
  *
- * Usage:
- *   switch (state) {
- *     case "active": ...
- *     case "draft": ...
- *     default: assertNever(state); // compile error if new states are added
- *   }
- *
- * @see shared/value-objects/PlatformLifecycleState.ts — example usage
+ * This is the primary driving adapter for the platform module's command side.
+ * Called by: api/facade.ts via PlatformCommandPort
  */
 
-// TODO: implement assertNever exhaustive check function
+import type { PlatformCommandPort, PlatformCommand, PlatformCommandResult } from "../../domain/ports/input";
+import type {
+	PlatformContextRepository,
+	PolicyCatalogRepository,
+	IntegrationContractRepository,
+	SubscriptionAgreementRepository,
+	WorkflowPolicyRepository,
+	ConfigurationProfileStore,
+	SecretReferenceResolver,
+	DomainEventPublisher,
+	WorkflowDispatcherPort,
+	NotificationGateway,
+	PolicyCatalogViewRepository,
+	AuditSignalStore,
+	ObservabilitySink,
+} from "../../domain/ports/output";
+import { RegisterPlatformContextUseCase } from "../use-cases/register-platform-context.use-cases";
+import { PublishPolicyCatalogUseCase } from "../use-cases/publish-policy-catalog.use-cases";
+import { ApplyConfigurationProfileUseCase } from "../use-cases/apply-configuration-profile.use-cases";
+import { RegisterIntegrationContractUseCase } from "../use-cases/register-integration-contract.use-cases";
+import { ActivateSubscriptionAgreementUseCase } from "../use-cases/activate-subscription-agreement.use-cases";
+import { FireWorkflowTriggerUseCase } from "../use-cases/fire-workflow-trigger.use-cases";
+import { RequestNotificationDispatchUseCase } from "../use-cases/request-notification-dispatch.use-cases";
+import { RecordAuditSignalUseCase } from "../use-cases/record-audit-signal.use-cases";
+import { EmitObservabilitySignalUseCase } from "../use-cases/emit-observability-signal.use-cases";
+
+export interface PlatformCommandDispatcherDeps {
+	contextRepo: PlatformContextRepository;
+	catalogRepo: PolicyCatalogRepository;
+	contractRepo: IntegrationContractRepository;
+	agreementRepo: SubscriptionAgreementRepository;
+	workflowPolicyRepo: WorkflowPolicyRepository;
+	configProfileStore: ConfigurationProfileStore;
+	secretResolver: SecretReferenceResolver;
+	eventPublisher: DomainEventPublisher;
+	workflowDispatcher: WorkflowDispatcherPort;
+	notificationGateway: NotificationGateway;
+	catalogViewRepo: PolicyCatalogViewRepository;
+	auditStore: AuditSignalStore;
+	observabilitySink: ObservabilitySink;
+}
+
+export class PlatformCommandDispatcher implements PlatformCommandPort {
+	constructor(private readonly deps: PlatformCommandDispatcherDeps) {}
+
+	async executeCommand<TCommand extends PlatformCommand>(
+		command: TCommand,
+	): Promise<PlatformCommandResult> {
+		const { deps } = this;
+		switch (command.name) {
+			case "registerPlatformContext":
+				return new RegisterPlatformContextUseCase(
+					deps.contextRepo,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<RegisterPlatformContextUseCase["execute"]>[0]);
+
+			case "publishPolicyCatalog":
+				return new PublishPolicyCatalogUseCase(
+					deps.catalogRepo,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<PublishPolicyCatalogUseCase["execute"]>[0]);
+
+			case "applyConfigurationProfile":
+				return new ApplyConfigurationProfileUseCase(
+					deps.contextRepo,
+					deps.configProfileStore,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<ApplyConfigurationProfileUseCase["execute"]>[0]);
+
+			case "registerIntegrationContract":
+				return new RegisterIntegrationContractUseCase(
+					deps.contractRepo,
+					deps.secretResolver,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<RegisterIntegrationContractUseCase["execute"]>[0]);
+
+			case "activateSubscriptionAgreement":
+				return new ActivateSubscriptionAgreementUseCase(
+					deps.agreementRepo,
+					deps.contextRepo,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<ActivateSubscriptionAgreementUseCase["execute"]>[0]);
+
+			case "fireWorkflowTrigger":
+				return new FireWorkflowTriggerUseCase(
+					deps.workflowPolicyRepo,
+					deps.workflowDispatcher,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<FireWorkflowTriggerUseCase["execute"]>[0]);
+
+			case "requestNotificationDispatch":
+				return new RequestNotificationDispatchUseCase(
+					deps.notificationGateway,
+					deps.catalogViewRepo,
+					deps.auditStore,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<RequestNotificationDispatchUseCase["execute"]>[0]);
+
+			case "recordAuditSignal":
+				return new RecordAuditSignalUseCase(
+					deps.auditStore,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<RecordAuditSignalUseCase["execute"]>[0]);
+
+			case "emitObservabilitySignal":
+				return new EmitObservabilitySignalUseCase(
+					deps.observabilitySink,
+					deps.auditStore,
+					deps.eventPublisher,
+				).execute(command.payload as Parameters<EmitObservabilitySignalUseCase["execute"]>[0]);
+
+			default:
+				return {
+					ok: false,
+					code: "UNKNOWN_COMMAND",
+					message: `Unknown platform command: '${String((command as PlatformCommand).name)}'`,
+				};
+		}
+	}
+}
 ````
 
-## File: modules/platform/application/utils/buildCausationId.ts
+## File: modules/platform/application/handlers/PlatformQueryDispatcher.ts
 ````typescript
 /**
- * buildCausationId — Utility Function
+ * PlatformQueryDispatcher — Application-layer Query Router
  *
- * Derives a causation identifier from an existing event or command.
- * The causation ID links each domain event back to the event or command that triggered it.
+ * Implements: PlatformQueryPort
+ * Routes queries by name to the appropriate use case class.
+ *
+ * Called by: api/facade.ts via PlatformQueryPort
+ */
+
+import type { PlatformQueryPort, PlatformQuery } from "../../domain/ports/input";
+import type {
+	PlatformContextViewRepository,
+	PolicyCatalogViewRepository,
+	UsageMeterRepository,
+	WorkflowPolicyRepository,
+} from "../../domain/ports/output";
+import { GetPlatformContextViewUseCase } from "../use-cases/get-platform-context-view.use-cases";
+import { ListEnabledCapabilitiesUseCase } from "../use-cases/list-enabled-capabilities.use-cases";
+import { GetPolicyCatalogViewUseCase } from "../use-cases/get-policy-catalog-view.use-cases";
+import { GetSubscriptionEntitlementsUseCase } from "../use-cases/get-subscription-entitlements.use-cases";
+import { GetWorkflowPolicyViewUseCase } from "../use-cases/get-workflow-policy-view.use-cases";
+
+export interface PlatformQueryDispatcherDeps {
+	contextViewRepo: PlatformContextViewRepository;
+	catalogViewRepo: PolicyCatalogViewRepository;
+	usageMeterRepo: UsageMeterRepository;
+	workflowPolicyRepo: WorkflowPolicyRepository;
+}
+
+export class PlatformQueryDispatcher implements PlatformQueryPort {
+	constructor(private readonly deps: PlatformQueryDispatcherDeps) {}
+
+	async executeQuery<TResult, TQuery extends PlatformQuery>(
+		queryMsg: TQuery,
+	): Promise<TResult> {
+		const { deps } = this;
+		switch (queryMsg.name) {
+			case "getPlatformContextView":
+				return new GetPlatformContextViewUseCase(deps.contextViewRepo).execute(
+					queryMsg.payload as Parameters<GetPlatformContextViewUseCase["execute"]>[0],
+				) as Promise<TResult>;
+
+			case "listEnabledCapabilities":
+				return new ListEnabledCapabilitiesUseCase(deps.contextViewRepo).execute(
+					queryMsg.payload as Parameters<ListEnabledCapabilitiesUseCase["execute"]>[0],
+				) as Promise<TResult>;
+
+			case "getPolicyCatalogView":
+				return new GetPolicyCatalogViewUseCase(deps.catalogViewRepo).execute(
+					queryMsg.payload as Parameters<GetPolicyCatalogViewUseCase["execute"]>[0],
+				) as Promise<TResult>;
+
+			case "getSubscriptionEntitlements":
+				return new GetSubscriptionEntitlementsUseCase(deps.usageMeterRepo).execute(
+					queryMsg.payload as Parameters<GetSubscriptionEntitlementsUseCase["execute"]>[0],
+				) as Promise<TResult>;
+
+			case "getWorkflowPolicyView":
+				return new GetWorkflowPolicyViewUseCase(deps.workflowPolicyRepo).execute(
+					queryMsg.payload as Parameters<GetWorkflowPolicyViewUseCase["execute"]>[0],
+				) as Promise<TResult>;
+
+			default:
+				throw new Error(`Unknown platform query: '${String((queryMsg as PlatformQuery).name)}'`);
+		}
+	}
+}
+````
+
+## File: modules/platform/application/services/.gitkeep
+````
+
+````
+
+## File: modules/platform/application/services/build-causation-id.ts
+````typescript
+/**
+ * buildCausationId — derive a causation identifier from a triggering event or command.
+ *
+ * Application-level helper used when publishing domain events: links each
+ * event back to the command or event that triggered it, forming an observable
+ * causal chain.
  *
  * Convention:
- *   commandCausation — pass the commandId from the triggering PlatformCommand
- *   eventCausation   — pass the eventId from the triggering PlatformDomainEvent
+ *   commandCausation — pass the commandId from the triggering PlatformCommand.
+ *   eventCausation   — pass the eventId from the triggering PlatformDomainEvent.
  *
  * @see shared/types/CorrelationContext.ts
  */
-
-// TODO: implement buildCausationId derivation function
+export function buildCausationId(triggeringId: string): string {
+	return `caused-by:${triggeringId}`;
+}
 ````
 
-## File: modules/platform/application/utils/buildCorrelationId.ts
+## File: modules/platform/application/services/build-correlation-id.ts
 ````typescript
 /**
- * buildCorrelationId — Utility Function
+ * buildCorrelationId — generate a new UUID v4 correlation identifier.
  *
- * Generates a new UUID v4 to use as a correlation identifier for a
- * platform action chain.
- *
- * Used when:
- *   - A new command arrives at the driving adapter without an existing correlation chain
- *   - Starting a new batch of domain events that are not caused by an existing event
+ * Application-level helper used when a new command arrives at the driving
+ * adapter without an existing correlation chain, or when starting a new
+ * batch of domain events not caused by an existing event.
  *
  * @see shared/types/CorrelationContext.ts
  */
-
-// TODO: implement buildCorrelationId UUID generator
+export function buildCorrelationId(): string {
+	return crypto.randomUUID();
+}
 ````
 
-## File: modules/platform/application/utils/index.ts
+## File: modules/platform/application/services/index.ts
 ````typescript
 /**
- * platform shared utilities placeholder module.
+ * platform application services barrel.
+ *
+ * Application Services handle flow coordination, transaction boundaries and
+ * cross-aggregate orchestration.  They do not carry core business invariants.
  */
 
-export const PLATFORM_SHARED_UTILITY_FUNCTIONS = [
-	"buildCorrelationId",
-	"buildCausationId",
-	"toIsoTimestamp",
-	"assertNever",
-] as const;
-
-export type PlatformSharedUtilityFunction = (typeof PLATFORM_SHARED_UTILITY_FUNCTIONS)[number];
-````
-
-## File: modules/platform/application/utils/toIsoTimestamp.ts
-````typescript
-/**
- * toIsoTimestamp — Utility Function
- *
- * Converts a Date object or Unix millisecond timestamp to an ISO 8601 string.
- * All occurredAt and publishedAt fields in the platform domain must use ISO 8601 strings,
- * never Date objects (for serialisation safety across server/client boundary).
- *
- * @see instructions — occurredAt must be ISO string (not Date)
- */
-
-// TODO: implement toIsoTimestamp conversion utility
+export { buildCausationId } from "./build-causation-id";
+export { buildCorrelationId } from "./build-correlation-id";
 ````
 
 ## File: modules/platform/domain/constants/index.ts
@@ -7480,6 +6461,60 @@ export * from "./output";
 // TODO: implement / re-export WorkflowPolicyRepository interface
 ````
 
+## File: modules/platform/domain/services/assert-never.ts
+````typescript
+/**
+ * assertNever — exhaustive union check utility.
+ *
+ * TypeScript compile-time guard: throws a runtime Error if a discriminated
+ * union branch is reached that should be unreachable.  Useful in domain
+ * switch/if chains to guarantee all variants of a discriminated type are
+ * handled.
+ *
+ * Usage:
+ *   switch (state) {
+ *     case "active":  ...
+ *     case "draft":   ...
+ *     default: assertNever(state); // compile error when new states are added
+ *   }
+ *
+ * @see shared/value-objects/PlatformLifecycleState.ts — example usage
+ */
+export function assertNever(value: never): never {
+	throw new Error(`Unexpected value: ${JSON.stringify(value)}`);
+}
+````
+
+## File: modules/platform/domain/services/index.ts
+````typescript
+/**
+ * platform domain services barrel.
+ *
+ * Domain Services carry business rules and invariants that cannot naturally
+ * fall on a single Entity or Value Object.
+ */
+
+export { assertNever } from "./assert-never";
+export { toIsoTimestamp } from "./to-iso-timestamp";
+````
+
+## File: modules/platform/domain/services/to-iso-timestamp.ts
+````typescript
+/**
+ * toIsoTimestamp — convert a Date or Unix ms timestamp to an ISO 8601 string.
+ *
+ * All `occurredAt` and `publishedAt` fields in the platform domain must use
+ * ISO 8601 strings, never Date objects, to ensure safe serialisation across
+ * the server/client boundary.  This is a domain-level invariant.
+ *
+ * @see instructions — occurredAt must be ISO string (not Date)
+ */
+export function toIsoTimestamp(value: Date | number): string {
+	const date = typeof value === "number" ? new Date(value) : value;
+	return date.toISOString();
+}
+````
+
 ## File: modules/platform/domain/types/CorrelationContext.ts
 ````typescript
 /**
@@ -7780,6 +6815,401 @@ export type PlatformDomainValueObjectFactoryFunction =
  */
 
 // TODO: implement SubscriptionAgreementId branded type and createSubscriptionAgreementId factory
+````
+
+## File: modules/platform/infrastructure/cache/CachedPlatformContextViewRepository.ts
+````typescript
+/**
+ * CachedPlatformContextViewRepository — Firestore-backed View Repository (Driven Adapter)
+ *
+ * Implements: PlatformContextViewRepository
+ * Reads PlatformContextView from "platform-contexts" collection.
+ */
+
+import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { PlatformContextViewRepository, PlatformContextView } from "../../domain/ports/output";
+
+export class CachedPlatformContextViewRepository implements PlatformContextViewRepository {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	async getView(contextId: string): Promise<PlatformContextView | null> {
+		const snap = await getDoc(doc(this.db, "platform-contexts", contextId));
+		if (!snap.exists()) return null;
+		const data = snap.data() as Record<string, unknown>;
+		return {
+			contextId,
+			lifecycleState: typeof data.lifecycleState === "string" ? data.lifecycleState : "unknown",
+			capabilityKeys: Array.isArray(data.capabilityKeys) ? (data.capabilityKeys as string[]) : [],
+		};
+	}
+}
+````
+
+## File: modules/platform/infrastructure/cache/CachedPolicyCatalogViewRepository.ts
+````typescript
+/**
+ * CachedPolicyCatalogViewRepository — Firestore-backed View Repository (Driven Adapter)
+ *
+ * Implements: PolicyCatalogViewRepository
+ * Reads PolicyCatalogView from "policy-catalogs" collection (latest active revision).
+ */
+
+import { getFirestore, collection, query, orderBy, limit, getDocs } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { PolicyCatalogViewRepository, PolicyCatalogView } from "../../domain/ports/output";
+
+export class CachedPolicyCatalogViewRepository implements PolicyCatalogViewRepository {
+private get db() {
+return getFirestore(firebaseClientApp);
+}
+
+async getView(contextId: string): Promise<PolicyCatalogView | null> {
+const q = query(
+collection(this.db, "policy-catalogs"),
+orderBy("revision", "desc"),
+limit(1),
+);
+const snap = await getDocs(q);
+if (snap.empty) return null;
+const data = snap.docs[0].data() as Record<string, unknown>;
+return {
+contextId,
+revision: typeof data.revision === "number" ? data.revision : 0,
+permissionRuleCount: typeof data.permissionRuleCount === "number" ? data.permissionRuleCount : 0,
+workflowRuleCount: typeof data.workflowRuleCount === "number" ? data.workflowRuleCount : 0,
+notificationRuleCount: typeof data.notificationRuleCount === "number" ? data.notificationRuleCount : 0,
+auditRuleCount: typeof data.auditRuleCount === "number" ? data.auditRuleCount : 0,
+};
+}
+}
+````
+
+## File: modules/platform/infrastructure/cache/CachedUsageMeterRepository.ts
+````typescript
+/**
+ * CachedUsageMeterRepository — Firestore-backed View Repository (Driven Adapter)
+ *
+ * Implements: UsageMeterRepository
+ * Reads SubscriptionEntitlementsView from "subscription-agreements" collection.
+ */
+
+import { getFirestore, collection, query, where, getDocs, limit } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { UsageMeterRepository, SubscriptionEntitlementsView } from "../../domain/ports/output";
+
+export class CachedUsageMeterRepository implements UsageMeterRepository {
+private get db() {
+return getFirestore(firebaseClientApp);
+}
+
+async getEntitlementsView(contextId: string): Promise<SubscriptionEntitlementsView | null> {
+const q = query(
+collection(this.db, "subscription-agreements"),
+where("contextId", "==", contextId),
+where("billingState", "==", "active"),
+limit(1),
+);
+const snap = await getDocs(q);
+if (snap.empty) return null;
+const data = snap.docs[0].data() as Record<string, unknown>;
+return {
+contextId,
+planCode: typeof data.planCode === "string" ? data.planCode : "free",
+entitlements: Array.isArray(data.entitlements) ? (data.entitlements as string[]) : [],
+usageLimits: Array.isArray(data.usageLimits) ? (data.usageLimits as string[]) : [],
+};
+}
+}
+````
+
+## File: modules/platform/infrastructure/cache/index.ts
+````typescript
+/**
+ * platform cache infrastructure barrel.
+ */
+
+export { CachedPlatformContextViewRepository } from "./CachedPlatformContextViewRepository";
+export { CachedPolicyCatalogViewRepository } from "./CachedPolicyCatalogViewRepository";
+export { CachedUsageMeterRepository } from "./CachedUsageMeterRepository";
+````
+
+## File: modules/platform/infrastructure/db/EnvSecretReferenceResolver.ts
+````typescript
+/**
+ * EnvSecretReferenceResolver — Environment-based Adapter (Driven Adapter)
+ *
+ * Implements: SecretReferenceResolver
+ * Resolves secret references from environment variables.
+ */
+
+import type { SecretReferenceResolver } from "../../domain/ports/output";
+
+export class EnvSecretReferenceResolver implements SecretReferenceResolver {
+async resolve(secretRef: string): Promise<string> {
+const envKey = secretRef.toUpperCase().replace(/-/g, "_");
+return process.env[envKey] ?? "";
+}
+}
+````
+
+## File: modules/platform/infrastructure/db/FirebaseConfigurationProfileStore.ts
+````typescript
+/**
+ * FirebaseConfigurationProfileStore — Firestore Store (Driven Adapter)
+ *
+ * Implements: ConfigurationProfileStore
+ * Collection: "config-profiles"
+ */
+
+import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { ConfigurationProfileStore } from "../../domain/ports/output";
+
+export class FirebaseConfigurationProfileStore implements ConfigurationProfileStore {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	async getProfile(profileRef: string): Promise<unknown | null> {
+		const snap = await getDoc(doc(this.db, "config-profiles", profileRef));
+		if (!snap.exists()) return null;
+		return { profileRef, ...(snap.data() as Record<string, unknown>) };
+	}
+}
+````
+
+## File: modules/platform/infrastructure/db/FirebaseIntegrationContractRepository.ts
+````typescript
+/**
+ * FirebaseIntegrationContractRepository — Firestore Repository (Driven Adapter)
+ *
+ * Implements: IntegrationContractRepository
+ * Collection: "integration-contracts"
+ */
+
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { IntegrationContractRepository } from "../../domain/ports/output";
+
+export class FirebaseIntegrationContractRepository implements IntegrationContractRepository {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	async findById(integrationContractId: string): Promise<unknown | null> {
+		const snap = await getDoc(doc(this.db, "integration-contracts", integrationContractId));
+		if (!snap.exists()) return null;
+		return { integrationContractId, ...(snap.data() as Record<string, unknown>) };
+	}
+
+	async save(contract: unknown): Promise<void> {
+		const record = contract as Record<string, unknown>;
+		const id = record.integrationContractId as string;
+		await setDoc(doc(this.db, "integration-contracts", id), record, { merge: true });
+	}
+}
+````
+
+## File: modules/platform/infrastructure/db/FirebasePlatformContextRepository.ts
+````typescript
+/**
+ * FirebasePlatformContextRepository — Firestore Repository (Driven Adapter)
+ *
+ * Implements: PlatformContextRepository
+ * Collection: "platform-contexts"
+ */
+
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { PlatformContextRepository } from "../../domain/ports/output";
+
+export class FirebasePlatformContextRepository implements PlatformContextRepository {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	async findById(contextId: string): Promise<unknown | null> {
+		const snap = await getDoc(doc(this.db, "platform-contexts", contextId));
+		if (!snap.exists()) return null;
+		return { contextId, ...(snap.data() as Record<string, unknown>) };
+	}
+
+	async save(context: unknown): Promise<void> {
+		const record = context as Record<string, unknown>;
+		const contextId = record.contextId as string;
+		await setDoc(doc(this.db, "platform-contexts", contextId), record, { merge: true });
+	}
+}
+````
+
+## File: modules/platform/infrastructure/db/FirebasePolicyCatalogRepository.ts
+````typescript
+/**
+ * FirebasePolicyCatalogRepository — Firestore Repository (Driven Adapter)
+ *
+ * Implements: PolicyCatalogRepository
+ * Collection: "policy-catalogs"
+ */
+
+import { getFirestore, collection, query, orderBy, limit, getDocs, setDoc, doc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { PolicyCatalogRepository } from "../../domain/ports/output";
+
+export class FirebasePolicyCatalogRepository implements PolicyCatalogRepository {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	async findActiveByContextId(contextId: string): Promise<unknown | null> {
+		const q = query(
+			collection(this.db, "policy-catalogs"),
+			orderBy("revision", "desc"),
+			limit(1),
+		);
+		const snap = await getDocs(q);
+		if (snap.empty) return null;
+		const d = snap.docs[0];
+		return { contextId, ...(d.data() as Record<string, unknown>), id: d.id };
+	}
+
+	async saveRevision(catalog: unknown): Promise<void> {
+		const record = catalog as Record<string, unknown>;
+		const contextId = record.contextId as string;
+		const revision = record.revision as number;
+		const id = `${contextId}__rev${revision}`;
+		await setDoc(doc(this.db, "policy-catalogs", id), record, { merge: true });
+	}
+}
+````
+
+## File: modules/platform/infrastructure/db/FirebaseSubscriptionAgreementRepository.ts
+````typescript
+/**
+ * FirebaseSubscriptionAgreementRepository — Firestore Repository (Driven Adapter)
+ *
+ * Implements: SubscriptionAgreementRepository
+ * Collection: "subscription-agreements"
+ */
+
+import { getFirestore, collection, query, where, getDocs, limit, setDoc, doc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { SubscriptionAgreementRepository } from "../../domain/ports/output";
+
+export class FirebaseSubscriptionAgreementRepository implements SubscriptionAgreementRepository {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	async findEffectiveByContextId(contextId: string): Promise<unknown | null> {
+		const q = query(
+			collection(this.db, "subscription-agreements"),
+			where("contextId", "==", contextId),
+			where("billingState", "==", "active"),
+			limit(1),
+		);
+		const snap = await getDocs(q);
+		if (snap.empty) return null;
+		const d = snap.docs[0];
+		return { ...(d.data() as Record<string, unknown>), subscriptionAgreementId: d.id };
+	}
+
+	async save(agreement: unknown): Promise<void> {
+		const record = agreement as Record<string, unknown>;
+		const id = record.subscriptionAgreementId as string;
+		await setDoc(doc(this.db, "subscription-agreements", id), record, { merge: true });
+	}
+}
+````
+
+## File: modules/platform/infrastructure/db/FirebaseWorkflowPolicyRepository.ts
+````typescript
+/**
+ * FirebaseWorkflowPolicyRepository — Firestore Repository (Driven Adapter)
+ *
+ * Implements: WorkflowPolicyRepository
+ * Collection: "workflow-policies"
+ */
+
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { WorkflowPolicyRepository, WorkflowPolicyView } from "../../domain/ports/output";
+
+export class FirebaseWorkflowPolicyRepository implements WorkflowPolicyRepository {
+	private get db() {
+		return getFirestore(firebaseClientApp);
+	}
+
+	private makeId(contextId: string, triggerKey: string): string {
+		return `${contextId}__${triggerKey}`;
+	}
+
+	async getView(contextId: string, triggerKey: string): Promise<WorkflowPolicyView | null> {
+		const id = this.makeId(contextId, triggerKey);
+		const snap = await getDoc(doc(this.db, "workflow-policies", id));
+		if (!snap.exists()) return null;
+		const data = snap.data() as Record<string, unknown>;
+		return {
+			contextId,
+			triggerKey,
+			enabled: Boolean(data.enabled),
+		};
+	}
+
+	async save(policy: WorkflowPolicyView): Promise<void> {
+		const id = this.makeId(policy.contextId, policy.triggerKey);
+		await setDoc(doc(this.db, "workflow-policies", id), policy, { merge: true });
+	}
+}
+````
+
+## File: modules/platform/infrastructure/db/index.ts
+````typescript
+/**
+ * platform database infrastructure barrel.
+ */
+
+export { FirebasePlatformContextRepository } from "./FirebasePlatformContextRepository";
+export { FirebasePolicyCatalogRepository } from "./FirebasePolicyCatalogRepository";
+export { FirebaseIntegrationContractRepository } from "./FirebaseIntegrationContractRepository";
+export { FirebaseSubscriptionAgreementRepository } from "./FirebaseSubscriptionAgreementRepository";
+export { FirebaseWorkflowPolicyRepository } from "./FirebaseWorkflowPolicyRepository";
+export { FirebaseConfigurationProfileStore } from "./FirebaseConfigurationProfileStore";
+export { EnvSecretReferenceResolver } from "./EnvSecretReferenceResolver";
+````
+
+## File: modules/platform/infrastructure/email/index.ts
+````typescript
+/**
+ * platform email infrastructure barrel.
+ */
+
+export { SmtpNotificationGateway } from "./SmtpNotificationGateway";
+````
+
+## File: modules/platform/infrastructure/email/SmtpNotificationGateway.ts
+````typescript
+/**
+ * SmtpNotificationGateway — Email Adapter (Driven Adapter)
+ *
+ * Implements: NotificationGateway
+ * Delivers notifications. In production, replace console.info with
+ * a Resend / SendGrid / SMTP relay API call.
+ */
+
+import type { NotificationGateway } from "../../domain/ports/output";
+import type { PlatformCommandResult } from "../../domain/ports/input";
+
+export class SmtpNotificationGateway implements NotificationGateway {
+async dispatch(request: Record<string, unknown>): Promise<PlatformCommandResult> {
+if (process.env.NODE_ENV !== "test") {
+console.info("[SmtpNotificationGateway] dispatch", request);
+}
+return { ok: true, code: "NOTIFICATION_DISPATCHED" };
+}
+}
 ````
 
 ## File: modules/platform/infrastructure/events/ingress/index.ts
@@ -8118,6 +7548,217 @@ export type PlatformAdapterExternalFunction = (typeof PLATFORM_ADAPTER_EXTERNAL_
 // TODO: implement mapExternalResponseToDispatchOutcome mapper function
 ````
 
+## File: modules/platform/infrastructure/messaging/index.ts
+````typescript
+/**
+ * platform messaging infrastructure barrel.
+ */
+
+export { QStashDomainEventPublisher } from "./QStashDomainEventPublisher";
+export { QStashWorkflowDispatcher } from "./QStashWorkflowDispatcher";
+export { QStashJobQueuePort } from "./QStashJobQueuePort";
+````
+
+## File: modules/platform/infrastructure/messaging/QStashDomainEventPublisher.ts
+````typescript
+/**
+ * QStashDomainEventPublisher — Messaging Adapter (Driven Adapter)
+ *
+ * Implements: DomainEventPublisher
+ * Publishes platform domain events via Upstash QStash.
+ */
+
+import type { DomainEventPublisher } from "../../domain/ports/output";
+import type { PlatformDomainEvent } from "../../domain/events";
+
+const QSTASH_ENDPOINT = "https://qstash.upstash.io/v2/publish/";
+
+export class QStashDomainEventPublisher implements DomainEventPublisher {
+	constructor(
+		private readonly destinationUrl: string = process.env.QSTASH_DESTINATION_URL ?? "",
+		private readonly token: string = process.env.QSTASH_TOKEN ?? "",
+	) {}
+
+	async publish(events: PlatformDomainEvent[]): Promise<void> {
+		if (events.length === 0) return;
+
+		if (!this.destinationUrl || !this.token) {
+			if (process.env.NODE_ENV !== "production") {
+				for (const event of events) {
+					console.warn(
+						`[QStashDomainEventPublisher] QSTASH_DESTINATION_URL or QSTASH_TOKEN not set. ` +
+							`Skipping publish of event '${event.type}' (${event.aggregateId}).`,
+					);
+				}
+			}
+			return;
+		}
+
+		for (const event of events) {
+			const body = JSON.stringify(event);
+			const dedupeId = `${event.aggregateType}:${event.aggregateId}:${event.occurredAt}`;
+			const response = await fetch(
+				`${QSTASH_ENDPOINT}${encodeURIComponent(this.destinationUrl)}`,
+				{
+					method: "POST",
+					headers: {
+						Authorization: `Bearer ${this.token}`,
+						"Content-Type": "application/json",
+						"Upstash-Retries": "3",
+						"Upstash-Deduplication-Id": dedupeId,
+					},
+					body,
+				},
+			);
+			if (!response.ok) {
+				const text = await response.text().catch(() => response.statusText);
+				throw new Error(
+					`QStashDomainEventPublisher: failed to publish '${event.type}'. ` +
+						`HTTP ${response.status}: ${text}`,
+				);
+			}
+		}
+	}
+}
+````
+
+## File: modules/platform/infrastructure/messaging/QStashJobQueuePort.ts
+````typescript
+/**
+ * QStashJobQueuePort — Messaging Adapter (Driven Adapter)
+ *
+ * Implements: JobQueuePort
+ * Transport:  Upstash QStash job queue
+ */
+
+import type { JobQueuePort } from "../../domain/ports/output";
+import type { PlatformCommandResult } from "../../domain/ports/input";
+
+const QSTASH_ENDPOINT = "https://qstash.upstash.io/v2/publish/";
+
+export class QStashJobQueuePort implements JobQueuePort {
+constructor(
+private readonly jobWorkerUrl: string = process.env.JOB_WORKER_URL ?? "",
+private readonly token: string = process.env.QSTASH_TOKEN ?? "",
+) {}
+
+async enqueue(job: Record<string, unknown>): Promise<PlatformCommandResult> {
+const jobType = typeof job.jobType === "string" ? job.jobType : "unknown";
+
+if (!this.jobWorkerUrl || !this.token) {
+if (process.env.NODE_ENV !== "production") {
+console.warn(
+`[QStashJobQueuePort] JOB_WORKER_URL or QSTASH_TOKEN not set. ` +
+`Skipping enqueue of job '${jobType}'.`,
+);
+}
+return { ok: true, code: "JOB_ENQUEUED_NOOP", metadata: { jobType } };
+}
+
+const destinationUrl = `${this.jobWorkerUrl}/api/jobs/${encodeURIComponent(jobType)}`;
+const response = await fetch(`${QSTASH_ENDPOINT}${encodeURIComponent(destinationUrl)}`, {
+method: "POST",
+headers: {
+Authorization: `Bearer ${this.token}`,
+"Content-Type": "application/json",
+"Upstash-Retries": "3",
+},
+body: JSON.stringify(job),
+});
+
+if (!response.ok) {
+const text = await response.text().catch(() => response.statusText);
+return { ok: false, code: "JOB_ENQUEUE_FAILED", message: `HTTP ${response.status}: ${text}` };
+}
+
+return { ok: true, code: "JOB_ENQUEUED", metadata: { jobType } };
+}
+}
+````
+
+## File: modules/platform/infrastructure/messaging/QStashWorkflowDispatcher.ts
+````typescript
+/**
+ * QStashWorkflowDispatcher — Messaging Adapter (Driven Adapter)
+ *
+ * Implements: WorkflowDispatcherPort
+ * Dispatches workflow triggers via Upstash QStash.
+ */
+
+import type { WorkflowDispatcherPort } from "../../domain/ports/output";
+import type { PlatformCommandResult } from "../../domain/ports/input";
+
+const QSTASH_ENDPOINT = "https://qstash.upstash.io/v2/publish/";
+
+export class QStashWorkflowDispatcher implements WorkflowDispatcherPort {
+constructor(
+private readonly workflowBaseUrl: string = process.env.WORKFLOW_BASE_URL ?? "",
+private readonly token: string = process.env.QSTASH_TOKEN ?? "",
+) {}
+
+async dispatch(triggerKey: string, payload: Record<string, unknown>): Promise<PlatformCommandResult> {
+if (!this.workflowBaseUrl || !this.token) {
+if (process.env.NODE_ENV !== "production") {
+console.warn(
+`[QStashWorkflowDispatcher] WORKFLOW_BASE_URL or QSTASH_TOKEN not set. ` +
+`Skipping workflow dispatch for key '${triggerKey}'.`,
+);
+}
+return { ok: true, code: "WORKFLOW_DISPATCHED_NOOP", metadata: { triggerKey } };
+}
+
+const destinationUrl = `${this.workflowBaseUrl}/api/workflows/${encodeURIComponent(triggerKey)}`;
+const response = await fetch(`${QSTASH_ENDPOINT}${encodeURIComponent(destinationUrl)}`, {
+method: "POST",
+headers: {
+Authorization: `Bearer ${this.token}`,
+"Content-Type": "application/json",
+"Upstash-Retries": "3",
+},
+body: JSON.stringify({ triggerKey, ...payload }),
+});
+
+if (!response.ok) {
+const text = await response.text().catch(() => response.statusText);
+return { ok: false, code: "WORKFLOW_DISPATCH_FAILED", message: `HTTP ${response.status}: ${text}` };
+}
+
+return { ok: true, code: "WORKFLOW_DISPATCHED", metadata: { triggerKey } };
+}
+}
+````
+
+## File: modules/platform/infrastructure/monitoring/FirebaseObservabilitySink.ts
+````typescript
+/**
+ * FirebaseObservabilitySink — Monitoring Adapter (Driven Adapter)
+ *
+ * Implements: ObservabilitySink
+ * Emits observability signals as structured console telemetry suitable for
+ * Cloud Logging ingestion. Extend with a provider SDK (Datadog, GCM, etc.) as needed.
+ */
+
+import type { ObservabilitySink } from "../../domain/ports/output";
+
+export class FirebaseObservabilitySink implements ObservabilitySink {
+async emit(signal: Record<string, unknown>): Promise<void> {
+const entry = { type: "observability", ...signal, emittedAt: new Date().toISOString() };
+if (process.env.NODE_ENV !== "test") {
+console.info("[ObservabilitySink]", JSON.stringify(entry));
+}
+}
+}
+````
+
+## File: modules/platform/infrastructure/monitoring/index.ts
+````typescript
+/**
+ * platform monitoring infrastructure barrel.
+ */
+
+export { FirebaseObservabilitySink } from "./FirebaseObservabilitySink";
+````
+
 ## File: modules/platform/infrastructure/persistence/index.ts
 ````typescript
 /**
@@ -8224,6 +7865,42 @@ export type PlatformAdapterPersistenceFunction = (typeof PLATFORM_ADAPTER_PERSIS
  */
 
 // TODO: implement mapSubscriptionAgreementToPersistenceRecord serialisation function
+````
+
+## File: modules/platform/infrastructure/storage/FirebaseStorageAuditSignalStore.ts
+````typescript
+/**
+ * FirebaseStorageAuditSignalStore — Storage Adapter (Driven Adapter)
+ *
+ * Implements: AuditSignalStore
+ * Appends immutable audit signals to "audit-signals" Firestore collection.
+ */
+
+import { getFirestore, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { AuditSignalStore } from "../../domain/ports/output";
+
+export class FirebaseStorageAuditSignalStore implements AuditSignalStore {
+private get db() {
+return getFirestore(firebaseClientApp);
+}
+
+async write(signal: Record<string, unknown>): Promise<void> {
+await addDoc(collection(this.db, "audit-signals"), {
+...signal,
+recordedAt: serverTimestamp(),
+});
+}
+}
+````
+
+## File: modules/platform/infrastructure/storage/index.ts
+````typescript
+/**
+ * platform storage infrastructure barrel.
+ */
+
+export { FirebaseStorageAuditSignalStore } from "./FirebaseStorageAuditSignalStore";
 ````
 
 ## File: modules/platform/interfaces/api/handlePlatformCommandHttp.ts
@@ -12740,6 +12417,52 @@ export {};
 // Purpose: Infrastructure layer placeholder for platform subdomain 'workflow'.
 ````
 
+## File: modules/platform/AGENT.md
+````markdown
+# Platform Agent
+
+> Strategic agent documentation: [docs/contexts/platform/AGENT.md](../../docs/contexts/platform/AGENT.md)
+
+## Mission
+
+保護 platform 主域作為治理、身份、組織、權益、策略與營運支撐邊界。
+
+## Route Here When
+
+- 問題核心是 actor、organization、tenant、access、policy、entitlement 或商業權益。
+- 問題核心是通知治理、背景任務、平台級搜尋、觀測與支援。
+- 問題核心是共享 AI provider、模型政策、配額、安全護欄或下游主域共同消費的 AI capability。
+- 問題需要提供其他主域共同消費的治理結果。
+
+## Route Elsewhere When
+
+- 工作區生命週期、成員關係、共享與存在感屬於 workspace。
+- 知識內容建立、分類、關聯與發布屬於 notion。
+- 對話、來源、retrieval、grounding、synthesis 屬於 notebooklm。
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order (Strangler Pattern)
+
+New features:
+1. Define Domain (entities, value objects, aggregates, events)
+2. Define Application (use cases, DTOs)
+3. Define Ports (only if boundary isolation needed)
+4. Implement Infrastructure (adapters, persistence)
+5. Implement Interfaces (UI, actions, hooks)
+
+Legacy migration:
+1. Find a Use Case to extract
+2. Build Domain model for that use case
+3. Converge Application layer
+4. Isolate legacy via Ports
+5. Replace Infrastructure adapter
+````
+
 ## File: modules/platform/api/contracts.ts
 ````typescript
 /**
@@ -12773,6 +12496,711 @@ export interface AuthUser {
 // AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
 import type { AccountEntity } from "../subdomains/account/api";
 export type ActiveAccount = AccountEntity | AuthUser;
+````
+
+## File: modules/platform/application/handlers/index.ts
+````typescript
+/**
+ * platform application handlers barrel.
+ */
+
+export { PlatformCommandDispatcher } from "./PlatformCommandDispatcher";
+export type { PlatformCommandDispatcherDeps } from "./PlatformCommandDispatcher";
+export { PlatformQueryDispatcher } from "./PlatformQueryDispatcher";
+export type { PlatformQueryDispatcherDeps } from "./PlatformQueryDispatcher";
+````
+
+## File: modules/platform/application/use-cases/activate-subscription-agreement.use-cases.ts
+````typescript
+/**
+ * activate-subscription-agreement — use case.
+ *
+ * Command:  ActivateSubscriptionAgreement
+ * Purpose:  Activates, renews, or suspends a subscription agreement.
+ */
+
+import type { PlatformCommandResult, ActivateSubscriptionAgreementInput } from "../dtos";
+import type { SubscriptionAgreementRepository, PlatformContextRepository, DomainEventPublisher } from "../../domain/ports/output";
+import { SUBSCRIPTION_AGREEMENT_ACTIVATED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+export class ActivateSubscriptionAgreementUseCase {
+	constructor(
+		private readonly agreementRepo: SubscriptionAgreementRepository,
+		private readonly contextRepo: PlatformContextRepository,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: ActivateSubscriptionAgreementInput): Promise<PlatformCommandResult> {
+		try {
+			const context = await this.contextRepo.findById(input.contextId);
+			if (!context) {
+				return { ok: false, code: "PLATFORM_CONTEXT_NOT_FOUND", message: `Context '${input.contextId}' not found.` };
+			}
+			const existing = await this.agreementRepo.findEffectiveByContextId(input.contextId);
+			const now = new Date().toISOString();
+			const agreementSnapshot = {
+				...(existing as Record<string, unknown> ?? {}),
+				subscriptionAgreementId: input.subscriptionAgreementId,
+				contextId: input.contextId,
+				planCode: input.planCode,
+				billingState: "active",
+				updatedAt: now,
+			};
+			await this.agreementRepo.save(agreementSnapshot);
+			const contextSnapshot = {
+				...(context as Record<string, unknown>),
+				subscriptionAgreementId: input.subscriptionAgreementId,
+				updatedAt: now,
+			};
+			await this.contextRepo.save(contextSnapshot);
+			await this.eventPublisher.publish([
+				{
+					type: SUBSCRIPTION_AGREEMENT_ACTIVATED_EVENT_TYPE,
+					aggregateType: "SubscriptionAgreement",
+					aggregateId: input.subscriptionAgreementId,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: 1,
+					correlationId: buildCorrelationId(),
+					payload: { subscriptionAgreementId: input.subscriptionAgreementId, planCode: input.planCode },
+				},
+			]);
+			return {
+				ok: true,
+				code: "SUBSCRIPTION_AGREEMENT_ACTIVATED",
+				metadata: { subscriptionAgreementId: input.subscriptionAgreementId, planCode: input.planCode },
+			};
+		} catch (err) {
+			return {
+				ok: false,
+				code: "ACTIVATE_SUBSCRIPTION_AGREEMENT_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/apply-configuration-profile.use-cases.ts
+````typescript
+/**
+ * apply-configuration-profile — use case.
+ *
+ * Command:  ApplyConfigurationProfile
+ * Purpose:  Applies a configuration profile and updates capability toggles.
+ */
+
+import type { PlatformCommandResult, ApplyConfigurationProfileInput } from "../dtos";
+import type { PlatformContextRepository, ConfigurationProfileStore, DomainEventPublisher } from "../../domain/ports/output";
+import { CONFIG_PROFILE_APPLIED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+export class ApplyConfigurationProfileUseCase {
+	constructor(
+		private readonly contextRepo: PlatformContextRepository,
+		private readonly profileStore: ConfigurationProfileStore,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: ApplyConfigurationProfileInput): Promise<PlatformCommandResult> {
+		try {
+			const profile = await this.profileStore.getProfile(input.profileRef);
+			if (!profile) {
+				return { ok: false, code: "CONFIGURATION_PROFILE_NOT_FOUND", message: `Profile '${input.profileRef}' not found.` };
+			}
+			const existing = await this.contextRepo.findById(input.contextId);
+			if (!existing) {
+				return { ok: false, code: "PLATFORM_CONTEXT_NOT_FOUND", message: `Context '${input.contextId}' not found.` };
+			}
+			const now = new Date().toISOString();
+			const snapshot = {
+				...(existing as Record<string, unknown>),
+				configurationProfileRef: input.profileRef,
+				updatedAt: now,
+			};
+			await this.contextRepo.save(snapshot);
+			await this.eventPublisher.publish([
+				{
+					type: CONFIG_PROFILE_APPLIED_EVENT_TYPE,
+					aggregateType: "PlatformContext",
+					aggregateId: input.contextId,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: 1,
+					correlationId: buildCorrelationId(),
+					payload: { profileRef: input.profileRef },
+				},
+			]);
+			return {
+				ok: true,
+				code: "CONFIGURATION_PROFILE_APPLIED",
+				metadata: { contextId: input.contextId, profileRef: input.profileRef },
+			};
+		} catch (err) {
+			return {
+				ok: false,
+				code: "APPLY_CONFIGURATION_PROFILE_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/emit-observability-signal.use-cases.ts
+````typescript
+/**
+ * emit-observability-signal — use case.
+ *
+ * Command:  EmitObservabilitySignal
+ * Purpose:  Emits metrics / trace / alert signals.
+ */
+
+import type { PlatformCommandResult, EmitObservabilitySignalInput } from "../dtos";
+import type { ObservabilitySink, AuditSignalStore, DomainEventPublisher } from "../../domain/ports/output";
+import { OBSERVABILITY_SIGNAL_EMITTED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+const AUDIT_SIGNAL_LEVELS = new Set(["error", "critical", "fatal"]);
+
+export class EmitObservabilitySignalUseCase {
+	constructor(
+		private readonly observabilitySink: ObservabilitySink,
+		private readonly auditStore: AuditSignalStore,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: EmitObservabilitySignalInput): Promise<PlatformCommandResult> {
+		try {
+			const now = new Date().toISOString();
+			await this.observabilitySink.emit({
+				signalName: input.signalName,
+				signalLevel: input.signalLevel,
+				sourceRef: input.sourceRef,
+				contextId: input.contextId,
+				occurredAt: now,
+			});
+			if (AUDIT_SIGNAL_LEVELS.has(input.signalLevel.toLowerCase())) {
+				await this.auditStore.write({
+					signalType: "observability.signal_emitted",
+					severity: input.signalLevel,
+					contextId: input.contextId,
+					signalName: input.signalName,
+					occurredAt: now,
+				});
+			}
+			await this.eventPublisher.publish([
+				{
+					type: OBSERVABILITY_SIGNAL_EMITTED_EVENT_TYPE,
+					aggregateType: "Observability",
+					aggregateId: input.contextId,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: 1,
+					correlationId: buildCorrelationId(),
+					payload: { signalName: input.signalName, signalLevel: input.signalLevel, sourceRef: input.sourceRef },
+				},
+			]);
+			return {
+				ok: true,
+				code: "OBSERVABILITY_SIGNAL_EMITTED",
+				metadata: { signalName: input.signalName, signalLevel: input.signalLevel },
+			};
+		} catch (err) {
+			return {
+				ok: false,
+				code: "EMIT_OBSERVABILITY_SIGNAL_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/fire-workflow-trigger.use-cases.ts
+````typescript
+/**
+ * fire-workflow-trigger — use case.
+ *
+ * Command:  FireWorkflowTrigger
+ * Purpose:  Emits a workflow trigger and delegates execution to downstream adapter.
+ */
+
+import type { PlatformCommandResult, FireWorkflowTriggerInput } from "../dtos";
+import type { WorkflowPolicyRepository, WorkflowDispatcherPort, DomainEventPublisher } from "../../domain/ports/output";
+import { WORKFLOW_TRIGGER_FIRED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+export class FireWorkflowTriggerUseCase {
+	constructor(
+		private readonly policyRepo: WorkflowPolicyRepository,
+		private readonly dispatcher: WorkflowDispatcherPort,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: FireWorkflowTriggerInput): Promise<PlatformCommandResult> {
+		try {
+			const policyView = await this.policyRepo.getView(input.contextId, input.triggerKey);
+			if (!policyView?.enabled) {
+				return {
+					ok: false,
+					code: "WORKFLOW_TRIGGER_NOT_ALLOWED",
+					message: `Trigger '${input.triggerKey}' is not enabled by policy.`,
+				};
+			}
+			const dispatchResult = await this.dispatcher.dispatch(input.triggerKey, {
+				contextId: input.contextId,
+				triggeredBy: input.triggeredBy,
+			});
+			if (!dispatchResult.ok) {
+				return dispatchResult;
+			}
+			const now = new Date().toISOString();
+			await this.eventPublisher.publish([
+				{
+					type: WORKFLOW_TRIGGER_FIRED_EVENT_TYPE,
+					aggregateType: "Workflow",
+					aggregateId: input.triggerKey,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: 1,
+					correlationId: buildCorrelationId(),
+					payload: { triggerKey: input.triggerKey, triggeredBy: input.triggeredBy },
+				},
+			]);
+			return {
+				ok: true,
+				code: "WORKFLOW_TRIGGER_FIRED",
+				metadata: { triggerKey: input.triggerKey, contextId: input.contextId },
+			};
+		} catch (err) {
+			return {
+				ok: false,
+				code: "FIRE_WORKFLOW_TRIGGER_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/get-platform-context-view.use-cases.ts
+````typescript
+/**
+ * get-platform-context-view — use case.
+ *
+ * Query:   GetPlatformContextView
+ * Purpose: Returns a read-only summary of a platform scope.
+ */
+
+import type { GetPlatformContextViewInput } from "../dtos";
+import type { PlatformContextViewRepository, PlatformContextView } from "../../domain/ports/output";
+
+export class GetPlatformContextViewUseCase {
+	constructor(private readonly viewRepo: PlatformContextViewRepository) {}
+
+	async execute(input: GetPlatformContextViewInput): Promise<PlatformContextView | null> {
+		return this.viewRepo.getView(input.contextId);
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/get-policy-catalog-view.use-cases.ts
+````typescript
+/**
+ * get-policy-catalog-view — use case.
+ *
+ * Query:   GetPolicyCatalogView
+ * Purpose: Returns the active policy version and rule summary.
+ */
+
+import type { GetPolicyCatalogViewInput } from "../dtos";
+import type { PolicyCatalogViewRepository, PolicyCatalogView } from "../../domain/ports/output";
+
+export class GetPolicyCatalogViewUseCase {
+	constructor(private readonly viewRepo: PolicyCatalogViewRepository) {}
+
+	async execute(input: GetPolicyCatalogViewInput): Promise<PolicyCatalogView | null> {
+		return this.viewRepo.getView(input.contextId);
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/get-subscription-entitlements.use-cases.ts
+````typescript
+/**
+ * get-subscription-entitlements — use case.
+ *
+ * Query:   GetSubscriptionEntitlements
+ * Purpose: Returns plan entitlements and usage limits.
+ */
+
+import type { GetSubscriptionEntitlementsInput } from "../dtos";
+import type { UsageMeterRepository, SubscriptionEntitlementsView } from "../../domain/ports/output";
+
+export class GetSubscriptionEntitlementsUseCase {
+	constructor(private readonly usageRepo: UsageMeterRepository) {}
+
+	async execute(input: GetSubscriptionEntitlementsInput): Promise<SubscriptionEntitlementsView | null> {
+		return this.usageRepo.getEntitlementsView(input.contextId);
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/get-workflow-policy-view.use-cases.ts
+````typescript
+/**
+ * get-workflow-policy-view — use case.
+ *
+ * Query:   GetWorkflowPolicyView
+ * Purpose: Returns the workflow policy corresponding to a trigger key.
+ */
+
+import type { GetWorkflowPolicyViewInput } from "../dtos";
+import type { WorkflowPolicyRepository, WorkflowPolicyView } from "../../domain/ports/output";
+
+export class GetWorkflowPolicyViewUseCase {
+	constructor(private readonly policyRepo: WorkflowPolicyRepository) {}
+
+	async execute(input: GetWorkflowPolicyViewInput): Promise<WorkflowPolicyView | null> {
+		return this.policyRepo.getView(input.contextId, input.triggerKey);
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/list-enabled-capabilities.use-cases.ts
+````typescript
+/**
+ * list-enabled-capabilities — use case.
+ *
+ * Query:   ListEnabledCapabilities
+ * Purpose: Lists all currently active capabilities for a platform scope.
+ */
+
+import type { ListEnabledCapabilitiesInput } from "../dtos";
+import type { PlatformContextViewRepository } from "../../domain/ports/output";
+
+export class ListEnabledCapabilitiesUseCase {
+	constructor(private readonly viewRepo: PlatformContextViewRepository) {}
+
+	async execute(input: ListEnabledCapabilitiesInput): Promise<readonly string[]> {
+		const view = await this.viewRepo.getView(input.contextId);
+		return view?.capabilityKeys ?? [];
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/publish-policy-catalog.use-cases.ts
+````typescript
+/**
+ * publish-policy-catalog — use case.
+ *
+ * Command:  PublishPolicyCatalog
+ * Purpose:  Publishes a new PolicyCatalog revision.
+ */
+
+import type { PlatformCommandResult, PublishPolicyCatalogInput } from "../dtos";
+import type { PolicyCatalogRepository, DomainEventPublisher } from "../../domain/ports/output";
+import { POLICY_CATALOG_PUBLISHED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+export class PublishPolicyCatalogUseCase {
+	constructor(
+		private readonly catalogRepo: PolicyCatalogRepository,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: PublishPolicyCatalogInput): Promise<PlatformCommandResult> {
+		try {
+			const existing = await this.catalogRepo.findActiveByContextId(input.contextId);
+			const now = new Date().toISOString();
+			const snapshot = {
+				...(existing as Record<string, unknown> ?? {}),
+				contextId: input.contextId,
+				revision: input.revision,
+				permissionRuleCount: (existing as Record<string, unknown> | null)?.permissionRuleCount ?? 0,
+				workflowRuleCount: (existing as Record<string, unknown> | null)?.workflowRuleCount ?? 0,
+				notificationRuleCount: (existing as Record<string, unknown> | null)?.notificationRuleCount ?? 0,
+				auditRuleCount: (existing as Record<string, unknown> | null)?.auditRuleCount ?? 0,
+				publishedAt: now,
+			};
+			await this.catalogRepo.saveRevision(snapshot);
+			await this.eventPublisher.publish([
+				{
+					type: POLICY_CATALOG_PUBLISHED_EVENT_TYPE,
+					aggregateType: "PolicyCatalog",
+					aggregateId: input.contextId,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: input.revision,
+					correlationId: buildCorrelationId(),
+					payload: { revision: input.revision, publishedAt: now },
+				},
+			]);
+			return {
+				ok: true,
+				code: "POLICY_CATALOG_PUBLISHED",
+				metadata: { contextId: input.contextId, revision: input.revision },
+			};
+		} catch (err) {
+			return {
+				ok: false,
+				code: "PUBLISH_POLICY_CATALOG_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/record-audit-signal.use-cases.ts
+````typescript
+/**
+ * record-audit-signal — use case.
+ *
+ * Command:  RecordAuditSignal
+ * Purpose:  Writes a decision or behavior as an immutable audit signal.
+ */
+
+import type { PlatformCommandResult, RecordAuditSignalInput } from "../dtos";
+import type { AuditSignalStore, DomainEventPublisher } from "../../domain/ports/output";
+import { AUDIT_SIGNAL_RECORDED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+export class RecordAuditSignalUseCase {
+	constructor(
+		private readonly auditStore: AuditSignalStore,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: RecordAuditSignalInput): Promise<PlatformCommandResult> {
+		try {
+			const now = new Date().toISOString();
+			await this.auditStore.write({
+				signalType: input.signalType,
+				severity: input.severity,
+				contextId: input.contextId,
+				occurredAt: now,
+			});
+			await this.eventPublisher.publish([
+				{
+					type: AUDIT_SIGNAL_RECORDED_EVENT_TYPE,
+					aggregateType: "AuditLog",
+					aggregateId: input.contextId,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: 1,
+					correlationId: buildCorrelationId(),
+					payload: { signalType: input.signalType, severity: input.severity },
+				},
+			]);
+			return {
+				ok: true,
+				code: "AUDIT_SIGNAL_RECORDED",
+				metadata: { signalType: input.signalType, contextId: input.contextId },
+			};
+		} catch (err) {
+			return {
+				ok: false,
+				code: "RECORD_AUDIT_SIGNAL_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/register-integration-contract.use-cases.ts
+````typescript
+/**
+ * register-integration-contract — use case.
+ *
+ * Command:  RegisterIntegrationContract
+ * Purpose:  Creates or updates an external integration contract.
+ */
+
+import type { PlatformCommandResult, RegisterIntegrationContractInput } from "../dtos";
+import type { IntegrationContractRepository, SecretReferenceResolver, DomainEventPublisher } from "../../domain/ports/output";
+import { INTEGRATION_CONTRACT_REGISTERED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+export class RegisterIntegrationContractUseCase {
+	constructor(
+		private readonly contractRepo: IntegrationContractRepository,
+		private readonly secretResolver: SecretReferenceResolver,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: RegisterIntegrationContractInput): Promise<PlatformCommandResult> {
+		try {
+			const authRef = await this.secretResolver.resolve(input.integrationContractId);
+			const existing = await this.contractRepo.findById(input.integrationContractId);
+			const now = new Date().toISOString();
+			const snapshot = {
+				...(existing as Record<string, unknown> ?? {}),
+				integrationContractId: input.integrationContractId,
+				contextId: input.contextId,
+				endpointRef: input.endpointRef,
+				protocol: input.protocol,
+				authenticationRef: authRef,
+				contractState: "active",
+				updatedAt: now,
+			};
+			await this.contractRepo.save(snapshot);
+			await this.eventPublisher.publish([
+				{
+					type: INTEGRATION_CONTRACT_REGISTERED_EVENT_TYPE,
+					aggregateType: "IntegrationContract",
+					aggregateId: input.integrationContractId,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: 1,
+					correlationId: buildCorrelationId(),
+					payload: { integrationContractId: input.integrationContractId, protocol: input.protocol },
+				},
+			]);
+			return {
+				ok: true,
+				code: "INTEGRATION_CONTRACT_REGISTERED",
+				metadata: { integrationContractId: input.integrationContractId },
+			};
+		} catch (err) {
+			return {
+				ok: false,
+				code: "REGISTER_INTEGRATION_CONTRACT_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/register-platform-context.use-cases.ts
+````typescript
+/**
+ * register-platform-context — use case.
+ *
+ * Command:  RegisterPlatformContext
+ * Purpose:  Creates a PlatformContext or re-activates a platform scope.
+ */
+
+import type { PlatformCommandResult, RegisterPlatformContextInput } from "../dtos";
+import type { PlatformContextRepository, DomainEventPublisher } from "../../domain/ports/output";
+import { PLATFORM_CONTEXT_REGISTERED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+export class RegisterPlatformContextUseCase {
+	constructor(
+		private readonly contextRepo: PlatformContextRepository,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: RegisterPlatformContextInput): Promise<PlatformCommandResult> {
+		try {
+			const existing = await this.contextRepo.findById(input.contextId);
+			const now = new Date().toISOString();
+			const snapshot = {
+				...(existing as Record<string, unknown> ?? {}),
+				contextId: input.contextId,
+				subjectScope: input.subjectScope,
+				lifecycleState: "active",
+				capabilityKeys: (existing as Record<string, unknown> | null)?.capabilityKeys ?? [],
+				updatedAt: now,
+			};
+			await this.contextRepo.save(snapshot);
+			await this.eventPublisher.publish([
+				{
+					type: PLATFORM_CONTEXT_REGISTERED_EVENT_TYPE,
+					aggregateType: "PlatformContext",
+					aggregateId: input.contextId,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: 1,
+					correlationId: buildCorrelationId(),
+					payload: { subjectScope: input.subjectScope, lifecycleState: "active" },
+				},
+			]);
+			return { ok: true, code: "PLATFORM_CONTEXT_REGISTERED", metadata: { contextId: input.contextId } };
+		} catch (err) {
+			return {
+				ok: false,
+				code: "REGISTER_PLATFORM_CONTEXT_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
+````
+
+## File: modules/platform/application/use-cases/request-notification-dispatch.use-cases.ts
+````typescript
+/**
+ * request-notification-dispatch — use case.
+ *
+ * Command:  RequestNotificationDispatch
+ * Purpose:  Creates a notification dispatch request.
+ */
+
+import type { PlatformCommandResult, RequestNotificationDispatchInput } from "../dtos";
+import type { NotificationGateway, PolicyCatalogViewRepository, AuditSignalStore, DomainEventPublisher } from "../../domain/ports/output";
+import { NOTIFICATION_DISPATCH_REQUESTED_EVENT_TYPE } from "../../domain/events";
+import { buildCorrelationId } from "../services";
+
+export class RequestNotificationDispatchUseCase {
+	constructor(
+		private readonly notificationGateway: NotificationGateway,
+		private readonly catalogViewRepo: PolicyCatalogViewRepository,
+		private readonly auditStore: AuditSignalStore,
+		private readonly eventPublisher: DomainEventPublisher,
+	) {}
+
+	async execute(input: RequestNotificationDispatchInput): Promise<PlatformCommandResult> {
+		try {
+			await this.catalogViewRepo.getView(input.contextId);
+			const dispatchResult = await this.notificationGateway.dispatch({
+				contextId: input.contextId,
+				channel: input.channel,
+				recipientRef: input.recipientRef,
+				templateKey: input.templateKey,
+			});
+			if (!dispatchResult.ok) {
+				return dispatchResult;
+			}
+			const now = new Date().toISOString();
+			await this.auditStore.write({
+				signalType: "notification.dispatch_requested",
+				severity: "info",
+				contextId: input.contextId,
+				recipientRef: input.recipientRef,
+				occurredAt: now,
+			});
+			await this.eventPublisher.publish([
+				{
+					type: NOTIFICATION_DISPATCH_REQUESTED_EVENT_TYPE,
+					aggregateType: "Notification",
+					aggregateId: input.recipientRef,
+					contextId: input.contextId,
+					occurredAt: now,
+					version: 1,
+					correlationId: buildCorrelationId(),
+					payload: { channel: input.channel, recipientRef: input.recipientRef, templateKey: input.templateKey },
+				},
+			]);
+			return {
+				ok: true,
+				code: "NOTIFICATION_DISPATCH_REQUESTED",
+				metadata: { channel: input.channel, recipientRef: input.recipientRef },
+			};
+		} catch (err) {
+			return {
+				ok: false,
+				code: "REQUEST_NOTIFICATION_DISPATCH_FAILED",
+				message: err instanceof Error ? err.message : "Unexpected error",
+			};
+		}
+	}
+}
 ````
 
 ## File: modules/platform/docs/README.md
@@ -13389,6 +13817,97 @@ export function Providers({ children }: { children: ReactNode }) {
 }
 ````
 
+## File: modules/platform/README.md
+````markdown
+# Platform
+
+治理與營運支撐主域
+
+## Implementation Structure
+
+```text
+modules/platform/
+├── api/              # Public API boundary
+├── application/      # Context-wide orchestration
+├── domain/           # Context-wide domain concepts
+├── infrastructure/   # Context-wide driven adapters
+├── interfaces/       # Context-wide driving adapters
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── account/
+    ├── account-profile/
+    ├── access-control/
+    ├── analytics/
+    ├── audit-log/
+    ├── background-job/
+    ├── billing/
+    ├── compliance/
+    ├── content/
+    ├── feature-flag/
+    ├── identity/
+    ├── integration/
+    ├── notification/
+    ├── observability/
+    ├── onboarding/
+    ├── organization/
+    ├── platform-config/
+    ├── referral/
+    ├── search/
+    ├── security-policy/
+    ├── subscription/
+    ├── support/
+    ├── team/
+    └── workflow/
+```
+
+## Subdomains
+
+| Subdomain | Status | Purpose |
+|-----------|--------|---------|
+| account | Active | 帳號管理與帳號生命週期 |
+| identity | Active | 身份驗證與身份聯邦 |
+| notification | Active | 通知治理與遞送 |
+| organization | Active | 組織管理與租戶結構 |
+| team | Active | 團隊管理與成員關係 |
+| account-profile | Stub | 帳號個人檔案與偏好 |
+| access-control | Stub | 存取控制與權限策略 |
+| analytics | Stub | 平台級分析與指標 |
+| audit-log | Stub | 平台稽核日誌 |
+| background-job | Stub | 背景任務排程與管理 |
+| billing | Stub | 計費與支付管理 |
+| compliance | Stub | 合規與法遵管理 |
+| content | Stub | 平台內容管理 |
+| feature-flag | Stub | 功能旗標與漸進式發布 |
+| integration | Stub | 外部系統整合 |
+| observability | Stub | 觀測與監控 |
+| onboarding | Stub | 使用者引導流程 |
+| platform-config | Stub | 平台組態管理 |
+| referral | Stub | 推薦與邀請機制 |
+| search | Stub | 平台級搜尋能力 |
+| security-policy | Stub | 安全策略管理 |
+| subscription | Stub | 訂閱與方案管理 |
+| support | Stub | 客戶支援管理 |
+| workflow | Stub | 平台級工作流引擎 |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `api/` is the only cross-module public boundary.
+- Domain must not import infrastructure, interfaces, or external frameworks.
+- Cross-module collaboration goes through `api/` only.
+
+## Strategic Documentation
+
+- [Context README](../../docs/contexts/platform/README.md)
+- [Subdomains](../../docs/contexts/platform/subdomains.md)
+- [Context Map](../../docs/contexts/platform/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/platform/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
+````
+
 ## File: modules/platform/subdomains/access-control/api/index.ts
 ````typescript
 /**
@@ -13737,6 +14256,24 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## Development Order
 
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/ai/README.md
+````markdown
+# Ai
+
+共享 AI provider 路由、模型政策、配額與安全護欄。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Baseline
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
@@ -15977,158 +16514,46 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/AGENT.md
-````markdown
-# Platform Agent
-
-> Strategic agent documentation: [docs/contexts/platform/AGENT.md](../../docs/contexts/platform/AGENT.md)
-
-## Mission
-
-保護 platform 主域作為治理、身份、組織、權益、策略與營運支撐邊界。
-
-## Route Here When
-
-- 問題核心是 actor、organization、tenant、access、policy、entitlement 或商業權益。
-- 問題核心是通知治理、背景任務、平台級搜尋、觀測與支援。
-- 問題核心是共享 AI provider、模型政策、配額、安全護欄或下游主域共同消費的 AI capability。
-- 問題需要提供其他主域共同消費的治理結果。
-
-## Route Elsewhere When
-
-- 工作區生命週期、成員關係、共享與存在感屬於 workspace。
-- 知識內容建立、分類、關聯與發布屬於 notion。
-- 對話、來源、retrieval、grounding、synthesis 屬於 notebooklm。
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order (Strangler Pattern)
-
-New features:
-1. Define Domain (entities, value objects, aggregates, events)
-2. Define Application (use cases, DTOs)
-3. Define Ports (only if boundary isolation needed)
-4. Implement Infrastructure (adapters, persistence)
-5. Implement Interfaces (UI, actions, hooks)
-
-Legacy migration:
-1. Find a Use Case to extract
-2. Build Domain model for that use case
-3. Converge Application layer
-4. Isolate legacy via Ports
-5. Replace Infrastructure adapter
-````
-
-## File: modules/platform/api/index.ts
+## File: modules/platform/application/use-cases/index.ts
 ````typescript
 /**
- * platform public API boundary.
+ * platform application use-cases barrel.
  *
- * account is listed before organization to establish canonical definitions for
- * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
- * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
+ * Each file follows the kebab-case convention: verb-noun.use-cases.ts
+ *
+ * Commands:
+ *   register-platform-context
+ *   publish-policy-catalog
+ *   apply-configuration-profile
+ *   register-integration-contract
+ *   activate-subscription-agreement
+ *   fire-workflow-trigger
+ *   request-notification-dispatch
+ *   record-audit-signal
+ *   emit-observability-signal
+ *
+ * Queries:
+ *   get-platform-context-view
+ *   list-enabled-capabilities
+ *   get-policy-catalog-view
+ *   get-subscription-entitlements
+ *   get-workflow-policy-view
  */
 
-export * from "./contracts";
-export * from "./facade";
-export * from "../subdomains/identity/api";
-export * from "../subdomains/account/api";
-export * from "../subdomains/notification/api";
-
-export {
-  getProfile,
-  subscribeToProfile,
-  updateProfile,
-  SettingsProfileRouteScreen,
-  getAccountProfile,
-  subscribeToAccountProfile,
-  updateAccountProfile,
-} from "../subdomains/account-profile/api";
-
-export type {
-  AccountProfile,
-  UpdateAccountProfileInput,
-} from "../subdomains/account-profile/api";
-
-// organization — explicit to avoid re-export conflicts with account subdomain
-export type {
-  OrganizationEntity,
-  Presence,
-  InviteState,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  OrgPolicy,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-  OrganizationRepository,
-  OrgPolicyRepository,
-} from "../subdomains/organization/api";
-export {
-  organizationService,
-  getOrganizationMembers,
-  getOrganizationTeams,
-  getOrgPolicies,
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-  createOrgPolicy,
-  updateOrgPolicy,
-  deleteOrgPolicy,
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-  // UI components
-  AccountSwitcher,
-  CreateOrganizationDialog,
-  MembersPage,
-  TeamsPage,
-  PermissionsPage,
-  OrganizationAuditPage,
-} from "../subdomains/organization/api";
-export type { MembersPageProps, TeamsPageProps, PermissionsPageProps, OrganizationAuditPageProps } from "../subdomains/organization/api";
-
-// background-job — knowledge ingestion pipeline management
-export * from "../subdomains/background-job/api";
-
-// platform-level interfaces (HeaderControls, TranslationSwitcher)
-export * from "../interfaces";
+export { RegisterPlatformContextUseCase } from "./register-platform-context.use-cases";
+export { PublishPolicyCatalogUseCase } from "./publish-policy-catalog.use-cases";
+export { ApplyConfigurationProfileUseCase } from "./apply-configuration-profile.use-cases";
+export { RegisterIntegrationContractUseCase } from "./register-integration-contract.use-cases";
+export { ActivateSubscriptionAgreementUseCase } from "./activate-subscription-agreement.use-cases";
+export { FireWorkflowTriggerUseCase } from "./fire-workflow-trigger.use-cases";
+export { RequestNotificationDispatchUseCase } from "./request-notification-dispatch.use-cases";
+export { RecordAuditSignalUseCase } from "./record-audit-signal.use-cases";
+export { EmitObservabilitySignalUseCase } from "./emit-observability-signal.use-cases";
+export { GetPlatformContextViewUseCase } from "./get-platform-context-view.use-cases";
+export { ListEnabledCapabilitiesUseCase } from "./list-enabled-capabilities.use-cases";
+export { GetPolicyCatalogViewUseCase } from "./get-policy-catalog-view.use-cases";
+export { GetSubscriptionEntitlementsUseCase } from "./get-subscription-entitlements.use-cases";
+export { GetWorkflowPolicyViewUseCase } from "./get-workflow-policy-view.use-cases";
 ````
 
 ## File: modules/platform/interfaces/web/components/DashboardSidebar.tsx
@@ -16970,97 +17395,6 @@ export function DashboardSidebarBody({
 }
 ````
 
-## File: modules/platform/README.md
-````markdown
-# Platform
-
-治理與營運支撐主域
-
-## Implementation Structure
-
-```text
-modules/platform/
-├── api/              # Public API boundary
-├── application/      # Context-wide orchestration
-├── domain/           # Context-wide domain concepts
-├── infrastructure/   # Context-wide driven adapters
-├── interfaces/       # Context-wide driving adapters
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── account/
-    ├── account-profile/
-    ├── access-control/
-    ├── analytics/
-    ├── audit-log/
-    ├── background-job/
-    ├── billing/
-    ├── compliance/
-    ├── content/
-    ├── feature-flag/
-    ├── identity/
-    ├── integration/
-    ├── notification/
-    ├── observability/
-    ├── onboarding/
-    ├── organization/
-    ├── platform-config/
-    ├── referral/
-    ├── search/
-    ├── security-policy/
-    ├── subscription/
-    ├── support/
-    ├── team/
-    └── workflow/
-```
-
-## Subdomains
-
-| Subdomain | Status | Purpose |
-|-----------|--------|---------|
-| account | Active | 帳號管理與帳號生命週期 |
-| identity | Active | 身份驗證與身份聯邦 |
-| notification | Active | 通知治理與遞送 |
-| organization | Active | 組織管理與租戶結構 |
-| team | Active | 團隊管理與成員關係 |
-| account-profile | Stub | 帳號個人檔案與偏好 |
-| access-control | Stub | 存取控制與權限策略 |
-| analytics | Stub | 平台級分析與指標 |
-| audit-log | Stub | 平台稽核日誌 |
-| background-job | Stub | 背景任務排程與管理 |
-| billing | Stub | 計費與支付管理 |
-| compliance | Stub | 合規與法遵管理 |
-| content | Stub | 平台內容管理 |
-| feature-flag | Stub | 功能旗標與漸進式發布 |
-| integration | Stub | 外部系統整合 |
-| observability | Stub | 觀測與監控 |
-| onboarding | Stub | 使用者引導流程 |
-| platform-config | Stub | 平台組態管理 |
-| referral | Stub | 推薦與邀請機制 |
-| search | Stub | 平台級搜尋能力 |
-| security-policy | Stub | 安全策略管理 |
-| subscription | Stub | 訂閱與方案管理 |
-| support | Stub | 客戶支援管理 |
-| workflow | Stub | 平台級工作流引擎 |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `api/` is the only cross-module public boundary.
-- Domain must not import infrastructure, interfaces, or external frameworks.
-- Cross-module collaboration goes through `api/` only.
-
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/platform/README.md)
-- [Subdomains](../../docs/contexts/platform/subdomains.md)
-- [Context Map](../../docs/contexts/platform/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/platform/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
-````
-
 ## File: modules/platform/subdomains/account-profile/interfaces/components/screens/SettingsProfileRouteScreen.tsx
 ````typescript
 "use client";
@@ -17258,24 +17592,6 @@ export { SettingsProfileRouteScreen } from "./components/screens/SettingsProfile
 ````typescript
 export { accountService, createClientAccountUseCases } from "./account-service";
 export { createAccountQueryRepository } from "./account-service";
-````
-
-## File: modules/platform/subdomains/ai/README.md
-````markdown
-# Ai
-
-共享 AI provider 路由、模型政策、配額與安全護欄。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/identity/interfaces/_actions/identity.actions.ts
@@ -17644,6 +17960,115 @@ Team management within organizations.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/api/index.ts
+````typescript
+/**
+ * platform public API boundary.
+ *
+ * account is listed before organization to establish canonical definitions for
+ * shared type names (OrganizationRole, PolicyEffect, ThemeConfig, Unsubscribe).
+ * Organization re-exports are explicit to avoid TS2308 ambiguity errors.
+ */
+
+export * from "./contracts";
+export * from "./facade";
+export { createPlatformService } from "./platform-service";
+export * from "../subdomains/identity/api";
+export * from "../subdomains/account/api";
+export * from "../subdomains/notification/api";
+
+export {
+  getProfile,
+  subscribeToProfile,
+  updateProfile,
+  SettingsProfileRouteScreen,
+  getAccountProfile,
+  subscribeToAccountProfile,
+  updateAccountProfile,
+} from "../subdomains/account-profile/api";
+
+export type {
+  AccountProfile,
+  UpdateAccountProfileInput,
+} from "../subdomains/account-profile/api";
+
+// organization — explicit to avoid re-export conflicts with account subdomain
+export type {
+  OrganizationEntity,
+  Presence,
+  InviteState,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  OrgPolicy,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+  OrganizationRepository,
+  OrgPolicyRepository,
+} from "../subdomains/organization/api";
+export {
+  organizationService,
+  getOrganizationMembers,
+  getOrganizationTeams,
+  getOrgPolicies,
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+  createOrgPolicy,
+  updateOrgPolicy,
+  deleteOrgPolicy,
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+  // UI components
+  AccountSwitcher,
+  CreateOrganizationDialog,
+  MembersPage,
+  TeamsPage,
+  PermissionsPage,
+  OrganizationAuditPage,
+} from "../subdomains/organization/api";
+export type { MembersPageProps, TeamsPageProps, PermissionsPageProps, OrganizationAuditPageProps } from "../subdomains/organization/api";
+
+// background-job — knowledge ingestion pipeline management
+export * from "../subdomains/background-job/api";
+
+// platform-level interfaces (HeaderControls, TranslationSwitcher)
+export * from "../interfaces";
 ````
 
 ## File: modules/platform/subdomains/account-profile/domain/index.ts
@@ -18114,6 +18539,18 @@ export async function dismissPartnerMember(
   try { return await organizationService.dismissPartnerMember(organizationId, teamId, memberId); }
   catch (err) { return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
 }
+````
+
+## File: modules/platform/application/index.ts
+````typescript
+/**
+ * platform application layer barrel.
+ */
+
+export * from "./dtos";
+export * from "./services";
+export * from "./use-cases";
+export * from "./handlers";
 ````
 
 ## File: modules/platform/subdomains/account-profile/infrastructure/create-legacy-account-profile-application.adapter.ts
