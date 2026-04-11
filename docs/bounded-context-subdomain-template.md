@@ -20,71 +20,71 @@
 ## Standard Structure Tree
 
 ```text
-modules/
-└── <bounded-context>/
-    ├── README.md
-    ├── AGENT.md
-    ├── api/                  # 與 subdomain/api 重名；此處是 bounded context 對外邊界
-    │   └── index.ts
-    ├── application/          # 與 subdomain/application 重名；此處是 context-wide orchestration
-    │   ├── dto/
-    │   ├── use-cases/
-    │   └── services/
-    ├── domain/               # 與 subdomain/domain 重名；此處是 context-wide domain concept
-    │   ├── entities/
-    │   ├── value-objects/
-    │   ├── services/
-    │   ├── repositories/
-    │   ├── events/
-    │   └── ports/
-    ├── docs/
-    │   ├── README.md
-    │   ├── bounded-context.md
-    │   ├── context-map.md
-    │   ├── subdomains.md
-    │   ├── ubiquitous-language.md
-    │   ├── aggregates.md
-    │   ├── domain-events.md
-    │   ├── repositories.md
-    │   ├── application-services.md
-    │   └── domain-services.md
-    ├── infrastructure/       # 與 subdomain/infrastructure 重名；此處是 context-wide driven adapters
-    │   ├── adapters/
-    │   ├── persistence/
-    │   └── repositories/
-    ├── interfaces/           # 與 subdomain/interfaces 重名；此處是 context-wide driving adapters
-    │   ├── api/
-    │   ├── components/
-    │   ├── hooks/
-    │   ├── queries/
-    │   └── _actions/
-    └── subdomains/
-        ├── <subdomain-a>/
-        │   ├── README.md
-        │   ├── api/          # 與 root api 重名；此處是 subdomain 對外邊界
-        │   │   └── index.ts
-        │   ├── application/  # 與 root application 重名；此處只承擔 subdomain use case
-        │   │   ├── dto/
-        │   │   ├── use-cases/
-        │   │   └── services/
-        │   ├── domain/       # 與 root domain 重名；此處只承擔 subdomain domain model
-        │   │   ├── entities/
-        │   │   ├── value-objects/
-        │   │   ├── services/
-        │   │   ├── repositories/
-        │   │   ├── events/
-        │   │   └── ports/
-        │   ├── infrastructure/ # 與 root infrastructure 重名；此處只承擔 subdomain adapters
-        │   │   ├── adapters/
-        │   │   ├── persistence/
-        │   │   └── repositories/
-        │   └── interfaces/   # 與 root interfaces 重名；此處只承擔 subdomain UI/transport
-        │       ├── api/
-        │       ├── components/
-        │       ├── hooks/
-        │       ├── queries/
-        │       └── _actions/
-        └── <subdomain-b>/
+modules/                                        # 系統所有業務模組（bounded contexts）集合
+└── <bounded-context>/                          # 單一業務邊界（高內聚、低耦合）
+    ├── README.md                               # 說明此 bounded context 的目的、範圍、核心能力
+    ├── AGENT.md                                # 開發規範：命名、分層規則、不可違反設計約束
+    ├── api/                                    # 對其他 bounded context 的公開 API 邊界（ACL 入口）
+    │   └── index.ts                            # 只匯出安全能力，隱藏內部結構與實作細節
+    ├── application/                            # 應用層：負責 use case orchestration
+    │   ├── dto/                                # 輸入/輸出資料契約，僅資料不含業務邏輯
+    │   ├── use-cases/                          # 一檔一用例，承擔流程控制與副作用協調
+    │   └── services/                           # Application Service：流程共用輔助，不承載核心業務規則
+    ├── domain/                                 # 領域層：核心商業邏輯與不變條件
+    │   ├── entities/                           # Entity：有 identity，封裝狀態與行為
+    │   ├── value-objects/                      # Value Object：無 identity，以值相等，通常 immutable
+    │   ├── services/                           # Domain Service：不屬於單一 entity 的業務規則
+    │   ├── repositories/                       # Repository 介面（Domain Port）：只定義契約不含實作
+    │   ├── events/                             # Domain Events：已發生的業務事實，用於解耦
+    │   └── ports/                              # 外部依賴抽象（非資料庫），由 infrastructure 實作
+    ├── docs/                                   # 架構文件與治理規範（長期可維護關鍵）
+    │   ├── README.md                           # 文件總覽
+    │   ├── bounded-context.md                  # 邊界責任（負責/不負責）
+    │   ├── context-map.md                      # context 關係圖（ACL/Shared Kernel/Partnership）
+    │   ├── subdomains.md                       # 子域拆分（core/supporting/generic）
+    │   ├── ubiquitous-language.md              # 統一語言與命名詞彙表
+    │   ├── aggregates.md                       # Aggregate 設計（邊界與 root）
+    │   ├── domain-events.md                    # 事件設計規範
+    │   ├── repositories.md                     # repository 設計準則
+    │   ├── application-services.md             # application 層規範
+    │   └── domain-services.md                  # domain 層規範
+    ├── infrastructure/                         # Driven Adapters：實作 domain ports 與外部整合
+    │   ├── adapters/                           # 外部服務整合（Firebase SDK/Genkit/REST API）
+    │   ├── persistence/                        # 資料庫實作細節與 DTO/Domain mapping
+    │   └── repositories/                       # Repository 實作（例如 Firestore repository）
+    ├── interfaces/                             # Driving Adapters：從 UI/HTTP/Action 進入系統
+    │   ├── api/                                # API 入口：request -> use-case -> response
+    │   ├── components/                         # UI 元件，不承載業務規則
+    │   ├── hooks/                              # React hooks：封裝資料存取與互動
+    │   ├── queries/                            # 前端資料查詢層（React Query/Server Components）
+    │   └── _actions/                           # Next.js Server Actions：直接呼叫 use-case
+    └── subdomains/                             # 子域：bounded context 內部能力拆分
+        ├── <subdomain-a>/                      # 單一能力模組（可獨立演化）
+        │   ├── README.md                       # 子域說明（責任與邊界）
+        │   ├── api/                            # 子域對外 API（限同 context 內使用）
+        │   │   └── index.ts                    # 匯出子域能力，避免直接跨層呼叫
+        │   ├── application/                    # 子域應用層（局部 use-case orchestration）
+        │   │   ├── dto/                        # 子域 DTO（input/output）
+        │   │   ├── use-cases/                  # 子域 use-cases（局部流程）
+        │   │   └── services/                   # 子域 Application Services：流程輔助，不寫業務規則
+        │   ├── domain/                         # 子域領域模型（局部業務核心）
+        │   │   ├── entities/                   # 子域 entity
+        │   │   ├── value-objects/              # 子域 value object
+        │   │   ├── services/                   # 子域 Domain Services（規則）
+        │   │   ├── repositories/               # 子域 repository 介面
+        │   │   ├── events/                     # 子域事件
+        │   │   └── ports/                      # 子域外部依賴抽象
+        │   ├── infrastructure/                 # 子域 adapter 實作
+        │   │   ├── adapters/                   # 外部 API/Genkit/Firebase 整合
+        │   │   ├── persistence/                # Firestore mapping/schema
+        │   │   └── repositories/               # repository implementation
+        │   └── interfaces/                     # 子域 UI/transport
+        │       ├── api/                        # route handlers（子域級）
+        │       ├── components/                 # 局部 UI 元件
+        │       ├── hooks/                      # 局部 hooks
+        │       ├── queries/                    # 子域資料查詢
+        │       └── _actions/                   # 子域 server actions
+        └── <subdomain-b>/                      # 另一個子域（相同結構，獨立演化）
 ```
 
 ## Duplicate Folder Name Notes
