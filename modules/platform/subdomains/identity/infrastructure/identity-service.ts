@@ -27,8 +27,16 @@ export interface EmitTokenRefreshSignalInput {
 
 // ─── Server-side token refresh signal emitter ─────────────────────────────────
 
-const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
-const emitUseCase = new EmitTokenRefreshSignalUseCase(tokenRefreshRepo);
+let _tokenRefreshRepo: FirebaseTokenRefreshRepository | undefined;
+let _emitUseCase: EmitTokenRefreshSignalUseCase | undefined;
+
+function getEmitUseCase(): EmitTokenRefreshSignalUseCase {
+	if (!_emitUseCase) {
+		if (!_tokenRefreshRepo) _tokenRefreshRepo = new FirebaseTokenRefreshRepository();
+		_emitUseCase = new EmitTokenRefreshSignalUseCase(_tokenRefreshRepo);
+	}
+	return _emitUseCase;
+}
 
 /**
  * identityApi — server-side operations for identity management.
@@ -36,7 +44,7 @@ const emitUseCase = new EmitTokenRefreshSignalUseCase(tokenRefreshRepo);
  */
 export const identityApi = {
 	async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void> {
-		await emitUseCase.execute(input.accountId, input.reason, input.traceId);
+		await getEmitUseCase().execute(input.accountId, input.reason, input.traceId);
 	},
 } as const;
 
