@@ -5,26 +5,24 @@
  * Consumers read this catalog; they do not define it.
  */
 
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabsInSidebarOrder,
+  type WorkspaceTabValue,
+} from "./workspace-tabs";
+
 export interface WorkspaceNavItem {
   id: string;
-  tabKey: string;
+  tabKey: WorkspaceTabValue;
   fallbackLabel: string;
 }
 
-export const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = [
-  { id: "home", tabKey: "Overview", fallbackLabel: "Home" },
-  { id: "daily", tabKey: "Daily", fallbackLabel: "Daily" },
-  { id: "schedule", tabKey: "Schedule", fallbackLabel: "Schedule" },
-  { id: "audit", tabKey: "Audit", fallbackLabel: "Audit" },
-  { id: "tasks", tabKey: "Tasks", fallbackLabel: "任務" },
-  { id: "task-qa", tabKey: "TaskQa", fallbackLabel: "質檢" },
-  { id: "task-acceptance", tabKey: "TaskAcceptance", fallbackLabel: "驗收" },
-  { id: "task-issues", tabKey: "TaskIssues", fallbackLabel: "問題單" },
-  { id: "task-finance", tabKey: "TaskFinance", fallbackLabel: "財務" },
-  { id: "feed", tabKey: "Feed", fallbackLabel: "Feed" },
-  { id: "files", tabKey: "Files", fallbackLabel: "Files" },
-  { id: "members", tabKey: "Members", fallbackLabel: "Members" },
-];
+export const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = getWorkspaceTabsInSidebarOrder().map((tabKey) => ({
+  id: getWorkspaceTabPrefId(tabKey),
+  tabKey,
+  fallbackLabel: getWorkspaceTabLabel(tabKey),
+}));
 
 const VALID_WORKSPACE_ORDER_IDS = new Set(WORKSPACE_NAV_ITEMS.map((item) => item.id));
 const DEFAULT_WORKSPACE_ORDER = WORKSPACE_NAV_ITEMS.map((item) => item.id);

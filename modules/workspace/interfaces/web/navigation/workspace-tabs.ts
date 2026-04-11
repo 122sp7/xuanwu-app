@@ -2,6 +2,14 @@ export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
 
 export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
 
+export const WORKSPACE_TAB_SIDEBAR_GROUP_ORDER: readonly WorkspaceTabGroup[] = [
+  "primary",
+  "modules",
+  "spaces",
+  "databases",
+  "library",
+];
+
 export const WORKSPACE_TAB_VALUES = [
   "Overview",
   "Members",
@@ -83,4 +91,8 @@ export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
 
 export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
   return WORKSPACE_TAB_GROUPS[group];
+}
+
+export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[] {
+  return WORKSPACE_TAB_SIDEBAR_GROUP_ORDER.flatMap((group) => getWorkspaceTabsByGroup(group));
 }

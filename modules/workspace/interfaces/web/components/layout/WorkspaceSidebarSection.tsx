@@ -7,6 +7,7 @@ import {
   getWorkspaceTabLabel,
   getWorkspaceTabPrefId,
   getWorkspaceTabsByGroup,
+  WORKSPACE_TAB_SIDEBAR_GROUP_ORDER,
   getWorkspaceTabStatus,
   isWorkspaceTabValue,
   type WorkspaceTabGroup,
@@ -37,10 +38,13 @@ function createWorkspaceLinkItems(group: WorkspaceTabGroup): TabLinkItem[] {
 }
 
 const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
-const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
-const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
-const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
-const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
+const WORKSPACE_LINK_ITEMS_BY_GROUP: Record<WorkspaceTabGroup, readonly TabLinkItem[]> = {
+  primary: WORKSPACE_PRIMARY_LINK_ITEMS,
+  modules: createWorkspaceLinkItems("modules"),
+  spaces: createWorkspaceLinkItems("spaces"),
+  databases: createWorkspaceLinkItems("databases"),
+  library: createWorkspaceLinkItems("library"),
+};
 
 function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue): string {
   return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
@@ -105,13 +109,11 @@ export function WorkspaceSidebarSection({
   const rawTab = searchParams.get("tab") ?? "Overview";
   const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawTab) ? rawTab : "Overview";
 
-  const groups: Array<{ key: string; items: readonly TabLinkItem[] }> = [
-    { key: "primary", items: WORKSPACE_PRIMARY_LINK_ITEMS },
-    { key: "modules", items: WORKSPACE_MODULE_LINK_ITEMS },
-    { key: "spaces", items: WORKSPACE_SPACE_ITEMS },
-    { key: "databases", items: WORKSPACE_DATABASE_ITEMS },
-    { key: "library", items: WORKSPACE_LIBRARY_LINK_ITEMS },
-  ];
+  const groups: Array<{ key: WorkspaceTabGroup; items: readonly TabLinkItem[] }> =
+    WORKSPACE_TAB_SIDEBAR_GROUP_ORDER.map((groupKey) => ({
+      key: groupKey,
+      items: WORKSPACE_LINK_ITEMS_BY_GROUP[groupKey],
+    }));
 
   const visibleGroups = groups
     .map((g) => ({
