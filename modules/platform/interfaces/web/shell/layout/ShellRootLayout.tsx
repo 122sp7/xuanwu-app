@@ -22,8 +22,8 @@ import { ShellAppBreadcrumbs } from "../breadcrumbs/ShellAppBreadcrumbs";
 import { AppRail } from "../sidebar/components/ShellAppRail";
 import { ShellDashboardSidebar } from "../navigation/components/ShellDashboardSidebar";
 import { ShellGlobalSearchDialog, useShellGlobalSearch } from "../search/ShellGlobalSearchDialog";
-import { ShellHeaderControls } from "../../components/ShellHeaderControls";
-import { ShellUserAvatar } from "../../components/ShellUserAvatar";
+import { HeaderControls as ShellHeaderControls } from "../header/components/HeaderControls";
+import { ShellUserAvatar } from "../header/components/ShellUserAvatar";
 
 const routeTitles: Record<string, string> = {
   "/organization": "組織治理",

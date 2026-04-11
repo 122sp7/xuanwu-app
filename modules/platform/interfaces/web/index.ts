@@ -1,8 +1,8 @@
-export { ShellHeaderControls } from "./components/ShellHeaderControls";
-export { ShellThemeToggle } from "./components/ShellThemeToggle";
-export { ShellNotificationButton } from "./components/ShellNotificationButton";
-export { ShellUserAvatar } from "./components/ShellUserAvatar";
-export { ShellTranslationSwitcher } from "./components/ShellTranslationSwitcher";
+export { HeaderControls as ShellHeaderControls } from "./shell/header/components/HeaderControls";
+export { ShellThemeToggle } from "./shell/header/components/ShellThemeToggle";
+export { ShellNotificationButton } from "./shell/header/components/ShellNotificationButton";
+export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
+export { ShellTranslationSwitcher } from "./shell/header/components/ShellTranslationSwitcher";
 export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
 export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
 export { AppRail } from "./shell/sidebar/components/ShellAppRail";
