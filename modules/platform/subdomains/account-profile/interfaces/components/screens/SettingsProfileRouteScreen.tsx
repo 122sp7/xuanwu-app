@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
-import { getProfile, updateProfile } from "../..";
+import { getProfile } from "../../queries/account-profile.queries";
+import { updateProfile } from "../../_actions/account-profile.actions";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Input } from "@ui-shadcn/ui/input";
