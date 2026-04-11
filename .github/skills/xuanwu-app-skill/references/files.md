@@ -83046,6 +83046,16 @@ When adding or changing docs:
 Start every session with Serena MCP. If a question spans modules or architecture, consult the DDD reference authority (ubiquitous-language, bounded-contexts, context-map) before implementation.
 ````
 
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+````
+
 ## File: next.config.ts
 ````typescript
 import type { NextConfig } from "next";
@@ -83512,14 +83522,4 @@ export default defineConfig({
     ],
   },
 });
-````
-
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/dev/types/routes.d.ts";
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````
