@@ -20,9 +20,9 @@ import { subscribeToProfile, type AccountProfile } from "../../../subdomains/acc
 import { AccountSwitcher } from "../../../subdomains/organization/api";
 import { ShellAppBreadcrumbs } from "./ShellAppBreadcrumbs";
 import { AppRail } from "./ShellAppRail";
-import { DashboardSidebar } from "./DashboardSidebar";
+import { ShellDashboardSidebar } from "./ShellDashboardSidebar";
 import { ShellGlobalSearchDialog, useShellGlobalSearch } from "./ShellGlobalSearchDialog";
-import { HeaderControls } from "./HeaderControls";
+import { ShellHeaderControls } from "./ShellHeaderControls";
 import { ShellUserAvatar } from "./ShellUserAvatar";
 
 const routeTitles: Record<string, string> = {
@@ -198,7 +198,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
             void handleLogout();
           }}
         />
-        <DashboardSidebar
+        <ShellDashboardSidebar
           userId={authState.user?.id ?? null}
           pathname={pathname}
           activeAccount={appState.activeAccount}
@@ -241,7 +241,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
               </div>
 
               <div className="ml-auto flex items-center gap-3">
-                <HeaderControls />
+                <ShellHeaderControls />
                 <ShellUserAvatar
                   name={scopedProfile?.displayName ?? authState.user?.name ?? "Dimension Member"}
                   email={scopedProfile?.email ?? authState.user?.email ?? "—"}

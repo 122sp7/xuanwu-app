@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Module: dashboard-sidebar.tsx
+ * Module: shell-dashboard-sidebar.tsx
  * Purpose: render the secondary navigation panel of the authenticated shell.
  * Responsibilities: account switcher, search hint, org management sub-nav, and
  *   recent workspace quick-access list. Top-level section navigation is in ShellAppRail.
@@ -36,7 +36,7 @@ import {
 import { ShellSidebarHeader } from "./sidebar/ShellSidebarHeader";
 import { DashboardSidebarBody } from "./sidebar/ShellSidebarBody";
 
-export function DashboardSidebar({
+export function ShellDashboardSidebar({
   pathname,
   userId,
   activeAccount,

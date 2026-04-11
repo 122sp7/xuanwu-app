@@ -1,4 +1,4 @@
-export { HeaderControls } from "./components/HeaderControls";
+export { ShellHeaderControls } from "./components/ShellHeaderControls";
 export { ShellThemeToggle } from "./components/ShellThemeToggle";
 export { ShellNotificationButton } from "./components/ShellNotificationButton";
 export { ShellUserAvatar } from "./components/ShellUserAvatar";
@@ -6,7 +6,7 @@ export { ShellTranslationSwitcher } from "./components/ShellTranslationSwitcher"
 export { ShellAppBreadcrumbs } from "./components/ShellAppBreadcrumbs";
 export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./components/ShellGlobalSearchDialog";
 export { AppRail } from "./components/ShellAppRail";
-export { DashboardSidebar } from "./components/DashboardSidebar";
+export { ShellDashboardSidebar } from "./components/ShellDashboardSidebar";
 export { ShellLayout } from "./components/ShellRootLayout";
 export type { DashboardSidebarProps, NavSection } from "./navigation/ShellSidebarNavData";
 export {

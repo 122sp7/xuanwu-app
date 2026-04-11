@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * HeaderControls – platform interfaces/web component.
+ * ShellHeaderControls – platform interfaces/web component.
  * Composes shell header utility controls: language switch, theme toggle, notification bell.
  */
 
@@ -10,7 +10,7 @@ import { ShellNotificationButton } from "./ShellNotificationButton";
 import { ShellThemeToggle } from "./ShellThemeToggle";
 import { ShellTranslationSwitcher } from "./ShellTranslationSwitcher";
 
-export function HeaderControls() {
+export function ShellHeaderControls() {
   const { state: authState } = useAuth();
 
   const recipientId = authState.user?.id ?? "";
