@@ -1,4 +1,4 @@
-﻿export type {
+export type {
   OrganizationEntity,
   OrganizationRole,
   Presence,
@@ -21,3 +21,6 @@
 } from "./entities/Organization";
 export type { OrganizationRepository, Unsubscribe } from "./repositories/OrganizationRepository";
 export type { OrgPolicyRepository } from "./repositories/OrgPolicyRepository";
+export * from "./aggregates";
+export * from "./events";
+export * from "./value-objects";
