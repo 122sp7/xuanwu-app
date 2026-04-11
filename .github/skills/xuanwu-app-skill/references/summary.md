@@ -49,8 +49,8 @@ This skill contains the following reference files:
 | No Extension | 41 | 125 |
 | JSON | 7 | 822 |
 | Text | 3 | 107 |
-| RULES | 2 | 18 |
 | JavaScript (ESM) | 2 | 189 |
+| RULES | 2 | 18 |
 | CSS | 1 | 197 |
 | Other | 1 | 64 |
 
@@ -64,4 +64,4 @@ This skill contains the following reference files:
 - `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
 - `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (341 lines)
 - `modules/platform/interfaces/web/components/ShellLayout.tsx` (321 lines)
-- `modules/workspace/domain/aggregates/Workspace.ts` (305 lines)
+- `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
