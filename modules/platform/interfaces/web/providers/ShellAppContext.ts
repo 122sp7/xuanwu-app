@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * app-context.ts — platform/interfaces/web layer
+ * shell-app-context.ts — platform/interfaces/web layer
  * Defines the AppContext contract: the cross-cutting "active account" state.
  *
  * Holds the set of accounts visible to the current user plus the currently

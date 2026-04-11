@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * providers.tsx — platform/interfaces/web layer
+ * shell-providers.tsx — platform/interfaces/web layer
  * Composed root providers tree.
  * Import <Providers> into app/layout.tsx to wrap the entire application.
  *
@@ -13,7 +13,7 @@
 import type { ReactNode } from "react";
 import { Toaster } from "@ui-shadcn/ui/sonner";
 import { AuthProvider } from "../../../subdomains/identity/api";
-import { AppProvider } from "./app-provider";
+import { AppProvider } from "./ShellAppProvider";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (

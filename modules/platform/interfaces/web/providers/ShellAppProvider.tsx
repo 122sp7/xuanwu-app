@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * app-provider.tsx — platform/interfaces/web layer
+ * shell-app-provider.tsx — platform/interfaces/web layer
  * Hosts the app-level active-account lifecycle and exposes useApp().
  *
  * Responsibilities:
@@ -29,7 +29,7 @@ import {
   toWorkspaceMap,
 } from "@/modules/workspace/api";
 
-import { AppContext, type AppState, type AppAction } from "./app-context";
+import { AppContext, type AppState, type AppAction } from "./ShellAppContext";
 
 // -- Initial State -----------------------------------------------------------
 

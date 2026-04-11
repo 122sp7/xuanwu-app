@@ -13,7 +13,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { PanelLeftOpen, Search } from "lucide-react";
 
-import { useApp } from "../providers/app-provider";
+import { useApp } from "../providers/ShellAppProvider";
 import { useAuth, ShellGuard } from "../../../subdomains/identity/api";
 import { type AccountEntity } from "../../../subdomains/account/api";
 import { subscribeToProfile, type AccountProfile } from "../../../subdomains/account-profile/api";
