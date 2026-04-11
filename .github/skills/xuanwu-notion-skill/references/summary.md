@@ -1,5 +1,4 @@
-This file is a merged representation of a subset of the codebase, containing specifically included files and files not matching ignore patterns, combined into a single document by Repomix.
-The content has been processed where content has been formatted for parsing in markdown style.
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
 
 # Summary
 
@@ -32,32 +31,30 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: modules/platform/subdomains/**, modules/platform/domain/**, modules/platform/application/**, modules/platform/infrastructure/**, modules/platform/interfaces/**, modules/notion/**
-- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
+- Only files matching these patterns are included: modules/notion/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
-- Content has been formatted for parsing in markdown style
 - Files are sorted by Git change count (files with more changes are at the bottom)
 
 ## Statistics
 
-852 files | 29,664 lines
+263 files | 11,569 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 730 | 20,717 |
-| Markdown | 59 | 1,107 |
-| TypeScript (TSX) | 56 | 7,833 |
+| TypeScript | 205 | 6,906 |
+| TypeScript (TSX) | 26 | 3,956 |
+| Markdown | 25 | 700 |
 | No Extension | 7 | 7 |
 
 **Largest files:**
-- `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
-- `modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx` (321 lines)
 - `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
 - `modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx` (298 lines)
-- `modules/platform/subdomains/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts` (293 lines)
-- `modules/platform/interfaces/web/shell/layout/ShellRootLayout.tsx` (284 lines)
-- `modules/platform/interfaces/web/providers/ShellAppProvider.tsx` (265 lines)
 - `modules/notion/subdomains/database/interfaces/components/DatabaseDetailPage.tsx` (258 lines)
 - `modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageDetailPage.tsx` (245 lines)
-- `modules/platform/interfaces/web/shell/navigation/components/ShellDashboardSidebar.tsx` (233 lines)
+- `modules/notion/subdomains/database/interfaces/components/DatabaseTableView.tsx` (224 lines)
+- `modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageHeaderWidgets.tsx` (212 lines)
+- `modules/notion/subdomains/authoring/interfaces/components/ArticleDialog.tsx` (204 lines)
+- `modules/notion/subdomains/authoring/interfaces/components/KnowledgeBaseArticlesRouteScreen.tsx` (199 lines)
+- `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts` (186 lines)
+- `modules/notion/subdomains/database/interfaces/components/DatabaseAutomationView.tsx` (181 lines)

@@ -1,5 +1,4 @@
-This file is a merged representation of a subset of the codebase, containing specifically included files and files not matching ignore patterns, combined into a single document by Repomix.
-The content has been processed where content has been formatted for parsing in markdown style.
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
 
 # Summary
 
@@ -32,33 +31,30 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: app/**, modules/**, modules/platform/subdomains/**, modules/platform/domain/**, modules/platform/application/**, modules/platform/infrastructure/**, modules/platform/interfaces/**, modules/notebooklm/**
-- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
+- Only files matching these patterns are included: modules/notebooklm/**
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
-- Content has been formatted for parsing in markdown style
 - Files are sorted by Git change count (files with more changes are at the bottom)
 
 ## Statistics
 
-1374 files | 57,113 lines
+169 files | 7,108 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1108 | 36,792 |
-| TypeScript (TSX) | 145 | 17,786 |
-| Markdown | 106 | 2,324 |
-| No Extension | 14 | 14 |
-| CSS | 1 | 197 |
+| TypeScript | 130 | 4,599 |
+| Markdown | 22 | 500 |
+| TypeScript (TSX) | 10 | 2,002 |
+| No Extension | 7 | 7 |
 
 **Largest files:**
-- `app/(shell)/dev-tools/page.tsx` (475 lines)
-- `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
 - `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (341 lines)
-- `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)
-- `modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx` (321 lines)
-- `modules/workspace/domain/aggregates/Workspace.ts` (305 lines)
-- `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
-- `modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx` (298 lines)
-- `modules/platform/subdomains/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts` (293 lines)
-- `app/(public)/page.tsx` (288 lines)
+- `modules/notebooklm/subdomains/source/interfaces/components/LibrariesView.tsx` (239 lines)
+- `modules/notebooklm/subdomains/source/interfaces/components/FileProcessingDialog.tsx` (235 lines)
+- `modules/notebooklm/subdomains/source/interfaces/components/LibraryTableView.tsx` (231 lines)
+- `modules/notebooklm/subdomains/source/interfaces/components/WorkspaceFilesTab.tsx` (230 lines)
+- `modules/notebooklm/subdomains/source/infrastructure/firebase/FirebaseWikiLibraryAdapter.ts` (192 lines)
+- `modules/notebooklm/subdomains/source/application/use-cases/wiki-library.use-cases.ts` (191 lines)
+- `modules/notebooklm/subdomains/source/interfaces/components/SourceDocumentsView.tsx` (188 lines)
+- `modules/notebooklm/subdomains/ai/interfaces/components/RagQueryView.tsx` (185 lines)
+- `modules/notebooklm/subdomains/ai/infrastructure/firebase/FirebaseWikiContentAdapter.ts` (183 lines)
