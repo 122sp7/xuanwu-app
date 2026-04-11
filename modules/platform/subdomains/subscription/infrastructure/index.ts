@@ -1,1 +1,2 @@
-﻿// Purpose: Infrastructure layer placeholder for platform subdomain 'subscription'.
+export * from "./subscription-service";
+export { FirebaseSubscriptionRepository } from "./firebase/FirebaseSubscriptionRepository";

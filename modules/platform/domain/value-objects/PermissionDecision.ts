@@ -7,8 +7,41 @@
  * A PermissionDecision is always explicit — never a loose boolean.
  *
  * Used by: PermissionResolutionService, access-control subdomain
- * @see docs/aggregates.md — 主要值物件
- * @see docs/domain-services.md — 主要 Decision Objects
  */
 
-// TODO: implement PermissionDecision value object / discriminated union
+export type PermissionOutcome = "allow" | "deny" | "conditional_allow" | "escalate";
+
+export interface PermissionDecision {
+  readonly outcome: PermissionOutcome;
+  readonly reason: string;
+  readonly conditions?: readonly string[];
+  readonly evaluatedAt: string;
+}
+
+export function allowDecision(reason: string): PermissionDecision {
+  return { outcome: "allow", reason, evaluatedAt: new Date().toISOString() };
+}
+
+export function denyDecision(reason: string): PermissionDecision {
+  return { outcome: "deny", reason, evaluatedAt: new Date().toISOString() };
+}
+
+export function conditionalAllowDecision(
+  reason: string,
+  conditions: string[],
+): PermissionDecision {
+  return {
+    outcome: "conditional_allow",
+    reason,
+    conditions,
+    evaluatedAt: new Date().toISOString(),
+  };
+}
+
+export function escalateDecision(reason: string): PermissionDecision {
+  return { outcome: "escalate", reason, evaluatedAt: new Date().toISOString() };
+}
+
+export function isAllowed(decision: PermissionDecision): boolean {
+  return decision.outcome === "allow" || decision.outcome === "conditional_allow";
+}
