@@ -5,6 +5,7 @@ export { GlobalSearchDialog, useGlobalSearch } from "./components/GlobalSearchDi
 export { AppRail } from "./components/AppRail";
 export { DashboardSidebar } from "./components/DashboardSidebar";
 export { ShellLayout } from "./components/ShellLayout";
+export { SettingsProfileRouteScreen } from "./components/screens/SettingsProfileRouteScreen";
 export type { DashboardSidebarProps, NavSection } from "./navigation/sidebar-nav-data";
 export {
   resolveNavSection,
