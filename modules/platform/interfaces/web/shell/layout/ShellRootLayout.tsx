@@ -15,6 +15,10 @@ import { PanelLeftOpen, Search } from "lucide-react";
 
 import { useApp } from "../../providers/ShellAppProvider";
 import { useAuth, ShellGuard } from "../../../../subdomains/identity/api";
+import {
+  isOrganizationActor,
+  resolveOrganizationRouteFallback,
+} from "../../../../subdomains/access-control/api";
 import { type AccountEntity } from "../../../../subdomains/account/api";
 import { subscribeToProfile, type AccountProfile } from "../../../../subdomains/account-profile/api";
 import { AccountSwitcher } from "../../../../subdomains/organization/api";
@@ -63,30 +67,6 @@ const orgSecondaryItems = [
   { label: "稽核", href: "/organization/audit" },
 ] as const;
 
-function isOrganizationAccount(
-  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-function resolveShellRouteForAccount(
-  pathname: string,
-  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
-) {
-  const nextAccountIsOrganization =
-    nextAccount != null && "accountType" in nextAccount && nextAccount.accountType === "organization";
-
-  if (pathname === "/organization" && !nextAccountIsOrganization) {
-    return "/workspace";
-  }
-
-  return null;
-}
-
 export function ShellLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -112,11 +92,11 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
   const pageTitle = routeTitles[pathname] ?? "工作區";
   const organizationAccounts = Object.values(appState.accounts ?? {});
   const accountWorkspaces = Object.values(appState.workspaces ?? {});
-  const showAccountManagement = isOrganizationAccount(appState.activeAccount);
+  const showAccountManagement = isOrganizationActor(appState.activeAccount);
 
   function handleSelectOrganization(account: AccountEntity) {
     dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    const nextRoute = resolveShellRouteForAccount(pathname, account);
+    const nextRoute = resolveOrganizationRouteFallback(pathname, account);
     if (nextRoute) {
       router.replace(nextRoute);
     }
@@ -125,7 +105,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
   function handleSelectPersonal() {
     if (!authState.user) return;
     dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
-    const nextRoute = resolveShellRouteForAccount(pathname, authState.user);
+    const nextRoute = resolveOrganizationRouteFallback(pathname, authState.user);
     if (nextRoute) {
       router.replace(nextRoute);
     }
@@ -144,7 +124,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const nextRoute = resolveShellRouteForAccount(pathname, appState.activeAccount);
+    const nextRoute = resolveOrganizationRouteFallback(pathname, appState.activeAccount);
     if (nextRoute && nextRoute !== pathname) {
       router.replace(nextRoute);
     }

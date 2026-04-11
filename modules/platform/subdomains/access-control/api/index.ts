@@ -9,3 +9,8 @@ export type { AccessPolicyRepository } from "../domain/repositories/AccessPolicy
 export type { SubjectRef } from "../domain/value-objects/SubjectRef";
 export type { ResourceRef } from "../domain/value-objects/ResourceRef";
 export type { PolicyEffect } from "../domain/value-objects/PolicyEffect";
+export {
+	isOrganizationActor,
+	resolveOrganizationRouteFallback,
+	type ShellAccountActor,
+} from "../application/services/shell-account-access";

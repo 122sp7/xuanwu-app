@@ -7048,6 +7048,67 @@ export type { EmitTokenRefreshSignalInput } from "./identity-service";
 export { createClientAuthUseCases, identityApi } from "./identity-service";
 ````
 
+## File: modules/platform/subdomains/identity/interfaces/_actions/identity.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { toIdentityErrorMessage } from "../../application/identity-error-message";
+import {
+	RegisterUseCase,
+	SendPasswordResetEmailUseCase,
+	SignInAnonymouslyUseCase,
+	SignInUseCase,
+	SignOutUseCase,
+} from "../../application/use-cases/identity.use-cases";
+import { FirebaseIdentityRepository } from "../../api";
+
+const identityRepo = new FirebaseIdentityRepository();
+
+export async function signIn(email: string, password: string): Promise<CommandResult> {
+	try {
+		return await new SignInUseCase(identityRepo).execute({ email, password });
+	} catch (err) {
+		return commandFailureFrom("SIGN_IN_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
+	}
+}
+
+export async function signInAnonymously(): Promise<CommandResult> {
+	try {
+		return await new SignInAnonymouslyUseCase(identityRepo).execute();
+	} catch (err) {
+		return commandFailureFrom(
+			"SIGN_IN_ANONYMOUS_FAILED",
+			toIdentityErrorMessage(err, "Unexpected error"),
+		);
+	}
+}
+
+export async function register(email: string, password: string, name: string): Promise<CommandResult> {
+	try {
+		return await new RegisterUseCase(identityRepo).execute({ email, password, name });
+	} catch (err) {
+		return commandFailureFrom("REGISTRATION_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
+	}
+}
+
+export async function sendPasswordResetEmail(email: string): Promise<CommandResult> {
+	try {
+		return await new SendPasswordResetEmailUseCase(identityRepo).execute(email);
+	} catch (err) {
+		return commandFailureFrom("PASSWORD_RESET_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
+	}
+}
+
+export async function signOut(): Promise<CommandResult> {
+	try {
+		return await new SignOutUseCase(identityRepo).execute();
+	} catch (err) {
+		return commandFailureFrom("SIGN_OUT_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
+	}
+}
+````
+
 ## File: modules/platform/subdomains/identity/interfaces/components/ShellGuard.tsx
 ````typescript
 "use client";
@@ -7137,6 +7198,40 @@ export interface AuthContextValue {
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
+````
+
+## File: modules/platform/subdomains/identity/interfaces/hooks/useTokenRefreshListener.tsx
+````typescript
+"use client";
+
+import { getFirebaseAuth } from "@integration-firebase";
+import { useEffect } from "react";
+import { FirebaseTokenRefreshRepository } from "../../api";
+
+let _tokenRefreshRepo: FirebaseTokenRefreshRepository | undefined;
+
+function getTokenRefreshRepo(): FirebaseTokenRefreshRepository {
+	if (!_tokenRefreshRepo) _tokenRefreshRepo = new FirebaseTokenRefreshRepository();
+	return _tokenRefreshRepo;
+}
+
+export function useTokenRefreshListener(accountId: string | null | undefined): void {
+	useEffect(() => {
+		if (!accountId) return;
+		if (!/^[\w-]+$/.test(accountId)) return;
+
+		const unsubscribe = getTokenRefreshRepo().subscribe(accountId, () => {
+			const auth = getFirebaseAuth();
+			const currentUser = auth.currentUser;
+			if (!currentUser) return;
+			void currentUser.getIdToken(true).catch(() => {
+				// Non-fatal: token refreshes naturally on next expiry cycle.
+			});
+		});
+
+		return () => unsubscribe();
+	}, [accountId]);
+}
 ````
 
 ## File: modules/platform/subdomains/identity/interfaces/index.ts
@@ -7668,6 +7763,80 @@ export {};
 ## File: modules/platform/subdomains/onboarding/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'onboarding'.
+````
+
+## File: modules/platform/subdomains/organization/api/index.ts
+````typescript
+/**
+ * Public API boundary for the organization subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * NOTE: We avoid `export * from "../infrastructure"` here because the
+ * infrastructure barrel pulls in Firebase repository constructors during
+ * module evaluation, which causes failures during Next.js static
+ * prerendering. Infrastructure exports are available in the server barrel
+ * (./server.ts) or via direct import from action / service files.
+ */
+
+// --- Domain types ---
+export type {
+  OrganizationEntity,
+  OrganizationRole,
+  Presence,
+  InviteState,
+  PolicyEffect,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  ThemeConfig,
+  OrgPolicy,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../domain";
+export type { OrganizationRepository, Unsubscribe } from "../domain";
+export type { OrgPolicyRepository } from "../domain";
+
+// --- Application use cases ---
+export {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "../application";
+export {
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "../application";
+export {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../application";
+export {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "../application";
+export {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "../application";
+
+// --- Infrastructure (lazy, safe for SSR) ---
+export { organizationService, organizationQueryService } from "../infrastructure";
+
+// --- Interfaces (UI, queries, actions) ---
+export * from "../interfaces";
 ````
 
 ## File: modules/platform/subdomains/organization/application/index.ts
@@ -9112,6 +9281,11 @@ export function toOrgPolicy(id: string, data: Record<string, unknown>): OrgPolic
     updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
   };
 }
+````
+
+## File: modules/platform/subdomains/organization/infrastructure/index.ts
+````typescript
+export { organizationService, organizationQueryService } from "./organization-service";
 ````
 
 ## File: modules/platform/subdomains/organization/interfaces/components/AccountSwitcher.tsx
@@ -12734,71 +12908,6 @@ export function AppRail({
 }
 ````
 
-## File: modules/platform/interfaces/web/shell/sidebar/ShellContextNavSection.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { appendWorkspaceContextQuery } from "@/modules/workspace/api";
-
-interface ContextScopedNavItem {
-  href: string;
-  label: string;
-}
-
-interface ShellContextNavSectionProps {
-  title: string;
-  items: readonly ContextScopedNavItem[];
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  activeWorkspaceId: string | null;
-}
-
-export function ShellContextNavSection({
-  title,
-  items,
-  isActiveRoute,
-  activeAccountId,
-  activeWorkspaceId,
-}: ShellContextNavSectionProps) {
-  return (
-    <nav className="space-y-0.5" aria-label={`${title}導覽`}>
-      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-        {title}
-      </p>
-      {(activeAccountId || activeWorkspaceId) && (
-        <p className="px-2 pb-1 text-[11px] text-muted-foreground">
-          {activeAccountId ? `帳號: ${activeAccountId.slice(0, 8)}` : "帳號: -"}
-          {" · "}
-          {activeWorkspaceId ? `工作區: ${activeWorkspaceId.slice(0, 8)}` : "工作區: -"}
-        </p>
-      )}
-      {items.map((item) => {
-        const active = isActiveRoute(item.href);
-        const contextualHref = appendWorkspaceContextQuery(item.href, {
-          accountId: activeAccountId,
-          workspaceId: activeWorkspaceId,
-        });
-        return (
-          <Link
-            key={item.href}
-            href={contextualHref}
-            aria-current={active ? "page" : undefined}
-            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-              active
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-````
-
 ## File: modules/platform/interfaces/web/shell/sidebar/ShellSidebarHeader.tsx
 ````typescript
 "use client";
@@ -13748,68 +13857,6 @@ export {
 } from "./services/resolve-active-account";
 ````
 
-## File: modules/platform/subdomains/account/application/services/resolve-active-account.ts
-````typescript
-import type { AccountEntity } from "../../domain/entities/Account";
-
-export type AccountBootstrapPhase = "idle" | "seeded" | "hydrated";
-
-interface PersonalAccountIdentity {
-  readonly id: string;
-  readonly name: string;
-  readonly email: string;
-}
-
-export type SelectableActiveAccount = AccountEntity | PersonalAccountIdentity;
-
-export interface ResolveActiveAccountInput {
-  readonly currentActiveAccount: SelectableActiveAccount | null;
-  readonly accounts: Record<string, AccountEntity>;
-  readonly personalAccount: PersonalAccountIdentity;
-  readonly preferredActiveAccountId?: string | null;
-  readonly bootstrapPhase: AccountBootstrapPhase;
-}
-
-/**
- * Resolve the next active account from current selection, persisted preference,
- * and latest account snapshot while preserving optimistic bootstrap behavior.
- */
-export function resolveActiveAccount(input: ResolveActiveAccountInput): SelectableActiveAccount {
-  const {
-    currentActiveAccount,
-    accounts,
-    personalAccount,
-    preferredActiveAccountId,
-    bootstrapPhase,
-  } = input;
-
-  const validIds = new Set([personalAccount.id, ...Object.keys(accounts)]);
-  const currentActiveId = currentActiveAccount?.id;
-  let currentActive: SelectableActiveAccount | null = null;
-
-  if (currentActiveId && validIds.has(currentActiveId)) {
-    currentActive = currentActiveId === personalAccount.id ? personalAccount : accounts[currentActiveId] ?? null;
-  }
-
-  let preferredActive: SelectableActiveAccount | null = null;
-  if (preferredActiveAccountId && validIds.has(preferredActiveAccountId)) {
-    preferredActive =
-      preferredActiveAccountId === personalAccount.id
-        ? personalAccount
-        : accounts[preferredActiveAccountId] ?? null;
-  }
-
-  if (
-    preferredActive &&
-    (!currentActive || bootstrapPhase === "seeded" || currentActive.id === personalAccount.id)
-  ) {
-    return preferredActive;
-  }
-
-  return currentActive ?? personalAccount;
-}
-````
-
 ## File: modules/platform/subdomains/account/domain/index.ts
 ````typescript
 export type {
@@ -13858,6 +13905,138 @@ export type { AccountRepository as IAccountPort } from "../repositories/AccountR
 export type { AccountQueryRepository as IAccountQueryPort } from "../repositories/AccountQueryRepository";
 export type { AccountPolicyRepository as IAccountPolicyPort } from "../repositories/AccountPolicyRepository";
 export type { TokenRefreshPort } from "./TokenRefreshPort";
+````
+
+## File: modules/platform/subdomains/account/infrastructure/index.ts
+````typescript
+export { accountService, createClientAccountUseCases } from "./account-service";
+export { createAccountQueryRepository } from "./account-service";
+````
+
+## File: modules/platform/subdomains/account/interfaces/_actions/account-policy.actions.ts
+````typescript
+"use server";
+
+/**
+ * Account Policy Server Actions — thin adapter: Server Actions → Application Use Cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { accountService } from "../../api";
+import type { CreatePolicyInput, UpdatePolicyInput } from "../../application/dtos/account.dto";
+
+export async function createAccountPolicy(input: CreatePolicyInput): Promise<CommandResult> {
+  try {
+    return await accountService.createPolicy(input);
+  } catch (err) {
+    return commandFailureFrom("CREATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateAccountPolicy(
+  policyId: string,
+  accountId: string,
+  data: UpdatePolicyInput,
+  traceId?: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.updatePolicy(policyId, accountId, data, traceId);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteAccountPolicy(
+  policyId: string,
+  accountId: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.deletePolicy(policyId, accountId);
+  } catch (err) {
+    return commandFailureFrom("DELETE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/platform/subdomains/account/interfaces/_actions/account.actions.ts
+````typescript
+"use server";
+
+/**
+ * Account Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { accountService } from "../../api";
+import type { UpdateProfileInput, OrganizationRole } from "../../application/dtos/account.dto";
+
+export async function createUserAccount(
+  userId: string,
+  name: string,
+  email: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.createUserAccount(userId, name, email);
+  } catch (err) {
+    return commandFailureFrom("CREATE_USER_ACCOUNT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateUserProfile(
+  userId: string,
+  data: UpdateProfileInput,
+): Promise<CommandResult> {
+  try {
+    return await accountService.updateUserProfile(userId, data);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_USER_PROFILE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function creditWallet(
+  accountId: string,
+  amount: number,
+  description: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.creditWallet(accountId, amount, description);
+  } catch (err) {
+    return commandFailureFrom("WALLET_CREDIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function debitWallet(
+  accountId: string,
+  amount: number,
+  description: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.debitWallet(accountId, amount, description);
+  } catch (err) {
+    return commandFailureFrom("WALLET_DEBIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function assignAccountRole(
+  accountId: string,
+  role: OrganizationRole,
+  grantedBy: string,
+  traceId?: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.assignRole(accountId, role, grantedBy, traceId);
+  } catch (err) {
+    return commandFailureFrom("ASSIGN_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function revokeAccountRole(accountId: string): Promise<CommandResult> {
+  try {
+    return await accountService.revokeRole(accountId);
+  } catch (err) {
+    return commandFailureFrom("REVOKE_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
 ````
 
 ## File: modules/platform/subdomains/ai/api/index.ts
@@ -14434,101 +14613,6 @@ export type { IdentityRepository as IIdentityPort } from "../repositories/Identi
 export type { TokenRefreshRepository as ITokenRefreshPort } from "../repositories/TokenRefreshRepository";
 ````
 
-## File: modules/platform/subdomains/identity/interfaces/_actions/identity.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { toIdentityErrorMessage } from "../../application/identity-error-message";
-import {
-	RegisterUseCase,
-	SendPasswordResetEmailUseCase,
-	SignInAnonymouslyUseCase,
-	SignInUseCase,
-	SignOutUseCase,
-} from "../../application/use-cases/identity.use-cases";
-import { FirebaseIdentityRepository } from "../../api";
-
-const identityRepo = new FirebaseIdentityRepository();
-
-export async function signIn(email: string, password: string): Promise<CommandResult> {
-	try {
-		return await new SignInUseCase(identityRepo).execute({ email, password });
-	} catch (err) {
-		return commandFailureFrom("SIGN_IN_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
-	}
-}
-
-export async function signInAnonymously(): Promise<CommandResult> {
-	try {
-		return await new SignInAnonymouslyUseCase(identityRepo).execute();
-	} catch (err) {
-		return commandFailureFrom(
-			"SIGN_IN_ANONYMOUS_FAILED",
-			toIdentityErrorMessage(err, "Unexpected error"),
-		);
-	}
-}
-
-export async function register(email: string, password: string, name: string): Promise<CommandResult> {
-	try {
-		return await new RegisterUseCase(identityRepo).execute({ email, password, name });
-	} catch (err) {
-		return commandFailureFrom("REGISTRATION_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
-	}
-}
-
-export async function sendPasswordResetEmail(email: string): Promise<CommandResult> {
-	try {
-		return await new SendPasswordResetEmailUseCase(identityRepo).execute(email);
-	} catch (err) {
-		return commandFailureFrom("PASSWORD_RESET_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
-	}
-}
-
-export async function signOut(): Promise<CommandResult> {
-	try {
-		return await new SignOutUseCase(identityRepo).execute();
-	} catch (err) {
-		return commandFailureFrom("SIGN_OUT_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
-	}
-}
-````
-
-## File: modules/platform/subdomains/identity/interfaces/hooks/useTokenRefreshListener.tsx
-````typescript
-"use client";
-
-import { getFirebaseAuth } from "@integration-firebase";
-import { useEffect } from "react";
-import { FirebaseTokenRefreshRepository } from "../../api";
-
-let _tokenRefreshRepo: FirebaseTokenRefreshRepository | undefined;
-
-function getTokenRefreshRepo(): FirebaseTokenRefreshRepository {
-	if (!_tokenRefreshRepo) _tokenRefreshRepo = new FirebaseTokenRefreshRepository();
-	return _tokenRefreshRepo;
-}
-
-export function useTokenRefreshListener(accountId: string | null | undefined): void {
-	useEffect(() => {
-		if (!accountId) return;
-		if (!/^[\w-]+$/.test(accountId)) return;
-
-		const unsubscribe = getTokenRefreshRepo().subscribe(accountId, () => {
-			const auth = getFirebaseAuth();
-			const currentUser = auth.currentUser;
-			if (!currentUser) return;
-			void currentUser.getIdToken(true).catch(() => {
-				// Non-fatal: token refreshes naturally on next expiry cycle.
-			});
-		});
-
-		return () => unsubscribe();
-	}, [accountId]);
-}
-````
-
 ## File: modules/platform/subdomains/notification/api/index.ts
 ````typescript
 /**
@@ -14812,6 +14896,46 @@ export const notificationService = {
   getUnreadCount: (recipientId: string): Promise<number> =>
     new GetUnreadCountUseCase(getNotifRepo()).execute(recipientId),
 };
+````
+
+## File: modules/platform/subdomains/notification/interfaces/_actions/notification.actions.ts
+````typescript
+"use server";
+
+/**
+ * Notification Server Actions — thin adapters over use cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { notificationService } from "../../api";
+import type { DispatchNotificationInput } from "../../application/dtos/notification.dto";
+
+export async function dispatchNotification(input: DispatchNotificationInput): Promise<CommandResult> {
+  try {
+    return await notificationService.dispatch(input);
+  } catch (err) {
+    return commandFailureFrom("DISPATCH_NOTIFICATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function markNotificationRead(
+  notificationId: string,
+  recipientId: string,
+): Promise<CommandResult> {
+  try {
+    return await notificationService.markAsRead(notificationId, recipientId);
+  } catch (err) {
+    return commandFailureFrom("MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function markAllNotificationsRead(recipientId: string): Promise<CommandResult> {
+  try {
+    return await notificationService.markAllAsRead(recipientId);
+  } catch (err) {
+    return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
 ````
 
 ## File: modules/platform/subdomains/notification/interfaces/components/NotificationBell.tsx
@@ -15173,78 +15297,18 @@ export function NotificationsPage({ recipientId }: NotificationsPageProps) {
 }
 ````
 
-## File: modules/platform/subdomains/organization/api/index.ts
+## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
 ````typescript
 /**
- * Public API boundary for the organization subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * NOTE: We avoid `export * from "../infrastructure"` here because the
- * infrastructure barrel pulls in Firebase repository constructors during
- * module evaluation, which causes failures during Next.js static
- * prerendering. Infrastructure exports are available in the server barrel
- * (./server.ts) or via direct import from action / service files.
+ * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
  */
 
-// --- Domain types ---
-export type {
-  OrganizationEntity,
-  OrganizationRole,
-  Presence,
-  InviteState,
-  PolicyEffect,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  ThemeConfig,
-  OrgPolicy,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../domain";
-export type { OrganizationRepository, Unsubscribe } from "../domain";
-export type { OrgPolicyRepository } from "../domain";
+import { notificationService } from "../../api";
+import type { NotificationEntity } from "../../application/dtos/notification.dto";
 
-// --- Application use cases ---
-export {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-} from "../application";
-export {
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-} from "../application";
-export {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../application";
-export {
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../application";
-export {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../application";
-
-// --- Infrastructure (lazy, safe for SSR) ---
-export { organizationService, organizationQueryService } from "../infrastructure";
-
-// --- Interfaces (UI, queries, actions) ---
-export * from "../interfaces";
+export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
+  return notificationService.getForRecipient(recipientId, maxCount);
+}
 ````
 
 ## File: modules/platform/subdomains/organization/application/dtos/organization.dto.ts
@@ -15397,9 +15461,165 @@ export interface IOrganizationTeamPort {
 }
 ````
 
-## File: modules/platform/subdomains/organization/infrastructure/index.ts
+## File: modules/platform/subdomains/organization/interfaces/_actions/organization-policy.actions.ts
 ````typescript
-export { organizationService, organizationQueryService } from "./organization-service";
+"use server";
+
+/**
+ * Organization Policy Server Actions — thin adapters over use cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { organizationService } from "../../api";
+import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../application/dtos/organization.dto";
+
+export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
+  try { return await organizationService.createOrgPolicy(input); }
+  catch (err) { return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateOrgPolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
+  try { return await organizationService.updateOrgPolicy(policyId, data); }
+  catch (err) { return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteOrgPolicy(policyId); }
+  catch (err) { return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+````
+
+## File: modules/platform/subdomains/organization/interfaces/_actions/organization.actions.ts
+````typescript
+"use server";
+
+/**
+ * Organization Server Actions — thin adapters over use cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { organizationService } from "../../api";
+import type {
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+} from "../../application/dtos/organization.dto";
+
+export async function createOrganization(cmd: CreateOrganizationCommand): Promise<CommandResult> {
+  try { return await organizationService.createOrganization(cmd); }
+  catch (err) { return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createOrganizationWithTeam(
+  cmd: CreateOrganizationCommand,
+  teamName: string,
+  teamType: "internal" | "external" = "internal",
+): Promise<CommandResult> {
+  try { return await organizationService.createOrganizationWithTeam(cmd, teamName, teamType); }
+  catch (err) { return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateOrganizationSettings(cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> {
+  try { return await organizationService.updateSettings(cmd); }
+  catch (err) { return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteOrganization(organizationId); }
+  catch (err) { return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
+  try { return await organizationService.inviteMember(input); }
+  catch (err) { return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function recruitMember(
+  organizationId: string,
+  memberId: string,
+  name: string,
+  email: string,
+): Promise<CommandResult> {
+  try { return await organizationService.recruitMember(organizationId, memberId, name, email); }
+  catch (err) { return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function dismissMember(organizationId: string, memberId: string): Promise<CommandResult> {
+  try { return await organizationService.removeMember(organizationId, memberId); }
+  catch (err) { return commandFailureFrom("REMOVE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
+  try { return await organizationService.updateMemberRole(input); }
+  catch (err) { return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
+  try { return await organizationService.createTeam(input); }
+  catch (err) { return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteTeam(organizationId: string, teamId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteTeam(organizationId, teamId); }
+  catch (err) { return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateTeamMembers(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+  action: "add" | "remove",
+): Promise<CommandResult> {
+  try { return await organizationService.updateTeamMembers(organizationId, teamId, memberId, action); }
+  catch (err) { return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createPartnerGroup(organizationId: string, groupName: string): Promise<CommandResult> {
+  try { return await organizationService.createPartnerGroup(organizationId, groupName); }
+  catch (err) { return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function sendPartnerInvite(
+  organizationId: string,
+  teamId: string,
+  email: string,
+): Promise<CommandResult> {
+  try { return await organizationService.sendPartnerInvite(organizationId, teamId, email); }
+  catch (err) { return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function dismissPartnerMember(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+): Promise<CommandResult> {
+  try { return await organizationService.dismissPartnerMember(organizationId, teamId, memberId); }
+  catch (err) { return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+````
+
+## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
+````typescript
+/**
+ * Organization Queries — delegates to organizationQueryService via the subdomain api/ boundary.
+ */
+
+import { organizationQueryService } from "../../api";
+import type { MemberReference, Team, OrgPolicy } from "../../application/dtos/organization.dto";
+
+export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
+  return organizationQueryService.getMembers(organizationId);
+}
+
+export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
+  return organizationQueryService.getTeams(organizationId);
+}
+
+export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
+  return organizationQueryService.getOrgPolicies(orgId);
+}
 ````
 
 ## File: modules/platform/subdomains/secret-management/api/index.ts
@@ -17031,249 +17251,6 @@ export function ShellUserAvatar({ name, email, onSignOut }: ShellUserAvatarProps
 }
 ````
 
-## File: modules/platform/interfaces/web/shell/navigation/components/ShellDashboardSidebar.tsx
-````typescript
-"use client";
-
-/**
- * Module: shell-dashboard-sidebar.tsx
- * Purpose: render the secondary navigation panel of the authenticated shell.
- * Responsibilities: account switcher, search hint, org management sub-nav, and
- *   recent workspace quick-access list. Top-level section navigation is in ShellAppRail.
- * Constraints: UI-only; workspace data sourced from module interfaces.
- */
-
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { toast } from "sonner";
-
-import { createKnowledgePage } from "@/modules/notion/api";
-import {
-  buildWorkspaceQuickAccessItems,
-  CustomizeNavigationDialog,
-  getWorkspaceIdFromPath,
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  readNavPreferences,
-  buildWorkspaceContextHref,
-  supportsWorkspaceSearchContext,
-  type NavPreferences,
-  useRecentWorkspaces,
-  useSidebarLocale,
-  WorkspaceQuickAccessRow,
-} from "@/modules/workspace/api";
-
-import {
-  type DashboardSidebarProps,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  ACCOUNT_NAV_ITEMS,
-  SECTION_TITLES,
-  resolveNavSection,
-  isActiveRoute,
-  isActiveOrganizationAccount,
-} from "../data/ShellSidebarNavData";
-import { ShellSidebarHeader } from "../../sidebar/ShellSidebarHeader";
-import { DashboardSidebarBody } from "../../sidebar/ShellSidebarBody";
-
-export function ShellDashboardSidebar({
-  pathname,
-  userId,
-  activeAccount,
-  workspaces,
-  workspacesHydrated,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps) {
-  const searchParams = useSearchParams();
-
-  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
-    activeAccount?.id,
-    pathname,
-    workspaces,
-  );
-  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
-  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
-  const [customizeOpen, setCustomizeOpen] = useState(false);
-  const localeBundle = useSidebarLocale();
-
-  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
-
-  const visibleOrganizationManagementItems = useMemo(
-    () => ORGANIZATION_MANAGEMENT_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
-    [navPrefs.pinnedWorkspace],
-  );
-
-  const visibleAccountItems = useMemo(
-    () => ACCOUNT_NAV_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
-    [navPrefs.pinnedWorkspace],
-  );
-
-  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
-
-  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
-    ? navPrefs.maxWorkspaces
-    : MAX_VISIBLE_RECENT_WORKSPACES;
-
-  const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-
-  useEffect(() => {
-    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
-    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(pathWorkspaceId);
-      return;
-    }
-
-    if (!supportsWorkspaceSearchContext(pathname)) {
-      return;
-    }
-
-    if (currentSearchWorkspaceId && currentSearchWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(currentSearchWorkspaceId);
-    }
-  }, [pathname, activeWorkspaceId, currentSearchWorkspaceId, onSelectWorkspace]);
-
-  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
-  const visibleRecentWorkspaceLinks = isExpanded
-    ? recentWorkspaceLinks
-    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
-
-  const allWorkspaceLinks = useMemo(
-    () =>
-      workspaces
-        .map((workspace) => ({
-          id: workspace.id,
-          name: workspace.name,
-          href: buildWorkspaceContextHref(pathname, workspace.id),
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces, pathname],
-  );
-
-  const section = resolveNavSection(pathname);
-  const sectionMeta = SECTION_TITLES[section];
-  const workspacePathId = getWorkspaceIdFromPath(pathname);
-  const currentPanel = searchParams.get("panel");
-  const currentWorkspaceTab = searchParams.get("tab");
-  const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
-  const hasWorkspaceToolContext =
-    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
-    (section === "knowledge" ||
-      section === "knowledge-base" ||
-      section === "source" ||
-      section === "notebook");
-  const workspaceQuickAccessId =
-    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
-  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
-  const workspaceSettingsHref = workspaceQuickAccessId
-    ? `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
-    : "";
-  const workspaceQuickAccessItems = useMemo(
-    () =>
-      showWorkspaceQuickAccess && workspaceQuickAccessId
-        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId)
-        : [],
-    [showWorkspaceQuickAccess, workspaceQuickAccessId],
-  );
-
-  async function handleQuickCreatePage() {
-    const accountId = activeAccount?.id ?? "";
-    if (!accountId) {
-      toast.error("目前沒有 active account，無法建立");
-      return;
-    }
-    if (!activeWorkspaceId) {
-      toast.error("請先切換到工作區，再建立頁面");
-      return;
-    }
-    setCreatingKind("page");
-    try {
-      const result = await createKnowledgePage({
-        accountId,
-        workspaceId: activeWorkspaceId,
-        title: "未命名頁面",
-        parentPageId: null,
-        createdByUserId: userId ?? accountId,
-      });
-      if (result.success) {
-        toast.success("已建立頁面");
-      } else {
-        toast.error(result.error?.message ?? "建立頁面失敗");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("建立頁面失敗");
-    } finally {
-      setCreatingKind(null);
-    }
-  }
-
-  return (
-    <div className="contents">
-      <aside
-        aria-label="Secondary navigation"
-        className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
-          collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
-        }`}
-      >
-        <ShellSidebarHeader
-          sectionLabel={sectionMeta.label}
-          sectionIcon={sectionMeta.icon}
-          onOpenCustomize={() => {
-            setCustomizeOpen(true);
-          }}
-          onToggleCollapsed={onToggleCollapsed}
-        />
-
-        <WorkspaceQuickAccessRow
-          items={workspaceQuickAccessItems}
-          pathname={pathname}
-          currentPanel={currentPanel}
-          currentWorkspaceTab={currentWorkspaceTab}
-          workspaceSettingsHref={workspaceSettingsHref}
-          isActiveRoute={(href) => isActiveRoute(pathname, href)}
-        />
-
-        <DashboardSidebarBody
-          section={section}
-          isActiveRoute={(href) => isActiveRoute(pathname, href)}
-          activeAccountId={activeAccount?.id ?? null}
-          showAccountManagement={showAccountManagement}
-          visibleAccountItems={visibleAccountItems}
-          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
-          workspacePathId={workspacePathId}
-          navPrefs={navPrefs}
-          localeBundle={localeBundle}
-          showRecentWorkspaces={showRecentWorkspaces}
-          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-          hasOverflow={hasOverflow}
-          isExpanded={isExpanded}
-          activeWorkspaceId={activeWorkspaceId}
-          onSelectWorkspace={onSelectWorkspace}
-          onToggleExpanded={() => {
-            setIsExpanded((prev) => !prev);
-          }}
-          pathname={pathname}
-          workspacesHydrated={workspacesHydrated}
-          allWorkspaceLinks={allWorkspaceLinks}
-          currentSearchWorkspaceId={currentSearchWorkspaceId}
-          creatingKind={creatingKind}
-          onQuickCreatePage={() => {
-            void handleQuickCreatePage();
-          }}
-        />
-      </aside>
-
-      <CustomizeNavigationDialog
-        open={customizeOpen}
-        onOpenChange={setCustomizeOpen}
-        onPreferencesChange={setNavPrefs}
-      />
-    </div>
-  );
-}
-````
-
 ## File: modules/platform/interfaces/web/shell/navigation/data/ShellSidebarNavData.tsx
 ````typescript
 import {
@@ -17415,6 +17392,71 @@ export function SimpleNavLinks({
           <Link
             key={item.href}
             href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+````
+
+## File: modules/platform/interfaces/web/shell/sidebar/ShellContextNavSection.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { appendWorkspaceContextQuery } from "@/modules/workspace/api";
+
+interface ContextScopedNavItem {
+  href: string;
+  label: string;
+}
+
+interface ShellContextNavSectionProps {
+  title: string;
+  items: readonly ContextScopedNavItem[];
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  activeWorkspaceId: string | null;
+}
+
+export function ShellContextNavSection({
+  title,
+  items,
+  isActiveRoute,
+  activeAccountId,
+  activeWorkspaceId,
+}: ShellContextNavSectionProps) {
+  return (
+    <nav className="space-y-0.5" aria-label={`${title}導覽`}>
+      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+        {title}
+      </p>
+      {(activeAccountId || activeWorkspaceId) && (
+        <p className="px-2 pb-1 text-[11px] text-muted-foreground">
+          {activeAccountId ? `帳號: ${activeAccountId.slice(0, 8)}` : "帳號: -"}
+          {" · "}
+          {activeWorkspaceId ? `工作區: ${activeWorkspaceId.slice(0, 8)}` : "工作區: -"}
+        </p>
+      )}
+      {items.map((item) => {
+        const active = isActiveRoute(item.href);
+        const contextualHref = appendWorkspaceContextQuery(item.href, {
+          accountId: activeAccountId,
+          workspaceId: activeWorkspaceId,
+        });
+        return (
+          <Link
+            key={item.href}
+            href={contextualHref}
             aria-current={active ? "page" : undefined}
             className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
               active
@@ -17873,6 +17915,68 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/platform/subdomains/account/application/services/resolve-active-account.ts
+````typescript
+import type { AccountEntity } from "../../domain/entities/Account";
+
+export type AccountBootstrapPhase = "idle" | "seeded" | "hydrated";
+
+interface PersonalAccountIdentity {
+  readonly id: string;
+  readonly name: string;
+  readonly email: string;
+}
+
+export type SelectableActiveAccount = AccountEntity | PersonalAccountIdentity;
+
+export interface ResolveActiveAccountInput {
+  readonly currentActiveAccount: SelectableActiveAccount | null;
+  readonly accounts: Record<string, AccountEntity>;
+  readonly personalAccount: PersonalAccountIdentity;
+  readonly preferredActiveAccountId?: string | null;
+  readonly bootstrapPhase: AccountBootstrapPhase;
+}
+
+/**
+ * Resolve the next active account from current selection, persisted preference,
+ * and latest account snapshot while preserving optimistic bootstrap behavior.
+ */
+export function resolveActiveAccount(input: ResolveActiveAccountInput): SelectableActiveAccount {
+  const {
+    currentActiveAccount,
+    accounts,
+    personalAccount,
+    preferredActiveAccountId,
+    bootstrapPhase,
+  } = input;
+
+  const validIds = new Set([personalAccount.id, ...Object.keys(accounts)]);
+  const currentActiveId = currentActiveAccount?.id;
+  let currentActive: SelectableActiveAccount | null = null;
+
+  if (currentActiveId && validIds.has(currentActiveId)) {
+    currentActive = currentActiveId === personalAccount.id ? personalAccount : accounts[currentActiveId] ?? null;
+  }
+
+  let preferredActive: SelectableActiveAccount | null = null;
+  if (preferredActiveAccountId && validIds.has(preferredActiveAccountId)) {
+    preferredActive =
+      preferredActiveAccountId === personalAccount.id
+        ? personalAccount
+        : accounts[preferredActiveAccountId] ?? null;
+  }
+
+  if (
+    preferredActive &&
+    (!currentActive || bootstrapPhase === "seeded" || currentActive.id === personalAccount.id)
+  ) {
+    return preferredActive;
+  }
+
+  return currentActive ?? personalAccount;
+}
+````
+
 ## File: modules/platform/subdomains/account/infrastructure/account-service.ts
 ````typescript
 /**
@@ -17964,135 +18068,79 @@ export function createAccountQueryRepository(): AccountQueryRepository {
 }
 ````
 
-## File: modules/platform/subdomains/account/infrastructure/index.ts
+## File: modules/platform/subdomains/account/interfaces/queries/account.queries.ts
 ````typescript
-export { accountService, createClientAccountUseCases } from "./account-service";
-export { createAccountQueryRepository } from "./account-service";
-````
-
-## File: modules/platform/subdomains/account/interfaces/_actions/account-policy.actions.ts
-````typescript
-"use server";
-
 /**
- * Account Policy Server Actions — thin adapter: Server Actions → Application Use Cases.
+ * Account Read Queries — thin wrappers over the AccountQueryRepository port.
+ * NOT Server Actions — callable from React components/hooks directly.
  */
 
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { accountService } from "../../api";
-import type { CreatePolicyInput, UpdatePolicyInput } from "../../application/dtos/account.dto";
+import { createAccountQueryRepository } from "../../api";
+import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
+import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dtos/account.dto";
 
-export async function createAccountPolicy(input: CreatePolicyInput): Promise<CommandResult> {
-  try {
-    return await accountService.createPolicy(input);
-  } catch (err) {
-    return commandFailureFrom("CREATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+let _accountQueryRepo: AccountQueryRepository | undefined;
+
+function getAccountQueryRepo(): AccountQueryRepository {
+  if (!_accountQueryRepo) _accountQueryRepo = createAccountQueryRepository();
+  return _accountQueryRepo;
 }
 
-export async function updateAccountPolicy(
-  policyId: string,
-  accountId: string,
-  data: UpdatePolicyInput,
-  traceId?: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.updatePolicy(policyId, accountId, data, traceId);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
+  return getAccountQueryRepo().getUserProfile(userId);
 }
 
-export async function deleteAccountPolicy(
-  policyId: string,
-  accountId: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.deletePolicy(policyId, accountId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/platform/subdomains/account/interfaces/_actions/account.actions.ts
-````typescript
-"use server";
-
-/**
- * Account Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { accountService } from "../../api";
-import type { UpdateProfileInput, OrganizationRole } from "../../application/dtos/account.dto";
-
-export async function createUserAccount(
+export function subscribeToUserProfile(
   userId: string,
-  name: string,
-  email: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.createUserAccount(userId, name, email);
-  } catch (err) {
-    return commandFailureFrom("CREATE_USER_ACCOUNT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+  onUpdate: (profile: AccountEntity | null) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
 }
 
-export async function updateUserProfile(
+export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
+  return getAccountQueryRepo().getWalletBalance(accountId);
+}
+
+export function subscribeToWalletBalance(
+  accountId: string,
+  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToWalletBalance(accountId, onUpdate);
+}
+
+export function subscribeToWalletTransactions(
+  accountId: string,
+  maxCount: number,
+  onUpdate: (txs: WalletTransaction[]) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToWalletTransactions(accountId, maxCount, onUpdate);
+}
+
+export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
+  return getAccountQueryRepo().getAccountRole(accountId);
+}
+
+export function subscribeToAccountRoles(
+  accountId: string,
+  onUpdate: (record: AccountRoleRecord | null) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToAccountRoles(accountId, onUpdate);
+}
+
+export function subscribeToAccountsForUser(
   userId: string,
-  data: UpdateProfileInput,
-): Promise<CommandResult> {
-  try {
-    return await accountService.updateUserProfile(userId, data);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_USER_PROFILE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+  onUpdate: (accounts: Record<string, AccountEntity>) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToAccountsForUser(userId, onUpdate);
 }
 
-export async function creditWallet(
-  accountId: string,
-  amount: number,
-  description: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.creditWallet(accountId, amount, description);
-  } catch (err) {
-    return commandFailureFrom("WALLET_CREDIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+export async function getAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
+  // Policy reads are server-side only; keep client bundles free of policy repo deps.
+  return [];
 }
 
-export async function debitWallet(
-  accountId: string,
-  amount: number,
-  description: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.debitWallet(accountId, amount, description);
-  } catch (err) {
-    return commandFailureFrom("WALLET_DEBIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function assignAccountRole(
-  accountId: string,
-  role: OrganizationRole,
-  grantedBy: string,
-  traceId?: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.assignRole(accountId, role, grantedBy, traceId);
-  } catch (err) {
-    return commandFailureFrom("ASSIGN_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function revokeAccountRole(accountId: string): Promise<CommandResult> {
-  try {
-    return await accountService.revokeRole(accountId);
-  } catch (err) {
-    return commandFailureFrom("REVOKE_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
+  return [];
 }
 ````
 
@@ -18588,60 +18636,6 @@ export * from "./events";
 export * from "./value-objects";
 ````
 
-## File: modules/platform/subdomains/notification/interfaces/_actions/notification.actions.ts
-````typescript
-"use server";
-
-/**
- * Notification Server Actions — thin adapters over use cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { notificationService } from "../../api";
-import type { DispatchNotificationInput } from "../../application/dtos/notification.dto";
-
-export async function dispatchNotification(input: DispatchNotificationInput): Promise<CommandResult> {
-  try {
-    return await notificationService.dispatch(input);
-  } catch (err) {
-    return commandFailureFrom("DISPATCH_NOTIFICATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function markNotificationRead(
-  notificationId: string,
-  recipientId: string,
-): Promise<CommandResult> {
-  try {
-    return await notificationService.markAsRead(notificationId, recipientId);
-  } catch (err) {
-    return commandFailureFrom("MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function markAllNotificationsRead(recipientId: string): Promise<CommandResult> {
-  try {
-    return await notificationService.markAllAsRead(recipientId);
-  } catch (err) {
-    return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
-````typescript
-/**
- * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
- */
-
-import { notificationService } from "../../api";
-import type { NotificationEntity } from "../../application/dtos/notification.dto";
-
-export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
-  return notificationService.getForRecipient(recipientId, maxCount);
-}
-````
-
 ## File: modules/platform/subdomains/notification/README.md
 ````markdown
 # Notification
@@ -18708,165 +18702,142 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/organization/interfaces/_actions/organization-policy.actions.ts
+## File: modules/platform/subdomains/organization/infrastructure/organization-service.ts
 ````typescript
-"use server";
-
 /**
- * Organization Policy Server Actions — thin adapters over use cases.
+ * OrganizationService — Composition root for organization use cases.
  */
 
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { organizationService } from "../../api";
-import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../application/dtos/organization.dto";
-
-export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
-  try { return await organizationService.createOrgPolicy(input); }
-  catch (err) { return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function updateOrgPolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
-  try { return await organizationService.updateOrgPolicy(policyId, data); }
-  catch (err) { return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
-  try { return await organizationService.deleteOrgPolicy(policyId); }
-  catch (err) { return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-````
-
-## File: modules/platform/subdomains/organization/interfaces/_actions/organization.actions.ts
-````typescript
-"use server";
-
-/**
- * Organization Server Actions — thin adapters over use cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { organizationService } from "../../api";
+import { FirebaseOrganizationRepository } from "./firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "./firebase/FirebaseOrgPolicyRepository";
+import {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "../application/use-cases/organization-lifecycle.use-cases";
+import {
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "../application/use-cases/organization-member.use-cases";
+import {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../application/use-cases/organization-team.use-cases";
+import type { IOrganizationTeamPort } from "../domain/ports/IOrganizationTeamPort";
+import { createTeamRepository } from "../../team/api";
+import {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "../application/use-cases/organization-partner.use-cases";
+import {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "../application/use-cases/organization-policy.use-cases";
 import type {
   CreateOrganizationCommand,
   UpdateOrganizationSettingsCommand,
   InviteMemberInput,
   UpdateMemberRoleInput,
-  CreateTeamInput,
-} from "../../application/dtos/organization.dto";
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../domain/entities/Organization";
+import type { CreateTeamInput } from "../domain/entities/Organization";
+import type { CommandResult } from "@shared-types";
 
-export async function createOrganization(cmd: CreateOrganizationCommand): Promise<CommandResult> {
-  try { return await organizationService.createOrganization(cmd); }
-  catch (err) { return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+let _orgRepo: FirebaseOrganizationRepository | undefined;
+let _policyRepo: FirebaseOrgPolicyRepository | undefined;
+let _teamPort: IOrganizationTeamPort | undefined;
+
+function getOrgRepo(): FirebaseOrganizationRepository {
+  if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
+  return _orgRepo;
 }
 
-export async function createOrganizationWithTeam(
-  cmd: CreateOrganizationCommand,
-  teamName: string,
-  teamType: "internal" | "external" = "internal",
-): Promise<CommandResult> {
-  try { return await organizationService.createOrganizationWithTeam(cmd, teamName, teamType); }
-  catch (err) { return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+function getPolicyRepo(): FirebaseOrgPolicyRepository {
+  if (!_policyRepo) _policyRepo = new FirebaseOrgPolicyRepository();
+  return _policyRepo;
 }
 
-export async function updateOrganizationSettings(cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> {
-  try { return await organizationService.updateSettings(cmd); }
-  catch (err) { return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+function getTeamPort(): IOrganizationTeamPort {
+  // createTeamRepository() returns a TeamRepository that structurally satisfies IOrganizationTeamPort.
+  // The infrastructure layer is the correct place to wire cross-subdomain adapters.
+  if (!_teamPort) _teamPort = createTeamRepository();
+  return _teamPort;
 }
 
-export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
-  try { return await organizationService.deleteOrganization(organizationId); }
-  catch (err) { return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+export const organizationService = {
+  createOrganization: (cmd: CreateOrganizationCommand): Promise<CommandResult> =>
+    new CreateOrganizationUseCase(getOrgRepo()).execute(cmd),
 
-export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
-  try { return await organizationService.inviteMember(input); }
-  catch (err) { return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  createOrganizationWithTeam: (
+    cmd: CreateOrganizationCommand,
+    teamName: string,
+    teamType: "internal" | "external" = "internal",
+  ): Promise<CommandResult> =>
+    new CreateOrganizationWithTeamUseCase(getOrgRepo()).execute(cmd, teamName, teamType),
 
-export async function recruitMember(
-  organizationId: string,
-  memberId: string,
-  name: string,
-  email: string,
-): Promise<CommandResult> {
-  try { return await organizationService.recruitMember(organizationId, memberId, name, email); }
-  catch (err) { return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  updateSettings: (cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> =>
+    new UpdateOrganizationSettingsUseCase(getOrgRepo()).execute(cmd),
 
-export async function dismissMember(organizationId: string, memberId: string): Promise<CommandResult> {
-  try { return await organizationService.removeMember(organizationId, memberId); }
-  catch (err) { return commandFailureFrom("REMOVE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  deleteOrganization: (orgId: string): Promise<CommandResult> =>
+    new DeleteOrganizationUseCase(getOrgRepo()).execute(orgId),
 
-export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
-  try { return await organizationService.updateMemberRole(input); }
-  catch (err) { return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  inviteMember: (input: InviteMemberInput): Promise<CommandResult> =>
+    new InviteMemberUseCase(getOrgRepo()).execute(input),
 
-export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
-  try { return await organizationService.createTeam(input); }
-  catch (err) { return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  recruitMember: (orgId: string, memberId: string, name: string, email: string): Promise<CommandResult> =>
+    new RecruitMemberUseCase(getOrgRepo()).execute(orgId, memberId, name, email),
 
-export async function deleteTeam(organizationId: string, teamId: string): Promise<CommandResult> {
-  try { return await organizationService.deleteTeam(organizationId, teamId); }
-  catch (err) { return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  removeMember: (orgId: string, memberId: string): Promise<CommandResult> =>
+    new RemoveMemberUseCase(getOrgRepo()).execute(orgId, memberId),
 
-export async function updateTeamMembers(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-  action: "add" | "remove",
-): Promise<CommandResult> {
-  try { return await organizationService.updateTeamMembers(organizationId, teamId, memberId, action); }
-  catch (err) { return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  updateMemberRole: (input: UpdateMemberRoleInput): Promise<CommandResult> =>
+    new UpdateMemberRoleUseCase(getOrgRepo()).execute(input),
 
-export async function createPartnerGroup(organizationId: string, groupName: string): Promise<CommandResult> {
-  try { return await organizationService.createPartnerGroup(organizationId, groupName); }
-  catch (err) { return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
+    new CreateTeamUseCase(getTeamPort()).execute(input),
 
-export async function sendPartnerInvite(
-  organizationId: string,
-  teamId: string,
-  email: string,
-): Promise<CommandResult> {
-  try { return await organizationService.sendPartnerInvite(organizationId, teamId, email); }
-  catch (err) { return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
+  deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
+    new DeleteTeamUseCase(getTeamPort()).execute(orgId, teamId),
 
-export async function dismissPartnerMember(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-): Promise<CommandResult> {
-  try { return await organizationService.dismissPartnerMember(organizationId, teamId, memberId); }
-  catch (err) { return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-````
+  updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
+    new UpdateTeamMembersUseCase(getTeamPort()).execute(orgId, teamId, memberId, action),
 
-## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
-````typescript
+  createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
+    new CreatePartnerGroupUseCase(getOrgRepo()).execute(orgId, groupName),
+
+  sendPartnerInvite: (orgId: string, teamId: string, email: string): Promise<CommandResult> =>
+    new SendPartnerInviteUseCase(getOrgRepo()).execute(orgId, teamId, email),
+
+  dismissPartnerMember: (orgId: string, teamId: string, memberId: string): Promise<CommandResult> =>
+    new DismissPartnerMemberUseCase(getOrgRepo()).execute(orgId, teamId, memberId),
+
+  createOrgPolicy: (input: CreateOrgPolicyInput): Promise<CommandResult> =>
+    new CreateOrgPolicyUseCase(getPolicyRepo()).execute(input),
+
+  updateOrgPolicy: (policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> =>
+    new UpdateOrgPolicyUseCase(getPolicyRepo()).execute(policyId, data),
+
+  deleteOrgPolicy: (policyId: string): Promise<CommandResult> =>
+    new DeleteOrgPolicyUseCase(getPolicyRepo()).execute(policyId),
+};
+
 /**
- * Organization Queries — delegates to organizationQueryService via the subdomain api/ boundary.
+ * OrganizationQueryService — read-model queries for client-side data.
+ * Composition root: wires Firebase repos for queries; interfaces/ must use this
+ * via the subdomain api/ boundary instead of importing infrastructure directly.
  */
-
-import { organizationQueryService } from "../../api";
-import type { MemberReference, Team, OrgPolicy } from "../../application/dtos/organization.dto";
-
-export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
-  return organizationQueryService.getMembers(organizationId);
-}
-
-export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
-  return organizationQueryService.getTeams(organizationId);
-}
-
-export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
-  return organizationQueryService.getOrgPolicies(orgId);
-}
+export const organizationQueryService = {
+  getMembers: (organizationId: string) => getOrgRepo().getMembers(organizationId),
+  getTeams: (organizationId: string) => getOrgRepo().getTeams(organizationId),
+  getOrgPolicies: (orgId: string) => getPolicyRepo().getPolicies(orgId),
+};
 ````
 
 ## File: modules/platform/subdomains/organization/README.md
@@ -19729,6 +19700,249 @@ export function useApp() {
 }
 ````
 
+## File: modules/platform/interfaces/web/shell/navigation/components/ShellDashboardSidebar.tsx
+````typescript
+"use client";
+
+/**
+ * Module: shell-dashboard-sidebar.tsx
+ * Purpose: render the secondary navigation panel of the authenticated shell.
+ * Responsibilities: account switcher, search hint, org management sub-nav, and
+ *   recent workspace quick-access list. Top-level section navigation is in ShellAppRail.
+ * Constraints: UI-only; workspace data sourced from module interfaces.
+ */
+
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+
+import { createKnowledgePage } from "@/modules/notion/api";
+import {
+  buildWorkspaceQuickAccessItems,
+  CustomizeNavigationDialog,
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  readNavPreferences,
+  buildWorkspaceContextHref,
+  supportsWorkspaceSearchContext,
+  type NavPreferences,
+  useRecentWorkspaces,
+  useSidebarLocale,
+  WorkspaceQuickAccessRow,
+} from "@/modules/workspace/api";
+
+import {
+  type DashboardSidebarProps,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  ACCOUNT_NAV_ITEMS,
+  SECTION_TITLES,
+  resolveNavSection,
+  isActiveRoute,
+  isActiveOrganizationAccount,
+} from "../data/ShellSidebarNavData";
+import { ShellSidebarHeader } from "../../sidebar/ShellSidebarHeader";
+import { DashboardSidebarBody } from "../../sidebar/ShellSidebarBody";
+
+export function ShellDashboardSidebar({
+  pathname,
+  userId,
+  activeAccount,
+  workspaces,
+  workspacesHydrated,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps) {
+  const searchParams = useSearchParams();
+
+  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
+    activeAccount?.id,
+    pathname,
+    workspaces,
+  );
+  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
+  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const localeBundle = useSidebarLocale();
+
+  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
+
+  const visibleOrganizationManagementItems = useMemo(
+    () => ORGANIZATION_MANAGEMENT_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
+    [navPrefs.pinnedWorkspace],
+  );
+
+  const visibleAccountItems = useMemo(
+    () => ACCOUNT_NAV_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
+    [navPrefs.pinnedWorkspace],
+  );
+
+  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
+
+  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
+    ? navPrefs.maxWorkspaces
+    : MAX_VISIBLE_RECENT_WORKSPACES;
+
+  const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+
+  useEffect(() => {
+    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
+    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(pathWorkspaceId);
+      return;
+    }
+
+    if (!supportsWorkspaceSearchContext(pathname)) {
+      return;
+    }
+
+    if (currentSearchWorkspaceId && currentSearchWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(currentSearchWorkspaceId);
+    }
+  }, [pathname, activeWorkspaceId, currentSearchWorkspaceId, onSelectWorkspace]);
+
+  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
+  const visibleRecentWorkspaceLinks = isExpanded
+    ? recentWorkspaceLinks
+    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
+
+  const allWorkspaceLinks = useMemo(
+    () =>
+      workspaces
+        .map((workspace) => ({
+          id: workspace.id,
+          name: workspace.name,
+          href: buildWorkspaceContextHref(pathname, workspace.id),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces, pathname],
+  );
+
+  const section = resolveNavSection(pathname);
+  const sectionMeta = SECTION_TITLES[section];
+  const workspacePathId = getWorkspaceIdFromPath(pathname);
+  const currentPanel = searchParams.get("panel");
+  const currentWorkspaceTab = searchParams.get("tab");
+  const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
+  const hasWorkspaceToolContext =
+    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
+    (section === "knowledge" ||
+      section === "knowledge-base" ||
+      section === "source" ||
+      section === "notebook");
+  const workspaceQuickAccessId =
+    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
+  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
+  const workspaceSettingsHref = workspaceQuickAccessId
+    ? `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
+    : "";
+  const workspaceQuickAccessItems = useMemo(
+    () =>
+      showWorkspaceQuickAccess && workspaceQuickAccessId
+        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId)
+        : [],
+    [showWorkspaceQuickAccess, workspaceQuickAccessId],
+  );
+
+  async function handleQuickCreatePage() {
+    const accountId = activeAccount?.id ?? "";
+    if (!accountId) {
+      toast.error("目前沒有 active account，無法建立");
+      return;
+    }
+    if (!activeWorkspaceId) {
+      toast.error("請先切換到工作區，再建立頁面");
+      return;
+    }
+    setCreatingKind("page");
+    try {
+      const result = await createKnowledgePage({
+        accountId,
+        workspaceId: activeWorkspaceId,
+        title: "未命名頁面",
+        parentPageId: null,
+        createdByUserId: userId ?? accountId,
+      });
+      if (result.success) {
+        toast.success("已建立頁面");
+      } else {
+        toast.error(result.error?.message ?? "建立頁面失敗");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("建立頁面失敗");
+    } finally {
+      setCreatingKind(null);
+    }
+  }
+
+  return (
+    <div className="contents">
+      <aside
+        aria-label="Secondary navigation"
+        className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
+          collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
+        }`}
+      >
+        <ShellSidebarHeader
+          sectionLabel={sectionMeta.label}
+          sectionIcon={sectionMeta.icon}
+          onOpenCustomize={() => {
+            setCustomizeOpen(true);
+          }}
+          onToggleCollapsed={onToggleCollapsed}
+        />
+
+        <WorkspaceQuickAccessRow
+          items={workspaceQuickAccessItems}
+          pathname={pathname}
+          currentPanel={currentPanel}
+          currentWorkspaceTab={currentWorkspaceTab}
+          workspaceSettingsHref={workspaceSettingsHref}
+          isActiveRoute={(href) => isActiveRoute(pathname, href)}
+        />
+
+        <DashboardSidebarBody
+          section={section}
+          isActiveRoute={(href) => isActiveRoute(pathname, href)}
+          activeAccountId={activeAccount?.id ?? null}
+          showAccountManagement={showAccountManagement}
+          visibleAccountItems={visibleAccountItems}
+          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
+          workspacePathId={workspacePathId}
+          navPrefs={navPrefs}
+          localeBundle={localeBundle}
+          showRecentWorkspaces={showRecentWorkspaces}
+          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+          hasOverflow={hasOverflow}
+          isExpanded={isExpanded}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={onSelectWorkspace}
+          onToggleExpanded={() => {
+            setIsExpanded((prev) => !prev);
+          }}
+          pathname={pathname}
+          workspacesHydrated={workspacesHydrated}
+          allWorkspaceLinks={allWorkspaceLinks}
+          currentSearchWorkspaceId={currentSearchWorkspaceId}
+          creatingKind={creatingKind}
+          onQuickCreatePage={() => {
+            void handleQuickCreatePage();
+          }}
+        />
+      </aside>
+
+      <CustomizeNavigationDialog
+        open={customizeOpen}
+        onOpenChange={setCustomizeOpen}
+        onPreferencesChange={setNavPrefs}
+      />
+    </div>
+  );
+}
+````
+
 ## File: modules/platform/README.md
 ````markdown
 # Platform
@@ -20345,220 +20559,6 @@ export function subscribeToLegacyUserProfile(
 export async function updateLegacyUserProfile(userId: string, input: UpdateProfileInput): Promise<void> {
   await accountService.updateUserProfile(userId, input);
 }
-````
-
-## File: modules/platform/subdomains/account/interfaces/queries/account.queries.ts
-````typescript
-/**
- * Account Read Queries — thin wrappers over the AccountQueryRepository port.
- * NOT Server Actions — callable from React components/hooks directly.
- */
-
-import { createAccountQueryRepository } from "../../api";
-import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
-import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dtos/account.dto";
-
-let _accountQueryRepo: AccountQueryRepository | undefined;
-
-function getAccountQueryRepo(): AccountQueryRepository {
-  if (!_accountQueryRepo) _accountQueryRepo = createAccountQueryRepository();
-  return _accountQueryRepo;
-}
-
-export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
-  return getAccountQueryRepo().getUserProfile(userId);
-}
-
-export function subscribeToUserProfile(
-  userId: string,
-  onUpdate: (profile: AccountEntity | null) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
-}
-
-export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
-  return getAccountQueryRepo().getWalletBalance(accountId);
-}
-
-export function subscribeToWalletBalance(
-  accountId: string,
-  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToWalletBalance(accountId, onUpdate);
-}
-
-export function subscribeToWalletTransactions(
-  accountId: string,
-  maxCount: number,
-  onUpdate: (txs: WalletTransaction[]) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToWalletTransactions(accountId, maxCount, onUpdate);
-}
-
-export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
-  return getAccountQueryRepo().getAccountRole(accountId);
-}
-
-export function subscribeToAccountRoles(
-  accountId: string,
-  onUpdate: (record: AccountRoleRecord | null) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToAccountRoles(accountId, onUpdate);
-}
-
-export function subscribeToAccountsForUser(
-  userId: string,
-  onUpdate: (accounts: Record<string, AccountEntity>) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToAccountsForUser(userId, onUpdate);
-}
-
-export async function getAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
-  // Policy reads are server-side only; keep client bundles free of policy repo deps.
-  return [];
-}
-
-export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
-  return [];
-}
-````
-
-## File: modules/platform/subdomains/organization/infrastructure/organization-service.ts
-````typescript
-/**
- * OrganizationService — Composition root for organization use cases.
- */
-
-import { FirebaseOrganizationRepository } from "./firebase/FirebaseOrganizationRepository";
-import { FirebaseOrgPolicyRepository } from "./firebase/FirebaseOrgPolicyRepository";
-import {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-} from "../application/use-cases/organization-lifecycle.use-cases";
-import {
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-} from "../application/use-cases/organization-member.use-cases";
-import {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../application/use-cases/organization-team.use-cases";
-import type { IOrganizationTeamPort } from "../domain/ports/IOrganizationTeamPort";
-import { createTeamRepository } from "../../team/api";
-import {
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../application/use-cases/organization-partner.use-cases";
-import {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../application/use-cases/organization-policy.use-cases";
-import type {
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../domain/entities/Organization";
-import type { CreateTeamInput } from "../domain/entities/Organization";
-import type { CommandResult } from "@shared-types";
-
-let _orgRepo: FirebaseOrganizationRepository | undefined;
-let _policyRepo: FirebaseOrgPolicyRepository | undefined;
-let _teamPort: IOrganizationTeamPort | undefined;
-
-function getOrgRepo(): FirebaseOrganizationRepository {
-  if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
-  return _orgRepo;
-}
-
-function getPolicyRepo(): FirebaseOrgPolicyRepository {
-  if (!_policyRepo) _policyRepo = new FirebaseOrgPolicyRepository();
-  return _policyRepo;
-}
-
-function getTeamPort(): IOrganizationTeamPort {
-  // createTeamRepository() returns a TeamRepository that structurally satisfies IOrganizationTeamPort.
-  // The infrastructure layer is the correct place to wire cross-subdomain adapters.
-  if (!_teamPort) _teamPort = createTeamRepository();
-  return _teamPort;
-}
-
-export const organizationService = {
-  createOrganization: (cmd: CreateOrganizationCommand): Promise<CommandResult> =>
-    new CreateOrganizationUseCase(getOrgRepo()).execute(cmd),
-
-  createOrganizationWithTeam: (
-    cmd: CreateOrganizationCommand,
-    teamName: string,
-    teamType: "internal" | "external" = "internal",
-  ): Promise<CommandResult> =>
-    new CreateOrganizationWithTeamUseCase(getOrgRepo()).execute(cmd, teamName, teamType),
-
-  updateSettings: (cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> =>
-    new UpdateOrganizationSettingsUseCase(getOrgRepo()).execute(cmd),
-
-  deleteOrganization: (orgId: string): Promise<CommandResult> =>
-    new DeleteOrganizationUseCase(getOrgRepo()).execute(orgId),
-
-  inviteMember: (input: InviteMemberInput): Promise<CommandResult> =>
-    new InviteMemberUseCase(getOrgRepo()).execute(input),
-
-  recruitMember: (orgId: string, memberId: string, name: string, email: string): Promise<CommandResult> =>
-    new RecruitMemberUseCase(getOrgRepo()).execute(orgId, memberId, name, email),
-
-  removeMember: (orgId: string, memberId: string): Promise<CommandResult> =>
-    new RemoveMemberUseCase(getOrgRepo()).execute(orgId, memberId),
-
-  updateMemberRole: (input: UpdateMemberRoleInput): Promise<CommandResult> =>
-    new UpdateMemberRoleUseCase(getOrgRepo()).execute(input),
-
-  createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
-    new CreateTeamUseCase(getTeamPort()).execute(input),
-
-  deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
-    new DeleteTeamUseCase(getTeamPort()).execute(orgId, teamId),
-
-  updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
-    new UpdateTeamMembersUseCase(getTeamPort()).execute(orgId, teamId, memberId, action),
-
-  createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
-    new CreatePartnerGroupUseCase(getOrgRepo()).execute(orgId, groupName),
-
-  sendPartnerInvite: (orgId: string, teamId: string, email: string): Promise<CommandResult> =>
-    new SendPartnerInviteUseCase(getOrgRepo()).execute(orgId, teamId, email),
-
-  dismissPartnerMember: (orgId: string, teamId: string, memberId: string): Promise<CommandResult> =>
-    new DismissPartnerMemberUseCase(getOrgRepo()).execute(orgId, teamId, memberId),
-
-  createOrgPolicy: (input: CreateOrgPolicyInput): Promise<CommandResult> =>
-    new CreateOrgPolicyUseCase(getPolicyRepo()).execute(input),
-
-  updateOrgPolicy: (policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> =>
-    new UpdateOrgPolicyUseCase(getPolicyRepo()).execute(policyId, data),
-
-  deleteOrgPolicy: (policyId: string): Promise<CommandResult> =>
-    new DeleteOrgPolicyUseCase(getPolicyRepo()).execute(policyId),
-};
-
-/**
- * OrganizationQueryService — read-model queries for client-side data.
- * Composition root: wires Firebase repos for queries; interfaces/ must use this
- * via the subdomain api/ boundary instead of importing infrastructure directly.
- */
-export const organizationQueryService = {
-  getMembers: (organizationId: string) => getOrgRepo().getMembers(organizationId),
-  getTeams: (organizationId: string) => getOrgRepo().getTeams(organizationId),
-  getOrgPolicies: (orgId: string) => getPolicyRepo().getPolicies(orgId),
-};
 ````
 
 ## File: modules/platform/application/use-cases/index.ts

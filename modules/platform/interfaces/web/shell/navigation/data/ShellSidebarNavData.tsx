@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 
 import type { AccountEntity, ActiveAccount } from "@/modules/platform/api";
+import { isOrganizationActor } from "@/modules/platform/subdomains/access-control/api";
 import type { WorkspaceEntity } from "@/modules/workspace/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -108,11 +109,7 @@ export function isActiveRoute(pathname: string, href: string) {
 export function isActiveOrganizationAccount(
   activeAccount: ActiveAccount | null,
 ): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
+  return isOrganizationActor(activeAccount);
 }
 
 // ── Simple section nav component ──────────────────────────────────────────────
