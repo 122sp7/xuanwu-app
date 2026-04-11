@@ -31,7 +31,7 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: apps/web/**
+- Only files matching these patterns are included: modules/workspace/**
 - Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, .github/workflows/**, .github/skills/**, docs/architecture/**, diagrams/**, public/**, .tmp-eslint*.json, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
@@ -39,7 +39,22 @@ This skill contains the following reference files:
 
 ## Statistics
 
-0 files | 0 lines
+281 files | 16,824 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
+| TypeScript | 232 | 10,627 |
+| TypeScript (TSX) | 38 | 5,917 |
+| Markdown | 11 | 280 |
+
+**Largest files:**
+- `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)
+- `modules/workspace/domain/aggregates/Workspace.ts` (305 lines)
+- `modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx` (281 lines)
+- `modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx` (279 lines)
+- `modules/workspace/interfaces/web/components/dialogs/WorkspaceSettingsInformationFields.tsx` (272 lines)
+- `modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx` (267 lines)
+- `modules/workspace/application/services/WorkspaceCommandApplicationService.ts` (260 lines)
+- `modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedWorkspaceView.tsx` (255 lines)
+- `modules/workspace/interfaces/web/components/dialogs/CustomizeNavigationDialog.tsx` (254 lines)
+- `modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts` (243 lines)
