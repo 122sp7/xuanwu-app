@@ -28,4 +28,4 @@ export {
   GetWorkspaceByIdUseCase,
   ListWorkspacesForAccountUseCase,
   SubscribeToWorkspacesForAccountUseCase,
-} from "./workspace-query.use-cases";
+} from "../queries/workspace.queries";

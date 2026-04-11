@@ -11,12 +11,12 @@ import {
   ListKnowledgePagesByWorkspaceUseCase,
   GetKnowledgePageTreeUseCase,
   GetKnowledgePageTreeByWorkspaceUseCase,
-} from "../../application/use-cases/KnowledgePageUseCases";
-import { ListContentBlocksUseCase } from "../../application/use-cases/ContentBlockUseCases";
+} from "../../application/queries/knowledge-page.queries";
+import { ListContentBlocksUseCase } from "../../application/queries/content-block.queries";
 import {
   GetKnowledgeCollectionUseCase,
   ListKnowledgeCollectionsUseCase,
-} from "../../application/use-cases/KnowledgeCollectionUseCases";
+} from "../../application/queries/knowledge-collection.queries";
 import type { KnowledgePageSnapshot, ContentBlockSnapshot, KnowledgeCollectionSnapshot } from "../../application/dto/knowledge.dto";
 
 export async function getKnowledgePage(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {

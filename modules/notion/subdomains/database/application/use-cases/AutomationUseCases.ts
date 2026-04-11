@@ -5,7 +5,6 @@
  */
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { DatabaseAutomationSnapshot } from "../../domain/aggregates/DatabaseAutomation";
 import type { IAutomationRepository, CreateAutomationInput, UpdateAutomationInput } from "../../domain/repositories/IAutomationRepository";
 
 export class CreateAutomationUseCase {
@@ -39,10 +38,5 @@ export class DeleteAutomationUseCase {
   }
 }
 
-export class ListAutomationsUseCase {
-  constructor(private readonly repo: IAutomationRepository) {}
-
-  async execute(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
-    return this.repo.listByDatabase(accountId, databaseId);
-  }
-}
+// Re-export read queries for backward compatibility
+export { ListAutomationsUseCase } from "../queries/automation.queries";

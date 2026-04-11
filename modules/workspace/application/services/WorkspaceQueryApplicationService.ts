@@ -8,7 +8,7 @@ import {
   GetWorkspaceByIdUseCase,
   ListWorkspacesForAccountUseCase,
   SubscribeToWorkspacesForAccountUseCase,
-} from "../use-cases/workspace-query.use-cases";
+} from "../queries/workspace.queries";
 import { FetchWorkspaceMembersUseCase } from "../use-cases/workspace-member.use-cases";
 import { buildWikiContentTree } from "../use-cases/wiki-content-tree.use-case";
 import type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";

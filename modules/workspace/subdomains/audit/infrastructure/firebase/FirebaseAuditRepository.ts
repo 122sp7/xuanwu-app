@@ -1,4 +1,5 @@
 import {
+  addDoc,
   collection,
   getDocs,
   getFirestore,
@@ -8,6 +9,7 @@ import {
 } from "firebase/firestore";
 
 import { firebaseClientApp } from "@integration-firebase/client";
+import type { AuditEntry } from "../../domain/aggregates/AuditEntry";
 import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
 import type { AuditRepository } from "../../domain/repositories/AuditRepository";
 
@@ -40,6 +42,10 @@ function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEn
 export class FirebaseAuditRepository implements AuditRepository {
   private get db() {
     return getFirestore(firebaseClientApp);
+  }
+
+  async save(entry: AuditEntry): Promise<void> {
+    await addDoc(collection(this.db, "auditLogs"), entry.getSnapshot());
   }
 
   async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]> {

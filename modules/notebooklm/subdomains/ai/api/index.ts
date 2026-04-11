@@ -40,11 +40,6 @@ export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-r
 // --- Wiki convenience wrappers with default repository -----------------------
 
 import { FirebaseWikiContentAdapter } from "../infrastructure/firebase/FirebaseWikiContentAdapter";
-import {
-  runWikiRagQuery as _runWikiRagQuery,
-  reindexWikiDocument as _reindexWikiDocument,
-  listWikiParsedDocuments as _listWikiParsedDocuments,
-} from "../application/use-cases/wiki-rag.use-cases";
 import type { WikiParsedDocument, WikiRagQueryResult, WikiReindexInput } from "../domain/repositories/IWikiContentRepository";
 
 let _wikiContentRepository: FirebaseWikiContentAdapter | undefined;
@@ -63,15 +58,15 @@ export function runWikiRagQuery(
   topK = 4,
   options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
 ): Promise<WikiRagQueryResult> {
-  return _runWikiRagQuery(query, accountId, workspaceId, topK, options, getWikiContentRepository());
+  return getWikiContentRepository().runRagQuery(query, accountId, workspaceId, topK, options);
 }
 
 export function reindexWikiDocument(input: WikiReindexInput): Promise<void> {
-  return _reindexWikiDocument(input, getWikiContentRepository());
+  return getWikiContentRepository().reindexDocument(input);
 }
 
 export function listWikiParsedDocuments(accountId: string, limitCount = 20): Promise<WikiParsedDocument[]> {
-  return _listWikiParsedDocuments(accountId, limitCount, getWikiContentRepository());
+  return getWikiContentRepository().listParsedDocuments(accountId, limitCount);
 }
 
 // --- Infrastructure adapters (client-safe, for composition roots) ------------

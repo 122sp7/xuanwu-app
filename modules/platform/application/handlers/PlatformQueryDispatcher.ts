@@ -14,11 +14,11 @@ import type {
 	UsageMeterRepository,
 	WorkflowPolicyRepository,
 } from "../../domain/ports/output";
-import { GetPlatformContextViewUseCase } from "../use-cases/get-platform-context-view.use-cases";
-import { ListEnabledCapabilitiesUseCase } from "../use-cases/list-enabled-capabilities.use-cases";
-import { GetPolicyCatalogViewUseCase } from "../use-cases/get-policy-catalog-view.use-cases";
-import { GetSubscriptionEntitlementsUseCase } from "../use-cases/get-subscription-entitlements.use-cases";
-import { GetWorkflowPolicyViewUseCase } from "../use-cases/get-workflow-policy-view.use-cases";
+import { GetPlatformContextViewUseCase } from "../queries/get-platform-context-view.queries";
+import { ListEnabledCapabilitiesUseCase } from "../queries/list-enabled-capabilities.queries";
+import { GetPolicyCatalogViewUseCase } from "../queries/get-policy-catalog-view.queries";
+import { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-entitlements.queries";
+import { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
 
 export interface PlatformQueryDispatcherDeps {
 	contextViewRepo: PlatformContextViewRepository;

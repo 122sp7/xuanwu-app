@@ -6,9 +6,8 @@
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { IViewRepository } from "../../domain/repositories/IViewRepository";
-import type { ViewSnapshot } from "../../domain/aggregates/View";
-import { CreateViewSchema, UpdateViewSchema, DeleteViewSchema, ListViewsSchema } from "../dto/DatabaseDto";
-import type { CreateViewDto, UpdateViewDto, DeleteViewDto, ListViewsDto } from "../dto/DatabaseDto";
+import { CreateViewSchema, UpdateViewSchema, DeleteViewSchema } from "../dto/DatabaseDto";
+import type { CreateViewDto, UpdateViewDto, DeleteViewDto } from "../dto/DatabaseDto";
 
 export class CreateViewUseCase {
   constructor(private readonly repo: IViewRepository) {}
@@ -40,11 +39,5 @@ export class DeleteViewUseCase {
   }
 }
 
-export class ListViewsUseCase {
-  constructor(private readonly repo: IViewRepository) {}
-  async execute(input: ListViewsDto): Promise<ViewSnapshot[]> {
-    const parsed = ListViewsSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByDatabase(parsed.data.accountId, parsed.data.databaseId);
-  }
-}
+// Re-export read queries for backward compatibility
+export { ListViewsUseCase } from "../queries/view.queries";
