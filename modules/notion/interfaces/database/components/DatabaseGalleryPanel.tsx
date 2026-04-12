@@ -80,7 +80,7 @@ export function DatabaseGalleryPanel({ database, accountId, workspaceId, current
           <p className="col-span-full rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">撠閮?</p>
         ) : (
           records.map((record) => {
-            const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "嚗?賢?嚗? : "嚗?賢?嚗?;
+            const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "Untitled" : "Untitled";
             return (
               <div key={record.id} className="group relative flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-3 shadow-sm">
                 <p className="truncate text-sm font-medium leading-snug">{title}</p>

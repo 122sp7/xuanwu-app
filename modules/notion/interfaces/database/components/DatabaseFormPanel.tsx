@@ -130,7 +130,7 @@ export function DatabaseFormPanel({ database, accountId, workspaceId, submitterI
         setSubmitted(true);
         setValues({});
       } else {
-        setError("?漱憭望?嚗?蝔??岫??);
+        setError("Failed to submit form.");
       }
     });
   }

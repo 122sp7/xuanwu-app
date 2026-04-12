@@ -121,9 +121,9 @@ export function KnowledgeDetailPanel({
       <div className="space-y-4">
         <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
           <ArrowLeft className="mr-1.5 h-4 w-4" />
-          ??”
+          Back to pages
         </Button>
-        <p className="text-sm text-muted-foreground">?曆??唳迨?嚗?賢歇鋡怠?摮??芷??/p>
+        <p className="text-sm text-muted-foreground">Unable to load page. It may have been removed.</p>
       </div>
     );
   }

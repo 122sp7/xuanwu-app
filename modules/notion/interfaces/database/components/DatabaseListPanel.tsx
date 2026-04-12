@@ -33,7 +33,7 @@ function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
 
 function displayValue(val: unknown, type: string): string {
   if (val == null || val === "") return "";
-  if (type === "checkbox") return val ? "?? : "??;
+  if (type === "checkbox") return val ? "Yes" : "No";
   return String(val);
 }
 

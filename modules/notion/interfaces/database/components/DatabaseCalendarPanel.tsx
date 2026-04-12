@@ -71,12 +71,12 @@ export function DatabaseCalendarPanel({ database, accountId }: DatabaseCalendarP
   function prevMonth() { setCursor(new Date(year, month - 1, 1)); }
   function nextMonth() { setCursor(new Date(year, month + 1, 1)); }
 
-  const weekDays = ["??, "銝", "鈭?, "銝?, "??, "鈭?, "??];
+  const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   if (!dateField) {
     return (
       <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
-        甇方??澈?芸??怒??雿??⊥?憿舐內?交?閬???
+        Please configure a date field before using calendar view.
       </p>
     );
   }

@@ -53,28 +53,28 @@ export function DatabaseBoardPanel({ database, accountId, workspaceId, currentUs
   function getTitle(record: DatabaseRecordSnapshot): string {
     const textField = database.fields.find((f) => f.type === "text");
     if (!textField) return record.id.slice(0, 8);
-    return String(getProperty(record, textField.id) ?? "??);
+    return String(getProperty(record, textField.id) ?? "Untitled");
   }
 
   const groups: Record<string, DatabaseRecordSnapshot[]> = {};
   if (!groupField) {
-    groups["?????] = records;
+    groups["No Group"] = records;
   } else {
     for (const record of records) {
       const val = getProperty(record, groupField.id);
-      const key = val != null && val !== "" ? String(val) : "嚗??嚗?;
+      const key = val != null && val !== "" ? String(val) : "No Group";
       (groups[key] ??= []).push(record);
     }
-    if ("嚗??嚗? in groups) {
-      const noGroup = groups["嚗??嚗?];
-      delete groups["嚗??嚗?];
-      groups["嚗??嚗?] = noGroup;
+    if ("No Group" in groups) {
+      const noGroup = groups["No Group"];
+      delete groups["No Group"];
+      groups["No Group"] = noGroup;
     }
   }
 
   function handleAdd(groupValue: string) {
     startTransition(async () => {
-      const props: Record<string, unknown> = groupField && groupValue !== "嚗??嚗? && groupValue !== "?????
+      const props: Record<string, unknown> = groupField && groupValue !== "No Group"
         ? { [groupField.id]: groupValue }
         : {};
       await createRecord({ databaseId: database.id, workspaceId, accountId, properties: props, createdByUserId: currentUserId });

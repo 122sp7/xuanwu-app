@@ -69,9 +69,9 @@ export function DatabaseFormsPanel({
     return (
       <div className="space-y-4">
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 餈?
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
         </Button>
-        <p className="text-sm text-muted-foreground">?曆??啗??澈??/p>
+        <p className="text-sm text-muted-foreground">Database not found.</p>
       </div>
     );
   }

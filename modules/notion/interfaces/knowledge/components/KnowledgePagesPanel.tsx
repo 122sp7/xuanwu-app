@@ -99,8 +99,8 @@ export function KnowledgePagesPanel({
           </Badge>
           <p className="text-sm text-muted-foreground">
             {isAccountSummary
-              ? "?憿臬? account summary mode???冽頝典極雿?蝮質汗嚗?閮凋??冽迨撱箇??圈??Ｕ?
-              : "?亥???惜璅寥?閮剔?摰?極雿????賊??ａ脣?批捆蝺刻摩?具?}
+              ? "Account summary mode: showing account-level pages and metadata."
+              : "Workspace scope mode: showing pages for the selected workspace."}
           </p>
         </div>
       </header>

@@ -85,9 +85,9 @@ export function KnowledgeDatabasesPanel({
     <div className="space-y-4">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">鞈?摨?/h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Databases</h1>
         <p className="text-sm text-muted-foreground">
-          蝯????”???踴??憭??恣??撠? Notion Database ?賢???
+          Manage structured knowledge collections for your workspace.
         </p>
       </header>
 
@@ -97,7 +97,7 @@ export function KnowledgeDatabasesPanel({
           onClick={() => router.push(overviewHref)}
           className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
         >
-          餈? Knowledge Hub
+          Back to Knowledge Hub
         </button>
         <Button
           size="sm"
@@ -106,7 +106,7 @@ export function KnowledgeDatabasesPanel({
           onClick={() => setDialogOpen(true)}
         >
           <Plus className="mr-1.5 h-3.5 w-3.5" />
-          ?啣?鞈?摨?
+          New Database
         </Button>
       </div>
 
@@ -121,7 +121,7 @@ export function KnowledgeDatabasesPanel({
 
       {!resolvedAccountId || !resolvedWorkspaceId ? (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          撠??撣唾?/撌乩????嚗???交???撣唾???
+          Account and workspace are required to load databases.
         </p>
       ) : loading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -132,7 +132,7 @@ export function KnowledgeDatabasesPanel({
       ) : databases.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
           <Table2 className="h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">撠鞈?摨怒??憓??澈??憪遣蝡?/p>
+          <p className="text-sm text-muted-foreground">No databases yet. Create one to get started.</p>
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -157,9 +157,9 @@ export function KnowledgeDatabasesPanel({
                   <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
                 )}
                 <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
-                  <span>{db.fields.length} ??雿?/span>
+                  <span>{db.fields.length} fields</span>
                   <span>繚</span>
-                  <span>{db.viewIds.length} ????/span>
+                  <span>{db.viewIds.length} views</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground/50">
                   {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}

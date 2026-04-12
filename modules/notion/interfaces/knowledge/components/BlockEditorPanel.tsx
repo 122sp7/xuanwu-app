@@ -37,7 +37,7 @@ export function BlockEditorPanel() {
         <div
           role="textbox"
           aria-multiline="true"
-          aria-label="?啣?憛摰?
+          aria-label="Add block"
           tabIndex={0}
           contentEditable
           suppressContentEditableWarning
@@ -45,7 +45,7 @@ export function BlockEditorPanel() {
           onKeyDown={(e) => {
             if (e.key === "Enter") { e.preventDefault(); addBlock(null); }
           }}
-          data-placeholder="??頛詨??
+          data-placeholder="Type '/' for commands"
         />
       </div>
     );
