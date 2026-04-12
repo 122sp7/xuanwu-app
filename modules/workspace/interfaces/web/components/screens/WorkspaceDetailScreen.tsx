@@ -55,8 +55,8 @@ export function WorkspaceDetailScreen({
   initialTab,
   initialOverviewPanel,
 }: WorkspaceDetailScreenProps) {
-  const { state: appState, dispatch } = useApp();
-  const { state: wsState } = useWorkspaceContext();
+  const { state: appState } = useApp();
+  const { state: wsState, dispatch: wsDispatch } = useWorkspaceContext();
   const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
     workspaceId,
     accountId,
@@ -101,7 +101,7 @@ export function WorkspaceDetailScreen({
               setIsEditWorkspaceOpen(true);
             }}
             onSetActiveWorkspace={() =>
-              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
+              wsDispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
             }
           />
         );

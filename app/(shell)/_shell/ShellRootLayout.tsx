@@ -31,11 +31,14 @@ import {
   SHELL_ORG_PRIMARY_NAV_ITEMS,
   SHELL_ORG_SECONDARY_NAV_ITEMS,
 } from "@/modules/platform/subdomains/platform-config/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { ShellAppBreadcrumbs } from "@/modules/platform/interfaces/web/shell/breadcrumbs/ShellAppBreadcrumbs";
-import { ShellGlobalSearchDialog, useShellGlobalSearch } from "@/modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog";
-import { ShellHeaderControls } from "@/modules/platform/interfaces/web/shell/header/components/ShellHeaderControls";
-import { ShellUserAvatar } from "@/modules/platform/interfaces/web/shell/header/components/ShellUserAvatar";
+import { useWorkspaceContext, type WorkspaceEntity } from "@/modules/workspace/api";
+import {
+  ShellAppBreadcrumbs,
+  ShellGlobalSearchDialog,
+  useShellGlobalSearch,
+  ShellHeaderControls,
+  ShellUserAvatar,
+} from "@/modules/platform/interfaces/web";
 
 import { AppRail } from "./ShellAppRail";
 import { ShellDashboardSidebar } from "./ShellDashboardSidebar";
@@ -65,7 +68,7 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
 
   const pageTitle = resolveShellPageTitle(pathname);
   const organizationAccounts = Object.values(appState.accounts ?? {});
-  const accountWorkspaces = Object.values(wsState.workspaces ?? {});
+  const accountWorkspaces: WorkspaceEntity[] = Object.values(wsState.workspaces ?? {});
   const showAccountManagement = isOrganizationActor(appState.activeAccount);
 
   function handleSelectOrganization(account: AccountEntity) {

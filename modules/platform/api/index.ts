@@ -94,9 +94,8 @@ export {
   MembersPage,
   TeamsPage,
   PermissionsPage,
-  OrganizationAuditPage,
 } from "../subdomains/organization/api";
-export type { MembersPageProps, TeamsPageProps, PermissionsPageProps, OrganizationAuditPageProps } from "../subdomains/organization/api";
+export type { MembersPageProps, TeamsPageProps, PermissionsPageProps } from "../subdomains/organization/api";
 
 // background-job — knowledge ingestion pipeline management
 export * from "../subdomains/background-job/api";

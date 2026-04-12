@@ -23,7 +23,7 @@ import {
 
 import { useApp } from "@/modules/platform/api";
 import type { WorkspaceEntity } from "../../api/contracts";
-import { subscribeToWorkspacesForAccount } from "../../../application/queries/workspace.queries";
+import { subscribeToWorkspacesForAccount } from "../../api/facades/workspace.facade";
 import { toWorkspaceMap } from "../utils/workspace-map";
 import { getWorkspaceStorageKey } from "../state/workspace-session";
 

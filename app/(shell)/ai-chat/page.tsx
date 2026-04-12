@@ -2,12 +2,13 @@
 
 import { useSearchParams } from "next/navigation";
 
-import { useApp, useAuth } from "@/modules/platform/api"
+import { useAuth } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
 import { AiChatPage } from "@/modules/notebooklm/api";
 
 export default function AiChatRoutePage() {
   const searchParams = useSearchParams();
-  const { state: { workspaces } } = useApp();
+  const { state: wsState } = useWorkspaceContext();
   const { state: authState } = useAuth();
   const accountId = authState.user?.id ?? "";
   const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
@@ -15,7 +16,7 @@ export default function AiChatRoutePage() {
   return (
     <AiChatPage
       accountId={accountId}
-      workspaces={workspaces ?? {}}
+      workspaces={wsState.workspaces ?? {}}
       requestedWorkspaceId={requestedWorkspaceId}
     />
   );

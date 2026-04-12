@@ -88,6 +88,18 @@ export {
   useRecentWorkspaces,
 } from "../interfaces/web/hooks/useRecentWorkspaces";
 
+// ── Workspace context provider ────────────────────────────────────────────────
+
+export {
+  WorkspaceContextProvider,
+  useWorkspaceContext,
+} from "../interfaces/web/providers/WorkspaceContextProvider";
+export type {
+  WorkspaceContextState,
+  WorkspaceContextAction,
+  WorkspaceContextValue,
+} from "../interfaces/web/providers/WorkspaceContextProvider";
+
 // ── Navigation preferences ────────────────────────────────────────────────────
 
 export type { NavPreferences, SidebarLocaleBundle } from "../interfaces/web/navigation/nav-preferences-data";

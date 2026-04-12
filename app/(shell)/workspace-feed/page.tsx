@@ -7,12 +7,14 @@
  */
 
 import { useApp } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
 import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
 
 export default function WorkspaceFeedPage() {
-  const { state } = useApp();
-  const accountId = state.activeAccount?.id ?? "";
-  const workspaceId = state.activeWorkspaceId ?? "";
+  const { state: appState } = useApp();
+  const { state: wsState } = useWorkspaceContext();
+  const accountId = appState.activeAccount?.id ?? "";
+  const workspaceId = wsState.activeWorkspaceId ?? "";
   const workspaceName = "工作區";
 
   if (!accountId || !workspaceId) {

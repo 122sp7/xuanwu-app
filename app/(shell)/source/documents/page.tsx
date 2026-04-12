@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { useApp } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
 
 /**
  * /source/documents is now a redirect shim.
@@ -16,7 +16,7 @@ export default function SourceDocumentsPage() {
   const searchParams = useSearchParams();
   const {
     state: { activeWorkspaceId },
-  } = useApp();
+  } = useWorkspaceContext();
 
   const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
   const targetWorkspaceId = requestedWorkspaceId || activeWorkspaceId || "";
