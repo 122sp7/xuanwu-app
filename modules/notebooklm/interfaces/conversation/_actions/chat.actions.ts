@@ -3,7 +3,6 @@
 import type {
   GenerateNotebookResponseInput,
   GenerateNotebookResponseResult,
-  Thread,
 } from "@/modules/notebooklm/api";
 import {
   GenerateNotebookResponseUseCase,
@@ -19,4 +18,3 @@ export async function sendChatMessage(
 }
 
 export { saveThread, loadThread };
-export type { Thread };
