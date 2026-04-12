@@ -23,13 +23,14 @@ import {
   XCircle,
 } from "lucide-react";
 
-import { useApp } from "@/modules/platform/api";
+import {
+  useApp,
+  firestoreInfrastructureApi,
+  storageInfrastructureApi,
+} from "@/modules/platform/api";
 import { useWorkspaceContext } from "@/modules/workspace/api";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
 import { Button } from "@ui-shadcn/ui/button";
 import {
-  UPLOAD_BUCKET,
   WATCH_PATH,
   ACCEPTED_MIME,
   ACCEPTED_EXTS,
@@ -111,35 +112,38 @@ export default function DevToolsPage() {
       return;
     }
     try {
-      const db = getFirebaseFirestore();
-      const docRef = firestoreApi.doc(db, "accounts", activeAccountId, "documents", docId);
       if (unsubscribeRef.current) unsubscribeRef.current();
-      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {
-        if (!snapshot.exists()) { appendLog("等待 Firestore 初始化…"); return; }
-        const data = asRecord(snapshot.data());
-        const docStatus = asString(data.status, "unknown");
-        appendLog(`Firestore update: status=${docStatus}`);
-        if (docStatus === "completed") {
-          const parsed = asRecord(data.parsed);
-          const r: ParseResult = {
-            doc_id: docId,
-            status: "completed",
-            page_count: asNumber(parsed.page_count) ?? 0,
-            json_gcs_uri: asString(parsed.json_gcs_uri),
-          };
-          setResult(r);
-          setStatus("done");
-          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
-          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-        } else if (docStatus === "error") {
-          const error = asRecord(data.error);
-          const msg = asString(error.message, "未知錯誤");
-          setErrorMsg(msg);
-          setStatus("error");
-          appendLog(`❌ 錯誤：${msg}`);
-          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-        }
-      });
+      unsubscribeRef.current = firestoreInfrastructureApi.watchDocument<Record<string, unknown>>(
+        `accounts/${activeAccountId}/documents/${docId}`,
+        {
+          onNext: (document) => {
+            if (!document) { appendLog("等待 Firestore 初始化…"); return; }
+            const data = asRecord(document.data);
+            const docStatus = asString(data.status, "unknown");
+            appendLog(`Firestore update: status=${docStatus}`);
+            if (docStatus === "completed") {
+              const parsed = asRecord(data.parsed);
+              const r: ParseResult = {
+                doc_id: docId,
+                status: "completed",
+                page_count: asNumber(parsed.page_count) ?? 0,
+                json_gcs_uri: asString(parsed.json_gcs_uri),
+              };
+              setResult(r);
+              setStatus("done");
+              appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
+              if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+            } else if (docStatus === "error") {
+              const error = asRecord(data.error);
+              const msg = asString(error.message, "未知錯誤");
+              setErrorMsg(msg);
+              setStatus("error");
+              appendLog(`❌ 錯誤：${msg}`);
+              if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+            }
+          },
+        },
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       appendLog(`❌ 監聽失敗：${msg}`);
@@ -160,19 +164,18 @@ export default function DevToolsPage() {
     setErrorMsg(null);
     appendLog("📤 上傳檔案到 Cloud Storage…");
     try {
-      // Step 1: Upload to GCS
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      // Step 1: Upload to GCS via platform infrastructure API
       const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);
-      const fileRef = storageApi.ref(storage, uploadPath);
-      const snap = await storageApi.uploadBytes(fileRef, selectedFile, {
-        contentType: ACCEPTED_MIME[selectedFile.name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream",
+      const mimeType = ACCEPTED_MIME[selectedFile.name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream";
+      await storageInfrastructureApi.upload(selectedFile, uploadPath, {
+        contentType: mimeType,
         customMetadata: {
           account_id: activeAccountId,
           workspace_id: activeWorkspaceId,
           filename: selectedFile.name,
         },
       });
-      appendLog(`✅ 上傳完成：${snap.ref.fullPath}`);
+      appendLog(`✅ 上傳完成：${uploadPath}`);
       // Step 2: Watch Firestore for status updates
       setStatus("waiting");
       appendLog("⏳ 等待 parse_document 處理…");

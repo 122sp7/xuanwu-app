@@ -4,17 +4,23 @@
  * useDevToolsDocList.ts
  * Owns: Firestore subscription for the document list, JSON-preview state,
  *   and all per-document async operations (view, delete, reindex).
+ *
+ * All Firebase access routes through platform infrastructure APIs
+ * (firestoreInfrastructureApi, storageInfrastructureApi, functionsInfrastructureApi)
+ * per AGENTS.md Rule 46 — app/ NEVER touches Firebase SDK directly.
  */
 
 import { useEffect, useRef, useState } from "react";
 
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
+import {
+  firestoreInfrastructureApi,
+  storageInfrastructureApi,
+  functionsInfrastructureApi,
+} from "@/modules/platform/api";
 
 import {
-  UPLOAD_BUCKET,
-  mapSnapshotDoc,
+  gcsUriToPath,
+  mapDocRecord,
   formatDateTime,
   type DocRecord,
 } from "./dev-tools-helpers";
@@ -59,13 +65,18 @@ export function useDevToolsDocList(activeAccountId: string): DocListState & DocL
       return;
     }
     try {
-      const db = getFirebaseFirestore();
-      const colRef = firestoreApi.collection(db, "accounts", activeAccountId, "documents");
-      unsubscribeListRef.current = firestoreApi.onSnapshot(colRef, (snapshot) => {
-        const docs: DocRecord[] = snapshot.docs.map(mapSnapshotDoc);
-        docs.sort((a, b) => (b.uploaded_at?.getTime() ?? 0) - (a.uploaded_at?.getTime() ?? 0));
-        setAllDocs(docs);
-      });
+      unsubscribeListRef.current = firestoreInfrastructureApi.watchCollection<Record<string, unknown>>(
+        `accounts/${activeAccountId}/documents`,
+        {
+          onNext: (documents) => {
+            const docs: DocRecord[] = documents.map((item) =>
+              mapDocRecord({ id: item.id, data: item.data }),
+            );
+            docs.sort((a, b) => (b.uploaded_at?.getTime() ?? 0) - (a.uploaded_at?.getTime() ?? 0));
+            setAllDocs(docs);
+          },
+        },
+      );
     } catch (_err) {}
     return () => { unsubscribeListRef.current?.(); };
   }, [activeAccountId]);
@@ -78,9 +89,8 @@ export function useDevToolsDocList(activeAccountId: string): DocListState & DocL
   async function handleViewOriginal(doc: DocRecord) {
     if (!doc.gcs_uri) return;
     try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const fileRef = storageApi.ref(storage, doc.gcs_uri);
-      const url = await storageApi.getDownloadURL(fileRef);
+      const storagePath = gcsUriToPath(doc.gcs_uri);
+      const url = await storageInfrastructureApi.getUrl(storagePath);
       window.open(url, "_blank", "noopener,noreferrer");
     } catch (err: unknown) {
       alert(`無法取得下載連結：${err instanceof Error ? err.message : String(err)}`);
@@ -97,9 +107,8 @@ export function useDevToolsDocList(activeAccountId: string): DocListState & DocL
     setJsonContent(null);
     setJsonLoading(true);
     try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const jsonRef = storageApi.ref(storage, doc.json_gcs_uri);
-      const url = await storageApi.getDownloadURL(jsonRef);
+      const storagePath = gcsUriToPath(doc.json_gcs_uri);
+      const url = await storageInfrastructureApi.getUrl(storagePath);
       const res = await fetch(url);
       const text = await res.text();
       setJsonContent(text);
@@ -119,17 +128,15 @@ export function useDevToolsDocList(activeAccountId: string): DocListState & DocL
       return;
     setDeletingId(doc.id);
     try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const db = getFirebaseFirestore();
       if (doc.gcs_uri) {
-        try { await storageApi.deleteObject(storageApi.ref(storage, doc.gcs_uri)); } catch (_err) {}
+        try { await storageInfrastructureApi.delete(gcsUriToPath(doc.gcs_uri)); } catch (_err) {}
       }
       if (doc.json_gcs_uri) {
-        try { await storageApi.deleteObject(storageApi.ref(storage, doc.json_gcs_uri)); } catch (_err) {}
+        try { await storageInfrastructureApi.delete(gcsUriToPath(doc.json_gcs_uri)); } catch (_err) {}
       }
       if (!activeAccountId) throw new Error("缺少 active account");
-      await firestoreApi.deleteDoc(
-        firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id),
+      await firestoreInfrastructureApi.delete(
+        `accounts/${activeAccountId}/documents/${doc.id}`,
       );
       if (selectedDocId === doc.id) closeJsonPreview();
     } catch (err: unknown) {
@@ -151,16 +158,18 @@ export function useDevToolsDocList(activeAccountId: string): DocListState & DocL
     setReindexingId(doc.id);
     appendLog(`🧹 手動整理開始：${doc.id}`);
     try {
-      const functions = getFirebaseFunctions("asia-southeast1");
-      const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
-      await callable({
-        account_id: activeAccountId,
-        doc_id: doc.id,
-        json_gcs_uri: doc.json_gcs_uri,
-        source_gcs_uri: doc.gcs_uri,
-        filename: doc.filename,
-        page_count: doc.page_count ?? 0,
-      });
+      await functionsInfrastructureApi.call(
+        "rag_reindex_document",
+        {
+          account_id: activeAccountId,
+          doc_id: doc.id,
+          json_gcs_uri: doc.json_gcs_uri,
+          source_gcs_uri: doc.gcs_uri,
+          filename: doc.filename,
+          page_count: doc.page_count ?? 0,
+        },
+        { region: "asia-southeast1" },
+      );
       appendLog(`✅ 手動整理完成：${doc.id}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
