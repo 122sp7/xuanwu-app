@@ -1,27 +1,15 @@
 # Knowledge Integration
 
-知識與外部系統雙向整合。
+> **⚠️ Premature Stub** — 不建議擴充。
+
+## Reason
+
+外部系統整合是 infrastructure adapter 關注，非獨立子域。
 
 ## Ownership
 
 - **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
+- **Status**: Premature — infrastructure adapter concern, not a standalone subdomain
 
 ## Development Order
 

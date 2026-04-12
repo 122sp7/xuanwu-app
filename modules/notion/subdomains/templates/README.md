@@ -1,27 +1,15 @@
 # Templates
 
-頁面範本管理與套用。
+> **⚠️ Premature Stub** — 不建議擴充。
+
+## Reason
+
+頁面範本是 `authoring` 的內部關注（內容結構起點），非獨立子域。
 
 ## Ownership
 
 - **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
+- **Status**: Premature — absorbed by `authoring` subdomain
 
 ## Development Order
 

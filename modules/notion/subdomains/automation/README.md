@@ -1,27 +1,15 @@
 # Automation
 
-知識事件觸發自動化動作。
+> **⚠️ Premature Stub** — 不建議擴充。
+
+## Reason
+
+`database` 子域已涵蓋 `DatabaseAutomation`；跨內容類型事件自動化目前無獨立領域需求。
 
 ## Ownership
 
 - **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
+- **Status**: Premature — absorbed by `database` subdomain
 
 ## Development Order
 

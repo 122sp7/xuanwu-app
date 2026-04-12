@@ -1,27 +1,15 @@
 # Notes
 
-個人輕量筆記與正式知識協作。
+> **⚠️ Premature Stub** — 不建議擴充。
+
+## Reason
+
+輕量筆記可作為 `KnowledgePage` 的頁面類型處理，不需獨立子域。
 
 ## Ownership
 
 - **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
+- **Status**: Premature — absorbed by `knowledge` subdomain
 
 ## Development Order
 

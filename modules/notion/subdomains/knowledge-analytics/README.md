@@ -1,27 +1,15 @@
 # Knowledge Analytics
 
-知識使用行為量測。
+> **⚠️ Premature Stub** — 不建議擴充。
+
+## Reason
+
+知識使用行為量測是讀模型關注，非獨立領域模型。可由 infrastructure 查詢層處理。
 
 ## Ownership
 
 - **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
+- **Status**: Premature — read model concern, not a standalone subdomain
 
 ## Development Order
 
