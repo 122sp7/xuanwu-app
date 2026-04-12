@@ -37790,17 +37790,7 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill rag-architecture
 ````
 
-## File: modules/notebooklm/application/dtos/.gitkeep
-````
-
-````
-
 ## File: modules/notebooklm/application/services/.gitkeep
-````
-
-````
-
-## File: modules/notebooklm/application/use-cases/.gitkeep
 ````
 
 ````
