@@ -77,3 +77,66 @@ export {
 
 export { AiChatPage } from "../subdomains/conversation/api";
 export type { AiChatPageProps, ChatMessage } from "../subdomains/conversation/api";
+
+// ---------------------------------------------------------------------------
+// Context-wide published language (cross-module reference types)
+// ---------------------------------------------------------------------------
+
+export type {
+  NotebookReference,
+  SourceReference,
+  ConversationReference,
+} from "../domain/published-language";
+
+export type { NotebookLmDomainEvent } from "../domain/events";
+
+// ---------------------------------------------------------------------------
+// Tier 2 — retrieval subdomain (migration target from ai)
+// ---------------------------------------------------------------------------
+
+export type {
+  RetrievedChunk,
+  RetrievalSummary,
+  RetrieveChunksInput,
+  IChunkRetrievalPort,
+  RetrievalCompletedEvent,
+  RetrievalFailedEvent,
+} from "../subdomains/retrieval/api";
+
+// ---------------------------------------------------------------------------
+// Tier 2 — grounding subdomain (migration target from ai)
+// ---------------------------------------------------------------------------
+
+export type {
+  Citation,
+  GroundingEvidence,
+  CitationBuilderInput,
+  ICitationBuilder,
+  GroundingCompletedEvent,
+} from "../subdomains/grounding/api";
+
+// ---------------------------------------------------------------------------
+// Tier 2 — synthesis subdomain (migration target from ai)
+// ---------------------------------------------------------------------------
+
+export type {
+  GenerationCitation,
+  GenerateAnswerInput,
+  GenerateAnswerOutput,
+  GenerateAnswerResult,
+  IGenerationPort,
+  SynthesisCompletedEvent,
+  SynthesisFailedEvent,
+} from "../subdomains/synthesis/api";
+
+// ---------------------------------------------------------------------------
+// Tier 2 — evaluation subdomain (migration target from ai)
+// ---------------------------------------------------------------------------
+
+export type {
+  FeedbackRating,
+  QualityFeedback,
+  SubmitFeedbackInput,
+  IFeedbackPort,
+  FeedbackSubmittedEvent,
+} from "../subdomains/evaluation/api";

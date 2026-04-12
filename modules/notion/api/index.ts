@@ -5,6 +5,15 @@
  *          External consumers (app/, other modules) must only import from here.
  */
 
+// ── Context-wide published language ───────────────────────────────────────────
+export type {
+  KnowledgeArtifactReference,
+  AttachmentReference,
+  TaxonomyHint,
+} from "../domain/published-language";
+
+export type { NotionDomainEvent } from "../domain/events";
+
 // ── knowledge subdomain ───────────────────────────────────────────────────────
 export * from "../subdomains/knowledge/api";
 
@@ -49,11 +58,11 @@ export * from "../subdomains/knowledge-integration/api";
 export * from "../subdomains/knowledge-versioning/api";
 
 // ── taxonomy subdomain ────────────────────────────────────────────────────────
-// Stub — awaiting use case definition
+// Tier 2 — classification hierarchy and semantic organization
 export * from "../subdomains/taxonomy/api";
 
 // ── relations subdomain ───────────────────────────────────────────────────────
-// Stub — awaiting use case definition
+// Tier 2 — backlinks, forward links, and reference graphs
 export * from "../subdomains/relations/api";
 
 // ── publishing subdomain ──────────────────────────────────────────────────────
