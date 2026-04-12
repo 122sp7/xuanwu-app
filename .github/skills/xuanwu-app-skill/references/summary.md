@@ -41,12 +41,12 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1434 files | 67,693 lines
+1436 files | 68,167 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1137 | 41,068 |
-| TypeScript (TSX) | 200 | 23,886 |
+| TypeScript | 1139 | 41,449 |
+| TypeScript (TSX) | 200 | 23,979 |
 | Markdown | 90 | 2,536 |
 | No Extension | 6 | 6 |
 | CSS | 1 | 197 |
@@ -58,7 +58,7 @@ This skill contains the following reference files:
 - `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
 - `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (344 lines)
 - `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)
-- `app/(shell)/_shell/ShellAppRail.tsx` (323 lines)
+- `app/(shell)/_shell/ShellAppRail.tsx` (335 lines)
+- `modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts` (329 lines)
 - `modules/platform/api/infrastructure-api.ts` (312 lines)
-- `modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx` (308 lines)
-- `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
+- `modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx` (310 lines)

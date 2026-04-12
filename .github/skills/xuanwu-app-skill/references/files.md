@@ -1,297 +1,5 @@
 # Files
 
-## File: app/(public)/page.tsx
-````typescript
-"use client";
-
-/**
- * app/(public)/page.tsx
- * Public landing page with top-right auth entry and inline auth panel.
- * Uses identity module use cases directly on the client so Firebase auth state
- * actually updates AuthProvider via onAuthStateChanged.
- */
-
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
-
-import {
-  useAuth,
-  createClientAuthUseCases,
-  createClientAccountUseCases,
-  createDevDemoUser,
-  isDevDemoCredential,
-  isLocalDevDemoAllowed,
-  writeDevDemoSession,
-} from "@/modules/platform/api";
-
-type Tab = "login" | "register";
-
-export default function PublicPage() {
-  const { state, dispatch } = useAuth();
-  const router = useRouter();
-
-  const [tab, setTab] = useState<Tab>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [resetSent, setResetSent] = useState(false);
-  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
-
-  const {
-    signInUseCase,
-    signInAnonymouslyUseCase,
-    registerUseCase,
-    sendPasswordResetEmailUseCase,
-    createUserAccountUseCase,
-  } =
-    useMemo(() => ({
-      ...createClientAuthUseCases(),
-      ...createClientAccountUseCases(),
-    }), []);
-
-  useEffect(() => {
-    if (state.status === "authenticated") {
-      router.replace("/dashboard");
-    }
-  }, [state.status, router]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    try {
-      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
-        writeDevDemoSession(createDevDemoUser());
-        window.location.assign("/dashboard");
-        return;
-      }
-
-      const result =
-        tab === "login"
-          ? await signInUseCase.execute({ email, password })
-          : await registerUseCase.execute({ email, password, name });
-
-      if (!result.success) {
-        setError(result.error.message);
-        return;
-      }
-
-      if (tab === "register") {
-        const accountResult = await createUserAccountUseCase.execute(
-          result.aggregateId,
-          name,
-          email,
-        );
-        if (!accountResult.success) {
-          setError(accountResult.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleGuestAccess() {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const result = await signInAnonymouslyUseCase.execute();
-      if (!result.success) {
-        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
-        // blocked in sandboxes), create a local guest session so the shell can be tested.
-        if (isLocalDevDemoAllowed()) {
-          const guestUser = createDevDemoUser();
-          writeDevDemoSession(guestUser);
-          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
-        } else {
-          setError(result.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handlePasswordReset() {
-    if (!email) {
-      setError("Enter your email address first.");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const result = await sendPasswordResetEmailUseCase.execute(email);
-      if (result.success) {
-        setResetSent(true);
-        setError(null);
-      } else {
-        setError(result.error.message);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  if (state.status === "initializing") {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  return (
-    <main className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
-        <button
-          type="button"
-          onClick={() => {
-            setError(null);
-            setResetSent(false);
-            setIsAuthPanelOpen((prev) => !prev);
-          }}
-          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
-        >
-          {isAuthPanelOpen ? "Close" : "Sign In"}
-        </button>
-      </header>
-
-      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
-        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
-            Unified Hexagonal Architecture with DDD workspace for identity, account, and organization modules.
-            Use the top-right sign in button to access your dashboard.
-          </p>
-        </div>
-
-        {isAuthPanelOpen && (
-          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
-            <div className="flex flex-col items-center pb-4 pt-8">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
-                <ShieldCheck className="h-7 w-7 text-primary/90" />
-              </div>
-            </div>
-
-            <div className="px-6">
-              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
-                {(["login", "register"] as Tab[]).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => {
-                      setTab(t);
-                      setError(null);
-                    }}
-                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
-                      tab === t
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {t === "login" ? "Sign In" : "Register"}
-                  </button>
-                ))}
-              </div>
-
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                {tab === "register" && (
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
-                    <input
-                      id="register-name"
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Your display name"
-                      required
-                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
-                  <input
-                    id="auth-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    autoComplete="email"
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
-                    {tab === "login" && (
-                      <button
-                        type="button"
-                        onClick={handlePasswordReset}
-                        className="text-xs text-primary/70 hover:text-primary"
-                      >
-                        {resetSent ? "Email sent!" : "Forgot password?"}
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    id="auth-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete={tab === "login" ? "current-password" : "new-password"}
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                {error && (
-                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    {error}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : tab === "login" ? (
-                    "Enter Dimension"
-                  ) : (
-                    "Create Account"
-                  )}
-                </button>
-              </form>
-            </div>
-
-            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
-              <button
-                type="button"
-                onClick={handleGuestAccess}
-                disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-    </main>
-  );
-}
-````
-
 ## File: app/globals.css
 ````css
 @import "tailwindcss";
@@ -499,6 +207,34 @@ export { makeThreadRepo } from "../subdomains/conversation/api/factories";
 export { makeNotebookRepo } from "../subdomains/notebook/api/factories";
 ````
 
+## File: modules/notebooklm/docs/README.md
+````markdown
+# NotebookLM Documentation
+
+Implementation-level documentation for the notebooklm bounded context.
+
+## Strategic Documentation (Authority)
+
+Strategic architecture documentation lives in `docs/contexts/notebooklm/`:
+
+- [README.md](../../../docs/contexts/notebooklm/README.md) — Context overview
+- [subdomains.md](../../../docs/contexts/notebooklm/subdomains.md) — Subdomain inventory
+- [bounded-contexts.md](../../../docs/contexts/notebooklm/bounded-contexts.md) — Ownership map
+- [context-map.md](../../../docs/contexts/notebooklm/context-map.md) — Relationships
+- [ubiquitous-language.md](../../../docs/contexts/notebooklm/ubiquitous-language.md) — Terminology
+
+## Architecture Reference
+
+- [Bounded Context Template](../../../docs/bounded-context-subdomain-template.md) — Standard structure
+- [Architecture Overview](../../../docs/architecture-overview.md) — System-wide architecture
+- [Integration Guidelines](../../../docs/integration-guidelines.md) — Cross-context rules
+
+## Conflict Resolution
+
+- Strategic docs in `docs/contexts/notebooklm/` are the authority for naming, ownership, and boundaries.
+- This `docs/` folder is for implementation-aligned detail only.
+````
+
 ## File: modules/notebooklm/domain/.gitkeep
 ````
 
@@ -654,6 +390,38 @@ export function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: s
 }
 ````
 
+## File: modules/notebooklm/subdomains/conversation/README.md
+````markdown
+# Conversation
+
+Conversation threads and message management.
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/notebooklm/subdomains/notebook/api/index.ts
 ````typescript
 export type {
@@ -763,6 +531,23 @@ export async function generateNotebookResponse(
   const useCase = new GenerateNotebookResponseUseCase(makeNotebookRepo());
   return useCase.execute(input);
 }
+````
+
+## File: modules/notebooklm/subdomains/notebook/README.md
+````markdown
+# Notebook
+
+Notebook container and organization.
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/dto/rag-document.dto.ts
@@ -2678,6 +2463,66 @@ export type SourceFileCommandResult<TData> =
     };
 ````
 
+## File: modules/notebooklm/subdomains/source/README.md
+````markdown
+# Source
+
+Source document ingestion and reference management.
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/docs/README.md
+````markdown
+# Notion Documentation
+
+Implementation-level documentation for the notion bounded context.
+
+## Strategic Documentation (Authority)
+
+Strategic architecture documentation lives in `docs/contexts/notion/`:
+
+- [README.md](../../../docs/contexts/notion/README.md) — Context overview
+- [subdomains.md](../../../docs/contexts/notion/subdomains.md) — Subdomain inventory
+- [bounded-contexts.md](../../../docs/contexts/notion/bounded-contexts.md) — Ownership map
+- [context-map.md](../../../docs/contexts/notion/context-map.md) — Relationships
+- [ubiquitous-language.md](../../../docs/contexts/notion/ubiquitous-language.md) — Terminology
+
+## Architecture Reference
+
+- [Bounded Context Template](../../../docs/bounded-context-subdomain-template.md) — Standard structure
+- [Architecture Overview](../../../docs/architecture-overview.md) — System-wide architecture
+- [Integration Guidelines](../../../docs/integration-guidelines.md) — Cross-context rules
+
+## Conflict Resolution
+
+- Strategic docs in `docs/contexts/notion/` are the authority for naming, ownership, and boundaries.
+- This `docs/` folder is for implementation-aligned detail only.
+````
+
 ## File: modules/notion/subdomains/authoring/api/factories.ts
 ````typescript
 import { FirebaseArticleRepository } from "../infrastructure/firebase/FirebaseArticleRepository";
@@ -2690,51 +2535,6 @@ export function makeArticleRepo() {
 export function makeCategoryRepo() {
   return new FirebaseCategoryRepository();
 }
-````
-
-## File: modules/notion/subdomains/authoring/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/authoring
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- */
-
-// ─── Read contracts ────────────────────────────────────────────────────────────
-export type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../domain/aggregates/Article";
-export type { CategorySnapshot } from "../domain/aggregates/Category";
-
-// ─── Identifiers used by other BCs ────────────────────────────────────────────
-export type ArticleId = string;
-export type CategoryId = string;
-
-// ─── Server Actions (write-side) ──────────────────────────────────────────────
-export {
-  createArticle,
-  updateArticle,
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-  deleteArticle,
-} from "../interfaces/_actions/article.actions";
-
-export {
-  createCategory,
-  renameCategory,
-  moveCategory,
-  deleteCategory,
-} from "../interfaces/_actions/category.actions";
-
-// ─── Queries (read-side) ──────────────────────────────────────────────────────
-export { getArticles, getArticle, getCategories, getBacklinks } from "../interfaces/queries";
-
-// ─── UI Components ────────────────────────────────────────────────────────────
-export { ArticleDialog } from "../interfaces/components/ArticleDialog";
-export { KnowledgeBaseArticlesRouteScreen } from "../interfaces/components/KnowledgeBaseArticlesRouteScreen";
-export { ArticleDetailPage } from "../interfaces/components/ArticleDetailPage";
-export type { ArticleDetailPageProps } from "../interfaces/components/ArticleDetailPage";
 ````
 
 ## File: modules/notion/subdomains/authoring/application/dto/ArticleDto.ts
@@ -5177,112 +4977,6 @@ export function makeAutomationRepo() {
 }
 ````
 
-## File: modules/notion/subdomains/database/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- *
- * Open Host Service contracts:
- *   - getDatabaseById  — consumed by knowledge subdomain (opaque reference resolution)
- */
-
-// Domain types
-export type {
-  DatabaseSnapshot,
-  DatabaseSnapshot as Database,
-  Field,
-  FieldType,
-  DatabaseId,
-  FieldId,
-} from "../domain/aggregates/Database";
-
-export type {
-  DatabaseRecordSnapshot,
-  RecordId,
-} from "../domain/aggregates/DatabaseRecord";
-
-export type {
-  ViewSnapshot,
-  ViewType,
-  FilterRule,
-  SortRule,
-  ViewId,
-} from "../domain/aggregates/View";
-
-export type {
-  DatabaseAutomationSnapshot,
-  AutomationTrigger,
-  AutomationActionType,
-  AutomationCondition,
-  AutomationAction,
-} from "../domain/aggregates/DatabaseAutomation";
-
-// Repository input types
-export type {
-  CreateAutomationInput,
-  UpdateAutomationInput,
-} from "../domain/repositories/IAutomationRepository";
-
-// Application DTOs
-export type {
-  CreateDatabaseDto,
-  UpdateDatabaseDto,
-  AddFieldDto,
-  ArchiveDatabaseDto,
-  CreateRecordDto,
-  UpdateRecordDto,
-  DeleteRecordDto,
-  CreateViewDto,
-  UpdateViewDto,
-  DeleteViewDto,
-} from "../application/dto/DatabaseDto";
-
-// Server actions
-export {
-  createDatabase,
-  updateDatabase,
-  addDatabaseField,
-  archiveDatabase,
-  createRecord,
-  updateRecord,
-  deleteRecord,
-  createView,
-  updateView,
-  deleteView,
-  createAutomation,
-  updateAutomation,
-  deleteAutomation,
-} from "../interfaces/_actions/database.actions";
-
-// Queries
-export {
-  getDatabases,
-  getDatabase,
-  getRecords,
-  getViews,
-  getAutomations,
-} from "../interfaces/queries";
-
-// UI components
-export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
-export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
-export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
-export { DatabaseListView } from "../interfaces/components/DatabaseListView";
-export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarView";
-export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
-export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
-export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
-export { KnowledgeDatabasesRouteScreen } from "../interfaces/components/KnowledgeDatabasesRouteScreen";
-export { AddFieldDialog, FIELD_TYPES } from "../interfaces/components/DatabaseAddFieldDialog";
-export { DatabaseDetailPage } from "../interfaces/components/DatabaseDetailPage";
-export type { DatabaseDetailPageProps } from "../interfaces/components/DatabaseDetailPage";
-export { DatabaseFormsPage } from "../interfaces/components/DatabaseFormsPage";
-export type { DatabaseFormsPageProps } from "../interfaces/components/DatabaseFormsPage";
-````
-
 ## File: modules/notion/subdomains/database/application/dto/database.dto.ts
 ````typescript
 /**
@@ -7460,94 +7154,6 @@ export function makeBlockRepo() {
 export function makeCollectionRepo() {
   return new FirebaseKnowledgeCollectionRepository();
 }
-````
-
-## File: modules/notion/subdomains/knowledge/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- */
-
-// ── Types (read-only snapshots – no aggregate class refs) ─────────────────────
-export type { KnowledgePageSnapshot } from "../domain/aggregates/KnowledgePage";
-/** @alias KnowledgePageSnapshot — provided for backward-compatibility */
-export type { KnowledgePageSnapshot as KnowledgePage } from "../domain/aggregates/KnowledgePage";
-export type { ContentBlockSnapshot } from "../domain/aggregates/ContentBlock";
-export type { KnowledgeCollectionSnapshot } from "../domain/aggregates/KnowledgeCollection";
-
-// ── Server action DTOs ────────────────────────────────────────────────────────
-export type { CreateKnowledgePageDto, RenameKnowledgePageDto, MoveKnowledgePageDto, ArchiveKnowledgePageDto, ReorderKnowledgePageBlocksDto } from "../application/dto/KnowledgePageDto";
-export type { AddKnowledgeBlockDto, UpdateKnowledgeBlockDto, DeleteKnowledgeBlockDto } from "../application/dto/ContentBlockDto";
-export type { CreateKnowledgeCollectionDto } from "../application/dto/KnowledgeCollectionDto";
-
-// ── Query functions (server-side reads) ───────────────────────────────────────
-export {
-  getKnowledgePage,
-  getKnowledgePages,
-  getKnowledgePagesByWorkspace,
-  getKnowledgePageTree,
-  getKnowledgePageTreeByWorkspace,
-  getKnowledgeBlocks,
-  getKnowledgeCollection,
-  getKnowledgeCollections,
-} from "../interfaces/queries";
-
-// ── Server actions (drives: app router, Server Components) ────────────────────
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  archiveKnowledgeCollection,
-} from "../interfaces/_actions";
-
-// ── UI Components ─────────────────────────────────────────────────────────────
-export { PageTreeView } from "../interfaces/components/PageTreeView";
-export type { PageTreeViewProps } from "../interfaces/components/PageTreeView";
-export { PageDialog } from "../interfaces/components/PageDialog";
-export { BlockEditorView } from "../interfaces/components/BlockEditorView";
-export { PageEditorView } from "../interfaces/components/PageEditorView";
-export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
-export { KnowledgePagesRouteScreen } from "../interfaces/components/KnowledgePagesRouteScreen";
-
-// ── Store ─────────────────────────────────────────────────────────────────────
-export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
-export type { EditorBlock } from "../interfaces/store/block-editor.store";
-
-// ── Tree node type (needed by app/ pages) ─────────────────────────────────────
-export type { KnowledgePageTreeNode } from "../domain/aggregates/KnowledgePage";
-
-// ── Domain events (published language — for cross-module event subscriptions) ─
-export type { PageApprovedEvent, PageApprovedPayload, ExtractedTask, ExtractedInvoice } from "../domain/events/KnowledgePageEvents";
-
-// ── Sidebar component ─────────────────────────────────────────────────────────
-export { KnowledgeSidebarSection } from "../interfaces/components/KnowledgeSidebarSection";
-
-// ── Page header widgets ───────────────────────────────────────────────────────
-export { TitleEditor, IconPicker, CoverEditor } from "../interfaces/components/KnowledgePageHeaderWidgets";
-export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../interfaces/components/KnowledgePageHeaderWidgets";
-
-// ── Route screen components ───────────────────────────────────────────────────
-export { KnowledgePageDetailPage } from "../interfaces/components/KnowledgePageDetailPage";
-export type { KnowledgePageDetailPageProps } from "../interfaces/components/KnowledgePageDetailPage";
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/dto/ContentBlockDto.ts
@@ -9739,6 +9345,52 @@ export const useBlockEditorStore = create<BlockEditorState>((set, get) => ({
 }));
 ````
 
+## File: modules/platform/AGENT.md
+````markdown
+# Platform Agent
+
+> Strategic agent documentation: [docs/contexts/platform/AGENT.md](../../docs/contexts/platform/AGENT.md)
+
+## Mission
+
+保護 platform 主域作為治理、身份、組織、權益、策略與營運支撐邊界。
+
+## Route Here When
+
+- 問題核心是 actor、organization、tenant、access、policy、entitlement 或商業權益。
+- 問題核心是通知治理、背景任務、平台級搜尋、觀測與支援。
+- 問題核心是共享 AI provider、模型政策、配額、安全護欄或下游主域共同消費的 AI capability。
+- 問題需要提供其他主域共同消費的治理結果。
+
+## Route Elsewhere When
+
+- 工作區生命週期、成員關係、共享與存在感屬於 workspace。
+- 知識內容建立、分類、關聯與發布屬於 notion。
+- 對話、來源、retrieval、grounding、synthesis 屬於 notebooklm。
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order (Strangler Pattern)
+
+New features:
+1. Define Domain (entities, value objects, aggregates, events)
+2. Define Application (use cases, DTOs)
+3. Define Ports (only if boundary isolation needed)
+4. Implement Infrastructure (adapters, persistence)
+5. Implement Interfaces (UI, actions, hooks)
+
+Legacy migration:
+1. Find a Use Case to extract
+2. Build Domain model for that use case
+3. Converge Application layer
+4. Isolate legacy via Ports
+5. Replace Infrastructure adapter
+````
+
 ## File: modules/platform/api/facade.ts
 ````typescript
 /**
@@ -10361,6 +10013,34 @@ export type PlatformEventMapperFunction = (typeof PLATFORM_EVENT_MAPPER_FUNCTION
  */
 
 // TODO: implement mapIngressEventToCommand mapper function
+````
+
+## File: modules/platform/docs/README.md
+````markdown
+# Platform Documentation
+
+Implementation-level documentation for the platform bounded context.
+
+## Strategic Documentation (Authority)
+
+Strategic architecture documentation lives in `docs/contexts/platform/`:
+
+- [README.md](../../../docs/contexts/platform/README.md) — Context overview
+- [subdomains.md](../../../docs/contexts/platform/subdomains.md) — Subdomain inventory
+- [bounded-contexts.md](../../../docs/contexts/platform/bounded-contexts.md) — Ownership map
+- [context-map.md](../../../docs/contexts/platform/context-map.md) — Relationships
+- [ubiquitous-language.md](../../../docs/contexts/platform/ubiquitous-language.md) — Terminology
+
+## Architecture Reference
+
+- [Bounded Context Template](../../../docs/bounded-context-subdomain-template.md) — Standard structure
+- [Architecture Overview](../../../docs/architecture-overview.md) — System-wide architecture
+- [Integration Guidelines](../../../docs/integration-guidelines.md) — Cross-context rules
+
+## Conflict Resolution
+
+- Strategic docs in `docs/contexts/platform/` are the authority for naming, ownership, and boundaries.
+- This `docs/` folder is for implementation-aligned detail only.
 ````
 
 ## File: modules/platform/domain/aggregates/index.ts
@@ -13850,6 +13530,40 @@ export type PlatformAdapterCliFunction = (typeof PLATFORM_ADAPTER_CLI_FUNCTIONS)
 export * from "./web";
 ````
 
+## File: modules/platform/subdomains/access-control/README.md
+````markdown
+# Access Control
+
+Access control policies and permission resolution.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/account-profile/README.md
+````markdown
+# Account Profile
+
+User profile preferences and settings.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/account/application/use-cases/account-policy.use-cases.ts
 ````typescript
 /**
@@ -15360,6 +15074,38 @@ export {
 } from "./_actions/account-policy.actions";
 ````
 
+## File: modules/platform/subdomains/account/README.md
+````markdown
+# Account
+
+User account lifecycle management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/analytics/api/index.ts
 ````typescript
 /**
@@ -15384,6 +15130,23 @@ export {};
 // Purpose: Infrastructure layer placeholder for platform subdomain 'analytics'.
 ````
 
+## File: modules/platform/subdomains/analytics/README.md
+````markdown
+# Analytics
+
+Platform-wide analytics and metrics.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/audit-log/api/index.ts
 ````typescript
 /**
@@ -15406,6 +15169,23 @@ export {};
 ## File: modules/platform/subdomains/audit-log/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'audit-log'.
+````
+
+## File: modules/platform/subdomains/audit-log/README.md
+````markdown
+# Audit Log
+
+Platform audit logging.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/background-job/application/index.ts
@@ -15851,6 +15631,23 @@ export class InMemoryIngestionJobRepository implements IIngestionJobRepository {
 }
 ````
 
+## File: modules/platform/subdomains/background-job/README.md
+````markdown
+# Background Job
+
+Background job scheduling and execution.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/billing/api/index.ts
 ````typescript
 /**
@@ -15873,6 +15670,23 @@ export {};
 ## File: modules/platform/subdomains/billing/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'billing'.
+````
+
+## File: modules/platform/subdomains/billing/README.md
+````markdown
+# Billing
+
+Billing and payment processing.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/compliance/api/index.ts
@@ -15899,6 +15713,23 @@ export {};
 // Purpose: Infrastructure layer placeholder for platform subdomain 'compliance'.
 ````
 
+## File: modules/platform/subdomains/compliance/README.md
+````markdown
+# Compliance
+
+Regulatory compliance management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/content/api/index.ts
 ````typescript
 /**
@@ -15923,6 +15754,23 @@ export {};
 // Purpose: Infrastructure layer placeholder for platform subdomain 'content'.
 ````
 
+## File: modules/platform/subdomains/content/README.md
+````markdown
+# Content
+
+Platform content management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/feature-flag/api/index.ts
 ````typescript
 /**
@@ -15945,6 +15793,23 @@ export {};
 ## File: modules/platform/subdomains/feature-flag/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'feature-flag'.
+````
+
+## File: modules/platform/subdomains/feature-flag/README.md
+````markdown
+# Feature Flag
+
+Feature flag management and rollout.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/identity/api/index.ts
@@ -16733,6 +16598,67 @@ export type { EmitTokenRefreshSignalInput } from "./identity-service";
 export { createClientAuthUseCases, identityApi } from "./identity-service";
 ````
 
+## File: modules/platform/subdomains/identity/interfaces/_actions/identity.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { toIdentityErrorMessage } from "../../application/identity-error-message";
+import {
+	RegisterUseCase,
+	SendPasswordResetEmailUseCase,
+	SignInAnonymouslyUseCase,
+	SignInUseCase,
+	SignOutUseCase,
+} from "../../application/use-cases/identity.use-cases";
+import { FirebaseIdentityRepository } from "../../api";
+
+const identityRepo = new FirebaseIdentityRepository();
+
+export async function signIn(email: string, password: string): Promise<CommandResult> {
+	try {
+		return await new SignInUseCase(identityRepo).execute({ email, password });
+	} catch (err) {
+		return commandFailureFrom("SIGN_IN_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
+	}
+}
+
+export async function signInAnonymously(): Promise<CommandResult> {
+	try {
+		return await new SignInAnonymouslyUseCase(identityRepo).execute();
+	} catch (err) {
+		return commandFailureFrom(
+			"SIGN_IN_ANONYMOUS_FAILED",
+			toIdentityErrorMessage(err, "Unexpected error"),
+		);
+	}
+}
+
+export async function register(email: string, password: string, name: string): Promise<CommandResult> {
+	try {
+		return await new RegisterUseCase(identityRepo).execute({ email, password, name });
+	} catch (err) {
+		return commandFailureFrom("REGISTRATION_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
+	}
+}
+
+export async function sendPasswordResetEmail(email: string): Promise<CommandResult> {
+	try {
+		return await new SendPasswordResetEmailUseCase(identityRepo).execute(email);
+	} catch (err) {
+		return commandFailureFrom("PASSWORD_RESET_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
+	}
+}
+
+export async function signOut(): Promise<CommandResult> {
+	try {
+		return await new SignOutUseCase(identityRepo).execute();
+	} catch (err) {
+		return commandFailureFrom("SIGN_OUT_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
+	}
+}
+````
+
 ## File: modules/platform/subdomains/identity/interfaces/components/ShellGuard.tsx
 ````typescript
 "use client";
@@ -16822,6 +16748,40 @@ export interface AuthContextValue {
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
+````
+
+## File: modules/platform/subdomains/identity/interfaces/hooks/useTokenRefreshListener.tsx
+````typescript
+"use client";
+
+import { getFirebaseAuth } from "@integration-firebase";
+import { useEffect } from "react";
+import { FirebaseTokenRefreshRepository } from "../../api";
+
+let _tokenRefreshRepo: FirebaseTokenRefreshRepository | undefined;
+
+function getTokenRefreshRepo(): FirebaseTokenRefreshRepository {
+	if (!_tokenRefreshRepo) _tokenRefreshRepo = new FirebaseTokenRefreshRepository();
+	return _tokenRefreshRepo;
+}
+
+export function useTokenRefreshListener(accountId: string | null | undefined): void {
+	useEffect(() => {
+		if (!accountId) return;
+		if (!/^[\w-]+$/.test(accountId)) return;
+
+		const unsubscribe = getTokenRefreshRepo().subscribe(accountId, () => {
+			const auth = getFirebaseAuth();
+			const currentUser = auth.currentUser;
+			if (!currentUser) return;
+			void currentUser.getIdToken(true).catch(() => {
+				// Non-fatal: token refreshes naturally on next expiry cycle.
+			});
+		});
+
+		return () => unsubscribe();
+	}, [accountId]);
+}
 ````
 
 ## File: modules/platform/subdomains/identity/interfaces/index.ts
@@ -17104,6 +17064,38 @@ export function clearDevDemoSession(): void {
 }
 ````
 
+## File: modules/platform/subdomains/identity/README.md
+````markdown
+# Identity
+
+Authentication, identity tokens, and session management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/integration/api/index.ts
 ````typescript
 /**
@@ -17126,6 +17118,23 @@ export {};
 ## File: modules/platform/subdomains/integration/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'integration'.
+````
+
+## File: modules/platform/subdomains/integration/README.md
+````markdown
+# Integration
+
+External system integration management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/notification/application/index.ts
@@ -17307,6 +17316,38 @@ export {
 } from "./_actions/notification.actions";
 ````
 
+## File: modules/platform/subdomains/notification/README.md
+````markdown
+# Notification
+
+Notification delivery and preference management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/observability/api/index.ts
 ````typescript
 /**
@@ -17331,6 +17372,23 @@ export {};
 // Purpose: Infrastructure layer placeholder for platform subdomain 'observability'.
 ````
 
+## File: modules/platform/subdomains/observability/README.md
+````markdown
+# Observability
+
+System observability and monitoring.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/onboarding/api/index.ts
 ````typescript
 /**
@@ -17353,6 +17411,23 @@ export {};
 ## File: modules/platform/subdomains/onboarding/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'onboarding'.
+````
+
+## File: modules/platform/subdomains/onboarding/README.md
+````markdown
+# Onboarding
+
+User and organization onboarding flows.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/organization/application/index.ts
@@ -18799,347 +18874,9 @@ export function toOrgPolicy(id: string, data: Record<string, unknown>): OrgPolic
 }
 ````
 
-## File: modules/platform/subdomains/organization/interfaces/components/AccountSwitcher.tsx
+## File: modules/platform/subdomains/organization/infrastructure/index.ts
 ````typescript
-"use client";
-
-import { type FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import type { AccountEntity, AuthUser } from "../../../../api";
-import { useApp } from "../../../../api";
-import { createOrganization } from "../_actions/organization.actions";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-interface AccountSwitcherProps {
-  personalAccount: AuthUser | null;
-  organizationAccounts: AccountEntity[];
-  activeAccountId: string | null;
-  onSelectPersonal: () => void;
-  onSelectOrganization: (account: AccountEntity) => void;
-  onOrganizationCreated?: (account: AccountEntity) => void;
-}
-
-export function AccountSwitcher({
-  personalAccount,
-  organizationAccounts,
-  activeAccountId,
-  onSelectPersonal,
-  onSelectOrganization,
-  onOrganizationCreated,
-}: AccountSwitcherProps) {
-  const router = useRouter();
-  const {
-    state: { accountsHydrated, bootstrapPhase },
-  } = useApp();
-  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
-  const [organizationName, setOrganizationName] = useState("");
-  const [organizationError, setOrganizationError] = useState<string | null>(null);
-  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
-
-  function resetCreateOrganizationDialog() {
-    setOrganizationName("");
-    setOrganizationError(null);
-    setIsCreatingOrganization(false);
-  }
-
-  async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!personalAccount) {
-      setOrganizationError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-
-    const nextOrganizationName = organizationName.trim();
-    if (!nextOrganizationName) {
-      setOrganizationError("請輸入組織名稱。");
-      return;
-    }
-
-    setIsCreatingOrganization(true);
-    setOrganizationError(null);
-
-    const result = await createOrganization({
-      organizationName: nextOrganizationName,
-      ownerId: personalAccount.id,
-      ownerName: personalAccount.name,
-      ownerEmail: personalAccount.email,
-    });
-
-    if (!result.success) {
-      setOrganizationError(result.error.message);
-      setIsCreatingOrganization(false);
-      return;
-    }
-
-    onOrganizationCreated?.({
-      id: result.aggregateId,
-      name: nextOrganizationName,
-      accountType: "organization",
-      ownerId: personalAccount.id,
-    });
-
-    resetCreateOrganizationDialog();
-    setIsCreateOrganizationOpen(false);
-    router.push("/organization");
-  }
-
-  return (
-    <>
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          帳號情境
-        </p>
-        <select
-          aria-label="切換帳號情境"
-          value={activeAccountId ?? ""}
-          onChange={(event) => {
-            const nextId = event.target.value;
-            if (nextId === "__create_organization__") {
-              setIsCreateOrganizationOpen(true);
-              return;
-            }
-
-            if (!nextId || nextId === personalAccount?.id) {
-              onSelectPersonal();
-              return;
-            }
-
-            const nextAccount = organizationAccounts.find((account) => account.id === nextId);
-            if (nextAccount) {
-              onSelectOrganization(nextAccount);
-            }
-          }}
-          className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground"
-        >
-          {personalAccount && (
-            <option value={personalAccount.id}>{personalAccount.name}（個人）</option>
-          )}
-          {organizationAccounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.name}（組織）
-            </option>
-          ))}
-          <option value="__create_organization__">+建立組織</option>
-        </select>
-        {!accountsHydrated && (
-          <p className="text-xs text-muted-foreground">
-            {bootstrapPhase === "seeded" ? "正在同步組織上下文…" : "正在載入帳號上下文…"}
-          </p>
-        )}
-      </div>
-
-      <Dialog
-        open={isCreateOrganizationOpen}
-        onOpenChange={(open) => {
-          setIsCreateOrganizationOpen(open);
-          if (!open) {
-            resetCreateOrganizationDialog();
-          }
-        }}
-      >
-        <DialogContent aria-describedby="create-organization-description">
-          <DialogHeader>
-            <DialogTitle>建立新組織</DialogTitle>
-            <DialogDescription id="create-organization-description">
-              輸入名稱後會直接建立組織並切換到新的組織內容。
-            </DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={handleCreateOrganization}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="organization-name">
-                組織名稱
-              </label>
-              <Input
-                id="organization-name"
-                value={organizationName}
-                onChange={(event) => {
-                  setOrganizationName(event.target.value);
-                  if (organizationError) {
-                    setOrganizationError(null);
-                  }
-                }}
-                placeholder="例如：Gig Team"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreatingOrganization}
-                maxLength={80}
-              />
-              {organizationError && <p className="text-sm text-destructive">{organizationError}</p>}
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetCreateOrganizationDialog();
-                  setIsCreateOrganizationOpen(false);
-                }}
-                disabled={isCreatingOrganization}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingOrganization || !personalAccount}>
-                {isCreatingOrganization ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-````
-
-## File: modules/platform/subdomains/organization/interfaces/components/CreateOrganizationDialog.tsx
-````typescript
-"use client";
-
-import { type FormEvent, useState } from "react";
-
-import type { AuthUser } from "@/modules/platform/api";
-import type { AccountEntity } from "../../../../api";
-import { createOrganization } from "../_actions/organization.actions";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-interface CreateOrganizationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  user: AuthUser | null;
-  onOrganizationCreated?: (account: AccountEntity) => void;
-  onNavigate: (href: string) => void;
-}
-
-export function CreateOrganizationDialog({
-  open,
-  onOpenChange,
-  user,
-  onOrganizationCreated,
-  onNavigate,
-}: CreateOrganizationDialogProps) {
-  const [orgName, setOrgName] = useState("");
-  const [orgError, setOrgError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-
-  function reset() {
-    setOrgName("");
-    setOrgError(null);
-    setIsCreating(false);
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!user) {
-      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-    const name = orgName.trim();
-    if (!name) {
-      setOrgError("請輸入組織名稱。");
-      return;
-    }
-    setIsCreating(true);
-    setOrgError(null);
-    const result = await createOrganization({
-      organizationName: name,
-      ownerId: user.id,
-      ownerName: user.name,
-      ownerEmail: user.email,
-    });
-    if (!result.success) {
-      setOrgError(result.error.message);
-      setIsCreating(false);
-      return;
-    }
-    const newAccount: AccountEntity = {
-      id: result.aggregateId,
-      name,
-      accountType: "organization",
-      ownerId: user.id,
-    };
-    onOrganizationCreated?.(newAccount);
-    reset();
-    onOpenChange(false);
-    onNavigate("/organization");
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(isOpen) => {
-        onOpenChange(isOpen);
-        if (!isOpen) reset();
-      }}
-    >
-      <DialogContent aria-describedby="rail-create-org-description">
-        <DialogHeader>
-          <DialogTitle>建立新組織</DialogTitle>
-          <DialogDescription id="rail-create-org-description">
-            輸入名稱後會直接建立組織並切換到新的組織內容。
-          </DialogDescription>
-        </DialogHeader>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
-              組織名稱
-            </label>
-            <Input
-              id="rail-organization-name"
-              value={orgName}
-              onChange={(e) => {
-                setOrgName(e.target.value);
-                if (orgError) setOrgError(null);
-              }}
-              placeholder="例如：Gig Team"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-              disabled={isCreating}
-              maxLength={80}
-            />
-            {orgError && <p className="text-sm text-destructive">{orgError}</p>}
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                reset();
-                onOpenChange(false);
-              }}
-              disabled={isCreating}
-            >
-              取消
-            </Button>
-            <Button type="submit" disabled={isCreating || !user}>
-              {isCreating ? "建立中…" : "直接建立"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
+export { organizationService, organizationQueryService } from "./organization-service";
 ````
 
 ## File: modules/platform/subdomains/organization/interfaces/components/MembersPage.tsx
@@ -19809,6 +19546,38 @@ export function TeamsPage({ organizationId }: TeamsPageProps) {
 }
 ````
 
+## File: modules/platform/subdomains/organization/README.md
+````markdown
+# Organization
+
+Organization structure, membership, and team management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/platform-config/domain/index.ts
 ````typescript
 // Purpose: Domain layer placeholder for platform subdomain 'platform-config'.
@@ -19817,6 +19586,23 @@ export function TeamsPage({ organizationId }: TeamsPageProps) {
 ## File: modules/platform/subdomains/platform-config/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'platform-config'.
+````
+
+## File: modules/platform/subdomains/platform-config/README.md
+````markdown
+# Platform Config
+
+Platform configuration management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/referral/api/index.ts
@@ -19843,6 +19629,23 @@ export {};
 // Purpose: Infrastructure layer placeholder for platform subdomain 'referral'.
 ````
 
+## File: modules/platform/subdomains/referral/README.md
+````markdown
+# Referral
+
+Referral program management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/search/domain/index.ts
 ````typescript
 // Purpose: Domain layer placeholder for platform subdomain 'search'.
@@ -19851,6 +19654,23 @@ export {};
 ## File: modules/platform/subdomains/search/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'search'.
+````
+
+## File: modules/platform/subdomains/search/README.md
+````markdown
+# Search
+
+Platform-wide search capabilities.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/security-policy/api/index.ts
@@ -19877,6 +19697,40 @@ export {};
 // Purpose: Infrastructure layer placeholder for platform subdomain 'security-policy'.
 ````
 
+## File: modules/platform/subdomains/security-policy/README.md
+````markdown
+# Security Policy
+
+Security policy enforcement.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/subscription/README.md
+````markdown
+# Subscription
+
+Subscription plan management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/support/api/index.ts
 ````typescript
 /**
@@ -19899,6 +19753,23 @@ export {};
 ## File: modules/platform/subdomains/support/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'support'.
+````
+
+## File: modules/platform/subdomains/support/README.md
+````markdown
+# Support
+
+Customer support management.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/team/application/use-cases/team.use-cases.ts
@@ -20081,6 +19952,23 @@ export class FirebaseTeamRepository implements TeamRepository {
 }
 ````
 
+## File: modules/platform/subdomains/team/README.md
+````markdown
+# Team
+
+Team management within organizations.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/workflow/api/index.ts
 ````typescript
 /**
@@ -20105,6 +19993,23 @@ export {};
 // Purpose: Infrastructure layer placeholder for platform subdomain 'workflow'.
 ````
 
+## File: modules/platform/subdomains/workflow/README.md
+````markdown
+# Workflow
+
+Platform-level workflow orchestration.
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/system.ts
 ````typescript
 /**
@@ -20116,6 +20021,51 @@ export {};
  */
 
 export const DEMO_ACCOUNT_ID = "demo-account";
+````
+
+## File: modules/workspace/AGENT.md
+````markdown
+# Workspace Agent
+
+> Strategic agent documentation: [docs/contexts/workspace/AGENT.md](../../docs/contexts/workspace/AGENT.md)
+
+## Mission
+
+保護 workspace 主域作為協作容器、工作區範疇與 workspaceId 錨點。
+
+## Route Here When
+
+- 問題的中心是 workspaceId、工作區建立封存、工作區內角色與參與關係。
+- 問題的中心是工作區共享、存在感、活動流、排程與工作流執行。
+- 問題需要提供其他主域運作所需的 workspace scope。
+
+## Route Elsewhere When
+
+- 身份、組織、授權、權益、憑證、通知治理屬於 platform。
+- 知識頁面、文章、資料庫、分類、內容發布屬於 notion。
+- notebook、conversation、source、retrieval、synthesis 屬於 notebooklm。
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order (Strangler Pattern)
+
+New features:
+1. Define Domain (entities, value objects, aggregates, events)
+2. Define Application (use cases, DTOs)
+3. Define Ports (only if boundary isolation needed)
+4. Implement Infrastructure (adapters, persistence)
+5. Implement Interfaces (UI, actions, hooks)
+
+Legacy migration:
+1. Find a Use Case to extract
+2. Build Domain model for that use case
+3. Converge Application layer
+4. Isolate legacy via Ports
+5. Replace Infrastructure adapter
 ````
 
 ## File: modules/workspace/api/contracts.ts
@@ -20524,6 +20474,34 @@ export class MountCapabilitiesUseCase {
     }
   }
 }
+````
+
+## File: modules/workspace/docs/README.md
+````markdown
+# Workspace Documentation
+
+Implementation-level documentation for the workspace bounded context.
+
+## Strategic Documentation (Authority)
+
+Strategic architecture documentation lives in `docs/contexts/workspace/`:
+
+- [README.md](../../../docs/contexts/workspace/README.md) — Context overview
+- [subdomains.md](../../../docs/contexts/workspace/subdomains.md) — Subdomain inventory
+- [bounded-contexts.md](../../../docs/contexts/workspace/bounded-contexts.md) — Ownership map
+- [context-map.md](../../../docs/contexts/workspace/context-map.md) — Relationships
+- [ubiquitous-language.md](../../../docs/contexts/workspace/ubiquitous-language.md) — Terminology
+
+## Architecture Reference
+
+- [Bounded Context Template](../../../docs/bounded-context-subdomain-template.md) — Standard structure
+- [Architecture Overview](../../../docs/architecture-overview.md) — System-wide architecture
+- [Integration Guidelines](../../../docs/integration-guidelines.md) — Cross-context rules
+
+## Conflict Resolution
+
+- Strategic docs in `docs/contexts/workspace/` are the authority for naming, ownership, and boundaries.
+- This `docs/` folder is for implementation-aligned detail only.
 ````
 
 ## File: modules/workspace/domain/aggregates/Workspace.test.ts
@@ -23513,141 +23491,6 @@ export function trimOrUndefined(value: string): string | undefined {
 }
 ````
 
-## File: modules/workspace/interfaces/web/components/rails/CreateWorkspaceDialogRail.tsx
-````typescript
-"use client";
-
-import { type FormEvent, useState } from "react";
-
-import { createWorkspace } from "../../../api/facades";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-interface CreateWorkspaceDialogRailProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  accountId: string | null;
-  accountType: "user" | "organization" | null;
-  creatorUserId?: string | null;
-  onNavigate: (href: string) => void;
-}
-
-export function CreateWorkspaceDialogRail({
-  open,
-  onOpenChange,
-  accountId,
-  accountType,
-  creatorUserId,
-  onNavigate,
-}: CreateWorkspaceDialogRailProps) {
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-
-  function reset() {
-    setWorkspaceName("");
-    setError(null);
-    setIsCreating(false);
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const name = workspaceName.trim();
-    if (!name) {
-      setError("請輸入工作區名稱。");
-      return;
-    }
-    if (!accountId || !accountType) {
-      setError("帳號資訊已失效，請重新登入後再建立工作區。");
-      return;
-    }
-
-    setIsCreating(true);
-    setError(null);
-    const result = await createWorkspace({
-      name,
-      accountId,
-      accountType,
-      creatorUserId: creatorUserId ?? undefined,
-    });
-
-    if (!result.success) {
-      setError(result.error.message);
-      setIsCreating(false);
-      return;
-    }
-
-    reset();
-    onOpenChange(false);
-    onNavigate("/workspace");
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(isOpen) => {
-        onOpenChange(isOpen);
-        if (!isOpen) reset();
-      }}
-    >
-      <DialogContent aria-describedby="rail-create-workspace-description">
-        <DialogHeader>
-          <DialogTitle>建立新工作區</DialogTitle>
-          <DialogDescription id="rail-create-workspace-description">
-            輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
-          </DialogDescription>
-        </DialogHeader>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
-              工作區名稱
-            </label>
-            <Input
-              id="rail-workspace-name"
-              value={workspaceName}
-              onChange={(e) => {
-                setWorkspaceName(e.target.value);
-                if (error) setError(null);
-              }}
-              placeholder="例如：Project Alpha"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-              disabled={isCreating}
-              maxLength={80}
-            />
-            {error && <p className="text-sm text-destructive">{error}</p>}
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                reset();
-                onOpenChange(false);
-              }}
-              disabled={isCreating}
-            >
-              取消
-            </Button>
-            <Button type="submit" disabled={isCreating || !accountId || !accountType}>
-              {isCreating ? "建立中…" : "直接建立"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
 ## File: modules/workspace/interfaces/web/components/screens/OrganizationWorkspacesScreen.tsx
 ````typescript
 "use client";
@@ -23789,289 +23632,6 @@ export function OrganizationWorkspacesScreen({ accountId }: OrganizationWorkspac
             ))}
         </CardContent>
       </Card>
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
-
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-
-import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
-import { getWorkspaceGovernanceSummary } from "../../view-models/workspace-supporting-records";
-import { CreateWorkspaceDialog } from "../dialogs/CreateWorkspaceDialog";
-
-const lifecycleBadgeVariant: Record<
-  WorkspaceEntity["lifecycleState"],
-  "default" | "secondary" | "outline"
-> = {
-  active: "default",
-  preparatory: "secondary",
-  stopped: "outline",
-};
-
-interface WorkspaceHubScreenProps {
-  readonly accountId: string | null | undefined;
-  readonly accountName: string | null | undefined;
-  readonly accountType: "user" | "organization";
-  readonly accountsHydrated: boolean;
-  readonly isBootstrapSeeded: boolean;
-  readonly currentUserId?: string | null;
-}
-
-export function WorkspaceHubScreen({
-  accountId,
-  accountName,
-  accountType,
-  accountsHydrated,
-  isBootstrapSeeded,
-  currentUserId,
-}: WorkspaceHubScreenProps) {
-  const router = useRouter();
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-
-  const {
-    createError,
-    clearCreateError,
-    createWorkspaceForAccount,
-    errorMessage,
-    isCreatingWorkspace,
-    loadState,
-    workspaceStats,
-    workspaces,
-  } = useWorkspaceHub({
-    accountId,
-    accountType,
-    creatorUserId: currentUserId,
-  });
-
-  function resetCreateWorkspaceDialog() {
-    setWorkspaceName("");
-    clearCreateError();
-  }
-
-  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const result = await createWorkspaceForAccount(workspaceName);
-
-    if (!result.success) {
-      return;
-    }
-
-    resetCreateWorkspaceDialog();
-    setIsCreateWorkspaceOpen(false);
-    if (result.aggregateId) {
-      router.push(`/workspace/${result.aggregateId}`);
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">Workspace Hub</h1>
-          <p className="text-sm text-muted-foreground">
-            Review the workspaces connected to{" "}
-            <span className="font-medium text-foreground">
-              {accountName ?? "the active account"}
-            </span>
-            .
-          </p>
-        </div>
-
-        <Button
-          onClick={() => setIsCreateWorkspaceOpen(true)}
-          disabled={!accountsHydrated || !accountId}
-        >
-          {!accountsHydrated ? "同步帳號中…" : "建立工作區"}
-        </Button>
-      </div>
-
-      {!accountsHydrated && (
-        <div
-          className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground"
-          aria-live="polite"
-          role="status"
-        >
-          {isBootstrapSeeded
-            ? "正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。"
-            : "正在載入帳號與工作區內容…"}
-        </div>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Total Workspaces</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.total}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Active</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.active}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Preparatory</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.preparatory}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      <Card className="border border-border/50">
-        <CardHeader>
-          <CardTitle>Workspace-first Product Spine</CardTitle>
-          <CardDescription>
-            目前先把主流程收斂成 Identity → Organization → Workspace，再由工作區承接 Knowledge、知識頁面、Notebook / AI。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-xl border border-border/40 px-4 py-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Entry flow</p>
-            <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
-              <li>
-                <span className="font-medium text-foreground">1. Identity</span>：登入後先建立個人／組織帳號情境。
-              </li>
-              <li>
-                <span className="font-medium text-foreground">2. Organization</span>：切換至目標 account / organization。
-              </li>
-              <li>
-                <span className="font-medium text-foreground">3. Workspace</span>：進入工作區後再分流到知識、知識頁面、Notebook / AI。
-              </li>
-            </ol>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Knowledge</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                文件、來源、Libraries 與 upload / ingest 流程都由工作區承接。
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">知識頁面</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                頁面樹、內容導覽與知識結構直接從工作區知識頁面進入。
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                問答、推理與 RAG 查詢作為工作區內的消費層，而非獨立入口。
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border border-border/50">
-        <CardHeader>
-          <CardTitle>Workspace Records</CardTitle>
-          <CardDescription>
-            Lifecycle 與 supporting governance records 目前仍由 workspace 模組擁有，但已收斂在專用 supporting ports；點入後會以工作區為樞紐進入 Knowledge / 知識頁面 / Notebook-AI。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-              Loading workspace records…
-            </div>
-          )}
-
-          {loadState === "error" && errorMessage && (
-            <div className="rounded-xl border border-destructive/30 px-4 py-3 text-sm text-destructive">
-              {errorMessage}
-            </div>
-          )}
-
-          {loadState === "loaded" && workspaces.length === 0 && (
-            <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
-              目前這個帳號尚未建立任何工作區。你可以先完成{" "}
-              <Link
-                href="/organization"
-                className="font-medium text-primary hover:underline"
-              >
-                組織情境
-              </Link>{" "}
-              設定，再使用上方的建立工作區入口，回到 workspace-first 主流程。
-            </div>
-          )}
-
-          {workspaces.map((workspace) => {
-            const governanceSummary = getWorkspaceGovernanceSummary(workspace);
-
-            return (
-              <Link
-                key={workspace.id}
-                href={`/workspace/${workspace.id}`}
-                className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground">
-                        {workspace.name}
-                      </p>
-                      <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
-                        {workspace.lifecycleState}
-                      </Badge>
-                      <Badge variant="outline">{workspace.visibility}</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Account scope: {workspace.accountType}
-                    </p>
-                    <p className="text-xs font-medium text-primary">點擊進入工作區</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
-                    <span>Capabilities: {governanceSummary.capabilityCount}</span>
-                    <span>Teams: {governanceSummary.teamCount}</span>
-                    <span>Locations: {governanceSummary.locationCount}</span>
-                    <span>Grants: {governanceSummary.grantCount}</span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </CardContent>
-      </Card>
-
-      <CreateWorkspaceDialog
-        open={isCreateWorkspaceOpen}
-        workspaceName={workspaceName}
-        createError={createError}
-        isCreatingWorkspace={isCreatingWorkspace}
-        accountId={accountId}
-        onOpenChange={(open) => {
-          setIsCreateWorkspaceOpen(open);
-          if (!open) resetCreateWorkspaceDialog();
-        }}
-        onWorkspaceNameChange={(name) => {
-          setWorkspaceName(name);
-          if (createError) clearCreateError();
-        }}
-        onSubmit={handleCreateWorkspace}
-      />
     </div>
   );
 }
@@ -24407,79 +23967,6 @@ export function WorkspaceOverviewSettingsTab({
 }
 ````
 
-## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { WorkspaceEntity } from "../../api/contracts";
-import { getWorkspaceByIdForAccount } from "../../api/facades";
-
-export type WorkspaceLoadState = "loading" | "loaded" | "error";
-
-export interface UseWorkspaceDetailResult {
-  workspace: WorkspaceEntity | null;
-  loadState: WorkspaceLoadState;
-  setWorkspace: (ws: WorkspaceEntity) => void;
-}
-
-export function useWorkspaceDetail(
-  workspaceId: string,
-  accountId: string | null | undefined,
-  accountsHydrated: boolean,
-): UseWorkspaceDetailResult {
-  const router = useRouter();
-  const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
-  const [loadState, setLoadState] = useState<WorkspaceLoadState>("loading");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadWorkspace() {
-      if (!workspaceId) {
-        setLoadState("error");
-        return;
-      }
-
-      if (!accountId || !accountsHydrated) {
-        setWorkspace(null);
-        setLoadState("loading");
-        return;
-      }
-
-      setLoadState("loading");
-      try {
-        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
-        if (cancelled) return;
-        if (!detail) {
-          router.replace("/workspace?context=unavailable");
-          return;
-        }
-        setWorkspace(detail);
-        setLoadState("loaded");
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[useWorkspaceDetail] Failed to load workspace:", error);
-        }
-        if (!cancelled) {
-          setWorkspace(null);
-          setLoadState("error");
-        }
-      }
-    }
-
-    void loadWorkspace();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accountId, accountsHydrated, router, workspaceId]);
-
-  return { workspace, loadState, setWorkspace };
-}
-````
-
 ## File: modules/workspace/interfaces/web/hooks/useWorkspaceHub.ts
 ````typescript
 "use client";
@@ -24631,147 +24118,6 @@ export function useWorkspaceHub({ accountId, accountType, creatorUserId }: UseWo
     refreshWorkspaces,
     workspaceStats,
     workspaces,
-  };
-}
-````
-
-## File: modules/workspace/interfaces/web/hooks/useWorkspaceSettingsSave.ts
-````typescript
-"use client";
-
-import { type FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { WorkspaceEntity } from "../../api/contracts";
-import { getWorkspaceByIdForAccount, updateWorkspaceSettings } from "../../api/facades";
-import type { WorkspaceSettingsDraft } from "../state/workspace-settings";
-import { trimOrUndefined } from "../components/layout/workspace-detail-helpers";
-
-interface UseWorkspaceSettingsSaveOptions {
-  readonly workspace: WorkspaceEntity | null;
-  readonly accountId: string | null | undefined;
-  readonly onSaved: (updated: WorkspaceEntity) => void;
-}
-
-interface UseWorkspaceSettingsSaveResult {
-  readonly isSaving: boolean;
-  readonly saveError: string | null;
-  readonly clearSaveError: () => void;
-  readonly handleSave: (
-    event: FormEvent<HTMLFormElement>,
-    settingsDraft: WorkspaceSettingsDraft | null,
-  ) => Promise<void>;
-}
-
-export function useWorkspaceSettingsSave({
-  workspace,
-  accountId,
-  onSaved,
-}: UseWorkspaceSettingsSaveOptions): UseWorkspaceSettingsSaveResult {
-  const router = useRouter();
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  async function handleSave(
-    event: FormEvent<HTMLFormElement>,
-    settingsDraft: WorkspaceSettingsDraft | null,
-  ) {
-    event.preventDefault();
-
-    if (!workspace || !settingsDraft) return;
-
-    if (!accountId) {
-      setSaveError("帳號上下文尚未完成同步，請稍候再試。");
-      return;
-    }
-
-    const nextWorkspaceName = settingsDraft.name.trim();
-    if (!nextWorkspaceName) {
-      setSaveError("請輸入工作區名稱。");
-      return;
-    }
-
-    setIsSaving(true);
-    setSaveError(null);
-
-    const hasAddressContent = Boolean(
-      settingsDraft.street.trim() ||
-        settingsDraft.city.trim() ||
-        settingsDraft.state.trim() ||
-        settingsDraft.postalCode.trim() ||
-        settingsDraft.country.trim() ||
-        settingsDraft.details.trim(),
-    );
-    const hasPersonnelContent = Boolean(
-      settingsDraft.managerId.trim() ||
-        settingsDraft.supervisorId.trim() ||
-        settingsDraft.safetyOfficerId.trim() ||
-        settingsDraft.customRoles.some((entry) => entry.roleName.trim() || entry.role.trim()),
-    );
-
-    const normalizedCustomRoles = settingsDraft.customRoles
-      .map((entry) => ({
-        roleId: entry.roleId,
-        roleName: entry.roleName.trim(),
-        role: entry.role.trim(),
-      }))
-      .filter((entry) => entry.roleName || entry.role);
-
-    const result = await updateWorkspaceSettings({
-      workspaceId: workspace.id,
-      accountId,
-      name: nextWorkspaceName,
-      visibility: settingsDraft.visibility,
-      lifecycleState: settingsDraft.lifecycleState,
-      address:
-        workspace.address != null || hasAddressContent
-          ? {
-              street: settingsDraft.street.trim(),
-              city: settingsDraft.city.trim(),
-              state: settingsDraft.state.trim(),
-              postalCode: settingsDraft.postalCode.trim(),
-              country: settingsDraft.country.trim(),
-              details: trimOrUndefined(settingsDraft.details),
-            }
-          : undefined,
-      personnel:
-        workspace.personnel != null || hasPersonnelContent
-          ? {
-              managerId: trimOrUndefined(settingsDraft.managerId),
-              supervisorId: trimOrUndefined(settingsDraft.supervisorId),
-              safetyOfficerId: trimOrUndefined(settingsDraft.safetyOfficerId),
-              customRoles: normalizedCustomRoles.length > 0 ? normalizedCustomRoles : undefined,
-            }
-          : undefined,
-    });
-
-    if (!result.success) {
-      setSaveError(result.error.message);
-      setIsSaving(false);
-      return;
-    }
-
-    try {
-      const detail = await getWorkspaceByIdForAccount(accountId, workspace.id);
-      if (!detail) {
-        router.replace("/workspace?context=unavailable");
-        return;
-      }
-      onSaved(detail);
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[useWorkspaceSettingsSave] Failed to refresh workspace after save:", error);
-      }
-      setSaveError("工作區已更新，但重新整理資料失敗。請稍後再試。");
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  return {
-    isSaving,
-    saveError,
-    clearSaveError: () => setSaveError(null),
-    handleSave,
   };
 }
 ````
@@ -25665,6 +25011,38 @@ export function WorkspaceAuditTab({ workspaceId }: WorkspaceAuditTabProps) {
     </Card>
   );
 }
+````
+
+## File: modules/workspace/subdomains/audit/README.md
+````markdown
+# Audit
+
+Audit trail and accountability tracking for workspace actions.
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/workspace/subdomains/feed/api/factories.ts
@@ -26796,6 +26174,38 @@ export async function getAccountWorkspaceFeed(accountId: string, limit = 50): Pr
 }
 ````
 
+## File: modules/workspace/subdomains/feed/README.md
+````markdown
+# Feed
+
+Activity feed projections for workspace events.
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/workspace/subdomains/scheduling/api/factories.ts
 ````typescript
 import { FirebaseDemandRepository } from "../infrastructure/firebase/FirebaseDemandRepository";
@@ -27832,6 +27242,38 @@ export function WorkspaceSchedulingTab({
     </div>
   );
 }
+````
+
+## File: modules/workspace/subdomains/scheduling/README.md
+````markdown
+# Scheduling
+
+Scheduling and demand management within workspaces.
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/api/contracts.ts
@@ -32764,6 +32206,38 @@ export async function getWorkspaceFlowInvoices(workspaceId: string): Promise<Inv
 export async function getWorkspaceFlowInvoiceItems(invoiceId: string): Promise<InvoiceItem[]> {
   return makeInvoiceRepo().listItems(invoiceId);
 }
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/README.md
+````markdown
+# Workspace Workflow
+
+Workflow orchestration for workspace processes.
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: packages/api-contracts/index.ts
@@ -40961,6 +40435,300 @@ export function Providers({ children }: { children: ReactNode }) {
 }
 ````
 
+## File: app/(public)/page.tsx
+````typescript
+"use client";
+
+/**
+ * app/(public)/page.tsx
+ * Public landing page with top-right auth entry and inline auth panel.
+ * Uses identity module use cases directly on the client so Firebase auth state
+ * actually updates AuthProvider via onAuthStateChanged.
+ */
+
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
+
+import {
+  useAuth,
+  createClientAuthUseCases,
+  createClientAccountUseCases,
+  createDevDemoUser,
+  isDevDemoCredential,
+  isLocalDevDemoAllowed,
+  writeDevDemoSession,
+} from "@/modules/platform/api";
+
+type Tab = "login" | "register";
+
+export default function PublicPage() {
+  const { state, dispatch } = useAuth();
+  const router = useRouter();
+
+  const [tab, setTab] = useState<Tab>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
+  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
+
+  const {
+    signInUseCase,
+    signInAnonymouslyUseCase,
+    registerUseCase,
+    sendPasswordResetEmailUseCase,
+    createUserAccountUseCase,
+  } =
+    useMemo(() => ({
+      ...createClientAuthUseCases(),
+      ...createClientAccountUseCases(),
+    }), []);
+
+  useEffect(() => {
+    if (state.status === "authenticated") {
+      const nextHref = state.user?.id ? `/${encodeURIComponent(state.user.id)}` : "/";
+      router.replace(nextHref);
+    }
+  }, [state.status, state.user?.id, router]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
+        const demoUser = createDevDemoUser();
+        writeDevDemoSession(demoUser);
+        window.location.assign(`/${encodeURIComponent(demoUser.id)}`);
+        return;
+      }
+
+      const result =
+        tab === "login"
+          ? await signInUseCase.execute({ email, password })
+          : await registerUseCase.execute({ email, password, name });
+
+      if (!result.success) {
+        setError(result.error.message);
+        return;
+      }
+
+      if (tab === "register") {
+        const accountResult = await createUserAccountUseCase.execute(
+          result.aggregateId,
+          name,
+          email,
+        );
+        if (!accountResult.success) {
+          setError(accountResult.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleGuestAccess() {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await signInAnonymouslyUseCase.execute();
+      if (!result.success) {
+        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
+        // blocked in sandboxes), create a local guest session so the shell can be tested.
+        if (isLocalDevDemoAllowed()) {
+          const guestUser = createDevDemoUser();
+          writeDevDemoSession(guestUser);
+          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
+        } else {
+          setError(result.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handlePasswordReset() {
+    if (!email) {
+      setError("Enter your email address first.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await sendPasswordResetEmailUseCase.execute(email);
+      if (result.success) {
+        setResetSent(true);
+        setError(null);
+      } else {
+        setError(result.error.message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (state.status === "initializing") {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-background">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setResetSent(false);
+            setIsAuthPanelOpen((prev) => !prev);
+          }}
+          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+        >
+          {isAuthPanelOpen ? "Close" : "Sign In"}
+        </button>
+      </header>
+
+      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
+        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
+            Unified Hexagonal Architecture with DDD workspace for identity, account, and organization modules.
+            Use the top-right sign in button to access your dashboard.
+          </p>
+        </div>
+
+        {isAuthPanelOpen && (
+          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
+            <div className="flex flex-col items-center pb-4 pt-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
+                <ShieldCheck className="h-7 w-7 text-primary/90" />
+              </div>
+            </div>
+
+            <div className="px-6">
+              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
+                {(["login", "register"] as Tab[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setTab(t);
+                      setError(null);
+                    }}
+                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
+                      tab === t
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t === "login" ? "Sign In" : "Register"}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                {tab === "register" && (
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
+                    <input
+                      id="register-name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your display name"
+                      required
+                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    autoComplete="email"
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
+                    {tab === "login" && (
+                      <button
+                        type="button"
+                        onClick={handlePasswordReset}
+                        className="text-xs text-primary/70 hover:text-primary"
+                      >
+                        {resetSent ? "Email sent!" : "Forgot password?"}
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    id="auth-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete={tab === "login" ? "current-password" : "new-password"}
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                {error && (
+                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : tab === "login" ? (
+                    "Enter Dimension"
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
+              </form>
+            </div>
+
+            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
+              <button
+                type="button"
+                onClick={handleGuestAccess}
+                disabled={isLoading}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+````
+
 ## File: app/(shell)/_shell/index.ts
 ````typescript
 /**
@@ -41013,76 +40781,6 @@ export async function quickCreateKnowledgePage(
     parentPageId: null,
     createdByUserId: input.createdByUserId,
   });
-}
-````
-
-## File: app/(shell)/_shell/ShellContextNavSection.tsx
-````typescript
-"use client";
-
-/**
- * ShellContextNavSection — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports from workspace module.
- */
-
-import Link from "next/link";
-import { appendWorkspaceContextQuery } from "@/modules/workspace/api";
-
-interface ContextScopedNavItem {
-  href: string;
-  label: string;
-}
-
-interface ShellContextNavSectionProps {
-  title: string;
-  items: readonly ContextScopedNavItem[];
-  isActiveRoute: (href: string) => boolean;
-  activeAccountId: string | null;
-  activeWorkspaceId: string | null;
-}
-
-export function ShellContextNavSection({
-  title,
-  items,
-  isActiveRoute,
-  activeAccountId,
-  activeWorkspaceId,
-}: ShellContextNavSectionProps) {
-  return (
-    <nav className="space-y-0.5" aria-label={`${title}導覽`}>
-      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-        {title}
-      </p>
-      {(activeAccountId || activeWorkspaceId) && (
-        <p className="px-2 pb-1 text-[11px] text-muted-foreground">
-          {activeAccountId ? `帳號: ${activeAccountId.slice(0, 8)}` : "帳號: -"}
-          {" · "}
-          {activeWorkspaceId ? `工作區: ${activeWorkspaceId.slice(0, 8)}` : "工作區: -"}
-        </p>
-      )}
-      {items.map((item) => {
-        const active = isActiveRoute(item.href);
-        const contextualHref = appendWorkspaceContextQuery(item.href, {
-          accountId: activeAccountId,
-          workspaceId: activeWorkspaceId,
-        });
-        return (
-          <Link
-            key={item.href}
-            href={contextualHref}
-            aria-current={active ? "page" : undefined}
-            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-              active
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
 }
 ````
 
@@ -42696,21 +42394,6 @@ export default function OrganizationAuditPageRoute() {
 }
 ````
 
-## File: app/(shell)/(account)/[accountId]/organization/content/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-
-interface OrganizationKnowledgePageProps {
-  params: {
-    accountId: string;
-  };
-}
-
-export default function OrganizationKnowledgePage({ params }: OrganizationKnowledgePageProps) {
-  redirect(`/${encodeURIComponent(params.accountId)}?tab=Overview&panel=knowledge-pages`);
-}
-````
-
 ## File: app/(shell)/(account)/[accountId]/organization/daily/page.tsx
 ````typescript
 "use client";
@@ -42767,197 +42450,6 @@ export default function OrganizationMembersPage() {
 }
 ````
 
-## File: app/(shell)/(account)/[accountId]/organization/page.tsx
-````typescript
-"use client";
-
-/**
- * Organization Overview Page — /organization
- * Lists organizations visible to the current user and allows switching
- * to an organization account context.
- * Section pages live under /organization/[section].
- */
-
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-
-import { useApp, useAuth } from "@/modules/platform/api"
-import type { AccountEntity } from "@/modules/platform/api";
-import { isActiveOrganizationAccount } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-export default function OrganizationPage() {
-  const router = useRouter();
-  const { state: appState, dispatch } = useApp();
-  const { state: authState } = useAuth();
-  const { user } = authState;
-  const { accounts, activeAccount, accountsHydrated, bootstrapPhase } = appState;
-
-  const orgList = Object.values(accounts);
-  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  function handleSwitch(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    router.replace("/workspace");
-  }
-
-  function handleSwitchToPersonal() {
-    if (!user) return;
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
-    router.replace("/workspace");
-  }
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Account Context Switcher</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          先選擇個人或組織帳號情境，再回到 workspace-first 主流程。
-        </p>
-      </div>
-
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="text-base font-semibold">Recommended flow</h2>
-        <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
-          <li>
-            <span className="font-medium text-foreground">1. Identity</span>：登入後確認你目前要操作的個人／組織帳號。
-          </li>
-          <li>
-            <span className="font-medium text-foreground">2. Organization</span>：在這裡切換 active account。
-          </li>
-          <li>
-            <span className="font-medium text-foreground">3. Workspace</span>：回到工作區，再進入 Knowledge、知識頁面、Notebook / AI。
-          </li>
-        </ol>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button asChild size="sm">
-            <Link href="/workspace">回到 Workspace Hub</Link>
-          </Button>
-          {activeOrganizationId && (
-            <Button asChild size="sm" variant="outline">
-              <Link href="/organization/members">組織治理模組</Link>
-            </Button>
-          )}
-        </div>
-      </section>
-
-      {/* Quick-access dashboard — visible only when an org context is active */}
-      {activeOrganizationId && (
-        <section className="space-y-3">
-          <h2 className="text-base font-semibold">組織功能</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {[
-              { href: "/organization/members", title: "成員管理", desc: "邀請與管理組織成員" },
-              { href: "/organization/teams", title: "團隊管理", desc: "建立與編輯團隊" },
-              { href: "/organization/permissions", title: "權限政策", desc: "設定存取規則" },
-              { href: "/organization/workspaces", title: "工作區", desc: "組織下的工作區清單" },
-              { href: "/organization/schedule", title: "工作需求排程", desc: "排程與容量總覽" },
-              { href: "/organization/audit", title: "稽核記錄", desc: "操作歷史追蹤" },
-              { href: "/organization/daily", title: "動態牆", desc: "組織工作區動態" },
-            ].map((item) => (
-              <Link key={item.href} href={item.href} className="group">
-                <Card className="h-full transition-colors group-hover:border-primary/50 group-hover:bg-accent/40">
-                  <CardHeader className="pb-2 pt-4">
-                    <CardTitle className="text-sm">{item.title}</CardTitle>
-                    <CardDescription className="text-xs">{item.desc}</CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          {bootstrapPhase === "seeded"
-            ? "正在同步你的組織清單，完成後就能切換到對應的組織上下文。"
-            : "正在載入組織資料…"}
-        </div>
-      )}
-
-      {/* Personal account */}
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold">Personal Account</h2>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-medium">{user?.name ?? "—"}</p>
-            <p className="text-xs text-muted-foreground">{user?.email}</p>
-          </div>
-          {activeAccount?.id === user?.id ? (
-            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-              Active
-            </span>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleSwitchToPersonal}
-            >
-              Switch
-            </Button>
-          )}
-        </div>
-      </section>
-
-      {/* Organizations */}
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold">
-          Organizations
-          <span className="ml-2 text-xs font-normal text-muted-foreground">
-            ({orgList.length})
-          </span>
-        </h2>
-
-        {orgList.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            You are not a member of any organization yet.
-          </p>
-        ) : (
-          <ul className="space-y-3">
-            {orgList.map((org) => (
-              <li
-                key={org.id}
-                className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3"
-              >
-                <div>
-                  <p className="font-medium">{org.name}</p>
-                  {org.description && (
-                    <p className="text-xs text-muted-foreground">{org.description}</p>
-                  )}
-                </div>
-                {activeAccount?.id === org.id ? (
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                    Active
-                  </span>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSwitch(org)}
-                  >
-                    Switch
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {activeOrganizationId && (
-        <p className="text-sm text-muted-foreground">
-          已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
-        </p>
-      )}
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/(account)/[accountId]/organization/permissions/page.tsx
 ````typescript
 "use client";
@@ -42968,19 +42460,6 @@ export default function OrganizationPermissionsPage() {
   const { state: { activeAccount } } = useApp();
   const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
   return <PermissionsPage organizationId={organizationId} />;
-}
-````
-
-## File: app/(shell)/(account)/[accountId]/organization/schedule/dispatcher/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-
-/**
- * Dispatcher page — redirects to the organization schedule view.
- * Route: /organization/schedule/dispatcher
- */
-export default function DispatcherPage() {
-  redirect("/organization/schedule");
 }
 ````
 
@@ -43058,18 +42537,6 @@ export default function OrganizationWorkspacesPage() {
 }
 ````
 
-## File: app/(shell)/(account)/[accountId]/settings/general/page.tsx
-````typescript
-/**
- * /settings/general — redirect to workspace (removed from MVP nav, Occam's Razor)
- */
-import { redirect } from "next/navigation";
-
-export default function SettingsGeneralPage() {
-  redirect("/workspace");
-}
-````
-
 ## File: app/(shell)/(account)/[accountId]/settings/notifications/page.tsx
 ````typescript
 "use client";
@@ -43080,20 +42547,6 @@ export default function NotificationCenterPage() {
   const { state: authState } = useAuth();
   const recipientId = authState.user?.id ?? "";
   return <NotificationsPage recipientId={recipientId} />;
-}
-````
-
-## File: app/(shell)/(account)/[accountId]/settings/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
-
-export default function SettingsPage() {
-  return (
-    <WorkspaceRouteShim
-      panel="settings"
-      loadingMessage="正在導向 Workspace Settings…"
-    />
-  );
 }
 ````
 
@@ -43500,354 +42953,6 @@ export { saveThread, loadThread };
 export type { Thread };
 ````
 
-## File: modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx
-````typescript
-"use client";
-
-/**
- * Module: notebooklm/subdomains/conversation
- * Component: AiChatPage
- * Purpose: Full-page AI chat UI — wired to conversation server actions.
- *          Thread persistence via Firestore. Multi-turn context support.
- *
- * Props are injected by the app/ shim so this component has no provider dependencies.
- */
-
-import Link from "next/link";
-import { Bot, BookOpen, Brain, FileText, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { v7 as uuid } from "@lib-uuid";
-
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/api";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-import { sendChatMessage, saveThread, loadThread } from "../_actions/chat.actions";
-import {
-  type ChatMessage,
-  STORAGE_KEY,
-  buildContextPrompt,
-  generateMsgId,
-  threadFromMessages,
-} from "../helpers";
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-export interface AiChatPageProps {
-  accountId: string;
-  workspaces: Record<string, WorkspaceEntity>;
-  requestedWorkspaceId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function AiChatPage({ accountId, workspaces, requestedWorkspaceId }: AiChatPageProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [threadId, setThreadId] = useState<string | null>(null);
-  const [threadCreatedAt, setThreadCreatedAt] = useState<string>(new Date().toISOString());
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  const currentWorkspace = resolveWorkspaceFromMap(workspaces, requestedWorkspaceId);
-  const workspaceName = currentWorkspace?.name ?? null;
-  const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
-  const workspaceRouteRoot = currentWorkspace
-    ? `/workspace/${encodeURIComponent(currentWorkspace.id)}`
-    : "/workspace";
-  const latestUserPrompt = [...messages].reverse().find((m) => m.role === "user")?.content ?? null;
-
-  // Load persisted thread on mount
-  useEffect(() => {
-    if (!accountId) return;
-    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-    const storedId = localStorage.getItem(storageKey);
-    if (!storedId) return;
-    setThreadId(storedId);
-    void loadThread(accountId, storedId).then((thread) => {
-      if (!thread || thread.messages.length === 0) return;
-      setThreadCreatedAt(thread.createdAt);
-      setMessages(
-        thread.messages
-          .filter((m) => m.role === "user" || m.role === "assistant")
-          .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
-      );
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId]);
-
-  const summaryItems = useMemo(() => {
-    if (messages.length === 0) {
-      return [
-        "先整理來源文件與工作區脈絡，再開始對話。",
-        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
-      ];
-    }
-    return [
-      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((m) => m.role === "assistant").length} 次模型回覆。`,
-      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
-    ];
-  }, [latestUserPrompt, messages]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || isPending) return;
-
-    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
-    const nextMessages = [...messages, userMsg];
-    setMessages(nextMessages);
-    setInput("");
-    setError(null);
-    setIsPending(true);
-
-    const contextPrompt = buildContextPrompt(messages);
-
-    try {
-      const result = await sendChatMessage({
-        prompt: text,
-        ...(contextPrompt ? { system: contextPrompt } : {}),
-      });
-      if (result.ok) {
-        const assistantMsg: ChatMessage = {
-          id: generateMsgId(),
-          role: "assistant",
-          content: result.data.text,
-        };
-        const finalMessages = [...nextMessages, assistantMsg];
-        setMessages(finalMessages);
-
-        if (accountId) {
-          const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-          let currentThreadId = threadId;
-          if (!currentThreadId) {
-            currentThreadId = uuid();
-            setThreadId(currentThreadId);
-            localStorage.setItem(storageKey, currentThreadId);
-          }
-          const thread = threadFromMessages(currentThreadId, finalMessages, threadCreatedAt);
-          void saveThread(accountId, thread);
-        }
-      } else {
-        setError(result.error.message);
-      }
-    } catch {
-      setError("無法連接至 AI 服務，請稍後再試。");
-    } finally {
-      setIsPending(false);
-      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
-    }
-  }
-
-  function handleNewThread() {
-    if (!accountId) return;
-    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-    localStorage.removeItem(storageKey);
-    setThreadId(null);
-    setMessages([]);
-    setThreadCreatedAt(new Date().toISOString());
-    setError(null);
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSubmit(e as unknown as React.FormEvent);
-    }
-  }
-
-  return (
-    <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
-      <aside className="border-b border-border/60 bg-muted/20 p-4 lg:border-b-0 lg:border-r">
-        <div className="space-y-4">
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Brain className="size-4 text-primary" />
-                Notebook / AI
-              </CardTitle>
-              <CardDescription>
-                將工作區知識、知識頁面與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <WorkspaceContextCard workspace={currentWorkspace} />
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <BookOpen className="size-4 text-primary" />
-                Source context
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              <Link href={`${workspaceRouteRoot}?tab=Files`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <FileText className="size-3.5" />
-                文件來源 / Documents
-              </Link>
-              <Link href={`${workspaceRouteRoot}?tab=Overview&panel=knowledge-pages`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <BookOpen className="size-3.5" />
-                知識頁面 / Pages
-              </Link>
-              <Link href={`/notebook/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <Bot className="size-3.5" />
-                Ask / Cite / RAG Query
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Summary snapshot</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              {summaryItems.map((item) => (
-                <p key={item} className="rounded-md border border-border/50 px-3 py-2">
-                  {item}
-                </p>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Lightbulb className="size-4 text-primary" />
-                Insight board
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              <p className="rounded-md border border-border/50 px-3 py-2">
-                目前仍是 Notebook shell，摘要、洞察、引用整理會在後續 phase 持續補齊。
-              </p>
-              <p className="rounded-md border border-border/50 px-3 py-2">
-                若你需要可追溯回答，優先改從 Ask / Cite 取得引用，再回到這裡整理觀點。
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </aside>
-
-      <section className="flex min-h-0 flex-col">
-        <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-3">
-          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10">
-            <Bot className="size-4 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-sm font-semibold leading-none">Notebook / AI</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">工作區問答 · 摘要草稿 · 洞察整理</p>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            {threadId && (
-              <span className="text-[10px] text-muted-foreground/60">
-                Thread · {messages.length} 則
-              </span>
-            )}
-            <Button size="sm" variant="ghost" onClick={handleNewThread} disabled={messages.length === 0}>
-              <Plus className="mr-1 size-3.5" />
-              新對話
-            </Button>
-          </div>
-        </div>
-
-        {workspaceName && (
-          <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
-            目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span> 進入；Notebook 會把這裡視為主要知識上下文。
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          {messages.length === 0 && !isPending && (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
-                <Bot className="size-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">開始你的 notebook conversation</p>
-                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                  先問工作區背景、文件摘要、會議筆記整理或知識問答，再逐步累積 summary 與 insight。
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="mx-auto max-w-2xl space-y-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
-              >
-                <div
-                  className={cn(
-                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground",
-                  )}
-                >
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-                </div>
-              </div>
-            ))}
-
-            {isPending && (
-              <div className="flex justify-start">
-                <div className="rounded-2xl bg-muted px-4 py-2.5">
-                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
-                {error}
-              </div>
-            )}
-
-            <div ref={bottomRef} />
-          </div>
-        </div>
-
-        <form
-          onSubmit={(e) => void handleSubmit(e)}
-          className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur"
-        >
-          <div className="mx-auto flex max-w-2xl items-end gap-2">
-            <textarea
-              rows={1}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="輸入你的 notebook 問題… (Enter 送出，Shift+Enter 換行)"
-              disabled={isPending}
-              className="flex-1 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ maxHeight: "120px" }}
-            />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isPending || !input.trim()}
-              className="shrink-0 gap-1.5"
-            >
-              {isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <SendHorizonal className="size-4" />
-              )}
-              <span className="hidden sm:inline">送出</span>
-            </Button>
-          </div>
-        </form>
-      </section>
-    </div>
-  );
-}
-````
-
 ## File: modules/notebooklm/subdomains/notebook/api/factories.ts
 ````typescript
 import { PlatformTextGenerationAdapter } from "../infrastructure/platform/PlatformTextGenerationAdapter";
@@ -43889,167 +42994,6 @@ export * from "./ports";
  * explicitly visible in the directory structure.
  */
 export type { NotebookRepository as INotebookPort } from "../repositories/NotebookRepository";
-````
-
-## File: modules/notebooklm/subdomains/source/api/index.ts
-````typescript
-/**
- * Public API boundary for the source subdomain.
- *
- * Cross-module consumers MUST import through this entry point.
- * Internal consumers within the subdomain import from their own layer.
- */
-
-// ---------------------------------------------------------------------------
-// Domain entity types
-// ---------------------------------------------------------------------------
-
-export type {
-  SourceFile,
-  SourceFileStatus,
-  SourceFileClassification,
-} from "../domain/entities/SourceFile";
-
-export type {
-  SourceFileVersion,
-  SourceFileVersionStatus,
-} from "../domain/entities/SourceFileVersion";
-
-export type {
-  RagDocumentRecord,
-  RagDocumentStatus,
-} from "../domain/entities/RagDocument";
-
-export type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../domain/entities/WikiLibrary";
-
-// ---------------------------------------------------------------------------
-// Wiki library use cases (lazy singleton — no module-scope side effects)
-// ---------------------------------------------------------------------------
-
-import type { IWikiLibraryRepository } from "../domain/repositories/IWikiLibraryRepository";
-import { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
-import {
-  listWikiLibraries as _listWikiLibraries,
-  createWikiLibrary as _createWikiLibrary,
-  addWikiLibraryField as _addWikiLibraryField,
-  createWikiLibraryRow as _createWikiLibraryRow,
-  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
-} from "../application/use-cases/wiki-library.use-cases";
-
-import type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../domain/entities/WikiLibrary";
-
-export type { WikiLibrarySnapshot } from "../application/use-cases/wiki-library.use-cases";
-
-let _libraryRepo: IWikiLibraryRepository | null = null;
-
-function getLibraryRepo(): IWikiLibraryRepository {
-  if (!_libraryRepo) _libraryRepo = new FirebaseWikiLibraryAdapter();
-  return _libraryRepo;
-}
-
-export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
-  return _listWikiLibraries(accountId, workspaceId, getLibraryRepo());
-}
-
-export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
-  return _createWikiLibrary(input, getLibraryRepo());
-}
-
-export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
-  return _addWikiLibraryField(input, getLibraryRepo());
-}
-
-export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
-  return _createWikiLibraryRow(input, getLibraryRepo());
-}
-
-export function getWikiLibrarySnapshot(accountId: string, libraryId: string): ReturnType<typeof _getWikiLibrarySnapshot> {
-  return _getWikiLibrarySnapshot(accountId, libraryId, getLibraryRepo());
-}
-
-// ---------------------------------------------------------------------------
-// Live document DTOs
-// ---------------------------------------------------------------------------
-
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../application/dto/source-live-document.dto";
-export {
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../application/dto/source-live-document.dto";
-
-// ---------------------------------------------------------------------------
-// Hooks
-// ---------------------------------------------------------------------------
-
-export type {
-  UseSourceDocumentsSnapshotResult,
-} from "../interfaces/hooks/useSourceDocumentsSnapshot";
-export {
-  useSourceDocumentsSnapshot,
-} from "../interfaces/hooks/useSourceDocumentsSnapshot";
-
-// ---------------------------------------------------------------------------
-// Queries
-// ---------------------------------------------------------------------------
-
-export { getWorkspaceFiles, getWorkspaceRagDocuments } from "../interfaces/queries/source-file.queries";
-
-// ---------------------------------------------------------------------------
-// Server actions
-// ---------------------------------------------------------------------------
-
-export {
-  uploadInitFile,
-  uploadCompleteFile,
-  registerUploadedRagDocument,
-  deleteSourceDocument,
-  renameSourceDocument,
-} from "../interfaces/_actions/source-file.actions";
-
-export { createKnowledgeDraftFromSourceDocument } from "../interfaces/_actions/source-processing.actions";
-
-// ---------------------------------------------------------------------------
-// UI components
-// ---------------------------------------------------------------------------
-
-export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
-export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
-export { LibrariesView } from "../interfaces/components/LibrariesView";
-export { LibraryTableView } from "../interfaces/components/LibraryTableView";
-export { FileProcessingDialog } from "../interfaces/components/FileProcessingDialog";
-
-// ---------------------------------------------------------------------------
-// Infrastructure (for direct injection in server-side wiring)
-// ---------------------------------------------------------------------------
-
-export { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
-export { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
-export { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
-export { InMemoryWikiLibraryAdapter } from "../infrastructure/memory/InMemoryWikiLibraryAdapter";
-export { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
-export { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
-export { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/dto/source-live-document.dto.ts
@@ -44184,6 +43128,36 @@ export type ParseSourceDocumentInputDto = ParseSourceDocumentInput;
 export type ParseSourceDocumentOutputDto = ParseSourceDocumentOutput;
 export type ReindexSourceDocumentInputDto = ReindexSourceDocumentInput;
 export type ReindexSourceDocumentOutputDto = ReindexSourceDocumentOutput;
+````
+
+## File: modules/notebooklm/subdomains/source/application/dto/source-processing.dto.ts
+````typescript
+export type SourceProcessingTaskStatus = "idle" | "running" | "success" | "error" | "skipped";
+
+export interface SourceProcessingTaskResult {
+  readonly status: SourceProcessingTaskStatus;
+  readonly detail: string;
+}
+
+export interface SourceProcessingExecutionSummary {
+  readonly pageCount: number;
+  readonly jsonGcsUri: string;
+  readonly pageHref: string;
+  readonly parse: SourceProcessingTaskResult;
+  readonly rag: SourceProcessingTaskResult;
+  readonly page: SourceProcessingTaskResult;
+}
+
+export function createIdleExecutionSummary(): SourceProcessingExecutionSummary {
+  return {
+    pageCount: 0,
+    jsonGcsUri: "",
+    pageHref: "",
+    parse: { status: "idle", detail: "尚未開始解析" },
+    rag: { status: "idle", detail: "尚未決定是否建立 RAG 索引" },
+    page: { status: "idle", detail: "尚未決定是否建立 Knowledge Page" },
+  };
+}
 ````
 
 ## File: modules/notebooklm/subdomains/source/application/queries/source-file.queries.ts
@@ -45464,321 +44438,6 @@ export async function reindexSourceDocument(
 ): Promise<SourcePipelineResult<ReindexSourceDocumentOutputDto>> {
   const useCase = new ReindexSourceDocumentUseCase(makeSourcePipelineAdapter());
   return useCase.execute(input);
-}
-````
-
-## File: modules/notebooklm/subdomains/source/interfaces/_actions/source-processing.actions.ts
-````typescript
-"use server";
-
-import type { CommandResult } from "@shared-types";
-
-import { makeKnowledgePageGateway, makeParsedDocumentAdapter } from "../../api/factories";
-import { CreateKnowledgeDraftFromSourceUseCase } from "../../application/use-cases/create-knowledge-draft-from-source.use-case";
-
-interface CreateKnowledgeDraftFromSourceDocumentInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly createdByUserId: string;
-  readonly filename: string;
-  readonly sourceGcsUri: string;
-  readonly jsonGcsUri: string;
-  readonly pageCount: number;
-}
-
-export async function createKnowledgeDraftFromSourceDocument(
-  input: CreateKnowledgeDraftFromSourceDocumentInput,
-): Promise<CommandResult> {
-  const useCase = new CreateKnowledgeDraftFromSourceUseCase(
-    makeParsedDocumentAdapter(),
-    makeKnowledgePageGateway(),
-  );
-  return useCase.execute(input);
-}
-````
-
-## File: modules/notebooklm/subdomains/source/interfaces/components/file-processing-dialog.utils.ts
-````typescript
-"use client";
-
-import { waitForParsedDocument } from "../../api/factories";
-
-export type TaskStatus = "idle" | "running" | "success" | "error" | "skipped";
-
-export interface TaskResult {
-  readonly status: TaskStatus;
-  readonly detail: string;
-}
-
-export interface ExecutionSummary {
-  readonly pageCount: number;
-  readonly jsonGcsUri: string;
-  readonly pageHref: string;
-  readonly parse: TaskResult;
-  readonly rag: TaskResult;
-  readonly page: TaskResult;
-}
-
-export function createIdleSummary(): ExecutionSummary {
-  return {
-    pageCount: 0,
-    jsonGcsUri: "",
-    pageHref: "",
-    parse: { status: "idle", detail: "尚未開始解析" },
-    rag: { status: "idle", detail: "尚未決定是否建立 RAG 索引" },
-    page: { status: "idle", detail: "尚未決定是否建立 Knowledge Page" },
-  };
-}
-
-export function readCallableData(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-export function readString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-export function readNumber(value: unknown, fallback = 0): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
-
-export { waitForParsedDocument };
-````
-
-## File: modules/notebooklm/subdomains/source/interfaces/components/FileProcessingDialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-import Link from "next/link";
-
-import { useAuth } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-
-import { createKnowledgeDraftFromSourceDocument } from "../_actions/source-processing.actions";
-import { parseSourceDocument, reindexSourceDocument } from "../_actions/source-pipeline.actions";
-import { FileProcessingDialogBody } from "./file-processing-dialog.body";
-import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
-import {
-  createIdleSummary,
-  type ExecutionSummary,
-  waitForParsedDocument,
-} from "./file-processing-dialog.utils";
-
-interface FileProcessingDialogProps {
-  readonly open: boolean;
-  readonly onClose: () => void;
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly sourceFileId: string;
-  readonly filename: string;
-  readonly gcsUri: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-}
-
-type DialogStep = "decide" | "select" | "executing" | "done";
-
-export function FileProcessingDialog({
-  open,
-  onClose,
-  accountId,
-  workspaceId,
-  sourceFileId,
-  filename,
-  gcsUri,
-  mimeType,
-  sizeBytes,
-}: FileProcessingDialogProps) {
-  const { state: { user } } = useAuth();
-  const [step, setStep] = useState<DialogStep>("decide");
-  const [shouldRunRag, setShouldRunRag] = useState(true);
-  const [shouldCreatePage, setShouldCreatePage] = useState(false);
-  const [summary, setSummary] = useState<ExecutionSummary>(createIdleSummary);
-
-  const canDismiss = step !== "executing";
-
-  function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen && canDismiss) onClose();
-  }
-
-  async function handleExecute() {
-    setStep("executing");
-    setSummary({
-      ...createIdleSummary(),
-      parse: { status: "running", detail: "正在呼叫 Document AI 解析文件" },
-      rag: shouldRunRag
-        ? { status: "idle", detail: "等待文件解析完成後建立索引" }
-        : { status: "skipped", detail: "使用者未勾選 RAG 索引" },
-      page: shouldCreatePage
-        ? { status: "idle", detail: "等待文件解析完成後建立單頁草稿" }
-        : { status: "skipped", detail: "使用者未勾選 Knowledge Page" },
-    });
-
-    try {
-      const parseResult = await parseSourceDocument({
-        accountId,
-        workspaceId,
-        documentId: sourceFileId,
-        gcsUri,
-        filename,
-        mimeType: mimeType || "application/octet-stream",
-        sizeBytes,
-      });
-
-      if (!parseResult.ok) {
-        throw new Error(parseResult.error.message);
-      }
-
-      const docId = parseResult.data.documentId;
-
-      setSummary((current) => ({
-        ...current,
-        parse: { status: "running", detail: "解析工作已送出，正在等待文件狀態完成" },
-      }));
-
-      const parsedDocument = await waitForParsedDocument(accountId, docId);
-
-      setSummary((current) => ({
-        ...current,
-        pageCount: parsedDocument.pageCount,
-        jsonGcsUri: parsedDocument.jsonGcsUri,
-        parse: { status: "success", detail: `解析完成，共 ${parsedDocument.pageCount} 頁。` },
-      }));
-
-      if (shouldRunRag) {
-        setSummary((current) => ({
-          ...current,
-          rag: { status: "running", detail: "正在建立可檢索的 RAG 索引" },
-        }));
-
-        try {
-          const ragResult = await reindexSourceDocument({
-            accountId,
-            workspaceId,
-            documentId: docId,
-            jsonGcsUri: parsedDocument.jsonGcsUri,
-            sourceGcsUri: gcsUri,
-            filename,
-            pageCount: parsedDocument.pageCount,
-          });
-
-          if (!ragResult.ok) {
-            throw new Error(ragResult.error.message);
-          }
-
-          setSummary((current) => ({
-            ...current,
-            rag: {
-              status: "success",
-              detail: `索引完成，${ragResult.data.chunkCount} 個 chunks / ${ragResult.data.vectorCount} 個 vectors。`,
-            },
-          }));
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "RAG 索引失敗";
-          setSummary((current) => ({ ...current, rag: { status: "error", detail: message } }));
-        }
-      }
-
-      if (shouldCreatePage) {
-        setSummary((current) => ({
-          ...current,
-          page: { status: "running", detail: "正在建立可編輯的 Knowledge Page 草稿" },
-        }));
-
-        try {
-          if (!user?.id) throw new Error("缺少登入使用者，無法建立 Knowledge Page 草稿");
-
-          const draftPage = await createKnowledgeDraftFromSourceDocument({
-            accountId,
-            workspaceId,
-            createdByUserId: user.id,
-            filename,
-            sourceGcsUri: gcsUri,
-            jsonGcsUri: parsedDocument.jsonGcsUri,
-            pageCount: parsedDocument.pageCount,
-          });
-
-          if (!draftPage.success) throw new Error(draftPage.error.message || "建立 Knowledge Page 失敗");
-
-          setSummary((current) => ({
-            ...current,
-            pageHref: `/knowledge/pages/${draftPage.aggregateId}`,
-            page: { status: "success", detail: "已建立單頁 Draft，可直接進頁面補內容、調整結構，後續再迭代切頁策略。" },
-          }));
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "建立 Knowledge Page 失敗";
-          setSummary((current) => ({ ...current, page: { status: "error", detail: message } }));
-        }
-      }
-
-      setStep("done");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "文件處理失敗";
-      setSummary((current) => {
-        if (current.parse.status === "running") {
-          return { ...current, parse: { status: "error", detail: message } };
-        }
-        return { ...current, rag: { status: "error", detail: message } };
-      });
-      setStep("done");
-    }
-  }
-
-  const canContinue = shouldRunRag || shouldCreatePage;
-
-  const footerActions = (
-    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
-      {step === "decide" && (
-        <>
-          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">保留檔案即可</Button>
-          <Button onClick={() => setStep("select")} className="w-full sm:w-auto">我要決定後續處理</Button>
-        </>
-      )}
-
-      {step === "select" && (
-        <>
-          <Button variant="outline" onClick={() => setStep("decide")} className="w-full sm:w-auto">上一步</Button>
-          <Button onClick={() => { void handleExecute(); }} disabled={!canContinue} className="w-full sm:w-auto">開始處理</Button>
-        </>
-      )}
-
-      {step === "done" && (
-        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          {summary.pageHref && summary.page.status === "success" ? (
-            <Button asChild size="sm" variant="outline" className="w-full sm:w-auto">
-              <Link href={summary.pageHref}>前往 Draft Page</Link>
-            </Button>
-          ) : (
-            <div className="hidden sm:block" />
-          )}
-          <Button onClick={onClose} className="w-full sm:w-auto">完成</Button>
-        </div>
-      )}
-    </div>
-  );
-
-  return (
-    <FileProcessingDialogSurface
-      open={open}
-      canDismiss={canDismiss}
-      onOpenChange={handleOpenChange}
-      footer={step !== "executing" ? footerActions : null}
-    >
-      <FileProcessingDialogBody
-        step={step}
-        filename={filename}
-        mimeType={mimeType}
-        gcsUri={gcsUri}
-        sizeBytes={sizeBytes}
-        shouldRunRag={shouldRunRag}
-        shouldCreatePage={shouldCreatePage}
-        onShouldRunRagChange={setShouldRunRag}
-        onShouldCreatePageChange={setShouldCreatePage}
-        summary={summary}
-      />
-    </FileProcessingDialogSurface>
-  );
 }
 ````
 
@@ -47864,6 +46523,52 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
+## File: modules/notion/subdomains/authoring/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/authoring
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ */
+
+// ─── Read contracts ────────────────────────────────────────────────────────────
+export type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../domain/aggregates/Article";
+export type { CategorySnapshot } from "../domain/aggregates/Category";
+
+// ─── Identifiers used by other BCs ────────────────────────────────────────────
+export type ArticleId = string;
+export type CategoryId = string;
+
+// ─── Server Actions (write-side) ──────────────────────────────────────────────
+export {
+  createArticle,
+  updateArticle,
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+  deleteArticle,
+} from "../interfaces/_actions/article.actions";
+
+export {
+  createCategory,
+  renameCategory,
+  moveCategory,
+  deleteCategory,
+} from "../interfaces/_actions/category.actions";
+
+// ─── Queries (read-side) ──────────────────────────────────────────────────────
+export { getArticles, getArticle, getCategories, getBacklinks } from "../interfaces/queries";
+
+// ─── UI Components ────────────────────────────────────────────────────────────
+export { ArticleDialog } from "../interfaces/components/ArticleDialog";
+export { KnowledgeBaseArticlesRouteScreen } from "../interfaces/components/KnowledgeBaseArticlesRouteScreen";
+export type { KnowledgeBaseArticlesRouteScreenProps } from "../interfaces/components/KnowledgeBaseArticlesRouteScreen";
+export { ArticleDetailPage } from "../interfaces/components/ArticleDetailPage";
+export type { ArticleDetailPageProps } from "../interfaces/components/ArticleDetailPage";
+````
+
 ## File: modules/notion/subdomains/authoring/application/use-cases/index.ts
 ````typescript
 export {
@@ -48383,6 +47088,39 @@ export function ArticleDetailPage({
 }
 ````
 
+## File: modules/notion/subdomains/authoring/README.md
+````markdown
+# Authoring
+
+知識庫文章建立、驗證與分類。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Baseline
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/notion/subdomains/collaboration/domain/index.ts
 ````typescript
 export * from "./aggregates";
@@ -48709,6 +47447,146 @@ export class FirebaseVersionRepository implements IVersionRepository {
     await firestoreInfrastructureApi.delete(versionPath(accountId, versionId));
   }
 }
+````
+
+## File: modules/notion/subdomains/collaboration/README.md
+````markdown
+# Collaboration
+
+協作留言、細粒度權限與版本快照。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Baseline
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/subdomains/database/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ *
+ * Open Host Service contracts:
+ *   - getDatabaseById  — consumed by knowledge subdomain (opaque reference resolution)
+ */
+
+// Domain types
+export type {
+  DatabaseSnapshot,
+  DatabaseSnapshot as Database,
+  Field,
+  FieldType,
+  DatabaseId,
+  FieldId,
+} from "../domain/aggregates/Database";
+
+export type {
+  DatabaseRecordSnapshot,
+  RecordId,
+} from "../domain/aggregates/DatabaseRecord";
+
+export type {
+  ViewSnapshot,
+  ViewType,
+  FilterRule,
+  SortRule,
+  ViewId,
+} from "../domain/aggregates/View";
+
+export type {
+  DatabaseAutomationSnapshot,
+  AutomationTrigger,
+  AutomationActionType,
+  AutomationCondition,
+  AutomationAction,
+} from "../domain/aggregates/DatabaseAutomation";
+
+// Repository input types
+export type {
+  CreateAutomationInput,
+  UpdateAutomationInput,
+} from "../domain/repositories/IAutomationRepository";
+
+// Application DTOs
+export type {
+  CreateDatabaseDto,
+  UpdateDatabaseDto,
+  AddFieldDto,
+  ArchiveDatabaseDto,
+  CreateRecordDto,
+  UpdateRecordDto,
+  DeleteRecordDto,
+  CreateViewDto,
+  UpdateViewDto,
+  DeleteViewDto,
+} from "../application/dto/DatabaseDto";
+
+// Server actions
+export {
+  createDatabase,
+  updateDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  createRecord,
+  updateRecord,
+  deleteRecord,
+  createView,
+  updateView,
+  deleteView,
+  createAutomation,
+  updateAutomation,
+  deleteAutomation,
+} from "../interfaces/_actions/database.actions";
+
+// Queries
+export {
+  getDatabases,
+  getDatabase,
+  getRecords,
+  getViews,
+  getAutomations,
+} from "../interfaces/queries";
+
+// UI components
+export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
+export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
+export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
+export { DatabaseListView } from "../interfaces/components/DatabaseListView";
+export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarView";
+export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
+export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
+export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
+export { KnowledgeDatabasesRouteScreen } from "../interfaces/components/KnowledgeDatabasesRouteScreen";
+export type { KnowledgeDatabasesRouteScreenProps } from "../interfaces/components/KnowledgeDatabasesRouteScreen";
+export { AddFieldDialog, FIELD_TYPES } from "../interfaces/components/DatabaseAddFieldDialog";
+export { DatabaseDetailPage } from "../interfaces/components/DatabaseDetailPage";
+export type { DatabaseDetailPageProps } from "../interfaces/components/DatabaseDetailPage";
+export { DatabaseFormsPage } from "../interfaces/components/DatabaseFormsPage";
+export type { DatabaseFormsPageProps } from "../interfaces/components/DatabaseFormsPage";
 ````
 
 ## File: modules/notion/subdomains/database/application/queries/automation.queries.ts
@@ -49284,280 +48162,6 @@ export class FirebaseViewRepository implements IViewRepository {
 }
 ````
 
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseDetailPage.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Archive,
-  FileText,
-  PlusCircle,
-  Table2,
-  Kanban,
-  List,
-  Calendar,
-  LayoutGrid,
-  Zap,
-} from "lucide-react";
-
-import { getDatabase } from "../queries";
-import { addDatabaseField, archiveDatabase } from "../_actions/database.actions";
-import { DatabaseTableView } from "./DatabaseTableView";
-import { DatabaseBoardView } from "./DatabaseBoardView";
-import { DatabaseListView } from "./DatabaseListView";
-import { DatabaseCalendarView } from "./DatabaseCalendarView";
-import { DatabaseGalleryView } from "./DatabaseGalleryView";
-import { DatabaseAutomationView } from "./DatabaseAutomationView";
-import { AddFieldDialog } from "./DatabaseAddFieldDialog";
-import type { DatabaseSnapshot as Database, FieldType } from "../../application/dto/database.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-export interface DatabaseDetailPageProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function DatabaseDetailPage({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: DatabaseDetailPageProps) {
-  const params = useParams();
-  const router = useRouter();
-  const databaseId = params.databaseId as string;
-
-  const [database, setDatabase] = useState<Database | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [addFieldOpen, setAddFieldOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"table" | "board" | "list" | "calendar" | "gallery" | "automations">("table");
-  const [isPending, startTransition] = useTransition();
-  const workspaceBasePath =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
-  const databasesHref =
-    accountId && workspaceId
-      ? `${workspaceBasePath}/knowledge-database/databases`
-      : "/knowledge-database/databases";
-  const formsHref =
-    accountId && workspaceId
-      ? `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`
-      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`;
-
-  const load = useCallback(async () => {
-    if (!accountId || !databaseId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const db = await getDatabase(accountId, databaseId);
-      setDatabase(db);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, databaseId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handleAddField(name: string, type: FieldType, required: boolean) {
-    startTransition(async () => {
-      await addDatabaseField({
-        databaseId,
-        accountId,
-        name,
-        type,
-        config: {},
-        required,
-      });
-      await load();
-    });
-  }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveDatabase({ id: databaseId, accountId });
-      router.push(databasesHref);
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-      </div>
-    );
-  }
-
-  if (!database) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Top bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
-        </Button>
-      </div>
-
-      {/* Page header */}
-      <header className="space-y-1 border-b border-border/60 pb-4">
-        <div className="flex items-center gap-2">
-          {database.icon && <span className="text-xl">{database.icon}</span>}
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{database.name}</h1>
-        </div>
-        {database.description && (
-          <p className="text-sm text-muted-foreground">{database.description}</p>
-        )}
-        <p className="text-xs text-muted-foreground/70">
-          {database.fields.length} 個欄位 · 更新於 {new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
-        </p>
-      </header>
-
-      {/* View switcher + actions */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center rounded-md border border-border/60 p-0.5">
-          <button
-            type="button"
-            onClick={() => setViewMode("table")}
-            title="表格視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Table2 className="h-3 w-3" /> 表格
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("board")}
-            title="看板視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "board" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Kanban className="h-3 w-3" /> 看板
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("list")}
-            title="清單視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <List className="h-3 w-3" /> 清單
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("calendar")}
-            title="日曆視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Calendar className="h-3 w-3" /> 日曆
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("gallery")}
-            title="圖庫視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "gallery" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <LayoutGrid className="h-3 w-3" /> 圖庫
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("automations")}
-            title="自動化規則"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "automations" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Zap className="h-3 w-3" /> 自動化
-          </button>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => router.push(formsHref)}
-            disabled={isPending}
-          >
-            <FileText className="mr-1.5 h-3.5 w-3.5" /> 表單
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
-            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
-            <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
-          </Button>
-        </div>
-      </div>
-
-      {/* View */}
-      {viewMode === "table" && (
-        <DatabaseTableView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "board" && (
-        <DatabaseBoardView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "list" && (
-        <DatabaseListView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "calendar" && (
-        <DatabaseCalendarView
-          database={database}
-          accountId={accountId}
-        />
-      )}
-      {viewMode === "gallery" && (
-        <DatabaseGalleryView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "automations" && (
-        <DatabaseAutomationView
-          databaseId={databaseId}
-          accountId={accountId}
-          currentUserId={currentUserId}
-        />
-      )}
-
-      <AddFieldDialog
-        open={addFieldOpen}
-        onOpenChange={setAddFieldOpen}
-        onAdd={handleAddField}
-        isPending={isPending}
-      />
-    </div>
-  );
-}
-````
-
 ## File: modules/notion/subdomains/database/interfaces/components/DatabaseFormsPage.tsx
 ````typescript
 "use client";
@@ -49709,6 +48313,128 @@ export function DatabaseFormsPage({
     </div>
   );
 }
+````
+
+## File: modules/notion/subdomains/database/README.md
+````markdown
+# Database
+
+結構化資料多視圖管理。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Baseline
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/subdomains/knowledge/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ */
+
+// ── Types (read-only snapshots – no aggregate class refs) ─────────────────────
+export type { KnowledgePageSnapshot } from "../domain/aggregates/KnowledgePage";
+/** @alias KnowledgePageSnapshot — provided for backward-compatibility */
+export type { KnowledgePageSnapshot as KnowledgePage } from "../domain/aggregates/KnowledgePage";
+export type { ContentBlockSnapshot } from "../domain/aggregates/ContentBlock";
+export type { KnowledgeCollectionSnapshot } from "../domain/aggregates/KnowledgeCollection";
+
+// ── Server action DTOs ────────────────────────────────────────────────────────
+export type { CreateKnowledgePageDto, RenameKnowledgePageDto, MoveKnowledgePageDto, ArchiveKnowledgePageDto, ReorderKnowledgePageBlocksDto } from "../application/dto/KnowledgePageDto";
+export type { AddKnowledgeBlockDto, UpdateKnowledgeBlockDto, DeleteKnowledgeBlockDto } from "../application/dto/ContentBlockDto";
+export type { CreateKnowledgeCollectionDto } from "../application/dto/KnowledgeCollectionDto";
+
+// ── Query functions (server-side reads) ───────────────────────────────────────
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePagesByWorkspace,
+  getKnowledgePageTree,
+  getKnowledgePageTreeByWorkspace,
+  getKnowledgeBlocks,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "../interfaces/queries";
+
+// ── Server actions (drives: app router, Server Components) ────────────────────
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  archiveKnowledgeCollection,
+} from "../interfaces/_actions";
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { PageTreeView } from "../interfaces/components/PageTreeView";
+export type { PageTreeViewProps } from "../interfaces/components/PageTreeView";
+export { PageDialog } from "../interfaces/components/PageDialog";
+export { BlockEditorView } from "../interfaces/components/BlockEditorView";
+export { PageEditorView } from "../interfaces/components/PageEditorView";
+export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
+export { KnowledgePagesRouteScreen } from "../interfaces/components/KnowledgePagesRouteScreen";
+export type { KnowledgePagesRouteScreenProps } from "../interfaces/components/KnowledgePagesRouteScreen";
+
+// ── Store ─────────────────────────────────────────────────────────────────────
+export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
+export type { EditorBlock } from "../interfaces/store/block-editor.store";
+
+// ── Tree node type (needed by app/ pages) ─────────────────────────────────────
+export type { KnowledgePageTreeNode } from "../domain/aggregates/KnowledgePage";
+
+// ── Domain events (published language — for cross-module event subscriptions) ─
+export type { PageApprovedEvent, PageApprovedPayload, ExtractedTask, ExtractedInvoice } from "../domain/events/KnowledgePageEvents";
+
+// ── Sidebar component ─────────────────────────────────────────────────────────
+export { KnowledgeSidebarSection } from "../interfaces/components/KnowledgeSidebarSection";
+
+// ── Page header widgets ───────────────────────────────────────────────────────
+export { TitleEditor, IconPicker, CoverEditor } from "../interfaces/components/KnowledgePageHeaderWidgets";
+export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../interfaces/components/KnowledgePageHeaderWidgets";
+
+// ── Route screen components ───────────────────────────────────────────────────
+export { KnowledgePageDetailPage } from "../interfaces/components/KnowledgePageDetailPage";
+export type { KnowledgePageDetailPageProps } from "../interfaces/components/KnowledgePageDetailPage";
 ````
 
 ## File: modules/notion/subdomains/knowledge/application/dto/index.ts
@@ -50942,263 +49668,6 @@ export async function deleteKnowledgeBlock(input: DeleteContentBlockDto): Promis
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageDetailPage.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
-
-import { getKnowledgePage } from "../queries";
-import {
-  renameKnowledgePage,
-  archiveKnowledgePage,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "../_actions/knowledge-page.actions";
-import type { KnowledgePageSnapshot as KnowledgePage } from "../../application/dto/knowledge.dto";
-import { PageEditorView } from "./PageEditorView";
-import { CommentPanel } from "@/modules/notion/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-export interface KnowledgePageDetailPageProps {
-  accountId: string;
-  activeWorkspaceId: string | null;
-  currentUserId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function KnowledgePageDetailPage({
-  accountId,
-  activeWorkspaceId,
-  currentUserId,
-}: KnowledgePageDetailPageProps) {
-  const params = useParams();
-  const router = useRouter();
-  const pageId = params.pageId as string;
-
-  const [page, setPage] = useState<KnowledgePage | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [commentOpen, setCommentOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const workspaceBasePath =
-    accountId && activeWorkspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(activeWorkspaceId)}`
-      : "/workspace";
-  const pageListHref =
-    accountId && activeWorkspaceId
-      ? `${workspaceBasePath}/knowledge/pages`
-      : "/workspace?tab=Overview&panel=knowledge-pages";
-
-  const load = useCallback(async () => {
-    if (!accountId || !pageId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const p = await getKnowledgePage(accountId, pageId);
-      setPage(p);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, pageId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handleRename(title: string) {
-    startTransition(async () => {
-      const result = await renameKnowledgePage({ accountId, pageId, title });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, title } : prev);
-      }
-    });
-  }
-
-  function handleIconChange(iconUrl: string) {
-    startTransition(async () => {
-      const result = await updateKnowledgePageIcon({ accountId, pageId, iconUrl });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, iconUrl: iconUrl || undefined } : prev);
-      }
-    });
-  }
-
-  function handleCoverChange(coverUrl: string) {
-    startTransition(async () => {
-      const result = await updateKnowledgePageCover({ accountId, pageId, coverUrl });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, coverUrl: coverUrl || undefined } : prev);
-      }
-    });
-  }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveKnowledgePage({ accountId, pageId });
-      router.push(pageListHref);
-    });
-  }
-
-  // ── Loading skeleton ────────────────────────────────────────────────────────
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-6 w-72" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </div>
-    );
-  }
-
-  // ── Not found ───────────────────────────────────────────────────────────────
-
-  if (!page) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" />
-          頁面列表
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到此頁面，可能已被封存或刪除。</p>
-      </div>
-    );
-  }
-
-  // ── Page view ───────────────────────────────────────────────────────────────
-
-  const updatedAt = page.updatedAtISO
-    ? new Date(page.updatedAtISO).toLocaleDateString("zh-TW", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : null;
-
-  return (
-    <div className="space-y-0">
-      {/* Cover image */}
-      {page.coverUrl && (
-        <div
-          className="relative h-40 w-full overflow-hidden rounded-t-xl bg-muted"
-          style={{ backgroundImage: `url(${page.coverUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
-        />
-      )}
-
-      <div className="space-y-4 px-0 pt-4">
-        {/* Top bar */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
-            頁面列表
-          </Button>
-          <div className="ml-auto flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={commentOpen ? "default" : "outline"}
-              onClick={() => setCommentOpen((v) => !v)}
-            >
-              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-              留言
-            </Button>
-            {page.status === "active" && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleArchive}
-                disabled={isPending}
-              >
-                <Archive className="mr-1.5 h-3.5 w-3.5" />
-                封存
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Page header */}
-        <header className="space-y-2 border-b border-border/60 pb-4">
-          {/* Icon row */}
-          <div className="flex items-end gap-3">
-            <IconPicker
-              value={page.iconUrl}
-              onChange={handleIconChange}
-              isPending={isPending}
-            />
-            <CoverEditor
-              value={page.coverUrl}
-              onChange={handleCoverChange}
-              isPending={isPending}
-            />
-          </div>
-          <TitleEditor
-            initialTitle={page.title}
-            onSave={handleRename}
-            isPending={isPending}
-          />
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {page.status === "archived" && (
-              <Badge variant="secondary">已封存</Badge>
-            )}
-            {page.approvalState === "approved" && (
-              <Badge variant="default">已審核</Badge>
-            )}
-            {page.verificationState === "verified" && (
-              <Badge variant="outline">已驗證</Badge>
-            )}
-            {page.verificationState === "needs_review" && (
-              <Badge variant="destructive">待審查</Badge>
-            )}
-            {updatedAt && <span>更新於 {updatedAt}</span>}
-          </div>
-        </header>
-
-        {/* Main content + optional comment side panel */}
-        <div className={`flex gap-4 ${commentOpen ? "items-start" : ""}`}>
-          {/* Block editor — connected to Firebase */}
-          <div className="min-w-0 flex-1">
-            {accountId ? (
-              <PageEditorView accountId={accountId} pageId={pageId} />
-            ) : (
-              <p className="text-sm text-muted-foreground">請先登入以載入內容。</p>
-            )}
-          </div>
-
-          {/* Comment panel — slides in from right */}
-          {commentOpen && accountId && (
-            <aside className="w-72 shrink-0 rounded-xl border border-border/60 bg-card p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-semibold">留言</span>
-                <button
-                  type="button"
-                  onClick={() => setCommentOpen(false)}
-                  className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground"
-                  aria-label="關閉留言面板"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <CommentPanel
-                accountId={accountId}
-                workspaceId={activeWorkspaceId ?? ""}
-                contentId={pageId}
-                contentType="page"
-                currentUserId={currentUserId}
-              />
-            </aside>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-````
-
 ## File: modules/notion/subdomains/knowledge/interfaces/components/PageDialog.tsx
 ````typescript
 "use client";
@@ -51314,6 +49783,39 @@ export async function getKnowledgeCollection(accountId: string, collectionId: st
 export async function getKnowledgeCollections(accountId: string): Promise<KnowledgeCollectionSnapshot[]> {
   return new ListKnowledgeCollectionsUseCase(makeCollectionRepo()).execute(accountId);
 }
+````
+
+## File: modules/notion/subdomains/knowledge/README.md
+````markdown
+# Knowledge
+
+頁面建立、組織、版本化與交付。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Baseline
+- **Status**: Active
+
+## Layers
+
+| Layer | Purpose |
+|-------|---------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+| `interfaces/` | UI components, hooks, actions, and queries |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notion/subdomains/relations/application/index.ts
@@ -53323,6 +51825,107 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
+## File: modules/platform/README.md
+````markdown
+# Platform
+
+治理與營運支撐主域
+
+## Implementation Structure
+
+```text
+modules/platform/
+├── api/              # Public API boundary
+├── application/      # Context-wide orchestration
+├── domain/           # Context-wide domain concepts
+├── infrastructure/   # Context-wide driven adapters
+├── interfaces/       # Context-wide driving adapters
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── account/
+    ├── account-profile/
+    ├── access-control/
+    ├── ai/
+    ├── analytics/
+    ├── audit-log/
+    ├── background-job/
+    ├── billing/
+    ├── compliance/
+    ├── consent/
+    ├── content/
+    ├── entitlement/
+    ├── feature-flag/
+    ├── identity/
+    ├── integration/
+    ├── notification/
+    ├── observability/
+    ├── onboarding/
+    ├── organization/
+    ├── platform-config/
+    ├── referral/
+    ├── search/
+    ├── secret-management/
+    ├── security-policy/
+    ├── subscription/
+    ├── support/
+    ├── tenant/
+    ├── team/
+    └── workflow/
+```
+
+## Subdomains
+
+| Subdomain | Status | Purpose |
+|-----------|--------|---------|
+| account | Active | 帳號管理與帳號生命週期 |
+| identity | Active | 身份驗證與身份聯邦 |
+| notification | Active | 通知治理與遞送 |
+| organization | Active | 組織管理與租戶結構 |
+| team | Active | 團隊管理與成員關係 |
+| account-profile | Stub | 帳號個人檔案與偏好 |
+| access-control | Stub | 存取控制與權限策略 |
+| ai | Stub | 共享 AI provider 路由與能力治理 |
+| analytics | Stub | 平台級分析與指標 |
+| audit-log | Stub | 平台稽核日誌 |
+| background-job | Stub | 背景任務排程與管理 |
+| billing | Stub | 計費與支付管理 |
+| compliance | Stub | 合規與法遵管理 |
+| consent | Stub | 同意與資料使用授權治理 |
+| content | Stub | 平台內容管理 |
+| entitlement | Stub | 權益解算與功能可用性治理 |
+| feature-flag | Stub | 功能旗標與漸進式發布 |
+| integration | Stub | 外部系統整合 |
+| observability | Stub | 觀測與監控 |
+| onboarding | Stub | 使用者引導流程 |
+| platform-config | Stub | 平台組態管理 |
+| referral | Stub | 推薦與邀請機制 |
+| search | Stub | 平台級搜尋能力 |
+| secret-management | Stub | 憑證與 token 生命週期治理 |
+| security-policy | Stub | 安全策略管理 |
+| subscription | Stub | 訂閱與方案管理 |
+| support | Stub | 客戶支援管理 |
+| tenant | Stub | 多租戶隔離與 tenant-scoped 規則 |
+| workflow | Stub | 平台級工作流引擎 |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `api/` is the only cross-module public boundary.
+- Domain must not import infrastructure, interfaces, or external frameworks.
+- Cross-module collaboration goes through `api/` only.
+
+## Strategic Documentation
+
+- [Context README](../../docs/contexts/platform/README.md)
+- [Subdomains](../../docs/contexts/platform/subdomains.md)
+- [Context Map](../../docs/contexts/platform/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/platform/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
+````
+
 ## File: modules/platform/subdomains/access-control/application/dtos/access-control.dto.ts
 ````typescript
 import type { AccessPolicySnapshot } from "../../domain/aggregates/AccessPolicy";
@@ -54104,6 +52707,138 @@ export class IdentityTokenRefreshAdapter implements TokenRefreshPort {
 export const tokenRefreshAdapter = new IdentityTokenRefreshAdapter();
 ````
 
+## File: modules/platform/subdomains/account/infrastructure/index.ts
+````typescript
+export { accountService, createClientAccountUseCases } from "./account-service";
+export { createAccountQueryRepository } from "./account-service";
+````
+
+## File: modules/platform/subdomains/account/interfaces/_actions/account-policy.actions.ts
+````typescript
+"use server";
+
+/**
+ * Account Policy Server Actions — thin adapter: Server Actions → Application Use Cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { accountService } from "../../api";
+import type { CreatePolicyInput, UpdatePolicyInput } from "../../application/dtos/account.dto";
+
+export async function createAccountPolicy(input: CreatePolicyInput): Promise<CommandResult> {
+  try {
+    return await accountService.createPolicy(input);
+  } catch (err) {
+    return commandFailureFrom("CREATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateAccountPolicy(
+  policyId: string,
+  accountId: string,
+  data: UpdatePolicyInput,
+  traceId?: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.updatePolicy(policyId, accountId, data, traceId);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteAccountPolicy(
+  policyId: string,
+  accountId: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.deletePolicy(policyId, accountId);
+  } catch (err) {
+    return commandFailureFrom("DELETE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/platform/subdomains/account/interfaces/_actions/account.actions.ts
+````typescript
+"use server";
+
+/**
+ * Account Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { accountService } from "../../api";
+import type { UpdateProfileInput, OrganizationRole } from "../../application/dtos/account.dto";
+
+export async function createUserAccount(
+  userId: string,
+  name: string,
+  email: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.createUserAccount(userId, name, email);
+  } catch (err) {
+    return commandFailureFrom("CREATE_USER_ACCOUNT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateUserProfile(
+  userId: string,
+  data: UpdateProfileInput,
+): Promise<CommandResult> {
+  try {
+    return await accountService.updateUserProfile(userId, data);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_USER_PROFILE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function creditWallet(
+  accountId: string,
+  amount: number,
+  description: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.creditWallet(accountId, amount, description);
+  } catch (err) {
+    return commandFailureFrom("WALLET_CREDIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function debitWallet(
+  accountId: string,
+  amount: number,
+  description: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.debitWallet(accountId, amount, description);
+  } catch (err) {
+    return commandFailureFrom("WALLET_DEBIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function assignAccountRole(
+  accountId: string,
+  role: OrganizationRole,
+  grantedBy: string,
+  traceId?: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.assignRole(accountId, role, grantedBy, traceId);
+  } catch (err) {
+    return commandFailureFrom("ASSIGN_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function revokeAccountRole(accountId: string): Promise<CommandResult> {
+  try {
+    return await accountService.revokeRole(accountId);
+  } catch (err) {
+    return commandFailureFrom("REVOKE_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
 ## File: modules/platform/subdomains/ai/api/server.ts
 ````typescript
 /**
@@ -54217,6 +52952,24 @@ export class GenkitAiTextGenerationAdapter implements AiTextGenerationPort {
 }
 ````
 
+## File: modules/platform/subdomains/ai/README.md
+````markdown
+# Ai
+
+共享 AI provider 路由、模型政策、配額與安全護欄。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Baseline
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/background-job/api/index.ts
 ````typescript
 /**
@@ -54325,6 +53078,24 @@ export {};
 ## File: modules/platform/subdomains/consent/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'consent'.
+````
+
+## File: modules/platform/subdomains/consent/README.md
+````markdown
+# Consent
+
+把同意與資料使用授權從 compliance 中切開。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/entitlement/application/dtos/entitlement.dto.ts
@@ -54742,6 +53513,24 @@ export class FirebaseEntitlementGrantRepository implements EntitlementGrantRepos
 }
 ````
 
+## File: modules/platform/subdomains/entitlement/README.md
+````markdown
+# Entitlement
+
+建立有效權益與功能可用性的統一解算上下文。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/platform/subdomains/identity/domain/index.ts
 ````typescript
 export type { IdentityEntity, RegistrationInput, SignInCredentials } from "./entities/Identity";
@@ -54765,101 +53554,6 @@ export * from "./value-objects";
  */
 export type { IdentityRepository as IIdentityPort } from "../repositories/IdentityRepository";
 export type { TokenRefreshRepository as ITokenRefreshPort } from "../repositories/TokenRefreshRepository";
-````
-
-## File: modules/platform/subdomains/identity/interfaces/_actions/identity.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { toIdentityErrorMessage } from "../../application/identity-error-message";
-import {
-	RegisterUseCase,
-	SendPasswordResetEmailUseCase,
-	SignInAnonymouslyUseCase,
-	SignInUseCase,
-	SignOutUseCase,
-} from "../../application/use-cases/identity.use-cases";
-import { FirebaseIdentityRepository } from "../../api";
-
-const identityRepo = new FirebaseIdentityRepository();
-
-export async function signIn(email: string, password: string): Promise<CommandResult> {
-	try {
-		return await new SignInUseCase(identityRepo).execute({ email, password });
-	} catch (err) {
-		return commandFailureFrom("SIGN_IN_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
-	}
-}
-
-export async function signInAnonymously(): Promise<CommandResult> {
-	try {
-		return await new SignInAnonymouslyUseCase(identityRepo).execute();
-	} catch (err) {
-		return commandFailureFrom(
-			"SIGN_IN_ANONYMOUS_FAILED",
-			toIdentityErrorMessage(err, "Unexpected error"),
-		);
-	}
-}
-
-export async function register(email: string, password: string, name: string): Promise<CommandResult> {
-	try {
-		return await new RegisterUseCase(identityRepo).execute({ email, password, name });
-	} catch (err) {
-		return commandFailureFrom("REGISTRATION_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
-	}
-}
-
-export async function sendPasswordResetEmail(email: string): Promise<CommandResult> {
-	try {
-		return await new SendPasswordResetEmailUseCase(identityRepo).execute(email);
-	} catch (err) {
-		return commandFailureFrom("PASSWORD_RESET_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
-	}
-}
-
-export async function signOut(): Promise<CommandResult> {
-	try {
-		return await new SignOutUseCase(identityRepo).execute();
-	} catch (err) {
-		return commandFailureFrom("SIGN_OUT_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
-	}
-}
-````
-
-## File: modules/platform/subdomains/identity/interfaces/hooks/useTokenRefreshListener.tsx
-````typescript
-"use client";
-
-import { getFirebaseAuth } from "@integration-firebase";
-import { useEffect } from "react";
-import { FirebaseTokenRefreshRepository } from "../../api";
-
-let _tokenRefreshRepo: FirebaseTokenRefreshRepository | undefined;
-
-function getTokenRefreshRepo(): FirebaseTokenRefreshRepository {
-	if (!_tokenRefreshRepo) _tokenRefreshRepo = new FirebaseTokenRefreshRepository();
-	return _tokenRefreshRepo;
-}
-
-export function useTokenRefreshListener(accountId: string | null | undefined): void {
-	useEffect(() => {
-		if (!accountId) return;
-		if (!/^[\w-]+$/.test(accountId)) return;
-
-		const unsubscribe = getTokenRefreshRepo().subscribe(accountId, () => {
-			const auth = getFirebaseAuth();
-			const currentUser = auth.currentUser;
-			if (!currentUser) return;
-			void currentUser.getIdToken(true).catch(() => {
-				// Non-fatal: token refreshes naturally on next expiry cycle.
-			});
-		});
-
-		return () => unsubscribe();
-	}, [accountId]);
-}
 ````
 
 ## File: modules/platform/subdomains/notification/api/index.ts
@@ -55147,188 +53841,43 @@ export const notificationService = {
 };
 ````
 
-## File: modules/platform/subdomains/notification/interfaces/components/NotificationBell.tsx
+## File: modules/platform/subdomains/notification/interfaces/_actions/notification.actions.ts
 ````typescript
-"use client";
+"use server";
 
 /**
- * NotificationBell — Reusable notification bell for shell header.
- * Lives in platform/subdomains/notification/interfaces.
+ * Notification Server Actions — thin adapters over use cases.
  */
 
-import Link from "next/link";
-import { Bell } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { notificationService } from "../../api";
+import type { DispatchNotificationInput } from "../../application/dtos/notification.dto";
 
-import {
-  markNotificationRead,
-  markAllNotificationsRead,
-} from "../_actions/notification.actions";
-import { getNotificationsForRecipient } from "../queries/notification.queries";
-import type { NotificationEntity } from "../../application/dtos/notification.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-
-const NOTIFICATION_LIMIT = 20;
-
-function formatNotificationTime(timestamp: number) {
-  return new Intl.DateTimeFormat("zh-TW", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
+export async function dispatchNotification(input: DispatchNotificationInput): Promise<CommandResult> {
+  try {
+    return await notificationService.dispatch(input);
+  } catch (err) {
+    return commandFailureFrom("DISPATCH_NOTIFICATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
 }
 
-interface NotificationBellProps {
-  readonly recipientId: string;
+export async function markNotificationRead(
+  notificationId: string,
+  recipientId: string,
+): Promise<CommandResult> {
+  try {
+    return await notificationService.markAsRead(notificationId, recipientId);
+  } catch (err) {
+    return commandFailureFrom("MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
 }
 
-export function NotificationBell({ recipientId }: NotificationBellProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isMutating, setIsMutating] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
-
-  const unreadCount = useMemo(
-    () => notifications.reduce((count, n) => count + (n.read ? 0 : 1), 0),
-    [notifications],
-  );
-
-  const loadNotifications = useCallback(async () => {
-    if (!recipientId) {
-      setNotifications([]);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const next = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
-      setNotifications(next);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [recipientId]);
-
-  useEffect(() => {
-    void loadNotifications();
-  }, [loadNotifications]);
-
-  async function handleOpenChange(nextOpen: boolean) {
-    setIsOpen(nextOpen);
-    if (nextOpen) {
-      await loadNotifications();
-    }
+export async function markAllNotificationsRead(recipientId: string): Promise<CommandResult> {
+  try {
+    return await notificationService.markAllAsRead(recipientId);
+  } catch (err) {
+    return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
-
-  async function handleMarkOneRead(notificationId: string) {
-    if (!recipientId) return;
-    setIsMutating(true);
-    const previous = notifications;
-    setNotifications((current) =>
-      current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
-    );
-    try {
-      const result = await markNotificationRead(notificationId, recipientId);
-      if (!result.success) setNotifications(previous);
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function handleMarkAllRead() {
-    if (!recipientId || unreadCount === 0) return;
-    setIsMutating(true);
-    const previous = notifications;
-    setNotifications((current) => current.map((n) => ({ ...n, read: true })));
-    try {
-      const result = await markAllNotificationsRead(recipientId);
-      if (!result.success) setNotifications(previous);
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  return (
-    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          aria-label="Open notifications"
-          className="relative text-muted-foreground"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between px-3 py-2">
-          <p className="text-sm font-semibold">Notifications</p>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            disabled={isMutating || unreadCount === 0}
-            onClick={handleMarkAllRead}
-          >
-            Mark all read
-          </Button>
-        </div>
-        <DropdownMenuSeparator />
-        <div className="max-h-80 overflow-y-auto">
-          {isLoading ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
-          ) : notifications.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
-          ) : (
-            notifications.map((notification) => (
-              <button
-                key={notification.id}
-                type="button"
-                onClick={() => void handleMarkOneRead(notification.id)}
-                disabled={isMutating}
-                className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium">{notification.title}</p>
-                  {!notification.read ? (
-                    <span
-                      className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary"
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                </div>
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                  {notification.message}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {formatNotificationTime(notification.timestamp)}
-                </p>
-              </button>
-            ))
-          )}
-        </div>
-        <DropdownMenuSeparator />
-        <div className="py-1 text-center">
-          <Link
-            href="/settings/notifications"
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            查看全部通知
-          </Link>
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
 }
 ````
 
@@ -55506,6 +54055,99 @@ export function NotificationsPage({ recipientId }: NotificationsPageProps) {
 }
 ````
 
+## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
+````typescript
+/**
+ * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
+ */
+
+import { notificationService } from "../../api";
+import type { NotificationEntity } from "../../application/dtos/notification.dto";
+
+export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
+  return notificationService.getForRecipient(recipientId, maxCount);
+}
+````
+
+## File: modules/platform/subdomains/organization/api/index.ts
+````typescript
+/**
+ * Public API boundary for the organization subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * NOTE: We avoid `export * from "../infrastructure"` here because the
+ * infrastructure barrel pulls in Firebase repository constructors during
+ * module evaluation, which causes failures during Next.js static
+ * prerendering. Infrastructure exports are available in the server barrel
+ * (./server.ts) or via direct import from action / service files.
+ */
+
+import { createTeamRepository } from "../../team/api";
+import { configureOrganizationTeamPortFactory } from "../infrastructure/organization-service";
+
+configureOrganizationTeamPortFactory(createTeamRepository);
+
+// --- Domain types ---
+export type {
+  OrganizationEntity,
+  OrganizationRole,
+  Presence,
+  InviteState,
+  PolicyEffect,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  ThemeConfig,
+  OrgPolicy,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../domain";
+export type { OrganizationRepository, Unsubscribe } from "../domain";
+export type { OrgPolicyRepository } from "../domain";
+
+// --- Application use cases ---
+export {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "../application";
+export {
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "../application";
+export {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../application";
+export {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "../application";
+export {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "../application";
+
+// --- Infrastructure (lazy, safe for SSR) ---
+export { organizationService, organizationQueryService } from "../infrastructure";
+
+// --- Interfaces (UI, queries, actions) ---
+export * from "../interfaces";
+````
+
 ## File: modules/platform/subdomains/organization/application/dtos/organization.dto.ts
 ````typescript
 /**
@@ -55656,9 +54298,486 @@ export interface IOrganizationTeamPort {
 }
 ````
 
-## File: modules/platform/subdomains/organization/infrastructure/index.ts
+## File: modules/platform/subdomains/organization/interfaces/_actions/organization-policy.actions.ts
 ````typescript
-export { organizationService, organizationQueryService } from "./organization-service";
+"use server";
+
+/**
+ * Organization Policy Server Actions — thin adapters over use cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { organizationService } from "../../api";
+import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../application/dtos/organization.dto";
+
+export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
+  try { return await organizationService.createOrgPolicy(input); }
+  catch (err) { return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateOrgPolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
+  try { return await organizationService.updateOrgPolicy(policyId, data); }
+  catch (err) { return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteOrgPolicy(policyId); }
+  catch (err) { return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+````
+
+## File: modules/platform/subdomains/organization/interfaces/_actions/organization.actions.ts
+````typescript
+"use server";
+
+/**
+ * Organization Server Actions — thin adapters over use cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { organizationService } from "../../api";
+import type {
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+} from "../../application/dtos/organization.dto";
+
+export async function createOrganization(cmd: CreateOrganizationCommand): Promise<CommandResult> {
+  try { return await organizationService.createOrganization(cmd); }
+  catch (err) { return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createOrganizationWithTeam(
+  cmd: CreateOrganizationCommand,
+  teamName: string,
+  teamType: "internal" | "external" = "internal",
+): Promise<CommandResult> {
+  try { return await organizationService.createOrganizationWithTeam(cmd, teamName, teamType); }
+  catch (err) { return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateOrganizationSettings(cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> {
+  try { return await organizationService.updateSettings(cmd); }
+  catch (err) { return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteOrganization(organizationId); }
+  catch (err) { return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
+  try { return await organizationService.inviteMember(input); }
+  catch (err) { return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function recruitMember(
+  organizationId: string,
+  memberId: string,
+  name: string,
+  email: string,
+): Promise<CommandResult> {
+  try { return await organizationService.recruitMember(organizationId, memberId, name, email); }
+  catch (err) { return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function dismissMember(organizationId: string, memberId: string): Promise<CommandResult> {
+  try { return await organizationService.removeMember(organizationId, memberId); }
+  catch (err) { return commandFailureFrom("REMOVE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
+  try { return await organizationService.updateMemberRole(input); }
+  catch (err) { return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
+  try { return await organizationService.createTeam(input); }
+  catch (err) { return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteTeam(organizationId: string, teamId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteTeam(organizationId, teamId); }
+  catch (err) { return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateTeamMembers(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+  action: "add" | "remove",
+): Promise<CommandResult> {
+  try { return await organizationService.updateTeamMembers(organizationId, teamId, memberId, action); }
+  catch (err) { return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createPartnerGroup(organizationId: string, groupName: string): Promise<CommandResult> {
+  try { return await organizationService.createPartnerGroup(organizationId, groupName); }
+  catch (err) { return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function sendPartnerInvite(
+  organizationId: string,
+  teamId: string,
+  email: string,
+): Promise<CommandResult> {
+  try { return await organizationService.sendPartnerInvite(organizationId, teamId, email); }
+  catch (err) { return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function dismissPartnerMember(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+): Promise<CommandResult> {
+  try { return await organizationService.dismissPartnerMember(organizationId, teamId, memberId); }
+  catch (err) { return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+````
+
+## File: modules/platform/subdomains/organization/interfaces/components/AccountSwitcher.tsx
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { AccountEntity, AuthUser } from "../../../../api";
+import { useApp } from "../../../../api";
+import { createOrganization } from "../_actions/organization.actions";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+interface AccountSwitcherProps {
+  personalAccount: AuthUser | null;
+  organizationAccounts: AccountEntity[];
+  activeAccountId: string | null;
+  onSelectPersonal: () => void;
+  onSelectOrganization: (account: AccountEntity) => void;
+  onOrganizationCreated?: (account: AccountEntity) => void;
+}
+
+export function AccountSwitcher({
+  personalAccount,
+  organizationAccounts,
+  activeAccountId,
+  onSelectPersonal,
+  onSelectOrganization,
+  onOrganizationCreated,
+}: AccountSwitcherProps) {
+  const router = useRouter();
+  const {
+    state: { accountsHydrated, bootstrapPhase },
+  } = useApp();
+  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
+  const [organizationName, setOrganizationName] = useState("");
+  const [organizationError, setOrganizationError] = useState<string | null>(null);
+  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
+
+  function resetCreateOrganizationDialog() {
+    setOrganizationName("");
+    setOrganizationError(null);
+    setIsCreatingOrganization(false);
+  }
+
+  async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!personalAccount) {
+      setOrganizationError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+
+    const nextOrganizationName = organizationName.trim();
+    if (!nextOrganizationName) {
+      setOrganizationError("請輸入組織名稱。");
+      return;
+    }
+
+    setIsCreatingOrganization(true);
+    setOrganizationError(null);
+
+    const result = await createOrganization({
+      organizationName: nextOrganizationName,
+      ownerId: personalAccount.id,
+      ownerName: personalAccount.name,
+      ownerEmail: personalAccount.email,
+    });
+
+    if (!result.success) {
+      setOrganizationError(result.error.message);
+      setIsCreatingOrganization(false);
+      return;
+    }
+
+    onOrganizationCreated?.({
+      id: result.aggregateId,
+      name: nextOrganizationName,
+      accountType: "organization",
+      ownerId: personalAccount.id,
+    });
+
+    resetCreateOrganizationDialog();
+    setIsCreateOrganizationOpen(false);
+    router.push(`/${encodeURIComponent(result.aggregateId)}/organization`);
+  }
+
+  return (
+    <>
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          帳號情境
+        </p>
+        <select
+          aria-label="切換帳號情境"
+          value={activeAccountId ?? ""}
+          onChange={(event) => {
+            const nextId = event.target.value;
+            if (nextId === "__create_organization__") {
+              setIsCreateOrganizationOpen(true);
+              return;
+            }
+
+            if (!nextId || nextId === personalAccount?.id) {
+              onSelectPersonal();
+              return;
+            }
+
+            const nextAccount = organizationAccounts.find((account) => account.id === nextId);
+            if (nextAccount) {
+              onSelectOrganization(nextAccount);
+            }
+          }}
+          className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground"
+        >
+          {personalAccount && (
+            <option value={personalAccount.id}>{personalAccount.name}（個人）</option>
+          )}
+          {organizationAccounts.map((account) => (
+            <option key={account.id} value={account.id}>
+              {account.name}（組織）
+            </option>
+          ))}
+          <option value="__create_organization__">+建立組織</option>
+        </select>
+        {!accountsHydrated && (
+          <p className="text-xs text-muted-foreground">
+            {bootstrapPhase === "seeded" ? "正在同步組織上下文…" : "正在載入帳號上下文…"}
+          </p>
+        )}
+      </div>
+
+      <Dialog
+        open={isCreateOrganizationOpen}
+        onOpenChange={(open) => {
+          setIsCreateOrganizationOpen(open);
+          if (!open) {
+            resetCreateOrganizationDialog();
+          }
+        }}
+      >
+        <DialogContent aria-describedby="create-organization-description">
+          <DialogHeader>
+            <DialogTitle>建立新組織</DialogTitle>
+            <DialogDescription id="create-organization-description">
+              輸入名稱後會直接建立組織並切換到新的組織內容。
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="space-y-4" onSubmit={handleCreateOrganization}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="organization-name">
+                組織名稱
+              </label>
+              <Input
+                id="organization-name"
+                value={organizationName}
+                onChange={(event) => {
+                  setOrganizationName(event.target.value);
+                  if (organizationError) {
+                    setOrganizationError(null);
+                  }
+                }}
+                placeholder="例如：Gig Team"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                disabled={isCreatingOrganization}
+                maxLength={80}
+              />
+              {organizationError && <p className="text-sm text-destructive">{organizationError}</p>}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetCreateOrganizationDialog();
+                  setIsCreateOrganizationOpen(false);
+                }}
+                disabled={isCreatingOrganization}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingOrganization || !personalAccount}>
+                {isCreatingOrganization ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+````
+
+## File: modules/platform/subdomains/organization/interfaces/components/CreateOrganizationDialog.tsx
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+
+import type { AuthUser } from "@/modules/platform/api";
+import type { AccountEntity } from "../../../../api";
+import { createOrganization } from "../_actions/organization.actions";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+interface CreateOrganizationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: AuthUser | null;
+  onOrganizationCreated?: (account: AccountEntity) => void;
+  onNavigate: (href: string) => void;
+}
+
+export function CreateOrganizationDialog({
+  open,
+  onOpenChange,
+  user,
+  onOrganizationCreated,
+  onNavigate,
+}: CreateOrganizationDialogProps) {
+  const [orgName, setOrgName] = useState("");
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  function reset() {
+    setOrgName("");
+    setOrgError(null);
+    setIsCreating(false);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user) {
+      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+    const name = orgName.trim();
+    if (!name) {
+      setOrgError("請輸入組織名稱。");
+      return;
+    }
+    setIsCreating(true);
+    setOrgError(null);
+    const result = await createOrganization({
+      organizationName: name,
+      ownerId: user.id,
+      ownerName: user.name,
+      ownerEmail: user.email,
+    });
+    if (!result.success) {
+      setOrgError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+    const newAccount: AccountEntity = {
+      id: result.aggregateId,
+      name,
+      accountType: "organization",
+      ownerId: user.id,
+    };
+    onOrganizationCreated?.(newAccount);
+    reset();
+    onOpenChange(false);
+    onNavigate(`/${encodeURIComponent(result.aggregateId)}/organization`);
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        onOpenChange(isOpen);
+        if (!isOpen) reset();
+      }}
+    >
+      <DialogContent aria-describedby="rail-create-org-description">
+        <DialogHeader>
+          <DialogTitle>建立新組織</DialogTitle>
+          <DialogDescription id="rail-create-org-description">
+            輸入名稱後會直接建立組織並切換到新的組織內容。
+          </DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
+              組織名稱
+            </label>
+            <Input
+              id="rail-organization-name"
+              value={orgName}
+              onChange={(e) => {
+                setOrgName(e.target.value);
+                if (orgError) setOrgError(null);
+              }}
+              placeholder="例如：Gig Team"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+              disabled={isCreating}
+              maxLength={80}
+            />
+            {orgError && <p className="text-sm text-destructive">{orgError}</p>}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                reset();
+                onOpenChange(false);
+              }}
+              disabled={isCreating}
+            >
+              取消
+            </Button>
+            <Button type="submit" disabled={isCreating || !user}>
+              {isCreating ? "建立中…" : "直接建立"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 ````
 
 ## File: modules/platform/subdomains/organization/interfaces/index.ts
@@ -55689,6 +54808,28 @@ export {
   dismissPartnerMember,
 } from "./_actions/organization.actions";
 export { createOrgPolicy, updateOrgPolicy, deleteOrgPolicy } from "./_actions/organization-policy.actions";
+````
+
+## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
+````typescript
+/**
+ * Organization Queries — delegates to organizationQueryService via the subdomain api/ boundary.
+ */
+
+import { organizationQueryService } from "../../api";
+import type { MemberReference, Team, OrgPolicy } from "../../application/dtos/organization.dto";
+
+export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
+  return organizationQueryService.getMembers(organizationId);
+}
+
+export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
+  return organizationQueryService.getTeams(organizationId);
+}
+
+export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
+  return organizationQueryService.getOrgPolicies(orgId);
+}
 ````
 
 ## File: modules/platform/subdomains/platform-config/api/index.ts
@@ -55741,6 +54882,24 @@ export {};
 ## File: modules/platform/subdomains/secret-management/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'secret-management'.
+````
+
+## File: modules/platform/subdomains/secret-management/README.md
+````markdown
+# Secret Management
+
+把憑證、token、rotation 從 integration 中切開。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/subdomains.instructions.md
@@ -56404,6 +55563,24 @@ export {};
 ## File: modules/platform/subdomains/tenant/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'tenant'.
+````
+
+## File: modules/platform/subdomains/tenant/README.md
+````markdown
+# Tenant
+
+建立多租戶隔離與 tenant-scoped 規則的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: platform
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/workspace/api/api.instructions.md
@@ -57524,6 +56701,141 @@ export function WorkspaceSidebarSection({
 }
 ````
 
+## File: modules/workspace/interfaces/web/components/rails/CreateWorkspaceDialogRail.tsx
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+
+import { createWorkspace } from "../../../api/facades";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+interface CreateWorkspaceDialogRailProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  accountId: string | null;
+  accountType: "user" | "organization" | null;
+  creatorUserId?: string | null;
+  onNavigate: (href: string) => void;
+}
+
+export function CreateWorkspaceDialogRail({
+  open,
+  onOpenChange,
+  accountId,
+  accountType,
+  creatorUserId,
+  onNavigate,
+}: CreateWorkspaceDialogRailProps) {
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  function reset() {
+    setWorkspaceName("");
+    setError(null);
+    setIsCreating(false);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = workspaceName.trim();
+    if (!name) {
+      setError("請輸入工作區名稱。");
+      return;
+    }
+    if (!accountId || !accountType) {
+      setError("帳號資訊已失效，請重新登入後再建立工作區。");
+      return;
+    }
+
+    setIsCreating(true);
+    setError(null);
+    const result = await createWorkspace({
+      name,
+      accountId,
+      accountType,
+      creatorUserId: creatorUserId ?? undefined,
+    });
+
+    if (!result.success) {
+      setError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+
+    reset();
+    onOpenChange(false);
+    onNavigate(`/${encodeURIComponent(accountId)}`);
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        onOpenChange(isOpen);
+        if (!isOpen) reset();
+      }}
+    >
+      <DialogContent aria-describedby="rail-create-workspace-description">
+        <DialogHeader>
+          <DialogTitle>建立新工作區</DialogTitle>
+          <DialogDescription id="rail-create-workspace-description">
+            輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
+          </DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
+              工作區名稱
+            </label>
+            <Input
+              id="rail-workspace-name"
+              value={workspaceName}
+              onChange={(e) => {
+                setWorkspaceName(e.target.value);
+                if (error) setError(null);
+              }}
+              placeholder="例如：Project Alpha"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+              disabled={isCreating}
+              maxLength={80}
+            />
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                reset();
+                onOpenChange(false);
+              }}
+              disabled={isCreating}
+            >
+              取消
+            </Button>
+            <Button type="submit" disabled={isCreating || !accountId || !accountType}>
+              {isCreating ? "建立中…" : "直接建立"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailRouteScreen.tsx
 ````typescript
 "use client";
@@ -57572,211 +56884,366 @@ export function WorkspaceDetailRouteScreen({
 }
 ````
 
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewKnowledgePanels.tsx
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
 ````typescript
 "use client";
 
-import { KnowledgeBaseArticlesRouteScreen, KnowledgeDatabasesRouteScreen, KnowledgePagesRouteScreen } from "@/modules/notion/api";
-import { LibrariesView, LibraryTableView } from "@/modules/notebooklm/api";
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { TabsContent } from "@ui-shadcn/ui/tabs";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useState } from "react";
 
-interface WorkspaceOverviewKnowledgePanelsProps {
-  readonly workspace: WorkspaceEntity;
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+
+import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
+import { getWorkspaceGovernanceSummary } from "../../view-models/workspace-supporting-records";
+import { CreateWorkspaceDialog } from "../dialogs/CreateWorkspaceDialog";
+
+const lifecycleBadgeVariant: Record<
+  WorkspaceEntity["lifecycleState"],
+  "default" | "secondary" | "outline"
+> = {
+  active: "default",
+  preparatory: "secondary",
+  stopped: "outline",
+};
+
+interface WorkspaceHubScreenProps {
+  readonly accountId: string | null | undefined;
+  readonly accountName: string | null | undefined;
+  readonly accountType: "user" | "organization";
+  readonly accountsHydrated: boolean;
+  readonly isBootstrapSeeded: boolean;
+  readonly currentUserId?: string | null;
 }
 
-export function WorkspaceOverviewKnowledgePanels({
-  workspace,
-}: WorkspaceOverviewKnowledgePanelsProps) {
+export function WorkspaceHubScreen({
+  accountId,
+  accountName,
+  accountType,
+  accountsHydrated,
+  isBootstrapSeeded,
+  currentUserId,
+}: WorkspaceHubScreenProps) {
+  const router = useRouter();
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+
+  const {
+    createError,
+    clearCreateError,
+    createWorkspaceForAccount,
+    errorMessage,
+    isCreatingWorkspace,
+    loadState,
+    workspaceStats,
+    workspaces,
+  } = useWorkspaceHub({
+    accountId,
+    accountType,
+    creatorUserId: currentUserId,
+  });
+
+  function resetCreateWorkspaceDialog() {
+    setWorkspaceName("");
+    clearCreateError();
+  }
+
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const result = await createWorkspaceForAccount(workspaceName);
+
+    if (!result.success) {
+      return;
+    }
+
+    resetCreateWorkspaceDialog();
+    setIsCreateWorkspaceOpen(false);
+    if (result.aggregateId) {
+      if (accountId) {
+        router.push(`/${encodeURIComponent(accountId)}/${encodeURIComponent(result.aggregateId)}`);
+      } else {
+        router.push("/");
+      }
+    }
+  }
+
   return (
-    <>
-      <TabsContent value="knowledge-pages" className="mt-4 space-y-4">
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardTitle>Knowledge Pages</CardTitle>
-            <CardDescription>
-              Workspace orchestration surface for notion knowledge page tree and page entry flow.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <KnowledgePagesRouteScreen />
-          </CardContent>
-        </Card>
-      </TabsContent>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Workspace Hub</h1>
+          <p className="text-sm text-muted-foreground">
+            Review the workspaces connected to{" "}
+            <span className="font-medium text-foreground">
+              {accountName ?? "the active account"}
+            </span>
+            .
+          </p>
+        </div>
 
-      <TabsContent value="knowledge-base-articles" className="mt-4 space-y-4">
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardTitle>Knowledge Base Articles</CardTitle>
-            <CardDescription>
-              Workspace orchestration surface for notion authoring article lifecycle and categorization.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <KnowledgeBaseArticlesRouteScreen />
-          </CardContent>
-        </Card>
-      </TabsContent>
+        <Button
+          onClick={() => setIsCreateWorkspaceOpen(true)}
+          disabled={!accountsHydrated || !accountId}
+        >
+          {!accountsHydrated ? "同步帳號中…" : "建立工作區"}
+        </Button>
+      </div>
 
-      <TabsContent value="knowledge-databases" className="mt-4 space-y-4">
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardTitle>Knowledge Databases</CardTitle>
-            <CardDescription>
-              Workspace orchestration surface for notion structured database views.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <KnowledgeDatabasesRouteScreen />
-          </CardContent>
-        </Card>
-      </TabsContent>
+      {!accountsHydrated && (
+        <div
+          className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground"
+          aria-live="polite"
+          role="status"
+        >
+          {isBootstrapSeeded
+            ? "正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。"
+            : "正在載入帳號與工作區內容…"}
+        </div>
+      )}
 
-      <TabsContent value="source-libraries" className="mt-4 space-y-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         <Card className="border border-border/50">
           <CardHeader>
-            <CardTitle>Source Libraries</CardTitle>
-            <CardDescription>
-              Workspace orchestration surface for notebooklm source libraries.
-            </CardDescription>
+            <CardDescription>Total Workspaces</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.total}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <LibraryTableView accountId={workspace.accountId} workspaceId={workspace.id} />
-            <LibrariesView accountId={workspace.accountId} workspaceId={workspace.id} />
-          </CardContent>
         </Card>
-      </TabsContent>
-    </>
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Active</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.active}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Preparatory</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.preparatory}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      <Card className="border border-border/50">
+        <CardHeader>
+          <CardTitle>Workspace-first Product Spine</CardTitle>
+          <CardDescription>
+            目前先把主流程收斂成 Identity → Organization → Workspace，再由工作區承接 Knowledge、知識頁面、Notebook / AI。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-xl border border-border/40 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Entry flow</p>
+            <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li>
+                <span className="font-medium text-foreground">1. Identity</span>：登入後先建立個人／組織帳號情境。
+              </li>
+              <li>
+                <span className="font-medium text-foreground">2. Organization</span>：切換至目標 account / organization。
+              </li>
+              <li>
+                <span className="font-medium text-foreground">3. Workspace</span>：進入工作區後再分流到知識、知識頁面、Notebook / AI。
+              </li>
+            </ol>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Knowledge</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                文件、來源、Libraries 與 upload / ingest 流程都由工作區承接。
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">知識頁面</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                頁面樹、內容導覽與知識結構直接從工作區知識頁面進入。
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                問答、推理與 RAG 查詢作為工作區內的消費層，而非獨立入口。
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border/50">
+        <CardHeader>
+          <CardTitle>Workspace Records</CardTitle>
+          <CardDescription>
+            Lifecycle 與 supporting governance records 目前仍由 workspace 模組擁有，但已收斂在專用 supporting ports；點入後會以工作區為樞紐進入 Knowledge / 知識頁面 / Notebook-AI。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+              Loading workspace records…
+            </div>
+          )}
+
+          {loadState === "error" && errorMessage && (
+            <div className="rounded-xl border border-destructive/30 px-4 py-3 text-sm text-destructive">
+              {errorMessage}
+            </div>
+          )}
+
+          {loadState === "loaded" && workspaces.length === 0 && (
+            <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
+              目前這個帳號尚未建立任何工作區。你可以先完成{" "}
+              <Link
+                href={accountId ? `/${encodeURIComponent(accountId)}/organization` : "/"}
+                className="font-medium text-primary hover:underline"
+              >
+                組織情境
+              </Link>{" "}
+              設定，再使用上方的建立工作區入口，回到 workspace-first 主流程。
+            </div>
+          )}
+
+          {workspaces.map((workspace) => {
+            const governanceSummary = getWorkspaceGovernanceSummary(workspace);
+
+            return (
+              <Link
+                key={workspace.id}
+                href={accountId
+                  ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspace.id)}`
+                  : "/"}
+                className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">
+                        {workspace.name}
+                      </p>
+                      <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
+                        {workspace.lifecycleState}
+                      </Badge>
+                      <Badge variant="outline">{workspace.visibility}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Account scope: {workspace.accountType}
+                    </p>
+                    <p className="text-xs font-medium text-primary">點擊進入工作區</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
+                    <span>Capabilities: {governanceSummary.capabilityCount}</span>
+                    <span>Teams: {governanceSummary.teamCount}</span>
+                    <span>Locations: {governanceSummary.locationCount}</span>
+                    <span>Grants: {governanceSummary.grantCount}</span>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      <CreateWorkspaceDialog
+        open={isCreateWorkspaceOpen}
+        workspaceName={workspaceName}
+        createError={createError}
+        isCreatingWorkspace={isCreatingWorkspace}
+        accountId={accountId}
+        onOpenChange={(open) => {
+          setIsCreateWorkspaceOpen(open);
+          if (!open) resetCreateWorkspaceDialog();
+        }}
+        onWorkspaceNameChange={(name) => {
+          setWorkspaceName(name);
+          if (createError) clearCreateError();
+        }}
+        onSubmit={handleCreateWorkspace}
+      />
+    </div>
   );
 }
 ````
 
-## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
 ````typescript
-import { useEffect, useMemo, useState } from "react";
+"use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { WorkspaceEntity } from "../../api/contracts";
+import { getWorkspaceByIdForAccount } from "../../api/facades";
 
-interface RecentWorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
+export type WorkspaceLoadState = "loading" | "loaded" | "error";
+
+export interface UseWorkspaceDetailResult {
+  workspace: WorkspaceEntity | null;
+  loadState: WorkspaceLoadState;
+  setWorkspace: (ws: WorkspaceEntity) => void;
 }
 
-const MAX_VISIBLE_RECENT_WORKSPACES = 10;
-const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
-
-const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
-  "workspace",
-  "workspace-feed",
-  "knowledge",
-  "knowledge-base",
-  "knowledge-database",
-  "source",
-  "notebook",
-  "ai-chat",
-  "organization",
-  "settings",
-  "dashboard",
-  "dev-tools",
-]);
-
-function getStorageKey(accountId: string) {
-  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
-}
-
-function readRecentWorkspaceIds(accountId: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(getStorageKey(accountId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
-  } catch {
-    return [];
-  }
-}
-
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
-}
-
-function trackWorkspaceFromPath(pathname: string, accountId: string) {
-  const workspaceId = getWorkspaceIdFromPath(pathname);
-  if (!workspaceId) return;
-  const recentIds = readRecentWorkspaceIds(accountId);
-  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
-  persistRecentWorkspaceIds(accountId, deduped);
-}
-
-function getWorkspaceIdFromPath(pathname: string): string | null {
-  const legacyMatch = pathname.match(/^\/workspace\/([^/]+)/);
-  if (legacyMatch) {
-    return decodeURIComponent(legacyMatch[1]);
-  }
-
-  const segments = pathname.split("/").filter(Boolean);
-  if (segments.length < 2) {
-    return null;
-  }
-
-  const [firstSegment, secondSegment] = segments;
-  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
-    return null;
-  }
-
-  if (!secondSegment) {
-    return null;
-  }
-
-  return decodeURIComponent(secondSegment);
-}
-
-export function useRecentWorkspaces(
-  accountId: string | undefined,
-  pathname: string,
-  workspaces: WorkspaceEntity[],
-) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export function useWorkspaceDetail(
+  workspaceId: string,
+  accountId: string | null | undefined,
+  accountsHydrated: boolean,
+): UseWorkspaceDetailResult {
+  const router = useRouter();
+  const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
+  const [loadState, setLoadState] = useState<WorkspaceLoadState>("loading");
 
   useEffect(() => {
-    if (!accountId) return;
-    trackWorkspaceFromPath(pathname, accountId);
-  }, [accountId, pathname]);
+    let cancelled = false;
 
-  const workspacesById = useMemo(
-    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
-    [workspaces],
-  );
+    async function loadWorkspace() {
+      if (!workspaceId) {
+        setLoadState("error");
+        return;
+      }
 
-  const recentWorkspaceIds = useMemo(() => {
-    if (!accountId) return [] as string[];
-    const stored = readRecentWorkspaceIds(accountId);
-    const currentId = getWorkspaceIdFromPath(pathname);
-    if (!currentId) return stored;
-    return [currentId, ...stored.filter((id) => id !== currentId)];
-  }, [accountId, pathname]);
+      if (!accountId || !accountsHydrated) {
+        setWorkspace(null);
+        setLoadState("loading");
+        return;
+      }
 
-  const recentWorkspaceLinks = useMemo<RecentWorkspaceLink[]>(() => {
-    return recentWorkspaceIds
-      .map<RecentWorkspaceLink | null>((workspaceId) => {
-        const ws = workspacesById[workspaceId];
-        if (!ws) return null;
-        const href = accountId
-          ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(ws.id)}`
-          : `/workspace/${encodeURIComponent(ws.id)}`;
-        return { id: ws.id, name: ws.name, href };
-      })
-      .filter((item): item is RecentWorkspaceLink => item !== null);
-  }, [accountId, recentWorkspaceIds, workspacesById]);
+      setLoadState("loading");
+      try {
+        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
+        if (cancelled) return;
+        if (!detail) {
+          router.replace(`/${encodeURIComponent(accountId)}?context=unavailable`);
+          return;
+        }
+        setWorkspace(detail);
+        setLoadState("loaded");
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[useWorkspaceDetail] Failed to load workspace:", error);
+        }
+        if (!cancelled) {
+          setWorkspace(null);
+          setLoadState("error");
+        }
+      }
+    }
 
-  return { isExpanded, setIsExpanded, recentWorkspaceLinks };
+    void loadWorkspace();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId, accountsHydrated, router, workspaceId]);
+
+  return { workspace, loadState, setWorkspace };
 }
-
-export { MAX_VISIBLE_RECENT_WORKSPACES, getWorkspaceIdFromPath };
 ````
 
 ## File: modules/workspace/interfaces/web/hooks/useWorkspaceOrchestrationContext.ts
@@ -57824,6 +57291,147 @@ export function useWorkspaceOrchestrationContext(
     currentUserId,
     activeWorkspaceId,
     workspaceId,
+  };
+}
+````
+
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceSettingsSave.ts
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { WorkspaceEntity } from "../../api/contracts";
+import { getWorkspaceByIdForAccount, updateWorkspaceSettings } from "../../api/facades";
+import type { WorkspaceSettingsDraft } from "../state/workspace-settings";
+import { trimOrUndefined } from "../components/layout/workspace-detail-helpers";
+
+interface UseWorkspaceSettingsSaveOptions {
+  readonly workspace: WorkspaceEntity | null;
+  readonly accountId: string | null | undefined;
+  readonly onSaved: (updated: WorkspaceEntity) => void;
+}
+
+interface UseWorkspaceSettingsSaveResult {
+  readonly isSaving: boolean;
+  readonly saveError: string | null;
+  readonly clearSaveError: () => void;
+  readonly handleSave: (
+    event: FormEvent<HTMLFormElement>,
+    settingsDraft: WorkspaceSettingsDraft | null,
+  ) => Promise<void>;
+}
+
+export function useWorkspaceSettingsSave({
+  workspace,
+  accountId,
+  onSaved,
+}: UseWorkspaceSettingsSaveOptions): UseWorkspaceSettingsSaveResult {
+  const router = useRouter();
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  async function handleSave(
+    event: FormEvent<HTMLFormElement>,
+    settingsDraft: WorkspaceSettingsDraft | null,
+  ) {
+    event.preventDefault();
+
+    if (!workspace || !settingsDraft) return;
+
+    if (!accountId) {
+      setSaveError("帳號上下文尚未完成同步，請稍候再試。");
+      return;
+    }
+
+    const nextWorkspaceName = settingsDraft.name.trim();
+    if (!nextWorkspaceName) {
+      setSaveError("請輸入工作區名稱。");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    const hasAddressContent = Boolean(
+      settingsDraft.street.trim() ||
+        settingsDraft.city.trim() ||
+        settingsDraft.state.trim() ||
+        settingsDraft.postalCode.trim() ||
+        settingsDraft.country.trim() ||
+        settingsDraft.details.trim(),
+    );
+    const hasPersonnelContent = Boolean(
+      settingsDraft.managerId.trim() ||
+        settingsDraft.supervisorId.trim() ||
+        settingsDraft.safetyOfficerId.trim() ||
+        settingsDraft.customRoles.some((entry) => entry.roleName.trim() || entry.role.trim()),
+    );
+
+    const normalizedCustomRoles = settingsDraft.customRoles
+      .map((entry) => ({
+        roleId: entry.roleId,
+        roleName: entry.roleName.trim(),
+        role: entry.role.trim(),
+      }))
+      .filter((entry) => entry.roleName || entry.role);
+
+    const result = await updateWorkspaceSettings({
+      workspaceId: workspace.id,
+      accountId,
+      name: nextWorkspaceName,
+      visibility: settingsDraft.visibility,
+      lifecycleState: settingsDraft.lifecycleState,
+      address:
+        workspace.address != null || hasAddressContent
+          ? {
+              street: settingsDraft.street.trim(),
+              city: settingsDraft.city.trim(),
+              state: settingsDraft.state.trim(),
+              postalCode: settingsDraft.postalCode.trim(),
+              country: settingsDraft.country.trim(),
+              details: trimOrUndefined(settingsDraft.details),
+            }
+          : undefined,
+      personnel:
+        workspace.personnel != null || hasPersonnelContent
+          ? {
+              managerId: trimOrUndefined(settingsDraft.managerId),
+              supervisorId: trimOrUndefined(settingsDraft.supervisorId),
+              safetyOfficerId: trimOrUndefined(settingsDraft.safetyOfficerId),
+              customRoles: normalizedCustomRoles.length > 0 ? normalizedCustomRoles : undefined,
+            }
+          : undefined,
+    });
+
+    if (!result.success) {
+      setSaveError(result.error.message);
+      setIsSaving(false);
+      return;
+    }
+
+    try {
+      const detail = await getWorkspaceByIdForAccount(accountId, workspace.id);
+      if (!detail) {
+        router.replace(`/${encodeURIComponent(accountId)}?context=unavailable`);
+        return;
+      }
+      onSaved(detail);
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[useWorkspaceSettingsSave] Failed to refresh workspace after save:", error);
+      }
+      setSaveError("工作區已更新，但重新整理資料失敗。請稍後再試。");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return {
+    isSaving,
+    saveError,
+    clearSaveError: () => setSaveError(null),
+    handleSave,
   };
 }
 ````
@@ -58056,6 +57664,90 @@ export function writeNavPreferences(prefs: NavPreferences): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
 }
+````
+
+## File: modules/workspace/README.md
+````markdown
+# Workspace
+
+協作容器與工作區範疇主域
+
+## Implementation Structure
+
+```text
+modules/workspace/
+├── api/              # Public API boundary
+├── application/      # Context-wide orchestration (delegates to subdomains)
+│   ├── queries/      # Read query handlers (pure reads, no business logic)
+│   ├── use-cases/    # Command use cases remaining at root level
+│   └── services/     # Application services (composite orchestrators)
+├── domain/           # Context-wide domain concepts (Workspace aggregate root)
+├── infrastructure/   # Context-wide driven adapters
+├── interfaces/       # Context-wide driving adapters
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── audit/             # Active — append-only audit trail
+    ├── feed/              # Active — workspace activity projection
+    ├── lifecycle/         # Active — workspace create/update/delete/transitions
+    ├── membership/        # Active — member view model and participation queries
+    ├── presence/          # Stub — real-time presence and activity
+    ├── scheduling/        # Active — workspace scheduling management
+    ├── sharing/           # Active — team and individual access grants
+    └── workspace-workflow/ # Active — task/issue/invoice state machines
+```
+
+## Subdomains
+
+| Subdomain | Status | Purpose |
+|-----------|--------|---------|
+| audit | Active | 不可否認稽核追蹤 |
+| feed | Active | 工作區活動投影 |
+| lifecycle | Active | 工作區容器生命週期（建立/修改/刪除/狀態轉換）|
+| membership | Active | 工作區參與者視圖模型與查詢 |
+| presence | Stub | 即時在線狀態 |
+| scheduling | Active | 工作區排程管理 |
+| sharing | Active | 工作區存取授權（團隊/個人）|
+| workspace-workflow | Active | 工作區流程協調 |
+
+## Application Layer Architecture
+
+The root application services act as **composite orchestrators** that delegate to subdomain services:
+
+| Operation | Delegated To |
+|-----------|-------------|
+| Create/Update/Delete workspace | `lifecycle` subdomain |
+| Team/Individual access grants | `sharing` subdomain |
+| Member view queries | `membership` subdomain |
+| Mount capabilities | Root use-case (pending subdomain assignment) |
+| Create workspace location | Root use-case (Workspace operational profile) |
+| Workspace read queries | Root query handlers |
+| Wiki content tree projection | Root query handler |
+
+### DDD Rules Applied
+
+- **Rule 5/13/16**: Pure reads → query handlers in `queries/`, not use cases
+- **Rule 12**: Commands → `use-cases/` or subdomain use cases
+- **Rule 18**: Single-call wrappers eliminated; functions instead of classes for queries
+- **Rule 8**: Each use case = one business intent (verb-first naming)
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `api/` is the only cross-module public boundary.
+- Domain must not import infrastructure, interfaces, or external frameworks.
+- Cross-module collaboration goes through `api/` only.
+- Subdomain cross-collaboration goes through subdomain `api/` only.
+
+## Strategic Documentation
+
+- [Context README](../../docs/contexts/workspace/README.md)
+- [Subdomains](../../docs/contexts/workspace/subdomains.md)
+- [Context Map](../../docs/contexts/workspace/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/workspace/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
 ## File: modules/workspace/subdomains/audit/api/index.ts
@@ -60645,329 +60337,71 @@ export function AppProvider({ children }: { children: ReactNode }) {
 }
 ````
 
-## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
+## File: app/(shell)/_shell/ShellContextNavSection.tsx
 ````typescript
 "use client";
 
 /**
- * ShellDashboardSidebar — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it composes workspace module components.
- */
-
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { toast } from "sonner";
-
-import {
-  buildWorkspaceQuickAccessItems,
-  CustomizeNavigationDialog,
-  getWorkspaceIdFromPath,
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  readNavPreferences,
-  buildWorkspaceContextHref,
-  supportsWorkspaceSearchContext,
-  type NavPreferences,
-  useRecentWorkspaces,
-  useSidebarLocale,
-  WorkspaceQuickAccessRow,
-} from "@/modules/workspace/api";
-
-import {
-  quickCreateKnowledgePage,
-} from "./shell-quick-create";
-import {
-  type DashboardSidebarProps,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  ACCOUNT_NAV_ITEMS,
-  SECTION_TITLES,
-  resolveNavSection,
-  isActiveRoute,
-  isActiveOrganizationAccount,
-} from "./ShellSidebarNavData";
-import { ShellSidebarHeader } from "./ShellSidebarHeader";
-import { DashboardSidebarBody } from "./ShellSidebarBody";
-
-export function ShellDashboardSidebar({
-  pathname,
-  userId,
-  activeAccount,
-  workspaces,
-  workspacesHydrated,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps) {
-  const searchParams = useSearchParams();
-
-  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
-    activeAccount?.id,
-    pathname,
-    workspaces,
-  );
-  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
-  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
-  const [customizeOpen, setCustomizeOpen] = useState(false);
-  const localeBundle = useSidebarLocale();
-
-  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
-
-  const visibleOrganizationManagementItems = useMemo(
-    () => ORGANIZATION_MANAGEMENT_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
-    [navPrefs.pinnedWorkspace],
-  );
-
-  const visibleAccountItems = useMemo(
-    () => ACCOUNT_NAV_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
-    [navPrefs.pinnedWorkspace],
-  );
-
-  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
-
-  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
-    ? navPrefs.maxWorkspaces
-    : MAX_VISIBLE_RECENT_WORKSPACES;
-
-  const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-
-  useEffect(() => {
-    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
-    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(pathWorkspaceId);
-      return;
-    }
-
-    if (!supportsWorkspaceSearchContext(pathname)) {
-      return;
-    }
-
-    if (currentSearchWorkspaceId && currentSearchWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(currentSearchWorkspaceId);
-    }
-  }, [pathname, activeWorkspaceId, currentSearchWorkspaceId, onSelectWorkspace]);
-
-  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
-  const visibleRecentWorkspaceLinks = isExpanded
-    ? recentWorkspaceLinks
-    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
-
-  const allWorkspaceLinks = useMemo(
-    () =>
-      workspaces
-        .map((workspace) => ({
-          id: workspace.id,
-          name: workspace.name,
-          href: buildWorkspaceContextHref(pathname, workspace.id),
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces, pathname],
-  );
-
-  const section = resolveNavSection(pathname);
-  const sectionMeta = SECTION_TITLES[section];
-  const workspacePathId = getWorkspaceIdFromPath(pathname);
-  const currentPanel = searchParams.get("panel");
-  const currentWorkspaceTab = searchParams.get("tab");
-  const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
-  const hasWorkspaceToolContext =
-    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
-    (section === "knowledge" ||
-      section === "knowledge-base" ||
-      section === "source" ||
-      section === "notebook");
-  const workspaceQuickAccessId =
-    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
-  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
-  const workspaceSettingsHref = workspaceQuickAccessId
-    ? activeAccount?.id
-      ? `/${encodeURIComponent(activeAccount.id)}/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
-      : `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
-    : "";
-  const workspaceQuickAccessItems = useMemo(
-    () =>
-      showWorkspaceQuickAccess && workspaceQuickAccessId
-        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId, activeAccount?.id)
-        : [],
-    [showWorkspaceQuickAccess, workspaceQuickAccessId, activeAccount?.id],
-  );
-
-  async function handleQuickCreatePage() {
-    const accountId = activeAccount?.id ?? "";
-    if (!accountId || !activeWorkspaceId) {
-      toast.error(!accountId ? "目前沒有 active account，無法建立" : "請先切換到工作區，再建立頁面");
-      return;
-    }
-    setCreatingKind("page");
-    try {
-      const result = await quickCreateKnowledgePage({
-        accountId,
-        workspaceId: activeWorkspaceId,
-        createdByUserId: userId ?? accountId,
-      });
-      if (result.success) {
-        toast.success("已建立頁面");
-      } else {
-        toast.error(result.error?.message ?? "建立頁面失敗");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("建立頁面失敗");
-    } finally {
-      setCreatingKind(null);
-    }
-  }
-
-  return (
-    <div className="contents">
-      <aside
-        aria-label="Secondary navigation"
-        className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
-          collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
-        }`}
-      >
-        <ShellSidebarHeader
-          sectionLabel={sectionMeta.label}
-          sectionIcon={sectionMeta.icon}
-          onOpenCustomize={() => {
-            setCustomizeOpen(true);
-          }}
-          onToggleCollapsed={onToggleCollapsed}
-        />
-
-        <WorkspaceQuickAccessRow
-          items={workspaceQuickAccessItems}
-          pathname={pathname}
-          currentPanel={currentPanel}
-          currentWorkspaceTab={currentWorkspaceTab}
-          workspaceSettingsHref={workspaceSettingsHref}
-          isActiveRoute={(href) => isActiveRoute(pathname, href)}
-        />
-
-        <DashboardSidebarBody
-          section={section}
-          isActiveRoute={(href) => isActiveRoute(pathname, href)}
-          activeAccountId={activeAccount?.id ?? null}
-          showAccountManagement={showAccountManagement}
-          visibleAccountItems={visibleAccountItems}
-          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
-          workspacePathId={workspacePathId}
-          navPrefs={navPrefs}
-          localeBundle={localeBundle}
-          showRecentWorkspaces={showRecentWorkspaces}
-          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-          hasOverflow={hasOverflow}
-          isExpanded={isExpanded}
-          activeWorkspaceId={activeWorkspaceId}
-          onSelectWorkspace={onSelectWorkspace}
-          onToggleExpanded={() => {
-            setIsExpanded((prev) => !prev);
-          }}
-          pathname={pathname}
-          workspacesHydrated={workspacesHydrated}
-          allWorkspaceLinks={allWorkspaceLinks}
-          currentSearchWorkspaceId={currentSearchWorkspaceId}
-          creatingKind={creatingKind}
-          onQuickCreatePage={() => {
-            void handleQuickCreatePage();
-          }}
-        />
-      </aside>
-
-      <CustomizeNavigationDialog
-        open={customizeOpen}
-        onOpenChange={setCustomizeOpen}
-        onPreferencesChange={setNavPrefs}
-      />
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/_shell/ShellSidebarBody.tsx
-````typescript
-"use client";
-
-/**
- * ShellSidebarBody — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it imports from workspace and notion modules.
+ * ShellContextNavSection — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports from workspace module.
  */
 
 import Link from "next/link";
+import { appendWorkspaceContextQuery } from "@/modules/workspace/api";
+import { buildShellContextualHref } from "@/modules/platform/api";
 
-import { KnowledgeSidebarSection } from "@/modules/notion/api";
-import {
-  WorkspaceSectionContent,
-  type NavPreferences,
-  type SidebarLocaleBundle,
-} from "@/modules/workspace/api";
-import { SHELL_CONTEXT_SECTION_CONFIG } from "@/modules/platform/api";
-
-import {
-  type NavSection,
-  sidebarItemClass,
-  sidebarSectionTitleClass,
-} from "./ShellSidebarNavData";
-import { ShellContextNavSection } from "./ShellContextNavSection";
-
-interface NavItem {
-  id: string;
+interface ContextScopedNavItem {
+  href: string;
   label: string;
-  href: string;
 }
 
-interface WorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-
-interface ShellSidebarBodyProps {
-  section: NavSection;
+interface ShellContextNavSectionProps {
+  title: string;
+  items: readonly ContextScopedNavItem[];
   isActiveRoute: (href: string) => boolean;
   activeAccountId: string | null;
-  showAccountManagement: boolean;
-  visibleAccountItems: readonly NavItem[];
-  visibleOrganizationManagementItems: readonly NavItem[];
-  workspacePathId: string | null;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-  showRecentWorkspaces: boolean;
-  visibleRecentWorkspaceLinks: WorkspaceLink[];
-  hasOverflow: boolean;
-  isExpanded: boolean;
   activeWorkspaceId: string | null;
-  onSelectWorkspace: (workspaceId: string | null) => void;
-  onToggleExpanded: () => void;
-  pathname: string;
-  workspacesHydrated: boolean;
-  allWorkspaceLinks: WorkspaceLink[];
-  currentSearchWorkspaceId: string;
-  creatingKind: "page" | "database" | null;
-  onQuickCreatePage: () => void;
 }
 
-function ManagedNavGroup({
+export function ShellContextNavSection({
   title,
-  ariaLabel,
   items,
   isActiveRoute,
-}: {
-  title: string;
-  ariaLabel: string;
-  items: readonly NavItem[];
-  isActiveRoute: (href: string) => boolean;
-}) {
+  activeAccountId,
+  activeWorkspaceId,
+}: ShellContextNavSectionProps) {
   return (
-    <nav className="space-y-0.5" aria-label={ariaLabel}>
-      <p className={sidebarSectionTitleClass}>{title}</p>
+    <nav className="space-y-0.5" aria-label={`${title}導覽`}>
+      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+        {title}
+      </p>
+      {(activeAccountId || activeWorkspaceId) && (
+        <p className="px-2 pb-1 text-[11px] text-muted-foreground">
+          {activeAccountId ? `帳號: ${activeAccountId.slice(0, 8)}` : "帳號: -"}
+          {" · "}
+          {activeWorkspaceId ? `工作區: ${activeWorkspaceId.slice(0, 8)}` : "工作區: -"}
+        </p>
+      )}
       {items.map((item) => {
-        const active = isActiveRoute(item.href);
+        const scopedHref = buildShellContextualHref(item.href, {
+          accountId: activeAccountId,
+          workspaceId: activeWorkspaceId,
+        });
+        const contextualHref = appendWorkspaceContextQuery(scopedHref, {
+          accountId: activeAccountId,
+          workspaceId: activeWorkspaceId,
+        });
+        const active = isActiveRoute(contextualHref);
         return (
           <Link
             key={item.href}
-            href={item.href}
+            href={contextualHref}
             aria-current={active ? "page" : undefined}
-            className={sidebarItemClass(active)}
+            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
           >
             {item.label}
           </Link>
@@ -60975,174 +60409,6 @@ function ManagedNavGroup({
       })}
     </nav>
   );
-}
-
-export function DashboardSidebarBody({
-  section,
-  isActiveRoute,
-  activeAccountId,
-  showAccountManagement,
-  visibleAccountItems,
-  visibleOrganizationManagementItems,
-  workspacePathId,
-  navPrefs,
-  localeBundle,
-  showRecentWorkspaces,
-  visibleRecentWorkspaceLinks,
-  hasOverflow,
-  isExpanded,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onToggleExpanded,
-  pathname,
-  workspacesHydrated,
-  allWorkspaceLinks,
-  currentSearchWorkspaceId,
-  creatingKind,
-  onQuickCreatePage,
-}: ShellSidebarBodyProps) {
-  const contextSection = SHELL_CONTEXT_SECTION_CONFIG[section];
-
-  return (
-    <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
-      {section === "account" && (
-        <div className="space-y-2">
-          {showAccountManagement && visibleAccountItems.length > 0 && (
-            <ManagedNavGroup
-              title="帳號"
-              ariaLabel="帳號導覽"
-              items={visibleAccountItems}
-              isActiveRoute={isActiveRoute}
-            />
-          )}
-          {!showAccountManagement && (
-            <p className="px-2 py-4 text-[11px] text-muted-foreground">
-              請切換到組織帳號以查看帳號選項。
-            </p>
-          )}
-        </div>
-      )}
-
-      {section === "organization" && (
-        <div className="space-y-2">
-          {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
-            <ManagedNavGroup
-              title="組織管理"
-              ariaLabel="組織管理導覽"
-              items={visibleOrganizationManagementItems}
-              isActiveRoute={isActiveRoute}
-            />
-          )}
-          {!showAccountManagement && (
-            <p className="px-2 py-4 text-[11px] text-muted-foreground">
-              請切換到組織帳號以查看管理選項。
-            </p>
-          )}
-        </div>
-      )}
-
-      {section === "workspace" && (
-        <div className="space-y-2">
-          <WorkspaceSectionContent
-            workspacePathId={workspacePathId}
-            navPrefs={navPrefs}
-            localeBundle={localeBundle}
-            showRecentWorkspaces={showRecentWorkspaces}
-            visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-            hasOverflow={hasOverflow}
-            isExpanded={isExpanded}
-            activeWorkspaceId={activeWorkspaceId}
-            isActiveRoute={isActiveRoute}
-            onSelectWorkspace={onSelectWorkspace}
-            onToggleExpanded={onToggleExpanded}
-            getItemClassName={sidebarItemClass}
-            sectionTitleClassName={sidebarSectionTitleClass}
-          />
-        </div>
-      )}
-
-      {section === "knowledge" && (
-        <KnowledgeSidebarSection
-          pathname={pathname}
-          workspacesHydrated={workspacesHydrated}
-          allWorkspaceLinks={allWorkspaceLinks}
-          activeAccountId={activeAccountId}
-          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
-          creatingKind={creatingKind}
-          onSelectWorkspace={onSelectWorkspace}
-          onQuickCreatePage={onQuickCreatePage}
-        />
-      )}
-
-      {contextSection && (
-        <ShellContextNavSection
-          title={contextSection.title}
-          items={contextSection.items}
-          isActiveRoute={isActiveRoute}
-          activeAccountId={activeAccountId}
-          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
-        />
-      )}
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/_shell/WorkspaceRouteShim.tsx
-````typescript
-"use client";
-
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-
-import { useApp } from "@/modules/platform/api";
-import {
-  buildWorkspaceOverviewPanelHref,
-  type WorkspaceOverviewPanel,
-  useWorkspaceContext,
-} from "@/modules/workspace/api";
-
-interface WorkspaceRouteShimProps {
-  readonly panel?: WorkspaceOverviewPanel;
-  readonly tab?: "Overview" | "Files";
-  readonly loadingMessage: string;
-}
-
-export function WorkspaceRouteShim({
-  panel,
-  tab = "Overview",
-  loadingMessage,
-}: WorkspaceRouteShimProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const {
-    state: { activeAccount },
-  } = useApp();
-  const {
-    state: { activeWorkspaceId },
-  } = useWorkspaceContext();
-
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-  const targetWorkspaceId = requestedWorkspaceId || activeWorkspaceId || "";
-  const activeAccountId = activeAccount?.id ?? "";
-
-  const targetHref = targetWorkspaceId
-    ? activeAccountId
-      ? tab === "Files"
-        ? `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
-        : `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(targetWorkspaceId)}?tab=Overview${
-            panel ? `&panel=${encodeURIComponent(panel)}` : ""
-          }`
-      : tab === "Files"
-        ? `/workspace/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
-        : buildWorkspaceOverviewPanelHref(targetWorkspaceId, panel)
-    : "/workspace";
-
-  useEffect(() => {
-    router.replace(targetHref);
-  }, [router, targetHref]);
-
-  return <div className="px-4 py-6 text-sm text-muted-foreground">{loadingMessage}</div>;
 }
 ````
 
@@ -61156,6 +60422,240 @@ interface AccountRouteLayoutProps {
 
 export default function AccountRouteLayout({ children }: AccountRouteLayoutProps) {
 	return children;
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/content/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+interface OrganizationKnowledgePageProps {
+  params: {
+    accountId: string;
+  };
+}
+
+export default function OrganizationKnowledgePage({ params }: OrganizationKnowledgePageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}?tab=Overview&panel=knowledge-pages`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/page.tsx
+````typescript
+"use client";
+
+/**
+ * Organization Overview Page — /organization
+ * Lists organizations visible to the current user and allows switching
+ * to an organization account context.
+ * Section pages live under /organization/[section].
+ */
+
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+
+import { useApp, useAuth } from "@/modules/platform/api"
+import type { AccountEntity } from "@/modules/platform/api";
+import { isActiveOrganizationAccount } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+
+export default function OrganizationPage() {
+  const router = useRouter();
+  const params = useParams<{ accountId: string }>();
+  const { state: appState, dispatch } = useApp();
+  const { state: authState } = useAuth();
+  const { user } = authState;
+  const { accounts, activeAccount, accountsHydrated, bootstrapPhase } = appState;
+
+  const orgList = Object.values(accounts);
+  const activeOrganizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+  const routeAccountId = typeof params.accountId === "string" ? params.accountId : "";
+
+  function buildAccountHref(targetAccountId: string, suffix = "") {
+    const base = `/${encodeURIComponent(targetAccountId)}`;
+    return suffix ? `${base}${suffix}` : base;
+  }
+
+  const currentAccountId = routeAccountId || activeAccount?.id || user?.id || "";
+
+  function handleSwitch(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+    router.replace(buildAccountHref(account.id));
+  }
+
+  function handleSwitchToPersonal() {
+    if (!user) return;
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
+    router.replace(buildAccountHref(user.id));
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Account Context Switcher</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          先選擇個人或組織帳號情境，再回到 workspace-first 主流程。
+        </p>
+      </div>
+
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="text-base font-semibold">Recommended flow</h2>
+        <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+          <li>
+            <span className="font-medium text-foreground">1. Identity</span>：登入後確認你目前要操作的個人／組織帳號。
+          </li>
+          <li>
+            <span className="font-medium text-foreground">2. Organization</span>：在這裡切換 active account。
+          </li>
+          <li>
+            <span className="font-medium text-foreground">3. Workspace</span>：回到工作區，再進入 Knowledge、知識頁面、Notebook / AI。
+          </li>
+        </ol>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button asChild size="sm">
+            <Link href={currentAccountId ? buildAccountHref(currentAccountId) : "/"}>回到 Workspace Hub</Link>
+          </Button>
+          {activeOrganizationId && (
+            <Button asChild size="sm" variant="outline">
+              <Link href={buildAccountHref(activeOrganizationId, "/organization/members")}>組織治理模組</Link>
+            </Button>
+          )}
+        </div>
+      </section>
+
+      {/* Quick-access dashboard — visible only when an org context is active */}
+      {activeOrganizationId && (
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold">組織功能</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {[
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/members") : "", title: "成員管理", desc: "邀請與管理組織成員" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/teams") : "", title: "團隊管理", desc: "建立與編輯團隊" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/permissions") : "", title: "權限政策", desc: "設定存取規則" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/workspaces") : "", title: "工作區", desc: "組織下的工作區清單" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/schedule") : "", title: "工作需求排程", desc: "排程與容量總覽" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/audit") : "", title: "稽核記錄", desc: "操作歷史追蹤" },
+              { href: activeOrganizationId ? buildAccountHref(activeOrganizationId, "/organization/daily") : "", title: "動態牆", desc: "組織工作區動態" },
+            ].map((item) => (
+              <Link key={item.href} href={item.href} className="group">
+                <Card className="h-full transition-colors group-hover:border-primary/50 group-hover:bg-accent/40">
+                  <CardHeader className="pb-2 pt-4">
+                    <CardTitle className="text-sm">{item.title}</CardTitle>
+                    <CardDescription className="text-xs">{item.desc}</CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          {bootstrapPhase === "seeded"
+            ? "正在同步你的組織清單，完成後就能切換到對應的組織上下文。"
+            : "正在載入組織資料…"}
+        </div>
+      )}
+
+      {/* Personal account */}
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold">Personal Account</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium">{user?.name ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
+          </div>
+          {activeAccount?.id === user?.id ? (
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              Active
+            </span>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleSwitchToPersonal}
+            >
+              Switch
+            </Button>
+          )}
+        </div>
+      </section>
+
+      {/* Organizations */}
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold">
+          Organizations
+          <span className="ml-2 text-xs font-normal text-muted-foreground">
+            ({orgList.length})
+          </span>
+        </h2>
+
+        {orgList.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            You are not a member of any organization yet.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {orgList.map((org) => (
+              <li
+                key={org.id}
+                className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3"
+              >
+                <div>
+                  <p className="font-medium">{org.name}</p>
+                  {org.description && (
+                    <p className="text-xs text-muted-foreground">{org.description}</p>
+                  )}
+                </div>
+                {activeAccount?.id === org.id ? (
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    Active
+                  </span>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSwitch(org)}
+                  >
+                    Switch
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {activeOrganizationId && (
+        <p className="text-sm text-muted-foreground">
+          已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
+        </p>
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/organization/schedule/dispatcher/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+/**
+ * Dispatcher page — redirects to the organization schedule view.
+ * Route: /organization/schedule/dispatcher
+ */
+interface DispatcherPageProps {
+  params: {
+    accountId: string;
+  };
+}
+
+export default function DispatcherPage({ params }: DispatcherPageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}/organization/schedule`);
 }
 ````
 
@@ -61257,6 +60757,39 @@ export default function AccountWorkspaceHubPage() {
 }
 ````
 
+## File: app/(shell)/(account)/[accountId]/settings/general/page.tsx
+````typescript
+/**
+ * /settings/general — redirect to workspace (removed from MVP nav, Occam's Razor)
+ */
+import { redirect } from "next/navigation";
+
+interface SettingsGeneralPageProps {
+  params: {
+    accountId: string;
+  };
+}
+
+export default function SettingsGeneralPage({ params }: SettingsGeneralPageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}?tab=Overview&panel=settings`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/settings/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+interface SettingsPageProps {
+  params: {
+    accountId: string;
+  };
+}
+
+export default function SettingsPage({ params }: SettingsPageProps) {
+  redirect(`/${encodeURIComponent(params.accountId)}?tab=Overview&panel=settings`);
+}
+````
+
 ## File: app/(shell)/layout.tsx
 ````typescript
 "use client";
@@ -61287,34 +60820,6 @@ export { GenerateNotebookResponseUseCase, PlatformTextGenerationAdapter } from "
 
 // Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
 export { createAnswerRagQueryUseCase } from "../subdomains/synthesis/api/server";
-````
-
-## File: modules/notebooklm/docs/README.md
-````markdown
-# NotebookLM Documentation
-
-Implementation-level documentation for the notebooklm bounded context.
-
-## Strategic Documentation (Authority)
-
-Strategic architecture documentation lives in `docs/contexts/notebooklm/`:
-
-- [README.md](../../../docs/contexts/notebooklm/README.md) — Context overview
-- [subdomains.md](../../../docs/contexts/notebooklm/subdomains.md) — Subdomain inventory
-- [bounded-contexts.md](../../../docs/contexts/notebooklm/bounded-contexts.md) — Ownership map
-- [context-map.md](../../../docs/contexts/notebooklm/context-map.md) — Relationships
-- [ubiquitous-language.md](../../../docs/contexts/notebooklm/ubiquitous-language.md) — Terminology
-
-## Architecture Reference
-
-- [Bounded Context Template](../../../docs/bounded-context-subdomain-template.md) — Standard structure
-- [Architecture Overview](../../../docs/architecture-overview.md) — System-wide architecture
-- [Integration Guidelines](../../../docs/integration-guidelines.md) — Cross-context rules
-
-## Conflict Resolution
-
-- Strategic docs in `docs/contexts/notebooklm/` are the authority for naming, ownership, and boundaries.
-- This `docs/` folder is for implementation-aligned detail only.
 ````
 
 ## File: modules/notebooklm/interfaces/components/RagQueryView.tsx
@@ -61504,36 +61009,352 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
 }
 ````
 
-## File: modules/notebooklm/subdomains/conversation/README.md
-````markdown
-# Conversation
+## File: modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx
+````typescript
+"use client";
 
-Conversation threads and message management.
+/**
+ * Module: notebooklm/subdomains/conversation
+ * Component: AiChatPage
+ * Purpose: Full-page AI chat UI — wired to conversation server actions.
+ *          Thread persistence via Firestore. Multi-turn context support.
+ *
+ * Props are injected by the app/ shim so this component has no provider dependencies.
+ */
 
-## Ownership
+import Link from "next/link";
+import { Bot, BookOpen, Brain, FileText, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { v7 as uuid } from "@lib-uuid";
 
-- **Bounded Context**: notebooklm
-- **Status**: Active
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/api";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 
-## Layers
+import { sendChatMessage, saveThread, loadThread } from "../_actions/chat.actions";
+import {
+  type ChatMessage,
+  STORAGE_KEY,
+  buildContextPrompt,
+  generateMsgId,
+  threadFromMessages,
+} from "../helpers";
 
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
+// ── Props ─────────────────────────────────────────────────────────────────────
 
-## Dependency Direction
+export interface AiChatPageProps {
+  accountId: string;
+  workspaces: Record<string, WorkspaceEntity>;
+  requestedWorkspaceId: string;
+}
 
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
+// ── Component ─────────────────────────────────────────────────────────────────
 
-## Development Order
+export function AiChatPage({ accountId, workspaces, requestedWorkspaceId }: AiChatPageProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [threadCreatedAt, setThreadCreatedAt] = useState<string>(new Date().toISOString());
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+  const currentWorkspace = resolveWorkspaceFromMap(workspaces, requestedWorkspaceId);
+  const workspaceName = currentWorkspace?.name ?? null;
+  const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
+  const workspaceRouteRoot = currentWorkspace
+    ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(currentWorkspace.id)}`
+    : `/${encodeURIComponent(accountId)}`;
+  const latestUserPrompt = [...messages].reverse().find((m) => m.role === "user")?.content ?? null;
+
+  // Load persisted thread on mount
+  useEffect(() => {
+    if (!accountId) return;
+    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+    const storedId = localStorage.getItem(storageKey);
+    if (!storedId) return;
+    setThreadId(storedId);
+    void loadThread(accountId, storedId).then((thread) => {
+      if (!thread || thread.messages.length === 0) return;
+      setThreadCreatedAt(thread.createdAt);
+      setMessages(
+        thread.messages
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
+      );
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
+
+  const summaryItems = useMemo(() => {
+    if (messages.length === 0) {
+      return [
+        "先整理來源文件與工作區脈絡，再開始對話。",
+        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
+      ];
+    }
+    return [
+      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((m) => m.role === "assistant").length} 次模型回覆。`,
+      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
+    ];
+  }, [latestUserPrompt, messages]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || isPending) return;
+
+    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
+    const nextMessages = [...messages, userMsg];
+    setMessages(nextMessages);
+    setInput("");
+    setError(null);
+    setIsPending(true);
+
+    const contextPrompt = buildContextPrompt(messages);
+
+    try {
+      const result = await sendChatMessage({
+        prompt: text,
+        ...(contextPrompt ? { system: contextPrompt } : {}),
+      });
+      if (result.ok) {
+        const assistantMsg: ChatMessage = {
+          id: generateMsgId(),
+          role: "assistant",
+          content: result.data.text,
+        };
+        const finalMessages = [...nextMessages, assistantMsg];
+        setMessages(finalMessages);
+
+        if (accountId) {
+          const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+          let currentThreadId = threadId;
+          if (!currentThreadId) {
+            currentThreadId = uuid();
+            setThreadId(currentThreadId);
+            localStorage.setItem(storageKey, currentThreadId);
+          }
+          const thread = threadFromMessages(currentThreadId, finalMessages, threadCreatedAt);
+          void saveThread(accountId, thread);
+        }
+      } else {
+        setError(result.error.message);
+      }
+    } catch {
+      setError("無法連接至 AI 服務，請稍後再試。");
+    } finally {
+      setIsPending(false);
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
+    }
+  }
+
+  function handleNewThread() {
+    if (!accountId) return;
+    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+    localStorage.removeItem(storageKey);
+    setThreadId(null);
+    setMessages([]);
+    setThreadCreatedAt(new Date().toISOString());
+    setError(null);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSubmit(e as unknown as React.FormEvent);
+    }
+  }
+
+  return (
+    <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <aside className="border-b border-border/60 bg-muted/20 p-4 lg:border-b-0 lg:border-r">
+        <div className="space-y-4">
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Brain className="size-4 text-primary" />
+                Notebook / AI
+              </CardTitle>
+              <CardDescription>
+                將工作區知識、知識頁面與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <WorkspaceContextCard workspace={currentWorkspace} />
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <BookOpen className="size-4 text-primary" />
+                Source context
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <Link href={`${workspaceRouteRoot}?tab=Files`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <FileText className="size-3.5" />
+                文件來源 / Documents
+              </Link>
+              <Link href={`${workspaceRouteRoot}?tab=Overview&panel=knowledge-pages`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <BookOpen className="size-3.5" />
+                知識頁面 / Pages
+              </Link>
+              <Link href={workspaceQuery ? `${workspaceRouteRoot}/notebook/rag-query${workspaceQuery}` : `${workspaceRouteRoot}/notebook/rag-query`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <Bot className="size-3.5" />
+                Ask / Cite / RAG Query
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Summary snapshot</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              {summaryItems.map((item) => (
+                <p key={item} className="rounded-md border border-border/50 px-3 py-2">
+                  {item}
+                </p>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Lightbulb className="size-4 text-primary" />
+                Insight board
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <p className="rounded-md border border-border/50 px-3 py-2">
+                目前仍是 Notebook shell，摘要、洞察、引用整理會在後續 phase 持續補齊。
+              </p>
+              <p className="rounded-md border border-border/50 px-3 py-2">
+                若你需要可追溯回答，優先改從 Ask / Cite 取得引用，再回到這裡整理觀點。
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </aside>
+
+      <section className="flex min-h-0 flex-col">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-3">
+          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10">
+            <Bot className="size-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-sm font-semibold leading-none">Notebook / AI</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">工作區問答 · 摘要草稿 · 洞察整理</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            {threadId && (
+              <span className="text-[10px] text-muted-foreground/60">
+                Thread · {messages.length} 則
+              </span>
+            )}
+            <Button size="sm" variant="ghost" onClick={handleNewThread} disabled={messages.length === 0}>
+              <Plus className="mr-1 size-3.5" />
+              新對話
+            </Button>
+          </div>
+        </div>
+
+        {workspaceName && (
+          <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+            目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span> 進入；Notebook 會把這裡視為主要知識上下文。
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {messages.length === 0 && !isPending && (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
+                <Bot className="size-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">開始你的 notebook conversation</p>
+                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                  先問工作區背景、文件摘要、會議筆記整理或知識問答，再逐步累積 summary 與 insight。
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="mx-auto max-w-2xl space-y-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
+              >
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground",
+                  )}
+                >
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                </div>
+              </div>
+            ))}
+
+            {isPending && (
+              <div className="flex justify-start">
+                <div className="rounded-2xl bg-muted px-4 py-2.5">
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
+                {error}
+              </div>
+            )}
+
+            <div ref={bottomRef} />
+          </div>
+        </div>
+
+        <form
+          onSubmit={(e) => void handleSubmit(e)}
+          className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur"
+        >
+          <div className="mx-auto flex max-w-2xl items-end gap-2">
+            <textarea
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="輸入你的 notebook 問題… (Enter 送出，Shift+Enter 換行)"
+              disabled={isPending}
+              className="flex-1 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ maxHeight: "120px" }}
+            />
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isPending || !input.trim()}
+              className="shrink-0 gap-1.5"
+            >
+              {isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <SendHorizonal className="size-4" />
+              )}
+              <span className="hidden sm:inline">送出</span>
+            </Button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
 ````
 
 ## File: modules/notebooklm/subdomains/notebook/infrastructure/platform/PlatformTextGenerationAdapter.ts
@@ -61587,21 +61408,344 @@ export class PlatformTextGenerationAdapter implements NotebookRepository {
 }
 ````
 
-## File: modules/notebooklm/subdomains/notebook/README.md
-````markdown
-# Notebook
+## File: modules/notebooklm/subdomains/source/api/index.ts
+````typescript
+/**
+ * Public API boundary for the source subdomain.
+ *
+ * Cross-module consumers MUST import through this entry point.
+ * Internal consumers within the subdomain import from their own layer.
+ */
 
-Notebook container and organization.
+// ---------------------------------------------------------------------------
+// Domain entity types
+// ---------------------------------------------------------------------------
 
-## Ownership
+export type {
+  SourceFile,
+  SourceFileStatus,
+  SourceFileClassification,
+} from "../domain/entities/SourceFile";
 
-- **Bounded Context**: notebooklm
-- **Status**: Stub — awaiting use case definition
+export type {
+  SourceFileVersion,
+  SourceFileVersionStatus,
+} from "../domain/entities/SourceFileVersion";
 
-## Development Order
+export type {
+  RagDocumentRecord,
+  RagDocumentStatus,
+} from "../domain/entities/RagDocument";
 
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+export type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../domain/entities/WikiLibrary";
+
+// ---------------------------------------------------------------------------
+// Wiki library use cases (lazy singleton — no module-scope side effects)
+// ---------------------------------------------------------------------------
+
+import type { IWikiLibraryRepository } from "../domain/repositories/IWikiLibraryRepository";
+import { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
+import {
+  listWikiLibraries as _listWikiLibraries,
+  createWikiLibrary as _createWikiLibrary,
+  addWikiLibraryField as _addWikiLibraryField,
+  createWikiLibraryRow as _createWikiLibraryRow,
+  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
+} from "../application/use-cases/wiki-library.use-cases";
+
+import type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../domain/entities/WikiLibrary";
+
+export type { WikiLibrarySnapshot } from "../application/use-cases/wiki-library.use-cases";
+
+let _libraryRepo: IWikiLibraryRepository | null = null;
+
+function getLibraryRepo(): IWikiLibraryRepository {
+  if (!_libraryRepo) _libraryRepo = new FirebaseWikiLibraryAdapter();
+  return _libraryRepo;
+}
+
+export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
+  return _listWikiLibraries(accountId, workspaceId, getLibraryRepo());
+}
+
+export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
+  return _createWikiLibrary(input, getLibraryRepo());
+}
+
+export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
+  return _addWikiLibraryField(input, getLibraryRepo());
+}
+
+export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
+  return _createWikiLibraryRow(input, getLibraryRepo());
+}
+
+export function getWikiLibrarySnapshot(accountId: string, libraryId: string): ReturnType<typeof _getWikiLibrarySnapshot> {
+  return _getWikiLibrarySnapshot(accountId, libraryId, getLibraryRepo());
+}
+
+// ---------------------------------------------------------------------------
+// Live document DTOs
+// ---------------------------------------------------------------------------
+
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../application/dto/source-live-document.dto";
+export {
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../application/dto/source-live-document.dto";
+
+// ---------------------------------------------------------------------------
+// Hooks
+// ---------------------------------------------------------------------------
+
+export type {
+  UseSourceDocumentsSnapshotResult,
+} from "../interfaces/hooks/useSourceDocumentsSnapshot";
+export {
+  useSourceDocumentsSnapshot,
+} from "../interfaces/hooks/useSourceDocumentsSnapshot";
+
+// ---------------------------------------------------------------------------
+// Queries
+// ---------------------------------------------------------------------------
+
+export { getWorkspaceFiles, getWorkspaceRagDocuments } from "../interfaces/queries/source-file.queries";
+
+// ---------------------------------------------------------------------------
+// Server actions
+// ---------------------------------------------------------------------------
+
+export {
+  uploadInitFile,
+  uploadCompleteFile,
+  registerUploadedRagDocument,
+  deleteSourceDocument,
+  renameSourceDocument,
+} from "../interfaces/_actions/source-file.actions";
+
+export {
+  createKnowledgeDraftFromSourceDocument,
+  processSourceDocumentWorkflow,
+} from "../interfaces/_actions/source-processing.actions";
+export type {
+  SourceProcessingExecutionSummary,
+  SourceProcessingTaskResult,
+  SourceProcessingTaskStatus,
+} from "../application/dto/source-processing.dto";
+
+// ---------------------------------------------------------------------------
+// UI components
+// ---------------------------------------------------------------------------
+
+export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
+export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
+export { LibrariesView } from "../interfaces/components/LibrariesView";
+export { LibraryTableView } from "../interfaces/components/LibraryTableView";
+export { FileProcessingDialog } from "../interfaces/components/FileProcessingDialog";
+
+// ---------------------------------------------------------------------------
+// Infrastructure (for direct injection in server-side wiring)
+// ---------------------------------------------------------------------------
+
+export { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
+export { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
+export { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
+export { InMemoryWikiLibraryAdapter } from "../infrastructure/memory/InMemoryWikiLibraryAdapter";
+export { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
+export { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
+export { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
+````
+
+## File: modules/notebooklm/subdomains/source/application/use-cases/process-source-document-workflow.use-case.ts
+````typescript
+import {
+  createIdleExecutionSummary,
+  type SourceProcessingExecutionSummary,
+} from "../dto/source-processing.dto";
+import type {
+  ParseSourceDocumentUseCase,
+  ReindexSourceDocumentUseCase,
+} from "./source-pipeline.use-cases";
+import type { CreateKnowledgeDraftFromSourceUseCase } from "./create-knowledge-draft-from-source.use-case";
+
+export interface ProcessSourceDocumentWorkflowInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly shouldRunRag: boolean;
+  readonly shouldCreatePage: boolean;
+  readonly createdByUserId?: string | null;
+}
+
+interface ParsedDocumentStatusPort {
+  waitForParsedDocument(
+    accountId: string,
+    documentId: string,
+  ): Promise<{ pageCount: number; jsonGcsUri: string }>;
+}
+
+export class ProcessSourceDocumentWorkflowUseCase {
+  constructor(
+    private readonly parseUseCase: ParseSourceDocumentUseCase,
+    private readonly reindexUseCase: ReindexSourceDocumentUseCase,
+    private readonly createDraftUseCase: CreateKnowledgeDraftFromSourceUseCase,
+    private readonly parsedStatusPort: ParsedDocumentStatusPort,
+  ) {}
+
+  async execute(
+    input: ProcessSourceDocumentWorkflowInput,
+  ): Promise<SourceProcessingExecutionSummary> {
+    let summary: SourceProcessingExecutionSummary = {
+      ...createIdleExecutionSummary(),
+      parse: { status: "running", detail: "正在呼叫 Document AI 解析文件" },
+      rag: input.shouldRunRag
+        ? { status: "idle", detail: "等待文件解析完成後建立索引" }
+        : { status: "skipped", detail: "使用者未勾選 RAG 索引" },
+      page: input.shouldCreatePage
+        ? { status: "idle", detail: "等待文件解析完成後建立單頁草稿" }
+        : { status: "skipped", detail: "使用者未勾選 Knowledge Page" },
+    };
+
+    try {
+      const parseResult = await this.parseUseCase.execute({
+        accountId: input.accountId,
+        workspaceId: input.workspaceId,
+        documentId: input.sourceFileId,
+        gcsUri: input.gcsUri,
+        filename: input.filename,
+        mimeType: input.mimeType || "application/octet-stream",
+        sizeBytes: input.sizeBytes,
+      });
+
+      if (!parseResult.ok) {
+        return {
+          ...summary,
+          parse: { status: "error", detail: parseResult.error.message },
+          rag: input.shouldRunRag
+            ? { status: "skipped", detail: "解析失敗，略過 RAG 索引。" }
+            : summary.rag,
+          page: input.shouldCreatePage
+            ? { status: "skipped", detail: "解析失敗，略過 Knowledge Page 建立。" }
+            : summary.page,
+        };
+      }
+
+      const documentId = parseResult.data.documentId;
+      const parsedDocument = await this.parsedStatusPort.waitForParsedDocument(
+        input.accountId,
+        documentId,
+      );
+
+      summary = {
+        ...summary,
+        pageCount: parsedDocument.pageCount,
+        jsonGcsUri: parsedDocument.jsonGcsUri,
+        parse: { status: "success", detail: `解析完成，共 ${parsedDocument.pageCount} 頁。` },
+      };
+
+      if (input.shouldRunRag) {
+        const ragResult = await this.reindexUseCase.execute({
+          accountId: input.accountId,
+          workspaceId: input.workspaceId,
+          documentId,
+          jsonGcsUri: parsedDocument.jsonGcsUri,
+          sourceGcsUri: input.gcsUri,
+          filename: input.filename,
+          pageCount: parsedDocument.pageCount,
+        });
+
+        summary = ragResult.ok
+          ? {
+            ...summary,
+            rag: {
+              status: "success",
+              detail: `索引完成，${ragResult.data.chunkCount} 個 chunks / ${ragResult.data.vectorCount} 個 vectors。`,
+            },
+          }
+          : {
+            ...summary,
+            rag: { status: "error", detail: ragResult.error.message },
+          };
+      }
+
+      if (input.shouldCreatePage) {
+        const createdByUserId = input.createdByUserId?.trim() ?? "";
+        if (!createdByUserId) {
+          summary = {
+            ...summary,
+            page: { status: "error", detail: "缺少登入使用者，無法建立 Knowledge Page 草稿" },
+          };
+        } else {
+          const draftResult = await this.createDraftUseCase.execute({
+            accountId: input.accountId,
+            workspaceId: input.workspaceId,
+            createdByUserId,
+            filename: input.filename,
+            sourceGcsUri: input.gcsUri,
+            jsonGcsUri: parsedDocument.jsonGcsUri,
+            pageCount: parsedDocument.pageCount,
+          });
+
+          summary = draftResult.success
+            ? {
+              ...summary,
+              pageHref: `/knowledge/pages/${draftResult.aggregateId}`,
+              page: {
+                status: "success",
+                detail: "已建立單頁 Draft，可直接進頁面補內容、調整結構，後續再迭代切頁策略。",
+              },
+            }
+            : {
+              ...summary,
+              page: {
+                status: "error",
+                detail: draftResult.error.message || "建立 Knowledge Page 失敗",
+              },
+            };
+        }
+      }
+
+      return summary;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "文件處理失敗";
+      return {
+        ...summary,
+        parse: { status: "error", detail: message },
+        rag: input.shouldRunRag
+          ? { status: "skipped", detail: "處理失敗，略過 RAG 索引。" }
+          : summary.rag,
+        page: input.shouldCreatePage
+          ? { status: "skipped", detail: "處理失敗，略過 Knowledge Page 建立。" }
+          : summary.page,
+      };
+    }
+  }
+}
 ````
 
 ## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
@@ -61769,6 +61913,260 @@ export class FirebaseSourceDocumentCommandAdapter implements ISourceDocumentComm
 }
 ````
 
+## File: modules/notebooklm/subdomains/source/interfaces/_actions/source-processing.actions.ts
+````typescript
+"use server";
+
+import type { CommandResult } from "@shared-types";
+
+import {
+  makeKnowledgePageGateway,
+  makeParsedDocumentAdapter,
+  makeSourcePipelineAdapter,
+  waitForParsedDocument,
+} from "../../api/factories";
+import type { SourceProcessingExecutionSummary } from "../../application/dto/source-processing.dto";
+import { CreateKnowledgeDraftFromSourceUseCase } from "../../application/use-cases/create-knowledge-draft-from-source.use-case";
+import { ProcessSourceDocumentWorkflowUseCase } from "../../application/use-cases/process-source-document-workflow.use-case";
+import {
+  ParseSourceDocumentUseCase,
+  ReindexSourceDocumentUseCase,
+} from "../../application/use-cases/source-pipeline.use-cases";
+
+interface CreateKnowledgeDraftFromSourceDocumentInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly createdByUserId: string;
+  readonly filename: string;
+  readonly sourceGcsUri: string;
+  readonly jsonGcsUri: string;
+  readonly pageCount: number;
+}
+
+interface ProcessSourceDocumentWorkflowActionInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+  readonly shouldRunRag: boolean;
+  readonly shouldCreatePage: boolean;
+  readonly createdByUserId?: string | null;
+}
+
+export async function createKnowledgeDraftFromSourceDocument(
+  input: CreateKnowledgeDraftFromSourceDocumentInput,
+): Promise<CommandResult> {
+  const useCase = new CreateKnowledgeDraftFromSourceUseCase(
+    makeParsedDocumentAdapter(),
+    makeKnowledgePageGateway(),
+  );
+  return useCase.execute(input);
+}
+
+export async function processSourceDocumentWorkflow(
+  input: ProcessSourceDocumentWorkflowActionInput,
+): Promise<SourceProcessingExecutionSummary> {
+  const sourcePipelineAdapter = makeSourcePipelineAdapter();
+  const workflowUseCase = new ProcessSourceDocumentWorkflowUseCase(
+    new ParseSourceDocumentUseCase(sourcePipelineAdapter),
+    new ReindexSourceDocumentUseCase(sourcePipelineAdapter),
+    new CreateKnowledgeDraftFromSourceUseCase(
+      makeParsedDocumentAdapter(),
+      makeKnowledgePageGateway(),
+    ),
+    { waitForParsedDocument },
+  );
+
+  return workflowUseCase.execute(input);
+}
+````
+
+## File: modules/notebooklm/subdomains/source/interfaces/components/file-processing-dialog.utils.ts
+````typescript
+"use client";
+
+import {
+  createIdleExecutionSummary,
+  type SourceProcessingExecutionSummary,
+  type SourceProcessingTaskResult,
+  type SourceProcessingTaskStatus,
+} from "../../application/dto/source-processing.dto";
+
+export type TaskStatus = SourceProcessingTaskStatus;
+
+export type TaskResult = SourceProcessingTaskResult;
+
+export type ExecutionSummary = SourceProcessingExecutionSummary;
+
+export function createIdleSummary(): ExecutionSummary {
+  return createIdleExecutionSummary();
+}
+
+export function readCallableData(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+export function readString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+export function readNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+````
+
+## File: modules/notebooklm/subdomains/source/interfaces/components/FileProcessingDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+
+import { useAuth } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+
+import { processSourceDocumentWorkflow } from "../_actions/source-processing.actions";
+import { FileProcessingDialogBody } from "./file-processing-dialog.body";
+import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
+import {
+  createIdleSummary,
+  type ExecutionSummary,
+} from "./file-processing-dialog.utils";
+
+interface FileProcessingDialogProps {
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+
+type DialogStep = "decide" | "select" | "executing" | "done";
+
+export function FileProcessingDialog({
+  open,
+  onClose,
+  accountId,
+  workspaceId,
+  sourceFileId,
+  filename,
+  gcsUri,
+  mimeType,
+  sizeBytes,
+}: FileProcessingDialogProps) {
+  const { state: { user } } = useAuth();
+  const [step, setStep] = useState<DialogStep>("decide");
+  const [shouldRunRag, setShouldRunRag] = useState(true);
+  const [shouldCreatePage, setShouldCreatePage] = useState(false);
+  const [summary, setSummary] = useState<ExecutionSummary>(createIdleSummary);
+
+  const canDismiss = step !== "executing";
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen && canDismiss) onClose();
+  }
+
+  async function handleExecute() {
+    setStep("executing");
+    setSummary({
+      ...createIdleSummary(),
+      parse: { status: "running", detail: "正在呼叫 Document AI 解析文件" },
+      rag: shouldRunRag
+        ? { status: "idle", detail: "等待文件解析完成後建立索引" }
+        : { status: "skipped", detail: "使用者未勾選 RAG 索引" },
+      page: shouldCreatePage
+        ? { status: "idle", detail: "等待文件解析完成後建立單頁草稿" }
+        : { status: "skipped", detail: "使用者未勾選 Knowledge Page" },
+    });
+
+    try {
+      const nextSummary = await processSourceDocumentWorkflow({
+        accountId,
+        workspaceId,
+        sourceFileId,
+        gcsUri,
+        filename,
+        mimeType: mimeType || "application/octet-stream",
+        sizeBytes,
+        shouldRunRag,
+        shouldCreatePage,
+        createdByUserId: user?.id,
+      });
+
+      setSummary(nextSummary);
+
+      setStep("done");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "文件處理失敗";
+      setSummary((current) => ({ ...current, parse: { status: "error", detail: message } }));
+      setStep("done");
+    }
+  }
+
+  const canContinue = shouldRunRag || shouldCreatePage;
+
+  const footerActions = (
+    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+      {step === "decide" && (
+        <>
+          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">保留檔案即可</Button>
+          <Button onClick={() => setStep("select")} className="w-full sm:w-auto">我要決定後續處理</Button>
+        </>
+      )}
+
+      {step === "select" && (
+        <>
+          <Button variant="outline" onClick={() => setStep("decide")} className="w-full sm:w-auto">上一步</Button>
+          <Button onClick={() => { void handleExecute(); }} disabled={!canContinue} className="w-full sm:w-auto">開始處理</Button>
+        </>
+      )}
+
+      {step === "done" && (
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          {summary.pageHref && summary.page.status === "success" ? (
+            <Button asChild size="sm" variant="outline" className="w-full sm:w-auto">
+              <Link href={summary.pageHref}>前往 Draft Page</Link>
+            </Button>
+          ) : (
+            <div className="hidden sm:block" />
+          )}
+          <Button onClick={onClose} className="w-full sm:w-auto">完成</Button>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <FileProcessingDialogSurface
+      open={open}
+      canDismiss={canDismiss}
+      onOpenChange={handleOpenChange}
+      footer={step !== "executing" ? footerActions : null}
+    >
+      <FileProcessingDialogBody
+        step={step}
+        filename={filename}
+        mimeType={mimeType}
+        gcsUri={gcsUri}
+        sizeBytes={sizeBytes}
+        shouldRunRag={shouldRunRag}
+        shouldCreatePage={shouldCreatePage}
+        onShouldRunRagChange={setShouldRunRag}
+        onShouldCreatePageChange={setShouldCreatePage}
+        summary={summary}
+      />
+    </FileProcessingDialogSurface>
+  );
+}
+````
+
 ## File: modules/notebooklm/subdomains/source/interfaces/hooks/useSourceDocumentsSnapshot.ts
 ````typescript
 "use client";
@@ -61878,38 +62276,6 @@ export function useSourceDocumentsSnapshot(
 
   return { docs, loading, pendingDocs, addPending, removePending };
 }
-````
-
-## File: modules/notebooklm/subdomains/source/README.md
-````markdown
-# Source
-
-Source document ingestion and reference management.
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notebooklm/subdomains/synthesis/api/server.ts
@@ -62508,250 +62874,163 @@ export class PlatformRagGenerationAdapter implements IRagGenerationRepository {
 }
 ````
 
-## File: modules/notion/docs/README.md
+## File: modules/notion/AGENT.md
 ````markdown
-# Notion Documentation
+# Notion Agent
 
-Implementation-level documentation for the notion bounded context.
+> Strategic agent documentation: [docs/contexts/notion/AGENT.md](../../docs/contexts/notion/AGENT.md)
 
-## Strategic Documentation (Authority)
+## Mission
 
-Strategic architecture documentation lives in `docs/contexts/notion/`:
+保護 notion 主域作為知識內容生命週期邊界。notion 擁有正式知識內容（KnowledgePage、Article、Database），不擁有治理、工作區範疇或推理輸出。任何變更都應維持 notion 擁有內容建立、結構化、協作、版本化與交付語言。
 
-- [README.md](../../../docs/contexts/notion/README.md) — Context overview
-- [subdomains.md](../../../docs/contexts/notion/subdomains.md) — Subdomain inventory
-- [bounded-contexts.md](../../../docs/contexts/notion/bounded-contexts.md) — Ownership map
-- [context-map.md](../../../docs/contexts/notion/context-map.md) — Relationships
-- [ubiquitous-language.md](../../../docs/contexts/notion/ubiquitous-language.md) — Terminology
+## Bounded Context Summary
 
-## Architecture Reference
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 正典知識內容生命週期 |
+| Upstream | platform（治理、AI capability）、workspace（workspaceId、membership scope、share scope） |
+| Downstream | notebooklm（knowledge artifact reference、attachment reference、taxonomy hint） |
+| Core invariant | notion 只能修改自己的正典內容，不可直接呼叫 notebooklm 的推理流程 |
+| Published language | KnowledgeArtifact reference、attachment reference、taxonomy hint |
 
-- [Bounded Context Template](../../../docs/bounded-context-subdomain-template.md) — Standard structure
-- [Architecture Overview](../../../docs/architecture-overview.md) — System-wide architecture
-- [Integration Guidelines](../../../docs/integration-guidelines.md) — Cross-context rules
+## Bounded Contexts
 
-## Conflict Resolution
+| Cluster | Subdomains | Responsibility |
+|---------|------------|----------------|
+| Content Core | knowledge, authoring | 知識頁面與文章生命週期、分類、內容區塊 |
+| Collaboration & Change | collaboration | 協作留言、細粒度權限與版本快照 |
+| Structured Data | database | 結構化資料多視圖管理與自動化 |
+| Semantic Organization | taxonomy, relations | 分類法與語義關聯圖 |
+| Future Extensions | publishing, attachments | 正式發布流程、附件管理 |
 
-- Strategic docs in `docs/contexts/notion/` are the authority for naming, ownership, and boundaries.
-- This `docs/` folder is for implementation-aligned detail only.
-````
+## Route Here When
 
-## File: modules/notion/subdomains/authoring/interfaces/components/KnowledgeBaseArticlesRouteScreen.tsx
-````typescript
-"use client";
+- 問題核心是知識頁面（KnowledgePage）、內容區塊（ContentBlock）、知識集合（KnowledgeCollection）。
+- 問題需要把內容建立、編輯、分類、關聯、版本或交付收斂到正典狀態。
+- 問題涉及知識庫文章（Article）、分類（Category）、樣板（Template）。
+- 問題涉及結構化資料視圖（Database、DatabaseView、Record）。
+- 問題涉及協作留言（Comment）、細粒度權限（Permission）或版本快照（Version）。
+- 問題涉及分類法（Taxonomy）或語義關聯（Relation）。
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
+## Route Elsewhere When
 
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
+- 身份、租戶、授權、權益、憑證治理屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
+- 工作區生命週期、成員管理、共享範圍屬於 workspace。
+- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
 
-import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
-import { getArticles, getCategories } from "../queries";
-import { ArticleDialog } from "./ArticleDialog";
-import { CategoryTreePanel } from "./CategoryTreePanel";
+## Subdomain Delivery Tiers
 
-const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "草稿", variant: "outline" },
-  published: { label: "已發佈", variant: "default" },
-  archived: { label: "已封存", variant: "secondary" },
-};
+### Tier 1 — Core (Active)
 
-const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
-  verified: { label: "已驗證", icon: BadgeCheck },
-  needs_review: { label: "待審查", icon: FileClock },
-  unverified: { label: "未驗證", icon: CircleDot },
-};
+| Subdomain | Purpose | Key Aggregates |
+|-----------|---------|----------------|
+| knowledge | KnowledgePage 生命週期、ContentBlock 編輯、BacklinkIndex | KnowledgePage, ContentBlock, KnowledgeCollection, BacklinkIndex |
+| authoring | 知識庫文章建立、驗證、分類與發布工作流程 | Article, Category |
+| collaboration | 協作留言、細粒度權限與版本快照 | Comment, Permission, Version |
+| database | 結構化資料多視圖（Table/Board/Calendar/Gallery） | Database, DatabaseRecord, View, DatabaseAutomation |
 
-/**
- * KnowledgeBaseArticlesRouteScreen
- * Route-level screen component for /knowledge-base/articles.
- * Encapsulates data-loading, filtering and layout so the Next.js route
- * file stays thin (params/context wiring only).
- */
-export function KnowledgeBaseArticlesRouteScreen() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
+### Tier 2 — Near-Term (Domain Contracts — High Business Value)
 
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = wsState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-  const workspaceBasePath =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
-  const overviewHref = workspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
-    : "/workspace";
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| taxonomy | 分類法、標籤樹與語義組織（跨頁面分類的正典邊界） | ≠ authoring.Category（局部文章分類）；taxonomy 是全域語義網 |
+| relations | 內容之間的正式語義關聯與 backlink 管理 | ≠ knowledge.BacklinkIndex（自動反向索引）；relations 是明確語義圖（有類型、有方向） |
+| attachments | 附件與媒體關聯儲存 | 檔案儲存整合的正典邊界。待附件需要獨立於頁面的保留策略時充實 |
 
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+### Tier 3 — Medium-Term (Stubs)
 
-  const load = useCallback(async () => {
-    if (!accountId || !workspaceId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const [arts, cats] = await Promise.all([
-        getArticles({ accountId, workspaceId }),
-        getCategories(accountId, workspaceId),
-      ]);
-      setArticles(arts);
-      setCategories(cats);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId]);
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| publishing | 正式發布與對外交付（Publication 狀態邊界） | authoring 的 `ArticlePublicationUseCases` 是前置邊界 |
+| knowledge-versioning | 全域版本快照策略（workspace-level checkpoint、保留政策） | ≠ collaboration.Version（逐次編輯歷史）；是策略量，不是操作量 |
 
-  useEffect(() => { load(); }, [load]);
+### Premature Stubs（目錄保留，不建議擴充）
 
-  const filteredArticles = useMemo(() => {
-    if (!selectedCategoryId) return articles;
-    const cat = categories.find((c) => c.id === selectedCategoryId);
-    if (!cat) return articles;
-    return articles.filter((a) => cat.articleIds.includes(a.id));
-  }, [articles, categories, selectedCategoryId]);
+| Subdomain | Reason |
+|-----------|--------|
+| automation | database 子域已涵蓋 DatabaseAutomation；跨內容類型事件自動化目前無獨立領域需求 |
+| knowledge-analytics | 知識使用行為量測是讀模型關注，非獨立領域模型。可由 infrastructure 查詢層處理 |
+| knowledge-integration | 外部系統整合是 infrastructure adapter 關注，非獨立子域 |
+| notes | 輕量筆記可作為 KnowledgePage 的頁面類型處理，不需獨立子域 |
+| templates | 頁面範本是 authoring 的內部關注（內容結構起點），非獨立子域 |
 
-  function handleSuccess(articleId?: string) {
-    if (articleId) {
-      if (accountId && workspaceId) {
-        router.push(
-          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
-        );
-      } else {
-        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
-      }
-    } else {
-      load();
-    }
-  }
+### Domain Invariants
 
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
-        <p className="text-sm text-muted-foreground">
-          組織知識庫的 SOP 文章、通用文件與驗證管治。
-        </p>
-      </header>
+- 知識內容的正典狀態屬於 notion。
+- taxonomy 應獨立於具體 UI 視圖存在（目前由 Category 承載部分）。
+- BacklinkIndex 描述自動反向連結；Relation 描述主動宣告的語義關係。兩者不互相取代。
+- platform.ai 可被 notion use case 消費，但 AI provider / policy ownership 不屬於 notion。
+- 任何來自 notebooklm 的輸出，若要成為正典內容，必須先被 notion 吸收。
 
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!accountId || !workspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增文章
-        </Button>
-      </div>
+## Subdomain Analysis — 子域數量合理性
 
-      <ArticleDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        categories={categories}
-        onSuccess={handleSuccess}
-      />
+**14 個目錄（4 Active + 2 Domain Contracts + 1 Stub + 3 Medium-Term Stubs + 5 Premature = 15 分類，共 14 目錄），分析如下：**
 
-      {!accountId || !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
-        </p>
-      ) : loading ? (
-        <div className="flex gap-4">
-          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
-          <div className="grid flex-1 gap-3 sm:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full rounded-lg" />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="flex gap-4">
-          <CategoryTreePanel
-            categories={categories}
-            selectedId={selectedCategoryId}
-            onSelect={setSelectedCategoryId}
-          />
+1. **`knowledge` 與 `authoring` 不重疊**：`knowledge` 是 KnowledgePage + ContentBlock（自由形式的 wiki 頁面）；`authoring` 是 Article + Category（有工作流程的結構化 KB 文章）。
+2. **`collaboration.Version` 與 `knowledge-versioning` 不重疊**：`collaboration.Version` 是逐次編輯快照（per-change history）；`knowledge-versioning` 是全域 checkpoint 策略（workspace-level snapshot policy）。
+3. **`relations` 與 `knowledge.BacklinkIndex` 不重疊**：`BacklinkIndex` 是自動反向連結索引；`relations` 是明確的語義關係圖（有類型、有方向的關聯）。
+4. **5 個 premature stubs** 有明確理由：每個都已被現有 active 子域或 infrastructure 層吸收。
 
-          <div className="flex-1">
-            {filteredArticles.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
-                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {filteredArticles.map((article) => {
-                  const status = STATUS_CONFIG[article.status];
-                  const veri = VERIFICATION_CONFIG[article.verificationState];
-                  const VeriIcon = veri.icon;
-                  return (
-                    <Card
-                      key={article.id}
-                      className="cursor-pointer hover:bg-muted/10 transition-colors"
-                      onClick={() => handleSuccess(article.id)}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
-                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <VeriIcon className="h-3 w-3" />
-                          <span>{veri.label}</span>
-                        </div>
-                        {article.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {article.tags.slice(0, 3).map((tag) => (
-                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <p className="text-[10px] text-muted-foreground/70">
-                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+## Ubiquitous Language
+
+| Term | Meaning | Owning Subdomain | Do Not Use |
+|------|---------|------------------|------------|
+| KnowledgeArtifact | notion 主域擁有的知識內容總稱 | （跨子域概念） | Doc, Wiki (混指) |
+| KnowledgePage | 正典頁面型知識單位（block-based） | knowledge | Wiki, Page (generic) |
+| ContentBlock | 知識頁面的最小可組合內容單位 | knowledge | Block (generic) |
+| KnowledgeCollection | 頁面集合容器（非 Database） | knowledge | Folder, Section |
+| BacklinkIndex | 自動反向連結索引 | knowledge | - |
+| PageStatus | 頁面生命週期狀態（draft, published, archived） | knowledge | - |
+| Article | 經過撰寫與驗證流程的知識庫文章 | authoring | Post, Content |
+| Category | 文章分類樹結構 | authoring | Tag System |
+| Template | 可重複套用的內容結構起點 | authoring | Preset, Layout |
+| Comment | 內容附著的協作討論 | collaboration | Chat, Discussion |
+| Permission | 內容的細粒度存取權限 | collaboration | - |
+| Version | 內容某一時點的不可變快照（逐次編輯歷史） | collaboration | - |
+| Database | 結構化知識集合 | database | Table, Spreadsheet |
+| DatabaseView | 對 Database 的投影與檢視配置 | database | View (generic) |
+| DatabaseRecord | Database 中的一筆記錄 | database | - |
+| DatabaseAutomation | Database 事件觸發的自動化動作 | database | - |
+| Taxonomy | 分類法、標籤樹等語義組織結構 | taxonomy | Tag System, Category (混稱全域分類) |
+| Relation | 內容對內容之間的正式語義關聯 | relations | Link, Connection |
+| Publication | 對外可見且可交付的內容狀態 | publishing (stub) | Published, Public |
+| Attachment | 綁定於知識內容的檔案或媒體 | attachments | File, Upload |
+| VersionSnapshot | 全域版本 checkpoint 策略的不可變快照 | knowledge-versioning (stub) | Backup, History |
+
+### Avoid
+
+| Avoid | Use Instead |
+|-------|-------------|
+| Wiki | KnowledgePage 或 Article |
+| Table | Database 或 DatabaseView |
+| Tag System | Category (current) or Taxonomy (Tier 2) |
+| Content Link | BacklinkIndex (automatic) or Relation (explicit semantic) |
+| Publish Action | Publication 或 ArticlePublication |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+api/ ← 唯一跨模組入口
+```
+
+## Development Order (Domain-First)
+
+New features:
+1. Define Domain (entities, value objects, aggregates, events)
+2. Define Application (use cases, DTOs)
+3. Define Ports (only if boundary isolation needed)
+4. Implement Infrastructure (adapters, persistence)
+5. Implement Interfaces (UI, actions, hooks)
+
+Legacy migration (Strangler Pattern):
+1. Find a Use Case to extract
+2. Build Domain model in the owning subdomain
+3. Converge Application layer
+4. Isolate legacy via Ports
+5. Replace Infrastructure adapter; remove old path when stable
 ````
 
 ## File: modules/notion/subdomains/database/application/use-cases/AutomationUseCases.ts
@@ -62951,166 +63230,277 @@ export class DeleteViewUseCase {
 export { ListViewsUseCase } from "../queries/view.queries";
 ````
 
-## File: modules/notion/subdomains/database/interfaces/components/KnowledgeDatabasesRouteScreen.tsx
+## File: modules/notion/subdomains/database/interfaces/components/DatabaseDetailPage.tsx
 ````typescript
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Table2 } from "lucide-react";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Archive,
+  FileText,
+  PlusCircle,
+  Table2,
+  Kanban,
+  List,
+  Calendar,
+  LayoutGrid,
+  Zap,
+} from "lucide-react";
 
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
+import { getDatabase } from "../queries";
+import { addDatabaseField, archiveDatabase } from "../_actions/database.actions";
+import { DatabaseTableView } from "./DatabaseTableView";
+import { DatabaseBoardView } from "./DatabaseBoardView";
+import { DatabaseListView } from "./DatabaseListView";
+import { DatabaseCalendarView } from "./DatabaseCalendarView";
+import { DatabaseGalleryView } from "./DatabaseGalleryView";
+import { DatabaseAutomationView } from "./DatabaseAutomationView";
+import { AddFieldDialog } from "./DatabaseAddFieldDialog";
+import type { DatabaseSnapshot as Database, FieldType } from "../../application/dto/database.dto";
 import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-import type { DatabaseSnapshot as Database } from "../../application/dto/database.dto";
-import { getDatabases } from "../queries";
-import { DatabaseDialog } from "./DatabaseDialog";
+// ── Props ─────────────────────────────────────────────────────────────────────
 
-/**
- * KnowledgeDatabasesRouteScreen
- * Route-level screen component for /knowledge-database/databases.
- * Encapsulates data-loading and layout so the Next.js route file stays thin.
- */
-export function KnowledgeDatabasesRouteScreen() {
+export interface DatabaseDetailPageProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function DatabaseDetailPage({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: DatabaseDetailPageProps) {
+  const params = useParams();
   const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
+  const databaseId = params.databaseId as string;
 
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = wsState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
+  const [database, setDatabase] = useState<Database | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [addFieldOpen, setAddFieldOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "board" | "list" | "calendar" | "gallery" | "automations">("table");
+  const [isPending, startTransition] = useTransition();
   const workspaceBasePath =
     accountId && workspaceId
       ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
-  const overviewHref = workspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-databases`
-    : "/workspace";
-
-  const [databases, setDatabases] = useState<Database[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
+      : accountId
+        ? `/${encodeURIComponent(accountId)}`
+        : "/";
+  const databasesHref =
+    accountId && workspaceId
+      ? `${workspaceBasePath}/knowledge-database/databases`
+      : "/knowledge-database/databases";
+  const formsHref =
+    accountId && workspaceId
+      ? `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`
+      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`;
 
   const load = useCallback(async () => {
-    if (!accountId || !workspaceId) { setLoading(false); return; }
+    if (!accountId || !databaseId) { setLoading(false); return; }
     setLoading(true);
     try {
-      const data = await getDatabases(accountId, workspaceId);
-      setDatabases(data);
+      const db = await getDatabase(accountId, databaseId);
+      setDatabase(db);
     } finally {
       setLoading(false);
     }
-  }, [accountId, workspaceId]);
+  }, [accountId, databaseId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
-  function handleSuccess(databaseId?: string) {
-    if (databaseId) {
-      if (accountId && workspaceId) {
-        router.push(
-          `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}`,
-        );
-      } else {
-        router.push(`/knowledge-database/databases/${encodeURIComponent(databaseId)}`);
-      }
-    } else {
-      load();
-    }
+  function handleAddField(name: string, type: FieldType, required: boolean) {
+    startTransition(async () => {
+      await addDatabaseField({
+        databaseId,
+        accountId,
+        name,
+        type,
+        config: {},
+        required,
+      });
+      await load();
+    });
+  }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveDatabase({ id: databaseId, accountId });
+      router.push(databasesHref);
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!database) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
-        <p className="text-sm text-muted-foreground">
-          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!accountId || !workspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增資料庫
+      {/* Top bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
         </Button>
       </div>
 
-      <DatabaseDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        onSuccess={handleSuccess}
-      />
-
-      {!accountId || !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
+      {/* Page header */}
+      <header className="space-y-1 border-b border-border/60 pb-4">
+        <div className="flex items-center gap-2">
+          {database.icon && <span className="text-xl">{database.icon}</span>}
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{database.name}</h1>
+        </div>
+        {database.description && (
+          <p className="text-sm text-muted-foreground">{database.description}</p>
+        )}
+        <p className="text-xs text-muted-foreground/70">
+          {database.fields.length} 個欄位 · 更新於 {new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
         </p>
-      ) : loading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-lg" />
-          ))}
+      </header>
+
+      {/* View switcher + actions */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center rounded-md border border-border/60 p-0.5">
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            title="表格視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Table2 className="h-3 w-3" /> 表格
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("board")}
+            title="看板視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "board" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Kanban className="h-3 w-3" /> 看板
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("list")}
+            title="清單視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <List className="h-3 w-3" /> 清單
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("calendar")}
+            title="日曆視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Calendar className="h-3 w-3" /> 日曆
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("gallery")}
+            title="圖庫視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "gallery" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <LayoutGrid className="h-3 w-3" /> 圖庫
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("automations")}
+            title="自動化規則"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "automations" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Zap className="h-3 w-3" /> 自動化
+          </button>
         </div>
-      ) : databases.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-          <Table2 className="h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => router.push(formsHref)}
+            disabled={isPending}
+          >
+            <FileText className="mr-1.5 h-3.5 w-3.5" /> 表單
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
+            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
+            <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
+          </Button>
         </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {databases.map((db) => (
-            <Card
-              key={db.id}
-              className="cursor-pointer hover:bg-muted/10 transition-colors"
-              onClick={() => handleSuccess(db.id)}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-start gap-2">
-                  {db.icon ? (
-                    <span className="text-lg leading-none">{db.icon}</span>
-                  ) : (
-                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  )}
-                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {db.description && (
-                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
-                )}
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
-                  <span>{db.fields.length} 個欄位</span>
-                  <span>·</span>
-                  <span>{db.viewIds.length} 個視圖</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground/50">
-                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      </div>
+
+      {/* View */}
+      {viewMode === "table" && (
+        <DatabaseTableView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
       )}
+      {viewMode === "board" && (
+        <DatabaseBoardView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "list" && (
+        <DatabaseListView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "calendar" && (
+        <DatabaseCalendarView
+          database={database}
+          accountId={accountId}
+        />
+      )}
+      {viewMode === "gallery" && (
+        <DatabaseGalleryView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "automations" && (
+        <DatabaseAutomationView
+          databaseId={databaseId}
+          accountId={accountId}
+          currentUserId={currentUserId}
+        />
+      )}
+
+      <AddFieldDialog
+        open={addFieldOpen}
+        onOpenChange={setAddFieldOpen}
+        onAdd={handleAddField}
+        isPending={isPending}
+      />
     </div>
   );
 }
@@ -63226,140 +63616,262 @@ export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promi
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePagesRouteScreen.tsx
+## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageDetailPage.tsx
 ````typescript
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
 
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
+import { getKnowledgePage } from "../queries";
+import {
+  renameKnowledgePage,
+  archiveKnowledgePage,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "../_actions/knowledge-page.actions";
+import type { KnowledgePageSnapshot as KnowledgePage } from "../../application/dto/knowledge.dto";
+import { PageEditorView } from "./PageEditorView";
+import { CommentPanel } from "@/modules/notion/api";
+import { Button } from "@ui-shadcn/ui/button";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
 
-import type { KnowledgePageTreeNode } from "../../application/dto/knowledge.dto";
-import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
-import { PageTreeView } from "./PageTreeView";
+// ── Props ─────────────────────────────────────────────────────────────────────
 
-/**
- * KnowledgePagesRouteScreen
- * Route-level screen component for /knowledge/pages.
- * Encapsulates data-loading, scope resolution and layout so that the
- * Next.js route file stays thin (params/context wiring only).
- */
-export function KnowledgePagesRouteScreen() {
+export interface KnowledgePageDetailPageProps {
+  accountId: string;
+  activeWorkspaceId: string | null;
+  currentUserId: string;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function KnowledgePageDetailPage({
+  accountId,
+  activeWorkspaceId,
+  currentUserId,
+}: KnowledgePageDetailPageProps) {
+  const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
+  const pageId = params.pageId as string;
 
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-  const scopeParam = searchParams.get("scope")?.trim() ?? "";
-  const isAccountSummary = scopeParam === "account";
-  const workspaceId = isAccountSummary ? "" : requestedWorkspaceId || wsState.activeWorkspaceId || "";
-  const currentUserId = authState.user?.id ?? "";
-  const workspaceBasePath =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
-  const overviewHref = workspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
-    : "/workspace";
-
-  function buildPageDetailHref(pageId: string) {
-    if (accountId && workspaceId) {
-      return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
-    }
-    return `/knowledge/pages/${encodeURIComponent(pageId)}${
-      workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ""
-    }`;
-  }
-
-  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
+  const [page, setPage] = useState<KnowledgePage | null>(null);
   const [loading, setLoading] = useState(true);
+  const [commentOpen, setCommentOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const workspaceBasePath =
+    accountId && activeWorkspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(activeWorkspaceId)}`
+      : accountId
+        ? `/${encodeURIComponent(accountId)}`
+        : "/";
+  const pageListHref =
+    accountId && activeWorkspaceId
+      ? `${workspaceBasePath}/knowledge/pages`
+      : accountId
+        ? `/${encodeURIComponent(accountId)}?tab=Overview&panel=knowledge-pages`
+        : "/";
 
   const load = useCallback(async () => {
-    if (!accountId) { setLoading(false); return; }
-    if (!isAccountSummary && !workspaceId) {
-      setNodes([]);
-      setLoading(false);
-      return;
-    }
-
+    if (!accountId || !pageId) { setLoading(false); return; }
     setLoading(true);
     try {
-      const tree = isAccountSummary
-        ? await getKnowledgePageTree(accountId)
-        : await getKnowledgePageTreeByWorkspace(accountId, workspaceId);
-      setNodes(tree);
+      const p = await getKnowledgePage(accountId, pageId);
+      setPage(p);
     } finally {
       setLoading(false);
     }
-  }, [accountId, isAccountSummary, workspaceId]);
+  }, [accountId, pageId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
+
+  function handleRename(title: string) {
+    startTransition(async () => {
+      const result = await renameKnowledgePage({ accountId, pageId, title });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, title } : prev);
+      }
+    });
+  }
+
+  function handleIconChange(iconUrl: string) {
+    startTransition(async () => {
+      const result = await updateKnowledgePageIcon({ accountId, pageId, iconUrl });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, iconUrl: iconUrl || undefined } : prev);
+      }
+    });
+  }
+
+  function handleCoverChange(coverUrl: string) {
+    startTransition(async () => {
+      const result = await updateKnowledgePageCover({ accountId, pageId, coverUrl });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, coverUrl: coverUrl || undefined } : prev);
+      }
+    });
+  }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveKnowledgePage({ accountId, pageId });
+      router.push(pageListHref);
+    });
+  }
+
+  // ── Loading skeleton ────────────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-6 w-72" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  // ── Not found ───────────────────────────────────────────────────────────────
+
+  if (!page) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" />
+          頁面列表
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到此頁面，可能已被封存或刪除。</p>
+      </div>
+    );
+  }
+
+  // ── Page view ───────────────────────────────────────────────────────────────
+
+  const updatedAt = page.updatedAtISO
+    ? new Date(page.updatedAtISO).toLocaleDateString("zh-TW", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
 
   return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
-            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
-          </Badge>
-          <p className="text-sm text-muted-foreground">
-            {isAccountSummary
-              ? "這是顯式 account summary mode。僅用於跨工作區總覽，預設不在此建立新頁面。"
-              : "知識頁面階層樹預設綁定目前工作區。點選頁面進入內容編輯器。"}
-          </p>
-        </div>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-      </div>
-
-      {!accountId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入。
-        </p>
-      ) : !isAccountSummary && !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未選定工作區。請先從工作區進入知識頁面，或在網址帶入 workspaceId 後再查看頁面樹。
-        </p>
-      ) : loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-8 w-full" />
-          ))}
-        </div>
-      ) : (
-        <PageTreeView
-          nodes={nodes}
-          accountId={accountId}
-          workspaceId={workspaceId || undefined}
-          currentUserId={currentUserId}
-          allowCreate={!isAccountSummary && Boolean(workspaceId)}
-          emptyStateDescription={
-            isAccountSummary
-              ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"
-              : "這個工作區尚無頁面。點擊「新增頁面」開始建立。"
-          }
-          onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
-          onCreated={() => load()}
+    <div className="space-y-0">
+      {/* Cover image */}
+      {page.coverUrl && (
+        <div
+          className="relative h-40 w-full overflow-hidden rounded-t-xl bg-muted"
+          style={{ backgroundImage: `url(${page.coverUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
         />
       )}
+
+      <div className="space-y-4 px-0 pt-4">
+        {/* Top bar */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
+            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            頁面列表
+          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={commentOpen ? "default" : "outline"}
+              onClick={() => setCommentOpen((v) => !v)}
+            >
+              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+              留言
+            </Button>
+            {page.status === "active" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleArchive}
+                disabled={isPending}
+              >
+                <Archive className="mr-1.5 h-3.5 w-3.5" />
+                封存
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Page header */}
+        <header className="space-y-2 border-b border-border/60 pb-4">
+          {/* Icon row */}
+          <div className="flex items-end gap-3">
+            <IconPicker
+              value={page.iconUrl}
+              onChange={handleIconChange}
+              isPending={isPending}
+            />
+            <CoverEditor
+              value={page.coverUrl}
+              onChange={handleCoverChange}
+              isPending={isPending}
+            />
+          </div>
+          <TitleEditor
+            initialTitle={page.title}
+            onSave={handleRename}
+            isPending={isPending}
+          />
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {page.status === "archived" && (
+              <Badge variant="secondary">已封存</Badge>
+            )}
+            {page.approvalState === "approved" && (
+              <Badge variant="default">已審核</Badge>
+            )}
+            {page.verificationState === "verified" && (
+              <Badge variant="outline">已驗證</Badge>
+            )}
+            {page.verificationState === "needs_review" && (
+              <Badge variant="destructive">待審查</Badge>
+            )}
+            {updatedAt && <span>更新於 {updatedAt}</span>}
+          </div>
+        </header>
+
+        {/* Main content + optional comment side panel */}
+        <div className={`flex gap-4 ${commentOpen ? "items-start" : ""}`}>
+          {/* Block editor — connected to Firebase */}
+          <div className="min-w-0 flex-1">
+            {accountId ? (
+              <PageEditorView accountId={accountId} pageId={pageId} />
+            ) : (
+              <p className="text-sm text-muted-foreground">請先登入以載入內容。</p>
+            )}
+          </div>
+
+          {/* Comment panel — slides in from right */}
+          {commentOpen && accountId && (
+            <aside className="w-72 shrink-0 rounded-xl border border-border/60 bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-semibold">留言</span>
+                <button
+                  type="button"
+                  onClick={() => setCommentOpen(false)}
+                  className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  aria-label="關閉留言面板"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <CommentPanel
+                accountId={accountId}
+                workspaceId={activeWorkspaceId ?? ""}
+                contentId={pageId}
+                contentType="page"
+                currentUserId={currentUserId}
+              />
+            </aside>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -63400,6 +63912,38 @@ export type { IRelationRepository } from "./repositories/IRelationRepository";
 export type { RelationCreatedEvent, RelationRemovedEvent } from "./events/RelationEvents";
 ````
 
+## File: modules/notion/subdomains/relations/README.md
+````markdown
+# Relations
+
+建立內容之間關聯與 backlink 的正典邊界。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/notion/subdomains/taxonomy/api/index.ts
 ````typescript
 /**
@@ -63434,28 +63978,26 @@ export type { ITaxonomyRepository } from "./repositories/ITaxonomyRepository";
 export type { TaxonomyNodeCreatedEvent, TaxonomyNodeRemovedEvent } from "./events/TaxonomyEvents";
 ````
 
-## File: modules/platform/AGENT.md
+## File: modules/notion/subdomains/taxonomy/README.md
 ````markdown
-# Platform Agent
+# Taxonomy
 
-> Strategic agent documentation: [docs/contexts/platform/AGENT.md](../../docs/contexts/platform/AGENT.md)
+建立分類法與語義組織的正典邊界。
 
-## Mission
+## Ownership
 
-保護 platform 主域作為治理、身份、組織、權益、策略與營運支撐邊界。
+- **Bounded Context**: notion
+- **Subdomain Type**: Recommended Gap
+- **Status**: Stub — awaiting use case definition
 
-## Route Here When
+## Layers
 
-- 問題核心是 actor、organization、tenant、access、policy、entitlement 或商業權益。
-- 問題核心是通知治理、背景任務、平台級搜尋、觀測與支援。
-- 問題核心是共享 AI provider、模型政策、配額、安全護欄或下游主域共同消費的 AI capability。
-- 問題需要提供其他主域共同消費的治理結果。
-
-## Route Elsewhere When
-
-- 工作區生命週期、成員關係、共享與存在感屬於 workspace。
-- 知識內容建立、分類、關聯與發布屬於 notion。
-- 對話、來源、retrieval、grounding、synthesis 屬於 notebooklm。
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
 
 ## Dependency Direction
 
@@ -63463,21 +64005,9 @@ export type { TaxonomyNodeCreatedEvent, TaxonomyNodeRemovedEvent } from "./event
 interfaces/ → application/ → domain/ ← infrastructure/
 ```
 
-## Development Order (Strangler Pattern)
+## Development Order
 
-New features:
-1. Define Domain (entities, value objects, aggregates, events)
-2. Define Application (use cases, DTOs)
-3. Define Ports (only if boundary isolation needed)
-4. Implement Infrastructure (adapters, persistence)
-5. Implement Interfaces (UI, actions, hooks)
-
-Legacy migration:
-1. Find a Use Case to extract
-2. Build Domain model for that use case
-3. Converge Application layer
-4. Isolate legacy via Ports
-5. Replace Infrastructure adapter
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/application/handlers/index.ts
@@ -64228,34 +64758,6 @@ export class RequestNotificationDispatchUseCase {
 }
 ````
 
-## File: modules/platform/docs/README.md
-````markdown
-# Platform Documentation
-
-Implementation-level documentation for the platform bounded context.
-
-## Strategic Documentation (Authority)
-
-Strategic architecture documentation lives in `docs/contexts/platform/`:
-
-- [README.md](../../../docs/contexts/platform/README.md) — Context overview
-- [subdomains.md](../../../docs/contexts/platform/subdomains.md) — Subdomain inventory
-- [bounded-contexts.md](../../../docs/contexts/platform/bounded-contexts.md) — Ownership map
-- [context-map.md](../../../docs/contexts/platform/context-map.md) — Relationships
-- [ubiquitous-language.md](../../../docs/contexts/platform/ubiquitous-language.md) — Terminology
-
-## Architecture Reference
-
-- [Bounded Context Template](../../../docs/bounded-context-subdomain-template.md) — Standard structure
-- [Architecture Overview](../../../docs/architecture-overview.md) — System-wide architecture
-- [Integration Guidelines](../../../docs/integration-guidelines.md) — Cross-context rules
-
-## Conflict Resolution
-
-- Strategic docs in `docs/contexts/platform/` are the authority for naming, ownership, and boundaries.
-- This `docs/` folder is for implementation-aligned detail only.
-````
-
 ## File: modules/platform/interfaces/web/shell/breadcrumbs/ShellAppBreadcrumbs.tsx
 ````typescript
 "use client";
@@ -64331,157 +64833,11 @@ export function ShellUserAvatar({ name, email, onSignOut }: ShellUserAvatarProps
 }
 ````
 
-## File: modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { FileText, Layout } from "lucide-react";
-import { listShellCommandCatalogItems } from "../../../../subdomains/search/api";
-
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandShortcut,
-} from "@ui-shadcn/ui/command";
-
-const NAV_ITEMS = listShellCommandCatalogItems();
-
-const GROUP_ICONS: Record<string, React.ReactNode> = {
-  "導覽": <Layout className="size-4 mr-2 opacity-60" />,
-  "Knowledge": <FileText className="size-4 mr-2 opacity-60" />,
-  "Source": <FileText className="size-4 mr-2 opacity-60" />,
-};
-
-interface ShellGlobalSearchDialogProps {
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-}
-
-export function ShellGlobalSearchDialog({ open, onOpenChange }: ShellGlobalSearchDialogProps) {
-  const router = useRouter();
-
-  function handleSelect(href: string) {
-    onOpenChange(false);
-    router.push(href);
-  }
-
-  const groups = Array.from(new Set(NAV_ITEMS.map((i) => i.group)));
-
-  return (
-    <CommandDialog
-      title="全域搜尋"
-      description="搜尋頁面或功能"
-      open={open}
-      onOpenChange={onOpenChange}
-    >
-      <CommandInput placeholder="搜尋頁面或功能…" />
-      <CommandList>
-        <CommandEmpty>找不到結果。</CommandEmpty>
-        {groups.map((group) => (
-          <CommandGroup key={group} heading={group}>
-            {NAV_ITEMS.filter((i) => i.group === group).map((item) => (
-              <CommandItem
-                key={item.href}
-                onSelect={() => handleSelect(item.href)}
-              >
-                {GROUP_ICONS[group]}
-                {item.label}
-                <CommandShortcut className="text-[10px] opacity-50">{item.href}</CommandShortcut>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        ))}
-      </CommandList>
-    </CommandDialog>
-  );
-}
-
-/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
-export function useShellGlobalSearch() {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-        event.preventDefault();
-        setOpen((prev) => !prev);
-      }
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  return { open, setOpen };
-}
-````
-
 ## File: modules/platform/subdomains/access-control/application/index.ts
 ````typescript
 export * from "./dtos";
 export * from "./use-cases";
 export * from "./services/shell-account-access";
-````
-
-## File: modules/platform/subdomains/access-control/application/services/shell-account-access.ts
-````typescript
-export interface ShellAccountActor {
-  readonly id: string;
-  readonly accountType?: string;
-}
-
-export function isOrganizationActor(
-  account: ShellAccountActor | null | undefined,
-): account is ShellAccountActor & { accountType: "organization" } {
-  return account?.accountType === "organization";
-}
-
-/**
- * Type-narrowing guard for ActiveAccount (union of AccountEntity | AuthUser).
- * Returns true when the active account is an organization account.
- */
-export function isActiveOrganizationAccount(
-  activeAccount: { id: string; accountType?: string } | null,
-): activeAccount is { id: string; accountType: "organization" } & Record<string, unknown> {
-  return isOrganizationActor(activeAccount);
-}
-
-/**
- * Keep shell fallback behavior centralized so route access rules are not
- * duplicated across layout components.
- */
-export function resolveOrganizationRouteFallback(
-  pathname: string,
-  account: ShellAccountActor | null | undefined,
-): string | null {
-  if (pathname === "/organization" && !isOrganizationActor(account)) {
-    return "/workspace";
-  }
-
-  return null;
-}
-````
-
-## File: modules/platform/subdomains/access-control/README.md
-````markdown
-# Access Control
-
-Access control policies and permission resolution.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/account-profile/domain/aggregates/AccountProfileAggregate.ts
@@ -64683,23 +65039,6 @@ export function subscribeToProfile(
 }
 ````
 
-## File: modules/platform/subdomains/account-profile/README.md
-````markdown
-# Account Profile
-
-User profile preferences and settings.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/account/api/index.ts
 ````typescript
 /**
@@ -64889,168 +65228,80 @@ export function createAccountQueryRepository(): AccountQueryRepository {
 }
 ````
 
-## File: modules/platform/subdomains/account/infrastructure/index.ts
+## File: modules/platform/subdomains/account/interfaces/queries/account.queries.ts
 ````typescript
-export { accountService, createClientAccountUseCases } from "./account-service";
-export { createAccountQueryRepository } from "./account-service";
-````
-
-## File: modules/platform/subdomains/account/interfaces/_actions/account-policy.actions.ts
-````typescript
-"use server";
-
 /**
- * Account Policy Server Actions — thin adapter: Server Actions → Application Use Cases.
+ * Account Read Queries — thin wrappers over the AccountQueryRepository port.
+ * NOT Server Actions — callable from React components/hooks directly.
  */
 
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { accountService } from "../../api";
-import type { CreatePolicyInput, UpdatePolicyInput } from "../../application/dtos/account.dto";
+import { createAccountQueryRepository } from "../../api";
+import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
+import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dtos/account.dto";
 
-export async function createAccountPolicy(input: CreatePolicyInput): Promise<CommandResult> {
-  try {
-    return await accountService.createPolicy(input);
-  } catch (err) {
-    return commandFailureFrom("CREATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+let _accountQueryRepo: AccountQueryRepository | undefined;
+
+function getAccountQueryRepo(): AccountQueryRepository {
+  if (!_accountQueryRepo) _accountQueryRepo = createAccountQueryRepository();
+  return _accountQueryRepo;
 }
 
-export async function updateAccountPolicy(
-  policyId: string,
-  accountId: string,
-  data: UpdatePolicyInput,
-  traceId?: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.updatePolicy(policyId, accountId, data, traceId);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
+  return getAccountQueryRepo().getUserProfile(userId);
 }
 
-export async function deleteAccountPolicy(
-  policyId: string,
-  accountId: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.deletePolicy(policyId, accountId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/platform/subdomains/account/interfaces/_actions/account.actions.ts
-````typescript
-"use server";
-
-/**
- * Account Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { accountService } from "../../api";
-import type { UpdateProfileInput, OrganizationRole } from "../../application/dtos/account.dto";
-
-export async function createUserAccount(
+export function subscribeToUserProfile(
   userId: string,
-  name: string,
-  email: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.createUserAccount(userId, name, email);
-  } catch (err) {
-    return commandFailureFrom("CREATE_USER_ACCOUNT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+  onUpdate: (profile: AccountEntity | null) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
 }
 
-export async function updateUserProfile(
+export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
+  return getAccountQueryRepo().getWalletBalance(accountId);
+}
+
+export function subscribeToWalletBalance(
+  accountId: string,
+  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToWalletBalance(accountId, onUpdate);
+}
+
+export function subscribeToWalletTransactions(
+  accountId: string,
+  maxCount: number,
+  onUpdate: (txs: WalletTransaction[]) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToWalletTransactions(accountId, maxCount, onUpdate);
+}
+
+export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
+  return getAccountQueryRepo().getAccountRole(accountId);
+}
+
+export function subscribeToAccountRoles(
+  accountId: string,
+  onUpdate: (record: AccountRoleRecord | null) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToAccountRoles(accountId, onUpdate);
+}
+
+export function subscribeToAccountsForUser(
   userId: string,
-  data: UpdateProfileInput,
-): Promise<CommandResult> {
-  try {
-    return await accountService.updateUserProfile(userId, data);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_USER_PROFILE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+  onUpdate: (accounts: Record<string, AccountEntity>) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToAccountsForUser(userId, onUpdate);
 }
 
-export async function creditWallet(
-  accountId: string,
-  amount: number,
-  description: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.creditWallet(accountId, amount, description);
-  } catch (err) {
-    return commandFailureFrom("WALLET_CREDIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+export async function getAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
+  // Policy reads are server-side only; keep client bundles free of policy repo deps.
+  return [];
 }
 
-export async function debitWallet(
-  accountId: string,
-  amount: number,
-  description: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.debitWallet(accountId, amount, description);
-  } catch (err) {
-    return commandFailureFrom("WALLET_DEBIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
+  return [];
 }
-
-export async function assignAccountRole(
-  accountId: string,
-  role: OrganizationRole,
-  grantedBy: string,
-  traceId?: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.assignRole(accountId, role, grantedBy, traceId);
-  } catch (err) {
-    return commandFailureFrom("ASSIGN_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function revokeAccountRole(accountId: string): Promise<CommandResult> {
-  try {
-    return await accountService.revokeRole(accountId);
-  } catch (err) {
-    return commandFailureFrom("REVOKE_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/platform/subdomains/account/README.md
-````markdown
-# Account
-
-User account lifecycle management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/ai/application/index.ts
@@ -65072,58 +65323,6 @@ export type {
 export { GenkitAiTextGenerationAdapter } from "./genkit/GenkitAiTextGenerationAdapter";
 ````
 
-## File: modules/platform/subdomains/ai/README.md
-````markdown
-# Ai
-
-共享 AI provider 路由、模型政策、配額與安全護欄。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Baseline
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/analytics/README.md
-````markdown
-# Analytics
-
-Platform-wide analytics and metrics.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/audit-log/README.md
-````markdown
-# Audit Log
-
-Platform audit logging.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/background-job/domain/index.ts
 ````typescript
 export type { IngestionDocument } from "./entities/IngestionDocument";
@@ -65133,92 +65332,6 @@ export { canTransitionIngestionStatus } from "./entities/IngestionJob";
 export type { IIngestionJobRepository } from "./repositories/IIngestionJobRepository";
 export type { IIngestionJobPort } from "./ports";
 export * from "./events";
-````
-
-## File: modules/platform/subdomains/background-job/README.md
-````markdown
-# Background Job
-
-Background job scheduling and execution.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/billing/README.md
-````markdown
-# Billing
-
-Billing and payment processing.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/compliance/README.md
-````markdown
-# Compliance
-
-Regulatory compliance management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/consent/README.md
-````markdown
-# Consent
-
-把同意與資料使用授權從 compliance 中切開。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/content/README.md
-````markdown
-# Content
-
-Platform content management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/entitlement/api/index.ts
@@ -65380,90 +65493,6 @@ export * from "./entitlement-service";
 export { FirebaseEntitlementGrantRepository } from "./firebase/FirebaseEntitlementGrantRepository";
 ````
 
-## File: modules/platform/subdomains/entitlement/README.md
-````markdown
-# Entitlement
-
-建立有效權益與功能可用性的統一解算上下文。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/feature-flag/README.md
-````markdown
-# Feature Flag
-
-Feature flag management and rollout.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/identity/README.md
-````markdown
-# Identity
-
-Authentication, identity tokens, and session management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/integration/README.md
-````markdown
-# Integration
-
-External system integration management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/notification/application/use-cases/notification.use-cases.ts
 ````typescript
 /**
@@ -65532,456 +65561,189 @@ export * from "./events";
 export * from "./value-objects";
 ````
 
-## File: modules/platform/subdomains/notification/interfaces/_actions/notification.actions.ts
+## File: modules/platform/subdomains/notification/interfaces/components/NotificationBell.tsx
 ````typescript
-"use server";
+"use client";
 
 /**
- * Notification Server Actions — thin adapters over use cases.
+ * NotificationBell — Reusable notification bell for shell header.
+ * Lives in platform/subdomains/notification/interfaces.
  */
 
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { notificationService } from "../../api";
-import type { DispatchNotificationInput } from "../../application/dtos/notification.dto";
+import Link from "next/link";
+import { Bell } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-export async function dispatchNotification(input: DispatchNotificationInput): Promise<CommandResult> {
-  try {
-    return await notificationService.dispatch(input);
-  } catch (err) {
-    return commandFailureFrom("DISPATCH_NOTIFICATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function markNotificationRead(
-  notificationId: string,
-  recipientId: string,
-): Promise<CommandResult> {
-  try {
-    return await notificationService.markAsRead(notificationId, recipientId);
-  } catch (err) {
-    return commandFailureFrom("MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function markAllNotificationsRead(recipientId: string): Promise<CommandResult> {
-  try {
-    return await notificationService.markAllAsRead(recipientId);
-  } catch (err) {
-    return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
-````typescript
-/**
- * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
- */
-
-import { notificationService } from "../../api";
+import {
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "../_actions/notification.actions";
+import { getNotificationsForRecipient } from "../queries/notification.queries";
 import type { NotificationEntity } from "../../application/dtos/notification.dto";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
 
-export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
-  return notificationService.getForRecipient(recipientId, maxCount);
-}
-````
+const NOTIFICATION_LIMIT = 20;
 
-## File: modules/platform/subdomains/notification/README.md
-````markdown
-# Notification
-
-Notification delivery and preference management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/observability/README.md
-````markdown
-# Observability
-
-System observability and monitoring.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/onboarding/README.md
-````markdown
-# Onboarding
-
-User and organization onboarding flows.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/organization/api/index.ts
-````typescript
-/**
- * Public API boundary for the organization subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * NOTE: We avoid `export * from "../infrastructure"` here because the
- * infrastructure barrel pulls in Firebase repository constructors during
- * module evaluation, which causes failures during Next.js static
- * prerendering. Infrastructure exports are available in the server barrel
- * (./server.ts) or via direct import from action / service files.
- */
-
-import { createTeamRepository } from "../../team/api";
-import { configureOrganizationTeamPortFactory } from "../infrastructure/organization-service";
-
-configureOrganizationTeamPortFactory(createTeamRepository);
-
-// --- Domain types ---
-export type {
-  OrganizationEntity,
-  OrganizationRole,
-  Presence,
-  InviteState,
-  PolicyEffect,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  ThemeConfig,
-  OrgPolicy,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../domain";
-export type { OrganizationRepository, Unsubscribe } from "../domain";
-export type { OrgPolicyRepository } from "../domain";
-
-// --- Application use cases ---
-export {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-} from "../application";
-export {
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-} from "../application";
-export {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../application";
-export {
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../application";
-export {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../application";
-
-// --- Infrastructure (lazy, safe for SSR) ---
-export { organizationService, organizationQueryService } from "../infrastructure";
-
-// --- Interfaces (UI, queries, actions) ---
-export * from "../interfaces";
-````
-
-## File: modules/platform/subdomains/organization/interfaces/_actions/organization-policy.actions.ts
-````typescript
-"use server";
-
-/**
- * Organization Policy Server Actions — thin adapters over use cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { organizationService } from "../../api";
-import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../application/dtos/organization.dto";
-
-export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
-  try { return await organizationService.createOrgPolicy(input); }
-  catch (err) { return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+function formatNotificationTime(timestamp: number) {
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
 }
 
-export async function updateOrgPolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
-  try { return await organizationService.updateOrgPolicy(policyId, data); }
-  catch (err) { return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+interface NotificationBellProps {
+  readonly recipientId: string;
 }
 
-export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
-  try { return await organizationService.deleteOrgPolicy(policyId); }
-  catch (err) { return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+export function NotificationBell({ recipientId }: NotificationBellProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
+
+  const unreadCount = useMemo(
+    () => notifications.reduce((count, n) => count + (n.read ? 0 : 1), 0),
+    [notifications],
+  );
+
+  const loadNotifications = useCallback(async () => {
+    if (!recipientId) {
+      setNotifications([]);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const next = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
+      setNotifications(next);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [recipientId]);
+
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
+
+  async function handleOpenChange(nextOpen: boolean) {
+    setIsOpen(nextOpen);
+    if (nextOpen) {
+      await loadNotifications();
+    }
+  }
+
+  async function handleMarkOneRead(notificationId: string) {
+    if (!recipientId) return;
+    setIsMutating(true);
+    const previous = notifications;
+    setNotifications((current) =>
+      current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
+    );
+    try {
+      const result = await markNotificationRead(notificationId, recipientId);
+      if (!result.success) setNotifications(previous);
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleMarkAllRead() {
+    if (!recipientId || unreadCount === 0) return;
+    setIsMutating(true);
+    const previous = notifications;
+    setNotifications((current) => current.map((n) => ({ ...n, read: true })));
+    try {
+      const result = await markAllNotificationsRead(recipientId);
+      if (!result.success) setNotifications(previous);
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  return (
+    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          aria-label="Open notifications"
+          className="relative text-muted-foreground"
+        >
+          <Bell className="h-4 w-4" />
+          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80 p-0">
+        <div className="flex items-center justify-between px-3 py-2">
+          <p className="text-sm font-semibold">Notifications</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={isMutating || unreadCount === 0}
+            onClick={handleMarkAllRead}
+          >
+            Mark all read
+          </Button>
+        </div>
+        <DropdownMenuSeparator />
+        <div className="max-h-80 overflow-y-auto">
+          {isLoading ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
+          ) : notifications.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
+          ) : (
+            notifications.map((notification) => (
+              <button
+                key={notification.id}
+                type="button"
+                onClick={() => void handleMarkOneRead(notification.id)}
+                disabled={isMutating}
+                className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium">{notification.title}</p>
+                  {!notification.read ? (
+                    <span
+                      className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary"
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                  {notification.message}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {formatNotificationTime(notification.timestamp)}
+                </p>
+              </button>
+            ))
+          )}
+        </div>
+        <DropdownMenuSeparator />
+        <div className="py-1 text-center">
+          <Link
+            href={`/${encodeURIComponent(recipientId)}/settings/notifications`}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            查看全部通知
+          </Link>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
-````
-
-## File: modules/platform/subdomains/organization/interfaces/_actions/organization.actions.ts
-````typescript
-"use server";
-
-/**
- * Organization Server Actions — thin adapters over use cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { organizationService } from "../../api";
-import type {
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-} from "../../application/dtos/organization.dto";
-
-export async function createOrganization(cmd: CreateOrganizationCommand): Promise<CommandResult> {
-  try { return await organizationService.createOrganization(cmd); }
-  catch (err) { return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function createOrganizationWithTeam(
-  cmd: CreateOrganizationCommand,
-  teamName: string,
-  teamType: "internal" | "external" = "internal",
-): Promise<CommandResult> {
-  try { return await organizationService.createOrganizationWithTeam(cmd, teamName, teamType); }
-  catch (err) { return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function updateOrganizationSettings(cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> {
-  try { return await organizationService.updateSettings(cmd); }
-  catch (err) { return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
-  try { return await organizationService.deleteOrganization(organizationId); }
-  catch (err) { return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
-  try { return await organizationService.inviteMember(input); }
-  catch (err) { return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function recruitMember(
-  organizationId: string,
-  memberId: string,
-  name: string,
-  email: string,
-): Promise<CommandResult> {
-  try { return await organizationService.recruitMember(organizationId, memberId, name, email); }
-  catch (err) { return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function dismissMember(organizationId: string, memberId: string): Promise<CommandResult> {
-  try { return await organizationService.removeMember(organizationId, memberId); }
-  catch (err) { return commandFailureFrom("REMOVE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
-  try { return await organizationService.updateMemberRole(input); }
-  catch (err) { return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
-  try { return await organizationService.createTeam(input); }
-  catch (err) { return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function deleteTeam(organizationId: string, teamId: string): Promise<CommandResult> {
-  try { return await organizationService.deleteTeam(organizationId, teamId); }
-  catch (err) { return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function updateTeamMembers(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-  action: "add" | "remove",
-): Promise<CommandResult> {
-  try { return await organizationService.updateTeamMembers(organizationId, teamId, memberId, action); }
-  catch (err) { return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function createPartnerGroup(organizationId: string, groupName: string): Promise<CommandResult> {
-  try { return await organizationService.createPartnerGroup(organizationId, groupName); }
-  catch (err) { return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function sendPartnerInvite(
-  organizationId: string,
-  teamId: string,
-  email: string,
-): Promise<CommandResult> {
-  try { return await organizationService.sendPartnerInvite(organizationId, teamId, email); }
-  catch (err) { return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function dismissPartnerMember(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-): Promise<CommandResult> {
-  try { return await organizationService.dismissPartnerMember(organizationId, teamId, memberId); }
-  catch (err) { return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-````
-
-## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
-````typescript
-/**
- * Organization Queries — delegates to organizationQueryService via the subdomain api/ boundary.
- */
-
-import { organizationQueryService } from "../../api";
-import type { MemberReference, Team, OrgPolicy } from "../../application/dtos/organization.dto";
-
-export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
-  return organizationQueryService.getMembers(organizationId);
-}
-
-export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
-  return organizationQueryService.getTeams(organizationId);
-}
-
-export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
-  return organizationQueryService.getOrgPolicies(orgId);
-}
-````
-
-## File: modules/platform/subdomains/organization/README.md
-````markdown
-# Organization
-
-Organization structure, membership, and team management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/platform-config/application/index.ts
-````typescript
-// Purpose: Application layer for platform-config subdomain.
-
-export {
-	SHELL_ACCOUNT_SECTION_MATCHERS,
-	SHELL_ACCOUNT_NAV_ITEMS,
-	SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
-	SHELL_SECTION_LABELS,
-	SHELL_RAIL_CATALOG_ITEMS,
-	SHELL_CONTEXT_SECTION_CONFIG,
-	SHELL_MOBILE_NAV_ITEMS,
-	SHELL_ORG_PRIMARY_NAV_ITEMS,
-	SHELL_ORG_SECONDARY_NAV_ITEMS,
-	isExactOrChildPath,
-	listShellRailCatalogItems,
-	resolveShellBreadcrumbLabel,
-	resolveShellNavSection,
-	resolveShellPageTitle,
-	type ShellNavItem,
-	type ShellNavSection,
-	type ShellRailCatalogItem,
-	type ShellContextSectionConfig,
-} from "./services/shell-navigation-catalog";
-````
-
-## File: modules/platform/subdomains/platform-config/README.md
-````markdown
-# Platform Config
-
-Platform configuration management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/referral/README.md
-````markdown
-# Referral
-
-Referral program management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/search/application/services/shell-command-catalog.ts
@@ -66008,58 +65770,6 @@ const SHELL_COMMAND_CATALOG_ITEMS: readonly ShellCommandCatalogItem[] = [
 export function listShellCommandCatalogItems(): readonly ShellCommandCatalogItem[] {
   return SHELL_COMMAND_CATALOG_ITEMS;
 }
-````
-
-## File: modules/platform/subdomains/search/README.md
-````markdown
-# Search
-
-Platform-wide search capabilities.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/secret-management/README.md
-````markdown
-# Secret Management
-
-把憑證、token、rotation 從 integration 中切開。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/security-policy/README.md
-````markdown
-# Security Policy
-
-Security policy enforcement.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/platform/subdomains/subscription/application/use-cases/subscription.use-cases.ts
@@ -66344,40 +66054,6 @@ export class Subscription {
 }
 ````
 
-## File: modules/platform/subdomains/subscription/README.md
-````markdown
-# Subscription
-
-Subscription plan management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/support/README.md
-````markdown
-# Support
-
-Customer support management.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/platform/subdomains/team/domain/aggregates/OrganizationTeam.ts
 ````typescript
 /**
@@ -66528,103 +66204,6 @@ export class OrganizationTeam {
     return events;
   }
 }
-````
-
-## File: modules/platform/subdomains/team/README.md
-````markdown
-# Team
-
-Team management within organizations.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/tenant/README.md
-````markdown
-# Tenant
-
-建立多租戶隔離與 tenant-scoped 規則的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/workflow/README.md
-````markdown
-# Workflow
-
-Platform-level workflow orchestration.
-
-## Ownership
-
-- **Bounded Context**: platform
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/workspace/AGENT.md
-````markdown
-# Workspace Agent
-
-> Strategic agent documentation: [docs/contexts/workspace/AGENT.md](../../docs/contexts/workspace/AGENT.md)
-
-## Mission
-
-保護 workspace 主域作為協作容器、工作區範疇與 workspaceId 錨點。
-
-## Route Here When
-
-- 問題的中心是 workspaceId、工作區建立封存、工作區內角色與參與關係。
-- 問題的中心是工作區共享、存在感、活動流、排程與工作流執行。
-- 問題需要提供其他主域運作所需的 workspace scope。
-
-## Route Elsewhere When
-
-- 身份、組織、授權、權益、憑證、通知治理屬於 platform。
-- 知識頁面、文章、資料庫、分類、內容發布屬於 notion。
-- notebook、conversation、source、retrieval、synthesis 屬於 notebooklm。
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order (Strangler Pattern)
-
-New features:
-1. Define Domain (entities, value objects, aggregates, events)
-2. Define Application (use cases, DTOs)
-3. Define Ports (only if boundary isolation needed)
-4. Implement Infrastructure (adapters, persistence)
-5. Implement Interfaces (UI, actions, hooks)
-
-Legacy migration:
-1. Find a Use Case to extract
-2. Build Domain model for that use case
-3. Converge Application layer
-4. Isolate legacy via Ports
-5. Replace Infrastructure adapter
 ````
 
 ## File: modules/workspace/application/queries/wiki-content-tree.queries.ts
@@ -66910,344 +66489,135 @@ export class WorkspaceCommandApplicationService implements WorkspaceCommandPort 
 }
 ````
 
-## File: modules/workspace/docs/README.md
-````markdown
-# Workspace Documentation
-
-Implementation-level documentation for the workspace bounded context.
-
-## Strategic Documentation (Authority)
-
-Strategic architecture documentation lives in `docs/contexts/workspace/`:
-
-- [README.md](../../../docs/contexts/workspace/README.md) — Context overview
-- [subdomains.md](../../../docs/contexts/workspace/subdomains.md) — Subdomain inventory
-- [bounded-contexts.md](../../../docs/contexts/workspace/bounded-contexts.md) — Ownership map
-- [context-map.md](../../../docs/contexts/workspace/context-map.md) — Relationships
-- [ubiquitous-language.md](../../../docs/contexts/workspace/ubiquitous-language.md) — Terminology
-
-## Architecture Reference
-
-- [Bounded Context Template](../../../docs/bounded-context-subdomain-template.md) — Standard structure
-- [Architecture Overview](../../../docs/architecture-overview.md) — System-wide architecture
-- [Integration Guidelines](../../../docs/integration-guidelines.md) — Cross-context rules
-
-## Conflict Resolution
-
-- Strategic docs in `docs/contexts/workspace/` are the authority for naming, ownership, and boundaries.
-- This `docs/` folder is for implementation-aligned detail only.
-````
-
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
+## File: modules/workspace/interfaces/web/hooks/useRecentWorkspaces.ts
 ````typescript
-"use client";
+import { useEffect, useMemo, useState } from "react";
 
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Separator } from "@ui-shadcn/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-import { describeGrant } from "../../view-models/workspace-grants";
-import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
-import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
-import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
-import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
-import { WorkspaceOverviewKnowledgePanels } from "./WorkspaceOverviewKnowledgePanels";
+import type { WorkspaceEntity } from "../../api/contracts";
 
-interface WorkspaceOverviewTabProps {
-  readonly workspace: WorkspaceEntity;
-  readonly activeWorkspaceId: string | null | undefined;
-  readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
-  readonly addressLines: string[];
-  readonly initialPanel?: string;
-  readonly onEditClick: () => void;
-  readonly onSetActiveWorkspace: () => void;
+interface RecentWorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
 }
 
-type WorkspaceOverviewSurface =
-  | "home"
-  | "knowledge-pages"
-  | "knowledge-base-articles"
-  | "knowledge-databases"
-  | "source-libraries"
-  | "governance"
-  | "profile";
+const MAX_VISIBLE_RECENT_WORKSPACES = 10;
+const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
 
-function resolveWorkspaceOverviewSurface(panel?: string): WorkspaceOverviewSurface {
-  switch (panel) {
-    case "knowledge-pages":
-    case "knowledge-base-articles":
-    case "knowledge-databases":
-    case "source-libraries":
-      return panel;
-    case "governance":
-    case "profile":
-      return panel;
-    default:
-      return "home";
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
+
+function getStorageKey(accountId: string) {
+  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
+}
+
+function readRecentWorkspaceIds(accountId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(getStorageKey(accountId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
+  } catch {
+    return [];
   }
 }
 
-export function WorkspaceOverviewTab({
-  workspace,
-  activeWorkspaceId,
-  personnelEntries,
-  addressLines,
-  initialPanel,
-  onEditClick,
-  onSetActiveWorkspace,
-}: WorkspaceOverviewTabProps) {
-  if (initialPanel === "settings") {
-    return (
-      <WorkspaceOverviewSettingsTab
-        workspace={workspace}
-        personnelEntries={personnelEntries}
-        addressLines={addressLines}
-        onEditClick={onEditClick}
-      />
-    );
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
+}
+
+function trackWorkspaceFromPath(pathname: string, accountId: string) {
+  const workspaceId = getWorkspaceIdFromPath(pathname);
+  if (!workspaceId) return;
+  const recentIds = readRecentWorkspaceIds(accountId);
+  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
+  persistRecentWorkspaceIds(accountId, deduped);
+}
+
+function getWorkspaceIdFromPath(pathname: string): string | null {
+  const legacyMatch = pathname.match(/^\/workspace\/([^/]+)/);
+  if (legacyMatch) {
+    return decodeURIComponent(legacyMatch[1]);
   }
 
-  const initialSurface = resolveWorkspaceOverviewSurface(initialPanel);
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length < 2) {
+    return null;
+  }
 
-  return (
-    <Tabs defaultValue={initialSurface} className="space-y-4">
-      <div className="rounded-2xl border border-border/50 bg-card/70 p-3 shadow-sm">
-        <TabsList
-          variant="line"
-          className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b border-border/60 bg-transparent p-0"
-        >
-          <TabsTrigger value="home" className="min-w-fit px-3 py-2">
-            Home
-          </TabsTrigger>
-          <TabsTrigger value="knowledge-pages" className="min-w-fit px-3 py-2">
-            Pages
-          </TabsTrigger>
-          <TabsTrigger value="knowledge-base-articles" className="min-w-fit px-3 py-2">
-            Articles
-          </TabsTrigger>
-          <TabsTrigger value="knowledge-databases" className="min-w-fit px-3 py-2">
-            Databases
-          </TabsTrigger>
-          <TabsTrigger value="source-libraries" className="min-w-fit px-3 py-2">
-            Libraries
-          </TabsTrigger>
-          <TabsTrigger value="governance" className="min-w-fit px-3 py-2">
-            Governance
-          </TabsTrigger>
-          <TabsTrigger value="profile" className="min-w-fit px-3 py-2">
-            Profile
-          </TabsTrigger>
-        </TabsList>
+  const [firstSegment, secondSegment] = segments;
+  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
+    return null;
+  }
 
-        <TabsContent value="home" className="mt-4 space-y-4">
-          <WorkspaceOverviewSummaryCard
-            workspace={workspace}
-            activeWorkspaceId={activeWorkspaceId}
-            onEditClick={onEditClick}
-            onSetActiveWorkspace={onSetActiveWorkspace}
-          />
+  if (["organization", "settings", "dev-tools"].includes(secondSegment)) {
+    return null;
+  }
 
-          <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <WorkspaceProductSpineCard workspace={workspace} />
+  if (!secondSegment) {
+    return null;
+  }
 
-            <Card className="border border-border/50">
-              <CardHeader>
-                <CardTitle>Capabilities</CardTitle>
-                <CardDescription>
-                  Runtime features currently mounted on this workspace.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {workspace.capabilities.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No capability bindings have been added yet.
-                  </p>
-                ) : (
-                  workspace.capabilities.map((capability) => (
-                    <div
-                      key={capability.id}
-                      className="rounded-xl border border-border/40 px-4 py-4"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">
-                          {capability.name}
-                        </p>
-                        <Badge variant="outline">{capability.type}</Badge>
-                        <Badge
-                          variant={capability.status === "stable" ? "secondary" : "outline"}
-                        >
-                          {capability.status}
-                        </Badge>
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {capability.description}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
+  return decodeURIComponent(secondSegment);
+}
 
-          {workspace.lifecycleState === "preparatory" && workspace.capabilities.length === 0 && (
-            <WorkspaceQuickstartCard workspaceId={workspace.id} />
-          )}
-        </TabsContent>
+export function useRecentWorkspaces(
+  accountId: string | undefined,
+  pathname: string,
+  workspaces: WorkspaceEntity[],
+) {
+  const [isExpanded, setIsExpanded] = useState(false);
 
-        <WorkspaceOverviewKnowledgePanels workspace={workspace} />
+  useEffect(() => {
+    if (!accountId) return;
+    trackWorkspaceFromPath(pathname, accountId);
+  }, [accountId, pathname]);
 
-        <TabsContent value="governance" className="mt-4 space-y-4">
-          <div className="grid gap-4 xl:grid-cols-2">
-            <Card className="border border-border/50">
-              <CardHeader>
-                <CardTitle>Access Model</CardTitle>
-                <CardDescription>
-                  Team scopes and direct grants applied to this workspace.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">Team access</p>
-                  {workspace.teamIds.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No team access assigned.</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {workspace.teamIds.map((teamId) => (
-                        <Badge key={teamId} variant="secondary">
-                          {teamId}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">Direct grants</p>
-                  {workspace.grants.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No direct grants recorded.</p>
-                  ) : (
-                    workspace.grants.map((grant, index) => (
-                      <div
-                        key={`grant-${grant.role}-${grant.teamId ?? "none"}-${grant.userId ?? "none"}-${grant.protocol ?? "none"}-${index}`}
-                        className="rounded-xl border border-border/40 px-4 py-3"
-                      >
-                        <p className="text-sm font-medium text-foreground">
-                          {describeGrant(grant)}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Role: {grant.role}
-                          {grant.teamId ? ` · Team: ${grant.teamId}` : ""}
-                          {grant.userId ? ` · User: ${grant.userId}` : ""}
-                          {grant.protocol ? ` · Protocol: ${grant.protocol}` : ""}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-border/50">
-              <CardHeader>
-                <CardTitle>Locations</CardTitle>
-                <CardDescription>
-                  Physical or logical locations linked to the workspace.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {workspace.locations == null || workspace.locations.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No locations have been configured yet.
-                  </p>
-                ) : (
-                  workspace.locations.map((location) => (
-                    <div
-                      key={location.locationId}
-                      className="rounded-xl border border-border/40 px-4 py-4"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">
-                          {location.label}
-                        </p>
-                        <Badge variant="outline">{location.locationId}</Badge>
-                      </div>
-                      {location.description && (
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          {location.description}
-                        </p>
-                      )}
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Capacity: {location.capacity ?? "—"}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="profile" className="mt-4 space-y-4">
-          <Card className="border border-border/50">
-            <CardHeader>
-              <CardTitle>Workspace Profile</CardTitle>
-              <CardDescription>
-                Operational contacts and registered workspace address.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Personnel</p>
-                {personnelEntries.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No personnel roles assigned.
-                  </p>
-                ) : (
-                  personnelEntries.map((entry) => (
-                    <div
-                      key={entry.label}
-                      className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3 text-sm"
-                    >
-                      <span className="text-muted-foreground">{entry.label}</span>
-                      <span className="font-medium text-foreground">{entry.value}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Address</p>
-                {addressLines.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No address information has been provided.
-                  </p>
-                ) : (
-                  <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
-                    {addressLines.map((line, index) => (
-                      <p key={`${line}-${index}`}>{line}</p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-      </div>
-    </Tabs>
+  const workspacesById = useMemo(
+    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
+    [workspaces],
   );
+
+  const recentWorkspaceIds = useMemo(() => {
+    if (!accountId) return [] as string[];
+    const stored = readRecentWorkspaceIds(accountId);
+    const currentId = getWorkspaceIdFromPath(pathname);
+    if (!currentId) return stored;
+    return [currentId, ...stored.filter((id) => id !== currentId)];
+  }, [accountId, pathname]);
+
+  const recentWorkspaceLinks = useMemo<RecentWorkspaceLink[]>(() => {
+    return recentWorkspaceIds
+      .map<RecentWorkspaceLink | null>((workspaceId) => {
+        const ws = workspacesById[workspaceId];
+        if (!ws) return null;
+        const href = accountId
+          ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(ws.id)}`
+          : `/workspace/${encodeURIComponent(ws.id)}`;
+        return { id: ws.id, name: ws.name, href };
+      })
+      .filter((item): item is RecentWorkspaceLink => item !== null);
+  }, [accountId, recentWorkspaceIds, workspacesById]);
+
+  return { isExpanded, setIsExpanded, recentWorkspaceLinks };
 }
+
+export { MAX_VISIBLE_RECENT_WORKSPACES, getWorkspaceIdFromPath };
 ````
 
 ## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
@@ -67601,70 +66971,6 @@ export class FirebaseAuditRepository implements AuditRepository {
 }
 ````
 
-## File: modules/workspace/subdomains/audit/README.md
-````markdown
-# Audit
-
-Audit trail and accountability tracking for workspace actions.
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/workspace/subdomains/feed/README.md
-````markdown
-# Feed
-
-Activity feed projections for workspace events.
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
 ## File: modules/workspace/subdomains/lifecycle/api/index.ts
 ````typescript
 /**
@@ -67764,6 +67070,44 @@ export {
 export {};
 ````
 
+## File: modules/workspace/subdomains/lifecycle/README.md
+````markdown
+# Lifecycle
+
+把工作區容器生命週期獨立成正典邊界。
+
+## Ownership
+
+- **Bounded Context**: workspace
+- **Subdomain Type**: Active
+- **Status**: Active — lifecycle use cases implemented
+
+## Responsibility
+
+- Workspace creation (with optional capabilities)
+- Workspace settings update (with lifecycle/visibility transition events)
+- Workspace deletion
+- Lifecycle state machine (preparatory → active → stopped)
+
+## Dependency Direction
+
+```
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+
+## Key Design Decisions
+
+- The Workspace aggregate root lives at context root level (`modules/workspace/domain/`), not inside this subdomain.
+- This subdomain's use cases operate on the root aggregate through ports.
+- Event publishing follows the "persist-then-publish" pattern.
+- The `UpdateWorkspaceSettingsUseCase` consolidates both settings persistence and transition event emission into one cohesive use case, eliminating the prior split where the application service handled event logic.
+````
+
 ## File: modules/workspace/subdomains/membership/api/index.ts
 ````typescript
 /**
@@ -67830,36 +67174,46 @@ export type {
 export {};
 ````
 
-## File: modules/workspace/subdomains/scheduling/README.md
+## File: modules/workspace/subdomains/membership/README.md
 ````markdown
-# Scheduling
+# Membership
 
-Scheduling and demand management within workspaces.
+把工作區參與關係從平台身份治理中切開。
 
 ## Ownership
 
 - **Bounded Context**: workspace
-- **Status**: Active
+- **Subdomain Type**: Active
+- **Status**: Active — member view query implemented
 
-## Layers
+## Responsibility
 
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
+- Workspace member view model (canonical read model for participants)
+- Member resolution queries (merging grants, teams, personnel sources)
+- Workspace participation semantics distinct from platform identity
+
+## Ubiquitous Language
+
+- **Membership**: Workspace participation relationship, NOT platform identity
+- **WorkspaceMemberView**: Read-only projection of a workspace participant
+- **AccessChannel**: The route through which a member gained workspace access (owner, direct, team, personnel)
 
 ## Dependency Direction
 
-```text
+```
 interfaces/ → application/ → domain/ ← infrastructure/
 ```
 
 ## Development Order
 
+When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+
+## Key Design Decisions
+
+- WorkspaceMemberView is the membership read model, not a full Membership aggregate (that would come when invitation/seat management is needed).
+- Complex member resolution logic (merging from grants, teams, personnel) stays in the root infrastructure adapter since it depends on the full workspace document model.
+- The subdomain's query handler delegates to the root WorkspaceQueryRepository port.
 ````
 
 ## File: modules/workspace/subdomains/sharing/api/index.ts
@@ -67926,361 +67280,495 @@ export type {
 export {};
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/README.md
+## File: modules/workspace/subdomains/sharing/README.md
 ````markdown
-# Workspace Workflow
+# Sharing
 
-Workflow orchestration for workspace processes.
+把對外共享與可見性規則收斂到單一上下文。
 
 ## Ownership
 
 - **Bounded Context**: workspace
-- **Status**: Active
+- **Subdomain Type**: Active
+- **Status**: Active — access grant use cases implemented
 
-## Layers
+## Responsibility
 
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
+- Team access grants (authorize a team to access a workspace)
+- Individual access grants (grant a user direct workspace access)
+- Workspace sharing scope semantics
+
+## Ubiquitous Language
+
+- **ShareScope**: The sharing boundary and visibility extent, NOT generic "Permission"
+- **WorkspaceGrant**: An individual access authorization to a workspace
+- **WorkspaceAccessPolicy**: The aggregate access policy including grants and team associations
 
 ## Dependency Direction
 
-```text
+```
 interfaces/ → application/ → domain/ ← infrastructure/
 ```
 
 ## Development Order
 
+When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+
+## Key Design Decisions
+
+- Access grant use cases take injected WorkspaceAccessRepository through the deps pattern.
+- WorkspaceSharingApplicationService composes grant use cases and exposes team/individual grant operations.
+- Location management stays at root level (part of Workspace operational profile, not sharing semantics).
 ````
 
-## File: app/(shell)/_shell/ShellAppRail.tsx
+## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
 ````typescript
 "use client";
 
 /**
- * ShellAppRail — app/(shell)/_shell composition layer.
- * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
- * because it composes downstream modules (workspace).
- *
- * Platform is upstream and must not import downstream modules.
- * app/ is the designated composition layer.
+ * ShellDashboardSidebar — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it composes workspace module components.
+ */
+
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+
+import {
+  buildWorkspaceQuickAccessItems,
+  CustomizeNavigationDialog,
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  readNavPreferences,
+  buildWorkspaceContextHref,
+  supportsWorkspaceSearchContext,
+  type NavPreferences,
+  useRecentWorkspaces,
+  useSidebarLocale,
+  WorkspaceQuickAccessRow,
+} from "@/modules/workspace/api";
+
+import {
+  quickCreateKnowledgePage,
+} from "./shell-quick-create";
+import {
+  type DashboardSidebarProps,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  ACCOUNT_NAV_ITEMS,
+  SECTION_TITLES,
+  resolveNavSection,
+  isActiveRoute,
+  isActiveOrganizationAccount,
+} from "./ShellSidebarNavData";
+import { ShellSidebarHeader } from "./ShellSidebarHeader";
+import { DashboardSidebarBody } from "./ShellSidebarBody";
+
+export function ShellDashboardSidebar({
+  pathname,
+  userId,
+  activeAccount,
+  workspaces,
+  workspacesHydrated,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps) {
+  const searchParams = useSearchParams();
+
+  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
+    activeAccount?.id,
+    pathname,
+    workspaces,
+  );
+  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
+  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const localeBundle = useSidebarLocale();
+
+  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
+
+  const visibleOrganizationManagementItems = useMemo(
+    () => ORGANIZATION_MANAGEMENT_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
+    [navPrefs.pinnedWorkspace],
+  );
+
+  const visibleAccountItems = useMemo(
+    () => ACCOUNT_NAV_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
+    [navPrefs.pinnedWorkspace],
+  );
+
+  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
+
+  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
+    ? navPrefs.maxWorkspaces
+    : MAX_VISIBLE_RECENT_WORKSPACES;
+
+  const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+
+  useEffect(() => {
+    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
+    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(pathWorkspaceId);
+      return;
+    }
+
+    if (!supportsWorkspaceSearchContext(pathname)) {
+      return;
+    }
+
+    if (currentSearchWorkspaceId && currentSearchWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(currentSearchWorkspaceId);
+    }
+  }, [pathname, activeWorkspaceId, currentSearchWorkspaceId, onSelectWorkspace]);
+
+  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
+  const visibleRecentWorkspaceLinks = isExpanded
+    ? recentWorkspaceLinks
+    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
+
+  const allWorkspaceLinks = useMemo(
+    () =>
+      workspaces
+        .map((workspace) => ({
+          id: workspace.id,
+          name: workspace.name,
+          href: buildWorkspaceContextHref(pathname, workspace.id),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces, pathname],
+  );
+
+  const section = resolveNavSection(pathname);
+  const sectionMeta = SECTION_TITLES[section];
+  const workspacePathId = getWorkspaceIdFromPath(pathname);
+  const currentPanel = searchParams.get("panel");
+  const currentWorkspaceTab = searchParams.get("tab");
+  const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
+  const hasWorkspaceToolContext =
+    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
+    (section === "knowledge" ||
+      section === "knowledge-base" ||
+      section === "source" ||
+      section === "notebook");
+  const workspaceQuickAccessId =
+    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
+  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
+  const workspaceSettingsHref = workspaceQuickAccessId
+    ? activeAccount?.id
+      ? `/${encodeURIComponent(activeAccount.id)}/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
+      : "/"
+    : "";
+  const workspaceQuickAccessItems = useMemo(
+    () =>
+      showWorkspaceQuickAccess && workspaceQuickAccessId
+        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId, activeAccount?.id)
+        : [],
+    [showWorkspaceQuickAccess, workspaceQuickAccessId, activeAccount?.id],
+  );
+
+  async function handleQuickCreatePage() {
+    const accountId = activeAccount?.id ?? "";
+    if (!accountId || !activeWorkspaceId) {
+      toast.error(!accountId ? "目前沒有 active account，無法建立" : "請先切換到工作區，再建立頁面");
+      return;
+    }
+    setCreatingKind("page");
+    try {
+      const result = await quickCreateKnowledgePage({
+        accountId,
+        workspaceId: activeWorkspaceId,
+        createdByUserId: userId ?? accountId,
+      });
+      if (result.success) {
+        toast.success("已建立頁面");
+      } else {
+        toast.error(result.error?.message ?? "建立頁面失敗");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("建立頁面失敗");
+    } finally {
+      setCreatingKind(null);
+    }
+  }
+
+  return (
+    <div className="contents">
+      <aside
+        aria-label="Secondary navigation"
+        className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
+          collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
+        }`}
+      >
+        <ShellSidebarHeader
+          sectionLabel={sectionMeta.label}
+          sectionIcon={sectionMeta.icon}
+          onOpenCustomize={() => {
+            setCustomizeOpen(true);
+          }}
+          onToggleCollapsed={onToggleCollapsed}
+        />
+
+        <WorkspaceQuickAccessRow
+          items={workspaceQuickAccessItems}
+          pathname={pathname}
+          currentPanel={currentPanel}
+          currentWorkspaceTab={currentWorkspaceTab}
+          workspaceSettingsHref={workspaceSettingsHref}
+          isActiveRoute={(href) => isActiveRoute(pathname, href)}
+        />
+
+        <DashboardSidebarBody
+          section={section}
+          isActiveRoute={(href) => isActiveRoute(pathname, href)}
+          activeAccountId={activeAccount?.id ?? null}
+          showAccountManagement={showAccountManagement}
+          visibleAccountItems={visibleAccountItems}
+          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
+          workspacePathId={workspacePathId}
+          navPrefs={navPrefs}
+          localeBundle={localeBundle}
+          showRecentWorkspaces={showRecentWorkspaces}
+          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+          hasOverflow={hasOverflow}
+          isExpanded={isExpanded}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={onSelectWorkspace}
+          onToggleExpanded={() => {
+            setIsExpanded((prev) => !prev);
+          }}
+          pathname={pathname}
+          workspacesHydrated={workspacesHydrated}
+          allWorkspaceLinks={allWorkspaceLinks}
+          currentSearchWorkspaceId={currentSearchWorkspaceId}
+          creatingKind={creatingKind}
+          onQuickCreatePage={() => {
+            void handleQuickCreatePage();
+          }}
+        />
+      </aside>
+
+      <CustomizeNavigationDialog
+        open={customizeOpen}
+        onOpenChange={setCustomizeOpen}
+        onPreferencesChange={setNavPrefs}
+      />
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/_shell/ShellSidebarBody.tsx
+````typescript
+"use client";
+
+/**
+ * ShellSidebarBody — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it imports from workspace and notion modules.
  */
 
 import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 
-import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
-import { CreateOrganizationDialog } from "@/modules/platform/api";
+import { KnowledgeSidebarSection } from "@/modules/notion/api";
 import {
-  listShellRailCatalogItems,
-  isExactOrChildPath,
-  resolveShellNavSection,
-  type ShellRailCatalogItem,
-} from "@/modules/platform/api";
-import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
+  WorkspaceSectionContent,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+} from "@/modules/workspace/api";
+import { SHELL_CONTEXT_SECTION_CONFIG, buildShellContextualHref } from "@/modules/platform/api";
 
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
+import {
+  type NavSection,
+  sidebarItemClass,
+  sidebarSectionTitleClass,
+} from "./ShellSidebarNavData";
+import { ShellContextNavSection } from "./ShellContextNavSection";
 
-interface RailItem {
-  href: string;
+interface NavItem {
+  id: string;
   label: string;
-  icon: React.ReactNode;
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
+  href: string;
 }
 
-function getInitial(name: string | undefined | null): string {
-  return name?.trim().charAt(0).toUpperCase() || "U";
+interface WorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
 }
 
-const RAIL_ICON_MAP: Record<string, React.ReactNode> = {
-  workspace: <Building2 className="size-[18px]" />,
-  "org-members": <UserRound className="size-[18px]" />,
-  "org-teams": <Users className="size-[18px]" />,
-  "org-daily": <NotebookText className="size-[18px]" />,
-  "org-schedule": <CalendarDays className="size-[18px]" />,
-  "org-audit": <ClipboardList className="size-[18px]" />,
-  "org-permissions": <SlidersHorizontal className="size-[18px]" />,
-  "dev-tools": <FlaskConical className="size-[18px]" />,
-};
+interface ShellSidebarBodyProps {
+  section: NavSection;
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+  showAccountManagement: boolean;
+  visibleAccountItems: readonly NavItem[];
+  visibleOrganizationManagementItems: readonly NavItem[];
+  workspacePathId: string | null;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+  showRecentWorkspaces: boolean;
+  visibleRecentWorkspaceLinks: WorkspaceLink[];
+  hasOverflow: boolean;
+  isExpanded: boolean;
+  activeWorkspaceId: string | null;
+  onSelectWorkspace: (workspaceId: string | null) => void;
+  onToggleExpanded: () => void;
+  pathname: string;
+  workspacesHydrated: boolean;
+  allWorkspaceLinks: WorkspaceLink[];
+  currentSearchWorkspaceId: string;
+  creatingKind: "page" | "database" | null;
+  onQuickCreatePage: () => void;
+}
 
-export function AppRail({
-  pathname,
-  user,
-  activeAccount,
-  organizationAccounts,
-  workspaces,
-  workspacesHydrated,
-  isOrganizationAccount,
-  onSelectPersonal,
-  onSelectOrganization,
+function ManagedNavGroup({
+  title,
+  ariaLabel,
+  items,
+  isActiveRoute,
+  activeAccountId,
+}: {
+  title: string;
+  ariaLabel: string;
+  items: readonly NavItem[];
+  isActiveRoute: (href: string) => boolean;
+  activeAccountId: string | null;
+}) {
+  return (
+    <nav className="space-y-0.5" aria-label={ariaLabel}>
+      <p className={sidebarSectionTitleClass}>{title}</p>
+      {items.map((item) => {
+        const contextualHref = buildShellContextualHref(item.href, {
+          accountId: activeAccountId,
+          workspaceId: null,
+        });
+        const active = isActiveRoute(contextualHref);
+        return (
+          <Link
+            key={item.href}
+            href={contextualHref}
+            aria-current={active ? "page" : undefined}
+            className={sidebarItemClass(active)}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+export function DashboardSidebarBody({
+  section,
+  isActiveRoute,
+  activeAccountId,
+  showAccountManagement,
+  visibleAccountItems,
+  visibleOrganizationManagementItems,
+  workspacePathId,
+  navPrefs,
+  localeBundle,
+  showRecentWorkspaces,
+  visibleRecentWorkspaceLinks,
+  hasOverflow,
+  isExpanded,
   activeWorkspaceId,
   onSelectWorkspace,
-  onOrganizationCreated,
-  onSignOut: _onSignOut,
-}: AppRailProps) {
-  const router = useRouter();
-  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const visibleRailItems: RailItem[] = useMemo(() => {
-    const catalogItems = listShellRailCatalogItems(isOrganizationAccount);
-    return catalogItems.map((item: ShellRailCatalogItem) => ({
-      href: item.href,
-      label: item.label,
-      icon: RAIL_ICON_MAP[item.id] ?? null,
-      isActive: item.id === "workspace"
-        ? (currentPathname: string) => resolveShellNavSection(currentPathname) === "workspace"
-        : item.activeRoutePrefix
-          ? (currentPathname: string) => isExactOrChildPath(item.activeRoutePrefix!, currentPathname)
-          : undefined,
-    }));
-  }, [isOrganizationAccount]);
-
-  const workspaceHubHref = activeAccount?.id
-    ? `/${encodeURIComponent(activeAccount.id)}`
-    : "/workspace";
-
-  function buildWorkspaceDetailHref(workspaceId: string): string {
-    if (activeAccount?.id) {
-      return `/${encodeURIComponent(activeAccount.id)}/${encodeURIComponent(workspaceId)}`;
-    }
-    return `/workspace/${encodeURIComponent(workspaceId)}`;
-  }
-
-  const sortedWorkspaces = useMemo(
-    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces],
-  );
-
-  const accountName = activeAccount?.name ?? user?.name ?? "—";
+  onToggleExpanded,
+  pathname,
+  workspacesHydrated,
+  allWorkspaceLinks,
+  currentSearchWorkspaceId,
+  creatingKind,
+  onQuickCreatePage,
+}: ShellSidebarBodyProps) {
+  const contextSection = SHELL_CONTEXT_SECTION_CONFIG[section];
 
   return (
-    <TooltipProvider delayDuration={400}>
-      <aside
-        aria-label="App navigation rail"
-        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
-      >
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
-                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[180px]">
-              <p className="text-xs font-medium">{accountName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
+    <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
+      {section === "account" && (
+        <div className="space-y-2">
+          {showAccountManagement && visibleAccountItems.length > 0 && (
+            <ManagedNavGroup
+              title="帳號"
+              ariaLabel="帳號導覽"
+              items={visibleAccountItems}
+              isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看帳號選項。
+            </p>
+          )}
+        </div>
+      )}
 
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => { onSelectOrganization(account); }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => { setIsCreateOrgOpen(true); }}
-              className="gap-2 text-primary"
-            >
-              <Plus className="size-3.5 shrink-0" />
-              <span>建立組織</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      {section === "organization" && (
+        <div className="space-y-2">
+          {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
+            <ManagedNavGroup
+              title="組織管理"
+              ariaLabel="組織管理導覽"
+              items={visibleOrganizationManagementItems}
+              isActiveRoute={isActiveRoute}
+              activeAccountId={activeAccountId}
+            />
+          )}
+          {!showAccountManagement && (
+            <p className="px-2 py-4 text-[11px] text-muted-foreground">
+              請切換到組織帳號以查看管理選項。
+            </p>
+          )}
+        </div>
+      )}
 
-        <div className="my-2 h-px w-7 bg-border/50" />
+      {section === "workspace" && (
+        <div className="space-y-2">
+          <WorkspaceSectionContent
+            workspacePathId={workspacePathId}
+            navPrefs={navPrefs}
+            localeBundle={localeBundle}
+            showRecentWorkspaces={showRecentWorkspaces}
+            visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+            hasOverflow={hasOverflow}
+            isExpanded={isExpanded}
+            activeWorkspaceId={activeWorkspaceId}
+            isActiveRoute={isActiveRoute}
+            onSelectWorkspace={onSelectWorkspace}
+            onToggleExpanded={onToggleExpanded}
+            getItemClassName={sidebarItemClass}
+            sectionTitleClassName={sidebarSectionTitleClass}
+          />
+        </div>
+      )}
 
-        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
-          {visibleRailItems.map((item) => {
-            const active = item.isActive?.(pathname) ?? isActive(item.href);
+      {section === "knowledge" && (
+        <KnowledgeSidebarSection
+          pathname={pathname}
+          workspacesHydrated={workspacesHydrated}
+          allWorkspaceLinks={allWorkspaceLinks}
+          activeAccountId={activeAccountId}
+          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
+          creatingKind={creatingKind}
+          onSelectWorkspace={onSelectWorkspace}
+          onQuickCreatePage={onQuickCreatePage}
+        />
+      )}
 
-            if (item.href === "/workspace") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="工作區中心：切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">工作區中心：切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => { router.push(workspaceHubHref); }}
-                      className={
-                        resolveShellNavSection(pathname) === "workspace" && !activeWorkspaceId
-                          ? "bg-primary/10 text-primary"
-                          : ""
-                      }
-                    >
-                      工作區中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(buildWorkspaceDetailHref(workspace.id));
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => { setIsCreateWorkspaceOpen(true); }}
-                      className="gap-2 text-primary"
-                    >
-                      <Plus className="size-3.5 shrink-0" />
-                      <span>建立工作區</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">{item.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
-
-        <div className="flex-1" />
-        <div className="h-1" />
-      </aside>
-
-      <CreateOrganizationDialog
-        open={isCreateOrgOpen}
-        onOpenChange={setIsCreateOrgOpen}
-        user={user}
-        onOrganizationCreated={onOrganizationCreated}
-        onNavigate={(href) => { router.push(href); }}
-      />
-
-      <CreateWorkspaceDialogRail
-        open={isCreateWorkspaceOpen}
-        onOpenChange={setIsCreateWorkspaceOpen}
-        accountId={activeAccount?.id ?? null}
-        accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
-        creatorUserId={user?.id}
-        onNavigate={(href: string) => { router.push(href); }}
-      />
-    </TooltipProvider>
+      {contextSection && (
+        <ShellContextNavSection
+          title={contextSection.title}
+          items={contextSection.items}
+          isActiveRoute={isActiveRoute}
+          activeAccountId={activeAccountId}
+          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
+        />
+      )}
+    </div>
   );
 }
 ````
@@ -68416,6 +67904,66 @@ export function SimpleNavLinks({
       })}
     </nav>
   );
+}
+````
+
+## File: app/(shell)/_shell/WorkspaceRouteShim.tsx
+````typescript
+"use client";
+
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { useApp } from "@/modules/platform/api";
+import {
+  buildWorkspaceOverviewPanelHref,
+  type WorkspaceOverviewPanel,
+  useWorkspaceContext,
+} from "@/modules/workspace/api";
+
+interface WorkspaceRouteShimProps {
+  readonly panel?: WorkspaceOverviewPanel;
+  readonly tab?: "Overview" | "Files";
+  readonly loadingMessage: string;
+}
+
+export function WorkspaceRouteShim({
+  panel,
+  tab = "Overview",
+  loadingMessage,
+}: WorkspaceRouteShimProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const {
+    state: { activeAccount },
+  } = useApp();
+  const {
+    state: { activeWorkspaceId },
+  } = useWorkspaceContext();
+
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+  const targetWorkspaceId = requestedWorkspaceId || activeWorkspaceId || "";
+  const activeAccountId = activeAccount?.id ?? "";
+
+  const targetHref = targetWorkspaceId
+    ? activeAccountId
+      ? tab === "Files"
+        ? `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
+        : `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(targetWorkspaceId)}?tab=Overview${
+            panel ? `&panel=${encodeURIComponent(panel)}` : ""
+          }`
+      : tab === "Files"
+        ? "/"
+        : buildWorkspaceOverviewPanelHref(targetWorkspaceId, panel)
+    : activeAccountId
+      ? `/${encodeURIComponent(activeAccountId)}`
+      : "/";
+
+  useEffect(() => {
+    router.replace(targetHref);
+  }, [router, targetHref]);
+
+  return <div className="px-4 py-6 text-sm text-muted-foreground">{loadingMessage}</div>;
 }
 ````
 
@@ -68898,6 +68446,47 @@ export { FirebaseRagQueryFeedbackAdapter } from "./firebase/FirebaseRagQueryFeed
 export { PlatformRagGenerationAdapter } from "./platform/PlatformRagGenerationAdapter";
 ````
 
+## File: modules/notebooklm/subdomains/synthesis/README.md
+````markdown
+# Synthesis
+
+完整 RAG pipeline：retrieval → grounding → answer generation → evaluation/feedback。
+
+## Ownership
+
+- **Bounded Context**: notebooklm
+- **Subdomain**: synthesis (Active)
+- **Status**: Consolidated — all RAG pipeline responsibilities
+
+## Internal Facets
+
+The RAG pipeline is organized as internal domain facets within this single subdomain:
+
+| Facet | Responsibility | Key Types |
+|-------|---------------|-----------|
+| retrieval | 查詢召回與排序策略、向量搜尋 | RetrievedChunk, IChunkRetrievalPort, RagScoringService |
+| grounding | 引用對齊與可追溯證據 | Citation, GroundingEvidence, ICitationBuilder, RagCitationBuilder |
+| generation | RAG 合成、摘要與洞察生成 | GenerateAnswerInput/Output, IGenerationPort, RagPromptBuilder |
+| evaluation | 品質評估、feedback 收集 | QualityFeedback, IFeedbackPort, SubmitRagQueryFeedbackUseCase |
+
+## Key Components
+
+| Component | Layer | Purpose |
+|-----------|-------|---------|
+| AnswerRagQueryUseCase | application | 完整 RAG Q&A 流程 orchestration |
+| SubmitRagQueryFeedbackUseCase | application | 用戶品質 feedback 收集 |
+| FirebaseRagRetrievalAdapter | infrastructure | Firestore 向量/稀疏檢索 |
+| GenkitRagGenerationAdapter | infrastructure | Genkit AI answer generation |
+| FirebaseRagQueryFeedbackAdapter | infrastructure | Firestore feedback 持久化 |
+| FirebaseKnowledgeContentAdapter | infrastructure | Knowledge 文件查詢與 reindex |
+| RagQueryView | interfaces | 最小化 RAG 查詢 UI |
+
+## Development Order
+
+When implementing, follow inside-out:
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
 ## File: modules/notion/api/index.ts
 ````typescript
 /**
@@ -68940,27 +68529,117 @@ export * from "../subdomains/taxonomy/api";
 export * from "../subdomains/relations/api";
 ````
 
-## File: modules/notion/subdomains/authoring/README.md
+## File: modules/notion/README.md
 ````markdown
-# Authoring
+# Notion
 
-知識庫文章建立、驗證與分類。
+知識內容生命週期主域
 
-## Ownership
+## Bounded Context
 
-- **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Active
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 正典知識內容生命週期（頁面、文章、資料庫、協作、版本） |
+| Upstream | platform（治理、AI capability）、workspace（workspaceId、membership scope、share scope） |
+| Downstream | notebooklm（knowledge artifact reference、attachment reference、taxonomy hint） |
+| Core principle | notion 擁有正典知識內容，不擁有治理或推理過程 |
+| Cross-module boundary | `api/` only — no direct import of platform/workspace/notebooklm internals |
 
-## Layers
+## Ubiquitous Language
 
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
+| Term | Meaning |
+|------|---------|
+| KnowledgeArtifact | notion 主域擁有的知識內容總稱 |
+| KnowledgePage | 正典頁面型知識單位（block-based 自由頁面） |
+| ContentBlock | 知識頁面的最小可組合內容單位（段落、標題、程式碼等） |
+| KnowledgeCollection | 頁面集合容器（分組 KnowledgePage，非 Database） |
+| BacklinkIndex | 自動反向連結索引（哪些頁面引用了此頁面） |
+| Article | 經過撰寫與驗證工作流程的知識庫文章 |
+| Database | 結構化知識集合（可投影多種視圖） |
+| DatabaseView | 對 Database 的投影配置（Table/Board/Calendar/Gallery/Form） |
+| DatabaseRecord | Database 中的一筆記錄 |
+| Taxonomy | 跨頁面的分類法與語義組織結構 |
+| Relation | 內容對內容之間的正式語義關聯（有類型、有方向） |
+| Publication | 對外可見且可交付的內容狀態 |
+| VersionSnapshot | 全域版本 checkpoint 策略的不可變快照（≠ 逐次編輯 Version） |
+| Template | 可重複套用的內容結構起點 |
+| Attachment | 綁定於知識內容的檔案或媒體 |
+
+## Implementation Structure
+
+```text
+modules/notion/
+├── api/              # Public API boundary — cross-module entry point only
+├── application/      # Context-wide orchestration (empty, use subdomain layers)
+├── domain/           # Context-wide domain concepts (events, published-language)
+├── infrastructure/   # Context-wide driven adapters (empty, use subdomain layers)
+├── interfaces/       # Context-wide driving adapters (empty, use subdomain layers)
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── knowledge/             # Tier 1 — Active (KnowledgePage, ContentBlock)
+    ├── authoring/             # Tier 1 — Active (Article, Category)
+    ├── collaboration/         # Tier 1 — Active (Comment, Permission, Version)
+    ├── database/              # Tier 1 — Active (Database, Record, View)
+    ├── taxonomy/              # Tier 2 — Domain contracts (semantic classification)
+    ├── relations/             # Tier 2 — Domain contracts (explicit semantic graph)
+    ├── attachments/           # Tier 2 — Stub (file/media association)
+    ├── publishing/            # Tier 3 — Stub (external delivery boundary)
+    ├── knowledge-versioning/  # Tier 3 — Stub (global snapshot policy)
+    ├── notes/                 # Premature — absorbed by KnowledgePage
+    ├── templates/             # Premature — absorbed by authoring
+    ├── automation/            # Premature — absorbed by database
+    ├── knowledge-analytics/   # Premature — read model concern
+    └── knowledge-integration/ # Premature — infrastructure adapter concern
+```
+
+> **Premature stubs** — `notes/`, `templates/`, `automation/`, `knowledge-analytics/`, `knowledge-integration/` 目錄存在但不建議擴充。見 [Premature Stubs](#premature-stubs) 段落。
+
+## Subdomains
+
+### Tier 1 — Core (Active)
+
+| Subdomain | Purpose | Key Aggregates / Entities |
+|-----------|---------|--------------------------|
+| knowledge | KnowledgePage 生命週期、ContentBlock 編輯、BacklinkIndex、版本查詢 | KnowledgePage, ContentBlock, KnowledgeCollection, BacklinkIndex |
+| authoring | 知識庫文章建立、驗證工作流程與分類目錄 | Article, Category |
+| collaboration | 協作留言、細粒度權限與版本快照（逐次編輯歷史） | Comment, Permission, Version |
+| database | 結構化資料視圖（Table/Board/Calendar/Gallery/Form）、記錄、自動化 | Database, DatabaseRecord, View, DatabaseAutomation |
+
+### Tier 2 — Near-Term (Domain Contracts — High Business Value)
+
+| Subdomain | Purpose | Distinction |
+|-----------|---------|------------|
+| taxonomy | 跨頁面分類法與語義組織（全域標籤樹、主題分類） | ≠ authoring.Category（局部文章分類）；taxonomy 是全域語義網 |
+| relations | 內容對內容的明確語義關聯（有類型、方向） | ≠ knowledge.BacklinkIndex（自動反向連結）；relations 是主動宣告的語義圖 |
+| attachments | 附件與媒體關聯儲存（Storage 整合正典邊界） | 獨立於知識頁面內容模型。待附件需要獨立保留策略時充實 |
+
+### Tier 3 — Medium-Term (Stubs)
+
+| Subdomain | Purpose | Note |
+|-----------|---------|------|
+| publishing | 正式對外交付的 Publication 狀態邊界 | authoring 的 `ArticlePublicationUseCases` 是前置邊界 |
+| knowledge-versioning | 全域版本 checkpoint 策略（workspace-level, 保留政策） | ≠ collaboration.Version（per-edit 歷史）；是策略量，不是操作量 |
+
+### Premature Stubs（目錄保留，不建議擴充）
+
+| Subdomain | Reason |
+|-----------|--------|
+| notes | 輕量筆記可作為 KnowledgePage 的頁面類型處理，不需獨立子域 |
+| templates | 頁面範本是 authoring 的內部關注（內容結構起點），非獨立子域 |
+| automation | database 子域已涵蓋 DatabaseAutomation；跨內容類型事件自動化目前無獨立領域需求 |
+| knowledge-analytics | 知識使用行為量測是讀模型關注，非獨立領域模型。可由 infrastructure 查詢層處理 |
+| knowledge-integration | 外部系統整合是 infrastructure adapter 關注，非獨立子域 |
+
+## Subdomain Analysis
+
+**14 個目錄（4 Active + 2 Domain Contracts + 1 Stub + 2 Medium-Term + 5 Premature），分析如下：**
+
+- ✅ `knowledge` 與 `authoring` 分工正確：自由頁面（block-based wiki）vs. 結構化文章（KB article workflow）。
+- ✅ `collaboration.Version`（逐次編輯快照）與 `knowledge-versioning`（全域 checkpoint 策略）是不同責任，分開正確。
+- ✅ `knowledge.BacklinkIndex`（自動反向索引）與 `relations`（明確語義圖）不重疊。
+- ✅ `taxonomy` 是全域語義組織核心，與 `authoring.Category`（局部文章分類）不重疊，維持 Tier 2。
+- ✅ 5 個 premature stubs 有明確理由：每個都已被現有 active 子域或 infrastructure 層吸收。
+- ⚠️ `knowledge-versioning` 需持續明確與 `collaboration.Version` 的分界，避免實作者混淆。
 
 ## Dependency Direction
 
@@ -68968,172 +68647,18 @@ export * from "../subdomains/relations/api";
 interfaces/ → application/ → domain/ ← infrastructure/
 ```
 
-## Development Order
+- `api/` is the only cross-module public boundary.
+- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
+- Cross-module collaboration goes through `api/` only.
 
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
+## Strategic Documentation
 
-## File: modules/notion/subdomains/collaboration/README.md
-````markdown
-# Collaboration
-
-協作留言、細粒度權限與版本快照。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/database/README.md
-````markdown
-# Database
-
-結構化資料多視圖管理。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/knowledge/README.md
-````markdown
-# Knowledge
-
-頁面建立、組織、版本化與交付。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Baseline
-- **Status**: Active
-
-## Layers
-
-| Layer | Purpose |
-|-------|---------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-| `interfaces/` | UI components, hooks, actions, and queries |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/relations/README.md
-````markdown
-# Relations
-
-建立內容之間關聯與 backlink 的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/taxonomy/README.md
-````markdown
-# Taxonomy
-
-建立分類法與語義組織的正典邊界。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+- [Context README](../../docs/contexts/notion/README.md)
+- [Subdomains](../../docs/contexts/notion/subdomains.md)
+- [Bounded Context](../../docs/contexts/notion/bounded-contexts.md)
+- [Context Map](../../docs/contexts/notion/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/notion/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
 ## File: modules/platform/interfaces/web/providers/ShellAppContext.ts
@@ -69214,105 +68739,134 @@ export function useApp() {
 }
 ````
 
-## File: modules/platform/README.md
-````markdown
-# Platform
+## File: modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog.tsx
+````typescript
+"use client";
 
-治理與營運支撐主域
+import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { FileText, Layout } from "lucide-react";
+import { listShellCommandCatalogItems } from "../../../../subdomains/search/api";
+import { buildShellContextualHref } from "../../../../subdomains/platform-config/api";
 
-## Implementation Structure
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from "@ui-shadcn/ui/command";
 
-```text
-modules/platform/
-├── api/              # Public API boundary
-├── application/      # Context-wide orchestration
-├── domain/           # Context-wide domain concepts
-├── infrastructure/   # Context-wide driven adapters
-├── interfaces/       # Context-wide driving adapters
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── account/
-    ├── account-profile/
-    ├── access-control/
-    ├── ai/
-    ├── analytics/
-    ├── audit-log/
-    ├── background-job/
-    ├── billing/
-    ├── compliance/
-    ├── consent/
-    ├── content/
-    ├── entitlement/
-    ├── feature-flag/
-    ├── identity/
-    ├── integration/
-    ├── notification/
-    ├── observability/
-    ├── onboarding/
-    ├── organization/
-    ├── platform-config/
-    ├── referral/
-    ├── search/
-    ├── secret-management/
-    ├── security-policy/
-    ├── subscription/
-    ├── support/
-    ├── tenant/
-    ├── team/
-    └── workflow/
-```
+const NAV_ITEMS = listShellCommandCatalogItems();
 
-## Subdomains
+const GROUP_ICONS: Record<string, React.ReactNode> = {
+  "導覽": <Layout className="size-4 mr-2 opacity-60" />,
+  "Knowledge": <FileText className="size-4 mr-2 opacity-60" />,
+  "Source": <FileText className="size-4 mr-2 opacity-60" />,
+};
 
-| Subdomain | Status | Purpose |
-|-----------|--------|---------|
-| account | Active | 帳號管理與帳號生命週期 |
-| identity | Active | 身份驗證與身份聯邦 |
-| notification | Active | 通知治理與遞送 |
-| organization | Active | 組織管理與租戶結構 |
-| team | Active | 團隊管理與成員關係 |
-| account-profile | Stub | 帳號個人檔案與偏好 |
-| access-control | Stub | 存取控制與權限策略 |
-| ai | Stub | 共享 AI provider 路由與能力治理 |
-| analytics | Stub | 平台級分析與指標 |
-| audit-log | Stub | 平台稽核日誌 |
-| background-job | Stub | 背景任務排程與管理 |
-| billing | Stub | 計費與支付管理 |
-| compliance | Stub | 合規與法遵管理 |
-| consent | Stub | 同意與資料使用授權治理 |
-| content | Stub | 平台內容管理 |
-| entitlement | Stub | 權益解算與功能可用性治理 |
-| feature-flag | Stub | 功能旗標與漸進式發布 |
-| integration | Stub | 外部系統整合 |
-| observability | Stub | 觀測與監控 |
-| onboarding | Stub | 使用者引導流程 |
-| platform-config | Stub | 平台組態管理 |
-| referral | Stub | 推薦與邀請機制 |
-| search | Stub | 平台級搜尋能力 |
-| secret-management | Stub | 憑證與 token 生命週期治理 |
-| security-policy | Stub | 安全策略管理 |
-| subscription | Stub | 訂閱與方案管理 |
-| support | Stub | 客戶支援管理 |
-| tenant | Stub | 多租戶隔離與 tenant-scoped 規則 |
-| workflow | Stub | 平台級工作流引擎 |
+interface ShellGlobalSearchDialogProps {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+}
 
-## Dependency Direction
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
 
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
+export function ShellGlobalSearchDialog({ open, onOpenChange }: ShellGlobalSearchDialogProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-- `api/` is the only cross-module public boundary.
-- Domain must not import infrastructure, interfaces, or external frameworks.
-- Cross-module collaboration goes through `api/` only.
+  const pathSegments = pathname.split("/").filter(Boolean);
+  const pathAccountId =
+    pathSegments.length > 0 && !NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(pathSegments[0])
+      ? decodeURIComponent(pathSegments[0])
+      : null;
 
-## Strategic Documentation
+  const pathWorkspaceId =
+    pathSegments.length > 1 && pathAccountId && !["organization", "settings", "dev-tools"].includes(pathSegments[1])
+      ? decodeURIComponent(pathSegments[1])
+      : null;
 
-- [Context README](../../docs/contexts/platform/README.md)
-- [Subdomains](../../docs/contexts/platform/subdomains.md)
-- [Context Map](../../docs/contexts/platform/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/platform/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
+  const queryWorkspaceId = searchParams.get("workspaceId")?.trim() || null;
+  const activeWorkspaceId = pathWorkspaceId || queryWorkspaceId;
+
+  const commandItems = NAV_ITEMS.map((item) => ({
+    ...item,
+    href: buildShellContextualHref(item.href, {
+      accountId: pathAccountId,
+      workspaceId: activeWorkspaceId,
+    }),
+  }));
+
+  function handleSelect(href: string) {
+    onOpenChange(false);
+    router.push(href);
+  }
+
+  const groups = Array.from(new Set(commandItems.map((i) => i.group)));
+
+  return (
+    <CommandDialog
+      title="全域搜尋"
+      description="搜尋頁面或功能"
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <CommandInput placeholder="搜尋頁面或功能…" />
+      <CommandList>
+        <CommandEmpty>找不到結果。</CommandEmpty>
+        {groups.map((group) => (
+          <CommandGroup key={group} heading={group}>
+            {commandItems.filter((i) => i.group === group).map((item) => (
+              <CommandItem
+                key={item.href}
+                onSelect={() => handleSelect(item.href)}
+              >
+                {GROUP_ICONS[group]}
+                {item.label}
+                <CommandShortcut className="text-[10px] opacity-50">{item.href}</CommandShortcut>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ))}
+      </CommandList>
+    </CommandDialog>
+  );
+}
+
+/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
+export function useShellGlobalSearch() {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        setOpen((prev) => !prev);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  return { open, setOpen };
+}
 ````
 
 ## File: modules/platform/subdomains/access-control/api/index.ts
@@ -69938,80 +69492,1753 @@ export async function updateLegacyUserProfile(userId: string, input: UpdateProfi
 }
 ````
 
-## File: modules/platform/subdomains/account/interfaces/queries/account.queries.ts
+## File: modules/platform/subdomains/platform-config/application/index.ts
+````typescript
+// Purpose: Application layer for platform-config subdomain.
+
+export {
+	SHELL_ACCOUNT_SECTION_MATCHERS,
+	SHELL_ACCOUNT_NAV_ITEMS,
+	SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
+	SHELL_SECTION_LABELS,
+	SHELL_RAIL_CATALOG_ITEMS,
+	SHELL_CONTEXT_SECTION_CONFIG,
+	SHELL_MOBILE_NAV_ITEMS,
+	SHELL_ORG_PRIMARY_NAV_ITEMS,
+	SHELL_ORG_SECONDARY_NAV_ITEMS,
+	buildShellContextualHref,
+	normalizeShellRoutePath,
+	isExactOrChildPath,
+	listShellRailCatalogItems,
+	resolveShellBreadcrumbLabel,
+	resolveShellNavSection,
+	resolveShellPageTitle,
+	type ShellNavItem,
+	type ShellNavSection,
+	type ShellRailCatalogItem,
+	type ShellContextSectionConfig,
+	type ShellRouteContext,
+} from "./services/shell-navigation-catalog";
+````
+
+## File: modules/workspace/application/services/WorkspaceQueryApplicationService.ts
+````typescript
+import type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+} from "../../domain/entities/WikiContentTree";
+import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMemberView";
+import {
+  getWorkspaceByIdForAccount,
+  getWorkspaceById,
+  listWorkspacesForAccount,
+  subscribeToWorkspacesForAccount,
+} from "../queries/workspace.queries";
+import { fetchWorkspaceMembers } from "../../subdomains/membership/api";
+import { buildWikiContentTree } from "../queries/wiki-content-tree.queries";
+import type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
+import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
+import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
+import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
+
+interface WorkspaceQueryApplicationServiceDependencies {
+  workspaceRepo: WorkspaceRepository;
+  workspaceQueryRepo: WorkspaceQueryRepository;
+  wikiWorkspaceRepo: WikiWorkspaceRepository;
+}
+
+export class WorkspaceQueryApplicationService implements WorkspaceQueryPort {
+  constructor(
+    private readonly dependencies: WorkspaceQueryApplicationServiceDependencies,
+  ) {}
+
+  getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]> {
+    return listWorkspacesForAccount(this.dependencies.workspaceRepo, accountId);
+  }
+
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ) {
+    return subscribeToWorkspacesForAccount(
+      this.dependencies.workspaceQueryRepo,
+      accountId,
+      onUpdate,
+    );
+  }
+
+  getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null> {
+    return getWorkspaceById(this.dependencies.workspaceRepo, workspaceId);
+  }
+
+  getWorkspaceByIdForAccount(
+    accountId: string,
+    workspaceId: string,
+  ): Promise<WorkspaceEntity | null> {
+    return getWorkspaceByIdForAccount(this.dependencies.workspaceRepo, accountId, workspaceId);
+  }
+
+  getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
+    return fetchWorkspaceMembers(this.dependencies.workspaceQueryRepo, workspaceId);
+  }
+
+  buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {
+    return buildWikiContentTree(seeds, this.dependencies.wikiWorkspaceRepo);
+  }
+}
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewKnowledgePanels.tsx
+````typescript
+"use client";
+
+import { KnowledgeBaseArticlesRouteScreen, KnowledgeDatabasesRouteScreen, KnowledgePagesRouteScreen } from "@/modules/notion/api";
+import { LibrariesView, LibraryTableView } from "@/modules/notebooklm/api";
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { TabsContent } from "@ui-shadcn/ui/tabs";
+
+interface WorkspaceOverviewKnowledgePanelsProps {
+  readonly workspace: WorkspaceEntity;
+  readonly currentUserId?: string | null;
+}
+
+export function WorkspaceOverviewKnowledgePanels({
+  workspace,
+  currentUserId,
+}: WorkspaceOverviewKnowledgePanelsProps) {
+  return (
+    <>
+      <TabsContent value="knowledge-pages" className="mt-4 space-y-4">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardTitle>Knowledge Pages</CardTitle>
+            <CardDescription>
+              Workspace orchestration surface for notion knowledge page tree and page entry flow.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <KnowledgePagesRouteScreen
+              accountId={workspace.accountId}
+              workspaceId={workspace.id}
+              currentUserId={currentUserId}
+            />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="knowledge-base-articles" className="mt-4 space-y-4">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardTitle>Knowledge Base Articles</CardTitle>
+            <CardDescription>
+              Workspace orchestration surface for notion authoring article lifecycle and categorization.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <KnowledgeBaseArticlesRouteScreen
+              accountId={workspace.accountId}
+              workspaceId={workspace.id}
+              currentUserId={currentUserId}
+            />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="knowledge-databases" className="mt-4 space-y-4">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardTitle>Knowledge Databases</CardTitle>
+            <CardDescription>
+              Workspace orchestration surface for notion structured database views.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <KnowledgeDatabasesRouteScreen
+              accountId={workspace.accountId}
+              workspaceId={workspace.id}
+              currentUserId={currentUserId}
+            />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="source-libraries" className="mt-4 space-y-4">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardTitle>Source Libraries</CardTitle>
+            <CardDescription>
+              Workspace orchestration surface for notebooklm source libraries.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <LibraryTableView accountId={workspace.accountId} workspaceId={workspace.id} />
+            <LibrariesView accountId={workspace.accountId} workspaceId={workspace.id} />
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
+````typescript
+"use client";
+
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Separator } from "@ui-shadcn/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+import { describeGrant } from "../../view-models/workspace-grants";
+import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
+import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
+import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
+import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
+import { WorkspaceOverviewKnowledgePanels } from "./WorkspaceOverviewKnowledgePanels";
+
+interface WorkspaceOverviewTabProps {
+  readonly workspace: WorkspaceEntity;
+  readonly activeWorkspaceId: string | null | undefined;
+  readonly currentUserId?: string | null;
+  readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
+  readonly addressLines: string[];
+  readonly initialPanel?: string;
+  readonly onEditClick: () => void;
+  readonly onSetActiveWorkspace: () => void;
+}
+
+type WorkspaceOverviewSurface =
+  | "home"
+  | "knowledge-pages"
+  | "knowledge-base-articles"
+  | "knowledge-databases"
+  | "source-libraries"
+  | "governance"
+  | "profile";
+
+function resolveWorkspaceOverviewSurface(panel?: string): WorkspaceOverviewSurface {
+  switch (panel) {
+    case "knowledge-pages":
+    case "knowledge-base-articles":
+    case "knowledge-databases":
+    case "source-libraries":
+      return panel;
+    case "governance":
+    case "profile":
+      return panel;
+    default:
+      return "home";
+  }
+}
+
+export function WorkspaceOverviewTab({
+  workspace,
+  activeWorkspaceId,
+  currentUserId,
+  personnelEntries,
+  addressLines,
+  initialPanel,
+  onEditClick,
+  onSetActiveWorkspace,
+}: WorkspaceOverviewTabProps) {
+  if (initialPanel === "settings") {
+    return (
+      <WorkspaceOverviewSettingsTab
+        workspace={workspace}
+        personnelEntries={personnelEntries}
+        addressLines={addressLines}
+        onEditClick={onEditClick}
+      />
+    );
+  }
+
+  const initialSurface = resolveWorkspaceOverviewSurface(initialPanel);
+
+  return (
+    <Tabs defaultValue={initialSurface} className="space-y-4">
+      <div className="rounded-2xl border border-border/50 bg-card/70 p-3 shadow-sm">
+        <TabsList
+          variant="line"
+          className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b border-border/60 bg-transparent p-0"
+        >
+          <TabsTrigger value="home" className="min-w-fit px-3 py-2">
+            Home
+          </TabsTrigger>
+          <TabsTrigger value="knowledge-pages" className="min-w-fit px-3 py-2">
+            Pages
+          </TabsTrigger>
+          <TabsTrigger value="knowledge-base-articles" className="min-w-fit px-3 py-2">
+            Articles
+          </TabsTrigger>
+          <TabsTrigger value="knowledge-databases" className="min-w-fit px-3 py-2">
+            Databases
+          </TabsTrigger>
+          <TabsTrigger value="source-libraries" className="min-w-fit px-3 py-2">
+            Libraries
+          </TabsTrigger>
+          <TabsTrigger value="governance" className="min-w-fit px-3 py-2">
+            Governance
+          </TabsTrigger>
+          <TabsTrigger value="profile" className="min-w-fit px-3 py-2">
+            Profile
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="home" className="mt-4 space-y-4">
+          <WorkspaceOverviewSummaryCard
+            workspace={workspace}
+            activeWorkspaceId={activeWorkspaceId}
+            onEditClick={onEditClick}
+            onSetActiveWorkspace={onSetActiveWorkspace}
+          />
+
+          <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+            <WorkspaceProductSpineCard workspace={workspace} />
+
+            <Card className="border border-border/50">
+              <CardHeader>
+                <CardTitle>Capabilities</CardTitle>
+                <CardDescription>
+                  Runtime features currently mounted on this workspace.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {workspace.capabilities.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No capability bindings have been added yet.
+                  </p>
+                ) : (
+                  workspace.capabilities.map((capability) => (
+                    <div
+                      key={capability.id}
+                      className="rounded-xl border border-border/40 px-4 py-4"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">
+                          {capability.name}
+                        </p>
+                        <Badge variant="outline">{capability.type}</Badge>
+                        <Badge
+                          variant={capability.status === "stable" ? "secondary" : "outline"}
+                        >
+                          {capability.status}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {capability.description}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {workspace.lifecycleState === "preparatory" && workspace.capabilities.length === 0 && (
+            <WorkspaceQuickstartCard workspaceId={workspace.id} />
+          )}
+        </TabsContent>
+
+        <WorkspaceOverviewKnowledgePanels workspace={workspace} currentUserId={currentUserId} />
+
+        <TabsContent value="governance" className="mt-4 space-y-4">
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Card className="border border-border/50">
+              <CardHeader>
+                <CardTitle>Access Model</CardTitle>
+                <CardDescription>
+                  Team scopes and direct grants applied to this workspace.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">Team access</p>
+                  {workspace.teamIds.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No team access assigned.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {workspace.teamIds.map((teamId) => (
+                        <Badge key={teamId} variant="secondary">
+                          {teamId}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">Direct grants</p>
+                  {workspace.grants.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No direct grants recorded.</p>
+                  ) : (
+                    workspace.grants.map((grant, index) => (
+                      <div
+                        key={`grant-${grant.role}-${grant.teamId ?? "none"}-${grant.userId ?? "none"}-${grant.protocol ?? "none"}-${index}`}
+                        className="rounded-xl border border-border/40 px-4 py-3"
+                      >
+                        <p className="text-sm font-medium text-foreground">
+                          {describeGrant(grant)}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Role: {grant.role}
+                          {grant.teamId ? ` · Team: ${grant.teamId}` : ""}
+                          {grant.userId ? ` · User: ${grant.userId}` : ""}
+                          {grant.protocol ? ` · Protocol: ${grant.protocol}` : ""}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-border/50">
+              <CardHeader>
+                <CardTitle>Locations</CardTitle>
+                <CardDescription>
+                  Physical or logical locations linked to the workspace.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {workspace.locations == null || workspace.locations.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No locations have been configured yet.
+                  </p>
+                ) : (
+                  workspace.locations.map((location) => (
+                    <div
+                      key={location.locationId}
+                      className="rounded-xl border border-border/40 px-4 py-4"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">
+                          {location.label}
+                        </p>
+                        <Badge variant="outline">{location.locationId}</Badge>
+                      </div>
+                      {location.description && (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {location.description}
+                        </p>
+                      )}
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Capacity: {location.capacity ?? "—"}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="profile" className="mt-4 space-y-4">
+          <Card className="border border-border/50">
+            <CardHeader>
+              <CardTitle>Workspace Profile</CardTitle>
+              <CardDescription>
+                Operational contacts and registered workspace address.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Personnel</p>
+                {personnelEntries.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No personnel roles assigned.
+                  </p>
+                ) : (
+                  personnelEntries.map((entry) => (
+                    <div
+                      key={entry.label}
+                      className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3 text-sm"
+                    >
+                      <span className="text-muted-foreground">{entry.label}</span>
+                      <span className="font-medium text-foreground">{entry.value}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Address</p>
+                {addressLines.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No address information has been provided.
+                  </p>
+                ) : (
+                  <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
+                    {addressLines.map((line, index) => (
+                      <p key={`${line}-${index}`}>{line}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+      </div>
+    </Tabs>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/navigation/workspace-nav-items.ts
 ````typescript
 /**
- * Account Read Queries — thin wrappers over the AccountQueryRepository port.
- * NOT Server Actions — callable from React components/hooks directly.
+ * workspace-nav-items.ts
+ *
+ * Catalog of workspace sidebar tab entries owned by the workspace BC.
+ * Consumers read this catalog; they do not define it.
  */
 
-import { createAccountQueryRepository } from "../../api";
-import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
-import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dtos/account.dto";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabsInSidebarOrder,
+  type WorkspaceTabValue,
+} from "./workspace-tabs";
 
-let _accountQueryRepo: AccountQueryRepository | undefined;
-
-function getAccountQueryRepo(): AccountQueryRepository {
-  if (!_accountQueryRepo) _accountQueryRepo = createAccountQueryRepository();
-  return _accountQueryRepo;
+export interface WorkspaceNavItem {
+  id: string;
+  tabKey: WorkspaceTabValue;
+  fallbackLabel: string;
 }
 
-export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
-  return getAccountQueryRepo().getUserProfile(userId);
+export const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = getWorkspaceTabsInSidebarOrder().map((tabKey) => ({
+  id: getWorkspaceTabPrefId(tabKey),
+  tabKey,
+  fallbackLabel: getWorkspaceTabLabel(tabKey),
+}));
+
+const VALID_WORKSPACE_ORDER_IDS = new Set(WORKSPACE_NAV_ITEMS.map((item) => item.id));
+const DEFAULT_WORKSPACE_ORDER = WORKSPACE_NAV_ITEMS.map((item) => item.id);
+
+export function normalizeWorkspaceOrder(order: unknown): string[] {
+  const fallback = DEFAULT_WORKSPACE_ORDER;
+  if (!Array.isArray(order)) return fallback;
+  const validOrder = order
+    .filter((id): id is string => typeof id === "string")
+    .filter((id) => VALID_WORKSPACE_ORDER_IDS.has(id));
+  const deduped = Array.from(new Set(validOrder));
+  for (const id of fallback) {
+    if (!deduped.includes(id)) deduped.push(id);
+  }
+  return deduped;
+}
+````
+
+## File: modules/notebooklm/AGENT.md
+````markdown
+# NotebookLM Agent
+
+> Strategic agent documentation: [docs/contexts/notebooklm/AGENT.md](../../docs/contexts/notebooklm/AGENT.md)
+
+## Mission
+
+保護 notebooklm 主域作為對話、來源處理與推理輸出的邊界。notebooklm 擁有衍生推理流程，不擁有正典知識內容。任何變更都應維持 notebooklm 擁有對話生命週期、來源管理與 RAG pipeline 語言，而不是吸收平台治理或正典知識語言。
+
+## Bounded Context Summary
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 對話、來源處理與推理輸出 |
+| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact reference） |
+| Downstream | 無固定主域級下游；輸出可被其他主域吸收 |
+| Core invariant | notebooklm 只能持有衍生推理輸出，不得直接修改 notion 的正典內容 |
+| Published language | Notebook reference、Conversation reference、SourceReference、GroundedAnswer |
+
+## Bounded Contexts
+
+| Cluster | Subdomains | Responsibility |
+|---------|------------|----------------|
+| Interaction Core | notebook, conversation | 對話容器與互動生命週期 |
+| Source & RAG Pipeline | source, synthesis | 來源管理與完整 RAG pipeline（retrieval → grounding → synthesis → evaluation） |
+
+## Route Here When
+
+- 問題核心是 notebook、conversation、source、synthesis（RAG pipeline）。
+- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
+- 問題要把知識來源（notion artifact、uploaded file）轉成可對話與可綜合的推理材料。
+- 問題涉及 RAG 問答、向量檢索、chunks 召回、generation 品質。
+- 問題涉及 evaluation、品質評估、回歸比較或 grounding 可信度。
+
+## Route Elsewhere When
+
+- 正典知識頁面、文章、分類、正式發布屬於 notion。
+- 身份、授權、權益、憑證治理屬於 platform。
+- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
+- 工作區生命週期、成員管理、共享範圍屬於 workspace。
+
+## Subdomains
+
+| Subdomain | Purpose | Key Aggregates / Entities |
+|-----------|---------|---------------------------|
+| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
+| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration, NotebookRepository |
+| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary, SourceRetentionPolicy |
+| synthesis | 完整 RAG pipeline：retrieval、grounding、synthesis、evaluation | AnswerRagQueryUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
+
+### Future Split Triggers
+
+`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
+
+| Facet | Split Trigger |
+|-------|---------------|
+| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
+| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
+| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
+| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
+
+### Domain Invariants
+
+- notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
+- shared AI capability 由 platform.ai 提供；notebooklm 在 synthesis 擁有 retrieval、grounding、generation、evaluation 的本地語義。
+- grounding 應能把輸出對齊到來源證據。
+- retrieval 是 generation 的上游能力。
+- evaluation 應描述品質，而不是單純使用量。
+- 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
+
+## Ubiquitous Language
+
+| Term | Meaning | Owning Subdomain | Do Not Use |
+|------|---------|------------------|------------|
+| Notebook | 聚合對話、來源與衍生筆記的工作單位 | notebook | Project, Workspace |
+| AgentGeneration | GenKit 代理回應生成 | notebook | - |
+| Conversation | Notebook 內的對話執行邊界 | conversation | Chat, Session |
+| Thread | 一段對話的容器 | conversation | - |
+| Message | 一則輸入或輸出對話項 | conversation | Turn, Exchange |
+| Source | 被引用與推理的來源材料 | source | File, Document (generic) |
+| SourceFile | 使用者上傳的原始檔案 | source | - |
+| RagDocument | 來源文件在 RAG pipeline 中的表示 | source | - |
+| WikiLibrary | 結構化知識來源庫 | source | - |
+| Ingestion | 來源匯入、正規化與前處理流程 | source | File Import, Upload |
+| Retrieval | 從來源中召回候選片段的查詢能力 | synthesis | Search, Lookup |
+| Grounding | 把輸出對齊到來源證據的能力 | synthesis | Verification, Factcheck |
+| Citation | 輸出指回來源證據的引用關係 | synthesis | Reference, Link |
+| Synthesis | 綜合多來源後生成的衍生輸出 | synthesis | Answer, Response (generic) |
+| Evaluation | 對輸出品質、回歸結果與效果的評估 | synthesis | Analytics, Metrics (generic) |
+| RelevanceScore | 檢索結果的相關性分數 | synthesis | - |
+
+### Avoid
+
+| Avoid | Use Instead |
+|-------|-------------|
+| Chat | Conversation |
+| File Import | Ingestion |
+| Search Step | Retrieval |
+| Verified Answer | Grounded Synthesis |
+| Knowledge / Wiki | Synthesis output（正典知識屬 notion） |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+api/ ← 唯一跨模組入口
+```
+
+## Development Order (Domain-First)
+
+1. Define Domain (entities, value objects, aggregates, events)
+2. Define Application (use cases, DTOs)
+3. Define Ports (only if boundary isolation needed)
+4. Implement Infrastructure (adapters, persistence)
+5. Implement Interfaces (UI, actions, hooks)
+````
+
+## File: modules/notebooklm/api/index.ts
+````typescript
+/**
+ * modules/notebooklm — public API barrel.
+ */
+
+export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation/api";
+
+export type {
+  NotebookResponse,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+  NotebookRepository,
+} from "../subdomains/notebook/api";
+
+export { generateNotebookResponse } from "../subdomains/notebook/api";
+export { saveThread, loadThread } from "../subdomains/conversation/api";
+
+// ---------------------------------------------------------------------------
+// NotebookLM root interfaces — Q&A UI
+// ---------------------------------------------------------------------------
+export { RagQueryView } from "../interfaces/components/RagQueryView";
+
+// ---------------------------------------------------------------------------
+// Source subdomain — types, hooks, and UI (replaces @/modules/source/api)
+// ---------------------------------------------------------------------------
+
+export type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  WikiLibrarySnapshot,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../subdomains/source/api";
+
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../subdomains/source/api";
+
+export {
+  useSourceDocumentsSnapshot,
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../subdomains/source/api";
+
+export {
+  listWikiLibraries,
+  createWikiLibrary,
+  addWikiLibraryField,
+  createWikiLibraryRow,
+  getWikiLibrarySnapshot,
+} from "../subdomains/source/api";
+
+export {
+  SourceDocumentsView,
+  WorkspaceFilesTab,
+  LibrariesView,
+  LibraryTableView,
+  FileProcessingDialog,
+} from "../subdomains/source/api";
+
+// ---------------------------------------------------------------------------
+// conversation subdomain — AI chat UI and helpers
+// ---------------------------------------------------------------------------
+
+export { AiChatPage } from "../subdomains/conversation/api";
+export type { AiChatPageProps, ChatMessage } from "../subdomains/conversation/api";
+
+// ---------------------------------------------------------------------------
+// Context-wide published language (cross-module reference types)
+// ---------------------------------------------------------------------------
+
+export type {
+  NotebookReference,
+  SourceReference,
+  ConversationReference,
+} from "../domain/published-language";
+
+export type { NotebookLmDomainEvent } from "../domain/events";
+
+// ---------------------------------------------------------------------------
+// Synthesis subdomain — complete RAG pipeline
+// (retrieval → grounding → synthesis → evaluation)
+// ---------------------------------------------------------------------------
+
+export type {
+  RetrievedChunk,
+  RetrievalSummary,
+  RetrieveChunksInput,
+  IChunkRetrievalPort,
+  RetrievalCompletedEvent,
+  RetrievalFailedEvent,
+} from "../subdomains/synthesis/api";
+
+export type {
+  Citation,
+  GroundingEvidence,
+  CitationBuilderInput,
+  ICitationBuilder,
+  GroundingCompletedEvent,
+} from "../subdomains/synthesis/api";
+
+export type {
+  GenerationCitation,
+  GenerateAnswerInput,
+  GenerateAnswerOutput,
+  GenerateAnswerResult,
+  IGenerationPort,
+  SynthesisCompletedEvent,
+  SynthesisFailedEvent,
+} from "../subdomains/synthesis/api";
+
+export type {
+  FeedbackRating,
+  QualityFeedback,
+  SubmitFeedbackInput,
+  IFeedbackPort,
+  FeedbackSubmittedEvent,
+} from "../subdomains/synthesis/api";
+````
+
+## File: modules/notebooklm/README.md
+````markdown
+# NotebookLM
+
+對話、來源處理與推理主域
+
+## Bounded Context
+
+| Aspect | Description |
+|--------|-------------|
+| Primary role | 對話、來源處理、檢索與推理輸出 |
+| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact, attachment reference） |
+| Downstream | 無固定主域級下游；GroundedAnswer 可被其他主域消費 |
+| Core principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
+| Cross-module boundary | `api/` only — no direct import of notion/platform/workspace internals |
+
+## Ubiquitous Language
+
+| Term | Meaning |
+|------|---------|
+| Notebook | 聚合對話、來源與衍生筆記的工作單位 |
+| Conversation | Notebook 內的對話執行邊界（Thread + Messages） |
+| Message | 一則輸入或輸出對話項 |
+| Source | 被引用與推理的來源材料 |
+| Ingestion | 來源匯入、正規化與前處理流程（TypeScript 側協調 py_fn） |
+| Retrieval | 從來源中召回候選 Chunk 的查詢能力（向量搜尋） |
+| Grounding | 把輸出對齊到來源證據、建立 Citation 的能力 |
+| Citation | 輸出指回來源證據的引用關係 |
+| Synthesis | 綜合多來源後生成的衍生輸出（RAG generation） |
+| Evaluation | 對輸出品質、feedback 與回歸結果的評估 |
+
+## Implementation Structure
+
+```text
+modules/notebooklm/
+├── api/              # Public API boundary — cross-module entry point only
+├── application/      # Context-wide orchestration (empty, use subdomain layers)
+├── domain/           # Context-wide domain concepts (events, published-language)
+├── infrastructure/   # Context-wide driven adapters (empty, use subdomain layers)
+├── interfaces/       # Context-wide driving adapters (RagQueryView composition)
+├── docs/             # Links to strategic documentation
+└── subdomains/
+    ├── conversation/  # Tier 1 — 對話 Thread 與 Message
+    ├── notebook/      # Tier 1 — Notebook 容器與 GenKit 生成
+    ├── source/        # Tier 1 — 來源文件與 ingestion 編排
+    └── synthesis/     # Tier 1 — 完整 RAG pipeline（retrieval → grounding → synthesis → evaluation）
+```
+
+## Subdomains
+
+| Subdomain | Purpose | Key Aggregates / Entities |
+|-----------|---------|--------------------------|
+| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
+| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration |
+| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary |
+| synthesis | 完整 RAG pipeline：retrieval、grounding、answer generation、evaluation/feedback | AnswerRagQueryUseCase, SubmitRagQueryFeedbackUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
+
+### Future Split Triggers
+
+`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
+
+| Facet | Split Trigger |
+|-------|---------------|
+| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
+| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
+| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
+| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+- `api/` is the only cross-module public boundary.
+- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
+- Cross-module collaboration goes through `api/` only.
+
+## Strategic Documentation
+
+- [Context README](../../docs/contexts/notebooklm/README.md)
+- [Subdomains](../../docs/contexts/notebooklm/subdomains.md)
+- [Bounded Context](../../docs/contexts/notebooklm/bounded-contexts.md)
+- [Context Map](../../docs/contexts/notebooklm/context-map.md)
+- [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
+- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
+````
+
+## File: modules/notion/subdomains/authoring/interfaces/components/KnowledgeBaseArticlesRouteScreen.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
+
+import { useAuth } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
+import { getArticles, getCategories } from "../queries";
+import { ArticleDialog } from "./ArticleDialog";
+import { CategoryTreePanel } from "./CategoryTreePanel";
+
+const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  draft: { label: "草稿", variant: "outline" },
+  published: { label: "已發佈", variant: "default" },
+  archived: { label: "已封存", variant: "secondary" },
+};
+
+const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
+  verified: { label: "已驗證", icon: BadgeCheck },
+  needs_review: { label: "待審查", icon: FileClock },
+  unverified: { label: "未驗證", icon: CircleDot },
+};
+
+/**
+ * KnowledgeBaseArticlesRouteScreen
+ * Route-level screen component for /knowledge-base/articles.
+ * Encapsulates data-loading, filtering and layout so the Next.js route
+ * file stays thin (params/context wiring only).
+ */
+export interface KnowledgeBaseArticlesRouteScreenProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
 }
 
-export function subscribeToUserProfile(
-  userId: string,
-  onUpdate: (profile: AccountEntity | null) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
+export function KnowledgeBaseArticlesRouteScreen({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: KnowledgeBaseArticlesRouteScreenProps) {
+  const router = useRouter();
+  const { state: authState } = useAuth();
+
+  const resolvedAccountId = accountId.trim();
+  const resolvedWorkspaceId = workspaceId.trim();
+  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
+  const workspaceBasePath =
+    resolvedAccountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
+      : resolvedAccountId
+        ? `/${encodeURIComponent(resolvedAccountId)}`
+        : "/";
+  const overviewHref = resolvedWorkspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
+    : resolvedAccountId
+      ? `/${encodeURIComponent(resolvedAccountId)}`
+      : "/";
+
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!resolvedAccountId || !resolvedWorkspaceId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const [arts, cats] = await Promise.all([
+        getArticles({ accountId: resolvedAccountId, workspaceId: resolvedWorkspaceId }),
+        getCategories(resolvedAccountId, resolvedWorkspaceId),
+      ]);
+      setArticles(arts);
+      setCategories(cats);
+    } finally {
+      setLoading(false);
+    }
+  }, [resolvedAccountId, resolvedWorkspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filteredArticles = useMemo(() => {
+    if (!selectedCategoryId) return articles;
+    const cat = categories.find((c) => c.id === selectedCategoryId);
+    if (!cat) return articles;
+    return articles.filter((a) => cat.articleIds.includes(a.id));
+  }, [articles, categories, selectedCategoryId]);
+
+  function handleSuccess(articleId?: string) {
+    if (articleId) {
+      if (resolvedAccountId && resolvedWorkspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
+        );
+      } else {
+        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
+      }
+    } else {
+      load();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
+        <p className="text-sm text-muted-foreground">
+          組織知識庫的 SOP 文章、通用文件與驗證管治。
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!resolvedAccountId || !resolvedWorkspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增文章
+        </Button>
+      </div>
+
+      <ArticleDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={resolvedAccountId}
+        workspaceId={resolvedWorkspaceId}
+        currentUserId={resolvedCurrentUserId}
+        categories={categories}
+        onSuccess={handleSuccess}
+      />
+
+      {!resolvedAccountId || !resolvedWorkspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="flex gap-4">
+          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
+          <div className="grid flex-1 gap-3 sm:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-4">
+          <CategoryTreePanel
+            categories={categories}
+            selectedId={selectedCategoryId}
+            onSelect={setSelectedCategoryId}
+          />
+
+          <div className="flex-1">
+            {filteredArticles.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {filteredArticles.map((article) => {
+                  const status = STATUS_CONFIG[article.status];
+                  const veri = VERIFICATION_CONFIG[article.verificationState];
+                  const VeriIcon = veri.icon;
+                  return (
+                    <Card
+                      key={article.id}
+                      className="cursor-pointer hover:bg-muted/10 transition-colors"
+                      onClick={() => handleSuccess(article.id)}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
+                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <VeriIcon className="h-3 w-3" />
+                          <span>{veri.label}</span>
+                        </div>
+                        {article.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {article.tags.slice(0, 3).map((tag) => (
+                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground/70">
+                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/subdomains/database/interfaces/components/KnowledgeDatabasesRouteScreen.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Table2 } from "lucide-react";
+
+import { useAuth } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { DatabaseSnapshot as Database } from "../../application/dto/database.dto";
+import { getDatabases } from "../queries";
+import { DatabaseDialog } from "./DatabaseDialog";
+
+/**
+ * KnowledgeDatabasesRouteScreen
+ * Route-level screen component for /knowledge-database/databases.
+ * Encapsulates data-loading and layout so the Next.js route file stays thin.
+ */
+export interface KnowledgeDatabasesRouteScreenProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
 }
 
-export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
-  return getAccountQueryRepo().getWalletBalance(accountId);
+export function KnowledgeDatabasesRouteScreen({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: KnowledgeDatabasesRouteScreenProps) {
+  const router = useRouter();
+  const { state: authState } = useAuth();
+
+  const resolvedAccountId = accountId.trim();
+  const resolvedWorkspaceId = workspaceId.trim();
+  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
+  const workspaceBasePath =
+    resolvedAccountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
+      : resolvedAccountId
+        ? `/${encodeURIComponent(resolvedAccountId)}`
+        : "/";
+  const overviewHref = resolvedWorkspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-databases`
+    : resolvedAccountId
+      ? `/${encodeURIComponent(resolvedAccountId)}`
+      : "/";
+
+  const [databases, setDatabases] = useState<Database[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!resolvedAccountId || !resolvedWorkspaceId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const data = await getDatabases(resolvedAccountId, resolvedWorkspaceId);
+      setDatabases(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [resolvedAccountId, resolvedWorkspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handleSuccess(databaseId?: string) {
+    if (databaseId) {
+      if (resolvedAccountId && resolvedWorkspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}`,
+        );
+      } else {
+        router.push(resolvedAccountId ? `/${encodeURIComponent(resolvedAccountId)}` : "/");
+      }
+    } else {
+      load();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
+        <p className="text-sm text-muted-foreground">
+          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!resolvedAccountId || !resolvedWorkspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增資料庫
+        </Button>
+      </div>
+
+      <DatabaseDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={resolvedAccountId}
+        workspaceId={resolvedWorkspaceId}
+        currentUserId={resolvedCurrentUserId}
+        onSuccess={handleSuccess}
+      />
+
+      {!resolvedAccountId || !resolvedWorkspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : databases.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+          <Table2 className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {databases.map((db) => (
+            <Card
+              key={db.id}
+              className="cursor-pointer hover:bg-muted/10 transition-colors"
+              onClick={() => handleSuccess(db.id)}
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-start gap-2">
+                  {db.icon ? (
+                    <span className="text-lg leading-none">{db.icon}</span>
+                  ) : (
+                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {db.description && (
+                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
+                )}
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
+                  <span>{db.fields.length} 個欄位</span>
+                  <span>·</span>
+                  <span>{db.viewIds.length} 個視圖</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/50">
+                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePagesRouteScreen.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { useAuth } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { KnowledgePageTreeNode } from "../../application/dto/knowledge.dto";
+import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
+import { PageTreeView } from "./PageTreeView";
+
+/**
+ * KnowledgePagesRouteScreen
+ * Route-level screen component for /knowledge/pages.
+ * Encapsulates data-loading, scope resolution and layout so that the
+ * Next.js route file stays thin (params/context wiring only).
+ */
+export interface KnowledgePagesRouteScreenProps {
+  readonly accountId: string;
+  readonly workspaceId?: string | null;
+  readonly currentUserId?: string | null;
+  readonly scope?: "workspace" | "account";
 }
 
-export function subscribeToWalletBalance(
-  accountId: string,
-  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToWalletBalance(accountId, onUpdate);
+export function KnowledgePagesRouteScreen({
+  accountId,
+  workspaceId,
+  currentUserId,
+  scope,
+}: KnowledgePagesRouteScreenProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { state: authState } = useAuth();
+
+  const resolvedAccountId = accountId.trim();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+  const scopeParam = scope ?? searchParams.get("scope")?.trim() ?? "";
+  const isAccountSummary = scopeParam === "account";
+  const resolvedWorkspaceId = isAccountSummary ? "" : workspaceId?.trim() || requestedWorkspaceId || "";
+  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
+  const workspaceBasePath =
+    resolvedAccountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
+      : resolvedAccountId
+        ? `/${encodeURIComponent(resolvedAccountId)}`
+        : "/";
+  const overviewHref = resolvedWorkspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
+    : resolvedAccountId
+      ? `/${encodeURIComponent(resolvedAccountId)}`
+      : "/";
+
+  function buildPageDetailHref(pageId: string) {
+    if (resolvedAccountId && resolvedWorkspaceId) {
+      return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
+    }
+    return `/knowledge/pages/${encodeURIComponent(pageId)}${
+      resolvedWorkspaceId ? `?workspaceId=${encodeURIComponent(resolvedWorkspaceId)}` : ""
+    }`;
+  }
+
+  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!resolvedAccountId) {
+      setLoading(false);
+      return;
+    }
+    if (!isAccountSummary && !resolvedWorkspaceId) {
+      setNodes([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const tree = isAccountSummary
+        ? await getKnowledgePageTree(resolvedAccountId)
+        : await getKnowledgePageTreeByWorkspace(resolvedAccountId, resolvedWorkspaceId);
+      setNodes(tree);
+    } finally {
+      setLoading(false);
+    }
+  }, [resolvedAccountId, isAccountSummary, resolvedWorkspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
+            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
+          </Badge>
+          <p className="text-sm text-muted-foreground">
+            {isAccountSummary
+              ? "這是顯式 account summary mode。僅用於跨工作區總覽，預設不在此建立新頁面。"
+              : "知識頁面階層樹預設綁定目前工作區。點選頁面進入內容編輯器。"}
+          </p>
+        </div>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+      </div>
+
+      {!resolvedAccountId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號情境，請先登入。
+        </p>
+      ) : !isAccountSummary && !resolvedWorkspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未選定工作區。請先從工作區進入知識頁面，或在網址帶入 workspaceId 後再查看頁面樹。
+        </p>
+      ) : loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
+          ))}
+        </div>
+      ) : (
+        <PageTreeView
+          nodes={nodes}
+          accountId={resolvedAccountId}
+          workspaceId={resolvedWorkspaceId || undefined}
+          currentUserId={resolvedCurrentUserId}
+          allowCreate={!isAccountSummary && Boolean(resolvedWorkspaceId)}
+          emptyStateDescription={
+            isAccountSummary
+              ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"
+              : "這個工作區尚無頁面。點擊「新增頁面」開始建立。"
+          }
+          onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
+          onCreated={() => load()}
+        />
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/platform/application/use-cases/index.ts
+````typescript
+/**
+ * platform application use-cases barrel.
+ *
+ * Each file follows the kebab-case convention: verb-noun.use-cases.ts
+ *
+ * Commands:
+ *   register-platform-context
+ *   publish-policy-catalog
+ *   apply-configuration-profile
+ *   register-integration-contract
+ *   activate-subscription-agreement
+ *   fire-workflow-trigger
+ *   request-notification-dispatch
+ *   record-audit-signal
+ *   emit-observability-signal
+ *
+ * Queries:
+ *   get-platform-context-view
+ *   list-enabled-capabilities
+ *   get-policy-catalog-view
+ *   get-subscription-entitlements
+ *   get-workflow-policy-view
+ */
+
+export { RegisterPlatformContextUseCase } from "./register-platform-context.use-cases";
+export { PublishPolicyCatalogUseCase } from "./publish-policy-catalog.use-cases";
+export { ApplyConfigurationProfileUseCase } from "./apply-configuration-profile.use-cases";
+export { RegisterIntegrationContractUseCase } from "./register-integration-contract.use-cases";
+export { ActivateSubscriptionAgreementUseCase } from "./activate-subscription-agreement.use-cases";
+export { FireWorkflowTriggerUseCase } from "./fire-workflow-trigger.use-cases";
+export { RequestNotificationDispatchUseCase } from "./request-notification-dispatch.use-cases";
+export { RecordAuditSignalUseCase } from "./record-audit-signal.use-cases";
+export { EmitObservabilitySignalUseCase } from "./emit-observability-signal.use-cases";
+export { GetPlatformContextViewUseCase } from "../queries/get-platform-context-view.queries";
+export { ListEnabledCapabilitiesUseCase } from "../queries/list-enabled-capabilities.queries";
+export { GetPolicyCatalogViewUseCase } from "../queries/get-policy-catalog-view.queries";
+export { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-entitlements.queries";
+export { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
+````
+
+## File: modules/platform/subdomains/access-control/application/services/shell-account-access.ts
+````typescript
+export interface ShellAccountActor {
+  readonly id: string;
+  readonly accountType?: string;
 }
 
-export function subscribeToWalletTransactions(
-  accountId: string,
-  maxCount: number,
-  onUpdate: (txs: WalletTransaction[]) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToWalletTransactions(accountId, maxCount, onUpdate);
+export function isOrganizationActor(
+  account: ShellAccountActor | null | undefined,
+): account is ShellAccountActor & { accountType: "organization" } {
+  return account?.accountType === "organization";
 }
 
-export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
-  return getAccountQueryRepo().getAccountRole(accountId);
+/**
+ * Type-narrowing guard for ActiveAccount (union of AccountEntity | AuthUser).
+ * Returns true when the active account is an organization account.
+ */
+export function isActiveOrganizationAccount(
+  activeAccount: { id: string; accountType?: string } | null,
+): activeAccount is { id: string; accountType: "organization" } & Record<string, unknown> {
+  return isOrganizationActor(activeAccount);
 }
 
-export function subscribeToAccountRoles(
-  accountId: string,
-  onUpdate: (record: AccountRoleRecord | null) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToAccountRoles(accountId, onUpdate);
+/**
+ * Keep shell fallback behavior centralized so route access rules are not
+ * duplicated across layout components.
+ */
+export function resolveOrganizationRouteFallback(
+  pathname: string,
+  account: ShellAccountActor | null | undefined,
+): string | null {
+  if (!account) {
+    return null;
+  }
+
+  const segments = pathname.split("/").filter(Boolean);
+  const isLegacyOrganizationPath = segments[0] === "organization";
+  const isAccountScopedOrganizationPath =
+    segments.length >= 2 && segments[1] === "organization";
+
+  if ((isLegacyOrganizationPath || isAccountScopedOrganizationPath) && !isOrganizationActor(account)) {
+    return `/${encodeURIComponent(account.id)}`;
+  }
+
+  return null;
+}
+````
+
+## File: modules/platform/subdomains/account-profile/domain/index.ts
+````typescript
+export {
+	AccountProfileIdSchema,
+	AccountProfileSchema,
+	createAccountProfile,
+	createAccountProfileId,
+	createUpdateAccountProfileInput,
+} from "./entities/AccountProfile";
+export type {
+	AccountProfile,
+	AccountProfileId,
+	AccountProfileTheme,
+	UpdateAccountProfileInput,
+} from "./entities/AccountProfile";
+
+export type { Unsubscribe, AccountProfileQueryRepository } from "./repositories/AccountProfileQueryRepository";
+export type { AccountProfileCommandRepository } from "./repositories/AccountProfileCommandRepository";
+export type { IAccountProfileQueryPort, IAccountProfileCommandPort } from "./ports";
+export * from "./aggregates";
+export * from "./events";
+export * from "./value-objects";
+````
+
+## File: modules/platform/subdomains/account-profile/infrastructure/index.ts
+````typescript
+export {
+	createLegacyAccountProfileCommandRepository,
+	createLegacyAccountProfileQueryRepository,
+} from "./create-legacy-account-profile-application.adapter";
+export type {
+	LegacyAccountProfileDataSource,
+} from "./create-legacy-account-profile-application.adapter";
+export {
+	getAccountProfile as getAccountProfileFromService,
+	subscribeToAccountProfile as subscribeToAccountProfileFromService,
+	updateAccountProfile as updateAccountProfileFromService,
+	configureLegacyAccountProfileDataSource,
+} from "./account-profile-service";
+````
+
+## File: modules/platform/subdomains/ai/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * This barrel is client-safe — it exports only types and interfaces.
+ * Server-only functions (generateAiText, summarize) live in ./server.ts.
+ */
+
+import type { GenerateAiTextInput, GenerateAiTextOutput } from "../domain/ports/AiTextGenerationPort";
+
+// Re-export domain types through API boundary
+export type {
+	GenerateAiTextInput,
+	GenerateAiTextOutput,
+	AiTextGenerationPort,
+} from "../domain/ports/AiTextGenerationPort";
+
+export interface AIAPI {
+	summarize(text: string, model?: string): Promise<string>;
+	generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
+}
+````
+
+## File: modules/platform/subdomains/organization/infrastructure/organization-service.ts
+````typescript
+/**
+ * OrganizationService — Composition root for organization use cases.
+ */
+
+import { FirebaseOrganizationRepository } from "./firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "./firebase/FirebaseOrgPolicyRepository";
+import {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "../application/use-cases/organization-lifecycle.use-cases";
+import {
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "../application/use-cases/organization-member.use-cases";
+import {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../application/use-cases/organization-team.use-cases";
+import type { IOrganizationTeamPort } from "../domain/ports/IOrganizationTeamPort";
+import {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "../application/use-cases/organization-partner.use-cases";
+import {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "../application/use-cases/organization-policy.use-cases";
+import type {
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../domain/entities/Organization";
+import type { CreateTeamInput } from "../domain/entities/Organization";
+import type { CommandResult } from "@shared-types";
+
+let _orgRepo: FirebaseOrganizationRepository | undefined;
+let _policyRepo: FirebaseOrgPolicyRepository | undefined;
+let _teamPort: IOrganizationTeamPort | undefined;
+let _teamPortFactory: (() => IOrganizationTeamPort) | undefined;
+
+export function configureOrganizationTeamPortFactory(
+  factory: () => IOrganizationTeamPort,
+): void {
+  _teamPortFactory = factory;
+  _teamPort = undefined;
 }
 
-export function subscribeToAccountsForUser(
-  userId: string,
-  onUpdate: (accounts: Record<string, AccountEntity>) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToAccountsForUser(userId, onUpdate);
+function getOrgRepo(): FirebaseOrganizationRepository {
+  if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
+  return _orgRepo;
 }
 
-export async function getAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
-  // Policy reads are server-side only; keep client bundles free of policy repo deps.
-  return [];
+function getPolicyRepo(): FirebaseOrgPolicyRepository {
+  if (!_policyRepo) _policyRepo = new FirebaseOrgPolicyRepository();
+  return _policyRepo;
 }
 
-export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
-  return [];
+function getTeamPort(): IOrganizationTeamPort {
+  if (!_teamPortFactory) {
+    throw new Error("Organization team port factory is not configured.");
+  }
+  if (!_teamPort) _teamPort = _teamPortFactory();
+  return _teamPort;
 }
+
+export const organizationService = {
+  createOrganization: (cmd: CreateOrganizationCommand): Promise<CommandResult> =>
+    new CreateOrganizationUseCase(getOrgRepo()).execute(cmd),
+
+  createOrganizationWithTeam: (
+    cmd: CreateOrganizationCommand,
+    teamName: string,
+    teamType: "internal" | "external" = "internal",
+  ): Promise<CommandResult> =>
+    new CreateOrganizationWithTeamUseCase(getOrgRepo()).execute(cmd, teamName, teamType),
+
+  updateSettings: (cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> =>
+    new UpdateOrganizationSettingsUseCase(getOrgRepo()).execute(cmd),
+
+  deleteOrganization: (orgId: string): Promise<CommandResult> =>
+    new DeleteOrganizationUseCase(getOrgRepo()).execute(orgId),
+
+  inviteMember: (input: InviteMemberInput): Promise<CommandResult> =>
+    new InviteMemberUseCase(getOrgRepo()).execute(input),
+
+  recruitMember: (orgId: string, memberId: string, name: string, email: string): Promise<CommandResult> =>
+    new RecruitMemberUseCase(getOrgRepo()).execute(orgId, memberId, name, email),
+
+  removeMember: (orgId: string, memberId: string): Promise<CommandResult> =>
+    new RemoveMemberUseCase(getOrgRepo()).execute(orgId, memberId),
+
+  updateMemberRole: (input: UpdateMemberRoleInput): Promise<CommandResult> =>
+    new UpdateMemberRoleUseCase(getOrgRepo()).execute(input),
+
+  createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
+    new CreateTeamUseCase(getTeamPort()).execute(input),
+
+  deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
+    new DeleteTeamUseCase(getTeamPort()).execute(orgId, teamId),
+
+  updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
+    new UpdateTeamMembersUseCase(getTeamPort()).execute(orgId, teamId, memberId, action),
+
+  createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
+    new CreatePartnerGroupUseCase(getOrgRepo()).execute(orgId, groupName),
+
+  sendPartnerInvite: (orgId: string, teamId: string, email: string): Promise<CommandResult> =>
+    new SendPartnerInviteUseCase(getOrgRepo()).execute(orgId, teamId, email),
+
+  dismissPartnerMember: (orgId: string, teamId: string, memberId: string): Promise<CommandResult> =>
+    new DismissPartnerMemberUseCase(getOrgRepo()).execute(orgId, teamId, memberId),
+
+  createOrgPolicy: (input: CreateOrgPolicyInput): Promise<CommandResult> =>
+    new CreateOrgPolicyUseCase(getPolicyRepo()).execute(input),
+
+  updateOrgPolicy: (policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> =>
+    new UpdateOrgPolicyUseCase(getPolicyRepo()).execute(policyId, data),
+
+  deleteOrgPolicy: (policyId: string): Promise<CommandResult> =>
+    new DeleteOrgPolicyUseCase(getPolicyRepo()).execute(policyId),
+};
+
+/**
+ * OrganizationQueryService — read-model queries for client-side data.
+ * Composition root: wires Firebase repos for queries; interfaces/ must use this
+ * via the subdomain api/ boundary instead of importing infrastructure directly.
+ */
+export const organizationQueryService = {
+  getMembers: (organizationId: string) => getOrgRepo().getMembers(organizationId),
+  getTeams: (organizationId: string) => getOrgRepo().getTeams(organizationId),
+  getOrgPolicies: (orgId: string) => getPolicyRepo().getPolicies(orgId),
+};
 ````
 
 ## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
@@ -70051,6 +71278,11 @@ export interface ShellContextSectionConfig {
   readonly items: readonly { href: string; label: string }[];
 }
 
+export interface ShellRouteContext {
+  readonly accountId?: string | null;
+  readonly workspaceId?: string | null;
+}
+
 const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
   "workspace",
   "workspace-feed",
@@ -70066,6 +71298,28 @@ const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
   "dev-tools",
 ]);
 
+const ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES = new Set(["organization", "settings", "dev-tools"]);
+
+const ACCOUNT_SCOPED_WORKSPACE_TOOL_ROOT_ROUTES = new Set([
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "dashboard",
+  "workspace-feed",
+]);
+
+function parseHref(href: string): { path: string; query: string } {
+  const [path, query = ""] = href.split("?");
+  return { path, query };
+}
+
+function joinHref(path: string, query: string): string {
+  return query.length > 0 ? `${path}?${query}` : path;
+}
+
 function isAccountScopedWorkspacePath(pathname: string): boolean {
   const [firstSegment] = pathname.split("/").filter(Boolean);
   if (!firstSegment) {
@@ -70074,10 +71328,83 @@ function isAccountScopedWorkspacePath(pathname: string): boolean {
   return !NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment);
 }
 
+export function normalizeShellRoutePath(pathname: string): string {
+  const [pathOnly] = pathname.split("?");
+  const segments = pathOnly.split("/").filter(Boolean);
+
+  if (segments.length === 0) {
+    return "/";
+  }
+
+  const [firstSegment, secondSegment, ...restSegments] = segments;
+
+  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
+    return pathOnly;
+  }
+
+  if (!secondSegment) {
+    return "/workspace";
+  }
+
+  if (ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES.has(secondSegment)) {
+    return `/${[secondSegment, ...restSegments].join("/")}`;
+  }
+
+  if (restSegments.length === 0) {
+    return "/workspace";
+  }
+
+  return `/${restSegments.join("/")}`;
+}
+
+export function buildShellContextualHref(
+  href: string,
+  context: ShellRouteContext,
+): string {
+  const { accountId, workspaceId } = context;
+  if (!accountId) {
+    return href;
+  }
+
+  const { path, query } = parseHref(href);
+  const encodedAccountId = encodeURIComponent(accountId);
+  const encodedWorkspaceId = workspaceId ? encodeURIComponent(workspaceId) : "";
+
+  if (path === "/workspace" || path.startsWith("/workspace/")) {
+    const nextPath = encodedWorkspaceId
+      ? `/${encodedAccountId}/${encodedWorkspaceId}`
+      : `/${encodedAccountId}`;
+    return joinHref(nextPath, query);
+  }
+
+  const [rootSegment] = path.split("/").filter(Boolean);
+  if (!rootSegment) {
+    return href;
+  }
+
+  if (ACCOUNT_SCOPED_ACCOUNT_ROOT_ROUTES.has(rootSegment)) {
+    return joinHref(`/${encodedAccountId}${path}`, query);
+  }
+
+  if (ACCOUNT_SCOPED_WORKSPACE_TOOL_ROOT_ROUTES.has(rootSegment)) {
+    if (!encodedWorkspaceId) {
+      return joinHref(`/${encodedAccountId}`, query);
+    }
+    return joinHref(`/${encodedAccountId}/${encodedWorkspaceId}${path}`, query);
+  }
+
+  return href;
+}
+
 // ── Route-matching utility ────────────────────────────────────────────────────
 
 export function isExactOrChildPath(targetPath: string, pathname: string): boolean {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+  const normalizedTargetPath = normalizeShellRoutePath(targetPath);
+  const normalizedPathname = normalizeShellRoutePath(pathname);
+  return (
+    normalizedPathname === normalizedTargetPath ||
+    normalizedPathname.startsWith(`${normalizedTargetPath}/`)
+  );
 }
 
 // ── Account section matchers ──────────────────────────────────────────────────
@@ -70213,22 +71540,24 @@ export const SHELL_ORG_SECONDARY_NAV_ITEMS: readonly ShellNavItem[] = [
 // ── Section resolvers ─────────────────────────────────────────────────────────
 
 export function resolveShellNavSection(pathname: string): ShellNavSection {
-  if (pathname.startsWith("/workspace")) return "workspace";
-  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
-  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
-  if (pathname.startsWith("/knowledge")) return "knowledge";
-  if (pathname.startsWith("/source")) return "source";
-  if (pathname.startsWith("/notebook")) return "notebook";
-  if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  const normalizedPathname = normalizeShellRoutePath(pathname);
+
+  if (normalizedPathname.startsWith("/workspace")) return "workspace";
+  if (normalizedPathname.startsWith("/knowledge-base")) return "knowledge-base";
+  if (normalizedPathname.startsWith("/knowledge-database")) return "knowledge-database";
+  if (normalizedPathname.startsWith("/knowledge")) return "knowledge";
+  if (normalizedPathname.startsWith("/source")) return "source";
+  if (normalizedPathname.startsWith("/notebook")) return "notebook";
+  if (normalizedPathname.startsWith("/ai-chat")) return "ai-chat";
   if (
     SHELL_ACCOUNT_SECTION_MATCHERS.some(
-      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+      (prefix) => normalizedPathname === prefix || normalizedPathname.startsWith(`${prefix}/`),
     )
   ) {
     return "account";
   }
-  if (pathname.startsWith("/organization")) return "organization";
-  if (isAccountScopedWorkspacePath(pathname)) return "workspace";
+  if (normalizedPathname.startsWith("/organization")) return "organization";
+  if (isAccountScopedWorkspacePath(pathname) || normalizedPathname.startsWith("/workspace")) return "workspace";
   return "other";
 }
 
@@ -70236,7 +71565,8 @@ export function resolveShellPageTitle(pathname: string): string {
   if (isAccountScopedWorkspacePath(pathname)) {
     return "工作區中心";
   }
-  return ROUTE_TITLES[pathname] ?? "工作區";
+  const normalizedPathname = normalizeShellRoutePath(pathname);
+  return ROUTE_TITLES[normalizedPathname] ?? "工作區";
 }
 
 export function resolveShellBreadcrumbLabel(segment: string): string {
@@ -70244,72 +71574,23 @@ export function resolveShellBreadcrumbLabel(segment: string): string {
 }
 ````
 
-## File: modules/workspace/application/services/WorkspaceQueryApplicationService.ts
+## File: modules/workspace/application/use-cases/workspace.use-cases.ts
 ````typescript
-import type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-} from "../../domain/entities/WikiContentTree";
-import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMemberView";
-import {
-  getWorkspaceByIdForAccount,
-  getWorkspaceById,
-  listWorkspacesForAccount,
-  subscribeToWorkspacesForAccount,
-} from "../queries/workspace.queries";
-import { fetchWorkspaceMembers } from "../../subdomains/membership/api";
-import { buildWikiContentTree } from "../queries/wiki-content-tree.queries";
-import type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";
-import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
-import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
-import type { WikiWorkspaceRepository } from "../../domain/ports/output/WikiWorkspaceRepository";
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Re-export barrel for workspace command use cases that remain at root level.
+ *          Lifecycle use cases → subdomains/lifecycle/
+ *          Sharing use cases → subdomains/sharing/
+ *          Queries → application/queries/
+ *
+ * DDD Rule 12: Command → use-cases/
+ * DDD Rule 13: Read → queries/
+ */
 
-interface WorkspaceQueryApplicationServiceDependencies {
-  workspaceRepo: WorkspaceRepository;
-  workspaceQueryRepo: WorkspaceQueryRepository;
-  wikiWorkspaceRepo: WikiWorkspaceRepository;
-}
+export { MountCapabilitiesUseCase } from "./workspace-capabilities.use-cases";
 
-export class WorkspaceQueryApplicationService implements WorkspaceQueryPort {
-  constructor(
-    private readonly dependencies: WorkspaceQueryApplicationServiceDependencies,
-  ) {}
-
-  getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]> {
-    return listWorkspacesForAccount(this.dependencies.workspaceRepo, accountId);
-  }
-
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ) {
-    return subscribeToWorkspacesForAccount(
-      this.dependencies.workspaceQueryRepo,
-      accountId,
-      onUpdate,
-    );
-  }
-
-  getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null> {
-    return getWorkspaceById(this.dependencies.workspaceRepo, workspaceId);
-  }
-
-  getWorkspaceByIdForAccount(
-    accountId: string,
-    workspaceId: string,
-  ): Promise<WorkspaceEntity | null> {
-    return getWorkspaceByIdForAccount(this.dependencies.workspaceRepo, accountId, workspaceId);
-  }
-
-  getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    return fetchWorkspaceMembers(this.dependencies.workspaceQueryRepo, workspaceId);
-  }
-
-  buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {
-    return buildWikiContentTree(seeds, this.dependencies.wikiWorkspaceRepo);
-  }
-}
+export { CreateWorkspaceLocationUseCase } from "./workspace-location.use-cases";
 ````
 
 ## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
@@ -70421,7 +71702,7 @@ export function buildWorkspaceQuickAccessItems(
   const encodedAccountId = accountId ? encodeURIComponent(accountId) : "";
   const workspaceBaseHref = accountId
     ? `/${encodedAccountId}/${encodedWorkspaceId}`
-    : `/workspace/${encodedWorkspaceId}`;
+    : "/";
 
   return WORKSPACE_QUICK_ACCESS_TEMPLATES.map((item) => ({
     ...item,
@@ -70436,255 +71717,343 @@ export function buildWorkspaceQuickAccessItems(
 }
 ````
 
-## File: modules/workspace/interfaces/web/navigation/workspace-nav-items.ts
+## File: app/(shell)/_shell/ShellAppRail.tsx
 ````typescript
+"use client";
+
 /**
- * workspace-nav-items.ts
+ * ShellAppRail — app/(shell)/_shell composition layer.
+ * Moved from modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx
+ * because it composes downstream modules (workspace).
  *
- * Catalog of workspace sidebar tab entries owned by the workspace BC.
- * Consumers read this catalog; they do not define it.
+ * Platform is upstream and must not import downstream modules.
+ * app/ is the designated composition layer.
  */
 
+import Link from "next/link";
 import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabsInSidebarOrder,
-  type WorkspaceTabValue,
-} from "./workspace-tabs";
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
-export interface WorkspaceNavItem {
+import type { AuthUser, ActiveAccount, AccountEntity } from "@/modules/platform/api";
+import { CreateOrganizationDialog } from "@/modules/platform/api";
+import {
+  listShellRailCatalogItems,
+  isExactOrChildPath,
+  resolveShellNavSection,
+  buildShellContextualHref,
+  type ShellRailCatalogItem,
+} from "@/modules/platform/api";
+import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+
+interface RailItem {
   id: string;
-  tabKey: WorkspaceTabValue;
-  fallbackLabel: string;
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
 }
 
-export const WORKSPACE_NAV_ITEMS: WorkspaceNavItem[] = getWorkspaceTabsInSidebarOrder().map((tabKey) => ({
-  id: getWorkspaceTabPrefId(tabKey),
-  tabKey,
-  fallbackLabel: getWorkspaceTabLabel(tabKey),
-}));
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
+}
 
-const VALID_WORKSPACE_ORDER_IDS = new Set(WORKSPACE_NAV_ITEMS.map((item) => item.id));
-const DEFAULT_WORKSPACE_ORDER = WORKSPACE_NAV_ITEMS.map((item) => item.id);
+const RAIL_ICON_MAP: Record<string, React.ReactNode> = {
+  workspace: <Building2 className="size-[18px]" />,
+  "org-members": <UserRound className="size-[18px]" />,
+  "org-teams": <Users className="size-[18px]" />,
+  "org-daily": <NotebookText className="size-[18px]" />,
+  "org-schedule": <CalendarDays className="size-[18px]" />,
+  "org-audit": <ClipboardList className="size-[18px]" />,
+  "org-permissions": <SlidersHorizontal className="size-[18px]" />,
+  "dev-tools": <FlaskConical className="size-[18px]" />,
+};
 
-export function normalizeWorkspaceOrder(order: unknown): string[] {
-  const fallback = DEFAULT_WORKSPACE_ORDER;
-  if (!Array.isArray(order)) return fallback;
-  const validOrder = order
-    .filter((id): id is string => typeof id === "string")
-    .filter((id) => VALID_WORKSPACE_ORDER_IDS.has(id));
-  const deduped = Array.from(new Set(validOrder));
-  for (const id of fallback) {
-    if (!deduped.includes(id)) deduped.push(id);
+export function AppRail({
+  pathname,
+  user,
+  activeAccount,
+  organizationAccounts,
+  workspaces,
+  workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOrganizationCreated,
+  onSignOut: _onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
   }
-  return deduped;
+
+  const visibleRailItems: RailItem[] = useMemo(() => {
+    const catalogItems = listShellRailCatalogItems(isOrganizationAccount);
+    return catalogItems.map((item: ShellRailCatalogItem) => ({
+      id: item.id,
+      href: buildShellContextualHref(item.href, {
+        accountId: activeAccount?.id,
+        workspaceId: activeWorkspaceId,
+      }),
+      label: item.label,
+      icon: RAIL_ICON_MAP[item.id] ?? null,
+      isActive: item.id === "workspace"
+        ? (currentPathname: string) => resolveShellNavSection(currentPathname) === "workspace"
+        : item.activeRoutePrefix
+          ? (currentPathname: string) => isExactOrChildPath(
+            buildShellContextualHref(item.activeRoutePrefix!, {
+              accountId: activeAccount?.id,
+              workspaceId: activeWorkspaceId,
+            }),
+            currentPathname,
+          )
+          : undefined,
+    }));
+  }, [isOrganizationAccount, activeAccount?.id, activeWorkspaceId]);
+
+  const workspaceHubHref = activeAccount?.id
+    ? `/${encodeURIComponent(activeAccount.id)}`
+    : "/";
+
+  function buildWorkspaceDetailHref(workspaceId: string): string {
+    if (activeAccount?.id) {
+      return `/${encodeURIComponent(activeAccount.id)}/${encodeURIComponent(workspaceId)}`;
+    }
+    return "/";
+  }
+
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces],
+  );
+
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
+
+  return (
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => { onSelectOrganization(account); }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => { setIsCreateOrgOpen(true); }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="my-2 h-px w-7 bg-border/50" />
+
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
+
+            if (item.id === "workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => { router.push(workspaceHubHref); }}
+                      className={
+                        resolveShellNavSection(pathname) === "workspace" && !activeWorkspaceId
+                          ? "bg-primary/10 text-primary"
+                          : ""
+                      }
+                    >
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(buildWorkspaceDetailHref(workspace.id));
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => { setIsCreateWorkspaceOpen(true); }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        <div className="flex-1" />
+        <div className="h-1" />
+      </aside>
+
+      <CreateOrganizationDialog
+        open={isCreateOrgOpen}
+        onOpenChange={setIsCreateOrgOpen}
+        user={user}
+        onOrganizationCreated={onOrganizationCreated}
+        onNavigate={(href) => { router.push(href); }}
+      />
+
+      <CreateWorkspaceDialogRail
+        open={isCreateWorkspaceOpen}
+        onOpenChange={setIsCreateWorkspaceOpen}
+        accountId={activeAccount?.id ?? null}
+        accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
+        creatorUserId={user?.id}
+        onNavigate={(href: string) => { router.push(href); }}
+      />
+    </TooltipProvider>
+  );
 }
-````
-
-## File: modules/workspace/README.md
-````markdown
-# Workspace
-
-協作容器與工作區範疇主域
-
-## Implementation Structure
-
-```text
-modules/workspace/
-├── api/              # Public API boundary
-├── application/      # Context-wide orchestration (delegates to subdomains)
-│   ├── queries/      # Read query handlers (pure reads, no business logic)
-│   ├── use-cases/    # Command use cases remaining at root level
-│   └── services/     # Application services (composite orchestrators)
-├── domain/           # Context-wide domain concepts (Workspace aggregate root)
-├── infrastructure/   # Context-wide driven adapters
-├── interfaces/       # Context-wide driving adapters
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── audit/             # Active — append-only audit trail
-    ├── feed/              # Active — workspace activity projection
-    ├── lifecycle/         # Active — workspace create/update/delete/transitions
-    ├── membership/        # Active — member view model and participation queries
-    ├── presence/          # Stub — real-time presence and activity
-    ├── scheduling/        # Active — workspace scheduling management
-    ├── sharing/           # Active — team and individual access grants
-    └── workspace-workflow/ # Active — task/issue/invoice state machines
-```
-
-## Subdomains
-
-| Subdomain | Status | Purpose |
-|-----------|--------|---------|
-| audit | Active | 不可否認稽核追蹤 |
-| feed | Active | 工作區活動投影 |
-| lifecycle | Active | 工作區容器生命週期（建立/修改/刪除/狀態轉換）|
-| membership | Active | 工作區參與者視圖模型與查詢 |
-| presence | Stub | 即時在線狀態 |
-| scheduling | Active | 工作區排程管理 |
-| sharing | Active | 工作區存取授權（團隊/個人）|
-| workspace-workflow | Active | 工作區流程協調 |
-
-## Application Layer Architecture
-
-The root application services act as **composite orchestrators** that delegate to subdomain services:
-
-| Operation | Delegated To |
-|-----------|-------------|
-| Create/Update/Delete workspace | `lifecycle` subdomain |
-| Team/Individual access grants | `sharing` subdomain |
-| Member view queries | `membership` subdomain |
-| Mount capabilities | Root use-case (pending subdomain assignment) |
-| Create workspace location | Root use-case (Workspace operational profile) |
-| Workspace read queries | Root query handlers |
-| Wiki content tree projection | Root query handler |
-
-### DDD Rules Applied
-
-- **Rule 5/13/16**: Pure reads → query handlers in `queries/`, not use cases
-- **Rule 12**: Commands → `use-cases/` or subdomain use cases
-- **Rule 18**: Single-call wrappers eliminated; functions instead of classes for queries
-- **Rule 8**: Each use case = one business intent (verb-first naming)
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `api/` is the only cross-module public boundary.
-- Domain must not import infrastructure, interfaces, or external frameworks.
-- Cross-module collaboration goes through `api/` only.
-- Subdomain cross-collaboration goes through subdomain `api/` only.
-
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/workspace/README.md)
-- [Subdomains](../../docs/contexts/workspace/subdomains.md)
-- [Context Map](../../docs/contexts/workspace/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/workspace/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
-````
-
-## File: modules/workspace/subdomains/lifecycle/README.md
-````markdown
-# Lifecycle
-
-把工作區容器生命週期獨立成正典邊界。
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Subdomain Type**: Active
-- **Status**: Active — lifecycle use cases implemented
-
-## Responsibility
-
-- Workspace creation (with optional capabilities)
-- Workspace settings update (with lifecycle/visibility transition events)
-- Workspace deletion
-- Lifecycle state machine (preparatory → active → stopped)
-
-## Dependency Direction
-
-```
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-
-## Key Design Decisions
-
-- The Workspace aggregate root lives at context root level (`modules/workspace/domain/`), not inside this subdomain.
-- This subdomain's use cases operate on the root aggregate through ports.
-- Event publishing follows the "persist-then-publish" pattern.
-- The `UpdateWorkspaceSettingsUseCase` consolidates both settings persistence and transition event emission into one cohesive use case, eliminating the prior split where the application service handled event logic.
-````
-
-## File: modules/workspace/subdomains/membership/README.md
-````markdown
-# Membership
-
-把工作區參與關係從平台身份治理中切開。
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Subdomain Type**: Active
-- **Status**: Active — member view query implemented
-
-## Responsibility
-
-- Workspace member view model (canonical read model for participants)
-- Member resolution queries (merging grants, teams, personnel sources)
-- Workspace participation semantics distinct from platform identity
-
-## Ubiquitous Language
-
-- **Membership**: Workspace participation relationship, NOT platform identity
-- **WorkspaceMemberView**: Read-only projection of a workspace participant
-- **AccessChannel**: The route through which a member gained workspace access (owner, direct, team, personnel)
-
-## Dependency Direction
-
-```
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-
-## Key Design Decisions
-
-- WorkspaceMemberView is the membership read model, not a full Membership aggregate (that would come when invitation/seat management is needed).
-- Complex member resolution logic (merging from grants, teams, personnel) stays in the root infrastructure adapter since it depends on the full workspace document model.
-- The subdomain's query handler delegates to the root WorkspaceQueryRepository port.
-````
-
-## File: modules/workspace/subdomains/sharing/README.md
-````markdown
-# Sharing
-
-把對外共享與可見性規則收斂到單一上下文。
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Subdomain Type**: Active
-- **Status**: Active — access grant use cases implemented
-
-## Responsibility
-
-- Team access grants (authorize a team to access a workspace)
-- Individual access grants (grant a user direct workspace access)
-- Workspace sharing scope semantics
-
-## Ubiquitous Language
-
-- **ShareScope**: The sharing boundary and visibility extent, NOT generic "Permission"
-- **WorkspaceGrant**: An individual access authorization to a workspace
-- **WorkspaceAccessPolicy**: The aggregate access policy including grants and team associations
-
-## Dependency Direction
-
-```
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-
-## Key Design Decisions
-
-- Access grant use cases take injected WorkspaceAccessRepository through the deps pattern.
-- WorkspaceSharingApplicationService composes grant use cases and exposes team/individual grant operations.
-- Location management stays at root level (part of Workspace operational profile, not sharing semantics).
 ````
 
 ## File: app/(shell)/_shell/ShellRootLayout.tsx
@@ -70721,6 +72090,7 @@ import {
   ShellUserAvatar,
   resolveShellPageTitle,
   isExactOrChildPath,
+  buildShellContextualHref,
   SHELL_MOBILE_NAV_ITEMS,
   SHELL_ORG_PRIMARY_NAV_ITEMS,
   SHELL_ORG_SECONDARY_NAV_ITEMS,
@@ -70907,11 +72277,15 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
               <>
                 <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
                   {SHELL_ORG_PRIMARY_NAV_ITEMS.map((item) => {
-                    const isActive = isExactOrChildPath(item.href, pathname);
+                    const contextualHref = buildShellContextualHref(item.href, {
+                      accountId: appState.activeAccount?.id,
+                      workspaceId: wsState.activeWorkspaceId,
+                    });
+                    const isActive = isExactOrChildPath(contextualHref, pathname);
                     return (
                       <Link
                         key={item.href}
-                        href={item.href}
+                        href={contextualHref}
                         aria-current={isActive ? "page" : undefined}
                         className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                           isActive
@@ -70926,11 +72300,15 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
                 </nav>
                 <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
                   {SHELL_ORG_SECONDARY_NAV_ITEMS.map((item) => {
-                    const isActive = isExactOrChildPath(item.href, pathname);
+                    const contextualHref = buildShellContextualHref(item.href, {
+                      accountId: appState.activeAccount?.id,
+                      workspaceId: wsState.activeWorkspaceId,
+                    });
+                    const isActive = isExactOrChildPath(contextualHref, pathname);
                     return (
                       <Link
                         key={item.href}
-                        href={item.href}
+                        href={contextualHref}
                         aria-current={isActive ? "page" : undefined}
                         className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                           isActive
@@ -70947,11 +72325,15 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
             )}
             <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
               {SHELL_MOBILE_NAV_ITEMS.map((item) => {
-                const isActive = isExactOrChildPath(item.href, pathname);
+                const contextualHref = buildShellContextualHref(item.href, {
+                  accountId: appState.activeAccount?.id,
+                  workspaceId: wsState.activeWorkspaceId,
+                });
+                const isActive = isExactOrChildPath(contextualHref, pathname);
                 return (
                   <Link
                     key={item.href}
-                    href={item.href}
+                    href={contextualHref}
                     aria-current={isActive ? "page" : undefined}
                     className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                       isActive
@@ -70976,334 +72358,6 @@ export function ShellLayout({ children }: { children: React.ReactNode }) {
     </ShellGuard>
   );
 }
-````
-
-## File: modules/notebooklm/api/index.ts
-````typescript
-/**
- * modules/notebooklm — public API barrel.
- */
-
-export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation/api";
-
-export type {
-  NotebookResponse,
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-  NotebookRepository,
-} from "../subdomains/notebook/api";
-
-export { generateNotebookResponse } from "../subdomains/notebook/api";
-export { saveThread, loadThread } from "../subdomains/conversation/api";
-
-// ---------------------------------------------------------------------------
-// NotebookLM root interfaces — Q&A UI
-// ---------------------------------------------------------------------------
-export { RagQueryView } from "../interfaces/components/RagQueryView";
-
-// ---------------------------------------------------------------------------
-// Source subdomain — types, hooks, and UI (replaces @/modules/source/api)
-// ---------------------------------------------------------------------------
-
-export type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-  WikiLibrarySnapshot,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../subdomains/source/api";
-
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../subdomains/source/api";
-
-export {
-  useSourceDocumentsSnapshot,
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../subdomains/source/api";
-
-export {
-  listWikiLibraries,
-  createWikiLibrary,
-  addWikiLibraryField,
-  createWikiLibraryRow,
-  getWikiLibrarySnapshot,
-} from "../subdomains/source/api";
-
-export {
-  SourceDocumentsView,
-  WorkspaceFilesTab,
-  LibrariesView,
-  LibraryTableView,
-  FileProcessingDialog,
-} from "../subdomains/source/api";
-
-// ---------------------------------------------------------------------------
-// conversation subdomain — AI chat UI and helpers
-// ---------------------------------------------------------------------------
-
-export { AiChatPage } from "../subdomains/conversation/api";
-export type { AiChatPageProps, ChatMessage } from "../subdomains/conversation/api";
-
-// ---------------------------------------------------------------------------
-// Context-wide published language (cross-module reference types)
-// ---------------------------------------------------------------------------
-
-export type {
-  NotebookReference,
-  SourceReference,
-  ConversationReference,
-} from "../domain/published-language";
-
-export type { NotebookLmDomainEvent } from "../domain/events";
-
-// ---------------------------------------------------------------------------
-// Synthesis subdomain — complete RAG pipeline
-// (retrieval → grounding → synthesis → evaluation)
-// ---------------------------------------------------------------------------
-
-export type {
-  RetrievedChunk,
-  RetrievalSummary,
-  RetrieveChunksInput,
-  IChunkRetrievalPort,
-  RetrievalCompletedEvent,
-  RetrievalFailedEvent,
-} from "../subdomains/synthesis/api";
-
-export type {
-  Citation,
-  GroundingEvidence,
-  CitationBuilderInput,
-  ICitationBuilder,
-  GroundingCompletedEvent,
-} from "../subdomains/synthesis/api";
-
-export type {
-  GenerationCitation,
-  GenerateAnswerInput,
-  GenerateAnswerOutput,
-  GenerateAnswerResult,
-  IGenerationPort,
-  SynthesisCompletedEvent,
-  SynthesisFailedEvent,
-} from "../subdomains/synthesis/api";
-
-export type {
-  FeedbackRating,
-  QualityFeedback,
-  SubmitFeedbackInput,
-  IFeedbackPort,
-  FeedbackSubmittedEvent,
-} from "../subdomains/synthesis/api";
-````
-
-## File: modules/notebooklm/subdomains/synthesis/README.md
-````markdown
-# Synthesis
-
-完整 RAG pipeline：retrieval → grounding → answer generation → evaluation/feedback。
-
-## Ownership
-
-- **Bounded Context**: notebooklm
-- **Subdomain**: synthesis (Active)
-- **Status**: Consolidated — all RAG pipeline responsibilities
-
-## Internal Facets
-
-The RAG pipeline is organized as internal domain facets within this single subdomain:
-
-| Facet | Responsibility | Key Types |
-|-------|---------------|-----------|
-| retrieval | 查詢召回與排序策略、向量搜尋 | RetrievedChunk, IChunkRetrievalPort, RagScoringService |
-| grounding | 引用對齊與可追溯證據 | Citation, GroundingEvidence, ICitationBuilder, RagCitationBuilder |
-| generation | RAG 合成、摘要與洞察生成 | GenerateAnswerInput/Output, IGenerationPort, RagPromptBuilder |
-| evaluation | 品質評估、feedback 收集 | QualityFeedback, IFeedbackPort, SubmitRagQueryFeedbackUseCase |
-
-## Key Components
-
-| Component | Layer | Purpose |
-|-----------|-------|---------|
-| AnswerRagQueryUseCase | application | 完整 RAG Q&A 流程 orchestration |
-| SubmitRagQueryFeedbackUseCase | application | 用戶品質 feedback 收集 |
-| FirebaseRagRetrievalAdapter | infrastructure | Firestore 向量/稀疏檢索 |
-| GenkitRagGenerationAdapter | infrastructure | Genkit AI answer generation |
-| FirebaseRagQueryFeedbackAdapter | infrastructure | Firestore feedback 持久化 |
-| FirebaseKnowledgeContentAdapter | infrastructure | Knowledge 文件查詢與 reindex |
-| RagQueryView | interfaces | 最小化 RAG 查詢 UI |
-
-## Development Order
-
-When implementing, follow inside-out:
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/AGENT.md
-````markdown
-# Notion Agent
-
-> Strategic agent documentation: [docs/contexts/notion/AGENT.md](../../docs/contexts/notion/AGENT.md)
-
-## Mission
-
-保護 notion 主域作為知識內容生命週期邊界。notion 擁有正式知識內容（KnowledgePage、Article、Database），不擁有治理、工作區範疇或推理輸出。任何變更都應維持 notion 擁有內容建立、結構化、協作、版本化與交付語言。
-
-## Bounded Context Summary
-
-| Aspect | Description |
-|--------|-------------|
-| Primary role | 正典知識內容生命週期 |
-| Upstream | platform（治理、AI capability）、workspace（workspaceId、membership scope、share scope） |
-| Downstream | notebooklm（knowledge artifact reference、attachment reference、taxonomy hint） |
-| Core invariant | notion 只能修改自己的正典內容，不可直接呼叫 notebooklm 的推理流程 |
-| Published language | KnowledgeArtifact reference、attachment reference、taxonomy hint |
-
-## Bounded Contexts
-
-| Cluster | Subdomains | Responsibility |
-|---------|------------|----------------|
-| Content Core | knowledge, authoring | 知識頁面與文章生命週期、分類、內容區塊 |
-| Collaboration & Change | collaboration | 協作留言、細粒度權限與版本快照 |
-| Structured Data | database | 結構化資料多視圖管理與自動化 |
-| Semantic Organization | taxonomy, relations | 分類法與語義關聯圖 |
-| Future Extensions | publishing, attachments | 正式發布流程、附件管理 |
-
-## Route Here When
-
-- 問題核心是知識頁面（KnowledgePage）、內容區塊（ContentBlock）、知識集合（KnowledgeCollection）。
-- 問題需要把內容建立、編輯、分類、關聯、版本或交付收斂到正典狀態。
-- 問題涉及知識庫文章（Article）、分類（Category）、樣板（Template）。
-- 問題涉及結構化資料視圖（Database、DatabaseView、Record）。
-- 問題涉及協作留言（Comment）、細粒度權限（Permission）或版本快照（Version）。
-- 問題涉及分類法（Taxonomy）或語義關聯（Relation）。
-
-## Route Elsewhere When
-
-- 身份、租戶、授權、權益、憑證治理屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
-- 工作區生命週期、成員管理、共享範圍屬於 workspace。
-- notebook、conversation、retrieval、grounding、synthesis 屬於 notebooklm。
-
-## Subdomain Delivery Tiers
-
-### Tier 1 — Core (Active)
-
-| Subdomain | Purpose | Key Aggregates |
-|-----------|---------|----------------|
-| knowledge | KnowledgePage 生命週期、ContentBlock 編輯、BacklinkIndex | KnowledgePage, ContentBlock, KnowledgeCollection, BacklinkIndex |
-| authoring | 知識庫文章建立、驗證、分類與發布工作流程 | Article, Category |
-| collaboration | 協作留言、細粒度權限與版本快照 | Comment, Permission, Version |
-| database | 結構化資料多視圖（Table/Board/Calendar/Gallery） | Database, DatabaseRecord, View, DatabaseAutomation |
-
-### Tier 2 — Near-Term (Domain Contracts — High Business Value)
-
-| Subdomain | Purpose | Note |
-|-----------|---------|------|
-| taxonomy | 分類法、標籤樹與語義組織（跨頁面分類的正典邊界） | ≠ authoring.Category（局部文章分類）；taxonomy 是全域語義網 |
-| relations | 內容之間的正式語義關聯與 backlink 管理 | ≠ knowledge.BacklinkIndex（自動反向索引）；relations 是明確語義圖（有類型、有方向） |
-| attachments | 附件與媒體關聯儲存 | 檔案儲存整合的正典邊界。待附件需要獨立於頁面的保留策略時充實 |
-
-### Tier 3 — Medium-Term (Stubs)
-
-| Subdomain | Purpose | Note |
-|-----------|---------|------|
-| publishing | 正式發布與對外交付（Publication 狀態邊界） | authoring 的 `ArticlePublicationUseCases` 是前置邊界 |
-| knowledge-versioning | 全域版本快照策略（workspace-level checkpoint、保留政策） | ≠ collaboration.Version（逐次編輯歷史）；是策略量，不是操作量 |
-
-### Premature Stubs（目錄保留，不建議擴充）
-
-| Subdomain | Reason |
-|-----------|--------|
-| automation | database 子域已涵蓋 DatabaseAutomation；跨內容類型事件自動化目前無獨立領域需求 |
-| knowledge-analytics | 知識使用行為量測是讀模型關注，非獨立領域模型。可由 infrastructure 查詢層處理 |
-| knowledge-integration | 外部系統整合是 infrastructure adapter 關注，非獨立子域 |
-| notes | 輕量筆記可作為 KnowledgePage 的頁面類型處理，不需獨立子域 |
-| templates | 頁面範本是 authoring 的內部關注（內容結構起點），非獨立子域 |
-
-### Domain Invariants
-
-- 知識內容的正典狀態屬於 notion。
-- taxonomy 應獨立於具體 UI 視圖存在（目前由 Category 承載部分）。
-- BacklinkIndex 描述自動反向連結；Relation 描述主動宣告的語義關係。兩者不互相取代。
-- platform.ai 可被 notion use case 消費，但 AI provider / policy ownership 不屬於 notion。
-- 任何來自 notebooklm 的輸出，若要成為正典內容，必須先被 notion 吸收。
-
-## Subdomain Analysis — 子域數量合理性
-
-**14 個目錄（4 Active + 2 Domain Contracts + 1 Stub + 3 Medium-Term Stubs + 5 Premature = 15 分類，共 14 目錄），分析如下：**
-
-1. **`knowledge` 與 `authoring` 不重疊**：`knowledge` 是 KnowledgePage + ContentBlock（自由形式的 wiki 頁面）；`authoring` 是 Article + Category（有工作流程的結構化 KB 文章）。
-2. **`collaboration.Version` 與 `knowledge-versioning` 不重疊**：`collaboration.Version` 是逐次編輯快照（per-change history）；`knowledge-versioning` 是全域 checkpoint 策略（workspace-level snapshot policy）。
-3. **`relations` 與 `knowledge.BacklinkIndex` 不重疊**：`BacklinkIndex` 是自動反向連結索引；`relations` 是明確的語義關係圖（有類型、有方向的關聯）。
-4. **5 個 premature stubs** 有明確理由：每個都已被現有 active 子域或 infrastructure 層吸收。
-
-## Ubiquitous Language
-
-| Term | Meaning | Owning Subdomain | Do Not Use |
-|------|---------|------------------|------------|
-| KnowledgeArtifact | notion 主域擁有的知識內容總稱 | （跨子域概念） | Doc, Wiki (混指) |
-| KnowledgePage | 正典頁面型知識單位（block-based） | knowledge | Wiki, Page (generic) |
-| ContentBlock | 知識頁面的最小可組合內容單位 | knowledge | Block (generic) |
-| KnowledgeCollection | 頁面集合容器（非 Database） | knowledge | Folder, Section |
-| BacklinkIndex | 自動反向連結索引 | knowledge | - |
-| PageStatus | 頁面生命週期狀態（draft, published, archived） | knowledge | - |
-| Article | 經過撰寫與驗證流程的知識庫文章 | authoring | Post, Content |
-| Category | 文章分類樹結構 | authoring | Tag System |
-| Template | 可重複套用的內容結構起點 | authoring | Preset, Layout |
-| Comment | 內容附著的協作討論 | collaboration | Chat, Discussion |
-| Permission | 內容的細粒度存取權限 | collaboration | - |
-| Version | 內容某一時點的不可變快照（逐次編輯歷史） | collaboration | - |
-| Database | 結構化知識集合 | database | Table, Spreadsheet |
-| DatabaseView | 對 Database 的投影與檢視配置 | database | View (generic) |
-| DatabaseRecord | Database 中的一筆記錄 | database | - |
-| DatabaseAutomation | Database 事件觸發的自動化動作 | database | - |
-| Taxonomy | 分類法、標籤樹等語義組織結構 | taxonomy | Tag System, Category (混稱全域分類) |
-| Relation | 內容對內容之間的正式語義關聯 | relations | Link, Connection |
-| Publication | 對外可見且可交付的內容狀態 | publishing (stub) | Published, Public |
-| Attachment | 綁定於知識內容的檔案或媒體 | attachments | File, Upload |
-| VersionSnapshot | 全域版本 checkpoint 策略的不可變快照 | knowledge-versioning (stub) | Backup, History |
-
-### Avoid
-
-| Avoid | Use Instead |
-|-------|-------------|
-| Wiki | KnowledgePage 或 Article |
-| Table | Database 或 DatabaseView |
-| Tag System | Category (current) or Taxonomy (Tier 2) |
-| Content Link | BacklinkIndex (automatic) or Relation (explicit semantic) |
-| Publish Action | Publication 或 ArticlePublication |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-api/ ← 唯一跨模組入口
-```
-
-## Development Order (Domain-First)
-
-New features:
-1. Define Domain (entities, value objects, aggregates, events)
-2. Define Application (use cases, DTOs)
-3. Define Ports (only if boundary isolation needed)
-4. Implement Infrastructure (adapters, persistence)
-5. Implement Interfaces (UI, actions, hooks)
-
-Legacy migration (Strangler Pattern):
-1. Find a Use Case to extract
-2. Build Domain model in the owning subdomain
-3. Converge Application layer
-4. Isolate legacy via Ports
-5. Replace Infrastructure adapter; remove old path when stable
 ````
 
 ## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgeSidebarSection.tsx
@@ -71414,13 +72468,13 @@ export function KnowledgeSidebarSection({
           {
             href: workspaceBasePath
               ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
-              : "/workspace",
+              : "/",
             label: "Knowledge Hub",
           },
           {
             href: workspaceBasePath
               ? `${workspaceBasePath}/knowledge/block-editor`
-              : "/workspace",
+              : "/",
             label: "區塊編輯器",
           },
         ] as const
@@ -71496,390 +72550,6 @@ export function KnowledgeSidebarSection({
     </nav>
   );
 }
-````
-
-## File: modules/platform/application/use-cases/index.ts
-````typescript
-/**
- * platform application use-cases barrel.
- *
- * Each file follows the kebab-case convention: verb-noun.use-cases.ts
- *
- * Commands:
- *   register-platform-context
- *   publish-policy-catalog
- *   apply-configuration-profile
- *   register-integration-contract
- *   activate-subscription-agreement
- *   fire-workflow-trigger
- *   request-notification-dispatch
- *   record-audit-signal
- *   emit-observability-signal
- *
- * Queries:
- *   get-platform-context-view
- *   list-enabled-capabilities
- *   get-policy-catalog-view
- *   get-subscription-entitlements
- *   get-workflow-policy-view
- */
-
-export { RegisterPlatformContextUseCase } from "./register-platform-context.use-cases";
-export { PublishPolicyCatalogUseCase } from "./publish-policy-catalog.use-cases";
-export { ApplyConfigurationProfileUseCase } from "./apply-configuration-profile.use-cases";
-export { RegisterIntegrationContractUseCase } from "./register-integration-contract.use-cases";
-export { ActivateSubscriptionAgreementUseCase } from "./activate-subscription-agreement.use-cases";
-export { FireWorkflowTriggerUseCase } from "./fire-workflow-trigger.use-cases";
-export { RequestNotificationDispatchUseCase } from "./request-notification-dispatch.use-cases";
-export { RecordAuditSignalUseCase } from "./record-audit-signal.use-cases";
-export { EmitObservabilitySignalUseCase } from "./emit-observability-signal.use-cases";
-export { GetPlatformContextViewUseCase } from "../queries/get-platform-context-view.queries";
-export { ListEnabledCapabilitiesUseCase } from "../queries/list-enabled-capabilities.queries";
-export { GetPolicyCatalogViewUseCase } from "../queries/get-policy-catalog-view.queries";
-export { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-entitlements.queries";
-export { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
-````
-
-## File: modules/platform/subdomains/account-profile/domain/index.ts
-````typescript
-export {
-	AccountProfileIdSchema,
-	AccountProfileSchema,
-	createAccountProfile,
-	createAccountProfileId,
-	createUpdateAccountProfileInput,
-} from "./entities/AccountProfile";
-export type {
-	AccountProfile,
-	AccountProfileId,
-	AccountProfileTheme,
-	UpdateAccountProfileInput,
-} from "./entities/AccountProfile";
-
-export type { Unsubscribe, AccountProfileQueryRepository } from "./repositories/AccountProfileQueryRepository";
-export type { AccountProfileCommandRepository } from "./repositories/AccountProfileCommandRepository";
-export type { IAccountProfileQueryPort, IAccountProfileCommandPort } from "./ports";
-export * from "./aggregates";
-export * from "./events";
-export * from "./value-objects";
-````
-
-## File: modules/platform/subdomains/account-profile/infrastructure/index.ts
-````typescript
-export {
-	createLegacyAccountProfileCommandRepository,
-	createLegacyAccountProfileQueryRepository,
-} from "./create-legacy-account-profile-application.adapter";
-export type {
-	LegacyAccountProfileDataSource,
-} from "./create-legacy-account-profile-application.adapter";
-export {
-	getAccountProfile as getAccountProfileFromService,
-	subscribeToAccountProfile as subscribeToAccountProfileFromService,
-	updateAccountProfile as updateAccountProfileFromService,
-	configureLegacyAccountProfileDataSource,
-} from "./account-profile-service";
-````
-
-## File: modules/platform/subdomains/ai/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * This barrel is client-safe — it exports only types and interfaces.
- * Server-only functions (generateAiText, summarize) live in ./server.ts.
- */
-
-import type { GenerateAiTextInput, GenerateAiTextOutput } from "../domain/ports/AiTextGenerationPort";
-
-// Re-export domain types through API boundary
-export type {
-	GenerateAiTextInput,
-	GenerateAiTextOutput,
-	AiTextGenerationPort,
-} from "../domain/ports/AiTextGenerationPort";
-
-export interface AIAPI {
-	summarize(text: string, model?: string): Promise<string>;
-	generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
-}
-````
-
-## File: modules/workspace/application/use-cases/workspace.use-cases.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Re-export barrel for workspace command use cases that remain at root level.
- *          Lifecycle use cases → subdomains/lifecycle/
- *          Sharing use cases → subdomains/sharing/
- *          Queries → application/queries/
- *
- * DDD Rule 12: Command → use-cases/
- * DDD Rule 13: Read → queries/
- */
-
-export { MountCapabilitiesUseCase } from "./workspace-capabilities.use-cases";
-
-export { CreateWorkspaceLocationUseCase } from "./workspace-location.use-cases";
-````
-
-## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
-````typescript
-export interface WorkspaceNavigationContext {
-  readonly accountId: string | null;
-  readonly workspaceId: string | null;
-}
-
-const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
-  "workspace",
-  "workspace-feed",
-  "knowledge",
-  "knowledge-base",
-  "knowledge-database",
-  "source",
-  "notebook",
-  "ai-chat",
-  "organization",
-  "settings",
-  "dashboard",
-  "dev-tools",
-]);
-
-export const WORKSPACE_OVERVIEW_PANELS = [
-  "knowledge-pages",
-  "knowledge-base-articles",
-  "knowledge-databases",
-  "source-libraries",
-  "settings",
-] as const;
-
-export type WorkspaceOverviewPanel = (typeof WORKSPACE_OVERVIEW_PANELS)[number];
-
-function tryGetAccountIdFromPath(pathname: string): string | null {
-  const [firstSegment] = pathname.split("/").filter(Boolean);
-  if (!firstSegment) {
-    return null;
-  }
-  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
-    return null;
-  }
-  return decodeURIComponent(firstSegment);
-}
-
-function buildWorkspaceBaseHref(workspaceId: string, accountId?: string | null): string {
-  const encodedWorkspaceId = encodeURIComponent(workspaceId);
-  if (accountId) {
-    return `/${encodeURIComponent(accountId)}/${encodedWorkspaceId}`;
-  }
-  return `/workspace/${encodedWorkspaceId}`;
-}
-
-export function buildWorkspaceOverviewPanelHref(
-  workspaceId: string,
-  panel?: WorkspaceOverviewPanel,
-  accountId?: string | null,
-): string {
-  const baseHref = buildWorkspaceBaseHref(workspaceId, accountId);
-  if (!panel) {
-    return `${baseHref}?tab=Overview`;
-  }
-  return `${baseHref}?tab=Overview&panel=${encodeURIComponent(panel)}`;
-}
-
-export function supportsWorkspaceSearchContext(pathname: string): boolean {
-  return (
-    pathname.startsWith("/knowledge") ||
-    pathname.startsWith("/knowledge-base") ||
-    pathname.startsWith("/knowledge-database") ||
-    pathname.startsWith("/source") ||
-    pathname.startsWith("/notebook")
-  );
-}
-
-export function buildWorkspaceContextHref(pathname: string, workspaceId: string): string {
-  const accountId = tryGetAccountIdFromPath(pathname);
-
-  if (pathname.startsWith("/knowledge-base")) {
-    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-base-articles", accountId);
-  }
-
-  if (pathname.startsWith("/knowledge-database")) {
-    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-databases", accountId);
-  }
-
-  if (pathname.startsWith("/knowledge")) {
-    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-pages", accountId);
-  }
-
-  if (pathname.startsWith("/source/libraries")) {
-    return buildWorkspaceOverviewPanelHref(workspaceId, "source-libraries", accountId);
-  }
-
-  if (pathname.startsWith("/source/documents")) {
-    return `${buildWorkspaceBaseHref(workspaceId, accountId)}?tab=Files`;
-  }
-
-  return buildWorkspaceBaseHref(workspaceId, accountId);
-}
-
-export function appendWorkspaceContextQuery(
-  href: string,
-  context: WorkspaceNavigationContext,
-): string {
-  const { accountId, workspaceId } = context;
-
-  if (!accountId && !workspaceId) {
-    return href;
-  }
-
-  const [path, search = ""] = href.split("?");
-  const params = new URLSearchParams(search);
-
-  if (accountId) {
-    params.set("accountId", accountId);
-  }
-
-  if (workspaceId) {
-    params.set("workspaceId", workspaceId);
-  }
-
-  const query = params.toString();
-  return query.length > 0 ? `${path}?${query}` : path;
-}
-````
-
-## File: modules/notion/README.md
-````markdown
-# Notion
-
-知識內容生命週期主域
-
-## Bounded Context
-
-| Aspect | Description |
-|--------|-------------|
-| Primary role | 正典知識內容生命週期（頁面、文章、資料庫、協作、版本） |
-| Upstream | platform（治理、AI capability）、workspace（workspaceId、membership scope、share scope） |
-| Downstream | notebooklm（knowledge artifact reference、attachment reference、taxonomy hint） |
-| Core principle | notion 擁有正典知識內容，不擁有治理或推理過程 |
-| Cross-module boundary | `api/` only — no direct import of platform/workspace/notebooklm internals |
-
-## Ubiquitous Language
-
-| Term | Meaning |
-|------|---------|
-| KnowledgeArtifact | notion 主域擁有的知識內容總稱 |
-| KnowledgePage | 正典頁面型知識單位（block-based 自由頁面） |
-| ContentBlock | 知識頁面的最小可組合內容單位（段落、標題、程式碼等） |
-| KnowledgeCollection | 頁面集合容器（分組 KnowledgePage，非 Database） |
-| BacklinkIndex | 自動反向連結索引（哪些頁面引用了此頁面） |
-| Article | 經過撰寫與驗證工作流程的知識庫文章 |
-| Database | 結構化知識集合（可投影多種視圖） |
-| DatabaseView | 對 Database 的投影配置（Table/Board/Calendar/Gallery/Form） |
-| DatabaseRecord | Database 中的一筆記錄 |
-| Taxonomy | 跨頁面的分類法與語義組織結構 |
-| Relation | 內容對內容之間的正式語義關聯（有類型、有方向） |
-| Publication | 對外可見且可交付的內容狀態 |
-| VersionSnapshot | 全域版本 checkpoint 策略的不可變快照（≠ 逐次編輯 Version） |
-| Template | 可重複套用的內容結構起點 |
-| Attachment | 綁定於知識內容的檔案或媒體 |
-
-## Implementation Structure
-
-```text
-modules/notion/
-├── api/              # Public API boundary — cross-module entry point only
-├── application/      # Context-wide orchestration (empty, use subdomain layers)
-├── domain/           # Context-wide domain concepts (events, published-language)
-├── infrastructure/   # Context-wide driven adapters (empty, use subdomain layers)
-├── interfaces/       # Context-wide driving adapters (empty, use subdomain layers)
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── knowledge/             # Tier 1 — Active (KnowledgePage, ContentBlock)
-    ├── authoring/             # Tier 1 — Active (Article, Category)
-    ├── collaboration/         # Tier 1 — Active (Comment, Permission, Version)
-    ├── database/              # Tier 1 — Active (Database, Record, View)
-    ├── taxonomy/              # Tier 2 — Domain contracts (semantic classification)
-    ├── relations/             # Tier 2 — Domain contracts (explicit semantic graph)
-    ├── attachments/           # Tier 2 — Stub (file/media association)
-    ├── publishing/            # Tier 3 — Stub (external delivery boundary)
-    ├── knowledge-versioning/  # Tier 3 — Stub (global snapshot policy)
-    ├── notes/                 # Premature — absorbed by KnowledgePage
-    ├── templates/             # Premature — absorbed by authoring
-    ├── automation/            # Premature — absorbed by database
-    ├── knowledge-analytics/   # Premature — read model concern
-    └── knowledge-integration/ # Premature — infrastructure adapter concern
-```
-
-> **Premature stubs** — `notes/`, `templates/`, `automation/`, `knowledge-analytics/`, `knowledge-integration/` 目錄存在但不建議擴充。見 [Premature Stubs](#premature-stubs) 段落。
-
-## Subdomains
-
-### Tier 1 — Core (Active)
-
-| Subdomain | Purpose | Key Aggregates / Entities |
-|-----------|---------|--------------------------|
-| knowledge | KnowledgePage 生命週期、ContentBlock 編輯、BacklinkIndex、版本查詢 | KnowledgePage, ContentBlock, KnowledgeCollection, BacklinkIndex |
-| authoring | 知識庫文章建立、驗證工作流程與分類目錄 | Article, Category |
-| collaboration | 協作留言、細粒度權限與版本快照（逐次編輯歷史） | Comment, Permission, Version |
-| database | 結構化資料視圖（Table/Board/Calendar/Gallery/Form）、記錄、自動化 | Database, DatabaseRecord, View, DatabaseAutomation |
-
-### Tier 2 — Near-Term (Domain Contracts — High Business Value)
-
-| Subdomain | Purpose | Distinction |
-|-----------|---------|------------|
-| taxonomy | 跨頁面分類法與語義組織（全域標籤樹、主題分類） | ≠ authoring.Category（局部文章分類）；taxonomy 是全域語義網 |
-| relations | 內容對內容的明確語義關聯（有類型、方向） | ≠ knowledge.BacklinkIndex（自動反向連結）；relations 是主動宣告的語義圖 |
-| attachments | 附件與媒體關聯儲存（Storage 整合正典邊界） | 獨立於知識頁面內容模型。待附件需要獨立保留策略時充實 |
-
-### Tier 3 — Medium-Term (Stubs)
-
-| Subdomain | Purpose | Note |
-|-----------|---------|------|
-| publishing | 正式對外交付的 Publication 狀態邊界 | authoring 的 `ArticlePublicationUseCases` 是前置邊界 |
-| knowledge-versioning | 全域版本 checkpoint 策略（workspace-level, 保留政策） | ≠ collaboration.Version（per-edit 歷史）；是策略量，不是操作量 |
-
-### Premature Stubs（目錄保留，不建議擴充）
-
-| Subdomain | Reason |
-|-----------|--------|
-| notes | 輕量筆記可作為 KnowledgePage 的頁面類型處理，不需獨立子域 |
-| templates | 頁面範本是 authoring 的內部關注（內容結構起點），非獨立子域 |
-| automation | database 子域已涵蓋 DatabaseAutomation；跨內容類型事件自動化目前無獨立領域需求 |
-| knowledge-analytics | 知識使用行為量測是讀模型關注，非獨立領域模型。可由 infrastructure 查詢層處理 |
-| knowledge-integration | 外部系統整合是 infrastructure adapter 關注，非獨立子域 |
-
-## Subdomain Analysis
-
-**14 個目錄（4 Active + 2 Domain Contracts + 1 Stub + 2 Medium-Term + 5 Premature），分析如下：**
-
-- ✅ `knowledge` 與 `authoring` 分工正確：自由頁面（block-based wiki）vs. 結構化文章（KB article workflow）。
-- ✅ `collaboration.Version`（逐次編輯快照）與 `knowledge-versioning`（全域 checkpoint 策略）是不同責任，分開正確。
-- ✅ `knowledge.BacklinkIndex`（自動反向索引）與 `relations`（明確語義圖）不重疊。
-- ✅ `taxonomy` 是全域語義組織核心，與 `authoring.Category`（局部文章分類）不重疊，維持 Tier 2。
-- ✅ 5 個 premature stubs 有明確理由：每個都已被現有 active 子域或 infrastructure 層吸收。
-- ⚠️ `knowledge-versioning` 需持續明確與 `collaboration.Version` 的分界，避免實作者混淆。
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `api/` is the only cross-module public boundary.
-- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
-- Cross-module collaboration goes through `api/` only.
-
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/notion/README.md)
-- [Subdomains](../../docs/contexts/notion/subdomains.md)
-- [Bounded Context](../../docs/contexts/notion/bounded-contexts.md)
-- [Context Map](../../docs/contexts/notion/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/notion/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
 ## File: modules/platform/api/contracts.ts
@@ -72457,152 +73127,6 @@ export { SettingsProfileRouteScreen } from "../interfaces";
 export type { LegacyAccountProfileDataSource } from "../infrastructure";
 ````
 
-## File: modules/platform/subdomains/organization/infrastructure/organization-service.ts
-````typescript
-/**
- * OrganizationService — Composition root for organization use cases.
- */
-
-import { FirebaseOrganizationRepository } from "./firebase/FirebaseOrganizationRepository";
-import { FirebaseOrgPolicyRepository } from "./firebase/FirebaseOrgPolicyRepository";
-import {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-} from "../application/use-cases/organization-lifecycle.use-cases";
-import {
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-} from "../application/use-cases/organization-member.use-cases";
-import {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../application/use-cases/organization-team.use-cases";
-import type { IOrganizationTeamPort } from "../domain/ports/IOrganizationTeamPort";
-import {
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../application/use-cases/organization-partner.use-cases";
-import {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../application/use-cases/organization-policy.use-cases";
-import type {
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../domain/entities/Organization";
-import type { CreateTeamInput } from "../domain/entities/Organization";
-import type { CommandResult } from "@shared-types";
-
-let _orgRepo: FirebaseOrganizationRepository | undefined;
-let _policyRepo: FirebaseOrgPolicyRepository | undefined;
-let _teamPort: IOrganizationTeamPort | undefined;
-let _teamPortFactory: (() => IOrganizationTeamPort) | undefined;
-
-export function configureOrganizationTeamPortFactory(
-  factory: () => IOrganizationTeamPort,
-): void {
-  _teamPortFactory = factory;
-  _teamPort = undefined;
-}
-
-function getOrgRepo(): FirebaseOrganizationRepository {
-  if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
-  return _orgRepo;
-}
-
-function getPolicyRepo(): FirebaseOrgPolicyRepository {
-  if (!_policyRepo) _policyRepo = new FirebaseOrgPolicyRepository();
-  return _policyRepo;
-}
-
-function getTeamPort(): IOrganizationTeamPort {
-  if (!_teamPortFactory) {
-    throw new Error("Organization team port factory is not configured.");
-  }
-  if (!_teamPort) _teamPort = _teamPortFactory();
-  return _teamPort;
-}
-
-export const organizationService = {
-  createOrganization: (cmd: CreateOrganizationCommand): Promise<CommandResult> =>
-    new CreateOrganizationUseCase(getOrgRepo()).execute(cmd),
-
-  createOrganizationWithTeam: (
-    cmd: CreateOrganizationCommand,
-    teamName: string,
-    teamType: "internal" | "external" = "internal",
-  ): Promise<CommandResult> =>
-    new CreateOrganizationWithTeamUseCase(getOrgRepo()).execute(cmd, teamName, teamType),
-
-  updateSettings: (cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> =>
-    new UpdateOrganizationSettingsUseCase(getOrgRepo()).execute(cmd),
-
-  deleteOrganization: (orgId: string): Promise<CommandResult> =>
-    new DeleteOrganizationUseCase(getOrgRepo()).execute(orgId),
-
-  inviteMember: (input: InviteMemberInput): Promise<CommandResult> =>
-    new InviteMemberUseCase(getOrgRepo()).execute(input),
-
-  recruitMember: (orgId: string, memberId: string, name: string, email: string): Promise<CommandResult> =>
-    new RecruitMemberUseCase(getOrgRepo()).execute(orgId, memberId, name, email),
-
-  removeMember: (orgId: string, memberId: string): Promise<CommandResult> =>
-    new RemoveMemberUseCase(getOrgRepo()).execute(orgId, memberId),
-
-  updateMemberRole: (input: UpdateMemberRoleInput): Promise<CommandResult> =>
-    new UpdateMemberRoleUseCase(getOrgRepo()).execute(input),
-
-  createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
-    new CreateTeamUseCase(getTeamPort()).execute(input),
-
-  deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
-    new DeleteTeamUseCase(getTeamPort()).execute(orgId, teamId),
-
-  updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
-    new UpdateTeamMembersUseCase(getTeamPort()).execute(orgId, teamId, memberId, action),
-
-  createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
-    new CreatePartnerGroupUseCase(getOrgRepo()).execute(orgId, groupName),
-
-  sendPartnerInvite: (orgId: string, teamId: string, email: string): Promise<CommandResult> =>
-    new SendPartnerInviteUseCase(getOrgRepo()).execute(orgId, teamId, email),
-
-  dismissPartnerMember: (orgId: string, teamId: string, memberId: string): Promise<CommandResult> =>
-    new DismissPartnerMemberUseCase(getOrgRepo()).execute(orgId, teamId, memberId),
-
-  createOrgPolicy: (input: CreateOrgPolicyInput): Promise<CommandResult> =>
-    new CreateOrgPolicyUseCase(getPolicyRepo()).execute(input),
-
-  updateOrgPolicy: (policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> =>
-    new UpdateOrgPolicyUseCase(getPolicyRepo()).execute(policyId, data),
-
-  deleteOrgPolicy: (policyId: string): Promise<CommandResult> =>
-    new DeleteOrgPolicyUseCase(getPolicyRepo()).execute(policyId),
-};
-
-/**
- * OrganizationQueryService — read-model queries for client-side data.
- * Composition root: wires Firebase repos for queries; interfaces/ must use this
- * via the subdomain api/ boundary instead of importing infrastructure directly.
- */
-export const organizationQueryService = {
-  getMembers: (organizationId: string) => getOrgRepo().getMembers(organizationId),
-  getTeams: (organizationId: string) => getOrgRepo().getTeams(organizationId),
-  getOrgPolicies: (orgId: string) => getPolicyRepo().getPolicies(orgId),
-};
-````
-
 ## File: modules/workspace/api/ui.ts
 ````typescript
 /**
@@ -72761,6 +73285,162 @@ export {
 export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
 ````
 
+## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
+````typescript
+export interface WorkspaceNavigationContext {
+  readonly accountId: string | null;
+  readonly workspaceId: string | null;
+}
+
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
+
+export const WORKSPACE_OVERVIEW_PANELS = [
+  "knowledge-pages",
+  "knowledge-base-articles",
+  "knowledge-databases",
+  "source-libraries",
+  "settings",
+] as const;
+
+export type WorkspaceOverviewPanel = (typeof WORKSPACE_OVERVIEW_PANELS)[number];
+
+function normalizeWorkspaceToolPath(pathname: string): string {
+  const [pathOnly] = pathname.split("?");
+  const segments = pathOnly.split("/").filter(Boolean);
+
+  if (segments.length === 0) {
+    return "/";
+  }
+
+  const [firstSegment, secondSegment, ...restSegments] = segments;
+
+  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
+    return pathOnly;
+  }
+
+  if (!secondSegment) {
+    return "/workspace";
+  }
+
+  if (["organization", "settings", "dev-tools"].includes(secondSegment)) {
+    return `/${[secondSegment, ...restSegments].join("/")}`;
+  }
+
+  if (restSegments.length === 0) {
+    return "/workspace";
+  }
+
+  return `/${restSegments.join("/")}`;
+}
+
+function tryGetAccountIdFromPath(pathname: string): string | null {
+  const [firstSegment] = pathname.split("/").filter(Boolean);
+  if (!firstSegment) {
+    return null;
+  }
+  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
+    return null;
+  }
+  return decodeURIComponent(firstSegment);
+}
+
+function buildWorkspaceBaseHref(workspaceId: string, accountId?: string | null): string {
+  const encodedWorkspaceId = encodeURIComponent(workspaceId);
+  if (accountId) {
+    return `/${encodeURIComponent(accountId)}/${encodedWorkspaceId}`;
+  }
+  return "/";
+}
+
+export function buildWorkspaceOverviewPanelHref(
+  workspaceId: string,
+  panel?: WorkspaceOverviewPanel,
+  accountId?: string | null,
+): string {
+  const baseHref = buildWorkspaceBaseHref(workspaceId, accountId);
+  if (!panel) {
+    return `${baseHref}?tab=Overview`;
+  }
+  return `${baseHref}?tab=Overview&panel=${encodeURIComponent(panel)}`;
+}
+
+export function supportsWorkspaceSearchContext(pathname: string): boolean {
+  const normalizedPathname = normalizeWorkspaceToolPath(pathname);
+  return (
+    normalizedPathname.startsWith("/knowledge") ||
+    normalizedPathname.startsWith("/knowledge-base") ||
+    normalizedPathname.startsWith("/knowledge-database") ||
+    normalizedPathname.startsWith("/source") ||
+    normalizedPathname.startsWith("/notebook")
+  );
+}
+
+export function buildWorkspaceContextHref(pathname: string, workspaceId: string): string {
+  const accountId = tryGetAccountIdFromPath(pathname);
+  const normalizedPathname = normalizeWorkspaceToolPath(pathname);
+
+  if (normalizedPathname.startsWith("/knowledge-base")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-base-articles", accountId);
+  }
+
+  if (normalizedPathname.startsWith("/knowledge-database")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-databases", accountId);
+  }
+
+  if (normalizedPathname.startsWith("/knowledge")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-pages", accountId);
+  }
+
+  if (normalizedPathname.startsWith("/source/libraries")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "source-libraries", accountId);
+  }
+
+  if (normalizedPathname.startsWith("/source/documents")) {
+    return `${buildWorkspaceBaseHref(workspaceId, accountId)}?tab=Files`;
+  }
+
+  return buildWorkspaceBaseHref(workspaceId, accountId);
+}
+
+export function appendWorkspaceContextQuery(
+  href: string,
+  context: WorkspaceNavigationContext,
+): string {
+  const { accountId, workspaceId } = context;
+
+  if (!accountId && !workspaceId) {
+    return href;
+  }
+
+  const [path, search = ""] = href.split("?");
+  const params = new URLSearchParams(search);
+
+  if (accountId) {
+    params.set("accountId", accountId);
+  }
+
+  if (workspaceId) {
+    params.set("workspaceId", workspaceId);
+  }
+
+  const query = params.toString();
+  return query.length > 0 ? `${path}?${query}` : path;
+}
+````
+
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
 ````typescript
 "use client";
@@ -72773,6 +73453,7 @@ import {
   CardContent,
 } from "@ui-shadcn/ui/card";
 import { Badge } from "@ui-shadcn/ui/badge";
+import { useAuth } from "@/modules/platform/api";
 import { WorkspaceAuditTab } from "@/modules/workspace/api";
 import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
 import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
@@ -72820,6 +73501,7 @@ export function WorkspaceDetailScreen({
   initialOverviewPanel,
 }: WorkspaceDetailScreenProps) {
   const { state: wsState, dispatch: wsDispatch } = useWorkspaceContext();
+  const { state: authState } = useAuth();
   const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
     workspaceId,
     accountId,
@@ -72855,6 +73537,7 @@ export function WorkspaceDetailScreen({
           <WorkspaceOverviewTab
             workspace={workspace}
             activeWorkspaceId={wsState.activeWorkspaceId}
+            currentUserId={authState.user?.id}
             personnelEntries={personnelEntries}
             addressLines={addressLines}
             initialPanel={initialOverviewPanel}
@@ -72943,7 +73626,10 @@ export function WorkspaceDetailScreen({
 
   return (
     <div className="space-y-6">
-      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
+      <Link
+        href={accountId ? `/${encodeURIComponent(accountId)}` : "/"}
+        className="inline-flex text-sm font-medium text-primary hover:underline md:hidden"
+      >
         ← 返回 Workspace Hub
       </Link>
 
@@ -72992,7 +73678,9 @@ export function WorkspaceDetailScreen({
                   return (
                     <Link
                       key={tab}
-                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
+                      href={accountId
+                        ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=${encodeURIComponent(tab)}`
+                        : "/"}
                       aria-current={isActive ? "page" : undefined}
                       className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
                         isActive
@@ -73044,212 +73732,6 @@ export function WorkspaceDetailScreen({
     </div>
   );
 }
-````
-
-## File: modules/notebooklm/AGENT.md
-````markdown
-# NotebookLM Agent
-
-> Strategic agent documentation: [docs/contexts/notebooklm/AGENT.md](../../docs/contexts/notebooklm/AGENT.md)
-
-## Mission
-
-保護 notebooklm 主域作為對話、來源處理與推理輸出的邊界。notebooklm 擁有衍生推理流程，不擁有正典知識內容。任何變更都應維持 notebooklm 擁有對話生命週期、來源管理與 RAG pipeline 語言，而不是吸收平台治理或正典知識語言。
-
-## Bounded Context Summary
-
-| Aspect | Description |
-|--------|-------------|
-| Primary role | 對話、來源處理與推理輸出 |
-| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact reference） |
-| Downstream | 無固定主域級下游；輸出可被其他主域吸收 |
-| Core invariant | notebooklm 只能持有衍生推理輸出，不得直接修改 notion 的正典內容 |
-| Published language | Notebook reference、Conversation reference、SourceReference、GroundedAnswer |
-
-## Bounded Contexts
-
-| Cluster | Subdomains | Responsibility |
-|---------|------------|----------------|
-| Interaction Core | notebook, conversation | 對話容器與互動生命週期 |
-| Source & RAG Pipeline | source, synthesis | 來源管理與完整 RAG pipeline（retrieval → grounding → synthesis → evaluation） |
-
-## Route Here When
-
-- 問題核心是 notebook、conversation、source、synthesis（RAG pipeline）。
-- 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
-- 問題要把知識來源（notion artifact、uploaded file）轉成可對話與可綜合的推理材料。
-- 問題涉及 RAG 問答、向量檢索、chunks 召回、generation 品質。
-- 問題涉及 evaluation、品質評估、回歸比較或 grounding 可信度。
-
-## Route Elsewhere When
-
-- 正典知識頁面、文章、分類、正式發布屬於 notion。
-- 身份、授權、權益、憑證治理屬於 platform。
-- 共享 AI provider、模型政策、配額與安全護欄屬於 platform.ai。
-- 工作區生命週期、成員管理、共享範圍屬於 workspace。
-
-## Subdomains
-
-| Subdomain | Purpose | Key Aggregates / Entities |
-|-----------|---------|---------------------------|
-| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
-| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration, NotebookRepository |
-| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary, SourceRetentionPolicy |
-| synthesis | 完整 RAG pipeline：retrieval、grounding、synthesis、evaluation | AnswerRagQueryUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
-
-### Future Split Triggers
-
-`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
-
-| Facet | Split Trigger |
-|-------|---------------|
-| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
-| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
-| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
-| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
-
-### Domain Invariants
-
-- notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
-- shared AI capability 由 platform.ai 提供；notebooklm 在 synthesis 擁有 retrieval、grounding、generation、evaluation 的本地語義。
-- grounding 應能把輸出對齊到來源證據。
-- retrieval 是 generation 的上游能力。
-- evaluation 應描述品質，而不是單純使用量。
-- 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
-
-## Ubiquitous Language
-
-| Term | Meaning | Owning Subdomain | Do Not Use |
-|------|---------|------------------|------------|
-| Notebook | 聚合對話、來源與衍生筆記的工作單位 | notebook | Project, Workspace |
-| AgentGeneration | GenKit 代理回應生成 | notebook | - |
-| Conversation | Notebook 內的對話執行邊界 | conversation | Chat, Session |
-| Thread | 一段對話的容器 | conversation | - |
-| Message | 一則輸入或輸出對話項 | conversation | Turn, Exchange |
-| Source | 被引用與推理的來源材料 | source | File, Document (generic) |
-| SourceFile | 使用者上傳的原始檔案 | source | - |
-| RagDocument | 來源文件在 RAG pipeline 中的表示 | source | - |
-| WikiLibrary | 結構化知識來源庫 | source | - |
-| Ingestion | 來源匯入、正規化與前處理流程 | source | File Import, Upload |
-| Retrieval | 從來源中召回候選片段的查詢能力 | synthesis | Search, Lookup |
-| Grounding | 把輸出對齊到來源證據的能力 | synthesis | Verification, Factcheck |
-| Citation | 輸出指回來源證據的引用關係 | synthesis | Reference, Link |
-| Synthesis | 綜合多來源後生成的衍生輸出 | synthesis | Answer, Response (generic) |
-| Evaluation | 對輸出品質、回歸結果與效果的評估 | synthesis | Analytics, Metrics (generic) |
-| RelevanceScore | 檢索結果的相關性分數 | synthesis | - |
-
-### Avoid
-
-| Avoid | Use Instead |
-|-------|-------------|
-| Chat | Conversation |
-| File Import | Ingestion |
-| Search Step | Retrieval |
-| Verified Answer | Grounded Synthesis |
-| Knowledge / Wiki | Synthesis output（正典知識屬 notion） |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-api/ ← 唯一跨模組入口
-```
-
-## Development Order (Domain-First)
-
-1. Define Domain (entities, value objects, aggregates, events)
-2. Define Application (use cases, DTOs)
-3. Define Ports (only if boundary isolation needed)
-4. Implement Infrastructure (adapters, persistence)
-5. Implement Interfaces (UI, actions, hooks)
-````
-
-## File: modules/notebooklm/README.md
-````markdown
-# NotebookLM
-
-對話、來源處理與推理主域
-
-## Bounded Context
-
-| Aspect | Description |
-|--------|-------------|
-| Primary role | 對話、來源處理、檢索與推理輸出 |
-| Upstream | platform（治理、AI capability）、workspace（scope）、notion（knowledge artifact, attachment reference） |
-| Downstream | 無固定主域級下游；GroundedAnswer 可被其他主域消費 |
-| Core principle | notebooklm 擁有衍生推理流程，不擁有正典知識內容 |
-| Cross-module boundary | `api/` only — no direct import of notion/platform/workspace internals |
-
-## Ubiquitous Language
-
-| Term | Meaning |
-|------|---------|
-| Notebook | 聚合對話、來源與衍生筆記的工作單位 |
-| Conversation | Notebook 內的對話執行邊界（Thread + Messages） |
-| Message | 一則輸入或輸出對話項 |
-| Source | 被引用與推理的來源材料 |
-| Ingestion | 來源匯入、正規化與前處理流程（TypeScript 側協調 py_fn） |
-| Retrieval | 從來源中召回候選 Chunk 的查詢能力（向量搜尋） |
-| Grounding | 把輸出對齊到來源證據、建立 Citation 的能力 |
-| Citation | 輸出指回來源證據的引用關係 |
-| Synthesis | 綜合多來源後生成的衍生輸出（RAG generation） |
-| Evaluation | 對輸出品質、feedback 與回歸結果的評估 |
-
-## Implementation Structure
-
-```text
-modules/notebooklm/
-├── api/              # Public API boundary — cross-module entry point only
-├── application/      # Context-wide orchestration (empty, use subdomain layers)
-├── domain/           # Context-wide domain concepts (events, published-language)
-├── infrastructure/   # Context-wide driven adapters (empty, use subdomain layers)
-├── interfaces/       # Context-wide driving adapters (RagQueryView composition)
-├── docs/             # Links to strategic documentation
-└── subdomains/
-    ├── conversation/  # Tier 1 — 對話 Thread 與 Message
-    ├── notebook/      # Tier 1 — Notebook 容器與 GenKit 生成
-    ├── source/        # Tier 1 — 來源文件與 ingestion 編排
-    └── synthesis/     # Tier 1 — 完整 RAG pipeline（retrieval → grounding → synthesis → evaluation）
-```
-
-## Subdomains
-
-| Subdomain | Purpose | Key Aggregates / Entities |
-|-----------|---------|--------------------------|
-| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
-| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration |
-| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary |
-| synthesis | 完整 RAG pipeline：retrieval、grounding、answer generation、evaluation/feedback | AnswerRagQueryUseCase, SubmitRagQueryFeedbackUseCase, RagScoringService, RagCitationBuilder, RagPromptBuilder |
-
-### Future Split Triggers
-
-`synthesis` 子域將四個 RAG 關注點作為內部 facets 持有。只有當以下觸發條件成立時，才拆分為獨立子域：
-
-| Facet | Split Trigger |
-|-------|---------------|
-| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
-| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
-| generation | 生成策略需要獨立 use case 群（多模態、多來源融合） |
-| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `api/` is the only cross-module public boundary.
-- `domain/` must not import infrastructure, interfaces, React, Firebase SDK, or any runtime framework.
-- Cross-module collaboration goes through `api/` only.
-
-## Strategic Documentation
-
-- [Context README](../../docs/contexts/notebooklm/README.md)
-- [Subdomains](../../docs/contexts/notebooklm/subdomains.md)
-- [Bounded Context](../../docs/contexts/notebooklm/bounded-contexts.md)
-- [Context Map](../../docs/contexts/notebooklm/context-map.md)
-- [Ubiquitous Language](../../docs/contexts/notebooklm/ubiquitous-language.md)
-- [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
 ## File: modules/platform/api/index.ts
