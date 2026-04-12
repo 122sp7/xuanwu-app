@@ -34,20 +34,38 @@ const subdomainElements = [
 
 const moduleElements = [...subdomainElements, ...mainDomainElements];
 
-const sameDomain = (type) => [type, { domain: "${from.domain}" }];
-const sameSubdomain = (type) => [type, { domain: "${from.domain}", subdomain: "${from.subdomain}" }];
+const sameDomain = (type) => ({
+  to: {
+    type,
+    captured: {
+      domain: "{{ from.captured.domain }}",
+    },
+  },
+});
+
+const sameSubdomain = (type) => ({
+  to: {
+    type,
+    captured: {
+      domain: "{{ from.captured.domain }}",
+      subdomain: "{{ from.captured.subdomain }}",
+    },
+  },
+});
+
+const anyDomain = (type) => ({ to: { type } });
 
 const moduleElementTypeRules = [
-  { from: ["main-domain-domain"], allow: [sameDomain("main-domain-domain")] },
-  { from: ["main-domain-application"], allow: [sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api"), sameDomain("subdomain-application")] },
-  { from: ["main-domain-infrastructure"], allow: [sameDomain("main-domain-infrastructure"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), "main-domain-api"] },
-  { from: ["main-domain-interfaces"], allow: [sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api"), "main-domain-api"] },
-  { from: ["main-domain-api"], allow: [sameDomain("main-domain-api"), sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("main-domain-infrastructure"), sameDomain("subdomain-api")] },
-  { from: ["subdomain-domain"], allow: [sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain")] },
-  { from: ["subdomain-application"], allow: [sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain")] },
-  { from: ["subdomain-infrastructure"], allow: [sameSubdomain("subdomain-infrastructure"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain"), "main-domain-api"] },
-  { from: ["subdomain-interfaces"], allow: [sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameSubdomain("subdomain-api"), "main-domain-api"] },
-  { from: ["subdomain-api"], allow: [sameSubdomain("subdomain-api"), sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameSubdomain("subdomain-infrastructure"), sameDomain("subdomain-api"), "main-domain-api"] },
+  { from: { type: "main-domain-domain" }, allow: [sameDomain("main-domain-domain")] },
+  { from: { type: "main-domain-application" }, allow: [sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api"), sameDomain("subdomain-application")] },
+  { from: { type: "main-domain-infrastructure" }, allow: [sameDomain("main-domain-infrastructure"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), anyDomain("main-domain-api")] },
+  { from: { type: "main-domain-interfaces" }, allow: [sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api"), anyDomain("main-domain-api")] },
+  { from: { type: "main-domain-api" }, allow: [sameDomain("main-domain-api"), sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("main-domain-infrastructure"), sameDomain("subdomain-api")] },
+  { from: { type: "subdomain-domain" }, allow: [sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain")] },
+  { from: { type: "subdomain-application" }, allow: [sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain")] },
+  { from: { type: "subdomain-infrastructure" }, allow: [sameSubdomain("subdomain-infrastructure"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain"), anyDomain("main-domain-api")] },
+  { from: { type: "subdomain-interfaces" }, allow: [sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameSubdomain("subdomain-api"), anyDomain("main-domain-api")] },
+  { from: { type: "subdomain-api" }, allow: [sameSubdomain("subdomain-api"), sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameSubdomain("subdomain-infrastructure"), sameDomain("subdomain-api"), anyDomain("main-domain-api")] },
 ];
 
 // ─── Restricted import patterns ───────────────────────────────────────────────
@@ -170,9 +188,14 @@ export default defineConfig([
   {
     files: moduleCodeGlobs,
     plugins: { boundaries },
-    settings: { "boundaries/include": moduleCodeGlobs, "boundaries/elements": moduleElements },
+    settings: {
+      "boundaries/include": moduleCodeGlobs,
+      "boundaries/elements": moduleElements,
+      "boundaries/dependency-nodes": ["import"],
+      "boundaries/legacy-templates": false,
+    },
     rules: {
-      "boundaries/element-types": [WARN, { default: "disallow", rules: moduleElementTypeRules }],
+      "boundaries/dependencies": [WARN, { default: "disallow", rules: moduleElementTypeRules }],
     },
   },
 

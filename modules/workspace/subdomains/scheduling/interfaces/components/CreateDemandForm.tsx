@@ -109,7 +109,6 @@ export function CreateDemandForm({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={submitting}
-              autoFocus
             />
           </div>
 

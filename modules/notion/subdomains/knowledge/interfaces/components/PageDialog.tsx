@@ -43,7 +43,7 @@ export function PageDialog({ open, onOpenChange, accountId, workspaceId, current
         <form id="page-form" className="space-y-3" onSubmit={handleSubmit}>
           <div className="space-y-1.5">
             <Label htmlFor="page-title">標題 *</Label>
-            <Input id="page-title" placeholder="頁面標題" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus disabled={isPending} />
+            <Input id="page-title" placeholder="頁面標題" value={title} onChange={(e) => setTitle(e.target.value)} disabled={isPending} />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
         </form>
