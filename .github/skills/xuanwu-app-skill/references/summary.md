@@ -1,4 +1,5 @@
-This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+This file is a merged representation of a subset of the codebase, containing specifically included files and files not matching ignore patterns, combined into a single document by Repomix.
+The content has been processed where content has been formatted for parsing in markdown style.
 
 # Summary
 
@@ -31,29 +32,33 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Only files matching these patterns are included: app/**
+- Only files matching these patterns are included: app/**, modules/**, packages/**
+- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .claude/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, docs/architecture/**, diagrams/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
+- Content has been formatted for parsing in markdown style
 - Files are sorted by Git change count (files with more changes are at the bottom)
 
 ## Statistics
 
-60 files | 4,106 lines
+1443 files | 68,321 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript (TSX) | 54 | 3,528 |
-| TypeScript | 5 | 381 |
+| TypeScript | 1151 | 42,247 |
+| TypeScript (TSX) | 199 | 23,701 |
+| Markdown | 74 | 2,158 |
+| No Extension | 18 | 18 |
 | CSS | 1 | 197 |
 
 **Largest files:**
+- `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
 - `app/(shell)/(account)/[accountId]/dev-tools/page.tsx` (477 lines)
+- `packages/ui-shadcn/ui/chart.tsx` (356 lines)
+- `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
+- `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)
 - `app/(shell)/_shell/ShellAppRail.tsx` (335 lines)
-- `app/(shell)/_shell/ShellRootLayout.tsx` (300 lines)
-- `app/(public)/page.tsx` (290 lines)
-- `app/(shell)/_shell/ShellDashboardSidebar.tsx` (234 lines)
-- `app/(shell)/_shell/ShellSidebarBody.tsx` (209 lines)
-- `app/(shell)/(account)/[accountId]/dev-tools/use-dev-tools-doc-list.ts` (203 lines)
-- `app/globals.css` (197 lines)
-- `app/(shell)/(account)/[accountId]/organization/page.tsx` (196 lines)
-- `app/(shell)/(account)/[accountId]/organization/audit/_components/OrganizationAuditPage.tsx` (151 lines)
+- `modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts` (329 lines)
+- `modules/platform/api/infrastructure-api.ts` (312 lines)
+- `modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx` (310 lines)
+- `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
