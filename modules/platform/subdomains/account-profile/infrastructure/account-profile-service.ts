@@ -16,10 +16,6 @@ import {
 	createLegacyAccountProfileQueryRepository,
 	type LegacyAccountProfileDataSource,
 } from "./create-legacy-account-profile-application.adapter";
-import {
-	accountService,
-	createAccountQueryRepository,
-} from "../../account/infrastructure/account-service";
 import type { AccountProfile, Unsubscribe } from "../domain";
 import type { UpdateAccountProfileInput } from "../application";
 import type { CommandResult } from "@shared-types";
@@ -31,20 +27,23 @@ let _getAccountProfileUseCase: GetAccountProfileUseCase | undefined;
 let _subscribeAccountProfileUseCase: SubscribeAccountProfileUseCase | undefined;
 let _updateAccountProfileUseCase: UpdateAccountProfileUseCase | undefined;
 
+export function configureLegacyAccountProfileDataSource(
+	legacyDataSource: LegacyAccountProfileDataSource,
+): void {
+	_legacyDataSource = legacyDataSource;
+	_getAccountProfileUseCase = undefined;
+	_subscribeAccountProfileUseCase = undefined;
+	_updateAccountProfileUseCase = undefined;
+}
+
 function getLegacyDataSource(): LegacyAccountProfileDataSource {
 	if (_legacyDataSource) {
 		return _legacyDataSource;
 	}
 
-	_legacyDataSource = {
-		getUserProfile: (userId) => createAccountQueryRepository().getUserProfile(userId),
-		subscribeToUserProfile: (userId, onUpdate) =>
-			createAccountQueryRepository().subscribeToUserProfile(userId, onUpdate),
-		updateUserProfile: async (userId, input) => {
-			await accountService.updateUserProfile(userId, input);
-		},
-	};
-	return _legacyDataSource;
+	throw new Error(
+		"LegacyAccountProfileDataSource is not configured. Configure it in account-profile/api composition root.",
+	);
 }
 
 function getGetAccountProfileUseCase(): GetAccountProfileUseCase {

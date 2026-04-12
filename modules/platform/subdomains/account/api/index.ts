@@ -3,6 +3,11 @@
  * Cross-module consumers must import through this entry point.
  */
 
+import { identityApi } from "../../identity/api";
+import { configureTokenRefreshEmitter } from "../infrastructure/identity-token-refresh.adapter";
+
+configureTokenRefreshEmitter(identityApi.emitTokenRefreshSignal);
+
 export * from "../application";
 export { accountService, createClientAccountUseCases, createAccountQueryRepository } from "../infrastructure";
 export type {

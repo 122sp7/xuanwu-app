@@ -9,4 +9,5 @@ export {
 	getAccountProfile as getAccountProfileFromService,
 	subscribeToAccountProfile as subscribeToAccountProfileFromService,
 	updateAccountProfile as updateAccountProfileFromService,
+	configureLegacyAccountProfileDataSource,
 } from "./account-profile-service";

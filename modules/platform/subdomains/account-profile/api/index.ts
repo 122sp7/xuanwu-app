@@ -10,10 +10,22 @@ import {
 	getAccountProfileFromService,
 	subscribeToAccountProfileFromService,
 	updateAccountProfileFromService,
+	configureLegacyAccountProfileDataSource,
 } from "../infrastructure";
+import {
+	getLegacyUserProfile,
+	subscribeToLegacyUserProfile,
+	updateLegacyUserProfile,
+} from "../../account/api/legacy-account-profile.bridge";
 import type { AccountProfile, Unsubscribe } from "../domain";
 import type { UpdateAccountProfileInput } from "../application";
 import type { CommandResult } from "@shared-types";
+
+configureLegacyAccountProfileDataSource({
+	getUserProfile: getLegacyUserProfile,
+	subscribeToUserProfile: subscribeToLegacyUserProfile,
+	updateUserProfile: updateLegacyUserProfile,
+});
 
 // ── Use-case delegators ──────────────────────────────────────────────────
 

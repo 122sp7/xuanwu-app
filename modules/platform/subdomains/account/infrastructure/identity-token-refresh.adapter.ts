@@ -3,12 +3,22 @@
  * This adapter lives in the adapters layer so the application layer stays clean.
  */
 
-import { identityApi } from "@/modules/platform/subdomains/identity/api";
 import type { TokenRefreshPort, TokenRefreshSignalInput } from "../domain/ports/TokenRefreshPort";
+
+type EmitTokenRefreshSignal = (input: TokenRefreshSignalInput) => Promise<void>;
+
+let _emitTokenRefreshSignal: EmitTokenRefreshSignal | undefined;
+
+export function configureTokenRefreshEmitter(emitFn: EmitTokenRefreshSignal): void {
+  _emitTokenRefreshSignal = emitFn;
+}
 
 export class IdentityTokenRefreshAdapter implements TokenRefreshPort {
   async emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void> {
-    await identityApi.emitTokenRefreshSignal(input);
+    if (!_emitTokenRefreshSignal) {
+      throw new Error("Token refresh emitter is not configured.");
+    }
+    await _emitTokenRefreshSignal(input);
   }
 }
 

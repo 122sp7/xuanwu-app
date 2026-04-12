@@ -9,6 +9,11 @@
  * (./server.ts) or via direct import from action / service files.
  */
 
+import { createTeamRepository } from "../../team/api";
+import { configureOrganizationTeamPortFactory } from "../infrastructure/organization-service";
+
+configureOrganizationTeamPortFactory(createTeamRepository);
+
 // --- Domain types ---
 export type {
   OrganizationEntity,

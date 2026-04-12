@@ -22,7 +22,6 @@ import {
   UpdateTeamMembersUseCase,
 } from "../application/use-cases/organization-team.use-cases";
 import type { IOrganizationTeamPort } from "../domain/ports/IOrganizationTeamPort";
-import { FirebaseTeamRepository } from "../../team/infrastructure/firebase/FirebaseTeamRepository";
 import {
   CreatePartnerGroupUseCase,
   SendPartnerInviteUseCase,
@@ -47,6 +46,14 @@ import type { CommandResult } from "@shared-types";
 let _orgRepo: FirebaseOrganizationRepository | undefined;
 let _policyRepo: FirebaseOrgPolicyRepository | undefined;
 let _teamPort: IOrganizationTeamPort | undefined;
+let _teamPortFactory: (() => IOrganizationTeamPort) | undefined;
+
+export function configureOrganizationTeamPortFactory(
+  factory: () => IOrganizationTeamPort,
+): void {
+  _teamPortFactory = factory;
+  _teamPort = undefined;
+}
 
 function getOrgRepo(): FirebaseOrganizationRepository {
   if (!_orgRepo) _orgRepo = new FirebaseOrganizationRepository();
@@ -59,8 +66,10 @@ function getPolicyRepo(): FirebaseOrgPolicyRepository {
 }
 
 function getTeamPort(): IOrganizationTeamPort {
-  // Infrastructure composition: wire concrete repository at adapter boundary.
-  if (!_teamPort) _teamPort = new FirebaseTeamRepository();
+  if (!_teamPortFactory) {
+    throw new Error("Organization team port factory is not configured.");
+  }
+  if (!_teamPort) _teamPort = _teamPortFactory();
   return _teamPort;
 }
 
