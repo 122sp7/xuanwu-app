@@ -14279,6 +14279,31 @@ export type { WalletBalanceSnapshot, Unsubscribe } from "../../domain/repositori
 export type { AccountPolicy, CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
 ````
 
+## File: modules/platform/subdomains/account/application/index.ts
+````typescript
+export {
+  CreateUserAccountUseCase,
+  UpdateUserProfileUseCase,
+  CreditWalletUseCase,
+  DebitWalletUseCase,
+  AssignAccountRoleUseCase,
+  RevokeAccountRoleUseCase,
+} from "./use-cases/account.use-cases";
+
+export {
+  CreateAccountPolicyUseCase,
+  UpdateAccountPolicyUseCase,
+  DeleteAccountPolicyUseCase,
+} from "./use-cases/account-policy.use-cases";
+
+export {
+  resolveActiveAccount,
+  type AccountBootstrapPhase,
+  type ResolveActiveAccountInput,
+  type SelectableActiveAccount,
+} from "./services/resolve-active-account";
+````
+
 ## File: modules/platform/subdomains/account/application/use-cases/account-policy.use-cases.ts
 ````typescript
 /**
@@ -46414,6 +46439,34 @@ export class InMemoryWikiLibraryAdapter implements IWikiLibraryRepository {
 }
 ````
 
+## File: modules/notebooklm/infrastructure/source/platform/PlatformSourceDocumentWatchAdapter.ts
+````typescript
+/**
+ * Module: notebooklm
+ * Layer: infrastructure/source/platform
+ * Adapter: PlatformSourceDocumentWatchAdapter — delegates to platform FirestoreAPI.
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+
+import type {
+  ISourceDocumentWatchPort,
+  WatchedDocument,
+} from "../../../subdomains/source/domain/ports/ISourceDocumentWatchPort";
+
+export class PlatformSourceDocumentWatchAdapter implements ISourceDocumentWatchPort {
+  watchCollection<T>(
+    collectionPath: string,
+    handlers: {
+      onNext: (documents: readonly WatchedDocument<T>[]) => void;
+      onError?: (error: unknown) => void;
+    },
+  ): () => void {
+    return firestoreInfrastructureApi.watchCollection<T>(collectionPath, handlers);
+  }
+}
+````
+
 ## File: modules/notebooklm/infrastructure/source/platform/PlatformSourcePipelineAdapter.ts
 ````typescript
 import { functionsInfrastructureApi } from "@/modules/platform/api";
@@ -46504,6 +46557,36 @@ export class PlatformSourcePipelineAdapter implements ISourcePipelinePort {
       chunkCount: asNumber(data.chunk_count, 0),
       vectorCount: asNumber(data.vector_count, 0),
     };
+  }
+}
+````
+
+## File: modules/notebooklm/infrastructure/source/platform/PlatformSourceStorageAdapter.ts
+````typescript
+/**
+ * Module: notebooklm
+ * Layer: infrastructure/source/platform
+ * Adapter: PlatformSourceStorageAdapter — delegates to platform StorageAPI.
+ */
+
+import { storageInfrastructureApi } from "@/modules/platform/api";
+
+import type {
+  ISourceStoragePort,
+  SourceStorageUploadOptions,
+} from "../../../subdomains/source/domain/ports/ISourceStoragePort";
+
+export class PlatformSourceStorageAdapter implements ISourceStoragePort {
+  async upload(
+    file: Blob,
+    path: string,
+    options?: SourceStorageUploadOptions,
+  ): Promise<string> {
+    return storageInfrastructureApi.upload(file, path, options);
+  }
+
+  toGsUri(path: string): string {
+    return storageInfrastructureApi.toGsUri(path);
   }
 }
 ````
@@ -48592,475 +48675,6 @@ function DraggableRow({ rowId, children }: DraggableRowProps) {
 }
 ````
 
-## File: modules/notebooklm/interfaces/source/components/SourceDocumentsPanel.tsx
-````typescript
-"use client";
-
-import { useRef, useState } from "react";
-import { FileUp, Loader2 } from "lucide-react";
-import { toast } from "sonner";
-
-import { useApp } from "@/modules/platform/api";
-import { storageInfrastructureApi } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-import type { SourceLiveDocument } from "../hooks/useSourceDocumentsSnapshot";
-import { useSourceDocumentsSnapshot } from "../hooks/useSourceDocumentsSnapshot";
-import { deleteSourceDocument, renameSourceDocument } from "../_actions/source-file.actions";
-
-const WATCH_PATH = "uploads/";
-const ACCEPTED_MIME: Record<string, string> = {
-  "application/pdf": ".pdf",
-  "image/tiff": ".tif/.tiff",
-  "image/png": ".png",
-  "image/jpeg": ".jpg/.jpeg",
-};
-const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
-
-interface SourceDocumentsPanelProps {
-  readonly workspaceId?: string;
-}
-
-/** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
-export function SourceDocumentsPanel({ workspaceId }: SourceDocumentsPanelProps) {
-  const { state: appState } = useApp();
-  const activeAccountId = appState.activeAccount?.id ?? "";
-  const effectiveWorkspaceId = workspaceId?.trim() ?? "";
-
-  const { docs, loading, pendingDocs, addPending } = useSourceDocumentsSnapshot(
-    activeAccountId,
-    effectiveWorkspaceId || undefined,
-  );
-
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const allDocs = [
-    ...pendingDocs,
-    ...docs.filter((d) => !pendingDocs.some((p) => p.id === d.id)),
-  ].sort((a, b) => (b.uploadedAt?.getTime() ?? 0) - (a.uploadedAt?.getTime() ?? 0));
-
-  function handleFileChange(file: File | null) {
-    if (!file) { setSelectedFile(null); return; }
-    if (!(file.type in ACCEPTED_MIME)) {
-      toast.error(`僅支援 ${ACCEPTED_EXTS}`);
-      setSelectedFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-    setSelectedFile(file);
-  }
-
-  async function handleUpload() {
-    if (!selectedFile) { toast.error("請先選擇檔案"); return; }
-    if (!activeAccountId) { toast.error("目前沒有 active account，無法上傳"); return; }
-
-    const ext = selectedFile.name.includes(".")
-      ? `.${selectedFile.name.split(".").pop() ?? ""}`
-      : "";
-    const docId = crypto.randomUUID();
-    const uploadPath = `${WATCH_PATH}${activeAccountId}/${docId}${ext}`;
-
-    setUploading(true);
-    addPending({
-      id: docId,
-      filename: selectedFile.name,
-      workspaceId: effectiveWorkspaceId,
-      sourceGcsUri: storageInfrastructureApi.toGsUri(uploadPath),
-      jsonGcsUri: "",
-      pageCount: 0,
-      status: "processing",
-      ragStatus: "",
-      uploadedAt: new Date(),
-      errorMessage: "",
-      ragError: "",
-      isClientPending: true,
-    });
-
-    try {
-      const customMetadata: Record<string, string> = {
-        account_id: activeAccountId,
-        filename: selectedFile.name,
-        original_filename: selectedFile.name,
-        display_name: selectedFile.name,
-      };
-      if (effectiveWorkspaceId) customMetadata.workspace_id = effectiveWorkspaceId;
-      await storageInfrastructureApi.upload(selectedFile, uploadPath, { customMetadata });
-      toast.success(`上傳成功：${selectedFile.name}`);
-      setSelectedFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "上傳失敗");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleDelete(doc: SourceLiveDocument) {
-    setDeletingId(doc.id);
-    try {
-      const result = await deleteSourceDocument(activeAccountId, doc.id);
-      if (!result.ok) toast.error(result.error.message);
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
-  async function handleRename(doc: SourceLiveDocument, newName: string) {
-    setRenamingId(doc.id);
-    try {
-      const result = await renameSourceDocument(activeAccountId, doc.id, newName);
-      if (!result.ok) toast.error(result.error.message);
-    } finally {
-      setRenamingId(null);
-    }
-  }
-
-  return (
-    <Card className="border border-border/50">
-      <CardHeader>
-        <CardTitle>Documents</CardTitle>
-        <CardDescription>Upload and manage source documents for RAG.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex items-center gap-2">
-          <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-border px-4 py-2 text-sm text-muted-foreground hover:border-primary hover:text-primary"
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => { e.preventDefault(); setDragging(false); handleFileChange(e.dataTransfer.files[0] ?? null); }}
-            style={{ background: dragging ? "var(--accent)" : undefined }}>
-            <FileUp className="h-4 w-4" />
-            <span>{selectedFile ? selectedFile.name : "選擇或拖曳檔案"}</span>
-            <input ref={fileInputRef} type="file" className="sr-only"
-              accept={Object.keys(ACCEPTED_MIME).join(",")}
-              onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)} />
-          </label>
-          <Button size="sm" disabled={!selectedFile || uploading} onClick={() => void handleUpload()}>
-            {uploading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
-            Upload
-          </Button>
-        </div>
-
-        {loading ? (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-          </div>
-        ) : allDocs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No documents yet.</p>
-        ) : (
-          <ul className="divide-y divide-border/40 rounded-lg border border-border/40">
-            {allDocs.map((doc) => (
-              <li key={doc.id} className="flex items-center justify-between gap-2 px-4 py-2 text-sm">
-                <span className="flex-1 truncate font-medium">{doc.filename}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{doc.status}</span>
-                <button className="shrink-0 text-xs text-destructive hover:underline"
-                  disabled={deletingId === doc.id || renamingId === doc.id}
-                  onClick={() => void handleDelete(doc)}>
-                  Delete
-                </button>
-                <button className="shrink-0 text-xs text-primary hover:underline"
-                  disabled={deletingId === doc.id || renamingId === doc.id}
-                  onClick={() => {
-                    const newName = window.prompt("New name:", doc.filename);
-                    if (newName?.trim()) void handleRename(doc, newName.trim());
-                  }}>
-                  Rename
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-````
-
-## File: modules/notebooklm/interfaces/source/components/WorkspaceFilesTab.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { storageInfrastructureApi } from "@/modules/platform/api";
-
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-
-import type { WorkspaceFileListItemDto } from "../../../subdomains/source/application/dto/source-file.dto";
-import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
-import { getWorkspaceFiles } from "../queries/source-file.queries";
-import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
-import { FileProcessingDialog } from "./FileProcessingDialog";
-
-interface WorkspaceFilesTabProps {
-  readonly workspace: WorkspaceEntity;
-}
-
-interface PendingUploadProcessing {
-  readonly sourceFileId: string;
-  readonly filename: string;
-  readonly gcsUri: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-}
-
-export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
-  const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
-  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
-  const [pendingUploadProcessing, setPendingUploadProcessing] = useState<PendingUploadProcessing | null>(null);
-
-  const reloadFiles = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const nextAssets = await getWorkspaceFiles(workspace);
-      setAssets(nextAssets);
-      setLoadState("loaded");
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceFilesTab] Failed to load file metadata:", error);
-      }
-      setAssets([]);
-      setLoadState("error");
-    }
-  }, [workspace]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      await reloadFiles();
-      if (!cancelled) return;
-    })();
-    return () => { cancelled = true; };
-  }, [reloadFiles]);
-
-  async function handleUploadFile(file: File) {
-    const organizationId = resolveSourceOrganizationId(workspace.accountType, workspace.accountId);
-    setUploadState("uploading");
-    setUploadMessage(null);
-
-    try {
-      const initResult = await uploadInitFile({
-        workspaceId: workspace.id,
-        organizationId,
-        actorAccountId: workspace.accountId,
-        fileName: file.name,
-        mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
-      });
-
-      if (!initResult.ok) {
-        setUploadState("error");
-        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);
-        return;
-      }
-
-      await storageInfrastructureApi.upload(file, initResult.data.uploadPath, {
-        contentType: file.type || "application/octet-stream",
-      });
-
-      const completeResult = await uploadCompleteFile({
-        workspaceId: workspace.id,
-        organizationId,
-        actorAccountId: workspace.accountId,
-        fileId: initResult.data.fileId,
-        versionId: initResult.data.versionId,
-      });
-
-      if (!completeResult.ok) {
-        setUploadState("error");
-        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);
-        return;
-      }
-
-      setUploadState("success");
-      setUploadMessage(`Uploaded ${file.name}`);
-      setPendingUploadProcessing({
-        sourceFileId: initResult.data.fileId,
-        filename: file.name,
-        gcsUri: storageInfrastructureApi.toGsUri(initResult.data.uploadPath),
-        mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
-      });
-      await reloadFiles();
-    } catch (error) {
-      setUploadState("error");
-      setUploadMessage(error instanceof Error ? `Storage upload failed: ${error.message}` : "Storage upload failed unexpectedly.");
-    }
-  }
-
-  const availableCount = useMemo(
-    () => assets.filter((asset) => asset.status === "active").length,
-    [assets],
-  );
-
-  return (
-    <Card className="border border-border/50">
-      <CardHeader>
-        <CardTitle>Files</CardTitle>
-        <CardDescription>
-          Manage workspace source files. Upload triggers storage → Firestore → RAG pipeline.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="rounded-xl border border-border/40 px-4 py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="space-y-1">
-              <Label htmlFor="workspace-file-upload" className="text-sm font-semibold">
-                Upload file
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                Triggers upload-init → Storage → completion + RAG registration.
-              </p>
-            </div>
-            <Input
-              id="workspace-file-upload"
-              type="file"
-              className="max-w-xs"
-              disabled={uploadState === "uploading"}
-              onChange={(event) => {
-                const nextFile = event.target.files?.[0];
-                if (nextFile) void handleUploadFile(nextFile);
-                event.currentTarget.value = "";
-              }}
-            />
-          </div>
-          {uploadMessage && (
-            <p className={`mt-3 text-xs ${uploadState === "error" ? "text-destructive" : "text-emerald-600"}`}>
-              {uploadMessage}
-            </p>
-          )}
-          {uploadState === "uploading" && (
-            <p className="mt-3 text-xs text-muted-foreground">Uploading and persisting metadata…</p>
-          )}
-        </div>
-
-        {loadState === "loading" && <p className="text-sm text-muted-foreground">Loading file metadata…</p>}
-        {loadState === "error" && <p className="text-sm text-destructive">無法載入已持久化的檔案資料，請稍後再試。</p>}
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Registered assets</p>
-            <p className="mt-1 text-xl font-semibold">{assets.length}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Directly available</p>
-            <p className="mt-1 text-xl font-semibold">{availableCount}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Derived manifests</p>
-            <p className="mt-1 text-xl font-semibold">{assets.length - availableCount}</p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {loadState === "loaded" && assets.length === 0 && (
-            <div className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
-              No file records yet. Upload-init will create metadata here.
-            </div>
-          )}
-          {assets.map((asset) => (
-            <div key={asset.id} className="rounded-xl border border-border/40 px-4 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold">{asset.name}</p>
-                    <Badge variant={asset.status === "active" ? "secondary" : "outline"}>{asset.status}</Badge>
-                    <Badge variant="outline">{asset.kind}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{asset.detail}</p>
-                </div>
-                <div className="text-xs text-muted-foreground sm:text-right">
-                  <p>Source: {asset.source}</p>
-                  {asset.href && (
-                    <Button asChild variant="link" className="mt-1 inline-flex h-auto p-0 text-xs">
-                      <a href={asset.href} target="_blank" rel="noreferrer">Open asset</a>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-
-      {pendingUploadProcessing && (
-        <FileProcessingDialog
-          open
-          onClose={() => setPendingUploadProcessing(null)}
-          accountId={workspace.accountId}
-          workspaceId={workspace.id}
-          sourceFileId={pendingUploadProcessing.sourceFileId}
-          filename={pendingUploadProcessing.filename}
-          gcsUri={pendingUploadProcessing.gcsUri}
-          mimeType={pendingUploadProcessing.mimeType}
-          sizeBytes={pendingUploadProcessing.sizeBytes}
-        />
-      )}
-    </Card>
-  );
-}
-````
-
-## File: modules/notebooklm/interfaces/source/composition/adapters.ts
-````typescript
-import { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
-import { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
-import { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
-import { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
-import { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
-import { waitForParsedDocument as _waitForParsedDocument } from "../../../infrastructure/source/firebase/FirebaseDocumentStatusAdapter";
-import { PlatformSourcePipelineAdapter } from "../../../infrastructure/source/platform/PlatformSourcePipelineAdapter";
-import {
-  addKnowledgeBlock,
-  createKnowledgePage,
-} from "@/modules/notion/api";
-
-export function makeSourceFileAdapter() {
-  return new FirebaseSourceFileAdapter();
-}
-
-export function makeRagDocumentAdapter() {
-  return new FirebaseRagDocumentAdapter();
-}
-
-export function makeSourceDocumentCommandAdapter() {
-  return new FirebaseSourceDocumentCommandAdapter();
-}
-
-export function makeParsedDocumentAdapter() {
-  return new FirebaseParsedDocumentAdapter();
-}
-
-export function makeSourcePipelineAdapter() {
-  return new PlatformSourcePipelineAdapter();
-}
-
-export function makeKnowledgePageGateway() {
-  return new NotionKnowledgePageGatewayAdapter({
-    createKnowledgePage,
-    addKnowledgeBlock,
-  });
-}
-
-export function waitForParsedDocument(
-  accountId: string,
-  docId: string,
-): Promise<{ pageCount: number; jsonGcsUri: string }> {
-  return _waitForParsedDocument(accountId, docId);
-}
-````
-
 ## File: modules/notebooklm/interfaces/source/composition/use-cases.ts
 ````typescript
 import { UploadInitSourceFileUseCase } from "../../../subdomains/source/application/use-cases/upload-init-source-file.use-case";
@@ -49148,6 +48762,67 @@ export function makeSourceUseCases(
 }
 ````
 
+## File: modules/notebooklm/interfaces/source/composition/wiki-library-facade.ts
+````typescript
+/**
+ * Composition: wiki-library-facade
+ *
+ * Pre-wired facade functions for wiki library use cases.
+ * Encapsulates the lazy singleton repository pattern so the subdomain
+ * api/index.ts can re-export clean function signatures without importing
+ * infrastructure directly.
+ */
+
+import type { IWikiLibraryRepository } from "../../../subdomains/source/domain/repositories/IWikiLibraryRepository";
+import {
+  listWikiLibraries as _listWikiLibraries,
+  createWikiLibrary as _createWikiLibrary,
+  addWikiLibraryField as _addWikiLibraryField,
+  createWikiLibraryRow as _createWikiLibraryRow,
+  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
+} from "../../../subdomains/source/application/use-cases/wiki-library.use-cases";
+import type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../../../subdomains/source/domain/entities/WikiLibrary";
+import { makeWikiLibraryAdapter } from "./adapters";
+
+// Lazy singleton — no module-scope side effects.
+let _libraryRepo: IWikiLibraryRepository | null = null;
+
+function getLibraryRepo(): IWikiLibraryRepository {
+  if (!_libraryRepo) _libraryRepo = makeWikiLibraryAdapter();
+  return _libraryRepo;
+}
+
+export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
+  return _listWikiLibraries(accountId, workspaceId, getLibraryRepo());
+}
+
+export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
+  return _createWikiLibrary(input, getLibraryRepo());
+}
+
+export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
+  return _addWikiLibraryField(input, getLibraryRepo());
+}
+
+export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
+  return _createWikiLibraryRow(input, getLibraryRepo());
+}
+
+export function getWikiLibrarySnapshot(
+  accountId: string,
+  libraryId: string,
+): ReturnType<typeof _getWikiLibrarySnapshot> {
+  return _getWikiLibrarySnapshot(accountId, libraryId, getLibraryRepo());
+}
+````
+
 ## File: modules/notebooklm/interfaces/source/contracts/source-command-result.ts
 ````typescript
 import type { SourceFileCommandErrorCode } from "../../../subdomains/source/application/dto/source-file.dto";
@@ -49166,117 +48841,6 @@ export type SourceFileCommandResult<TData> =
       };
       readonly commandId: string;
     };
-````
-
-## File: modules/notebooklm/interfaces/source/hooks/useSourceDocumentsSnapshot.ts
-````typescript
-"use client";
-
-import { useCallback, useEffect, useRef, useState } from "react";
-
-import { firestoreInfrastructureApi } from "@/modules/platform/api";
-
-import type {
-  SourceLiveDocument,
-} from "../../../subdomains/source/application/dto/source-live-document.dto";
-import {
-  mapToSourceLiveDocument,
-} from "../../../subdomains/source/application/dto/source-live-document.dto";
-
-// Re-export types for backward compatibility
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../../../subdomains/source/application/dto/source-live-document.dto";
-export {
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../../../subdomains/source/application/dto/source-live-document.dto";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function objectOrEmpty(value: unknown): Record<string, unknown> {
-  return isRecord(value) ? value : {};
-}
-
-// ── Hook ──────────────────────────────────────────────────────────────────────
-
-export interface UseSourceDocumentsSnapshotResult {
-  readonly docs: SourceLiveDocument[];
-  readonly loading: boolean;
-  readonly pendingDocs: SourceLiveDocument[];
-  readonly addPending: (doc: SourceLiveDocument) => void;
-  readonly removePending: (id: string) => void;
-}
-
-/** Subscribes to Firestore `accounts/{accountId}/documents` in real time via onSnapshot. */
-export function useSourceDocumentsSnapshot(
-  accountId: string,
-  workspaceId?: string,
-): UseSourceDocumentsSnapshotResult {
-  const [rawDocs, setRawDocs] = useState<SourceLiveDocument[]>([]);
-  const [rawPending, setRawPending] = useState<SourceLiveDocument[]>([]);
-  const [receivedKey, setReceivedKey] = useState("");
-  const statusMapRef = useRef<Record<string, string>>({});
-
-  const addPending = useCallback((doc: SourceLiveDocument) => {
-    setRawPending((prev) => [doc, ...prev.filter((p) => p.id !== doc.id)]);
-  }, []);
-
-  const removePending = useCallback((id: string) => {
-    setRawPending((prev) => prev.filter((p) => p.id !== id));
-  }, []);
-
-  useEffect(() => {
-    if (!accountId) return;
-
-    const subKey = `${accountId}/${workspaceId ?? ""}`;
-    statusMapRef.current = {};
-
-    const unsubscribe = firestoreInfrastructureApi.watchCollection<Record<string, unknown>>(
-      `accounts/${accountId}/documents`,
-      {
-        onNext: (documents) => {
-          const mapped = documents
-          .map((item) => mapToSourceLiveDocument(item.id, objectOrEmpty(item.data)))
-          .filter((item) => !workspaceId || item.workspaceId === workspaceId)
-          .sort((a, b) => (b.uploadedAt?.getTime() ?? 0) - (a.uploadedAt?.getTime() ?? 0));
-
-          const nextMap: Record<string, string> = {};
-          for (const doc of mapped) {
-            nextMap[doc.id] = `${doc.status}/${doc.ragStatus}`;
-          }
-          statusMapRef.current = nextMap;
-
-          setRawDocs(mapped);
-          setRawPending((prev) => prev.filter((p) => !mapped.some((d) => d.id === p.id)));
-          setReceivedKey(subKey);
-        },
-        onError: () => {
-          setReceivedKey(subKey);
-        },
-      },
-    );
-
-    return () => {
-      unsubscribe();
-      statusMapRef.current = {};
-    };
-  }, [accountId, workspaceId]);
-
-  const currentKey = `${accountId}/${workspaceId ?? ""}`;
-  const docs = accountId ? rawDocs : [];
-  const loading = Boolean(accountId) && receivedKey !== currentKey;
-  const pendingDocs = accountId ? rawPending : [];
-
-  return { docs, loading, pendingDocs, addPending, removePending };
-}
 ````
 
 ## File: modules/notebooklm/interfaces/synthesis/_actions/rag-query.actions.ts
@@ -49560,34 +49124,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notebooklm/subdomains/source/api/server.ts
-````typescript
-/**
- * source subdomain — server-only API.
- *
- * Exports infrastructure implementations and composition helpers that must only
- * run in Server Actions, route handlers, or other server-side entry points.
- */
-
-export { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
-export { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
-export { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
-export { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
-export { PlatformSourcePipelineAdapter } from "../../../infrastructure/source/platform/PlatformSourcePipelineAdapter";
-export { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
-export {
-  makeSourceFileAdapter,
-  makeRagDocumentAdapter,
-  makeSourceDocumentCommandAdapter,
-  makeParsedDocumentAdapter,
-  makeSourcePipelineAdapter,
-  makeKnowledgePageGateway,
-  waitForParsedDocument,
-} from "../../../interfaces/source/composition/adapters";
-export type { SourceUseCases } from "../../../interfaces/source/composition/use-cases";
-export { makeSourceUseCases } from "../../../interfaces/source/composition/use-cases";
-````
-
 ## File: modules/notebooklm/subdomains/source/application/dto/source-pipeline.dto.ts
 ````typescript
 import type {
@@ -49817,27 +49353,33 @@ export type {
 } from "./events/SourceEvents";
 ````
 
-## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
+## File: modules/notebooklm/subdomains/source/domain/ports/ISourceDocumentWatchPort.ts
 ````typescript
 /**
- * notebooklm/source domain/ports — driven port interfaces for the source subdomain.
+ * Module: notebooklm/subdomains/source
+ * Layer: domain/ports
+ * Port: ISourceDocumentWatchPort — real-time document collection watching contract.
  *
- * ISourceDocumentCommandPort and IParsedDocumentPort are the primary driven ports.
- * IRagDocumentPort, ISourceFilePort, IWikiLibraryPort re-export the legacy
- * repository contracts, making the Ports layer explicitly visible.
+ * Used by the useSourceDocumentsSnapshot hook to subscribe to document changes
+ * without depending on platform infrastructure APIs directly.
  */
-export type { ISourceDocumentCommandPort } from "./ISourceDocumentPort";
-export type { IParsedDocumentPort } from "./IParsedDocumentPort";
-export type {
-	ISourcePipelinePort,
-	ParseSourceDocumentInput,
-	ParseSourceDocumentOutput,
-	ReindexSourceDocumentInput,
-	ReindexSourceDocumentOutput,
-} from "./ISourcePipelinePort";
-export type { IRagDocumentRepository as IRagDocumentPort } from "../repositories/IRagDocumentRepository";
-export type { ISourceFileRepository as ISourceFilePort } from "../repositories/ISourceFileRepository";
-export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";
+
+export interface WatchedDocument<T> {
+  readonly id: string;
+  readonly path: string;
+  readonly data: T;
+}
+
+export interface ISourceDocumentWatchPort {
+  /** Subscribe to a Firestore collection and receive real-time updates. Returns an unsubscribe function. */
+  watchCollection<T>(
+    collectionPath: string,
+    handlers: {
+      onNext: (documents: readonly WatchedDocument<T>[]) => void;
+      onError?: (error: unknown) => void;
+    },
+  ): () => void;
+}
 ````
 
 ## File: modules/notebooklm/subdomains/source/domain/ports/ISourcePipelinePort.ts
@@ -49874,6 +49416,30 @@ export interface ReindexSourceDocumentOutput {
 export interface ISourcePipelinePort {
   parseDocument(input: ParseSourceDocumentInput): Promise<ParseSourceDocumentOutput>;
   reindexDocument(input: ReindexSourceDocumentInput): Promise<ReindexSourceDocumentOutput>;
+}
+````
+
+## File: modules/notebooklm/subdomains/source/domain/ports/ISourceStoragePort.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: domain/ports
+ * Port: ISourceStoragePort — file upload and GCS URI resolution contract.
+ *
+ * UI components and application services use this port instead of importing
+ * platform infrastructure APIs directly, keeping the hexagonal boundary clean.
+ */
+
+export interface SourceStorageUploadOptions {
+  readonly contentType?: string;
+  readonly customMetadata?: Record<string, string>;
+}
+
+export interface ISourceStoragePort {
+  /** Upload a file blob to the given storage path. Returns the download URL. */
+  upload(file: Blob, path: string, options?: SourceStorageUploadOptions): Promise<string>;
+  /** Convert a relative storage path to a gs:// URI. */
+  toGsUri(path: string): string;
 }
 ````
 
@@ -56029,29 +55595,66 @@ export type { AccountQueryRepository } from "../domain/repositories/AccountQuery
 export * from "../interfaces";
 ````
 
-## File: modules/platform/subdomains/account/application/index.ts
+## File: modules/platform/subdomains/account/application/services/resolve-active-account.ts
 ````typescript
-export {
-  CreateUserAccountUseCase,
-  UpdateUserProfileUseCase,
-  CreditWalletUseCase,
-  DebitWalletUseCase,
-  AssignAccountRoleUseCase,
-  RevokeAccountRoleUseCase,
-} from "./use-cases/account.use-cases";
+import type { AccountEntity } from "../../domain/entities/Account";
 
-export {
-  CreateAccountPolicyUseCase,
-  UpdateAccountPolicyUseCase,
-  DeleteAccountPolicyUseCase,
-} from "./use-cases/account-policy.use-cases";
+export type AccountBootstrapPhase = "idle" | "seeded" | "hydrated";
 
-export {
-  resolveActiveAccount,
-  type AccountBootstrapPhase,
-  type ResolveActiveAccountInput,
-  type SelectableActiveAccount,
-} from "./services/resolve-active-account";
+interface PersonalAccountIdentity {
+  readonly id: string;
+  readonly name: string;
+  readonly email: string;
+}
+
+export type SelectableActiveAccount = AccountEntity | PersonalAccountIdentity;
+
+export interface ResolveActiveAccountInput {
+  readonly currentActiveAccount: SelectableActiveAccount | null;
+  readonly accounts: Record<string, AccountEntity>;
+  readonly personalAccount: PersonalAccountIdentity;
+  readonly preferredActiveAccountId?: string | null;
+  readonly bootstrapPhase: AccountBootstrapPhase;
+}
+
+/**
+ * Resolve the next active account from current selection, persisted preference,
+ * and latest account snapshot while preserving optimistic bootstrap behavior.
+ */
+export function resolveActiveAccount(input: ResolveActiveAccountInput): SelectableActiveAccount {
+  const {
+    currentActiveAccount,
+    accounts,
+    personalAccount,
+    preferredActiveAccountId,
+    bootstrapPhase,
+  } = input;
+
+  const validIds = new Set([personalAccount.id, ...Object.keys(accounts)]);
+  const currentActiveId = currentActiveAccount?.id;
+  let currentActive: SelectableActiveAccount | null = null;
+
+  if (currentActiveId && validIds.has(currentActiveId)) {
+    currentActive = currentActiveId === personalAccount.id ? personalAccount : accounts[currentActiveId] ?? null;
+  }
+
+  let preferredActive: SelectableActiveAccount | null = null;
+  if (preferredActiveAccountId && validIds.has(preferredActiveAccountId)) {
+    preferredActive =
+      preferredActiveAccountId === personalAccount.id
+        ? personalAccount
+        : accounts[preferredActiveAccountId] ?? null;
+  }
+
+  if (
+    preferredActive &&
+    (!currentActive || bootstrapPhase === "seeded" || currentActive.id === personalAccount.id)
+  ) {
+    return preferredActive;
+  }
+
+  return currentActive ?? personalAccount;
+}
 ````
 
 ## File: modules/platform/subdomains/account/infrastructure/identity-token-refresh.adapter.ts
@@ -63978,6 +63581,609 @@ export async function processSourceDocumentWorkflow(
 }
 ````
 
+## File: modules/notebooklm/interfaces/source/components/SourceDocumentsPanel.tsx
+````typescript
+"use client";
+
+import { useRef, useState } from "react";
+import { FileUp, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+import { useApp } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+
+import type { SourceLiveDocument } from "../hooks/useSourceDocumentsSnapshot";
+import { useSourceDocumentsSnapshot } from "../hooks/useSourceDocumentsSnapshot";
+import { deleteSourceDocument, renameSourceDocument } from "../_actions/source-file.actions";
+import { makeSourceStorageAdapter } from "../composition/adapters";
+
+const sourceStorage = makeSourceStorageAdapter();
+
+const WATCH_PATH = "uploads/";
+const ACCEPTED_MIME: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "image/tiff": ".tif/.tiff",
+  "image/png": ".png",
+  "image/jpeg": ".jpg/.jpeg",
+};
+const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
+
+interface SourceDocumentsPanelProps {
+  readonly workspaceId?: string;
+}
+
+/** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
+export function SourceDocumentsPanel({ workspaceId }: SourceDocumentsPanelProps) {
+  const { state: appState } = useApp();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+  const effectiveWorkspaceId = workspaceId?.trim() ?? "";
+
+  const { docs, loading, pendingDocs, addPending } = useSourceDocumentsSnapshot(
+    activeAccountId,
+    effectiveWorkspaceId || undefined,
+  );
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const allDocs = [
+    ...pendingDocs,
+    ...docs.filter((d) => !pendingDocs.some((p) => p.id === d.id)),
+  ].sort((a, b) => (b.uploadedAt?.getTime() ?? 0) - (a.uploadedAt?.getTime() ?? 0));
+
+  function handleFileChange(file: File | null) {
+    if (!file) { setSelectedFile(null); return; }
+    if (!(file.type in ACCEPTED_MIME)) {
+      toast.error(`僅支援 ${ACCEPTED_EXTS}`);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    setSelectedFile(file);
+  }
+
+  async function handleUpload() {
+    if (!selectedFile) { toast.error("請先選擇檔案"); return; }
+    if (!activeAccountId) { toast.error("目前沒有 active account，無法上傳"); return; }
+
+    const ext = selectedFile.name.includes(".")
+      ? `.${selectedFile.name.split(".").pop() ?? ""}`
+      : "";
+    const docId = crypto.randomUUID();
+    const uploadPath = `${WATCH_PATH}${activeAccountId}/${docId}${ext}`;
+
+    setUploading(true);
+    addPending({
+      id: docId,
+      filename: selectedFile.name,
+      workspaceId: effectiveWorkspaceId,
+      sourceGcsUri: sourceStorage.toGsUri(uploadPath),
+      jsonGcsUri: "",
+      pageCount: 0,
+      status: "processing",
+      ragStatus: "",
+      uploadedAt: new Date(),
+      errorMessage: "",
+      ragError: "",
+      isClientPending: true,
+    });
+
+    try {
+      const customMetadata: Record<string, string> = {
+        account_id: activeAccountId,
+        filename: selectedFile.name,
+        original_filename: selectedFile.name,
+        display_name: selectedFile.name,
+      };
+      if (effectiveWorkspaceId) customMetadata.workspace_id = effectiveWorkspaceId;
+      await sourceStorage.upload(selectedFile, uploadPath, { customMetadata });
+      toast.success(`上傳成功：${selectedFile.name}`);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "上傳失敗");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDelete(doc: SourceLiveDocument) {
+    setDeletingId(doc.id);
+    try {
+      const result = await deleteSourceDocument(activeAccountId, doc.id);
+      if (!result.ok) toast.error(result.error.message);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleRename(doc: SourceLiveDocument, newName: string) {
+    setRenamingId(doc.id);
+    try {
+      const result = await renameSourceDocument(activeAccountId, doc.id, newName);
+      if (!result.ok) toast.error(result.error.message);
+    } finally {
+      setRenamingId(null);
+    }
+  }
+
+  return (
+    <Card className="border border-border/50">
+      <CardHeader>
+        <CardTitle>Documents</CardTitle>
+        <CardDescription>Upload and manage source documents for RAG.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center gap-2">
+          <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-border px-4 py-2 text-sm text-muted-foreground hover:border-primary hover:text-primary"
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => { e.preventDefault(); setDragging(false); handleFileChange(e.dataTransfer.files[0] ?? null); }}
+            style={{ background: dragging ? "var(--accent)" : undefined }}>
+            <FileUp className="h-4 w-4" />
+            <span>{selectedFile ? selectedFile.name : "選擇或拖曳檔案"}</span>
+            <input ref={fileInputRef} type="file" className="sr-only"
+              accept={Object.keys(ACCEPTED_MIME).join(",")}
+              onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)} />
+          </label>
+          <Button size="sm" disabled={!selectedFile || uploading} onClick={() => void handleUpload()}>
+            {uploading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
+            Upload
+          </Button>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+          </div>
+        ) : allDocs.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No documents yet.</p>
+        ) : (
+          <ul className="divide-y divide-border/40 rounded-lg border border-border/40">
+            {allDocs.map((doc) => (
+              <li key={doc.id} className="flex items-center justify-between gap-2 px-4 py-2 text-sm">
+                <span className="flex-1 truncate font-medium">{doc.filename}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{doc.status}</span>
+                <button className="shrink-0 text-xs text-destructive hover:underline"
+                  disabled={deletingId === doc.id || renamingId === doc.id}
+                  onClick={() => void handleDelete(doc)}>
+                  Delete
+                </button>
+                <button className="shrink-0 text-xs text-primary hover:underline"
+                  disabled={deletingId === doc.id || renamingId === doc.id}
+                  onClick={() => {
+                    const newName = window.prompt("New name:", doc.filename);
+                    if (newName?.trim()) void handleRename(doc, newName.trim());
+                  }}>
+                  Rename
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+````
+
+## File: modules/notebooklm/interfaces/source/components/WorkspaceFilesTab.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+
+import type { WorkspaceFileListItemDto } from "../../../subdomains/source/application/dto/source-file.dto";
+import { resolveSourceOrganizationId } from "../../../subdomains/source/application/dto/source.dto";
+import { getWorkspaceFiles } from "../queries/source-file.queries";
+import { uploadCompleteFile, uploadInitFile } from "../_actions/source-file.actions";
+import { makeSourceStorageAdapter } from "../composition/adapters";
+import { FileProcessingDialog } from "./FileProcessingDialog";
+
+const sourceStorage = makeSourceStorageAdapter();
+
+interface WorkspaceFilesTabProps {
+  readonly workspace: WorkspaceEntity;
+}
+
+interface PendingUploadProcessing {
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+
+export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
+  const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [pendingUploadProcessing, setPendingUploadProcessing] = useState<PendingUploadProcessing | null>(null);
+
+  const reloadFiles = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const nextAssets = await getWorkspaceFiles(workspace);
+      setAssets(nextAssets);
+      setLoadState("loaded");
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceFilesTab] Failed to load file metadata:", error);
+      }
+      setAssets([]);
+      setLoadState("error");
+    }
+  }, [workspace]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await reloadFiles();
+      if (!cancelled) return;
+    })();
+    return () => { cancelled = true; };
+  }, [reloadFiles]);
+
+  async function handleUploadFile(file: File) {
+    const organizationId = resolveSourceOrganizationId(workspace.accountType, workspace.accountId);
+    setUploadState("uploading");
+    setUploadMessage(null);
+
+    try {
+      const initResult = await uploadInitFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      });
+
+      if (!initResult.ok) {
+        setUploadState("error");
+        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);
+        return;
+      }
+
+      await sourceStorage.upload(file, initResult.data.uploadPath, {
+        contentType: file.type || "application/octet-stream",
+      });
+
+      const completeResult = await uploadCompleteFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileId: initResult.data.fileId,
+        versionId: initResult.data.versionId,
+      });
+
+      if (!completeResult.ok) {
+        setUploadState("error");
+        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);
+        return;
+      }
+
+      setUploadState("success");
+      setUploadMessage(`Uploaded ${file.name}`);
+      setPendingUploadProcessing({
+        sourceFileId: initResult.data.fileId,
+        filename: file.name,
+        gcsUri: sourceStorage.toGsUri(initResult.data.uploadPath),
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      });
+      await reloadFiles();
+    } catch (error) {
+      setUploadState("error");
+      setUploadMessage(error instanceof Error ? `Storage upload failed: ${error.message}` : "Storage upload failed unexpectedly.");
+    }
+  }
+
+  const availableCount = useMemo(
+    () => assets.filter((asset) => asset.status === "active").length,
+    [assets],
+  );
+
+  return (
+    <Card className="border border-border/50">
+      <CardHeader>
+        <CardTitle>Files</CardTitle>
+        <CardDescription>
+          Manage workspace source files. Upload triggers storage → Firestore → RAG pipeline.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="workspace-file-upload" className="text-sm font-semibold">
+                Upload file
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Triggers upload-init → Storage → completion + RAG registration.
+              </p>
+            </div>
+            <Input
+              id="workspace-file-upload"
+              type="file"
+              className="max-w-xs"
+              disabled={uploadState === "uploading"}
+              onChange={(event) => {
+                const nextFile = event.target.files?.[0];
+                if (nextFile) void handleUploadFile(nextFile);
+                event.currentTarget.value = "";
+              }}
+            />
+          </div>
+          {uploadMessage && (
+            <p className={`mt-3 text-xs ${uploadState === "error" ? "text-destructive" : "text-emerald-600"}`}>
+              {uploadMessage}
+            </p>
+          )}
+          {uploadState === "uploading" && (
+            <p className="mt-3 text-xs text-muted-foreground">Uploading and persisting metadata…</p>
+          )}
+        </div>
+
+        {loadState === "loading" && <p className="text-sm text-muted-foreground">Loading file metadata…</p>}
+        {loadState === "error" && <p className="text-sm text-destructive">無法載入已持久化的檔案資料，請稍後再試。</p>}
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Registered assets</p>
+            <p className="mt-1 text-xl font-semibold">{assets.length}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Directly available</p>
+            <p className="mt-1 text-xl font-semibold">{availableCount}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Derived manifests</p>
+            <p className="mt-1 text-xl font-semibold">{assets.length - availableCount}</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {loadState === "loaded" && assets.length === 0 && (
+            <div className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
+              No file records yet. Upload-init will create metadata here.
+            </div>
+          )}
+          {assets.map((asset) => (
+            <div key={asset.id} className="rounded-xl border border-border/40 px-4 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold">{asset.name}</p>
+                    <Badge variant={asset.status === "active" ? "secondary" : "outline"}>{asset.status}</Badge>
+                    <Badge variant="outline">{asset.kind}</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{asset.detail}</p>
+                </div>
+                <div className="text-xs text-muted-foreground sm:text-right">
+                  <p>Source: {asset.source}</p>
+                  {asset.href && (
+                    <Button asChild variant="link" className="mt-1 inline-flex h-auto p-0 text-xs">
+                      <a href={asset.href} target="_blank" rel="noreferrer">Open asset</a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+
+      {pendingUploadProcessing && (
+        <FileProcessingDialog
+          open
+          onClose={() => setPendingUploadProcessing(null)}
+          accountId={workspace.accountId}
+          workspaceId={workspace.id}
+          sourceFileId={pendingUploadProcessing.sourceFileId}
+          filename={pendingUploadProcessing.filename}
+          gcsUri={pendingUploadProcessing.gcsUri}
+          mimeType={pendingUploadProcessing.mimeType}
+          sizeBytes={pendingUploadProcessing.sizeBytes}
+        />
+      )}
+    </Card>
+  );
+}
+````
+
+## File: modules/notebooklm/interfaces/source/composition/adapters.ts
+````typescript
+import { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
+import { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
+import { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
+import { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
+import { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
+import { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
+import { waitForParsedDocument as _waitForParsedDocument } from "../../../infrastructure/source/firebase/FirebaseDocumentStatusAdapter";
+import { PlatformSourcePipelineAdapter } from "../../../infrastructure/source/platform/PlatformSourcePipelineAdapter";
+import { PlatformSourceStorageAdapter } from "../../../infrastructure/source/platform/PlatformSourceStorageAdapter";
+import { PlatformSourceDocumentWatchAdapter } from "../../../infrastructure/source/platform/PlatformSourceDocumentWatchAdapter";
+import {
+  addKnowledgeBlock,
+  createKnowledgePage,
+} from "@/modules/notion/api";
+import type { IWikiLibraryRepository } from "../../../subdomains/source/domain/repositories/IWikiLibraryRepository";
+import type { ISourceStoragePort } from "../../../subdomains/source/domain/ports/ISourceStoragePort";
+import type { ISourceDocumentWatchPort } from "../../../subdomains/source/domain/ports/ISourceDocumentWatchPort";
+
+export function makeSourceFileAdapter() {
+  return new FirebaseSourceFileAdapter();
+}
+
+export function makeRagDocumentAdapter() {
+  return new FirebaseRagDocumentAdapter();
+}
+
+export function makeSourceDocumentCommandAdapter() {
+  return new FirebaseSourceDocumentCommandAdapter();
+}
+
+export function makeParsedDocumentAdapter() {
+  return new FirebaseParsedDocumentAdapter();
+}
+
+export function makeSourcePipelineAdapter() {
+  return new PlatformSourcePipelineAdapter();
+}
+
+export function makeKnowledgePageGateway() {
+  return new NotionKnowledgePageGatewayAdapter({
+    createKnowledgePage,
+    addKnowledgeBlock,
+  });
+}
+
+export function makeWikiLibraryAdapter(): IWikiLibraryRepository {
+  return new FirebaseWikiLibraryAdapter();
+}
+
+export function makeSourceStorageAdapter(): ISourceStoragePort {
+  return new PlatformSourceStorageAdapter();
+}
+
+export function makeSourceDocumentWatchAdapter(): ISourceDocumentWatchPort {
+  return new PlatformSourceDocumentWatchAdapter();
+}
+
+export function waitForParsedDocument(
+  accountId: string,
+  docId: string,
+): Promise<{ pageCount: number; jsonGcsUri: string }> {
+  return _waitForParsedDocument(accountId, docId);
+}
+````
+
+## File: modules/notebooklm/interfaces/source/hooks/useSourceDocumentsSnapshot.ts
+````typescript
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { makeSourceDocumentWatchAdapter } from "../composition/adapters";
+
+import type {
+  SourceLiveDocument,
+} from "../../../subdomains/source/application/dto/source-live-document.dto";
+import {
+  mapToSourceLiveDocument,
+} from "../../../subdomains/source/application/dto/source-live-document.dto";
+
+// Re-export types for backward compatibility
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../../../subdomains/source/application/dto/source-live-document.dto";
+export {
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../../../subdomains/source/application/dto/source-live-document.dto";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function objectOrEmpty(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+// ── Hook ──────────────────────────────────────────────────────────────────────
+
+export interface UseSourceDocumentsSnapshotResult {
+  readonly docs: SourceLiveDocument[];
+  readonly loading: boolean;
+  readonly pendingDocs: SourceLiveDocument[];
+  readonly addPending: (doc: SourceLiveDocument) => void;
+  readonly removePending: (id: string) => void;
+}
+
+/** Subscribes to Firestore `accounts/{accountId}/documents` in real time via onSnapshot. */
+export function useSourceDocumentsSnapshot(
+  accountId: string,
+  workspaceId?: string,
+): UseSourceDocumentsSnapshotResult {
+  const [rawDocs, setRawDocs] = useState<SourceLiveDocument[]>([]);
+  const [rawPending, setRawPending] = useState<SourceLiveDocument[]>([]);
+  const [receivedKey, setReceivedKey] = useState("");
+  const statusMapRef = useRef<Record<string, string>>({});
+  const watchPortRef = useRef(makeSourceDocumentWatchAdapter());
+
+  const addPending = useCallback((doc: SourceLiveDocument) => {
+    setRawPending((prev) => [doc, ...prev.filter((p) => p.id !== doc.id)]);
+  }, []);
+
+  const removePending = useCallback((id: string) => {
+    setRawPending((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  useEffect(() => {
+    if (!accountId) return;
+
+    const subKey = `${accountId}/${workspaceId ?? ""}`;
+    statusMapRef.current = {};
+
+    const unsubscribe = watchPortRef.current.watchCollection<Record<string, unknown>>(
+      `accounts/${accountId}/documents`,
+      {
+        onNext: (documents) => {
+          const mapped = documents
+          .map((item) => mapToSourceLiveDocument(item.id, objectOrEmpty(item.data)))
+          .filter((item) => !workspaceId || item.workspaceId === workspaceId)
+          .sort((a, b) => (b.uploadedAt?.getTime() ?? 0) - (a.uploadedAt?.getTime() ?? 0));
+
+          const nextMap: Record<string, string> = {};
+          for (const doc of mapped) {
+            nextMap[doc.id] = `${doc.status}/${doc.ragStatus}`;
+          }
+          statusMapRef.current = nextMap;
+
+          setRawDocs(mapped);
+          setRawPending((prev) => prev.filter((p) => !mapped.some((d) => d.id === p.id)));
+          setReceivedKey(subKey);
+        },
+        onError: () => {
+          setReceivedKey(subKey);
+        },
+      },
+    );
+
+    return () => {
+      unsubscribe();
+      statusMapRef.current = {};
+    };
+  }, [accountId, workspaceId]);
+
+  const currentKey = `${accountId}/${workspaceId ?? ""}`;
+  const docs = accountId ? rawDocs : [];
+  const loading = Boolean(accountId) && receivedKey !== currentKey;
+  const pendingDocs = accountId ? rawPending : [];
+
+  return { docs, loading, pendingDocs, addPending, removePending };
+}
+````
+
 ## File: modules/notebooklm/interfaces/source/queries/source-file.queries.ts
 ````typescript
 import type { WorkspaceEntity } from "@/modules/workspace/api";
@@ -64207,6 +64413,30 @@ export function RagQueryPanel({ workspaceId }: RagQueryPanelProps) {
 }
 ````
 
+## File: modules/notebooklm/subdomains/source/api/server.ts
+````typescript
+/**
+ * source subdomain — server-only API.
+ *
+ * Exports composition factories for server-side wiring.
+ * Server Actions, route handlers, and other server-side entry points should
+ * use these factories instead of importing infrastructure adapters directly.
+ */
+
+export {
+  makeSourceFileAdapter,
+  makeRagDocumentAdapter,
+  makeSourceDocumentCommandAdapter,
+  makeParsedDocumentAdapter,
+  makeSourcePipelineAdapter,
+  makeKnowledgePageGateway,
+  makeWikiLibraryAdapter,
+  waitForParsedDocument,
+} from "../../../interfaces/source/composition/adapters";
+export type { SourceUseCases } from "../../../interfaces/source/composition/use-cases";
+export { makeSourceUseCases } from "../../../interfaces/source/composition/use-cases";
+````
+
 ## File: modules/notebooklm/subdomains/source/application/use-cases/process-source-document-workflow.use-case.ts
 ````typescript
 import {
@@ -64376,6 +64606,31 @@ export class ProcessSourceDocumentWorkflowUseCase {
     }
   }
 }
+````
+
+## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
+````typescript
+/**
+ * notebooklm/source domain/ports — driven port interfaces for the source subdomain.
+ *
+ * ISourceDocumentCommandPort and IParsedDocumentPort are the primary driven ports.
+ * IRagDocumentPort, ISourceFilePort, IWikiLibraryPort re-export the legacy
+ * repository contracts, making the Ports layer explicitly visible.
+ */
+export type { ISourceDocumentCommandPort } from "./ISourceDocumentPort";
+export type { IParsedDocumentPort } from "./IParsedDocumentPort";
+export type {
+	ISourcePipelinePort,
+	ParseSourceDocumentInput,
+	ParseSourceDocumentOutput,
+	ReindexSourceDocumentInput,
+	ReindexSourceDocumentOutput,
+} from "./ISourcePipelinePort";
+export type { IRagDocumentRepository as IRagDocumentPort } from "../repositories/IRagDocumentRepository";
+export type { ISourceFileRepository as ISourceFilePort } from "../repositories/ISourceFileRepository";
+export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";
+export type { ISourceStoragePort, SourceStorageUploadOptions } from "./ISourceStoragePort";
+export type { ISourceDocumentWatchPort, WatchedDocument } from "./ISourceDocumentWatchPort";
 ````
 
 ## File: modules/notebooklm/subdomains/synthesis/domain/index.ts
@@ -66724,68 +66979,6 @@ export async function updateAccountProfile(
 	input: UpdateAccountProfileInput,
 ): Promise<CommandResult> {
 	return getUpdateAccountProfileUseCase().execute(actorId, input);
-}
-````
-
-## File: modules/platform/subdomains/account/application/services/resolve-active-account.ts
-````typescript
-import type { AccountEntity } from "../../domain/entities/Account";
-
-export type AccountBootstrapPhase = "idle" | "seeded" | "hydrated";
-
-interface PersonalAccountIdentity {
-  readonly id: string;
-  readonly name: string;
-  readonly email: string;
-}
-
-export type SelectableActiveAccount = AccountEntity | PersonalAccountIdentity;
-
-export interface ResolveActiveAccountInput {
-  readonly currentActiveAccount: SelectableActiveAccount | null;
-  readonly accounts: Record<string, AccountEntity>;
-  readonly personalAccount: PersonalAccountIdentity;
-  readonly preferredActiveAccountId?: string | null;
-  readonly bootstrapPhase: AccountBootstrapPhase;
-}
-
-/**
- * Resolve the next active account from current selection, persisted preference,
- * and latest account snapshot while preserving optimistic bootstrap behavior.
- */
-export function resolveActiveAccount(input: ResolveActiveAccountInput): SelectableActiveAccount {
-  const {
-    currentActiveAccount,
-    accounts,
-    personalAccount,
-    preferredActiveAccountId,
-    bootstrapPhase,
-  } = input;
-
-  const validIds = new Set([personalAccount.id, ...Object.keys(accounts)]);
-  const currentActiveId = currentActiveAccount?.id;
-  let currentActive: SelectableActiveAccount | null = null;
-
-  if (currentActiveId && validIds.has(currentActiveId)) {
-    currentActive = currentActiveId === personalAccount.id ? personalAccount : accounts[currentActiveId] ?? null;
-  }
-
-  let preferredActive: SelectableActiveAccount | null = null;
-  if (preferredActiveAccountId && validIds.has(preferredActiveAccountId)) {
-    preferredActive =
-      preferredActiveAccountId === personalAccount.id
-        ? personalAccount
-        : accounts[preferredActiveAccountId] ?? null;
-  }
-
-  if (
-    preferredActive &&
-    (!currentActive || bootstrapPhase === "seeded" || currentActive.id === personalAccount.id)
-  ) {
-    return preferredActive;
-  }
-
-  return currentActive ?? personalAccount;
 }
 ````
 
@@ -69171,175 +69364,6 @@ export default function AccountWorkspaceNotebookRagQueryPage() {
 }
 ````
 
-## File: modules/notebooklm/subdomains/source/api/index.ts
-````typescript
-/**
- * Public API boundary for the source subdomain.
- *
- * Cross-module consumers MUST import through this entry point.
- * Internal consumers within the subdomain import from their own layer.
- */
-
-// ---------------------------------------------------------------------------
-// Domain entity types
-// ---------------------------------------------------------------------------
-
-export type {
-  SourceFile,
-  SourceFileStatus,
-  SourceFileClassification,
-} from "../domain/entities/SourceFile";
-
-export type {
-  SourceFileVersion,
-  SourceFileVersionStatus,
-} from "../domain/entities/SourceFileVersion";
-
-export type {
-  RagDocumentRecord,
-  RagDocumentStatus,
-} from "../domain/entities/RagDocument";
-
-export type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../domain/entities/WikiLibrary";
-
-// ---------------------------------------------------------------------------
-// Wiki library use cases (lazy singleton ??no module-scope side effects)
-// ---------------------------------------------------------------------------
-
-import type { IWikiLibraryRepository } from "../domain/repositories/IWikiLibraryRepository";
-import { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
-import {
-  listWikiLibraries as _listWikiLibraries,
-  createWikiLibrary as _createWikiLibrary,
-  addWikiLibraryField as _addWikiLibraryField,
-  createWikiLibraryRow as _createWikiLibraryRow,
-  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
-} from "../application/use-cases/wiki-library.use-cases";
-
-import type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../domain/entities/WikiLibrary";
-
-export type { WikiLibrarySnapshot } from "../application/use-cases/wiki-library.use-cases";
-
-let _libraryRepo: IWikiLibraryRepository | null = null;
-
-function getLibraryRepo(): IWikiLibraryRepository {
-  if (!_libraryRepo) _libraryRepo = new FirebaseWikiLibraryAdapter();
-  return _libraryRepo;
-}
-
-export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
-  return _listWikiLibraries(accountId, workspaceId, getLibraryRepo());
-}
-
-export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
-  return _createWikiLibrary(input, getLibraryRepo());
-}
-
-export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
-  return _addWikiLibraryField(input, getLibraryRepo());
-}
-
-export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
-  return _createWikiLibraryRow(input, getLibraryRepo());
-}
-
-export function getWikiLibrarySnapshot(accountId: string, libraryId: string): ReturnType<typeof _getWikiLibrarySnapshot> {
-  return _getWikiLibrarySnapshot(accountId, libraryId, getLibraryRepo());
-}
-
-// ---------------------------------------------------------------------------
-// Live document DTOs
-// ---------------------------------------------------------------------------
-
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../application/dto/source-live-document.dto";
-export {
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../application/dto/source-live-document.dto";
-
-// ---------------------------------------------------------------------------
-// Hooks
-// ---------------------------------------------------------------------------
-
-export type {
-  UseSourceDocumentsSnapshotResult,
-} from "../../../interfaces/source/hooks/useSourceDocumentsSnapshot";
-export {
-  useSourceDocumentsSnapshot,
-} from "../../../interfaces/source/hooks/useSourceDocumentsSnapshot";
-
-// ---------------------------------------------------------------------------
-// Queries
-// ---------------------------------------------------------------------------
-
-export { getWorkspaceFiles, getWorkspaceRagDocuments } from "../../../interfaces/source/queries/source-file.queries";
-
-// ---------------------------------------------------------------------------
-// Server actions
-// ---------------------------------------------------------------------------
-
-export {
-  uploadInitFile,
-  uploadCompleteFile,
-  registerUploadedRagDocument,
-  deleteSourceDocument,
-  renameSourceDocument,
-} from "../../../interfaces/source/_actions/source-file.actions";
-
-export {
-  createKnowledgeDraftFromSourceDocument,
-  processSourceDocumentWorkflow,
-} from "../../../interfaces/source/_actions/source-processing.actions";
-export type {
-  SourceProcessingExecutionSummary,
-  SourceProcessingTaskResult,
-  SourceProcessingTaskStatus,
-} from "../application/dto/source-processing.dto";
-
-// ---------------------------------------------------------------------------
-// UI components
-// ---------------------------------------------------------------------------
-
-export { SourceDocumentsPanel } from "../../../interfaces/source/components/SourceDocumentsPanel";
-export { WorkspaceFilesTab } from "../../../interfaces/source/components/WorkspaceFilesTab";
-export { LibrariesPanel } from "../../../interfaces/source/components/LibrariesPanel";
-export { LibraryTablePanel } from "../../../interfaces/source/components/LibraryTablePanel";
-export { FileProcessingDialog } from "../../../interfaces/source/components/FileProcessingDialog";
-
-// ---------------------------------------------------------------------------
-// Infrastructure (for direct injection in server-side wiring)
-// ---------------------------------------------------------------------------
-
-export { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
-export { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
-export { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
-export { InMemoryWikiLibraryAdapter } from "../../../infrastructure/source/memory/InMemoryWikiLibraryAdapter";
-export { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
-export { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
-export { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
-````
-
 ## File: modules/notebooklm/subdomains/synthesis/api/server.ts
 ````typescript
 /**
@@ -71063,6 +71087,125 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
+## File: modules/notebooklm/subdomains/source/api/index.ts
+````typescript
+/**
+ * Public API boundary for the source subdomain.
+ *
+ * Cross-module consumers MUST import through this entry point.
+ * Internal consumers within the subdomain import from their own layer.
+ */
+
+// ---------------------------------------------------------------------------
+// Domain entity types
+// ---------------------------------------------------------------------------
+
+export type {
+  SourceFile,
+  SourceFileStatus,
+  SourceFileClassification,
+} from "../domain/entities/SourceFile";
+
+export type {
+  SourceFileVersion,
+  SourceFileVersionStatus,
+} from "../domain/entities/SourceFileVersion";
+
+export type {
+  RagDocumentRecord,
+  RagDocumentStatus,
+} from "../domain/entities/RagDocument";
+
+export type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../domain/entities/WikiLibrary";
+
+// ---------------------------------------------------------------------------
+// Wiki library use cases (pre-wired facade from composition layer)
+// ---------------------------------------------------------------------------
+
+export type { WikiLibrarySnapshot } from "../application/use-cases/wiki-library.use-cases";
+
+export {
+  listWikiLibraries,
+  createWikiLibrary,
+  addWikiLibraryField,
+  createWikiLibraryRow,
+  getWikiLibrarySnapshot,
+} from "../../../interfaces/source/composition/wiki-library-facade";
+
+// ---------------------------------------------------------------------------
+// Live document DTOs
+// ---------------------------------------------------------------------------
+
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../application/dto/source-live-document.dto";
+export {
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../application/dto/source-live-document.dto";
+
+// ---------------------------------------------------------------------------
+// Hooks
+// ---------------------------------------------------------------------------
+
+export type {
+  UseSourceDocumentsSnapshotResult,
+} from "../../../interfaces/source/hooks/useSourceDocumentsSnapshot";
+export {
+  useSourceDocumentsSnapshot,
+} from "../../../interfaces/source/hooks/useSourceDocumentsSnapshot";
+
+// ---------------------------------------------------------------------------
+// Queries
+// ---------------------------------------------------------------------------
+
+export { getWorkspaceFiles, getWorkspaceRagDocuments } from "../../../interfaces/source/queries/source-file.queries";
+
+// ---------------------------------------------------------------------------
+// Server actions
+// ---------------------------------------------------------------------------
+
+export {
+  uploadInitFile,
+  uploadCompleteFile,
+  registerUploadedRagDocument,
+  deleteSourceDocument,
+  renameSourceDocument,
+} from "../../../interfaces/source/_actions/source-file.actions";
+
+export {
+  createKnowledgeDraftFromSourceDocument,
+  processSourceDocumentWorkflow,
+} from "../../../interfaces/source/_actions/source-processing.actions";
+export type {
+  SourceProcessingExecutionSummary,
+  SourceProcessingTaskResult,
+  SourceProcessingTaskStatus,
+} from "../application/dto/source-processing.dto";
+
+// ---------------------------------------------------------------------------
+// UI components
+// ---------------------------------------------------------------------------
+
+export { SourceDocumentsPanel } from "../../../interfaces/source/components/SourceDocumentsPanel";
+export { WorkspaceFilesTab } from "../../../interfaces/source/components/WorkspaceFilesTab";
+export { LibrariesPanel } from "../../../interfaces/source/components/LibrariesPanel";
+export { LibraryTablePanel } from "../../../interfaces/source/components/LibraryTablePanel";
+export { FileProcessingDialog } from "../../../interfaces/source/components/FileProcessingDialog";
+````
+
 ## File: modules/notebooklm/subdomains/synthesis/api/index.ts
 ````typescript
 /**
@@ -72403,6 +72546,162 @@ export function buildWorkspaceQuickAccessItems(
 }
 ````
 
+## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
+````typescript
+export interface WorkspaceNavigationContext {
+  readonly accountId: string | null;
+  readonly workspaceId: string | null;
+}
+
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
+
+export const WORKSPACE_OVERVIEW_PANELS = [
+  "knowledge-pages",
+  "knowledge-base-articles",
+  "knowledge-databases",
+  "source-libraries",
+  "settings",
+] as const;
+
+export type WorkspaceOverviewPanel = (typeof WORKSPACE_OVERVIEW_PANELS)[number];
+
+function normalizeWorkspaceToolPath(pathname: string): string {
+  const [pathOnly] = pathname.split("?");
+  const segments = pathOnly.split("/").filter(Boolean);
+
+  if (segments.length === 0) {
+    return "/";
+  }
+
+  const [firstSegment, secondSegment, ...restSegments] = segments;
+
+  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
+    return pathOnly;
+  }
+
+  if (!secondSegment) {
+    return "/workspace";
+  }
+
+  if (["organization", "settings", "dev-tools"].includes(secondSegment)) {
+    return `/${[secondSegment, ...restSegments].join("/")}`;
+  }
+
+  if (restSegments.length === 0) {
+    return "/workspace";
+  }
+
+  return `/${restSegments.join("/")}`;
+}
+
+function tryGetAccountIdFromPath(pathname: string): string | null {
+  const [firstSegment] = pathname.split("/").filter(Boolean);
+  if (!firstSegment) {
+    return null;
+  }
+  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
+    return null;
+  }
+  return decodeURIComponent(firstSegment);
+}
+
+function buildWorkspaceBaseHref(workspaceId: string, accountId?: string | null): string {
+  const encodedWorkspaceId = encodeURIComponent(workspaceId);
+  if (accountId) {
+    return `/${encodeURIComponent(accountId)}/${encodedWorkspaceId}`;
+  }
+  return "/";
+}
+
+export function buildWorkspaceOverviewPanelHref(
+  workspaceId: string,
+  panel?: WorkspaceOverviewPanel,
+  accountId?: string | null,
+): string {
+  const baseHref = buildWorkspaceBaseHref(workspaceId, accountId);
+  if (!panel) {
+    return `${baseHref}?tab=Overview`;
+  }
+  return `${baseHref}?tab=Overview&panel=${encodeURIComponent(panel)}`;
+}
+
+export function supportsWorkspaceSearchContext(pathname: string): boolean {
+  const normalizedPathname = normalizeWorkspaceToolPath(pathname);
+  return (
+    normalizedPathname.startsWith("/knowledge") ||
+    normalizedPathname.startsWith("/knowledge-base") ||
+    normalizedPathname.startsWith("/knowledge-database") ||
+    normalizedPathname.startsWith("/source") ||
+    normalizedPathname.startsWith("/notebook")
+  );
+}
+
+export function buildWorkspaceContextHref(pathname: string, workspaceId: string): string {
+  const accountId = tryGetAccountIdFromPath(pathname);
+  const normalizedPathname = normalizeWorkspaceToolPath(pathname);
+
+  if (normalizedPathname.startsWith("/knowledge-base")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-base-articles", accountId);
+  }
+
+  if (normalizedPathname.startsWith("/knowledge-database")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-databases", accountId);
+  }
+
+  if (normalizedPathname.startsWith("/knowledge")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-pages", accountId);
+  }
+
+  if (normalizedPathname.startsWith("/source/libraries")) {
+    return buildWorkspaceOverviewPanelHref(workspaceId, "source-libraries", accountId);
+  }
+
+  if (normalizedPathname.startsWith("/source/documents")) {
+    return `${buildWorkspaceBaseHref(workspaceId, accountId)}?tab=Files`;
+  }
+
+  return buildWorkspaceBaseHref(workspaceId, accountId);
+}
+
+export function appendWorkspaceContextQuery(
+  href: string,
+  context: WorkspaceNavigationContext,
+): string {
+  const { accountId, workspaceId } = context;
+
+  if (!accountId && !workspaceId) {
+    return href;
+  }
+
+  const [path, search = ""] = href.split("?");
+  const params = new URLSearchParams(search);
+
+  if (accountId) {
+    params.set("accountId", accountId);
+  }
+
+  if (workspaceId) {
+    params.set("workspaceId", workspaceId);
+  }
+
+  const query = params.toString();
+  return query.length > 0 ? `${path}?${query}` : path;
+}
+````
+
 ## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
 ````typescript
 export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
@@ -73397,162 +73696,6 @@ export function WorkspaceOverviewKnowledgePanels({
 }
 ````
 
-## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
-````typescript
-export interface WorkspaceNavigationContext {
-  readonly accountId: string | null;
-  readonly workspaceId: string | null;
-}
-
-const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
-  "workspace",
-  "workspace-feed",
-  "knowledge",
-  "knowledge-base",
-  "knowledge-database",
-  "source",
-  "notebook",
-  "ai-chat",
-  "organization",
-  "settings",
-  "dashboard",
-  "dev-tools",
-]);
-
-export const WORKSPACE_OVERVIEW_PANELS = [
-  "knowledge-pages",
-  "knowledge-base-articles",
-  "knowledge-databases",
-  "source-libraries",
-  "settings",
-] as const;
-
-export type WorkspaceOverviewPanel = (typeof WORKSPACE_OVERVIEW_PANELS)[number];
-
-function normalizeWorkspaceToolPath(pathname: string): string {
-  const [pathOnly] = pathname.split("?");
-  const segments = pathOnly.split("/").filter(Boolean);
-
-  if (segments.length === 0) {
-    return "/";
-  }
-
-  const [firstSegment, secondSegment, ...restSegments] = segments;
-
-  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
-    return pathOnly;
-  }
-
-  if (!secondSegment) {
-    return "/workspace";
-  }
-
-  if (["organization", "settings", "dev-tools"].includes(secondSegment)) {
-    return `/${[secondSegment, ...restSegments].join("/")}`;
-  }
-
-  if (restSegments.length === 0) {
-    return "/workspace";
-  }
-
-  return `/${restSegments.join("/")}`;
-}
-
-function tryGetAccountIdFromPath(pathname: string): string | null {
-  const [firstSegment] = pathname.split("/").filter(Boolean);
-  if (!firstSegment) {
-    return null;
-  }
-  if (NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(firstSegment)) {
-    return null;
-  }
-  return decodeURIComponent(firstSegment);
-}
-
-function buildWorkspaceBaseHref(workspaceId: string, accountId?: string | null): string {
-  const encodedWorkspaceId = encodeURIComponent(workspaceId);
-  if (accountId) {
-    return `/${encodeURIComponent(accountId)}/${encodedWorkspaceId}`;
-  }
-  return "/";
-}
-
-export function buildWorkspaceOverviewPanelHref(
-  workspaceId: string,
-  panel?: WorkspaceOverviewPanel,
-  accountId?: string | null,
-): string {
-  const baseHref = buildWorkspaceBaseHref(workspaceId, accountId);
-  if (!panel) {
-    return `${baseHref}?tab=Overview`;
-  }
-  return `${baseHref}?tab=Overview&panel=${encodeURIComponent(panel)}`;
-}
-
-export function supportsWorkspaceSearchContext(pathname: string): boolean {
-  const normalizedPathname = normalizeWorkspaceToolPath(pathname);
-  return (
-    normalizedPathname.startsWith("/knowledge") ||
-    normalizedPathname.startsWith("/knowledge-base") ||
-    normalizedPathname.startsWith("/knowledge-database") ||
-    normalizedPathname.startsWith("/source") ||
-    normalizedPathname.startsWith("/notebook")
-  );
-}
-
-export function buildWorkspaceContextHref(pathname: string, workspaceId: string): string {
-  const accountId = tryGetAccountIdFromPath(pathname);
-  const normalizedPathname = normalizeWorkspaceToolPath(pathname);
-
-  if (normalizedPathname.startsWith("/knowledge-base")) {
-    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-base-articles", accountId);
-  }
-
-  if (normalizedPathname.startsWith("/knowledge-database")) {
-    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-databases", accountId);
-  }
-
-  if (normalizedPathname.startsWith("/knowledge")) {
-    return buildWorkspaceOverviewPanelHref(workspaceId, "knowledge-pages", accountId);
-  }
-
-  if (normalizedPathname.startsWith("/source/libraries")) {
-    return buildWorkspaceOverviewPanelHref(workspaceId, "source-libraries", accountId);
-  }
-
-  if (normalizedPathname.startsWith("/source/documents")) {
-    return `${buildWorkspaceBaseHref(workspaceId, accountId)}?tab=Files`;
-  }
-
-  return buildWorkspaceBaseHref(workspaceId, accountId);
-}
-
-export function appendWorkspaceContextQuery(
-  href: string,
-  context: WorkspaceNavigationContext,
-): string {
-  const { accountId, workspaceId } = context;
-
-  if (!accountId && !workspaceId) {
-    return href;
-  }
-
-  const [path, search = ""] = href.split("?");
-  const params = new URLSearchParams(search);
-
-  if (accountId) {
-    params.set("accountId", accountId);
-  }
-
-  if (workspaceId) {
-    params.set("workspaceId", workspaceId);
-  }
-
-  const query = params.toString();
-  return query.length > 0 ? `${path}?${query}` : path;
-}
-````
-
 ## File: app/(shell)/_shell/ShellAppRail.tsx
 ````typescript
 "use client";
@@ -74391,6 +74534,183 @@ export function DatabaseDetailPanel({
 }
 ````
 
+## File: modules/workspace/api/ui.ts
+````typescript
+/**
+ * workspace api/ui.ts
+ *
+ * Canonical public web UI surface for the workspace bounded context.
+ * App-layer consumers that need workspace UI components, hooks, and
+ * navigation utilities should import from here.
+ *
+ * Internal source: interfaces/web/
+ */
+
+// ── Screen components ────────────────────────────────────────────────────────
+
+export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
+export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
+export { AccountDashboardScreen } from "../interfaces/web/components/screens/AccountDashboardScreen";
+
+// ── Card components ──────────────────────────────────────────────────────────
+
+export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
+
+// ── Tab components ───────────────────────────────────────────────────────────
+
+export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
+
+// ── Layout components ────────────────────────────────────────────────────────
+
+export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
+export { WorkspaceQuickAccessRow } from "../interfaces/web/components/layout/WorkspaceQuickAccessRow";
+export { WorkspaceSectionContent } from "../interfaces/web/components/layout/WorkspaceSectionContent";
+
+// ── Rail components ──────────────────────────────────────────────────────────
+
+export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+export type {
+  WorkspaceTabDevStatus,
+  WorkspaceTabGroup,
+  WorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export {
+  WORKSPACE_TAB_GROUPS,
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_VALUES,
+  getWorkspaceTabLabel,
+  getWorkspaceTabMeta,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
+export {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "../interfaces/web/navigation/workspace-nav-items";
+
+// ── Quick-access navigation ───────────────────────────────────────────────────
+
+export type {
+  WorkspaceQuickAccessItem,
+  WorkspaceQuickAccessMatcherOptions,
+} from "../interfaces/web/components/navigation/workspace-quick-access";
+
+export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
+
+// ── State helpers ─────────────────────────────────────────────────────────────
+
+export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
+
+// ── Map utilities ─────────────────────────────────────────────────────────────
+
+export {
+  resolveWorkspaceFromMap,
+  toWorkspaceMap,
+} from "../interfaces/web/utils/workspace-map";
+
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+
+export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
+export type {
+  UseWorkspaceOrchestrationContextOptions,
+  WorkspaceOrchestrationContext,
+} from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
+export { useWorkspaceOrchestrationContext } from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
+export {
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  getWorkspaceIdFromPath,
+  useRecentWorkspaces,
+} from "../interfaces/web/hooks/useRecentWorkspaces";
+
+// ── Workspace context provider ────────────────────────────────────────────────
+
+export {
+  WorkspaceContextProvider,
+  useWorkspaceContext,
+} from "../interfaces/web/providers/WorkspaceContextProvider";
+export type {
+  WorkspaceContextState,
+  WorkspaceContextAction,
+  WorkspaceContextValue,
+} from "../interfaces/web/providers/WorkspaceContextProvider";
+
+// ── Navigation preferences ────────────────────────────────────────────────────
+
+export type { NavPreferences, SidebarLocaleBundle } from "../interfaces/web/navigation/nav-preferences-data";
+export {
+  PERSONAL_ITEMS,
+  ORGANIZATION_NAV_ITEMS,
+  DIALOG_TEXT,
+  DEFAULT_PREFS,
+  readNavPreferences,
+  writeNavPreferences,
+} from "../interfaces/web/navigation/nav-preferences-data";
+
+// ── Sidebar locale ────────────────────────────────────────────────────────────
+
+export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-locale";
+
+export {
+  appendWorkspaceContextQuery,
+  buildWorkspaceOverviewPanelHref,
+  buildWorkspaceContextHref,
+  supportsWorkspaceSearchContext,
+  type WorkspaceNavigationContext,
+  type WorkspaceOverviewPanel,
+} from "../interfaces/web/navigation/workspace-context-links";
+
+// ── Navigation customize dialog ───────────────────────────────────────────────
+
+export { CustomizeNavigationDialog } from "../interfaces/web/components/dialogs/CustomizeNavigationDialog";
+export { CheckRow, WorkspaceCheckRow } from "../interfaces/web/components/dialogs/NavCheckRow";
+
+export {
+  AuditStream,
+  WorkspaceAuditTab,
+} from "../subdomains/audit/api";
+
+export {
+  WorkspaceFeedAccountView,
+  WorkspaceFeedWorkspaceView,
+} from "../subdomains/feed/api";
+
+export type { AccountMember } from "../subdomains/scheduling/api";
+export {
+  AccountSchedulingView,
+  WorkspaceSchedulingTab,
+} from "../subdomains/scheduling/api";
+
+export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
+
+// ── Orchestrated notion UI (workspace as composition owner) ──────────────────
+
+export { ArticleDetailPanel } from "@/modules/notion/api";
+export { KnowledgeBaseArticlesPanel } from "@/modules/notion/api";
+export { DatabaseDetailPanel } from "@/modules/notion/api";
+export { DatabaseFormsPanel } from "@/modules/notion/api";
+export { KnowledgeDatabasesPanel } from "@/modules/notion/api";
+export { KnowledgeDetailPanel } from "@/modules/notion/api";
+export { KnowledgePagesPanel } from "@/modules/notion/api";
+
+// ── Orchestrated notebooklm UI (workspace as composition owner) ──────────────
+
+export { RagQueryPanel } from "@/modules/notebooklm/api";
+export { ConversationPanel } from "@/modules/notebooklm/api";
+export type { ConversationPanelProps } from "@/modules/notebooklm/api";
+export { SourceDocumentsPanel } from "@/modules/notebooklm/api";
+export { WorkspaceFilesTab } from "@/modules/notebooklm/api";
+````
+
 ## File: modules/notebooklm/api/index.ts
 ````typescript
 /**
@@ -74790,183 +75110,6 @@ export function KnowledgeDetailPanel({
     </div>
   );
 }
-````
-
-## File: modules/workspace/api/ui.ts
-````typescript
-/**
- * workspace api/ui.ts
- *
- * Canonical public web UI surface for the workspace bounded context.
- * App-layer consumers that need workspace UI components, hooks, and
- * navigation utilities should import from here.
- *
- * Internal source: interfaces/web/
- */
-
-// ── Screen components ────────────────────────────────────────────────────────
-
-export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
-export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
-export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
-export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
-export { AccountDashboardScreen } from "../interfaces/web/components/screens/AccountDashboardScreen";
-
-// ── Card components ──────────────────────────────────────────────────────────
-
-export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
-
-// ── Tab components ───────────────────────────────────────────────────────────
-
-export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
-
-// ── Layout components ────────────────────────────────────────────────────────
-
-export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
-export { WorkspaceQuickAccessRow } from "../interfaces/web/components/layout/WorkspaceQuickAccessRow";
-export { WorkspaceSectionContent } from "../interfaces/web/components/layout/WorkspaceSectionContent";
-
-// ── Rail components ──────────────────────────────────────────────────────────
-
-export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
-
-// ── Navigation ────────────────────────────────────────────────────────────────
-
-export type {
-  WorkspaceTabDevStatus,
-  WorkspaceTabGroup,
-  WorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
-
-export {
-  WORKSPACE_TAB_GROUPS,
-  WORKSPACE_TAB_META,
-  WORKSPACE_TAB_VALUES,
-  getWorkspaceTabLabel,
-  getWorkspaceTabMeta,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
-
-export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
-export {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "../interfaces/web/navigation/workspace-nav-items";
-
-// ── Quick-access navigation ───────────────────────────────────────────────────
-
-export type {
-  WorkspaceQuickAccessItem,
-  WorkspaceQuickAccessMatcherOptions,
-} from "../interfaces/web/components/navigation/workspace-quick-access";
-
-export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
-
-// ── State helpers ─────────────────────────────────────────────────────────────
-
-export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
-
-// ── Map utilities ─────────────────────────────────────────────────────────────
-
-export {
-  resolveWorkspaceFromMap,
-  toWorkspaceMap,
-} from "../interfaces/web/utils/workspace-map";
-
-// ── Hooks ─────────────────────────────────────────────────────────────────────
-
-export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
-export type {
-  UseWorkspaceOrchestrationContextOptions,
-  WorkspaceOrchestrationContext,
-} from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
-export { useWorkspaceOrchestrationContext } from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
-export {
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  getWorkspaceIdFromPath,
-  useRecentWorkspaces,
-} from "../interfaces/web/hooks/useRecentWorkspaces";
-
-// ── Workspace context provider ────────────────────────────────────────────────
-
-export {
-  WorkspaceContextProvider,
-  useWorkspaceContext,
-} from "../interfaces/web/providers/WorkspaceContextProvider";
-export type {
-  WorkspaceContextState,
-  WorkspaceContextAction,
-  WorkspaceContextValue,
-} from "../interfaces/web/providers/WorkspaceContextProvider";
-
-// ── Navigation preferences ────────────────────────────────────────────────────
-
-export type { NavPreferences, SidebarLocaleBundle } from "../interfaces/web/navigation/nav-preferences-data";
-export {
-  PERSONAL_ITEMS,
-  ORGANIZATION_NAV_ITEMS,
-  DIALOG_TEXT,
-  DEFAULT_PREFS,
-  readNavPreferences,
-  writeNavPreferences,
-} from "../interfaces/web/navigation/nav-preferences-data";
-
-// ── Sidebar locale ────────────────────────────────────────────────────────────
-
-export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-locale";
-
-export {
-  appendWorkspaceContextQuery,
-  buildWorkspaceOverviewPanelHref,
-  buildWorkspaceContextHref,
-  supportsWorkspaceSearchContext,
-  type WorkspaceNavigationContext,
-  type WorkspaceOverviewPanel,
-} from "../interfaces/web/navigation/workspace-context-links";
-
-// ── Navigation customize dialog ───────────────────────────────────────────────
-
-export { CustomizeNavigationDialog } from "../interfaces/web/components/dialogs/CustomizeNavigationDialog";
-export { CheckRow, WorkspaceCheckRow } from "../interfaces/web/components/dialogs/NavCheckRow";
-
-export {
-  AuditStream,
-  WorkspaceAuditTab,
-} from "../subdomains/audit/api";
-
-export {
-  WorkspaceFeedAccountView,
-  WorkspaceFeedWorkspaceView,
-} from "../subdomains/feed/api";
-
-export type { AccountMember } from "../subdomains/scheduling/api";
-export {
-  AccountSchedulingView,
-  WorkspaceSchedulingTab,
-} from "../subdomains/scheduling/api";
-
-export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
-
-// ── Orchestrated notion UI (workspace as composition owner) ──────────────────
-
-export { ArticleDetailPanel } from "@/modules/notion/api";
-export { KnowledgeBaseArticlesPanel } from "@/modules/notion/api";
-export { DatabaseDetailPanel } from "@/modules/notion/api";
-export { DatabaseFormsPanel } from "@/modules/notion/api";
-export { KnowledgeDatabasesPanel } from "@/modules/notion/api";
-export { KnowledgeDetailPanel } from "@/modules/notion/api";
-export { KnowledgePagesPanel } from "@/modules/notion/api";
-
-// ── Orchestrated notebooklm UI (workspace as composition owner) ──────────────
-
-export { RagQueryPanel } from "@/modules/notebooklm/api";
-export { ConversationPanel } from "@/modules/notebooklm/api";
-export type { ConversationPanelProps } from "@/modules/notebooklm/api";
-export { SourceDocumentsPanel } from "@/modules/notebooklm/api";
-export { WorkspaceFilesTab } from "@/modules/notebooklm/api";
 ````
 
 ## File: modules/platform/api/index.ts
