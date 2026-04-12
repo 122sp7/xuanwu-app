@@ -38,20 +38,20 @@ This skill contains the following reference files:
 
 ## Statistics
 
-303 files | 18,027 lines
+303 files | 18,096 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 245 | 11,205 |
-| TypeScript (TSX) | 40 | 6,266 |
-| Markdown | 18 | 556 |
+| TypeScript | 245 | 11,255 |
+| TypeScript (TSX) | 40 | 6,278 |
+| Markdown | 18 | 563 |
 
 **Largest files:**
 - `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)
-- `modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx` (310 lines)
 - `modules/workspace/domain/aggregates/Workspace.ts` (305 lines)
-- `modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx` (289 lines)
+- `modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx` (292 lines)
 - `modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx` (285 lines)
+- `modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx` (281 lines)
 - `modules/workspace/interfaces/web/components/dialogs/WorkspaceSettingsInformationFields.tsx` (272 lines)
 - `modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts` (257 lines)
 - `modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedWorkspaceView.tsx` (255 lines)

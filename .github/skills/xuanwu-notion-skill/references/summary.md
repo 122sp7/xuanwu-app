@@ -38,14 +38,14 @@ This skill contains the following reference files:
 
 ## Statistics
 
-228 files | 12,017 lines
+234 files | 12,036 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 189 | 7,440 |
+| TypeScript | 189 | 7,450 |
 | TypeScript (TSX) | 26 | 4,094 |
-| Markdown | 9 | 479 |
-| No Extension | 4 | 4 |
+| No Extension | 10 | 10 |
+| Markdown | 9 | 482 |
 
 **Largest files:**
 - `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)

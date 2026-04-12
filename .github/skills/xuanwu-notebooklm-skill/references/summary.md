@@ -38,14 +38,14 @@ This skill contains the following reference files:
 
 ## Statistics
 
-150 files | 8,063 lines
+154 files | 8,075 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 130 | 5,912 |
+| TypeScript | 129 | 5,918 |
 | TypeScript (TSX) | 10 | 1,820 |
-| Markdown | 7 | 328 |
-| No Extension | 3 | 3 |
+| No Extension | 8 | 8 |
+| Markdown | 7 | 329 |
 
 **Largest files:**
 - `modules/notebooklm/interfaces/conversation/components/ConversationPanel.tsx` (241 lines)
