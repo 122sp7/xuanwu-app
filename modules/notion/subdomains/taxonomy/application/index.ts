@@ -1,1 +1,7 @@
-// Purpose: Application layer placeholder for notion subdomain 'taxonomy'.
+export type { CreateTaxonomyNodeDto, TaxonomyNodeDto } from "./dto/TaxonomyDto";
+export {
+  CreateTaxonomyNodeUseCase,
+  RemoveTaxonomyNodeUseCase,
+  ListTaxonomyRootsUseCase,
+  ListTaxonomyChildrenUseCase,
+} from "./use-cases/TaxonomyUseCases";
