@@ -37,20 +37,27 @@ export function KnowledgeDetailPanel({
   const params = useParams();
   const router = useRouter();
   const pageId = params.pageId as string;
+  const routeWorkspaceId =
+    typeof params.workspaceId === "string"
+      ? params.workspaceId
+      : Array.isArray(params.workspaceId)
+        ? params.workspaceId[0]
+        : null;
+  const resolvedWorkspaceId = activeWorkspaceId ?? routeWorkspaceId;
 
   const [page, setPage] = useState<KnowledgePage | null>(null);
   const [loading, setLoading] = useState(true);
   const [commentOpen, setCommentOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const workspaceBasePath =
-    accountId && activeWorkspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(activeWorkspaceId)}`
+    accountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
       : accountId
         ? `/${encodeURIComponent(accountId)}`
         : "/";
   const pageListHref =
-    accountId && activeWorkspaceId
-      ? `${workspaceBasePath}/knowledge/pages`
+    accountId && resolvedWorkspaceId
+      ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
       : accountId
         ? `/${encodeURIComponent(accountId)}?tab=Overview&panel=knowledge-pages`
         : "/";
@@ -243,7 +250,7 @@ export function KnowledgeDetailPanel({
               </div>
               <CommentPanel
                 accountId={accountId}
-                workspaceId={activeWorkspaceId ?? ""}
+                workspaceId={resolvedWorkspaceId ?? ""}
                 contentId={pageId}
                 contentType="page"
                 currentUserId={currentUserId}

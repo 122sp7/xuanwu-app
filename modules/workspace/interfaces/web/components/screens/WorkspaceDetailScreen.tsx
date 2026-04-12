@@ -126,11 +126,15 @@ export function WorkspaceDetailScreen({
       );
     }
 
-    const overviewPanel: Record<string, string> = { Knowledge: "knowledge-pages" };
+    const overviewPanel: Record<string, string> = {
+      Knowledge: "knowledge-pages",
+      WorkspaceSettings: "settings",
+    };
 
     switch (tab) {
       case "Overview":
       case "Knowledge":
+      case "WorkspaceSettings":
         return (
           <WorkspaceOverviewTab
             workspace={workspace}
