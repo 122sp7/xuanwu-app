@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-import type { AccountEntity, ActiveAccount } from "@/modules/platform/api";
+import type { ActiveAccount } from "@/modules/platform/api";
 import {
   isOrganizationActor,
   isActiveOrganizationAccount,

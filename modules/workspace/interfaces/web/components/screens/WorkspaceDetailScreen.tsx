@@ -13,7 +13,6 @@ import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
 import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
 import { WorkspaceFlowTab } from "@/modules/workspace/api";
 import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
-import { useApp } from "@/modules/platform/api";
 import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
 
 import {
@@ -55,7 +54,6 @@ export function WorkspaceDetailScreen({
   initialTab,
   initialOverviewPanel,
 }: WorkspaceDetailScreenProps) {
-  const { state: appState } = useApp();
   const { state: wsState, dispatch: wsDispatch } = useWorkspaceContext();
   const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
     workspaceId,

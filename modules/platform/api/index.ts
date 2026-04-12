@@ -104,6 +104,21 @@ export * from "../subdomains/background-job/api";
 // Only selective exports — do NOT wildcard re-export "../interfaces".
 export {
   useApp,
+  type AppState,
+  type AppAction,
+  type AppContextValue,
+  AppContext,
+  APP_INITIAL_STATE,
+  type ActiveAccount,
+  // Shell UI components (pure platform — no downstream deps)
+  ShellHeaderControls,
+  ShellThemeToggle,
+  ShellNotificationButton,
+  ShellUserAvatar,
+  ShellTranslationSwitcher,
+  ShellAppBreadcrumbs,
+  ShellGlobalSearchDialog,
+  useShellGlobalSearch,
 } from "../interfaces";
 
 // access-control — account type guards and route fallback

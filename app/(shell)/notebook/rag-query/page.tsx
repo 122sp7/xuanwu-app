@@ -2,7 +2,6 @@
 
 import { useSearchParams } from "next/navigation";
 
-import { useApp } from "@/modules/platform/api";
 import { resolveWorkspaceFromMap, useWorkspaceContext } from "@/modules/workspace/api";
 import { RagQueryView } from "@/modules/notebooklm/api";
 

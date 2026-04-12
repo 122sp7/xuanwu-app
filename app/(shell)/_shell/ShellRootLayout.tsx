@@ -23,6 +23,11 @@ import {
   isOrganizationActor,
   resolveOrganizationRouteFallback,
   AccountSwitcher,
+  ShellAppBreadcrumbs,
+  ShellGlobalSearchDialog,
+  useShellGlobalSearch,
+  ShellHeaderControls,
+  ShellUserAvatar,
 } from "@/modules/platform/api";
 import {
   resolveShellPageTitle,
@@ -32,13 +37,6 @@ import {
   SHELL_ORG_SECONDARY_NAV_ITEMS,
 } from "@/modules/platform/subdomains/platform-config/api";
 import { useWorkspaceContext, type WorkspaceEntity } from "@/modules/workspace/api";
-import {
-  ShellAppBreadcrumbs,
-  ShellGlobalSearchDialog,
-  useShellGlobalSearch,
-  ShellHeaderControls,
-  ShellUserAvatar,
-} from "@/modules/platform/interfaces/web";
 
 import { AppRail } from "./ShellAppRail";
 import { ShellDashboardSidebar } from "./ShellDashboardSidebar";

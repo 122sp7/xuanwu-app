@@ -17,7 +17,7 @@ import {
   APP_INITIAL_STATE,
   type AppState,
   type AppAction,
-} from "@/modules/platform/interfaces/web/providers/ShellAppContext";
+} from "@/modules/platform/api";
 import {
   resolveActiveAccount,
   subscribeToAccountsForUser,
