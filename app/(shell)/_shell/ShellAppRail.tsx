@@ -30,7 +30,7 @@ import {
   listShellRailCatalogItems,
   isExactOrChildPath,
   type ShellRailCatalogItem,
-} from "@/modules/platform/subdomains/platform-config/api";
+} from "@/modules/platform/api";
 import { type WorkspaceEntity, CreateWorkspaceDialogRail } from "@/modules/workspace/api";
 import {
   DropdownMenu,

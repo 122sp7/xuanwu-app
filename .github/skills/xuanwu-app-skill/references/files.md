@@ -4129,245 +4129,6 @@ export function FileProcessingDialogSurface({
 }
 ````
 
-## File: modules/notebooklm/subdomains/source/interfaces/components/FileProcessingDialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-import Link from "next/link";
-
-import { useAuth } from "@/modules/platform/api";
-import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
-import { Button } from "@ui-shadcn/ui/button";
-
-import { createKnowledgeDraftFromSourceDocument } from "../_actions/source-processing.actions";
-import { FileProcessingDialogBody } from "./file-processing-dialog.body";
-import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
-import {
-  createIdleSummary,
-  readCallableData,
-  readNumber,
-  readString,
-  type ExecutionSummary,
-  waitForParsedDocument,
-} from "./file-processing-dialog.utils";
-
-interface FileProcessingDialogProps {
-  readonly open: boolean;
-  readonly onClose: () => void;
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly sourceFileId: string;
-  readonly filename: string;
-  readonly gcsUri: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-}
-
-type DialogStep = "decide" | "select" | "executing" | "done";
-
-export function FileProcessingDialog({
-  open,
-  onClose,
-  accountId,
-  workspaceId,
-  sourceFileId,
-  filename,
-  gcsUri,
-  mimeType,
-  sizeBytes,
-}: FileProcessingDialogProps) {
-  const { state: { user } } = useAuth();
-  const [step, setStep] = useState<DialogStep>("decide");
-  const [shouldRunRag, setShouldRunRag] = useState(true);
-  const [shouldCreatePage, setShouldCreatePage] = useState(false);
-  const [summary, setSummary] = useState<ExecutionSummary>(createIdleSummary);
-
-  const canDismiss = step !== "executing";
-
-  function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen && canDismiss) onClose();
-  }
-
-  async function handleExecute() {
-    setStep("executing");
-    setSummary({
-      ...createIdleSummary(),
-      parse: { status: "running", detail: "正在呼叫 Document AI 解析文件" },
-      rag: shouldRunRag
-        ? { status: "idle", detail: "等待文件解析完成後建立索引" }
-        : { status: "skipped", detail: "使用者未勾選 RAG 索引" },
-      page: shouldCreatePage
-        ? { status: "idle", detail: "等待文件解析完成後建立單頁草稿" }
-        : { status: "skipped", detail: "使用者未勾選 Knowledge Page" },
-    });
-
-    try {
-      const functions = getFirebaseFunctions("asia-southeast1");
-      const parseDocument = functionsApi.httpsCallable(functions, "parse_document");
-
-      const parseResponse = await parseDocument({
-        account_id: accountId,
-        workspace_id: workspaceId,
-        doc_id: sourceFileId,
-        gcs_uri: gcsUri,
-        filename,
-        mime_type: mimeType || "application/octet-stream",
-        size_bytes: sizeBytes,
-        run_rag: false,
-      });
-
-      const parseData = readCallableData(parseResponse.data);
-      const docId = readString(parseData.doc_id, sourceFileId);
-
-      setSummary((current) => ({
-        ...current,
-        parse: { status: "running", detail: "解析工作已送出，正在等待文件狀態完成" },
-      }));
-
-      const parsedDocument = await waitForParsedDocument(accountId, docId);
-
-      setSummary((current) => ({
-        ...current,
-        pageCount: parsedDocument.pageCount,
-        jsonGcsUri: parsedDocument.jsonGcsUri,
-        parse: { status: "success", detail: `解析完成，共 ${parsedDocument.pageCount} 頁。` },
-      }));
-
-      if (shouldRunRag) {
-        setSummary((current) => ({
-          ...current,
-          rag: { status: "running", detail: "正在建立可檢索的 RAG 索引" },
-        }));
-
-        try {
-          const runRagIndex = functionsApi.httpsCallable(functions, "rag_reindex_document");
-          const ragResponse = await runRagIndex({
-            account_id: accountId,
-            workspace_id: workspaceId,
-            doc_id: docId,
-            json_gcs_uri: parsedDocument.jsonGcsUri,
-            source_gcs_uri: gcsUri,
-            filename,
-            page_count: parsedDocument.pageCount,
-          });
-          const ragResult = readCallableData(ragResponse.data);
-
-          setSummary((current) => ({
-            ...current,
-            rag: {
-              status: "success",
-              detail: `索引完成，${readNumber(ragResult.chunk_count, 0)} 個 chunks / ${readNumber(ragResult.vector_count, 0)} 個 vectors。`,
-            },
-          }));
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "RAG 索引失敗";
-          setSummary((current) => ({ ...current, rag: { status: "error", detail: message } }));
-        }
-      }
-
-      if (shouldCreatePage) {
-        setSummary((current) => ({
-          ...current,
-          page: { status: "running", detail: "正在建立可編輯的 Knowledge Page 草稿" },
-        }));
-
-        try {
-          if (!user?.id) throw new Error("缺少登入使用者，無法建立 Knowledge Page 草稿");
-
-          const draftPage = await createKnowledgeDraftFromSourceDocument({
-            accountId,
-            workspaceId,
-            createdByUserId: user.id,
-            filename,
-            sourceGcsUri: gcsUri,
-            jsonGcsUri: parsedDocument.jsonGcsUri,
-            pageCount: parsedDocument.pageCount,
-          });
-
-          if (!draftPage.success) throw new Error(draftPage.error.message || "建立 Knowledge Page 失敗");
-
-          setSummary((current) => ({
-            ...current,
-            pageHref: `/knowledge/pages/${draftPage.aggregateId}`,
-            page: { status: "success", detail: "已建立單頁 Draft，可直接進頁面補內容、調整結構，後續再迭代切頁策略。" },
-          }));
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "建立 Knowledge Page 失敗";
-          setSummary((current) => ({ ...current, page: { status: "error", detail: message } }));
-        }
-      }
-
-      setStep("done");
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "文件處理失敗";
-      setSummary((current) => {
-        if (current.parse.status === "running") {
-          return { ...current, parse: { status: "error", detail: message } };
-        }
-        return { ...current, rag: { status: "error", detail: message } };
-      });
-      setStep("done");
-    }
-  }
-
-  const canContinue = shouldRunRag || shouldCreatePage;
-
-  const footerActions = (
-    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
-      {step === "decide" && (
-        <>
-          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">保留檔案即可</Button>
-          <Button onClick={() => setStep("select")} className="w-full sm:w-auto">我要決定後續處理</Button>
-        </>
-      )}
-
-      {step === "select" && (
-        <>
-          <Button variant="outline" onClick={() => setStep("decide")} className="w-full sm:w-auto">上一步</Button>
-          <Button onClick={() => { void handleExecute(); }} disabled={!canContinue} className="w-full sm:w-auto">開始處理</Button>
-        </>
-      )}
-
-      {step === "done" && (
-        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          {summary.pageHref && summary.page.status === "success" ? (
-            <Button asChild size="sm" variant="outline" className="w-full sm:w-auto">
-              <Link href={summary.pageHref}>前往 Draft Page</Link>
-            </Button>
-          ) : (
-            <div className="hidden sm:block" />
-          )}
-          <Button onClick={onClose} className="w-full sm:w-auto">完成</Button>
-        </div>
-      )}
-    </div>
-  );
-
-  return (
-    <FileProcessingDialogSurface
-      open={open}
-      canDismiss={canDismiss}
-      onOpenChange={handleOpenChange}
-      footer={step !== "executing" ? footerActions : null}
-    >
-      <FileProcessingDialogBody
-        step={step}
-        filename={filename}
-        mimeType={mimeType}
-        gcsUri={gcsUri}
-        sizeBytes={sizeBytes}
-        shouldRunRag={shouldRunRag}
-        shouldCreatePage={shouldCreatePage}
-        onShouldRunRagChange={setShouldRunRag}
-        onShouldCreatePageChange={setShouldCreatePage}
-        summary={summary}
-      />
-    </FileProcessingDialogSurface>
-  );
-}
-````
-
 ## File: modules/notebooklm/subdomains/source/interfaces/contracts/source-command-result.ts
 ````typescript
 import type { SourceFileCommandErrorCode } from "../../application/dto/source-file.dto";
@@ -15594,6 +15355,15 @@ export {
 } from "./_actions/account-policy.actions";
 ````
 
+## File: modules/platform/subdomains/analytics/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
 ## File: modules/platform/subdomains/analytics/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for platform subdomain 'analytics'.
@@ -15607,6 +15377,15 @@ export {
 ## File: modules/platform/subdomains/analytics/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'analytics'.
+````
+
+## File: modules/platform/subdomains/audit-log/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
 ````
 
 ## File: modules/platform/subdomains/audit-log/application/index.ts
@@ -16067,6 +15846,15 @@ export class InMemoryIngestionJobRepository implements IIngestionJobRepository {
 }
 ````
 
+## File: modules/platform/subdomains/billing/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
 ## File: modules/platform/subdomains/billing/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for platform subdomain 'billing'.
@@ -16080,6 +15868,15 @@ export class InMemoryIngestionJobRepository implements IIngestionJobRepository {
 ## File: modules/platform/subdomains/billing/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'billing'.
+````
+
+## File: modules/platform/subdomains/compliance/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
 ````
 
 ## File: modules/platform/subdomains/compliance/application/index.ts
@@ -16097,6 +15894,15 @@ export class InMemoryIngestionJobRepository implements IIngestionJobRepository {
 // Purpose: Infrastructure layer placeholder for platform subdomain 'compliance'.
 ````
 
+## File: modules/platform/subdomains/content/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
 ## File: modules/platform/subdomains/content/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for platform subdomain 'content'.
@@ -16110,6 +15916,15 @@ export class InMemoryIngestionJobRepository implements IIngestionJobRepository {
 ## File: modules/platform/subdomains/content/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'content'.
+````
+
+## File: modules/platform/subdomains/feature-flag/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
 ````
 
 ## File: modules/platform/subdomains/feature-flag/application/index.ts
@@ -16887,6 +16702,15 @@ export function clearDevDemoSession(): void {
 }
 ````
 
+## File: modules/platform/subdomains/integration/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
 ## File: modules/platform/subdomains/integration/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for platform subdomain 'integration'.
@@ -17081,6 +16905,15 @@ export {
 } from "./_actions/notification.actions";
 ````
 
+## File: modules/platform/subdomains/observability/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
 ## File: modules/platform/subdomains/observability/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for platform subdomain 'observability'.
@@ -17094,6 +16927,15 @@ export {
 ## File: modules/platform/subdomains/observability/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'observability'.
+````
+
+## File: modules/platform/subdomains/onboarding/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
 ````
 
 ## File: modules/platform/subdomains/onboarding/application/index.ts
@@ -18373,6 +18215,15 @@ export function CreateOrganizationDialog({
 // Purpose: Infrastructure layer placeholder for platform subdomain 'platform-config'.
 ````
 
+## File: modules/platform/subdomains/referral/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
 ## File: modules/platform/subdomains/referral/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for platform subdomain 'referral'.
@@ -18398,6 +18249,15 @@ export function CreateOrganizationDialog({
 // Purpose: Infrastructure layer placeholder for platform subdomain 'search'.
 ````
 
+## File: modules/platform/subdomains/security-policy/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
 ## File: modules/platform/subdomains/security-policy/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for platform subdomain 'security-policy'.
@@ -18413,6 +18273,15 @@ export function CreateOrganizationDialog({
 // Purpose: Infrastructure layer placeholder for platform subdomain 'security-policy'.
 ````
 
+## File: modules/platform/subdomains/support/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
+````
+
 ## File: modules/platform/subdomains/support/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for platform subdomain 'support'.
@@ -18426,6 +18295,15 @@ export function CreateOrganizationDialog({
 ## File: modules/platform/subdomains/support/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'support'.
+````
+
+## File: modules/platform/subdomains/workflow/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export {};
 ````
 
 ## File: modules/platform/subdomains/workflow/application/index.ts
@@ -40910,6 +40788,30 @@ export function mapToSourceLiveDocument(
 export const mapToAssetLiveDocument = mapToSourceLiveDocument;
 ````
 
+## File: modules/notebooklm/subdomains/source/application/dto/source-pipeline.dto.ts
+````typescript
+import type {
+  ParseSourceDocumentInput,
+  ParseSourceDocumentOutput,
+  ReindexSourceDocumentInput,
+  ReindexSourceDocumentOutput,
+} from "../../domain/ports/ISourcePipelinePort";
+
+export interface SourcePipelineError {
+  readonly code: "SOURCE_PIPELINE_INVALID_INPUT" | "SOURCE_PIPELINE_EXECUTION_FAILED";
+  readonly message: string;
+}
+
+export type SourcePipelineResult<T> =
+  | { readonly ok: true; readonly data: T }
+  | { readonly ok: false; readonly error: SourcePipelineError };
+
+export type ParseSourceDocumentInputDto = ParseSourceDocumentInput;
+export type ParseSourceDocumentOutputDto = ParseSourceDocumentOutput;
+export type ReindexSourceDocumentInputDto = ReindexSourceDocumentInput;
+export type ReindexSourceDocumentOutputDto = ReindexSourceDocumentOutput;
+````
+
 ## File: modules/notebooklm/subdomains/source/application/dto/source.dto.ts
 ````typescript
 /**
@@ -41178,6 +41080,101 @@ export class RenameSourceDocumentUseCase {
 }
 ````
 
+## File: modules/notebooklm/subdomains/source/application/use-cases/source-pipeline.use-cases.ts
+````typescript
+import type { ISourcePipelinePort } from "../../domain/ports/ISourcePipelinePort";
+import type {
+  ParseSourceDocumentInputDto,
+  ParseSourceDocumentOutputDto,
+  ReindexSourceDocumentInputDto,
+  ReindexSourceDocumentOutputDto,
+  SourcePipelineResult,
+} from "../dto/source-pipeline.dto";
+
+function isBlank(value: string): boolean {
+  return !value.trim();
+}
+
+export class ParseSourceDocumentUseCase {
+  constructor(private readonly pipelinePort: ISourcePipelinePort) {}
+
+  async execute(
+    input: ParseSourceDocumentInputDto,
+  ): Promise<SourcePipelineResult<ParseSourceDocumentOutputDto>> {
+    if (
+      isBlank(input.accountId)
+      || isBlank(input.workspaceId)
+      || isBlank(input.documentId)
+      || isBlank(input.gcsUri)
+      || isBlank(input.filename)
+      || !Number.isFinite(input.sizeBytes)
+      || input.sizeBytes <= 0
+    ) {
+      return {
+        ok: false,
+        error: {
+          code: "SOURCE_PIPELINE_INVALID_INPUT",
+          message: "Invalid parse input.",
+        },
+      };
+    }
+
+    try {
+      const output = await this.pipelinePort.parseDocument(input);
+      return { ok: true, data: output };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: "SOURCE_PIPELINE_EXECUTION_FAILED",
+          message: error instanceof Error ? error.message : "Parse execution failed.",
+        },
+      };
+    }
+  }
+}
+
+export class ReindexSourceDocumentUseCase {
+  constructor(private readonly pipelinePort: ISourcePipelinePort) {}
+
+  async execute(
+    input: ReindexSourceDocumentInputDto,
+  ): Promise<SourcePipelineResult<ReindexSourceDocumentOutputDto>> {
+    if (
+      isBlank(input.accountId)
+      || isBlank(input.workspaceId)
+      || isBlank(input.documentId)
+      || isBlank(input.jsonGcsUri)
+      || isBlank(input.sourceGcsUri)
+      || isBlank(input.filename)
+      || !Number.isFinite(input.pageCount)
+      || input.pageCount < 0
+    ) {
+      return {
+        ok: false,
+        error: {
+          code: "SOURCE_PIPELINE_INVALID_INPUT",
+          message: "Invalid reindex input.",
+        },
+      };
+    }
+
+    try {
+      const output = await this.pipelinePort.reindexDocument(input);
+      return { ok: true, data: output };
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: "SOURCE_PIPELINE_EXECUTION_FAILED",
+          message: error instanceof Error ? error.message : "Reindex execution failed.",
+        },
+      };
+    }
+  }
+}
+````
+
 ## File: modules/notebooklm/subdomains/source/application/use-cases/upload-complete-source-file.use-case.ts
 ````typescript
 /**
@@ -41333,22 +41330,6 @@ export type { IWikiLibraryRepository } from "./repositories/IWikiLibraryReposito
 export * from "./ports";
 ````
 
-## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
-````typescript
-/**
- * notebooklm/source domain/ports — driven port interfaces for the source subdomain.
- *
- * ISourceDocumentCommandPort and IParsedDocumentPort are the primary driven ports.
- * IRagDocumentPort, ISourceFilePort, IWikiLibraryPort re-export the legacy
- * repository contracts, making the Ports layer explicitly visible.
- */
-export type { ISourceDocumentCommandPort } from "./ISourceDocumentPort";
-export type { IParsedDocumentPort } from "./IParsedDocumentPort";
-export type { IRagDocumentRepository as IRagDocumentPort } from "../repositories/IRagDocumentRepository";
-export type { ISourceFileRepository as ISourceFilePort } from "../repositories/ISourceFileRepository";
-export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";
-````
-
 ## File: modules/notebooklm/subdomains/source/domain/ports/IParsedDocumentPort.ts
 ````typescript
 /**
@@ -41379,6 +41360,43 @@ export interface IParsedDocumentPort {
 export interface ISourceDocumentCommandPort {
   deleteDocument(accountId: string, documentId: string): Promise<void>;
   renameDocument(accountId: string, documentId: string, newName: string): Promise<void>;
+}
+````
+
+## File: modules/notebooklm/subdomains/source/domain/ports/ISourcePipelinePort.ts
+````typescript
+export interface ParseSourceDocumentInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly documentId: string;
+  readonly gcsUri: string;
+  readonly filename: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+
+export interface ParseSourceDocumentOutput {
+  readonly documentId: string;
+}
+
+export interface ReindexSourceDocumentInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly documentId: string;
+  readonly jsonGcsUri: string;
+  readonly sourceGcsUri: string;
+  readonly filename: string;
+  readonly pageCount: number;
+}
+
+export interface ReindexSourceDocumentOutput {
+  readonly chunkCount: number;
+  readonly vectorCount: number;
+}
+
+export interface ISourcePipelinePort {
+  parseDocument(input: ParseSourceDocumentInput): Promise<ParseSourceDocumentOutput>;
+  reindexDocument(input: ReindexSourceDocumentInput): Promise<ReindexSourceDocumentOutput>;
 }
 ````
 
@@ -41511,6 +41529,100 @@ export class FirebaseSourceDocumentCommandAdapter implements ISourceDocumentComm
 }
 ````
 
+## File: modules/notebooklm/subdomains/source/infrastructure/platform/PlatformSourcePipelineAdapter.ts
+````typescript
+import { functionsInfrastructureApi } from "@/modules/platform/api";
+
+import type {
+  ISourcePipelinePort,
+  ParseSourceDocumentInput,
+  ParseSourceDocumentOutput,
+  ReindexSourceDocumentInput,
+  ReindexSourceDocumentOutput,
+} from "../../domain/ports/ISourcePipelinePort";
+
+const SOURCE_FUNCTION_REGION = "asia-southeast1";
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+export class PlatformSourcePipelineAdapter implements ISourcePipelinePort {
+  async parseDocument(input: ParseSourceDocumentInput): Promise<ParseSourceDocumentOutput> {
+    const raw = await functionsInfrastructureApi.call<
+      {
+        account_id: string;
+        workspace_id: string;
+        doc_id: string;
+        gcs_uri: string;
+        filename: string;
+        mime_type: string;
+        size_bytes: number;
+        run_rag: boolean;
+      },
+      unknown
+    >(
+      "parse_document",
+      {
+        account_id: input.accountId,
+        workspace_id: input.workspaceId,
+        doc_id: input.documentId,
+        gcs_uri: input.gcsUri,
+        filename: input.filename,
+        mime_type: input.mimeType || "application/octet-stream",
+        size_bytes: input.sizeBytes,
+        run_rag: false,
+      },
+      { region: SOURCE_FUNCTION_REGION },
+    );
+
+    const data = asRecord(raw);
+    return { documentId: asString(data.doc_id, input.documentId) };
+  }
+
+  async reindexDocument(input: ReindexSourceDocumentInput): Promise<ReindexSourceDocumentOutput> {
+    const raw = await functionsInfrastructureApi.call<
+      {
+        account_id: string;
+        workspace_id: string;
+        doc_id: string;
+        json_gcs_uri: string;
+        source_gcs_uri: string;
+        filename: string;
+        page_count: number;
+      },
+      unknown
+    >(
+      "rag_reindex_document",
+      {
+        account_id: input.accountId,
+        workspace_id: input.workspaceId,
+        doc_id: input.documentId,
+        json_gcs_uri: input.jsonGcsUri,
+        source_gcs_uri: input.sourceGcsUri,
+        filename: input.filename,
+        page_count: input.pageCount,
+      },
+      { region: SOURCE_FUNCTION_REGION },
+    );
+
+    const data = asRecord(raw);
+    return {
+      chunkCount: asNumber(data.chunk_count, 0),
+      vectorCount: asNumber(data.vector_count, 0),
+    };
+  }
+}
+````
+
 ## File: modules/notebooklm/subdomains/source/interfaces/_actions/source-file.actions.ts
 ````typescript
 "use server";
@@ -41585,6 +41697,38 @@ export async function renameSourceDocument(
   const useCase = new RenameSourceDocumentUseCase(makeSourceDocumentCommandAdapter());
   const result = await useCase.execute({ accountId, documentId, newName });
   return { ...result, commandId };
+}
+````
+
+## File: modules/notebooklm/subdomains/source/interfaces/_actions/source-pipeline.actions.ts
+````typescript
+"use server";
+
+import { makeSourcePipelineAdapter } from "../../api/factories";
+import type {
+  ParseSourceDocumentInputDto,
+  ParseSourceDocumentOutputDto,
+  ReindexSourceDocumentInputDto,
+  ReindexSourceDocumentOutputDto,
+  SourcePipelineResult,
+} from "../../application/dto/source-pipeline.dto";
+import {
+  ParseSourceDocumentUseCase,
+  ReindexSourceDocumentUseCase,
+} from "../../application/use-cases/source-pipeline.use-cases";
+
+export async function parseSourceDocument(
+  input: ParseSourceDocumentInputDto,
+): Promise<SourcePipelineResult<ParseSourceDocumentOutputDto>> {
+  const useCase = new ParseSourceDocumentUseCase(makeSourcePipelineAdapter());
+  return useCase.execute(input);
+}
+
+export async function reindexSourceDocument(
+  input: ReindexSourceDocumentInputDto,
+): Promise<SourcePipelineResult<ReindexSourceDocumentOutputDto>> {
+  const useCase = new ReindexSourceDocumentUseCase(makeSourcePipelineAdapter());
+  return useCase.execute(input);
 }
 ````
 
@@ -41664,6 +41808,243 @@ export function readNumber(value: unknown, fallback = 0): number {
 }
 
 export { waitForParsedDocument };
+````
+
+## File: modules/notebooklm/subdomains/source/interfaces/components/FileProcessingDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+
+import { useAuth } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+
+import { createKnowledgeDraftFromSourceDocument } from "../_actions/source-processing.actions";
+import { parseSourceDocument, reindexSourceDocument } from "../_actions/source-pipeline.actions";
+import { FileProcessingDialogBody } from "./file-processing-dialog.body";
+import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
+import {
+  createIdleSummary,
+  type ExecutionSummary,
+  waitForParsedDocument,
+} from "./file-processing-dialog.utils";
+
+interface FileProcessingDialogProps {
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+
+type DialogStep = "decide" | "select" | "executing" | "done";
+
+export function FileProcessingDialog({
+  open,
+  onClose,
+  accountId,
+  workspaceId,
+  sourceFileId,
+  filename,
+  gcsUri,
+  mimeType,
+  sizeBytes,
+}: FileProcessingDialogProps) {
+  const { state: { user } } = useAuth();
+  const [step, setStep] = useState<DialogStep>("decide");
+  const [shouldRunRag, setShouldRunRag] = useState(true);
+  const [shouldCreatePage, setShouldCreatePage] = useState(false);
+  const [summary, setSummary] = useState<ExecutionSummary>(createIdleSummary);
+
+  const canDismiss = step !== "executing";
+
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen && canDismiss) onClose();
+  }
+
+  async function handleExecute() {
+    setStep("executing");
+    setSummary({
+      ...createIdleSummary(),
+      parse: { status: "running", detail: "正在呼叫 Document AI 解析文件" },
+      rag: shouldRunRag
+        ? { status: "idle", detail: "等待文件解析完成後建立索引" }
+        : { status: "skipped", detail: "使用者未勾選 RAG 索引" },
+      page: shouldCreatePage
+        ? { status: "idle", detail: "等待文件解析完成後建立單頁草稿" }
+        : { status: "skipped", detail: "使用者未勾選 Knowledge Page" },
+    });
+
+    try {
+      const parseResult = await parseSourceDocument({
+        accountId,
+        workspaceId,
+        documentId: sourceFileId,
+        gcsUri,
+        filename,
+        mimeType: mimeType || "application/octet-stream",
+        sizeBytes,
+      });
+
+      if (!parseResult.ok) {
+        throw new Error(parseResult.error.message);
+      }
+
+      const docId = parseResult.data.documentId;
+
+      setSummary((current) => ({
+        ...current,
+        parse: { status: "running", detail: "解析工作已送出，正在等待文件狀態完成" },
+      }));
+
+      const parsedDocument = await waitForParsedDocument(accountId, docId);
+
+      setSummary((current) => ({
+        ...current,
+        pageCount: parsedDocument.pageCount,
+        jsonGcsUri: parsedDocument.jsonGcsUri,
+        parse: { status: "success", detail: `解析完成，共 ${parsedDocument.pageCount} 頁。` },
+      }));
+
+      if (shouldRunRag) {
+        setSummary((current) => ({
+          ...current,
+          rag: { status: "running", detail: "正在建立可檢索的 RAG 索引" },
+        }));
+
+        try {
+          const ragResult = await reindexSourceDocument({
+            accountId,
+            workspaceId,
+            documentId: docId,
+            jsonGcsUri: parsedDocument.jsonGcsUri,
+            sourceGcsUri: gcsUri,
+            filename,
+            pageCount: parsedDocument.pageCount,
+          });
+
+          if (!ragResult.ok) {
+            throw new Error(ragResult.error.message);
+          }
+
+          setSummary((current) => ({
+            ...current,
+            rag: {
+              status: "success",
+              detail: `索引完成，${ragResult.data.chunkCount} 個 chunks / ${ragResult.data.vectorCount} 個 vectors。`,
+            },
+          }));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "RAG 索引失敗";
+          setSummary((current) => ({ ...current, rag: { status: "error", detail: message } }));
+        }
+      }
+
+      if (shouldCreatePage) {
+        setSummary((current) => ({
+          ...current,
+          page: { status: "running", detail: "正在建立可編輯的 Knowledge Page 草稿" },
+        }));
+
+        try {
+          if (!user?.id) throw new Error("缺少登入使用者，無法建立 Knowledge Page 草稿");
+
+          const draftPage = await createKnowledgeDraftFromSourceDocument({
+            accountId,
+            workspaceId,
+            createdByUserId: user.id,
+            filename,
+            sourceGcsUri: gcsUri,
+            jsonGcsUri: parsedDocument.jsonGcsUri,
+            pageCount: parsedDocument.pageCount,
+          });
+
+          if (!draftPage.success) throw new Error(draftPage.error.message || "建立 Knowledge Page 失敗");
+
+          setSummary((current) => ({
+            ...current,
+            pageHref: `/knowledge/pages/${draftPage.aggregateId}`,
+            page: { status: "success", detail: "已建立單頁 Draft，可直接進頁面補內容、調整結構，後續再迭代切頁策略。" },
+          }));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "建立 Knowledge Page 失敗";
+          setSummary((current) => ({ ...current, page: { status: "error", detail: message } }));
+        }
+      }
+
+      setStep("done");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "文件處理失敗";
+      setSummary((current) => {
+        if (current.parse.status === "running") {
+          return { ...current, parse: { status: "error", detail: message } };
+        }
+        return { ...current, rag: { status: "error", detail: message } };
+      });
+      setStep("done");
+    }
+  }
+
+  const canContinue = shouldRunRag || shouldCreatePage;
+
+  const footerActions = (
+    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+      {step === "decide" && (
+        <>
+          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">保留檔案即可</Button>
+          <Button onClick={() => setStep("select")} className="w-full sm:w-auto">我要決定後續處理</Button>
+        </>
+      )}
+
+      {step === "select" && (
+        <>
+          <Button variant="outline" onClick={() => setStep("decide")} className="w-full sm:w-auto">上一步</Button>
+          <Button onClick={() => { void handleExecute(); }} disabled={!canContinue} className="w-full sm:w-auto">開始處理</Button>
+        </>
+      )}
+
+      {step === "done" && (
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          {summary.pageHref && summary.page.status === "success" ? (
+            <Button asChild size="sm" variant="outline" className="w-full sm:w-auto">
+              <Link href={summary.pageHref}>前往 Draft Page</Link>
+            </Button>
+          ) : (
+            <div className="hidden sm:block" />
+          )}
+          <Button onClick={onClose} className="w-full sm:w-auto">完成</Button>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <FileProcessingDialogSurface
+      open={open}
+      canDismiss={canDismiss}
+      onOpenChange={handleOpenChange}
+      footer={step !== "executing" ? footerActions : null}
+    >
+      <FileProcessingDialogBody
+        step={step}
+        filename={filename}
+        mimeType={mimeType}
+        gcsUri={gcsUri}
+        sizeBytes={sizeBytes}
+        shouldRunRag={shouldRunRag}
+        shouldCreatePage={shouldCreatePage}
+        onShouldRunRagChange={setShouldRunRag}
+        onShouldCreatePageChange={setShouldCreatePage}
+        summary={summary}
+      />
+    </FileProcessingDialogSurface>
+  );
+}
 ````
 
 ## File: modules/notebooklm/subdomains/source/interfaces/components/LibrariesView.tsx
@@ -42330,118 +42711,6 @@ export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
       </CardContent>
     </Card>
   );
-}
-````
-
-## File: modules/notebooklm/subdomains/source/interfaces/hooks/useSourceDocumentsSnapshot.ts
-````typescript
-"use client";
-
-import { useCallback, useEffect, useRef, useState } from "react";
-
-import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
-
-import type {
-  SourceLiveDocument,
-} from "../../application/dto/source-live-document.dto";
-import {
-  mapToSourceLiveDocument,
-} from "../../application/dto/source-live-document.dto";
-
-// Re-export types for backward compatibility
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../../application/dto/source-live-document.dto";
-export {
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../../application/dto/source-live-document.dto";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function objectOrEmpty(value: unknown): Record<string, unknown> {
-  return isRecord(value) ? value : {};
-}
-
-// ── Hook ──────────────────────────────────────────────────────────────────────
-
-export interface UseSourceDocumentsSnapshotResult {
-  readonly docs: SourceLiveDocument[];
-  readonly loading: boolean;
-  readonly pendingDocs: SourceLiveDocument[];
-  readonly addPending: (doc: SourceLiveDocument) => void;
-  readonly removePending: (id: string) => void;
-}
-
-/** Subscribes to Firestore `accounts/{accountId}/documents` in real time via onSnapshot. */
-export function useSourceDocumentsSnapshot(
-  accountId: string,
-  workspaceId?: string,
-): UseSourceDocumentsSnapshotResult {
-  const [rawDocs, setRawDocs] = useState<SourceLiveDocument[]>([]);
-  const [rawPending, setRawPending] = useState<SourceLiveDocument[]>([]);
-  const [receivedKey, setReceivedKey] = useState("");
-  const statusMapRef = useRef<Record<string, string>>({});
-
-  const addPending = useCallback((doc: SourceLiveDocument) => {
-    setRawPending((prev) => [doc, ...prev.filter((p) => p.id !== doc.id)]);
-  }, []);
-
-  const removePending = useCallback((id: string) => {
-    setRawPending((prev) => prev.filter((p) => p.id !== id));
-  }, []);
-
-  useEffect(() => {
-    if (!accountId) return;
-
-    const subKey = `${accountId}/${workspaceId ?? ""}`;
-    statusMapRef.current = {};
-
-    const db = getFirebaseFirestore();
-    const colRef = firestoreApi.collection(db, "accounts", accountId, "documents");
-
-    const unsubscribe = firestoreApi.onSnapshot(
-      colRef,
-      (snapshot) => {
-        const mapped = snapshot.docs
-          .map((item) => mapToSourceLiveDocument(item.id, objectOrEmpty(item.data())))
-          .filter((item) => !workspaceId || item.workspaceId === workspaceId)
-          .sort((a, b) => (b.uploadedAt?.getTime() ?? 0) - (a.uploadedAt?.getTime() ?? 0));
-
-        const nextMap: Record<string, string> = {};
-        for (const doc of mapped) {
-          nextMap[doc.id] = `${doc.status}/${doc.ragStatus}`;
-        }
-        statusMapRef.current = nextMap;
-
-        setRawDocs(mapped);
-        setRawPending((prev) => prev.filter((p) => !mapped.some((d) => d.id === p.id)));
-        setReceivedKey(subKey);
-      },
-      () => {
-        setReceivedKey(subKey);
-      },
-    );
-
-    return () => {
-      unsubscribe();
-      statusMapRef.current = {};
-    };
-  }, [accountId, workspaceId]);
-
-  const currentKey = `${accountId}/${workspaceId ?? ""}`;
-  const docs = accountId ? rawDocs : [];
-  const loading = Boolean(accountId) && receivedKey !== currentKey;
-  const pendingDocs = accountId ? rawPending : [];
-
-  return { docs, loading, pendingDocs, addPending, removePending };
 }
 ````
 
@@ -49182,153 +49451,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/platform/api/infrastructure-api.ts
-````typescript
-import {
-	functionsApi,
-	firestoreApi,
-	getFirebaseFirestore,
-	getFirebaseFunctions,
-	getFirebaseStorage,
-	storageApi,
-} from "@integration-firebase";
-
-import type {
-	FirestoreAPI,
-	FirestoreWhereClause,
-	GenkitAPI,
-	StorageAPI,
-	StorageUploadOptions,
-} from "./contracts";
-
-const DEFAULT_STORAGE_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
-const DEFAULT_FUNCTION_REGION = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_REGION ?? "asia-east1";
-
-function splitPath(path: string): string[] {
-	const segments = path
-		.split("/")
-		.map((segment) => segment.trim())
-		.filter(Boolean);
-
-	if (segments.length === 0) {
-		throw new Error("Path is required.");
-	}
-
-	return segments;
-}
-
-function resolveDocumentPath(path: string): string[] {
-	const segments = splitPath(path);
-	if (segments.length % 2 !== 0) {
-		throw new Error(`Expected a document path but got collection path: ${path}`);
-	}
-	return segments;
-}
-
-function resolveCollectionPath(path: string): string[] {
-	const segments = splitPath(path);
-	if (segments.length % 2 === 0) {
-		throw new Error(`Expected a collection path but got document path: ${path}`);
-	}
-	return segments;
-}
-
-function resolveStorageBucket(): string {
-	return process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || DEFAULT_STORAGE_BUCKET;
-}
-
-function resolveStoragePath(path: string): string {
-	const normalized = path.trim().replace(/^\/+/, "");
-	if (!normalized) {
-		throw new Error("Storage path is required.");
-	}
-	return normalized;
-}
-
-function toUploadMetadata(options?: StorageUploadOptions) {
-	if (!options) return undefined;
-	return {
-		contentType: options.contentType,
-		customMetadata: options.customMetadata,
-	};
-}
-
-export const firestoreInfrastructureApi: FirestoreAPI = {
-	async get<T>(path: string): Promise<T | null> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		const snapshot = await firestoreApi.getDoc(ref);
-		if (!snapshot.exists()) return null;
-		return snapshot.data() as T;
-	},
-
-	async set<T>(path: string, data: T): Promise<void> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		await firestoreApi.setDoc(ref, data as Record<string, unknown>);
-	},
-
-	async query<T>(collectionPath: string, where: readonly FirestoreWhereClause[] = []): Promise<T[]> {
-		const db = getFirebaseFirestore();
-		const collectionRef = firestoreApi.collection(
-			db,
-			resolveCollectionPath(collectionPath).join("/"),
-		);
-
-		const queryConstraints = where.map((clause) =>
-			firestoreApi.where(clause.field, clause.op, clause.value),
-		);
-
-		const queryRef = firestoreApi.query(collectionRef, ...queryConstraints);
-		const snapshot = await firestoreApi.getDocs(queryRef);
-		return snapshot.docs.map((doc) => doc.data() as T);
-	},
-};
-
-export const storageInfrastructureApi: StorageAPI = {
-	async upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		await storageApi.uploadBytes(ref, file, toUploadMetadata(options));
-		return storageApi.getDownloadURL(ref);
-	},
-
-	async getUrl(path: string): Promise<string> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		return storageApi.getDownloadURL(ref);
-	},
-
-	async delete(path: string): Promise<void> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		await storageApi.deleteObject(ref);
-	},
-
-	toGsUri(path: string): string {
-		const normalizedPath = resolveStoragePath(path);
-		return `gs://${resolveStorageBucket()}/${normalizedPath}`;
-	},
-};
-
-export const genkitInfrastructureApi: GenkitAPI = {
-	async runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput> {
-		const normalizedFlow = flow.trim();
-		if (!normalizedFlow) {
-			throw new Error("Flow name is required.");
-		}
-
-		const functions = getFirebaseFunctions(DEFAULT_FUNCTION_REGION);
-		const runFlow = functionsApi.httpsCallable(functions, "platform_run_genkit_flow");
-		const response = await runFlow({ flow: normalizedFlow, input });
-		return response.data as TOutput;
-	},
-};
-````
-
 ## File: modules/platform/api/platform-service.ts
 ````typescript
 /**
@@ -52560,24 +52682,6 @@ export class GenkitAiTextGenerationAdapter implements AiTextGenerationPort {
 }
 ````
 
-## File: modules/platform/subdomains/analytics/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/platform/subdomains/audit-log/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
 ## File: modules/platform/subdomains/background-job/api/index.ts
 ````typescript
 /**
@@ -52664,24 +52768,6 @@ export type IngestionJobDomainEventType =
 export type { IIngestionJobRepository as IIngestionJobPort } from "../repositories/IIngestionJobRepository";
 ````
 
-## File: modules/platform/subdomains/billing/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/platform/subdomains/compliance/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
 ## File: modules/platform/subdomains/consent/api/index.ts
 ````typescript
 /**
@@ -52704,15 +52790,6 @@ export {};
 ## File: modules/platform/subdomains/consent/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'consent'.
-````
-
-## File: modules/platform/subdomains/content/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
 ````
 
 ## File: modules/platform/subdomains/entitlement/application/dtos/entitlement.dto.ts
@@ -53130,15 +53207,6 @@ export class FirebaseEntitlementGrantRepository implements EntitlementGrantRepos
 }
 ````
 
-## File: modules/platform/subdomains/feature-flag/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
 ## File: modules/platform/subdomains/identity/domain/aggregates/index.ts
 ````typescript
 export * from "./UserIdentity";
@@ -53549,15 +53617,6 @@ export function createClientAuthUseCases() {
 }
 ````
 
-## File: modules/platform/subdomains/integration/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
 ## File: modules/platform/subdomains/notification/api/index.ts
 ````typescript
 /**
@@ -53799,24 +53858,6 @@ export type NotificationId = z.infer<typeof NotificationIdSchema>;
 export function createNotificationId(raw: string): NotificationId {
   return NotificationIdSchema.parse(raw);
 }
-````
-
-## File: modules/platform/subdomains/observability/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/platform/subdomains/onboarding/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
 ````
 
 ## File: modules/platform/subdomains/organization/application/dtos/organization.dto.ts
@@ -55103,13 +55144,22 @@ export {
 export { createOrgPolicy, updateOrgPolicy, deleteOrgPolicy } from "./_actions/organization-policy.actions";
 ````
 
-## File: modules/platform/subdomains/referral/api/index.ts
+## File: modules/platform/subdomains/platform-config/api/index.ts
 ````typescript
 /**
  * Public API boundary for this subdomain.
  * Cross-module consumers must import through this entry point.
  */
-export {};
+export * from "../application";
+````
+
+## File: modules/platform/subdomains/search/api/index.ts
+````typescript
+/**
+ * Public API boundary for this subdomain.
+ * Cross-module consumers must import through this entry point.
+ */
+export * from "../application";
 ````
 
 ## File: modules/platform/subdomains/search/application/index.ts
@@ -55171,15 +55221,6 @@ export {};
 // Purpose: Infrastructure layer placeholder for platform subdomain 'secret-management'.
 ````
 
-## File: modules/platform/subdomains/security-policy/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
 ## File: modules/platform/subdomains/subdomains.instructions.md
 ````markdown
 ---
@@ -55203,6 +55244,22 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
+````
+
+## File: modules/platform/subdomains/subscription/api/index.ts
+````typescript
+/**
+ * Public API boundary for the subscription subdomain.
+ */
+export * from "../application";
+export { subscriptionService } from "../infrastructure";
+export type { SubscriptionSnapshot, CreateSubscriptionInput } from "../domain/aggregates/Subscription";
+export type { SubscriptionDomainEventType } from "../domain/events/SubscriptionDomainEvent";
+export type { SubscriptionRepository } from "../domain/repositories/SubscriptionRepository";
+export type { SubscriptionId } from "../domain/value-objects/SubscriptionId";
+export type { PlanCode } from "../domain/value-objects/PlanCode";
+export type { SubscriptionStatus } from "../domain/value-objects/SubscriptionStatus";
+export type { BillingCycle } from "../domain/value-objects/BillingCycle";
 ````
 
 ## File: modules/platform/subdomains/subscription/application/dtos/index.ts
@@ -55703,15 +55760,6 @@ export const subscriptionService = {
 };
 ````
 
-## File: modules/platform/subdomains/support/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
 ## File: modules/platform/subdomains/team/application/use-cases/team.use-cases.ts
 ````typescript
 /**
@@ -56144,15 +56192,6 @@ export {};
 ## File: modules/platform/subdomains/tenant/infrastructure/index.ts
 ````typescript
 // Purpose: Infrastructure layer placeholder for platform subdomain 'tenant'.
-````
-
-## File: modules/platform/subdomains/workflow/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
 ````
 
 ## File: modules/workspace/api/api.instructions.md
@@ -61975,50 +62014,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notebooklm/subdomains/source/api/factories.ts
-````typescript
-import { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
-import { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
-import { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
-import { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
-import { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
-import { waitForParsedDocument as _waitForParsedDocument } from "../infrastructure/firebase/FirebaseDocumentStatusAdapter";
-import {
-  addKnowledgeBlock,
-  createKnowledgePage,
-} from "@/modules/notion/api";
-
-export function makeSourceFileAdapter() {
-  return new FirebaseSourceFileAdapter();
-}
-
-export function makeRagDocumentAdapter() {
-  return new FirebaseRagDocumentAdapter();
-}
-
-export function makeSourceDocumentCommandAdapter() {
-  return new FirebaseSourceDocumentCommandAdapter();
-}
-
-export function makeParsedDocumentAdapter() {
-  return new FirebaseParsedDocumentAdapter();
-}
-
-export function makeKnowledgePageGateway() {
-  return new NotionKnowledgePageGatewayAdapter({
-    createKnowledgePage,
-    addKnowledgeBlock,
-  });
-}
-
-export function waitForParsedDocument(
-  accountId: string,
-  docId: string,
-): Promise<{ pageCount: number; jsonGcsUri: string }> {
-  return _waitForParsedDocument(accountId, docId);
-}
-````
-
 ## File: modules/notebooklm/subdomains/source/api/index.ts
 ````typescript
 /**
@@ -62178,6 +62173,29 @@ export { InMemoryWikiLibraryAdapter } from "../infrastructure/memory/InMemoryWik
 export { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
 export { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
 export { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
+````
+
+## File: modules/notebooklm/subdomains/source/domain/ports/index.ts
+````typescript
+/**
+ * notebooklm/source domain/ports — driven port interfaces for the source subdomain.
+ *
+ * ISourceDocumentCommandPort and IParsedDocumentPort are the primary driven ports.
+ * IRagDocumentPort, ISourceFilePort, IWikiLibraryPort re-export the legacy
+ * repository contracts, making the Ports layer explicitly visible.
+ */
+export type { ISourceDocumentCommandPort } from "./ISourceDocumentPort";
+export type { IParsedDocumentPort } from "./IParsedDocumentPort";
+export type {
+	ISourcePipelinePort,
+	ParseSourceDocumentInput,
+	ParseSourceDocumentOutput,
+	ReindexSourceDocumentInput,
+	ReindexSourceDocumentOutput,
+} from "./ISourcePipelinePort";
+export type { IRagDocumentRepository as IRagDocumentPort } from "../repositories/IRagDocumentRepository";
+export type { ISourceFileRepository as ISourceFilePort } from "../repositories/ISourceFileRepository";
+export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";
 ````
 
 ## File: modules/notebooklm/subdomains/source/interfaces/components/WorkspaceFilesTab.tsx
@@ -62408,6 +62426,117 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
       )}
     </Card>
   );
+}
+````
+
+## File: modules/notebooklm/subdomains/source/interfaces/hooks/useSourceDocumentsSnapshot.ts
+````typescript
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+
+import type {
+  SourceLiveDocument,
+} from "../../application/dto/source-live-document.dto";
+import {
+  mapToSourceLiveDocument,
+} from "../../application/dto/source-live-document.dto";
+
+// Re-export types for backward compatibility
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../../application/dto/source-live-document.dto";
+export {
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../../application/dto/source-live-document.dto";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function objectOrEmpty(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+// ── Hook ──────────────────────────────────────────────────────────────────────
+
+export interface UseSourceDocumentsSnapshotResult {
+  readonly docs: SourceLiveDocument[];
+  readonly loading: boolean;
+  readonly pendingDocs: SourceLiveDocument[];
+  readonly addPending: (doc: SourceLiveDocument) => void;
+  readonly removePending: (id: string) => void;
+}
+
+/** Subscribes to Firestore `accounts/{accountId}/documents` in real time via onSnapshot. */
+export function useSourceDocumentsSnapshot(
+  accountId: string,
+  workspaceId?: string,
+): UseSourceDocumentsSnapshotResult {
+  const [rawDocs, setRawDocs] = useState<SourceLiveDocument[]>([]);
+  const [rawPending, setRawPending] = useState<SourceLiveDocument[]>([]);
+  const [receivedKey, setReceivedKey] = useState("");
+  const statusMapRef = useRef<Record<string, string>>({});
+
+  const addPending = useCallback((doc: SourceLiveDocument) => {
+    setRawPending((prev) => [doc, ...prev.filter((p) => p.id !== doc.id)]);
+  }, []);
+
+  const removePending = useCallback((id: string) => {
+    setRawPending((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  useEffect(() => {
+    if (!accountId) return;
+
+    const subKey = `${accountId}/${workspaceId ?? ""}`;
+    statusMapRef.current = {};
+
+    const unsubscribe = firestoreInfrastructureApi.watchCollection<Record<string, unknown>>(
+      `accounts/${accountId}/documents`,
+      {
+        onNext: (documents) => {
+          const mapped = documents
+          .map((item) => mapToSourceLiveDocument(item.id, objectOrEmpty(item.data)))
+          .filter((item) => !workspaceId || item.workspaceId === workspaceId)
+          .sort((a, b) => (b.uploadedAt?.getTime() ?? 0) - (a.uploadedAt?.getTime() ?? 0));
+
+          const nextMap: Record<string, string> = {};
+          for (const doc of mapped) {
+            nextMap[doc.id] = `${doc.status}/${doc.ragStatus}`;
+          }
+          statusMapRef.current = nextMap;
+
+          setRawDocs(mapped);
+          setRawPending((prev) => prev.filter((p) => !mapped.some((d) => d.id === p.id)));
+          setReceivedKey(subKey);
+        },
+        onError: () => {
+          setReceivedKey(subKey);
+        },
+      },
+    );
+
+    return () => {
+      unsubscribe();
+      statusMapRef.current = {};
+    };
+  }, [accountId, workspaceId]);
+
+  const currentKey = `${accountId}/${workspaceId ?? ""}`;
+  const docs = accountId ? rawDocs : [];
+  const loading = Boolean(accountId) && receivedKey !== currentKey;
+  const pendingDocs = accountId ? rawPending : [];
+
+  return { docs, loading, pendingDocs, addPending, removePending };
 }
 ````
 
@@ -63613,120 +63742,207 @@ Legacy migration:
 5. Replace Infrastructure adapter
 ````
 
-## File: modules/platform/api/contracts.ts
+## File: modules/platform/api/infrastructure-api.ts
 ````typescript
-/**
- * platform API contracts boundary.
- *
- * Keep the source of truth in application/domain and re-export here for API consumers.
- */
+import {
+	functionsApi,
+	firestoreApi,
+	getFirebaseFirestore,
+	getFirebaseFunctions,
+	getFirebaseStorage,
+	storageApi,
+} from "@integration-firebase";
 
-export * from "../application/dtos";
-export type {
-	PlatformContextView,
-	PolicyCatalogView,
-	SubscriptionEntitlementsView,
-	WorkflowPolicyView,
-} from "../domain/ports/output";
-export * from "../domain/events";
+import type {
+	FirestoreAPI,
+	FunctionsAPI,
+	FunctionsCallOptions,
+	FirestoreWhereClause,
+	GenkitAPI,
+	StorageAPI,
+	StorageUploadOptions,
+} from "./contracts";
 
-// ── Identity session types ────────────────────────────────────────────────────
-// AuthUser is the canonical projection of an authenticated identity subject.
-// Platform/Identity BC owns this DTO; app/providers/auth-context re-exports it.
+const DEFAULT_STORAGE_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+const DEFAULT_FUNCTION_REGION = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_REGION ?? "asia-east1";
 
-/** Minimal authenticated user record surfaced from identity auth state. */
-export interface AuthUser {
-	readonly id: string;
-	readonly name: string;
-	readonly email: string;
+function splitPath(path: string): string[] {
+	const segments = path
+		.split("/")
+		.map((segment) => segment.trim())
+		.filter(Boolean);
+
+	if (segments.length === 0) {
+		throw new Error("Path is required.");
+	}
+
+	return segments;
 }
 
-// ── Infrastructure API contracts (platform-owned) ───────────────────────────
-
-export type FirestoreWhereOperator =
-	| "<"
-	| "<="
-	| "=="
-	| "!="
-	| ">="
-	| ">"
-	| "array-contains"
-	| "array-contains-any"
-	| "in"
-	| "not-in";
-
-export interface FirestoreWhereClause {
-	readonly field: string;
-	readonly op: FirestoreWhereOperator;
-	readonly value: unknown;
+function resolveDocumentPath(path: string): string[] {
+	const segments = splitPath(path);
+	if (segments.length % 2 !== 0) {
+		throw new Error(`Expected a document path but got collection path: ${path}`);
+	}
+	return segments;
 }
 
-export interface FirestoreAPI {
-	get<T>(path: string): Promise<T | null>;
-	set<T>(path: string, data: T): Promise<void>;
-	query<T>(collectionPath: string, where?: readonly FirestoreWhereClause[]): Promise<T[]>;
+function resolveCollectionPath(path: string): string[] {
+	const segments = splitPath(path);
+	if (segments.length % 2 === 0) {
+		throw new Error(`Expected a collection path but got document path: ${path}`);
+	}
+	return segments;
 }
 
-export interface StorageUploadOptions {
-	readonly contentType?: string;
-	readonly customMetadata?: Record<string, string>;
+function resolveStorageBucket(): string {
+	return process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || DEFAULT_STORAGE_BUCKET;
 }
 
-export interface StorageAPI {
-	upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>;
-	getUrl(path: string): Promise<string>;
-	delete(path: string): Promise<void>;
-	toGsUri(path: string): string;
+function resolveStoragePath(path: string): string {
+	const normalized = path.trim().replace(/^\/+/, "");
+	if (!normalized) {
+		throw new Error("Storage path is required.");
+	}
+	return normalized;
 }
 
-export interface GenkitAPI {
-	runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput>;
+function toUploadMetadata(options?: StorageUploadOptions) {
+	if (!options) return undefined;
+	return {
+		contentType: options.contentType,
+		customMetadata: options.customMetadata,
+	};
 }
 
-// ── Platform Service API contracts (cross-domain) ───────────────────────────
+export const firestoreInfrastructureApi: FirestoreAPI = {
+	async get<T>(path: string): Promise<T | null> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		const snapshot = await firestoreApi.getDoc(ref);
+		if (!snapshot.exists()) return null;
+		return snapshot.data() as T;
+	},
 
-export interface AuthSession {
-	readonly userId: string;
-	readonly email: string | null;
-	readonly displayName: string | null;
-	readonly isAnonymous: boolean;
-}
+	async set<T>(path: string, data: T): Promise<void> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		await firestoreApi.setDoc(ref, data as Record<string, unknown>);
+	},
 
-export interface AuthAPI {
-	getSession(): Promise<AuthSession | null>;
-	requireAuth(): Promise<AuthSession>;
-}
+	async query<T>(collectionPath: string, where: readonly FirestoreWhereClause[] = []): Promise<T[]> {
+		const db = getFirebaseFirestore();
+		const collectionRef = firestoreApi.collection(
+			db,
+			resolveCollectionPath(collectionPath).join("/"),
+		);
 
-export interface PermissionAPI {
-	can(userId: string, action: string, resource: string): Promise<boolean>;
-}
+		const queryConstraints = where.map((clause) =>
+			firestoreApi.where(clause.field, clause.op, clause.value),
+		);
 
-export interface UploadUserFileInput {
-	readonly file: Blob;
-	readonly ownerId: string;
-	readonly fileName?: string;
-	readonly contentType?: string;
-	readonly metadata?: Record<string, string>;
-	readonly pathHint?: string;
-}
+		const queryRef = firestoreApi.query(collectionRef, ...queryConstraints);
+		const snapshot = await firestoreApi.getDocs(queryRef);
+		return snapshot.docs.map((doc) => doc.data() as T);
+	},
 
-export interface UploadUserFileOutput {
-	readonly url: string;
-	readonly fileId: string;
-	readonly storagePath: string;
-	readonly gcsUri: string;
-}
+	watchCollection<T>(
+		collectionPath: string,
+		handlers: {
+			onNext: (documents: readonly { id: string; data: T }[]) => void;
+			onError?: (error: unknown) => void;
+		},
+		where: readonly FirestoreWhereClause[] = [],
+	): () => void {
+		const db = getFirebaseFirestore();
+		const collectionRef = firestoreApi.collection(
+			db,
+			resolveCollectionPath(collectionPath).join("/"),
+		);
 
-export interface FileAPI {
-	uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>;
-	deleteFile(fileId: string): Promise<void>;
-}
+		const queryConstraints = where.map((clause) =>
+			firestoreApi.where(clause.field, clause.op, clause.value),
+		);
+		const queryRef = firestoreApi.query(collectionRef, ...queryConstraints);
 
-// ── Cross-cutting account context type ───────────────────────────────────────
-// ActiveAccount is the union of an organization AccountEntity or a personal
-// AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
-import type { AccountEntity } from "../subdomains/account/api";
-export type ActiveAccount = AccountEntity | AuthUser;
+		return firestoreApi.onSnapshot(
+			queryRef,
+			(snapshot) => {
+				handlers.onNext(
+					snapshot.docs.map((doc) => ({
+						id: doc.id,
+						data: doc.data() as T,
+					})),
+				);
+			},
+			(error) => {
+				handlers.onError?.(error);
+			},
+		);
+	},
+};
+
+export const storageInfrastructureApi: StorageAPI = {
+	async upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		await storageApi.uploadBytes(ref, file, toUploadMetadata(options));
+		return storageApi.getDownloadURL(ref);
+	},
+
+	async getUrl(path: string): Promise<string> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		return storageApi.getDownloadURL(ref);
+	},
+
+	async delete(path: string): Promise<void> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		await storageApi.deleteObject(ref);
+	},
+
+	toGsUri(path: string): string {
+		const normalizedPath = resolveStoragePath(path);
+		return `gs://${resolveStorageBucket()}/${normalizedPath}`;
+	},
+};
+
+export const genkitInfrastructureApi: GenkitAPI = {
+	async runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput> {
+		const normalizedFlow = flow.trim();
+		if (!normalizedFlow) {
+			throw new Error("Flow name is required.");
+		}
+
+		const functions = getFirebaseFunctions(DEFAULT_FUNCTION_REGION);
+		const runFlow = functionsApi.httpsCallable(functions, "platform_run_genkit_flow");
+		const response = await runFlow({ flow: normalizedFlow, input });
+		return response.data as TOutput;
+	},
+};
+
+export const functionsInfrastructureApi: FunctionsAPI = {
+	async call<TInput, TOutput>(
+		functionName: string,
+		input: TInput,
+		options?: FunctionsCallOptions,
+	): Promise<TOutput> {
+		const normalizedName = functionName.trim();
+		if (!normalizedName) {
+			throw new Error("Function name is required.");
+		}
+
+		const region = options?.region?.trim() || DEFAULT_FUNCTION_REGION;
+		const functions = getFirebaseFunctions(region);
+		const callable = functionsApi.httpsCallable(functions, normalizedName);
+		const response = await callable(input);
+		return response.data as TOutput;
+	},
+};
 ````
 
 ## File: modules/platform/application/handlers/index.ts
@@ -66109,15 +66325,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/platform-config/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export * from "../application";
-````
-
 ## File: modules/platform/subdomains/platform-config/application/index.ts
 ````typescript
 // Purpose: Application layer for platform-config subdomain.
@@ -66381,15 +66588,6 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/search/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export * from "../application";
-````
-
 ## File: modules/platform/subdomains/search/README.md
 ````markdown
 # Search
@@ -66440,22 +66638,6 @@ Security policy enforcement.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/subdomains/subscription/api/index.ts
-````typescript
-/**
- * Public API boundary for the subscription subdomain.
- */
-export * from "../application";
-export { subscriptionService } from "../infrastructure";
-export type { SubscriptionSnapshot, CreateSubscriptionInput } from "../domain/aggregates/Subscription";
-export type { SubscriptionDomainEventType } from "../domain/events/SubscriptionDomainEvent";
-export type { SubscriptionRepository } from "../domain/repositories/SubscriptionRepository";
-export type { SubscriptionId } from "../domain/value-objects/SubscriptionId";
-export type { PlanCode } from "../domain/value-objects/PlanCode";
-export type { SubscriptionStatus } from "../domain/value-objects/SubscriptionStatus";
-export type { BillingCycle } from "../domain/value-objects/BillingCycle";
 ````
 
 ## File: modules/platform/subdomains/subscription/application/use-cases/subscription.use-cases.ts
@@ -68482,6 +68664,55 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
+## File: modules/notebooklm/subdomains/source/api/factories.ts
+````typescript
+import { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
+import { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
+import { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
+import { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
+import { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
+import { waitForParsedDocument as _waitForParsedDocument } from "../infrastructure/firebase/FirebaseDocumentStatusAdapter";
+import { PlatformSourcePipelineAdapter } from "../infrastructure/platform/PlatformSourcePipelineAdapter";
+import {
+  addKnowledgeBlock,
+  createKnowledgePage,
+} from "@/modules/notion/api";
+
+export function makeSourceFileAdapter() {
+  return new FirebaseSourceFileAdapter();
+}
+
+export function makeRagDocumentAdapter() {
+  return new FirebaseRagDocumentAdapter();
+}
+
+export function makeSourceDocumentCommandAdapter() {
+  return new FirebaseSourceDocumentCommandAdapter();
+}
+
+export function makeParsedDocumentAdapter() {
+  return new FirebaseParsedDocumentAdapter();
+}
+
+export function makeSourcePipelineAdapter() {
+  return new PlatformSourcePipelineAdapter();
+}
+
+export function makeKnowledgePageGateway() {
+  return new NotionKnowledgePageGatewayAdapter({
+    createKnowledgePage,
+    addKnowledgeBlock,
+  });
+}
+
+export function waitForParsedDocument(
+  accountId: string,
+  docId: string,
+): Promise<{ pageCount: number; jsonGcsUri: string }> {
+  return _waitForParsedDocument(accountId, docId);
+}
+````
+
 ## File: modules/notebooklm/subdomains/source/infrastructure/adapters/NotionKnowledgePageGatewayAdapter.ts
 ````typescript
 /**
@@ -69037,6 +69268,149 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/platform/api/contracts.ts
+````typescript
+/**
+ * platform API contracts boundary.
+ *
+ * Keep the source of truth in application/domain and re-export here for API consumers.
+ */
+
+export * from "../application/dtos";
+export type {
+	PlatformContextView,
+	PolicyCatalogView,
+	SubscriptionEntitlementsView,
+	WorkflowPolicyView,
+} from "../domain/ports/output";
+export * from "../domain/events";
+
+// ── Identity session types ────────────────────────────────────────────────────
+// AuthUser is the canonical projection of an authenticated identity subject.
+// Platform/Identity BC owns this DTO; app/providers/auth-context re-exports it.
+
+/** Minimal authenticated user record surfaced from identity auth state. */
+export interface AuthUser {
+	readonly id: string;
+	readonly name: string;
+	readonly email: string;
+}
+
+// ── Infrastructure API contracts (platform-owned) ───────────────────────────
+
+export type FirestoreWhereOperator =
+	| "<"
+	| "<="
+	| "=="
+	| "!="
+	| ">="
+	| ">"
+	| "array-contains"
+	| "array-contains-any"
+	| "in"
+	| "not-in";
+
+export interface FirestoreWhereClause {
+	readonly field: string;
+	readonly op: FirestoreWhereOperator;
+	readonly value: unknown;
+}
+
+export interface FirestoreCollectionDocument<T> {
+	readonly id: string;
+	readonly data: T;
+}
+
+export interface FirestoreCollectionWatchHandlers<T> {
+	readonly onNext: (documents: readonly FirestoreCollectionDocument<T>[]) => void;
+	readonly onError?: (error: unknown) => void;
+}
+
+export interface FirestoreAPI {
+	get<T>(path: string): Promise<T | null>;
+	set<T>(path: string, data: T): Promise<void>;
+	query<T>(collectionPath: string, where?: readonly FirestoreWhereClause[]): Promise<T[]>;
+	watchCollection<T>(
+		collectionPath: string,
+		handlers: FirestoreCollectionWatchHandlers<T>,
+		where?: readonly FirestoreWhereClause[],
+	): () => void;
+}
+
+export interface StorageUploadOptions {
+	readonly contentType?: string;
+	readonly customMetadata?: Record<string, string>;
+}
+
+export interface StorageAPI {
+	upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>;
+	getUrl(path: string): Promise<string>;
+	delete(path: string): Promise<void>;
+	toGsUri(path: string): string;
+}
+
+export interface GenkitAPI {
+	runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput>;
+}
+
+export interface FunctionsCallOptions {
+	readonly region?: string;
+}
+
+export interface FunctionsAPI {
+	call<TInput, TOutput>(
+		functionName: string,
+		input: TInput,
+		options?: FunctionsCallOptions,
+	): Promise<TOutput>;
+}
+
+// ── Platform Service API contracts (cross-domain) ───────────────────────────
+
+export interface AuthSession {
+	readonly userId: string;
+	readonly email: string | null;
+	readonly displayName: string | null;
+	readonly isAnonymous: boolean;
+}
+
+export interface AuthAPI {
+	getSession(): Promise<AuthSession | null>;
+	requireAuth(): Promise<AuthSession>;
+}
+
+export interface PermissionAPI {
+	can(userId: string, action: string, resource: string): Promise<boolean>;
+}
+
+export interface UploadUserFileInput {
+	readonly file: Blob;
+	readonly ownerId: string;
+	readonly fileName?: string;
+	readonly contentType?: string;
+	readonly metadata?: Record<string, string>;
+	readonly pathHint?: string;
+}
+
+export interface UploadUserFileOutput {
+	readonly url: string;
+	readonly fileId: string;
+	readonly storagePath: string;
+	readonly gcsUri: string;
+}
+
+export interface FileAPI {
+	uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>;
+	deleteFile(fileId: string): Promise<void>;
+}
+
+// ── Cross-cutting account context type ───────────────────────────────────────
+// ActiveAccount is the union of an organization AccountEntity or a personal
+// AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
+import type { AccountEntity } from "../subdomains/account/api";
+export type ActiveAccount = AccountEntity | AuthUser;
+````
+
 ## File: modules/platform/interfaces/web/providers/ShellAppContext.ts
 ````typescript
 "use client";
@@ -69214,6 +69588,27 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Context Map](../../docs/contexts/platform/context-map.md)
 - [Ubiquitous Language](../../docs/contexts/platform/ubiquitous-language.md)
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
+````
+
+## File: modules/platform/subdomains/access-control/api/index.ts
+````typescript
+/**
+ * Public API boundary for the access-control subdomain.
+ */
+export * from "../application";
+export { accessControlService } from "../infrastructure";
+export type { AccessPolicySnapshot, CreateAccessPolicyInput } from "../domain/aggregates/AccessPolicy";
+export type { AccessPolicyDomainEventType } from "../domain/events/AccessPolicyDomainEvent";
+export type { AccessPolicyRepository } from "../domain/repositories/AccessPolicyRepository";
+export type { SubjectRef } from "../domain/value-objects/SubjectRef";
+export type { ResourceRef } from "../domain/value-objects/ResourceRef";
+export type { PolicyEffect } from "../domain/value-objects/PolicyEffect";
+export {
+	isOrganizationActor,
+	isActiveOrganizationAccount,
+	resolveOrganizationRouteFallback,
+	type ShellAccountActor,
+} from "../application/services/shell-account-access";
 ````
 
 ## File: modules/platform/subdomains/access-control/application/use-cases/access-control.use-cases.ts
@@ -70941,27 +71336,6 @@ export { GetSubscriptionEntitlementsUseCase } from "../queries/get-subscription-
 export { GetWorkflowPolicyViewUseCase } from "../queries/get-workflow-policy-view.queries";
 ````
 
-## File: modules/platform/subdomains/access-control/api/index.ts
-````typescript
-/**
- * Public API boundary for the access-control subdomain.
- */
-export * from "../application";
-export { accessControlService } from "../infrastructure";
-export type { AccessPolicySnapshot, CreateAccessPolicyInput } from "../domain/aggregates/AccessPolicy";
-export type { AccessPolicyDomainEventType } from "../domain/events/AccessPolicyDomainEvent";
-export type { AccessPolicyRepository } from "../domain/repositories/AccessPolicyRepository";
-export type { SubjectRef } from "../domain/value-objects/SubjectRef";
-export type { ResourceRef } from "../domain/value-objects/ResourceRef";
-export type { PolicyEffect } from "../domain/value-objects/PolicyEffect";
-export {
-	isOrganizationActor,
-	isActiveOrganizationAccount,
-	resolveOrganizationRouteFallback,
-	type ShellAccountActor,
-} from "../application/services/shell-account-access";
-````
-
 ## File: modules/platform/subdomains/account-profile/domain/index.ts
 ````typescript
 export {
@@ -72580,6 +72954,7 @@ export {
   firestoreInfrastructureApi,
   storageInfrastructureApi,
   genkitInfrastructureApi,
+  functionsInfrastructureApi,
 } from "./infrastructure-api";
 export {
   authApi,

@@ -10,12 +10,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-import type { ActiveAccount } from "@/modules/platform/api";
 import {
+  type ActiveAccount,
   isOrganizationActor,
   isActiveOrganizationAccount,
-} from "@/modules/platform/subdomains/access-control/api";
-import {
   SHELL_ACCOUNT_SECTION_MATCHERS,
   SHELL_ACCOUNT_NAV_ITEMS,
   SHELL_ORGANIZATION_MANAGEMENT_ITEMS,
@@ -23,7 +21,7 @@ import {
   isExactOrChildPath,
   resolveShellNavSection,
   type ShellNavSection,
-} from "@/modules/platform/subdomains/platform-config/api";
+} from "@/modules/platform/api";
 import type { WorkspaceEntity } from "@/modules/workspace/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────

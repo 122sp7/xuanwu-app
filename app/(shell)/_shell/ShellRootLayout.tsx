@@ -28,14 +28,12 @@ import {
   useShellGlobalSearch,
   ShellHeaderControls,
   ShellUserAvatar,
-} from "@/modules/platform/api";
-import {
   resolveShellPageTitle,
   isExactOrChildPath,
   SHELL_MOBILE_NAV_ITEMS,
   SHELL_ORG_PRIMARY_NAV_ITEMS,
   SHELL_ORG_SECONDARY_NAV_ITEMS,
-} from "@/modules/platform/subdomains/platform-config/api";
+} from "@/modules/platform/api";
 import { useWorkspaceContext, type WorkspaceEntity } from "@/modules/workspace/api";
 
 import { AppRail } from "./ShellAppRail";

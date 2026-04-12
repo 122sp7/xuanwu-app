@@ -23,6 +23,7 @@ export {
 export * from "../subdomains/identity/api";
 export * from "../subdomains/account/api";
 export * from "../subdomains/notification/api";
+export * from "../subdomains/platform-config/api";
 
 export {
   getProfile,

@@ -13,7 +13,7 @@ import {
   type NavPreferences,
   type SidebarLocaleBundle,
 } from "@/modules/workspace/api";
-import { SHELL_CONTEXT_SECTION_CONFIG } from "@/modules/platform/subdomains/platform-config/api";
+import { SHELL_CONTEXT_SECTION_CONFIG } from "@/modules/platform/api";
 
 import {
   type NavSection,
