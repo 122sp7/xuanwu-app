@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Table2 } from "lucide-react";
 
-import { useApp } from "@/modules/platform/api";
 import { useAuth } from "@/modules/platform/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
@@ -19,35 +18,64 @@ import { DatabaseDialog } from "./DatabaseDialog";
  * Route-level screen component for /knowledge-database/databases.
  * Encapsulates data-loading and layout so the Next.js route file stays thin.
  */
-export function KnowledgeDatabasesRouteScreen() {
+export interface KnowledgeDatabasesRouteScreenProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
+}
+
+export function KnowledgeDatabasesRouteScreen({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: KnowledgeDatabasesRouteScreenProps) {
   const router = useRouter();
-  const { state: appState } = useApp();
   const { state: authState } = useAuth();
 
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
+  const resolvedAccountId = accountId.trim();
+  const resolvedWorkspaceId = workspaceId.trim();
+  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
+  const workspaceBasePath =
+    resolvedAccountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
+      : resolvedAccountId
+        ? `/${encodeURIComponent(resolvedAccountId)}`
+        : "/";
+  const overviewHref = resolvedWorkspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-databases`
+    : resolvedAccountId
+      ? `/${encodeURIComponent(resolvedAccountId)}`
+      : "/";
 
   const [databases, setDatabases] = useState<Database[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const load = useCallback(async () => {
-    if (!accountId || !workspaceId) { setLoading(false); return; }
+    if (!resolvedAccountId || !resolvedWorkspaceId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const data = await getDatabases(accountId, workspaceId);
+      const data = await getDatabases(resolvedAccountId, resolvedWorkspaceId);
       setDatabases(data);
     } finally {
       setLoading(false);
     }
-  }, [accountId, workspaceId]);
+  }, [resolvedAccountId, resolvedWorkspaceId]);
 
   useEffect(() => { load(); }, [load]);
 
   function handleSuccess(databaseId?: string) {
     if (databaseId) {
-      router.push(`/knowledge-database/databases/${databaseId}`);
+      if (resolvedAccountId && resolvedWorkspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}`,
+        );
+      } else {
+        router.push(resolvedAccountId ? `/${encodeURIComponent(resolvedAccountId)}` : "/");
+      }
     } else {
       load();
     }
@@ -66,7 +94,7 @@ export function KnowledgeDatabasesRouteScreen() {
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => router.push("/knowledge")}
+          onClick={() => router.push(overviewHref)}
           className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
         >
           返回 Knowledge Hub
@@ -74,7 +102,7 @@ export function KnowledgeDatabasesRouteScreen() {
         <Button
           size="sm"
           className="ml-auto"
-          disabled={!accountId || !workspaceId}
+          disabled={!resolvedAccountId || !resolvedWorkspaceId}
           onClick={() => setDialogOpen(true)}
         >
           <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -85,13 +113,13 @@ export function KnowledgeDatabasesRouteScreen() {
       <DatabaseDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
+        accountId={resolvedAccountId}
+        workspaceId={resolvedWorkspaceId}
+        currentUserId={resolvedCurrentUserId}
         onSuccess={handleSuccess}
       />
 
-      {!accountId || !workspaceId ? (
+      {!resolvedAccountId || !resolvedWorkspaceId ? (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
           尚未取得帳號/工作區情境，請先登入或切換帳號。
         </p>
@@ -112,7 +140,7 @@ export function KnowledgeDatabasesRouteScreen() {
             <Card
               key={db.id}
               className="cursor-pointer hover:bg-muted/10 transition-colors"
-              onClick={() => router.push(`/knowledge-database/databases/${db.id}`)}
+              onClick={() => handleSuccess(db.id)}
             >
               <CardHeader className="pb-2">
                 <div className="flex items-start gap-2">

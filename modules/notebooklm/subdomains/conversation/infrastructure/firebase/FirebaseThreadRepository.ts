@@ -6,18 +6,13 @@
  * Persists Thread (messages array) to Firestore so conversations survive page reload.
  */
 
-import { doc, getDoc, getFirestore, serverTimestamp, setDoc } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 import type { Thread } from "../../domain/entities/thread";
 import type { Message } from "../../domain/entities/message";
 import type { IThreadRepository } from "../../domain/repositories/IThreadRepository";
 
-function threadDoc(
-  db: ReturnType<typeof getFirestore>,
-  accountId: string,
-  threadId: string,
-) {
-  return doc(db, "accounts", accountId, "threads", threadId);
+function threadPath(accountId: string, threadId: string): string {
+  return `accounts/${accountId}/threads/${threadId}`;
 }
 
 function toMessage(m: Record<string, unknown>): Message {
@@ -42,26 +37,20 @@ function toThread(id: string, data: Record<string, unknown>): Thread {
 }
 
 export class FirebaseThreadRepository implements IThreadRepository {
-  private db() {
-    return getFirestore(firebaseClientApp);
-  }
-
   async save(accountId: string, thread: Thread): Promise<void> {
-    const db = this.db();
-    const ref = threadDoc(db, accountId, thread.id);
-    await setDoc(ref, {
+    await firestoreInfrastructureApi.set(threadPath(accountId, thread.id), {
       id: thread.id,
       messages: thread.messages,
       createdAt: thread.createdAt,
       updatedAt: new Date().toISOString(),
-      _savedAt: serverTimestamp(),
     });
   }
 
   async getById(accountId: string, threadId: string): Promise<Thread | null> {
-    const db = this.db();
-    const snap = await getDoc(threadDoc(db, accountId, threadId));
-    if (!snap.exists()) return null;
-    return toThread(snap.id, snap.data() as Record<string, unknown>);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      threadPath(accountId, threadId),
+    );
+    if (!data) return null;
+    return toThread(threadId, data);
   }
 }

@@ -9,19 +9,7 @@
  *   accounts/{accountId}/wikiLibraries/{libraryId}/rows/{rowId}
  */
 
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  setDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 
 import type {
   WikiLibrary,
@@ -61,22 +49,29 @@ interface FsRow {
   updatedAtISO: string;
 }
 
-// ── Path helpers ──────────────────────────────────────────────────────────────
+function libraryCollectionPath(accountId: string): string {
+  return `accounts/${accountId}/wikiLibraries`;
+}
 
-type Db = ReturnType<typeof getFirestore>;
+function libraryDocumentPath(accountId: string, libraryId: string): string {
+  return `accounts/${accountId}/wikiLibraries/${libraryId}`;
+}
 
-const libCol = (db: Db, accountId: string) =>
-  collection(db, "accounts", accountId, "wikiLibraries");
-const libDoc = (db: Db, accountId: string, libraryId: string) =>
-  doc(db, "accounts", accountId, "wikiLibraries", libraryId);
-const fieldCol = (db: Db, accountId: string, libraryId: string) =>
-  collection(db, "accounts", accountId, "wikiLibraries", libraryId, "fields");
-const fieldDoc = (db: Db, accountId: string, libraryId: string, fieldId: string) =>
-  doc(db, "accounts", accountId, "wikiLibraries", libraryId, "fields", fieldId);
-const rowCol = (db: Db, accountId: string, libraryId: string) =>
-  collection(db, "accounts", accountId, "wikiLibraries", libraryId, "rows");
-const rowDoc = (db: Db, accountId: string, libraryId: string, rowId: string) =>
-  doc(db, "accounts", accountId, "wikiLibraries", libraryId, "rows", rowId);
+function fieldCollectionPath(accountId: string, libraryId: string): string {
+  return `accounts/${accountId}/wikiLibraries/${libraryId}/fields`;
+}
+
+function fieldDocumentPath(accountId: string, libraryId: string, fieldId: string): string {
+  return `accounts/${accountId}/wikiLibraries/${libraryId}/fields/${fieldId}`;
+}
+
+function rowCollectionPath(accountId: string, libraryId: string): string {
+  return `accounts/${accountId}/wikiLibraries/${libraryId}/rows`;
+}
+
+function rowDocumentPath(accountId: string, libraryId: string, rowId: string): string {
+  return `accounts/${accountId}/wikiLibraries/${libraryId}/rows/${rowId}`;
+}
 
 // ── Mappers ───────────────────────────────────────────────────────────────────
 
@@ -122,22 +117,21 @@ function toRow(id: string, data: FsRow): WikiLibraryRow {
 // ── Implementation ────────────────────────────────────────────────────────────
 
 export class FirebaseWikiLibraryAdapter implements IWikiLibraryRepository {
-  private db() {
-    return getFirestore(firebaseClientApp);
-  }
-
   async listByAccountId(accountId: string): Promise<WikiLibrary[]> {
-    const db = this.db();
-    const snaps = await getDocs(
-      query(libCol(db, accountId), where("status", "==", "active"), orderBy("createdAtISO", "asc")),
+    const documents = await firestoreInfrastructureApi.queryDocuments<FsLibrary>(
+      libraryCollectionPath(accountId),
+      [{ field: "status", op: "==", value: "active" }],
+      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
     );
-    return snaps.docs.map((d) => toLibrary(d.id, d.data() as FsLibrary));
+    return documents.map((document) => toLibrary(document.id, document.data));
   }
 
   async findById(accountId: string, libraryId: string): Promise<WikiLibrary | null> {
-    const snap = await getDoc(libDoc(this.db(), accountId, libraryId));
-    if (!snap.exists()) return null;
-    return toLibrary(snap.id, snap.data() as FsLibrary);
+    const data = await firestoreInfrastructureApi.get<FsLibrary>(
+      libraryDocumentPath(accountId, libraryId),
+    );
+    if (!data) return null;
+    return toLibrary(libraryId, data);
   }
 
   async create(library: WikiLibrary): Promise<void> {
@@ -150,7 +144,7 @@ export class FirebaseWikiLibraryAdapter implements IWikiLibraryRepository {
       createdAtISO: library.createdAt.toISOString(),
       updatedAtISO: library.updatedAt.toISOString(),
     };
-    await setDoc(libDoc(this.db(), library.accountId, library.id), data);
+    await firestoreInfrastructureApi.set(libraryDocumentPath(library.accountId, library.id), data);
   }
 
   async createField(accountId: string, field: WikiLibraryField): Promise<void> {
@@ -163,14 +157,16 @@ export class FirebaseWikiLibraryAdapter implements IWikiLibraryRepository {
       createdAtISO: field.createdAt.toISOString(),
       ...(field.options !== undefined ? { options: [...field.options] } : {}),
     };
-    await setDoc(fieldDoc(this.db(), accountId, field.libraryId, field.id), data);
+    await firestoreInfrastructureApi.set(fieldDocumentPath(accountId, field.libraryId, field.id), data);
   }
 
   async listFields(accountId: string, libraryId: string): Promise<WikiLibraryField[]> {
-    const snaps = await getDocs(
-      query(fieldCol(this.db(), accountId, libraryId), orderBy("createdAtISO", "asc")),
+    const documents = await firestoreInfrastructureApi.queryDocuments<FsField>(
+      fieldCollectionPath(accountId, libraryId),
+      [],
+      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
     );
-    return snaps.docs.map((d) => toField(d.id, d.data() as FsField));
+    return documents.map((document) => toField(document.id, document.data));
   }
 
   async createRow(accountId: string, row: WikiLibraryRow): Promise<void> {
@@ -180,13 +176,15 @@ export class FirebaseWikiLibraryAdapter implements IWikiLibraryRepository {
       createdAtISO: row.createdAt.toISOString(),
       updatedAtISO: row.updatedAt.toISOString(),
     };
-    await setDoc(rowDoc(this.db(), accountId, row.libraryId, row.id), data);
+    await firestoreInfrastructureApi.set(rowDocumentPath(accountId, row.libraryId, row.id), data);
   }
 
   async listRows(accountId: string, libraryId: string): Promise<WikiLibraryRow[]> {
-    const snaps = await getDocs(
-      query(rowCol(this.db(), accountId, libraryId), orderBy("createdAtISO", "asc")),
+    const documents = await firestoreInfrastructureApi.queryDocuments<FsRow>(
+      rowCollectionPath(accountId, libraryId),
+      [],
+      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
     );
-    return snaps.docs.map((d) => toRow(d.id, d.data() as FsRow));
+    return documents.map((document) => toRow(document.id, document.data));
   }
 }

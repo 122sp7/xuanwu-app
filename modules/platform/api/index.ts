@@ -9,9 +9,21 @@
 export * from "./contracts";
 export * from "./facade";
 export { createPlatformService } from "./platform-service";
+export {
+  firestoreInfrastructureApi,
+  storageInfrastructureApi,
+  genkitInfrastructureApi,
+  functionsInfrastructureApi,
+} from "./infrastructure-api";
+export {
+  authApi,
+  permissionApi,
+  fileApi,
+} from "./service-api";
 export * from "../subdomains/identity/api";
 export * from "../subdomains/account/api";
 export * from "../subdomains/notification/api";
+export * from "../subdomains/platform-config/api";
 
 export {
   getProfile,
@@ -94,21 +106,46 @@ export {
   MembersPage,
   TeamsPage,
   PermissionsPage,
-  OrganizationAuditPage,
 } from "../subdomains/organization/api";
-export type { MembersPageProps, TeamsPageProps, PermissionsPageProps, OrganizationAuditPageProps } from "../subdomains/organization/api";
+export type { MembersPageProps, TeamsPageProps, PermissionsPageProps } from "../subdomains/organization/api";
 
 // background-job — knowledge ingestion pipeline management
 export * from "../subdomains/background-job/api";
+
+// ai — shared AI provider capability (types only — client-safe)
+// Server-only functions (generateAiText, summarize) are in platform/api/server.ts
+export {
+  type AIAPI,
+  type GenerateAiTextInput,
+  type GenerateAiTextOutput,
+  type AiTextGenerationPort,
+} from "../subdomains/ai/api";
 
 // Cross-module and app-composition hooks from interfaces layer.
 // Only selective exports — do NOT wildcard re-export "../interfaces".
 export {
   useApp,
-  Providers,
-  ShellLayout,
-  isActiveOrganizationAccount,
-  quickCreateKnowledgePage,
-  type QuickCreatePageInput,
-  type QuickCreatePageResult,
+  type AppState,
+  type AppAction,
+  type AppContextValue,
+  AppContext,
+  APP_INITIAL_STATE,
+  type ActiveAccount,
+  // Shell UI components (pure platform — no downstream deps)
+  ShellHeaderControls,
+  ShellThemeToggle,
+  ShellNotificationButton,
+  ShellUserAvatar,
+  ShellTranslationSwitcher,
+  ShellAppBreadcrumbs,
+  ShellGlobalSearchDialog,
+  useShellGlobalSearch,
 } from "../interfaces";
+
+// access-control — account type guards and route fallback
+export {
+  isOrganizationActor,
+  isActiveOrganizationAccount,
+  resolveOrganizationRouteFallback,
+  type ShellAccountActor,
+} from "../subdomains/access-control/api";

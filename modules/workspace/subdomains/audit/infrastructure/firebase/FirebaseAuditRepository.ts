@@ -1,14 +1,6 @@
 import {
-  addDoc,
-  collection,
-  getDocs,
-  getFirestore,
-  limit,
-  query,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
 import type { AuditEntry } from "../../domain/aggregates/AuditEntry";
 import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
 import type { AuditRepository } from "../../domain/repositories/AuditRepository";
@@ -40,21 +32,19 @@ function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEn
 }
 
 export class FirebaseAuditRepository implements AuditRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
   async save(entry: AuditEntry): Promise<void> {
-    await addDoc(collection(this.db, "auditLogs"), entry.getSnapshot());
+    const id = crypto.randomUUID();
+    await firestoreInfrastructureApi.set(`auditLogs/${id}`, entry.getSnapshot());
   }
 
   async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]> {
-    const snaps = await getDocs(
-      query(collection(this.db, "auditLogs"), where("workspaceId", "==", workspaceId)),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      "auditLogs",
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
     );
 
-    return snaps.docs
-      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
+    return docs
+      .map((doc) => toAuditLogEntity(doc.id, doc.data))
       .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO));
   }
 
@@ -73,21 +63,19 @@ export class FirebaseAuditRepository implements AuditRepository {
 
     const perChunkLimit = Math.max(1, Math.ceil(maxCount / chunks.length));
 
-    const snapshots = await Promise.all(
+    const documents = await Promise.all(
       chunks.map((chunk) =>
-        getDocs(
-          query(
-            collection(this.db, "auditLogs"),
-            where("workspaceId", "in", chunk),
-            limit(perChunkLimit),
-          ),
+        firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+          "auditLogs",
+          [{ field: "workspaceId", op: "in", value: chunk }],
+          { limit: perChunkLimit },
         ),
       ),
     );
 
-    return snapshots
-      .flatMap((snapshot) => snapshot.docs)
-      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
+    return documents
+      .flatMap((document) => document)
+      .map((doc) => toAuditLogEntity(doc.id, doc.data))
       .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO))
       .slice(0, maxCount);
   }

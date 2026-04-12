@@ -38,6 +38,10 @@ export function DatabaseFormsPage({
   const [database, setDatabase] = useState<Database | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"preview" | "share">("preview");
+  const databaseDetailHref =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(databaseId)}`
+      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}`;
 
   const load = useCallback(async () => {
     if (!accountId || !databaseId) { setLoading(false); return; }
@@ -72,9 +76,7 @@ export function DatabaseFormsPage({
     );
   }
 
-  const shareUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/knowledge-database/databases/${databaseId}/forms`
-    : "";
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
 
   return (
     <div className="space-y-4">
@@ -83,7 +85,7 @@ export function DatabaseFormsPage({
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.push(`/knowledge-database/databases/${databaseId}`)}
+          onClick={() => router.push(databaseDetailHref)}
         >
           <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回資料庫
         </Button>

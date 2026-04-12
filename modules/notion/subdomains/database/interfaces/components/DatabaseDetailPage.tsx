@@ -52,6 +52,20 @@ export function DatabaseDetailPage({
   const [addFieldOpen, setAddFieldOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"table" | "board" | "list" | "calendar" | "gallery" | "automations">("table");
   const [isPending, startTransition] = useTransition();
+  const workspaceBasePath =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
+      : accountId
+        ? `/${encodeURIComponent(accountId)}`
+        : "/";
+  const databasesHref =
+    accountId && workspaceId
+      ? `${workspaceBasePath}/knowledge-database/databases`
+      : "/knowledge-database/databases";
+  const formsHref =
+    accountId && workspaceId
+      ? `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`
+      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`;
 
   const load = useCallback(async () => {
     if (!accountId || !databaseId) { setLoading(false); return; }
@@ -83,7 +97,7 @@ export function DatabaseDetailPage({
   function handleArchive() {
     startTransition(async () => {
       await archiveDatabase({ id: databaseId, accountId });
-      router.push("/knowledge-database/databases");
+      router.push(databasesHref);
     });
   }
 
@@ -99,7 +113,7 @@ export function DatabaseDetailPage({
   if (!database) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
+        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
           <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
         </Button>
         <p className="text-sm text-muted-foreground">找不到資料庫。</p>
@@ -111,7 +125,7 @@ export function DatabaseDetailPage({
     <div className="space-y-4">
       {/* Top bar */}
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
+        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
           <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
         </Button>
       </div>
@@ -186,7 +200,7 @@ export function DatabaseDetailPage({
           <Button
             size="sm"
             variant="outline"
-            onClick={() => router.push(`/knowledge-database/databases/${databaseId}/forms`)}
+            onClick={() => router.push(formsHref)}
             disabled={isPending}
           >
             <FileText className="mr-1.5 h-3.5 w-3.5" /> 表單

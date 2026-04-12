@@ -7,6 +7,13 @@
  */
 export type { ISourceDocumentCommandPort } from "./ISourceDocumentPort";
 export type { IParsedDocumentPort } from "./IParsedDocumentPort";
+export type {
+	ISourcePipelinePort,
+	ParseSourceDocumentInput,
+	ParseSourceDocumentOutput,
+	ReindexSourceDocumentInput,
+	ReindexSourceDocumentOutput,
+} from "./ISourcePipelinePort";
 export type { IRagDocumentRepository as IRagDocumentPort } from "../repositories/IRagDocumentRepository";
 export type { ISourceFileRepository as ISourceFilePort } from "../repositories/ISourceFileRepository";
 export type { IWikiLibraryRepository as IWikiLibraryPort } from "../repositories/IWikiLibraryRepository";

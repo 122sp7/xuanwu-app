@@ -1,1 +1,5 @@
-// Purpose: Domain layer placeholder for platform subdomain 'ai'.
+export type {
+	GenerateAiTextInput,
+	GenerateAiTextOutput,
+	AiTextGenerationPort,
+} from "./ports/AiTextGenerationPort";

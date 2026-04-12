@@ -74,7 +74,7 @@ export function CreateOrganizationDialog({
     onOrganizationCreated?.(newAccount);
     reset();
     onOpenChange(false);
-    onNavigate("/organization");
+    onNavigate(`/${encodeURIComponent(result.aggregateId)}/organization`);
   }
 
   return (

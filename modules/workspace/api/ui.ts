@@ -82,11 +82,28 @@ export {
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 
 export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
+export type {
+  UseWorkspaceOrchestrationContextOptions,
+  WorkspaceOrchestrationContext,
+} from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
+export { useWorkspaceOrchestrationContext } from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
 export {
   MAX_VISIBLE_RECENT_WORKSPACES,
   getWorkspaceIdFromPath,
   useRecentWorkspaces,
 } from "../interfaces/web/hooks/useRecentWorkspaces";
+
+// ── Workspace context provider ────────────────────────────────────────────────
+
+export {
+  WorkspaceContextProvider,
+  useWorkspaceContext,
+} from "../interfaces/web/providers/WorkspaceContextProvider";
+export type {
+  WorkspaceContextState,
+  WorkspaceContextAction,
+  WorkspaceContextValue,
+} from "../interfaces/web/providers/WorkspaceContextProvider";
 
 // ── Navigation preferences ────────────────────────────────────────────────────
 
@@ -106,9 +123,11 @@ export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-local
 
 export {
   appendWorkspaceContextQuery,
+  buildWorkspaceOverviewPanelHref,
   buildWorkspaceContextHref,
   supportsWorkspaceSearchContext,
   type WorkspaceNavigationContext,
+  type WorkspaceOverviewPanel,
 } from "../interfaces/web/navigation/workspace-context-links";
 
 // ── Navigation customize dialog ───────────────────────────────────────────────

@@ -81,7 +81,11 @@ export function WorkspaceHubScreen({
     resetCreateWorkspaceDialog();
     setIsCreateWorkspaceOpen(false);
     if (result.aggregateId) {
-      router.push(`/workspace/${result.aggregateId}`);
+      if (accountId) {
+        router.push(`/${encodeURIComponent(accountId)}/${encodeURIComponent(result.aggregateId)}`);
+      } else {
+        router.push("/");
+      }
     }
   }
 
@@ -210,7 +214,7 @@ export function WorkspaceHubScreen({
             <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
               目前這個帳號尚未建立任何工作區。你可以先完成{" "}
               <Link
-                href="/organization"
+                href={accountId ? `/${encodeURIComponent(accountId)}/organization` : "/"}
                 className="font-medium text-primary hover:underline"
               >
                 組織情境
@@ -225,7 +229,9 @@ export function WorkspaceHubScreen({
             return (
               <Link
                 key={workspace.id}
-                href={`/workspace/${workspace.id}`}
+                href={accountId
+                  ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspace.id)}`
+                  : "/"}
                 className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

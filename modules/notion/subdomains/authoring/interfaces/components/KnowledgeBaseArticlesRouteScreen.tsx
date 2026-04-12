@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
 
-import { useApp } from "@/modules/platform/api";
 import { useAuth } from "@/modules/platform/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
@@ -35,14 +34,34 @@ const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: Reac
  * Encapsulates data-loading, filtering and layout so the Next.js route
  * file stays thin (params/context wiring only).
  */
-export function KnowledgeBaseArticlesRouteScreen() {
+export interface KnowledgeBaseArticlesRouteScreenProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly currentUserId?: string | null;
+}
+
+export function KnowledgeBaseArticlesRouteScreen({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: KnowledgeBaseArticlesRouteScreenProps) {
   const router = useRouter();
-  const { state: appState } = useApp();
   const { state: authState } = useAuth();
 
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
+  const resolvedAccountId = accountId.trim();
+  const resolvedWorkspaceId = workspaceId.trim();
+  const resolvedCurrentUserId = (currentUserId?.trim() || authState.user?.id) ?? "";
+  const workspaceBasePath =
+    resolvedAccountId && resolvedWorkspaceId
+      ? `/${encodeURIComponent(resolvedAccountId)}/${encodeURIComponent(resolvedWorkspaceId)}`
+      : resolvedAccountId
+        ? `/${encodeURIComponent(resolvedAccountId)}`
+        : "/";
+  const overviewHref = resolvedWorkspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
+    : resolvedAccountId
+      ? `/${encodeURIComponent(resolvedAccountId)}`
+      : "/";
 
   const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -51,19 +70,22 @@ export function KnowledgeBaseArticlesRouteScreen() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!accountId || !workspaceId) { setLoading(false); return; }
+    if (!resolvedAccountId || !resolvedWorkspaceId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const [arts, cats] = await Promise.all([
-        getArticles({ accountId, workspaceId }),
-        getCategories(accountId, workspaceId),
+        getArticles({ accountId: resolvedAccountId, workspaceId: resolvedWorkspaceId }),
+        getCategories(resolvedAccountId, resolvedWorkspaceId),
       ]);
       setArticles(arts);
       setCategories(cats);
     } finally {
       setLoading(false);
     }
-  }, [accountId, workspaceId]);
+  }, [resolvedAccountId, resolvedWorkspaceId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -76,7 +98,13 @@ export function KnowledgeBaseArticlesRouteScreen() {
 
   function handleSuccess(articleId?: string) {
     if (articleId) {
-      router.push(`/knowledge-base/articles/${articleId}`);
+      if (resolvedAccountId && resolvedWorkspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
+        );
+      } else {
+        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
+      }
     } else {
       load();
     }
@@ -95,7 +123,7 @@ export function KnowledgeBaseArticlesRouteScreen() {
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => router.push("/knowledge")}
+          onClick={() => router.push(overviewHref)}
           className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
         >
           返回 Knowledge Hub
@@ -103,7 +131,7 @@ export function KnowledgeBaseArticlesRouteScreen() {
         <Button
           size="sm"
           className="ml-auto"
-          disabled={!accountId || !workspaceId}
+          disabled={!resolvedAccountId || !resolvedWorkspaceId}
           onClick={() => setDialogOpen(true)}
         >
           <Plus className="mr-1.5 h-3.5 w-3.5" />
@@ -114,14 +142,14 @@ export function KnowledgeBaseArticlesRouteScreen() {
       <ArticleDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
+        accountId={resolvedAccountId}
+        workspaceId={resolvedWorkspaceId}
+        currentUserId={resolvedCurrentUserId}
         categories={categories}
         onSuccess={handleSuccess}
       />
 
-      {!accountId || !workspaceId ? (
+      {!resolvedAccountId || !resolvedWorkspaceId ? (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
           尚未取得帳號/工作區情境，請先登入或切換帳號。
         </p>
@@ -160,7 +188,7 @@ export function KnowledgeBaseArticlesRouteScreen() {
                     <Card
                       key={article.id}
                       className="cursor-pointer hover:bg-muted/10 transition-colors"
-                      onClick={() => router.push(`/knowledge-base/articles/${article.id}`)}
+                      onClick={() => handleSuccess(article.id)}
                     >
                       <CardHeader className="pb-2">
                         <div className="flex items-start justify-between gap-2">

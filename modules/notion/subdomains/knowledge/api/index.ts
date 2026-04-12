@@ -61,6 +61,7 @@ export { BlockEditorView } from "../interfaces/components/BlockEditorView";
 export { PageEditorView } from "../interfaces/components/PageEditorView";
 export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
 export { KnowledgePagesRouteScreen } from "../interfaces/components/KnowledgePagesRouteScreen";
+export type { KnowledgePagesRouteScreenProps } from "../interfaces/components/KnowledgePagesRouteScreen";
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 export { useBlockEditorStore } from "../interfaces/store/block-editor.store";

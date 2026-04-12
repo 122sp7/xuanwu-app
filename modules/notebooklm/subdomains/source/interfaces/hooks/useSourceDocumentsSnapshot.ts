@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 
 import type {
   SourceLiveDocument,
@@ -67,29 +67,28 @@ export function useSourceDocumentsSnapshot(
     const subKey = `${accountId}/${workspaceId ?? ""}`;
     statusMapRef.current = {};
 
-    const db = getFirebaseFirestore();
-    const colRef = firestoreApi.collection(db, "accounts", accountId, "documents");
-
-    const unsubscribe = firestoreApi.onSnapshot(
-      colRef,
-      (snapshot) => {
-        const mapped = snapshot.docs
-          .map((item) => mapToSourceLiveDocument(item.id, objectOrEmpty(item.data())))
+    const unsubscribe = firestoreInfrastructureApi.watchCollection<Record<string, unknown>>(
+      `accounts/${accountId}/documents`,
+      {
+        onNext: (documents) => {
+          const mapped = documents
+          .map((item) => mapToSourceLiveDocument(item.id, objectOrEmpty(item.data)))
           .filter((item) => !workspaceId || item.workspaceId === workspaceId)
           .sort((a, b) => (b.uploadedAt?.getTime() ?? 0) - (a.uploadedAt?.getTime() ?? 0));
 
-        const nextMap: Record<string, string> = {};
-        for (const doc of mapped) {
-          nextMap[doc.id] = `${doc.status}/${doc.ragStatus}`;
-        }
-        statusMapRef.current = nextMap;
+          const nextMap: Record<string, string> = {};
+          for (const doc of mapped) {
+            nextMap[doc.id] = `${doc.status}/${doc.ragStatus}`;
+          }
+          statusMapRef.current = nextMap;
 
-        setRawDocs(mapped);
-        setRawPending((prev) => prev.filter((p) => !mapped.some((d) => d.id === p.id)));
-        setReceivedKey(subKey);
-      },
-      () => {
-        setReceivedKey(subKey);
+          setRawDocs(mapped);
+          setRawPending((prev) => prev.filter((p) => !mapped.some((d) => d.id === p.id)));
+          setReceivedKey(subKey);
+        },
+        onError: () => {
+          setReceivedKey(subKey);
+        },
       },
     );
 

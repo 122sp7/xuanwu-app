@@ -114,7 +114,7 @@ export function useWorkspaceSettingsSave({
     try {
       const detail = await getWorkspaceByIdForAccount(accountId, workspace.id);
       if (!detail) {
-        router.replace("/workspace?context=unavailable");
+        router.replace(`/${encodeURIComponent(accountId)}?context=unavailable`);
         return;
       }
       onSaved(detail);

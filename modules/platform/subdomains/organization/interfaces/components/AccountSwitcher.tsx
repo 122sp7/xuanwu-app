@@ -88,7 +88,7 @@ export function AccountSwitcher({
 
     resetCreateOrganizationDialog();
     setIsCreateOrganizationOpen(false);
-    router.push("/organization");
+    router.push(`/${encodeURIComponent(result.aggregateId)}/organization`);
   }
 
   return (

@@ -11,6 +11,7 @@ export type { ResourceRef } from "../domain/value-objects/ResourceRef";
 export type { PolicyEffect } from "../domain/value-objects/PolicyEffect";
 export {
 	isOrganizationActor,
+	isActiveOrganizationAccount,
 	resolveOrganizationRouteFallback,
 	type ShellAccountActor,
 } from "../application/services/shell-account-access";

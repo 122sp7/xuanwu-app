@@ -6,9 +6,6 @@ export { TeamsPage } from "./components/TeamsPage";
 export type { TeamsPageProps } from "./components/TeamsPage";
 export { PermissionsPage } from "./components/PermissionsPage";
 export type { PermissionsPageProps } from "./components/PermissionsPage";
-export { OrganizationAuditPage } from "./components/OrganizationAuditPage";
-export type { OrganizationAuditPageProps } from "./components/OrganizationAuditPage";
-
 export { getOrganizationMembers, getOrganizationTeams, getOrgPolicies } from "./queries/organization.queries";
 export {
   createOrganization,

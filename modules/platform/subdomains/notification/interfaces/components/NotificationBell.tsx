@@ -169,7 +169,7 @@ export function NotificationBell({ recipientId }: NotificationBellProps) {
         <DropdownMenuSeparator />
         <div className="py-1 text-center">
           <Link
-            href="/settings/notifications"
+            href={`/${encodeURIComponent(recipientId)}/settings/notifications`}
             className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             查看全部通知

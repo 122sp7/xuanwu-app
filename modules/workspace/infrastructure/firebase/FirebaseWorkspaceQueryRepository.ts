@@ -5,8 +5,7 @@ import type {
 } from "../../domain/entities/WorkspaceMemberView";
 import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
 import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
 
 const personnelLabels = {
@@ -71,10 +70,6 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
     private readonly organizationDirectoryGateway: OrganizationDirectoryGateway = defaultOrganizationDirectoryGateway,
   ) {}
 
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
   private readonly workspaceRepo = new FirebaseWorkspaceRepository();
 
   subscribeToWorkspacesForAccount(
@@ -87,17 +82,16 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
       return () => {};
     }
 
-    const q = query(
-      collection(this.db, "workspaces"),
-      where("accountId", "==", normalizedAccountId),
+    return firestoreInfrastructureApi.watchCollection<Record<string, unknown>>(
+      "workspaces",
+      {
+        onNext: (documents) => {
+          const workspaces = documents.map((document) => toWorkspaceEntity(document.id, document.data));
+          onUpdate(workspaces);
+        },
+      },
+      [{ field: "accountId", op: "==", value: normalizedAccountId }],
     );
-
-    return onSnapshot(q, (snap) => {
-      const workspaces = snap.docs.map((docSnap) =>
-        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
-      );
-      onUpdate(workspaces);
-    });
   }
 
   async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {

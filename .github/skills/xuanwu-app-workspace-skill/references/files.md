@@ -45,6 +45,31 @@ Legacy migration:
 5. Replace Infrastructure adapter
 ````
 
+## File: modules/workspace/api/api.instructions.md
+````markdown
+---
+description: 'Workspace API boundary rules: cross-module entry surface, workspaceId published language, facade/contract/runtime separation, and downstream consumer contracts.'
+applyTo: 'modules/workspace/api/**/*.{ts,tsx}'
+---
+
+# Workspace API Layer (Local)
+
+Use this file as execution guardrails for `modules/workspace/api/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/workspace/context-map.md`.
+
+## Core Rules
+
+- `api/` is the **only** cross-module entry surface; never expose `domain/`, `application/`, or `infrastructure/` internals.
+- `contracts.ts` defines stable cross-module types; `facade.ts` exposes callable service methods; `ui.ts` exposes UI-safe view tokens only.
+- Published language tokens for cross-module use: `workspaceId`, `membershipRef`, `workspaceCapabilitySignal`, `wikiContentTreeRef`.
+- `runtime/factories.ts` wires workspace services for server-side consumption — keep wiring thin, delegate to application services.
+- Never expose `Workspace` aggregate or `WorkspaceMemberView` entity directly across the boundary; translate to contract types.
+- `notebooklm` and `notion` must receive `workspaceId` as a scope token, never as a full workspace object.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
 ## File: modules/workspace/api/contracts.ts
 ````typescript
 /**
@@ -336,6 +361,31 @@ export function makeWorkspaceDomainEventPublisher() {
 }
 ````
 
+## File: modules/workspace/application/application.instructions.md
+````markdown
+---
+description: 'Workspace application layer rules: use-case orchestration, command/query application services, event publishing order, and DTO contracts.'
+applyTo: 'modules/workspace/application/**/*.{ts,tsx}'
+---
+
+# Workspace Application Layer (Local)
+
+Use this file as execution guardrails for `modules/workspace/application/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/workspace/*`.
+
+## Core Rules
+
+- `WorkspaceCommandApplicationService` and `WorkspaceQueryApplicationService` are the primary dispatch entry points — do not bypass them from interfaces.
+- Use cases orchestrate flow only; lifecycle invariants, capability rules, and access checks stay in `domain/`.
+- After persisting, call `pullDomainEvents()` and publish via `WorkspaceDomainEventPublisher` — never publish before persistence.
+- DTOs (`workspace-interfaces.dto.ts`, `workspace-member-view.dto.ts`, `wiki-content-tree.dto.ts`) are application-layer contracts; never expose domain aggregates across the boundary.
+- Pure reads (workspace queries, member views, wiki tree) belong in **query handlers** — `WorkspaceQueryApplicationService` owns these.
+- Use case ordering for new workspace features: lifecycle → member → capabilities → access.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
 ## File: modules/workspace/application/dtos/wiki-content-tree.dto.ts
 ````typescript
 export type {
@@ -451,6 +501,30 @@ export class MountCapabilitiesUseCase {
     }
   }
 }
+````
+
+## File: modules/workspace/docs/docs.instructions.md
+````markdown
+---
+description: 'Workspace documentation rules: strategic doc authority, subdomain list sync, and ubiquitous language enforcement.'
+applyTo: 'modules/workspace/docs/**/*.md'
+---
+
+# Workspace Docs Layer (Local)
+
+Use this file as execution guardrails for `modules/workspace/docs/*`.
+For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/contexts/workspace/*`.
+
+## Core Rules
+
+- `modules/workspace/docs/` holds **links and local summaries only** — authoritative content lives in `docs/contexts/workspace/`.
+- Do not duplicate strategic knowledge here; point to the canonical source instead.
+- Any new architectural decision affecting workspace must have a corresponding ADR in `docs/decisions/`.
+- Use ubiquitous language from `docs/contexts/workspace/ubiquitous-language.md`; do not introduce synonyms.
+- Keep this directory in sync with `docs/contexts/workspace/README.md` whenever the subdomain list changes.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: modules/workspace/docs/README.md
@@ -881,6 +955,29 @@ export type {
   WorkspaceVisibility,
   WorkspaceVisibilityInput,
 } from "../value-objects/WorkspaceVisibility";
+````
+
+## File: modules/workspace/domain/domain-modeling.instructions.md
+````markdown
+---
+description: 'Workspace domain tactical modeling rules (local mirror of root domain-modeling guidance).'
+applyTo: '*.{ts,tsx}'
+---
+
+# Domain Modeling (Workspace Local)
+
+Use this local file as execution guardrails for `modules/workspace/domain/*`.
+For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/contexts/workspace/*`.
+
+## Core Rules
+
+- Keep aggregate invariants inside aggregate methods.
+- Use immutable value objects with Zod schemas and inferred types.
+- Keep domain framework-free (no Firebase/React/transport imports).
+- Emit domain events on state transitions and publish via application orchestration.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: modules/workspace/domain/entities/WikiContentTree.ts
@@ -2139,6 +2236,32 @@ export class FirebaseWorkspaceRepository
 }
 ````
 
+## File: modules/workspace/infrastructure/infrastructure.instructions.md
+````markdown
+---
+description: 'Workspace infrastructure layer rules: Firebase adapters, event publisher, repository implementations, and Firestore collection ownership.'
+applyTo: 'modules/workspace/infrastructure/**/*.{ts,tsx}'
+---
+
+# Workspace Infrastructure Layer (Local)
+
+Use this file as execution guardrails for `modules/workspace/infrastructure/*`.
+For full reference, align with `.github/instructions/firestore-schema.instructions.md` and `docs/contexts/workspace/*`.
+
+## Core Rules
+
+- Implement only **port interfaces** declared in `domain/ports/output/` — never invent new contracts here.
+- `SharedWorkspaceDomainEventPublisher` is the canonical event publisher; do not create alternative publish paths.
+- Each Firebase repository (`FirebaseWorkspaceRepository`, `FirebaseWorkspaceQueryRepository`, `FirebaseWikiWorkspaceRepository`) owns its Firestore collection(s) — do not cross-read between them without an explicit port.
+- `FirebaseWorkspaceQueryRepository` serves read-model queries; `FirebaseWorkspaceRepository` serves aggregate persistence — keep their responsibilities separate.
+- Version breaking schema transitions with migration steps; update `firestore.indexes.json` with query-shape changes.
+- Subdomain-specific adapters belong inside `subdomains/<name>/infrastructure/` — do not place them in the context-wide infrastructure.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+#use skill xuanwu-development-contracts
+````
+
 ## File: modules/workspace/interfaces/api/actions/workspace.command.ts
 ````typescript
 "use server";
@@ -2549,6 +2672,34 @@ export function createWorkspaceSessionContext(
     workspaceQueryPort,
   };
 }
+````
+
+## File: modules/workspace/interfaces/interfaces.instructions.md
+````markdown
+---
+description: 'Workspace interfaces layer rules: input/output translation, Server Actions, workspace UI components, hooks, view-models, and session state wiring.'
+applyTo: 'modules/workspace/interfaces/**/*.{ts,tsx}'
+---
+
+# Workspace Interfaces Layer (Local)
+
+Use this file as execution guardrails for `modules/workspace/interfaces/*`.
+For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/contexts/workspace/*`.
+
+## Core Rules
+
+- This layer owns **input/output translation only** — no workspace lifecycle rules, no capability policy.
+- Server Actions (`interfaces/api/actions/`) must be thin: validate input, call the application service, return a stable result shape.
+- Never call repositories directly from components, hooks, or actions.
+- View-models (`view-models/`) translate DTOs into UI-specific shapes — keep them in `interfaces/`, not in `application/`.
+- Session state (`state/workspace-session.ts`, `state/workspace-settings.ts`) is UI state only; do not persist domain decisions here.
+- `interfaces/api/` exposes tRPC facades and query handlers for workspace — keep route and action wiring separate from business logic.
+- Use shadcn/ui primitives before creating new components; maintain semantic markup and accessibility.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+#use skill next-devtools-mcp
+#use skill vercel-react-best-practices
 ````
 
 ## File: modules/workspace/interfaces/web/components/cards/WorkspaceContextCard.tsx
@@ -4386,6 +4537,86 @@ export function WorkspaceSidebarSection({
 }
 ````
 
+## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
+````typescript
+import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Users } from "lucide-react";
+import type { ReactNode } from "react";
+
+export interface WorkspaceQuickAccessMatcherOptions {
+  panel: string | null;
+  tab: string | null;
+}
+
+export interface WorkspaceQuickAccessItem {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
+}
+
+const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
+  {
+    href: "/workspace/{workspaceId}?tab=Overview",
+    label: "首頁",
+    icon: <Home className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      pathname.startsWith("/workspace/") &&
+      (options?.tab == null || options.tab === "Overview") &&
+      options?.panel !== "settings",
+  },
+  {
+    href: "/knowledge/pages?workspaceId={workspaceId}",
+    label: "知識頁面",
+    icon: <FileText className="size-3.5" />,
+    isActive: (pathname: string) =>
+      pathname === "/knowledge/pages" || pathname.startsWith("/knowledge/pages/"),
+  },
+  {
+    href: "/knowledge-base/articles?workspaceId={workspaceId}",
+    label: "文章",
+    icon: <BookOpen className="size-3.5" />,
+    isActive: (pathname: string) =>
+      pathname === "/knowledge-base/articles" || pathname.startsWith("/knowledge-base/articles/"),
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Files",
+    label: "檔案",
+    icon: <FolderOpen className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      pathname.startsWith("/workspace/") && options?.tab === "Files",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Members",
+    label: "成員",
+    icon: <Users className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      pathname.startsWith("/workspace/") && options?.tab === "Members",
+  },
+  {
+    href: "/notebook/rag-query?workspaceId={workspaceId}",
+    label: "RAG 查詢",
+    icon: <Brain className="size-3.5" />,
+    isActive: (pathname: string) =>
+      pathname === "/notebook/rag-query" || pathname.startsWith("/notebook/rag-query/"),
+  },
+  {
+    href: "/source/libraries?workspaceId={workspaceId}",
+    label: "資料庫",
+    icon: <Database className="size-3.5" />,
+    isActive: (pathname: string) =>
+      pathname === "/source/libraries" || pathname.startsWith("/source/libraries/"),
+  },
+];
+
+export function buildWorkspaceQuickAccessItems(workspaceId: string): WorkspaceQuickAccessItem[] {
+  const encodedWorkspaceId = encodeURIComponent(workspaceId);
+  return WORKSPACE_QUICK_ACCESS_TEMPLATES.map((item) => ({
+    ...item,
+    href: item.href.replaceAll("{workspaceId}", encodedWorkspaceId),
+  }));
+}
+````
+
 ## File: modules/workspace/interfaces/web/components/rails/CreateWorkspaceDialogRail.tsx
 ````typescript
 "use client";
@@ -4711,291 +4942,6 @@ export function WorkspaceDetailRouteScreen({
       initialTab={initialTab}
       initialOverviewPanel={initialOverviewPanel}
     />
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useMemo, useState } from "react";
-
-import {
-  Card,
-  CardContent,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { WorkspaceAuditTab } from "@/modules/workspace/api";
-import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
-import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
-import { WorkspaceFlowTab } from "@/modules/workspace/api";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
-import { useApp } from "@/modules/platform/api";
-
-import {
-  createSettingsDraft,
-  type WorkspaceSettingsDraft,
-} from "../../state/workspace-settings";
-import {
-  getWorkspaceAddressLines,
-  getWorkspacePersonnelEntries,
-} from "../../view-models/workspace-supporting-records";
-import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "../../navigation/workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
-import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
-import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
-import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
-
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-  readonly initialOverviewPanel?: string;
-}
-
-export function WorkspaceDetailScreen({
-  workspaceId,
-  accountId,
-  accountsHydrated,
-  initialTab,
-  initialOverviewPanel,
-}: WorkspaceDetailScreenProps) {
-  const { state: appState, dispatch } = useApp();
-  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
-    workspaceId,
-    accountId,
-    accountsHydrated,
-  );
-  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
-  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
-
-  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
-    workspace,
-    accountId,
-    onSaved: (updated) => {
-      setWorkspace(updated);
-      setSettingsDraft(createSettingsDraft(updated));
-      setIsEditWorkspaceOpen(false);
-    },
-  });
-
-  const personnelEntries = useMemo(() => {
-    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
-  }, [workspace]);
-
-  const addressLines = useMemo(() => {
-    return workspace ? getWorkspaceAddressLines(workspace) : [];
-  }, [workspace]);
-
-  function renderTabContent(tab: WorkspaceTabValue) {
-    if (!workspace) return null;
-
-    switch (tab) {
-      case "Overview":
-        return (
-          <WorkspaceOverviewTab
-            workspace={workspace}
-            activeWorkspaceId={appState.activeWorkspaceId}
-            personnelEntries={personnelEntries}
-            addressLines={addressLines}
-            showSettingsPanel={initialOverviewPanel === "settings"}
-            onEditClick={() => {
-              setSettingsDraft(createSettingsDraft(workspace));
-              clearSaveError();
-              setIsEditWorkspaceOpen(true);
-            }}
-            onSetActiveWorkspace={() =>
-              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
-            }
-          />
-        );
-      case "Members":
-        return <WorkspaceMembersTab workspace={workspace} />;
-      case "Daily":
-        return <WorkspaceDailyTab workspace={workspace} />;
-      case "Files":
-        return <WorkspaceFilesTab workspace={workspace} />;
-      case "Schedule":
-        return (
-          <WorkspaceSchedulingTab
-            workspace={workspace}
-            accountId={accountId ?? workspace.accountId}
-            currentUserId={accountId ?? "anonymous"}
-          />
-        );
-      case "Audit":
-        return <WorkspaceAuditTab workspaceId={workspace.id} />;
-      case "Tasks":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="tasks"
-          />
-        );
-      case "TaskQa":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="qa"
-          />
-        );
-      case "TaskAcceptance":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="acceptance"
-          />
-        );
-      case "TaskIssues":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="issues"
-          />
-        );
-      case "TaskFinance":
-        return (
-          <WorkspaceFlowTab
-            workspaceId={workspace.id}
-            currentUserId={accountId ?? "anonymous"}
-            initialSection="invoices"
-          />
-        );
-      case "Feed":
-        return (
-          <WorkspaceFeedWorkspaceView
-            accountId={accountId ?? workspace.accountId}
-            workspaceId={workspace.id}
-            workspaceName={workspace.name}
-          />
-        );
-      default:
-        return null;
-    }
-  }
-
-  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
-    ? initialTab
-    : "Overview";
-
-  return (
-    <div className="space-y-6">
-      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
-        ← 返回 Workspace Hub
-      </Link>
-
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          正在同步帳號內容…
-        </div>
-      )}
-
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            Loading workspace detail…
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入工作區資料，請返回清單後重試。
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "loaded" && !workspace && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            找不到此工作區。
-          </CardContent>
-        </Card>
-      )}
-
-      {workspace && (
-        <div className="space-y-6">
-          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
-          <nav
-            aria-label="Workspace tab navigation"
-            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
-          >
-            <div className="flex min-w-max items-center gap-0.5">
-              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
-                const tabs = getWorkspaceTabsByGroup(group);
-                const links = tabs.map((tab) => {
-                  const isActive = resolvedTab === tab;
-                  return (
-                    <Link
-                      key={tab}
-                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
-                      aria-current={isActive ? "page" : undefined}
-                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {getWorkspaceTabLabel(tab)}
-                    </Link>
-                  );
-                });
-                if (groupIndex > 0) {
-                  return [
-                    <div
-                      key={`sep-${group}`}
-                      aria-hidden="true"
-                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
-                    />,
-                    ...links,
-                  ];
-                }
-                return links;
-              })}
-            </div>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
-          </div>
-          {renderTabContent(resolvedTab)}
-        </div>
-      )}
-
-      <WorkspaceSettingsDialog
-        open={isEditWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsEditWorkspaceOpen(open);
-          if (!open) {
-            clearSaveError();
-            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
-          }
-        }}
-        settingsDraft={settingsDraft}
-        setSettingsDraft={setSettingsDraft}
-        isSaving={isSavingWorkspace}
-        saveError={saveError}
-        onSubmit={(event) => void handleSave(event, settingsDraft)}
-      />
-    </div>
   );
 }
 ````
@@ -6346,71 +6292,6 @@ export function useWorkspaceSettingsSave({
 }
 ````
 
-## File: modules/workspace/interfaces/web/index.ts
-````typescript
-/**
- * workspace interfaces/web public boundary.
- *
- * Web-layer components, hooks, navigation, state helpers and utilities.
- * App-layer and cross-module consumers that need UI composition must import
- * from this path instead of reaching into individual sub-directories.
- */
-
-export { WorkspaceDetailScreen } from "./components/screens/WorkspaceDetailScreen";
-export { WorkspaceDetailRouteScreen } from "./components/screens/WorkspaceDetailRouteScreen";
-export { WorkspaceHubScreen } from "./components/screens/WorkspaceHubScreen";
-export { WorkspaceMembersTab } from "./components/tabs/WorkspaceMembersTab";
-export { WorkspaceSidebarSection } from "./components/layout/WorkspaceSidebarSection";
-export { CreateWorkspaceDialogRail } from "./components/rails/CreateWorkspaceDialogRail";
-export { OrganizationWorkspacesScreen } from "./components/screens/OrganizationWorkspacesScreen";
-export { WorkspaceContextCard } from "./components/cards/WorkspaceContextCard";
-
-export {
-	WORKSPACE_TAB_GROUPS,
-	WORKSPACE_TAB_META,
-	WORKSPACE_TAB_VALUES,
-	getWorkspaceTabLabel,
-	getWorkspaceTabMeta,
-	getWorkspaceTabPrefId,
-	getWorkspaceTabStatus,
-	getWorkspaceTabsByGroup,
-	isWorkspaceTabValue,
-} from "./navigation/workspace-tabs";
-
-export { getWorkspaceStorageKey } from "./state/workspace-session";
-
-export {
-	resolveWorkspaceFromMap,
-	toWorkspaceMap,
-} from "./utils/workspace-map";
-
-export type { WorkspaceNavItem } from "./navigation/workspace-nav-items";
-export {
-	WORKSPACE_NAV_ITEMS,
-	normalizeWorkspaceOrder,
-} from "./navigation/workspace-nav-items";
-
-export type {
-	WorkspaceQuickAccessItem,
-	WorkspaceQuickAccessMatcherOptions,
-} from "./components/navigation/workspace-quick-access";
-
-export { buildWorkspaceQuickAccessItems } from "./components/navigation/workspace-quick-access";
-
-export type {
-	WorkspaceTabDevStatus,
-	WorkspaceTabGroup,
-	WorkspaceTabValue,
-} from "./navigation/workspace-tabs";
-
-export { useWorkspaceHub } from "./hooks/useWorkspaceHub";
-export {
-	MAX_VISIBLE_RECENT_WORKSPACES,
-	getWorkspaceIdFromPath,
-	useRecentWorkspaces,
-} from "./hooks/useRecentWorkspaces";
-````
-
 ## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
 ````typescript
 /**
@@ -6958,6 +6839,33 @@ export function makeAuditRepo() {
 }
 ````
 
+## File: modules/workspace/subdomains/audit/api/index.ts
+````typescript
+/**
+ * workspace/subdomains/audit API boundary.
+ */
+
+export type { AuditLogEntity, AuditLogSource } from "../domain/entities/AuditLog";
+
+export type {
+  AuditLog,
+  AuditAction,
+  AuditSeverity,
+  ChangeRecord,
+} from "../domain/schema";
+
+export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../domain/schema";
+
+export {
+  getOrganizationAuditLogs,
+  getWorkspaceAuditLogs,
+} from "../interfaces/queries/audit.queries";
+
+export { WorkspaceAuditTab } from "../interfaces/components/WorkspaceAuditTab";
+export { AuditStream } from "../interfaces/components/AuditStream";
+export { RecordAuditEntryUseCase } from "../application/use-cases/record-audit-entry.use-case";
+````
+
 ## File: modules/workspace/subdomains/audit/application/dto/audit.dto.ts
 ````typescript
 /**
@@ -6966,6 +6874,46 @@ export function makeAuditRepo() {
  */
 export type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
 export type { AuditSeverity } from "../../domain/schema";
+````
+
+## File: modules/workspace/subdomains/audit/application/queries/list-audit-logs.queries.ts
+````typescript
+import type { AuditLogEntity } from "../../domain/entities/AuditLog";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+
+export class ListWorkspaceAuditLogsUseCase {
+  constructor(private readonly auditRepo: AuditRepository) {}
+
+  execute(workspaceId: string): Promise<AuditLogEntity[]> {
+    return this.auditRepo.findByWorkspaceId(workspaceId);
+  }
+}
+
+export class ListOrganizationAuditLogsUseCase {
+  constructor(private readonly auditRepo: AuditRepository) {}
+
+  execute(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]> {
+    return this.auditRepo.findByWorkspaceIds(workspaceIds, maxCount);
+  }
+}
+````
+
+## File: modules/workspace/subdomains/audit/application/use-cases/record-audit-entry.use-case.ts
+````typescript
+import { AuditEntry, type RecordAuditEntryInput } from "../../domain/aggregates/AuditEntry";
+import type { AuditDomainEventType } from "../../domain/events";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+
+export class RecordAuditEntryUseCase {
+  constructor(private readonly repo: AuditRepository) {}
+
+  async execute(input: RecordAuditEntryInput): Promise<AuditDomainEventType[]> {
+    const id = crypto.randomUUID();
+    const entry = AuditEntry.record(id, input);
+    await this.repo.save(entry);
+    return entry.pullDomainEvents();
+  }
+}
 ````
 
 ## File: modules/workspace/subdomains/audit/domain/aggregates/AuditEntry.ts
@@ -7198,6 +7146,47 @@ export type {
 } from "./AuditDomainEvent";
 ````
 
+## File: modules/workspace/subdomains/audit/domain/index.ts
+````typescript
+// ── Existing domain types ────────────────────────────────────────────────────
+export type { AuditLogEntity, AuditLogSource } from "./entities/AuditLog";
+export type { AuditLog, AuditAction, AuditSeverity, ChangeRecord } from "./schema";
+export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "./schema";
+export type { AuditRepository } from "./repositories/AuditRepository";
+
+// ── Rich DDD additions ──────────────────────────────────────────────────────
+export * from "./aggregates";
+export * from "./events";
+export * from "./services";
+export * from "./value-objects";
+
+// ── Ports layer ──────────────────────────────────────────────────────────────
+export type { IAuditPort } from "./ports";
+````
+
+## File: modules/workspace/subdomains/audit/domain/ports/index.ts
+````typescript
+/**
+ * workspace/audit domain/ports — driven port interfaces for the audit subdomain.
+ *
+ * Re-exports the repository contract from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
+export type { AuditRepository as IAuditPort } from "../repositories/AuditRepository";
+````
+
+## File: modules/workspace/subdomains/audit/domain/repositories/AuditRepository.ts
+````typescript
+import type { AuditEntry } from "../aggregates/AuditEntry";
+import type { AuditLogEntity } from "../entities/AuditLog";
+
+export interface AuditRepository {
+  save(entry: AuditEntry): Promise<void>;
+  findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]>;
+  findByWorkspaceIds(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]>;
+}
+````
+
 ## File: modules/workspace/subdomains/audit/domain/schema.ts
 ````typescript
 /**
@@ -7333,6 +7322,104 @@ export type { AuditSeverity } from "./AuditSeverity";
 
 export { ActorIdSchema, createActorId, unsafeActorId } from "./ActorId";
 export type { ActorId } from "./ActorId";
+````
+
+## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
+````typescript
+import {
+  addDoc,
+  collection,
+  getDocs,
+  getFirestore,
+  limit,
+  query,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { AuditEntry } from "../../domain/aggregates/AuditEntry";
+import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+
+const VALID_AUDIT_LOG_SOURCES = new Set<AuditLogSource>([
+  "workspace",
+  "finance",
+  "notification",
+  "system",
+]);
+
+function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity {
+  const source = VALID_AUDIT_LOG_SOURCES.has(data.source as AuditLogSource)
+    ? (data.source as AuditLogSource)
+    : "workspace";
+
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    actorId: typeof data.actorId === "string" ? data.actorId : "system",
+    action: typeof data.action === "string" ? data.action : "unknown",
+    detail: typeof data.detail === "string" ? data.detail : "",
+    source,
+    occurredAtISO:
+      typeof data.occurredAtISO === "string"
+        ? data.occurredAtISO
+        : "",
+  };
+}
+
+export class FirebaseAuditRepository implements AuditRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async save(entry: AuditEntry): Promise<void> {
+    await addDoc(collection(this.db, "auditLogs"), entry.getSnapshot());
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]> {
+    const snaps = await getDocs(
+      query(collection(this.db, "auditLogs"), where("workspaceId", "==", workspaceId)),
+    );
+
+    return snaps.docs
+      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
+      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO));
+  }
+
+  async findByWorkspaceIds(
+    workspaceIds: string[],
+    maxCount = 200,
+  ): Promise<AuditLogEntity[]> {
+    if (workspaceIds.length === 0) {
+      return [];
+    }
+
+    const chunks: string[][] = [];
+    for (let index = 0; index < workspaceIds.length; index += 10) {
+      chunks.push(workspaceIds.slice(index, index + 10));
+    }
+
+    const perChunkLimit = Math.max(1, Math.ceil(maxCount / chunks.length));
+
+    const snapshots = await Promise.all(
+      chunks.map((chunk) =>
+        getDocs(
+          query(
+            collection(this.db, "auditLogs"),
+            where("workspaceId", "in", chunk),
+            limit(perChunkLimit),
+          ),
+        ),
+      ),
+    );
+
+    return snapshots
+      .flatMap((snapshot) => snapshot.docs)
+      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
+      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO))
+      .slice(0, maxCount);
+  }
+}
 ````
 
 ## File: modules/workspace/subdomains/audit/interfaces/components/AuditStream.tsx
@@ -7611,6 +7698,46 @@ export function WorkspaceAuditTab({ workspaceId }: WorkspaceAuditTabProps) {
 }
 ````
 
+## File: modules/workspace/subdomains/audit/interfaces/queries/audit.queries.ts
+````typescript
+import type { AuditLogEntity } from "../../application/dto/audit.dto";
+import {
+  ListOrganizationAuditLogsUseCase,
+  ListWorkspaceAuditLogsUseCase,
+} from "../../application/queries/list-audit-logs.queries";
+import { makeAuditRepo } from "../../api/factories";
+
+const auditRepo = makeAuditRepo();
+const listWorkspaceAuditLogsUseCase = new ListWorkspaceAuditLogsUseCase(auditRepo);
+const listOrganizationAuditLogsUseCase = new ListOrganizationAuditLogsUseCase(auditRepo);
+
+export async function getWorkspaceAuditLogs(
+  workspaceId: string,
+): Promise<AuditLogEntity[]> {
+  const normalizedWorkspaceId = workspaceId.trim();
+  if (!normalizedWorkspaceId) {
+    return [];
+  }
+
+  return listWorkspaceAuditLogsUseCase.execute(normalizedWorkspaceId);
+}
+
+export async function getOrganizationAuditLogs(
+  workspaceIds: string[],
+  maxCount = 200,
+): Promise<AuditLogEntity[]> {
+  const normalizedWorkspaceIds = workspaceIds
+    .map((workspaceId) => workspaceId.trim())
+    .filter(Boolean);
+
+  if (normalizedWorkspaceIds.length === 0) {
+    return [];
+  }
+
+  return listOrganizationAuditLogsUseCase.execute(normalizedWorkspaceIds, maxCount);
+}
+````
+
 ## File: modules/workspace/subdomains/audit/README.md
 ````markdown
 # Audit
@@ -7885,6 +8012,47 @@ export const ListAccountFeedSchema = AccountScopeSchema.extend({
 export type ListAccountFeedDto = z.infer<typeof ListAccountFeedSchema>;
 ````
 
+## File: modules/workspace/subdomains/feed/application/queries/workspace-feed-post.queries.ts
+````typescript
+import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
+import {
+  ListWorkspaceFeedSchema,
+  type ListWorkspaceFeedDto,
+  ListAccountFeedSchema,
+  type ListAccountFeedDto,
+} from "../dto/workspace-feed.dto";
+
+export class GetWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
+    if (!accountId.trim() || !postId.trim()) return null;
+    return this.repo.findById(accountId, postId);
+  }
+}
+
+export class ListWorkspaceFeedUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ListWorkspaceFeedDto): Promise<WorkspaceFeedPost[]> {
+    const parsed = ListWorkspaceFeedSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByWorkspaceId(parsed.data.accountId, parsed.data.workspaceId, parsed.data.limit ?? 50);
+  }
+}
+
+export class ListAccountWorkspaceFeedUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ListAccountFeedDto): Promise<WorkspaceFeedPost[]> {
+    const parsed = ListAccountFeedSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByAccountId(parsed.data.accountId, parsed.data.limit ?? 50);
+  }
+}
+````
+
 ## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed-interaction.use-cases.ts
 ````typescript
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
@@ -8000,6 +8168,90 @@ export class ShareWorkspaceFeedPostUseCase {
     return commandSuccess(parsed.data.postId, Date.now());
   }
 }
+````
+
+## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed-post.use-cases.ts
+````typescript
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
+import {
+  CreateWorkspaceFeedPostSchema,
+  type CreateWorkspaceFeedPostDto,
+  ReplyWorkspaceFeedPostSchema,
+  type ReplyWorkspaceFeedPostDto,
+  RepostWorkspaceFeedPostSchema,
+  type RepostWorkspaceFeedPostDto,
+} from "../dto/workspace-feed.dto";
+
+export class CreateWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = CreateWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.repo.createPost(parsed.data);
+    return commandSuccess(post.id, Date.now());
+  }
+}
+
+export class ReplyWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = ReplyWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const parent = await this.repo.findById(parsed.data.accountId, parsed.data.parentPostId);
+    if (!parent) {
+      return commandFailureFrom("WORKSPACE_FEED_PARENT_NOT_FOUND", "Parent post not found.");
+    }
+    if (parent.workspaceId !== parsed.data.workspaceId) {
+      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Parent post is in another workspace.");
+    }
+
+    const reply = await this.repo.createReply(parsed.data);
+    return commandSuccess(reply.id, Date.now());
+  }
+}
+
+export class RepostWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = RepostWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const source = await this.repo.findById(parsed.data.accountId, parsed.data.sourcePostId);
+    if (!source) {
+      return commandFailureFrom("WORKSPACE_FEED_SOURCE_NOT_FOUND", "Source post not found.");
+    }
+    if (source.workspaceId !== parsed.data.workspaceId) {
+      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Source post is in another workspace.");
+    }
+
+    const repost = await this.repo.createRepost(parsed.data);
+    if (!repost) {
+      return commandFailureFrom("WORKSPACE_FEED_REPOST_FAILED", "Failed to create repost.");
+    }
+
+    return commandSuccess(repost.id, Date.now());
+  }
+}
+
+// Re-export read queries for backward compatibility
+export {
+  GetWorkspaceFeedPostUseCase,
+  ListWorkspaceFeedUseCase,
+  ListAccountWorkspaceFeedUseCase,
+} from "../queries/workspace-feed-post.queries";
 ````
 
 ## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed.use-cases.ts
@@ -8139,6 +8391,55 @@ export type WorkspaceFeedDomainEvent =
   | WorkspaceFeedPostViewedEvent
   | WorkspaceFeedPostBookmarkedEvent
   | WorkspaceFeedPostSharedEvent;
+````
+
+## File: modules/workspace/subdomains/feed/domain/index.ts
+````typescript
+export type {
+  WorkspaceFeedPost,
+  WorkspaceFeedPostType,
+  CreateWorkspaceFeedPostInput,
+  CreateWorkspaceFeedReplyInput,
+  CreateWorkspaceFeedRepostInput,
+  WorkspaceFeedCounterPatch,
+} from "./entities/workspace-feed-post.entity";
+
+export { WORKSPACE_FEED_POST_TYPES } from "./entities/workspace-feed-post.entity";
+
+export type {
+  WorkspaceFeedDomainEvent,
+  WorkspaceFeedPostCreatedEvent,
+  WorkspaceFeedReplyCreatedEvent,
+  WorkspaceFeedRepostCreatedEvent,
+  WorkspaceFeedPostLikedEvent,
+  WorkspaceFeedPostViewedEvent,
+  WorkspaceFeedPostBookmarkedEvent,
+  WorkspaceFeedPostSharedEvent,
+} from "./events/workspace-feed.events";
+
+export { WORKSPACE_FEED_EVENT_TYPES } from "./events/workspace-feed.events";
+
+export type {
+  WorkspaceFeedPostRepository,
+  WorkspaceFeedInteractionRepository,
+} from "./repositories/workspace-feed.repositories";
+
+// ── Ports layer ──────────────────────────────────────────────────────────────
+export type { IWorkspaceFeedPostPort, IWorkspaceFeedInteractionPort } from "./ports";
+````
+
+## File: modules/workspace/subdomains/feed/domain/ports/index.ts
+````typescript
+/**
+ * workspace/feed domain/ports — driven port interfaces for the feed subdomain.
+ *
+ * Re-exports repository contracts from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
+export type {
+  WorkspaceFeedPostRepository as IWorkspaceFeedPostPort,
+  WorkspaceFeedInteractionRepository as IWorkspaceFeedInteractionPort,
+} from "../repositories/workspace-feed.repositories";
 ````
 
 ## File: modules/workspace/subdomains/feed/domain/repositories/workspace-feed.repositories.ts
@@ -9115,48 +9416,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## Development Order
 
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/workspace/subdomains/presence/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
-## File: modules/workspace/subdomains/presence/application/index.ts
-````typescript
-// Purpose: Application layer placeholder for workspace subdomain 'presence'.
-````
-
-## File: modules/workspace/subdomains/presence/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for workspace subdomain 'presence'.
-````
-
-## File: modules/workspace/subdomains/presence/infrastructure/index.ts
-````typescript
-// Purpose: Infrastructure layer placeholder for workspace subdomain 'presence'.
-````
-
-## File: modules/workspace/subdomains/presence/README.md
-````markdown
-# Presence
-
-把即時協作存在感與共同編輯訊號形成本地語言。
-
-## Ownership
-
-- **Bounded Context**: workspace
-- **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
-
-## Development Order
-
-When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
@@ -10559,6 +10818,33 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/workspace/subdomains/subdomains.instructions.md
+````markdown
+---
+description: 'Workspace subdomains structural rules: hexagonal shape per subdomain, workspaceId scope enforcement, cross-subdomain collaboration, and stub promotion criteria.'
+applyTo: 'modules/workspace/subdomains/**/*.{ts,tsx}'
+---
+
+# Workspace Subdomains Layer (Local)
+
+Use this file as execution guardrails for `modules/workspace/subdomains/*`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/workspace/subdomains.md`.
+
+## Core Rules
+
+- Every subdomain must maintain the full hexagonal shape: `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`.
+- Stub subdomains must not be promoted to Active without a corresponding ADR and `README.md` update.
+- Cross-subdomain collaboration within workspace goes through the **subdomain's own `api/`** — never import a sibling's `domain/`, `application/`, or `infrastructure/` internals.
+- All subdomain operations must be scoped to a `workspaceId`; never perform workspace-wide queries without an explicit scope check.
+- `workspace-workflow` owns Task, Issue, and Invoice state machines — do not duplicate workflow logic in other subdomains.
+- `audit` subdomain is append-only; never modify or delete audit entries.
+- Domain events use the discriminant format `workspace.<subdomain>.<action>` (e.g. `workspace.feed.post-created`, `workspace.workflow.task-assigned`).
+- Dependency direction inside each subdomain: `interfaces → application → domain ← infrastructure`.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/api/contracts.ts
@@ -13328,6 +13614,44 @@ export type TaskEvent =
   | TaskAcceptanceApprovedEvent
   | TaskArchivedEvent
   | TaskStatusChangedEvent;
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/domain/index.ts
+````typescript
+/**
+ * workspace/workspace-workflow domain — public exports.
+ */
+export type { InvoiceRepository } from "./repositories/InvoiceRepository";
+export type { IssueRepository } from "./repositories/IssueRepository";
+export type { TaskRepository } from "./repositories/TaskRepository";
+export * from "./events/TaskEvent";
+export * from "./events/IssueEvent";
+export * from "./events/InvoiceEvent";
+export * from "./value-objects/InvoiceId";
+export * from "./value-objects/InvoiceItemId";
+export * from "./value-objects/InvoiceStatus";
+export * from "./value-objects/IssueId";
+export * from "./value-objects/IssueStage";
+export * from "./value-objects/IssueStatus";
+export * from "./value-objects/SourceReference";
+export * from "./value-objects/TaskId";
+export * from "./value-objects/TaskStatus";
+export * from "./value-objects/UserId";
+// Ports layer — driven port aliases
+export type { IInvoicePort, IIssuePort, ITaskPort } from "./ports";
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/domain/ports/index.ts
+````typescript
+/**
+ * workspace/workspace-workflow domain/ports — driven port interfaces for the workflow subdomain.
+ *
+ * Re-exports repository contracts from domain/repositories/, making the Ports layer
+ * explicitly visible in the directory structure.
+ */
+export type { InvoiceRepository as IInvoicePort } from "../repositories/InvoiceRepository";
+export type { IssueRepository as IIssuePort } from "../repositories/IssueRepository";
+export type { TaskRepository as ITaskPort } from "../repositories/TaskRepository";
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/domain/repositories/InvoiceRepository.ts
@@ -16437,190 +16761,44 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/workspace/api/api.instructions.md
+## File: modules/workspace/workspace.instructions.md
 ````markdown
 ---
-description: 'Workspace API boundary rules: cross-module entry surface, workspaceId published language, facade/contract/runtime separation, and downstream consumer contracts.'
-applyTo: 'modules/workspace/api/**/*.{ts,tsx}'
+description: 'Workspace bounded context rules: workspaceId anchor ownership, collaboration container scope, downstream dependency position, and subdomain routing.'
+applyTo: 'modules/workspace/**/*.{ts,tsx,md}'
 ---
 
-# Workspace API Layer (Local)
+# Workspace Bounded Context (Local)
 
-Use this file as execution guardrails for `modules/workspace/api/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/workspace/context-map.md`.
+Use this file as execution guardrails for `modules/workspace/`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/workspace/README.md`, and `docs/bounded-contexts.md`.
 
 ## Core Rules
 
-- `api/` is the **only** cross-module entry surface; never expose `domain/`, `application/`, or `infrastructure/` internals.
-- `contracts.ts` defines stable cross-module types; `facade.ts` exposes callable service methods; `ui.ts` exposes UI-safe view tokens only.
-- Published language tokens for cross-module use: `workspaceId`, `membershipRef`, `workspaceCapabilitySignal`, `wikiContentTreeRef`.
-- `runtime/factories.ts` wires workspace services for server-side consumption — keep wiring thin, delegate to application services.
-- Never expose `Workspace` aggregate or `WorkspaceMemberView` entity directly across the boundary; translate to contract types.
-- `notebooklm` and `notion` must receive `workspaceId` as a scope token, never as a full workspace object.
+- `workspace` is **downstream** of `platform`; never import from platform internals — use `modules/platform/api` only.
+- `workspace` is **upstream** of `notebooklm`; expose `workspaceId` scope and membership signals via `modules/workspace/api`.
+- Cross-module consumers import from `modules/workspace/api` only.
+- `workspaceId` is the canonical scope anchor for all downstream modules — always resolve workspace identity through this module.
+- Use ubiquitous language: `Membership` not `User` (for workspace participant), `WorkspaceCapability` not `Feature`, `WorkspaceLifecycleState` not `Status`.
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
+## Route to Subdomain When
 
-## File: modules/workspace/api/ui.ts
-````typescript
-/**
- * workspace api/ui.ts
- *
- * Canonical public web UI surface for the workspace bounded context.
- * App-layer consumers that need workspace UI components, hooks, and
- * navigation utilities should import from here.
- *
- * Internal source: interfaces/web/
- */
+| Concern | Subdomain |
+|---|---|
+| Workspace lifecycle (create, archive, restore) | `lifecycle` |
+| Member roles, invitations, participant management | `membership` |
+| Workspace activity feed and posts | `feed` |
+| Audit trail and compliance log | `audit` |
+| Task, issue, invoice workflow | `workspace-workflow` |
+| Scheduling and work demand | `scheduling` |
+| Real-time presence and activity | `presence` |
+| Workspace sharing and access grants | `sharing` |
 
-// ── Screen components ────────────────────────────────────────────────────────
+## Route Elsewhere When
 
-export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
-export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
-export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
-export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
-
-// ── Card components ──────────────────────────────────────────────────────────
-
-export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
-
-// ── Tab components ───────────────────────────────────────────────────────────
-
-export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
-
-// ── Layout components ────────────────────────────────────────────────────────
-
-export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
-export { WorkspaceQuickAccessRow } from "../interfaces/web/components/layout/WorkspaceQuickAccessRow";
-export { WorkspaceSectionContent } from "../interfaces/web/components/layout/WorkspaceSectionContent";
-
-// ── Rail components ──────────────────────────────────────────────────────────
-
-export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
-
-// ── Navigation ────────────────────────────────────────────────────────────────
-
-export type {
-  WorkspaceTabDevStatus,
-  WorkspaceTabGroup,
-  WorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
-
-export {
-  WORKSPACE_TAB_GROUPS,
-  WORKSPACE_TAB_META,
-  WORKSPACE_TAB_VALUES,
-  getWorkspaceTabLabel,
-  getWorkspaceTabMeta,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "../interfaces/web/navigation/workspace-tabs";
-
-export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
-export {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "../interfaces/web/navigation/workspace-nav-items";
-
-// ── Quick-access navigation ───────────────────────────────────────────────────
-
-export type {
-  WorkspaceQuickAccessItem,
-  WorkspaceQuickAccessMatcherOptions,
-} from "../interfaces/web/components/navigation/workspace-quick-access";
-
-export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
-
-// ── State helpers ─────────────────────────────────────────────────────────────
-
-export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
-
-// ── Map utilities ─────────────────────────────────────────────────────────────
-
-export {
-  resolveWorkspaceFromMap,
-  toWorkspaceMap,
-} from "../interfaces/web/utils/workspace-map";
-
-// ── Hooks ─────────────────────────────────────────────────────────────────────
-
-export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
-export {
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  getWorkspaceIdFromPath,
-  useRecentWorkspaces,
-} from "../interfaces/web/hooks/useRecentWorkspaces";
-
-// ── Navigation preferences ────────────────────────────────────────────────────
-
-export type { NavPreferences, SidebarLocaleBundle } from "../interfaces/web/navigation/nav-preferences-data";
-export {
-  PERSONAL_ITEMS,
-  ORGANIZATION_NAV_ITEMS,
-  DIALOG_TEXT,
-  DEFAULT_PREFS,
-  readNavPreferences,
-  writeNavPreferences,
-} from "../interfaces/web/navigation/nav-preferences-data";
-
-// ── Sidebar locale ────────────────────────────────────────────────────────────
-
-export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-locale";
-
-export {
-  appendWorkspaceContextQuery,
-  buildWorkspaceContextHref,
-  supportsWorkspaceSearchContext,
-  type WorkspaceNavigationContext,
-} from "../interfaces/web/navigation/workspace-context-links";
-
-// ── Navigation customize dialog ───────────────────────────────────────────────
-
-export { CustomizeNavigationDialog } from "../interfaces/web/components/dialogs/CustomizeNavigationDialog";
-export { CheckRow, WorkspaceCheckRow } from "../interfaces/web/components/dialogs/NavCheckRow";
-
-export {
-  AuditStream,
-  WorkspaceAuditTab,
-} from "../subdomains/audit/api";
-
-export {
-  WorkspaceFeedAccountView,
-  WorkspaceFeedWorkspaceView,
-} from "../subdomains/feed/api";
-
-export type { AccountMember } from "../subdomains/scheduling/api";
-export {
-  AccountSchedulingView,
-  WorkspaceSchedulingTab,
-} from "../subdomains/scheduling/api";
-
-export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
-````
-
-## File: modules/workspace/application/application.instructions.md
-````markdown
----
-description: 'Workspace application layer rules: use-case orchestration, command/query application services, event publishing order, and DTO contracts.'
-applyTo: 'modules/workspace/application/**/*.{ts,tsx}'
----
-
-# Workspace Application Layer (Local)
-
-Use this file as execution guardrails for `modules/workspace/application/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/workspace/*`.
-
-## Core Rules
-
-- `WorkspaceCommandApplicationService` and `WorkspaceQueryApplicationService` are the primary dispatch entry points — do not bypass them from interfaces.
-- Use cases orchestrate flow only; lifecycle invariants, capability rules, and access checks stay in `domain/`.
-- After persisting, call `pullDomainEvents()` and publish via `WorkspaceDomainEventPublisher` — never publish before persistence.
-- DTOs (`workspace-interfaces.dto.ts`, `workspace-member-view.dto.ts`, `wiki-content-tree.dto.ts`) are application-layer contracts; never expose domain aggregates across the boundary.
-- Pure reads (workspace queries, member views, wiki tree) belong in **query handlers** — `WorkspaceQueryApplicationService` owns these.
-- Use case ordering for new workspace features: lifecycle → member → capabilities → access.
+- Identity, entitlements, organization, credentials → `platform`
+- Knowledge pages, articles, databases, content publishing → `notion`
+- Notebook, conversation, source, retrieval, synthesis → `notebooklm`
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
@@ -16696,6 +16874,77 @@ export async function buildWikiContentTree(
 }
 ````
 
+## File: modules/workspace/application/queries/workspace.queries.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/queries
+ * Purpose: Workspace read query handlers — pure reads with input normalization.
+ *
+ * DDD Rule 5:  Pure reads without business logic → Query, not Use Case.
+ * DDD Rule 13: Read → queries/
+ * DDD Rule 16: GetXxxUseCase → should be Query.
+ * DDD Rule 18: Use Case wrapping a single call → over-design.
+ */
+
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
+import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
+import type {
+  Unsubscribe,
+  WorkspaceQueryRepository,
+} from "../../domain/ports/output/WorkspaceQueryRepository";
+
+// ─── Input Normalization ──────────────────────────────────────────────────────
+
+function normalizeId(value: string): string {
+  return value.trim();
+}
+
+// ─── Query Handlers ───────────────────────────────────────────────────────────
+
+export function listWorkspacesForAccount(
+  workspaceRepo: WorkspaceRepository,
+  accountId: string,
+): Promise<WorkspaceEntity[]> {
+  const normalized = normalizeId(accountId);
+  if (!normalized) return Promise.resolve([]);
+  return workspaceRepo.findAllByAccountId(normalized);
+}
+
+export function subscribeToWorkspacesForAccount(
+  workspaceQueryRepo: WorkspaceQueryRepository,
+  accountId: string,
+  onUpdate: (workspaces: WorkspaceEntity[]) => void,
+): Unsubscribe {
+  const normalized = normalizeId(accountId);
+  if (!normalized) {
+    onUpdate([]);
+    return () => {};
+  }
+  return workspaceQueryRepo.subscribeToWorkspacesForAccount(normalized, onUpdate);
+}
+
+export function getWorkspaceById(
+  workspaceRepo: WorkspaceRepository,
+  workspaceId: string,
+): Promise<WorkspaceEntity | null> {
+  const normalized = normalizeId(workspaceId);
+  if (!normalized) return Promise.resolve(null);
+  return workspaceRepo.findById(normalized);
+}
+
+export function getWorkspaceByIdForAccount(
+  workspaceRepo: WorkspaceRepository,
+  accountId: string,
+  workspaceId: string,
+): Promise<WorkspaceEntity | null> {
+  const normalizedAccountId = normalizeId(accountId);
+  const normalizedWorkspaceId = normalizeId(workspaceId);
+  if (!normalizedAccountId || !normalizedWorkspaceId) return Promise.resolve(null);
+  return workspaceRepo.findByIdForAccount(normalizedAccountId, normalizedWorkspaceId);
+}
+````
+
 ## File: modules/workspace/application/use-cases/workspace-location.use-cases.ts
 ````typescript
 /**
@@ -16731,185 +16980,121 @@ export class CreateWorkspaceLocationUseCase {
 }
 ````
 
-## File: modules/workspace/docs/docs.instructions.md
-````markdown
----
-description: 'Workspace documentation rules: strategic doc authority, subdomain list sync, and ubiquitous language enforcement.'
-applyTo: 'modules/workspace/docs/**/*.md'
----
-
-# Workspace Docs Layer (Local)
-
-Use this file as execution guardrails for `modules/workspace/docs/*`.
-For full reference, align with `.github/instructions/docs-authority-and-language.instructions.md` and `docs/contexts/workspace/*`.
-
-## Core Rules
-
-- `modules/workspace/docs/` holds **links and local summaries only** — authoritative content lives in `docs/contexts/workspace/`.
-- Do not duplicate strategic knowledge here; point to the canonical source instead.
-- Any new architectural decision affecting workspace must have a corresponding ADR in `docs/decisions/`.
-- Use ubiquitous language from `docs/contexts/workspace/ubiquitous-language.md`; do not introduce synonyms.
-- Keep this directory in sync with `docs/contexts/workspace/README.md` whenever the subdomain list changes.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/workspace/domain/domain-modeling.instructions.md
-````markdown
----
-description: 'Workspace domain tactical modeling rules (local mirror of root domain-modeling guidance).'
-applyTo: '*.{ts,tsx}'
----
-
-# Domain Modeling (Workspace Local)
-
-Use this local file as execution guardrails for `modules/workspace/domain/*`.
-For full reference, align with `.github/instructions/domain-modeling.instructions.md` and `docs/contexts/workspace/*`.
-
-## Core Rules
-
-- Keep aggregate invariants inside aggregate methods.
-- Use immutable value objects with Zod schemas and inferred types.
-- Keep domain framework-free (no Firebase/React/transport imports).
-- Emit domain events on state transitions and publish via application orchestration.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/workspace/infrastructure/infrastructure.instructions.md
-````markdown
----
-description: 'Workspace infrastructure layer rules: Firebase adapters, event publisher, repository implementations, and Firestore collection ownership.'
-applyTo: 'modules/workspace/infrastructure/**/*.{ts,tsx}'
----
-
-# Workspace Infrastructure Layer (Local)
-
-Use this file as execution guardrails for `modules/workspace/infrastructure/*`.
-For full reference, align with `.github/instructions/firestore-schema.instructions.md` and `docs/contexts/workspace/*`.
-
-## Core Rules
-
-- Implement only **port interfaces** declared in `domain/ports/output/` — never invent new contracts here.
-- `SharedWorkspaceDomainEventPublisher` is the canonical event publisher; do not create alternative publish paths.
-- Each Firebase repository (`FirebaseWorkspaceRepository`, `FirebaseWorkspaceQueryRepository`, `FirebaseWikiWorkspaceRepository`) owns its Firestore collection(s) — do not cross-read between them without an explicit port.
-- `FirebaseWorkspaceQueryRepository` serves read-model queries; `FirebaseWorkspaceRepository` serves aggregate persistence — keep their responsibilities separate.
-- Version breaking schema transitions with migration steps; update `firestore.indexes.json` with query-shape changes.
-- Subdomain-specific adapters belong inside `subdomains/<name>/infrastructure/` — do not place them in the context-wide infrastructure.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-#use skill xuanwu-development-contracts
-````
-
-## File: modules/workspace/interfaces/interfaces.instructions.md
-````markdown
----
-description: 'Workspace interfaces layer rules: input/output translation, Server Actions, workspace UI components, hooks, view-models, and session state wiring.'
-applyTo: 'modules/workspace/interfaces/**/*.{ts,tsx}'
----
-
-# Workspace Interfaces Layer (Local)
-
-Use this file as execution guardrails for `modules/workspace/interfaces/*`.
-For full reference, align with `.github/instructions/nextjs-server-actions.instructions.md`, `.github/instructions/shadcn-ui.instructions.md`, and `docs/contexts/workspace/*`.
-
-## Core Rules
-
-- This layer owns **input/output translation only** — no workspace lifecycle rules, no capability policy.
-- Server Actions (`interfaces/api/actions/`) must be thin: validate input, call the application service, return a stable result shape.
-- Never call repositories directly from components, hooks, or actions.
-- View-models (`view-models/`) translate DTOs into UI-specific shapes — keep them in `interfaces/`, not in `application/`.
-- Session state (`state/workspace-session.ts`, `state/workspace-settings.ts`) is UI state only; do not persist domain decisions here.
-- `interfaces/api/` exposes tRPC facades and query handlers for workspace — keep route and action wiring separate from business logic.
-- Use shadcn/ui primitives before creating new components; maintain semantic markup and accessibility.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-#use skill next-devtools-mcp
-#use skill vercel-react-best-practices
-````
-
-## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceOrchestrationContext.ts
 ````typescript
-import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Users } from "lucide-react";
-import type { ReactNode } from "react";
+import { useApp, useAuth } from "@/modules/platform/api";
 
-export interface WorkspaceQuickAccessMatcherOptions {
-  panel: string | null;
-  tab: string | null;
+import { resolveWorkspaceFromMap } from "../utils/workspace-map";
+import { useWorkspaceContext } from "../providers/WorkspaceContextProvider";
+
+export interface WorkspaceOrchestrationContext {
+  readonly accountId: string;
+  readonly currentUserId: string;
+  readonly activeWorkspaceId: string;
+  readonly workspaceId: string;
 }
 
-export interface WorkspaceQuickAccessItem {
-  href: string;
-  label: string;
-  icon: ReactNode;
-  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
+export interface UseWorkspaceOrchestrationContextOptions {
+  readonly requestedWorkspaceId?: string;
 }
 
-const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
-  {
-    href: "/workspace/{workspaceId}?tab=Overview",
-    label: "首頁",
-    icon: <Home className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") &&
-      (options?.tab == null || options.tab === "Overview") &&
-      options?.panel !== "settings",
-  },
-  {
-    href: "/knowledge/pages?workspaceId={workspaceId}",
-    label: "知識頁面",
-    icon: <FileText className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/knowledge/pages" || pathname.startsWith("/knowledge/pages/"),
-  },
-  {
-    href: "/knowledge-base/articles?workspaceId={workspaceId}",
-    label: "文章",
-    icon: <BookOpen className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/knowledge-base/articles" || pathname.startsWith("/knowledge-base/articles/"),
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Files",
-    label: "檔案",
-    icon: <FolderOpen className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") && options?.tab === "Files",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Members",
-    label: "成員",
-    icon: <Users className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") && options?.tab === "Members",
-  },
-  {
-    href: "/notebook/rag-query?workspaceId={workspaceId}",
-    label: "RAG 查詢",
-    icon: <Brain className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/notebook/rag-query" || pathname.startsWith("/notebook/rag-query/"),
-  },
-  {
-    href: "/source/libraries?workspaceId={workspaceId}",
-    label: "資料庫",
-    icon: <Database className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/source/libraries" || pathname.startsWith("/source/libraries/"),
-  },
-];
+/**
+ * Provides normalized account/workspace actor context for app route shims.
+ * This keeps route-level composition thin and moves orchestration into workspace API.
+ */
+export function useWorkspaceOrchestrationContext(
+  options: UseWorkspaceOrchestrationContextOptions = {},
+): WorkspaceOrchestrationContext {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: workspaceState } = useWorkspaceContext();
 
-export function buildWorkspaceQuickAccessItems(workspaceId: string): WorkspaceQuickAccessItem[] {
-  const encodedWorkspaceId = encodeURIComponent(workspaceId);
-  return WORKSPACE_QUICK_ACCESS_TEMPLATES.map((item) => ({
-    ...item,
-    href: item.href.replaceAll("{workspaceId}", encodedWorkspaceId),
-  }));
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const currentUserId = authState.user?.id ?? "";
+  const activeWorkspaceId = workspaceState.activeWorkspaceId ?? "";
+
+  const requestedWorkspaceId = options.requestedWorkspaceId?.trim() ?? "";
+  const resolvedWorkspace = resolveWorkspaceFromMap(
+    workspaceState.workspaces,
+    requestedWorkspaceId,
+  );
+  const workspaceId = resolvedWorkspace?.id ?? activeWorkspaceId;
+
+  return {
+    accountId,
+    currentUserId,
+    activeWorkspaceId,
+    workspaceId,
+  };
 }
+````
+
+## File: modules/workspace/interfaces/web/index.ts
+````typescript
+/**
+ * workspace interfaces/web public boundary.
+ *
+ * Web-layer components, hooks, navigation, state helpers and utilities.
+ * App-layer and cross-module consumers that need UI composition must import
+ * from this path instead of reaching into individual sub-directories.
+ */
+
+export { WorkspaceDetailScreen } from "./components/screens/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "./components/screens/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "./components/screens/WorkspaceHubScreen";
+export { WorkspaceMembersTab } from "./components/tabs/WorkspaceMembersTab";
+export { WorkspaceSidebarSection } from "./components/layout/WorkspaceSidebarSection";
+export { CreateWorkspaceDialogRail } from "./components/rails/CreateWorkspaceDialogRail";
+export { OrganizationWorkspacesScreen } from "./components/screens/OrganizationWorkspacesScreen";
+export { WorkspaceContextCard } from "./components/cards/WorkspaceContextCard";
+
+export {
+	WORKSPACE_TAB_GROUPS,
+	WORKSPACE_TAB_META,
+	WORKSPACE_TAB_VALUES,
+	getWorkspaceTabLabel,
+	getWorkspaceTabMeta,
+	getWorkspaceTabPrefId,
+	getWorkspaceTabStatus,
+	getWorkspaceTabsByGroup,
+	isWorkspaceTabValue,
+} from "./navigation/workspace-tabs";
+
+export { getWorkspaceStorageKey } from "./state/workspace-session";
+
+export {
+	resolveWorkspaceFromMap,
+	toWorkspaceMap,
+} from "./utils/workspace-map";
+
+export type { WorkspaceNavItem } from "./navigation/workspace-nav-items";
+export {
+	WORKSPACE_NAV_ITEMS,
+	normalizeWorkspaceOrder,
+} from "./navigation/workspace-nav-items";
+
+export type {
+	WorkspaceQuickAccessItem,
+	WorkspaceQuickAccessMatcherOptions,
+} from "./components/navigation/workspace-quick-access";
+
+export { buildWorkspaceQuickAccessItems } from "./components/navigation/workspace-quick-access";
+
+export type {
+	WorkspaceTabDevStatus,
+	WorkspaceTabGroup,
+	WorkspaceTabValue,
+} from "./navigation/workspace-tabs";
+
+export { WorkspaceContextProvider, useWorkspaceContext } from "./providers/WorkspaceContextProvider";
+export type { WorkspaceContextState, WorkspaceContextAction, WorkspaceContextValue } from "./providers/WorkspaceContextProvider";
+
+export { useWorkspaceHub } from "./hooks/useWorkspaceHub";
+export {
+	MAX_VISIBLE_RECENT_WORKSPACES,
+	getWorkspaceIdFromPath,
+	useRecentWorkspaces,
+} from "./hooks/useRecentWorkspaces";
 ````
 
 ## File: modules/workspace/interfaces/web/navigation/workspace-context-links.ts
@@ -17046,73 +17231,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
-## File: modules/workspace/subdomains/audit/api/index.ts
-````typescript
-/**
- * workspace/subdomains/audit API boundary.
- */
-
-export type { AuditLogEntity, AuditLogSource } from "../domain/entities/AuditLog";
-
-export type {
-  AuditLog,
-  AuditAction,
-  AuditSeverity,
-  ChangeRecord,
-} from "../domain/schema";
-
-export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../domain/schema";
-
-export {
-  getOrganizationAuditLogs,
-  getWorkspaceAuditLogs,
-} from "../interfaces/queries/audit.queries";
-
-export { WorkspaceAuditTab } from "../interfaces/components/WorkspaceAuditTab";
-export { AuditStream } from "../interfaces/components/AuditStream";
-export { RecordAuditEntryUseCase } from "../application/use-cases/record-audit-entry.use-case";
-````
-
-## File: modules/workspace/subdomains/audit/application/queries/list-audit-logs.queries.ts
-````typescript
-import type { AuditLogEntity } from "../../domain/entities/AuditLog";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-
-export class ListWorkspaceAuditLogsUseCase {
-  constructor(private readonly auditRepo: AuditRepository) {}
-
-  execute(workspaceId: string): Promise<AuditLogEntity[]> {
-    return this.auditRepo.findByWorkspaceId(workspaceId);
-  }
-}
-
-export class ListOrganizationAuditLogsUseCase {
-  constructor(private readonly auditRepo: AuditRepository) {}
-
-  execute(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]> {
-    return this.auditRepo.findByWorkspaceIds(workspaceIds, maxCount);
-  }
-}
-````
-
-## File: modules/workspace/subdomains/audit/application/use-cases/record-audit-entry.use-case.ts
-````typescript
-import { AuditEntry, type RecordAuditEntryInput } from "../../domain/aggregates/AuditEntry";
-import type { AuditDomainEventType } from "../../domain/events";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-
-export class RecordAuditEntryUseCase {
-  constructor(private readonly repo: AuditRepository) {}
-
-  async execute(input: RecordAuditEntryInput): Promise<AuditDomainEventType[]> {
-    const id = crypto.randomUUID();
-    const entry = AuditEntry.record(id, input);
-    await this.repo.save(entry);
-    return entry.pullDomainEvents();
-  }
-}
-````
-
 ## File: modules/workspace/subdomains/audit/domain/entities/AuditLog.ts
 ````typescript
 export type AuditLogSource = "workspace" | "finance" | "notification" | "system";
@@ -17132,47 +17250,6 @@ export interface AuditLogEntity {
   readonly detail: string;
   readonly source: AuditLogSource;
   readonly occurredAtISO: string;
-}
-````
-
-## File: modules/workspace/subdomains/audit/domain/index.ts
-````typescript
-// ── Existing domain types ────────────────────────────────────────────────────
-export type { AuditLogEntity, AuditLogSource } from "./entities/AuditLog";
-export type { AuditLog, AuditAction, AuditSeverity, ChangeRecord } from "./schema";
-export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "./schema";
-export type { AuditRepository } from "./repositories/AuditRepository";
-
-// ── Rich DDD additions ──────────────────────────────────────────────────────
-export * from "./aggregates";
-export * from "./events";
-export * from "./services";
-export * from "./value-objects";
-
-// ── Ports layer ──────────────────────────────────────────────────────────────
-export type { IAuditPort } from "./ports";
-````
-
-## File: modules/workspace/subdomains/audit/domain/ports/index.ts
-````typescript
-/**
- * workspace/audit domain/ports — driven port interfaces for the audit subdomain.
- *
- * Re-exports the repository contract from domain/repositories/, making the Ports layer
- * explicitly visible in the directory structure.
- */
-export type { AuditRepository as IAuditPort } from "../repositories/AuditRepository";
-````
-
-## File: modules/workspace/subdomains/audit/domain/repositories/AuditRepository.ts
-````typescript
-import type { AuditEntry } from "../aggregates/AuditEntry";
-import type { AuditLogEntity } from "../entities/AuditLog";
-
-export interface AuditRepository {
-  save(entry: AuditEntry): Promise<void>;
-  findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]>;
-  findByWorkspaceIds(workspaceIds: string[], maxCount?: number): Promise<AuditLogEntity[]>;
 }
 ````
 
@@ -17202,318 +17279,6 @@ export function createActorId(raw: string): ActorId {
 export function unsafeActorId(raw: string): ActorId {
 	return raw as ActorId;
 }
-````
-
-## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
-````typescript
-import {
-  addDoc,
-  collection,
-  getDocs,
-  getFirestore,
-  limit,
-  query,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { AuditEntry } from "../../domain/aggregates/AuditEntry";
-import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-
-const VALID_AUDIT_LOG_SOURCES = new Set<AuditLogSource>([
-  "workspace",
-  "finance",
-  "notification",
-  "system",
-]);
-
-function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity {
-  const source = VALID_AUDIT_LOG_SOURCES.has(data.source as AuditLogSource)
-    ? (data.source as AuditLogSource)
-    : "workspace";
-
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    actorId: typeof data.actorId === "string" ? data.actorId : "system",
-    action: typeof data.action === "string" ? data.action : "unknown",
-    detail: typeof data.detail === "string" ? data.detail : "",
-    source,
-    occurredAtISO:
-      typeof data.occurredAtISO === "string"
-        ? data.occurredAtISO
-        : "",
-  };
-}
-
-export class FirebaseAuditRepository implements AuditRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async save(entry: AuditEntry): Promise<void> {
-    await addDoc(collection(this.db, "auditLogs"), entry.getSnapshot());
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]> {
-    const snaps = await getDocs(
-      query(collection(this.db, "auditLogs"), where("workspaceId", "==", workspaceId)),
-    );
-
-    return snaps.docs
-      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
-      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO));
-  }
-
-  async findByWorkspaceIds(
-    workspaceIds: string[],
-    maxCount = 200,
-  ): Promise<AuditLogEntity[]> {
-    if (workspaceIds.length === 0) {
-      return [];
-    }
-
-    const chunks: string[][] = [];
-    for (let index = 0; index < workspaceIds.length; index += 10) {
-      chunks.push(workspaceIds.slice(index, index + 10));
-    }
-
-    const perChunkLimit = Math.max(1, Math.ceil(maxCount / chunks.length));
-
-    const snapshots = await Promise.all(
-      chunks.map((chunk) =>
-        getDocs(
-          query(
-            collection(this.db, "auditLogs"),
-            where("workspaceId", "in", chunk),
-            limit(perChunkLimit),
-          ),
-        ),
-      ),
-    );
-
-    return snapshots
-      .flatMap((snapshot) => snapshot.docs)
-      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
-      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO))
-      .slice(0, maxCount);
-  }
-}
-````
-
-## File: modules/workspace/subdomains/audit/interfaces/queries/audit.queries.ts
-````typescript
-import type { AuditLogEntity } from "../../application/dto/audit.dto";
-import {
-  ListOrganizationAuditLogsUseCase,
-  ListWorkspaceAuditLogsUseCase,
-} from "../../application/queries/list-audit-logs.queries";
-import { makeAuditRepo } from "../../api/factories";
-
-const auditRepo = makeAuditRepo();
-const listWorkspaceAuditLogsUseCase = new ListWorkspaceAuditLogsUseCase(auditRepo);
-const listOrganizationAuditLogsUseCase = new ListOrganizationAuditLogsUseCase(auditRepo);
-
-export async function getWorkspaceAuditLogs(
-  workspaceId: string,
-): Promise<AuditLogEntity[]> {
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedWorkspaceId) {
-    return [];
-  }
-
-  return listWorkspaceAuditLogsUseCase.execute(normalizedWorkspaceId);
-}
-
-export async function getOrganizationAuditLogs(
-  workspaceIds: string[],
-  maxCount = 200,
-): Promise<AuditLogEntity[]> {
-  const normalizedWorkspaceIds = workspaceIds
-    .map((workspaceId) => workspaceId.trim())
-    .filter(Boolean);
-
-  if (normalizedWorkspaceIds.length === 0) {
-    return [];
-  }
-
-  return listOrganizationAuditLogsUseCase.execute(normalizedWorkspaceIds, maxCount);
-}
-````
-
-## File: modules/workspace/subdomains/feed/application/queries/workspace-feed-post.queries.ts
-````typescript
-import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
-import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
-import {
-  ListWorkspaceFeedSchema,
-  type ListWorkspaceFeedDto,
-  ListAccountFeedSchema,
-  type ListAccountFeedDto,
-} from "../dto/workspace-feed.dto";
-
-export class GetWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
-    if (!accountId.trim() || !postId.trim()) return null;
-    return this.repo.findById(accountId, postId);
-  }
-}
-
-export class ListWorkspaceFeedUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ListWorkspaceFeedDto): Promise<WorkspaceFeedPost[]> {
-    const parsed = ListWorkspaceFeedSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByWorkspaceId(parsed.data.accountId, parsed.data.workspaceId, parsed.data.limit ?? 50);
-  }
-}
-
-export class ListAccountWorkspaceFeedUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ListAccountFeedDto): Promise<WorkspaceFeedPost[]> {
-    const parsed = ListAccountFeedSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByAccountId(parsed.data.accountId, parsed.data.limit ?? 50);
-  }
-}
-````
-
-## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed-post.use-cases.ts
-````typescript
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
-import {
-  CreateWorkspaceFeedPostSchema,
-  type CreateWorkspaceFeedPostDto,
-  ReplyWorkspaceFeedPostSchema,
-  type ReplyWorkspaceFeedPostDto,
-  RepostWorkspaceFeedPostSchema,
-  type RepostWorkspaceFeedPostDto,
-} from "../dto/workspace-feed.dto";
-
-export class CreateWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = CreateWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.repo.createPost(parsed.data);
-    return commandSuccess(post.id, Date.now());
-  }
-}
-
-export class ReplyWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = ReplyWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const parent = await this.repo.findById(parsed.data.accountId, parsed.data.parentPostId);
-    if (!parent) {
-      return commandFailureFrom("WORKSPACE_FEED_PARENT_NOT_FOUND", "Parent post not found.");
-    }
-    if (parent.workspaceId !== parsed.data.workspaceId) {
-      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Parent post is in another workspace.");
-    }
-
-    const reply = await this.repo.createReply(parsed.data);
-    return commandSuccess(reply.id, Date.now());
-  }
-}
-
-export class RepostWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = RepostWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const source = await this.repo.findById(parsed.data.accountId, parsed.data.sourcePostId);
-    if (!source) {
-      return commandFailureFrom("WORKSPACE_FEED_SOURCE_NOT_FOUND", "Source post not found.");
-    }
-    if (source.workspaceId !== parsed.data.workspaceId) {
-      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Source post is in another workspace.");
-    }
-
-    const repost = await this.repo.createRepost(parsed.data);
-    if (!repost) {
-      return commandFailureFrom("WORKSPACE_FEED_REPOST_FAILED", "Failed to create repost.");
-    }
-
-    return commandSuccess(repost.id, Date.now());
-  }
-}
-
-// Re-export read queries for backward compatibility
-export {
-  GetWorkspaceFeedPostUseCase,
-  ListWorkspaceFeedUseCase,
-  ListAccountWorkspaceFeedUseCase,
-} from "../queries/workspace-feed-post.queries";
-````
-
-## File: modules/workspace/subdomains/feed/domain/index.ts
-````typescript
-export type {
-  WorkspaceFeedPost,
-  WorkspaceFeedPostType,
-  CreateWorkspaceFeedPostInput,
-  CreateWorkspaceFeedReplyInput,
-  CreateWorkspaceFeedRepostInput,
-  WorkspaceFeedCounterPatch,
-} from "./entities/workspace-feed-post.entity";
-
-export { WORKSPACE_FEED_POST_TYPES } from "./entities/workspace-feed-post.entity";
-
-export type {
-  WorkspaceFeedDomainEvent,
-  WorkspaceFeedPostCreatedEvent,
-  WorkspaceFeedReplyCreatedEvent,
-  WorkspaceFeedRepostCreatedEvent,
-  WorkspaceFeedPostLikedEvent,
-  WorkspaceFeedPostViewedEvent,
-  WorkspaceFeedPostBookmarkedEvent,
-  WorkspaceFeedPostSharedEvent,
-} from "./events/workspace-feed.events";
-
-export { WORKSPACE_FEED_EVENT_TYPES } from "./events/workspace-feed.events";
-
-export type {
-  WorkspaceFeedPostRepository,
-  WorkspaceFeedInteractionRepository,
-} from "./repositories/workspace-feed.repositories";
-
-// ── Ports layer ──────────────────────────────────────────────────────────────
-export type { IWorkspaceFeedPostPort, IWorkspaceFeedInteractionPort } from "./ports";
-````
-
-## File: modules/workspace/subdomains/feed/domain/ports/index.ts
-````typescript
-/**
- * workspace/feed domain/ports — driven port interfaces for the feed subdomain.
- *
- * Re-exports repository contracts from domain/repositories/, making the Ports layer
- * explicitly visible in the directory structure.
- */
-export type {
-  WorkspaceFeedPostRepository as IWorkspaceFeedPostPort,
-  WorkspaceFeedInteractionRepository as IWorkspaceFeedInteractionPort,
-} from "../repositories/workspace-feed.repositories";
 ````
 
 ## File: modules/workspace/subdomains/lifecycle/api/index.ts
@@ -18405,185 +18170,6 @@ When implementing, follow inside-out:
 - Location management stays at root level (part of Workspace operational profile, not sharing semantics).
 ````
 
-## File: modules/workspace/subdomains/subdomains.instructions.md
-````markdown
----
-description: 'Workspace subdomains structural rules: hexagonal shape per subdomain, workspaceId scope enforcement, cross-subdomain collaboration, and stub promotion criteria.'
-applyTo: 'modules/workspace/subdomains/**/*.{ts,tsx}'
----
-
-# Workspace Subdomains Layer (Local)
-
-Use this file as execution guardrails for `modules/workspace/subdomains/*`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md` and `docs/contexts/workspace/subdomains.md`.
-
-## Core Rules
-
-- Every subdomain must maintain the full hexagonal shape: `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`.
-- Stub subdomains must not be promoted to Active without a corresponding ADR and `README.md` update.
-- Cross-subdomain collaboration within workspace goes through the **subdomain's own `api/`** — never import a sibling's `domain/`, `application/`, or `infrastructure/` internals.
-- All subdomain operations must be scoped to a `workspaceId`; never perform workspace-wide queries without an explicit scope check.
-- `workspace-workflow` owns Task, Issue, and Invoice state machines — do not duplicate workflow logic in other subdomains.
-- `audit` subdomain is append-only; never modify or delete audit entries.
-- Domain events use the discriminant format `workspace.<subdomain>.<action>` (e.g. `workspace.feed.post-created`, `workspace.workflow.task-assigned`).
-- Dependency direction inside each subdomain: `interfaces → application → domain ← infrastructure`.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/index.ts
-````typescript
-/**
- * workspace/workspace-workflow domain — public exports.
- */
-export type { InvoiceRepository } from "./repositories/InvoiceRepository";
-export type { IssueRepository } from "./repositories/IssueRepository";
-export type { TaskRepository } from "./repositories/TaskRepository";
-export * from "./events/TaskEvent";
-export * from "./events/IssueEvent";
-export * from "./events/InvoiceEvent";
-export * from "./value-objects/InvoiceId";
-export * from "./value-objects/InvoiceItemId";
-export * from "./value-objects/InvoiceStatus";
-export * from "./value-objects/IssueId";
-export * from "./value-objects/IssueStage";
-export * from "./value-objects/IssueStatus";
-export * from "./value-objects/SourceReference";
-export * from "./value-objects/TaskId";
-export * from "./value-objects/TaskStatus";
-export * from "./value-objects/UserId";
-// Ports layer — driven port aliases
-export type { IInvoicePort, IIssuePort, ITaskPort } from "./ports";
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/domain/ports/index.ts
-````typescript
-/**
- * workspace/workspace-workflow domain/ports — driven port interfaces for the workflow subdomain.
- *
- * Re-exports repository contracts from domain/repositories/, making the Ports layer
- * explicitly visible in the directory structure.
- */
-export type { InvoiceRepository as IInvoicePort } from "../repositories/InvoiceRepository";
-export type { IssueRepository as IIssuePort } from "../repositories/IssueRepository";
-export type { TaskRepository as ITaskPort } from "../repositories/TaskRepository";
-````
-
-## File: modules/workspace/workspace.instructions.md
-````markdown
----
-description: 'Workspace bounded context rules: workspaceId anchor ownership, collaboration container scope, downstream dependency position, and subdomain routing.'
-applyTo: 'modules/workspace/**/*.{ts,tsx,md}'
----
-
-# Workspace Bounded Context (Local)
-
-Use this file as execution guardrails for `modules/workspace/`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/workspace/README.md`, and `docs/bounded-contexts.md`.
-
-## Core Rules
-
-- `workspace` is **downstream** of `platform`; never import from platform internals — use `modules/platform/api` only.
-- `workspace` is **upstream** of `notebooklm`; expose `workspaceId` scope and membership signals via `modules/workspace/api`.
-- Cross-module consumers import from `modules/workspace/api` only.
-- `workspaceId` is the canonical scope anchor for all downstream modules — always resolve workspace identity through this module.
-- Use ubiquitous language: `Membership` not `User` (for workspace participant), `WorkspaceCapability` not `Feature`, `WorkspaceLifecycleState` not `Status`.
-
-## Route to Subdomain When
-
-| Concern | Subdomain |
-|---|---|
-| Workspace lifecycle (create, archive, restore) | `lifecycle` |
-| Member roles, invitations, participant management | `membership` |
-| Workspace activity feed and posts | `feed` |
-| Audit trail and compliance log | `audit` |
-| Task, issue, invoice workflow | `workspace-workflow` |
-| Scheduling and work demand | `scheduling` |
-| Real-time presence and activity | `presence` |
-| Workspace sharing and access grants | `sharing` |
-
-## Route Elsewhere When
-
-- Identity, entitlements, organization, credentials → `platform`
-- Knowledge pages, articles, databases, content publishing → `notion`
-- Notebook, conversation, source, retrieval, synthesis → `notebooklm`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
-## File: modules/workspace/application/queries/workspace.queries.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/queries
- * Purpose: Workspace read query handlers — pure reads with input normalization.
- *
- * DDD Rule 5:  Pure reads without business logic → Query, not Use Case.
- * DDD Rule 13: Read → queries/
- * DDD Rule 16: GetXxxUseCase → should be Query.
- * DDD Rule 18: Use Case wrapping a single call → over-design.
- */
-
-import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
-import type {
-  Unsubscribe,
-  WorkspaceQueryRepository,
-} from "../../domain/ports/output/WorkspaceQueryRepository";
-
-// ─── Input Normalization ──────────────────────────────────────────────────────
-
-function normalizeId(value: string): string {
-  return value.trim();
-}
-
-// ─── Query Handlers ───────────────────────────────────────────────────────────
-
-export function listWorkspacesForAccount(
-  workspaceRepo: WorkspaceRepository,
-  accountId: string,
-): Promise<WorkspaceEntity[]> {
-  const normalized = normalizeId(accountId);
-  if (!normalized) return Promise.resolve([]);
-  return workspaceRepo.findAllByAccountId(normalized);
-}
-
-export function subscribeToWorkspacesForAccount(
-  workspaceQueryRepo: WorkspaceQueryRepository,
-  accountId: string,
-  onUpdate: (workspaces: WorkspaceEntity[]) => void,
-): Unsubscribe {
-  const normalized = normalizeId(accountId);
-  if (!normalized) {
-    onUpdate([]);
-    return () => {};
-  }
-  return workspaceQueryRepo.subscribeToWorkspacesForAccount(normalized, onUpdate);
-}
-
-export function getWorkspaceById(
-  workspaceRepo: WorkspaceRepository,
-  workspaceId: string,
-): Promise<WorkspaceEntity | null> {
-  const normalized = normalizeId(workspaceId);
-  if (!normalized) return Promise.resolve(null);
-  return workspaceRepo.findById(normalized);
-}
-
-export function getWorkspaceByIdForAccount(
-  workspaceRepo: WorkspaceRepository,
-  accountId: string,
-  workspaceId: string,
-): Promise<WorkspaceEntity | null> {
-  const normalizedAccountId = normalizeId(accountId);
-  const normalizedWorkspaceId = normalizeId(workspaceId);
-  if (!normalizedAccountId || !normalizedWorkspaceId) return Promise.resolve(null);
-  return workspaceRepo.findByIdForAccount(normalizedAccountId, normalizedWorkspaceId);
-}
-````
-
 ## File: modules/workspace/application/services/WorkspaceCommandApplicationService.ts
 ````typescript
 import { commandFailureFrom, type CommandResult } from "@shared-types";
@@ -18779,6 +18365,325 @@ export class WorkspaceQueryApplicationService implements WorkspaceQueryPort {
 }
 ````
 
+## File: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
+````typescript
+"use client";
+
+/**
+ * WorkspaceContextProvider — workspace/interfaces/web layer
+ *
+ * Owns workspace-scoped state for the authenticated shell:
+ *   - workspaces visible under the active account
+ *   - active workspace selection and localStorage persistence
+ *
+ * Reads `activeAccount` from platform's useApp(); subscribes to workspaces
+ * via workspace-owned query functions. This keeps workspace state ownership
+ * inside the workspace bounded context instead of leaking into platform.
+ */
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useReducer,
+  type Dispatch,
+  type ReactNode,
+} from "react";
+
+import { useApp } from "@/modules/platform/api";
+import type { WorkspaceEntity } from "../../api/contracts";
+import { subscribeToWorkspacesForAccount } from "../../api/facades/workspace.facade";
+import { toWorkspaceMap } from "../utils/workspace-map";
+import { getWorkspaceStorageKey } from "../state/workspace-session";
+
+// ── State ────────────────────────────────────────────────────────────────────
+
+export interface WorkspaceContextState {
+  /** Workspaces visible under the active account. */
+  workspaces: Record<string, WorkspaceEntity>;
+  /** True once the first active-account workspace snapshot has been received. */
+  workspacesHydrated: boolean;
+  /** Currently selected workspace context under the active account. */
+  activeWorkspaceId: string | null;
+}
+
+export type WorkspaceContextAction =
+  | {
+      type: "SET_WORKSPACES";
+      payload: { workspaces: Record<string, WorkspaceEntity>; hydrated: boolean };
+    }
+  | { type: "SET_ACTIVE_WORKSPACE"; payload: string | null }
+  | { type: "RESET" };
+
+export interface WorkspaceContextValue {
+  state: WorkspaceContextState;
+  dispatch: Dispatch<WorkspaceContextAction>;
+}
+
+const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
+
+const initialState: WorkspaceContextState = {
+  workspaces: {},
+  workspacesHydrated: false,
+  activeWorkspaceId: null,
+};
+
+function workspaceReducer(
+  state: WorkspaceContextState,
+  action: WorkspaceContextAction,
+): WorkspaceContextState {
+  switch (action.type) {
+    case "SET_WORKSPACES":
+      return {
+        ...state,
+        workspaces: action.payload.workspaces,
+        workspacesHydrated: action.payload.hydrated,
+      };
+    case "SET_ACTIVE_WORKSPACE":
+      if (state.activeWorkspaceId === action.payload) return state;
+      return { ...state, activeWorkspaceId: action.payload };
+    case "RESET":
+      return initialState;
+    default:
+      return state;
+  }
+}
+
+// ── Provider ─────────────────────────────────────────────────────────────────
+
+export function WorkspaceContextProvider({ children }: { children: ReactNode }) {
+  const { state: appState } = useApp();
+  const activeAccountId = appState.activeAccount?.id ?? null;
+  const [state, dispatch] = useReducer(workspaceReducer, initialState);
+
+  // Reset workspace state when account changes
+  useEffect(() => {
+    if (!activeAccountId) {
+      dispatch({ type: "RESET" });
+      return;
+    }
+    dispatch({ type: "SET_WORKSPACES", payload: { workspaces: {}, hydrated: false } });
+  }, [activeAccountId]);
+
+  // Restore active workspace from localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!activeAccountId) {
+      dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: null });
+      return;
+    }
+    const storedWorkspaceId = window.localStorage.getItem(
+      getWorkspaceStorageKey(activeAccountId),
+    );
+    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: storedWorkspaceId || null });
+  }, [activeAccountId]);
+
+  // Persist active workspace to localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!activeAccountId) return;
+    const storageKey = getWorkspaceStorageKey(activeAccountId);
+    if (!state.activeWorkspaceId) {
+      window.localStorage.removeItem(storageKey);
+      return;
+    }
+    window.localStorage.setItem(storageKey, state.activeWorkspaceId);
+  }, [activeAccountId, state.activeWorkspaceId]);
+
+  // Subscribe to workspaces for the active account
+  useEffect(() => {
+    if (!activeAccountId) {
+      dispatch({ type: "SET_WORKSPACES", payload: { workspaces: {}, hydrated: true } });
+      return;
+    }
+
+    const unsubscribe = subscribeToWorkspacesForAccount(
+      activeAccountId,
+      (workspaces) => {
+        dispatch({
+          type: "SET_WORKSPACES",
+          payload: { workspaces: toWorkspaceMap(workspaces), hydrated: true },
+        });
+      },
+    );
+
+    return () => unsubscribe();
+  }, [activeAccountId]);
+
+  return (
+    <WorkspaceContext.Provider value={{ state, dispatch }}>
+      {children}
+    </WorkspaceContext.Provider>
+  );
+}
+
+// ── Hook ─────────────────────────────────────────────────────────────────────
+
+export function useWorkspaceContext() {
+  const ctx = useContext(WorkspaceContext);
+  if (!ctx) {
+    throw new Error("useWorkspaceContext must be used within WorkspaceContextProvider");
+  }
+  return ctx;
+}
+````
+
+## File: modules/workspace/api/ui.ts
+````typescript
+/**
+ * workspace api/ui.ts
+ *
+ * Canonical public web UI surface for the workspace bounded context.
+ * App-layer consumers that need workspace UI components, hooks, and
+ * navigation utilities should import from here.
+ *
+ * Internal source: interfaces/web/
+ */
+
+// ── Screen components ────────────────────────────────────────────────────────
+
+export { WorkspaceDetailScreen } from "../interfaces/web/components/screens/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "../interfaces/web/components/screens/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "../interfaces/web/components/screens/WorkspaceHubScreen";
+export { OrganizationWorkspacesScreen } from "../interfaces/web/components/screens/OrganizationWorkspacesScreen";
+
+// ── Card components ──────────────────────────────────────────────────────────
+
+export { WorkspaceContextCard } from "../interfaces/web/components/cards/WorkspaceContextCard";
+
+// ── Tab components ───────────────────────────────────────────────────────────
+
+export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/WorkspaceMembersTab";
+
+// ── Layout components ────────────────────────────────────────────────────────
+
+export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
+export { WorkspaceQuickAccessRow } from "../interfaces/web/components/layout/WorkspaceQuickAccessRow";
+export { WorkspaceSectionContent } from "../interfaces/web/components/layout/WorkspaceSectionContent";
+
+// ── Rail components ──────────────────────────────────────────────────────────
+
+export { CreateWorkspaceDialogRail } from "../interfaces/web/components/rails/CreateWorkspaceDialogRail";
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+export type {
+  WorkspaceTabDevStatus,
+  WorkspaceTabGroup,
+  WorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export {
+  WORKSPACE_TAB_GROUPS,
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_VALUES,
+  getWorkspaceTabLabel,
+  getWorkspaceTabMeta,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/web/navigation/workspace-tabs";
+
+export type { WorkspaceNavItem } from "../interfaces/web/navigation/workspace-nav-items";
+export {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "../interfaces/web/navigation/workspace-nav-items";
+
+// ── Quick-access navigation ───────────────────────────────────────────────────
+
+export type {
+  WorkspaceQuickAccessItem,
+  WorkspaceQuickAccessMatcherOptions,
+} from "../interfaces/web/components/navigation/workspace-quick-access";
+
+export { buildWorkspaceQuickAccessItems } from "../interfaces/web/components/navigation/workspace-quick-access";
+
+// ── State helpers ─────────────────────────────────────────────────────────────
+
+export { getWorkspaceStorageKey } from "../interfaces/web/state/workspace-session";
+
+// ── Map utilities ─────────────────────────────────────────────────────────────
+
+export {
+  resolveWorkspaceFromMap,
+  toWorkspaceMap,
+} from "../interfaces/web/utils/workspace-map";
+
+// ── Hooks ─────────────────────────────────────────────────────────────────────
+
+export { useWorkspaceHub } from "../interfaces/web/hooks/useWorkspaceHub";
+export type {
+  UseWorkspaceOrchestrationContextOptions,
+  WorkspaceOrchestrationContext,
+} from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
+export { useWorkspaceOrchestrationContext } from "../interfaces/web/hooks/useWorkspaceOrchestrationContext";
+export {
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  getWorkspaceIdFromPath,
+  useRecentWorkspaces,
+} from "../interfaces/web/hooks/useRecentWorkspaces";
+
+// ── Workspace context provider ────────────────────────────────────────────────
+
+export {
+  WorkspaceContextProvider,
+  useWorkspaceContext,
+} from "../interfaces/web/providers/WorkspaceContextProvider";
+export type {
+  WorkspaceContextState,
+  WorkspaceContextAction,
+  WorkspaceContextValue,
+} from "../interfaces/web/providers/WorkspaceContextProvider";
+
+// ── Navigation preferences ────────────────────────────────────────────────────
+
+export type { NavPreferences, SidebarLocaleBundle } from "../interfaces/web/navigation/nav-preferences-data";
+export {
+  PERSONAL_ITEMS,
+  ORGANIZATION_NAV_ITEMS,
+  DIALOG_TEXT,
+  DEFAULT_PREFS,
+  readNavPreferences,
+  writeNavPreferences,
+} from "../interfaces/web/navigation/nav-preferences-data";
+
+// ── Sidebar locale ────────────────────────────────────────────────────────────
+
+export { useSidebarLocale } from "../interfaces/web/navigation/use-sidebar-locale";
+
+export {
+  appendWorkspaceContextQuery,
+  buildWorkspaceContextHref,
+  supportsWorkspaceSearchContext,
+  type WorkspaceNavigationContext,
+} from "../interfaces/web/navigation/workspace-context-links";
+
+// ── Navigation customize dialog ───────────────────────────────────────────────
+
+export { CustomizeNavigationDialog } from "../interfaces/web/components/dialogs/CustomizeNavigationDialog";
+export { CheckRow, WorkspaceCheckRow } from "../interfaces/web/components/dialogs/NavCheckRow";
+
+export {
+  AuditStream,
+  WorkspaceAuditTab,
+} from "../subdomains/audit/api";
+
+export {
+  WorkspaceFeedAccountView,
+  WorkspaceFeedWorkspaceView,
+} from "../subdomains/feed/api";
+
+export type { AccountMember } from "../subdomains/scheduling/api";
+export {
+  AccountSchedulingView,
+  WorkspaceSchedulingTab,
+} from "../subdomains/scheduling/api";
+
+export { WorkspaceFlowTab } from "../subdomains/workspace-workflow/api";
+````
+
 ## File: modules/workspace/application/use-cases/workspace.use-cases.ts
 ````typescript
 /**
@@ -18796,4 +18701,289 @@ export class WorkspaceQueryApplicationService implements WorkspaceQueryPort {
 export { MountCapabilitiesUseCase } from "./workspace-capabilities.use-cases";
 
 export { CreateWorkspaceLocationUseCase } from "./workspace-location.use-cases";
+````
+
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+import {
+  Card,
+  CardContent,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { WorkspaceAuditTab } from "@/modules/workspace/api";
+import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
+import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
+import { WorkspaceFlowTab } from "@/modules/workspace/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
+import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
+
+import {
+  createSettingsDraft,
+  type WorkspaceSettingsDraft,
+} from "../../state/workspace-settings";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../../view-models/workspace-supporting-records";
+import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../../navigation/workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
+import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
+import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
+import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
+
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+  readonly initialOverviewPanel?: string;
+}
+
+export function WorkspaceDetailScreen({
+  workspaceId,
+  accountId,
+  accountsHydrated,
+  initialTab,
+  initialOverviewPanel,
+}: WorkspaceDetailScreenProps) {
+  const { state: wsState, dispatch: wsDispatch } = useWorkspaceContext();
+  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
+    workspaceId,
+    accountId,
+    accountsHydrated,
+  );
+  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
+
+  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
+    workspace,
+    accountId,
+    onSaved: (updated) => {
+      setWorkspace(updated);
+      setSettingsDraft(createSettingsDraft(updated));
+      setIsEditWorkspaceOpen(false);
+    },
+  });
+
+  const personnelEntries = useMemo(() => {
+    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
+  }, [workspace]);
+
+  const addressLines = useMemo(() => {
+    return workspace ? getWorkspaceAddressLines(workspace) : [];
+  }, [workspace]);
+
+  function renderTabContent(tab: WorkspaceTabValue) {
+    if (!workspace) return null;
+
+    switch (tab) {
+      case "Overview":
+        return (
+          <WorkspaceOverviewTab
+            workspace={workspace}
+            activeWorkspaceId={wsState.activeWorkspaceId}
+            personnelEntries={personnelEntries}
+            addressLines={addressLines}
+            showSettingsPanel={initialOverviewPanel === "settings"}
+            onEditClick={() => {
+              setSettingsDraft(createSettingsDraft(workspace));
+              clearSaveError();
+              setIsEditWorkspaceOpen(true);
+            }}
+            onSetActiveWorkspace={() =>
+              wsDispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
+            }
+          />
+        );
+      case "Members":
+        return <WorkspaceMembersTab workspace={workspace} />;
+      case "Daily":
+        return <WorkspaceDailyTab workspace={workspace} />;
+      case "Files":
+        return <WorkspaceFilesTab workspace={workspace} />;
+      case "Schedule":
+        return (
+          <WorkspaceSchedulingTab
+            workspace={workspace}
+            accountId={accountId ?? workspace.accountId}
+            currentUserId={accountId ?? "anonymous"}
+          />
+        );
+      case "Audit":
+        return <WorkspaceAuditTab workspaceId={workspace.id} />;
+      case "Tasks":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="tasks"
+          />
+        );
+      case "TaskQa":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="qa"
+          />
+        );
+      case "TaskAcceptance":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="acceptance"
+          />
+        );
+      case "TaskIssues":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="issues"
+          />
+        );
+      case "TaskFinance":
+        return (
+          <WorkspaceFlowTab
+            workspaceId={workspace.id}
+            currentUserId={accountId ?? "anonymous"}
+            initialSection="invoices"
+          />
+        );
+      case "Feed":
+        return (
+          <WorkspaceFeedWorkspaceView
+            accountId={accountId ?? workspace.accountId}
+            workspaceId={workspace.id}
+            workspaceName={workspace.name}
+          />
+        );
+      default:
+        return null;
+    }
+  }
+
+  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
+    ? initialTab
+    : "Overview";
+
+  return (
+    <div className="space-y-6">
+      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
+        ← 返回 Workspace Hub
+      </Link>
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          正在同步帳號內容…
+        </div>
+      )}
+
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            Loading workspace detail…
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入工作區資料，請返回清單後重試。
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "loaded" && !workspace && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            找不到此工作區。
+          </CardContent>
+        </Card>
+      )}
+
+      {workspace && (
+        <div className="space-y-6">
+          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+          <nav
+            aria-label="Workspace tab navigation"
+            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
+          >
+            <div className="flex min-w-max items-center gap-0.5">
+              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
+                const tabs = getWorkspaceTabsByGroup(group);
+                const links = tabs.map((tab) => {
+                  const isActive = resolvedTab === tab;
+                  return (
+                    <Link
+                      key={tab}
+                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {getWorkspaceTabLabel(tab)}
+                    </Link>
+                  );
+                });
+                if (groupIndex > 0) {
+                  return [
+                    <div
+                      key={`sep-${group}`}
+                      aria-hidden="true"
+                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
+                    />,
+                    ...links,
+                  ];
+                }
+                return links;
+              })}
+            </div>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
+          </div>
+          {renderTabContent(resolvedTab)}
+        </div>
+      )}
+
+      <WorkspaceSettingsDialog
+        open={isEditWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsEditWorkspaceOpen(open);
+          if (!open) {
+            clearSaveError();
+            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
+          }
+        }}
+        settingsDraft={settingsDraft}
+        setSettingsDraft={setSettingsDraft}
+        isSaving={isSavingWorkspace}
+        saveError={saveError}
+        onSubmit={(event) => void handleSave(event, settingsDraft)}
+      />
+    </div>
+  );
+}
 ````

@@ -7,17 +7,17 @@
  *   accounts/{accountId}/backlinkOutbound/{sourcePageId}
  */
 
-import { doc, getDoc, getFirestore, writeBatch } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 import type { IBacklinkIndexRepository, UpsertBacklinkEntriesInput, RemoveBacklinksFromSourceInput } from "../../domain/repositories/IBacklinkIndexRepository";
 import { BacklinkIndex } from "../../domain/aggregates/BacklinkIndex";
 import type { BacklinkEntry, BacklinkIndexSnapshot } from "../../domain/aggregates/BacklinkIndex";
 
-function backlinkIndexDoc(db: ReturnType<typeof getFirestore>, accountId: string, targetPageId: string) {
-  return doc(db, "accounts", accountId, "backlinkIndex", targetPageId);
+function backlinkIndexPath(accountId: string, targetPageId: string): string {
+  return `accounts/${accountId}/backlinkIndex/${targetPageId}`;
 }
-function backlinkOutboundDoc(db: ReturnType<typeof getFirestore>, accountId: string, sourcePageId: string) {
-  return doc(db, "accounts", accountId, "backlinkOutbound", sourcePageId);
+
+function backlinkOutboundPath(accountId: string, sourcePageId: string): string {
+  return `accounts/${accountId}/backlinkOutbound/${sourcePageId}`;
 }
 
 function toEntries(raw: unknown): BacklinkEntry[] {
@@ -33,52 +33,78 @@ function toEntries(raw: unknown): BacklinkEntry[] {
 }
 
 export class FirebaseBacklinkIndexRepository implements IBacklinkIndexRepository {
-  private get db() { return getFirestore(firebaseClientApp); }
-
   async upsertFromSource(input: UpsertBacklinkEntriesInput): Promise<void> {
     const { accountId, targetPageId, sourcePageId, entries } = input;
-    const ref = backlinkIndexDoc(this.db, accountId, targetPageId);
-    const snap = await getDoc(ref);
-    const existing = snap.exists() ? toEntries((snap.data() as Record<string, unknown>).entries) : [];
+    const existingIndex = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      backlinkIndexPath(accountId, targetPageId),
+    );
+    const existing = existingIndex ? toEntries(existingIndex.entries) : [];
     const nowISO = new Date().toISOString();
     const filtered = existing.filter((e) => !entries.some((ne) => e.blockId === ne.blockId && e.sourcePageId === sourcePageId));
     const newEntries: BacklinkEntry[] = entries.map((e) => ({ sourcePageId, sourcePageTitle: (e as BacklinkEntry).sourcePageTitle ?? "", blockId: e.blockId, lastSeenAtISO: nowISO }));
     const merged = [...filtered, ...newEntries];
 
-    const batch = writeBatch(this.db);
-    batch.set(ref, { targetPageId, accountId, entries: merged, updatedAtISO: nowISO }, { merge: true });
+    const existingOut = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      backlinkOutboundPath(accountId, sourcePageId),
+    );
+    const currentTargetIds = Array.isArray(existingOut?.targetPageIds)
+      ? existingOut.targetPageIds.filter((item): item is string => typeof item === "string")
+      : [];
 
-    // Update outbound index
-    const outRef = backlinkOutboundDoc(this.db, accountId, sourcePageId);
-    batch.set(outRef, { sourcePageId, accountId, targetPageIds: [targetPageId], updatedAtISO: nowISO }, { merge: true });
-    await batch.commit();
+    const nextTargetIds = Array.from(new Set([...currentTargetIds, targetPageId]));
+
+    await firestoreInfrastructureApi.setMany([
+      {
+        path: backlinkIndexPath(accountId, targetPageId),
+        data: { targetPageId, accountId, entries: merged, updatedAtISO: nowISO },
+      },
+      {
+        path: backlinkOutboundPath(accountId, sourcePageId),
+        data: { sourcePageId, accountId, targetPageIds: nextTargetIds, updatedAtISO: nowISO },
+      },
+    ]);
   }
 
   async removeFromSource(input: RemoveBacklinksFromSourceInput): Promise<void> {
     const { accountId, sourcePageId } = input;
-    const outRef = backlinkOutboundDoc(this.db, accountId, sourcePageId);
-    const outSnap = await getDoc(outRef);
-    const targetPageIds: string[] = outSnap.exists()
-      ? ((outSnap.data() as Record<string, unknown>).targetPageIds as string[] ?? [])
+    const outbound = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      backlinkOutboundPath(accountId, sourcePageId),
+    );
+    const targetPageIds = Array.isArray(outbound?.targetPageIds)
+      ? outbound.targetPageIds.filter((item): item is string => typeof item === "string")
       : [];
 
-    const batch = writeBatch(this.db);
     const nowISO = new Date().toISOString();
+
+    const writes: { path: string; data: Record<string, unknown> }[] = [];
     for (const targetPageId of targetPageIds) {
-      const ref = backlinkIndexDoc(this.db, accountId, targetPageId);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) continue;
-      const entries = toEntries((snap.data() as Record<string, unknown>).entries).filter((e) => e.sourcePageId !== sourcePageId);
-      batch.set(ref, { entries, updatedAtISO: nowISO }, { merge: true });
+      const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+        backlinkIndexPath(accountId, targetPageId),
+      );
+      if (!existing) continue;
+      const entries = toEntries(existing.entries).filter((e) => e.sourcePageId !== sourcePageId);
+      writes.push({
+        path: backlinkIndexPath(accountId, targetPageId),
+        data: {
+          targetPageId,
+          accountId,
+          entries,
+          updatedAtISO: nowISO,
+        },
+      });
     }
-    batch.set(outRef, { targetPageIds: [], updatedAtISO: nowISO }, { merge: true });
-    await batch.commit();
+    writes.push({
+      path: backlinkOutboundPath(accountId, sourcePageId),
+      data: { sourcePageId, accountId, targetPageIds: [], updatedAtISO: nowISO },
+    });
+    await firestoreInfrastructureApi.setMany(writes);
   }
 
   async findByTargetPage(accountId: string, targetPageId: string): Promise<BacklinkIndex | null> {
-    const snap = await getDoc(backlinkIndexDoc(this.db, accountId, targetPageId));
-    if (!snap.exists()) return null;
-    const d = snap.data() as Record<string, unknown>;
+    const d = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      backlinkIndexPath(accountId, targetPageId),
+    );
+    if (!d) return null;
     const snapshot: BacklinkIndexSnapshot = {
       targetPageId,
       accountId,
@@ -89,9 +115,10 @@ export class FirebaseBacklinkIndexRepository implements IBacklinkIndexRepository
   }
 
   async listOutboundTargets(accountId: string, sourcePageId: string): Promise<ReadonlyArray<string>> {
-    const snap = await getDoc(backlinkOutboundDoc(this.db, accountId, sourcePageId));
-    if (!snap.exists()) return [];
-    const d = snap.data() as Record<string, unknown>;
+    const d = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      backlinkOutboundPath(accountId, sourcePageId),
+    );
+    if (!d) return [];
     return Array.isArray(d.targetPageIds) ? (d.targetPageIds as string[]) : [];
   }
 }

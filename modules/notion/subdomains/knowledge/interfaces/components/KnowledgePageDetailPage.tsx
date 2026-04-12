@@ -42,6 +42,18 @@ export function KnowledgePageDetailPage({
   const [loading, setLoading] = useState(true);
   const [commentOpen, setCommentOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const workspaceBasePath =
+    accountId && activeWorkspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(activeWorkspaceId)}`
+      : accountId
+        ? `/${encodeURIComponent(accountId)}`
+        : "/";
+  const pageListHref =
+    accountId && activeWorkspaceId
+      ? `${workspaceBasePath}/knowledge/pages`
+      : accountId
+        ? `/${encodeURIComponent(accountId)}?tab=Overview&panel=knowledge-pages`
+        : "/";
 
   const load = useCallback(async () => {
     if (!accountId || !pageId) { setLoading(false); return; }
@@ -86,7 +98,7 @@ export function KnowledgePageDetailPage({
   function handleArchive() {
     startTransition(async () => {
       await archiveKnowledgePage({ accountId, pageId });
-      router.push("/knowledge/pages");
+      router.push(pageListHref);
     });
   }
 
@@ -107,7 +119,7 @@ export function KnowledgePageDetailPage({
   if (!page) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge/pages")}>
+        <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
           <ArrowLeft className="mr-1.5 h-4 w-4" />
           頁面列表
         </Button>
@@ -139,7 +151,7 @@ export function KnowledgePageDetailPage({
       <div className="space-y-4 px-0 pt-4">
         {/* Top bar */}
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge/pages")}>
+          <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
             <ArrowLeft className="mr-1.5 h-4 w-4" />
             頁面列表
           </Button>

@@ -21,10 +21,6 @@ interface KnowledgeSidebarSectionProps {
   readonly onQuickCreatePage: () => void | Promise<void>;
 }
 
-function isActiveRoute(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
 function withContextQuery(href: string, accountId: string | null, workspaceId: string | null): string {
   if (!accountId && !workspaceId) {
     return href;
@@ -59,7 +55,14 @@ export function KnowledgeSidebarSection({
     () => Boolean(activeWorkspaceId),
   );
 
-  const contextualPagesHref = withContextQuery("/knowledge/pages", activeAccountId, activeWorkspaceId);
+  const workspaceBasePath =
+    activeAccountId && activeWorkspaceId
+      ? `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(activeWorkspaceId)}`
+      : "";
+
+  const contextualPagesHref = workspaceBasePath
+    ? `${workspaceBasePath}/knowledge/pages`
+    : withContextQuery("/knowledge/pages", activeAccountId, activeWorkspaceId);
 
   return (
     <nav className="space-y-0.5" aria-label="Knowledge navigation">
@@ -76,9 +79,9 @@ export function KnowledgeSidebarSection({
       <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
         <Link
           href={contextualPagesHref}
-          aria-current={isActiveRoute(pathname, "/knowledge/pages") ? "page" : undefined}
+          aria-current={pathname.includes("/knowledge/pages") ? "page" : undefined}
           className={`flex-1 ${
-            isActiveRoute(pathname, "/knowledge/pages")
+            pathname.includes("/knowledge/pages")
               ? "text-primary"
               : "text-muted-foreground hover:text-foreground"
           }`}
@@ -98,12 +101,24 @@ export function KnowledgeSidebarSection({
       </div>
       {(
         [
-          { href: "/knowledge", label: "Knowledge Hub" },
-          { href: "/knowledge/block-editor", label: "區塊編輯器" },
+          {
+            href: workspaceBasePath
+              ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
+              : "/",
+            label: "Knowledge Hub",
+          },
+          {
+            href: workspaceBasePath
+              ? `${workspaceBasePath}/knowledge/block-editor`
+              : "/",
+            label: "區塊編輯器",
+          },
         ] as const
       ).map((item) => {
-        const active = isActiveRoute(pathname, item.href);
-        const contextualHref = withContextQuery(item.href, activeAccountId, activeWorkspaceId);
+        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const contextualHref = workspaceBasePath
+          ? item.href
+          : withContextQuery(item.href, activeAccountId, activeWorkspaceId);
         return (
           <Link
             key={item.href}

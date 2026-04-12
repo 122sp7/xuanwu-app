@@ -6,7 +6,7 @@
  * Reads parsed JSON from a GCS URI and extracts the text content.
  */
 
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { storageInfrastructureApi } from "@/modules/platform/api";
 
 import type { IParsedDocumentPort } from "../../domain/ports/IParsedDocumentPort";
 
@@ -18,12 +18,23 @@ function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
 
+function resolveStoragePathFromGsUri(input: string): string {
+  const normalized = input.trim();
+  if (!normalized) return "";
+  if (!normalized.startsWith("gs://")) return normalized;
+
+  const withoutScheme = normalized.slice(5);
+  const firstSlash = withoutScheme.indexOf("/");
+  if (firstSlash === -1) return "";
+  return withoutScheme.slice(firstSlash + 1);
+}
+
 export class FirebaseParsedDocumentAdapter implements IParsedDocumentPort {
   async loadParsedDocumentText(jsonGcsUri: string): Promise<string> {
     if (!jsonGcsUri) return "";
-    const storage = getFirebaseStorage();
-    const ref = storageApi.ref(storage, jsonGcsUri);
-    const url = await storageApi.getDownloadURL(ref);
+    const storagePath = resolveStoragePathFromGsUri(jsonGcsUri);
+    if (!storagePath) return "";
+    const url = await storageInfrastructureApi.getUrl(storagePath);
     const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) throw new Error(`無法讀取解析 JSON (${response.status})`);
     const payload = asRecord(await response.json());

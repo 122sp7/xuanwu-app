@@ -84,7 +84,8 @@ export type {
 export type { NotebookLmDomainEvent } from "../domain/events";
 
 // ---------------------------------------------------------------------------
-// Tier 2 — retrieval subdomain (migration target from ai)
+// Synthesis subdomain — complete RAG pipeline
+// (retrieval → grounding → synthesis → evaluation)
 // ---------------------------------------------------------------------------
 
 export type {
@@ -94,11 +95,7 @@ export type {
   IChunkRetrievalPort,
   RetrievalCompletedEvent,
   RetrievalFailedEvent,
-} from "../subdomains/retrieval/api";
-
-// ---------------------------------------------------------------------------
-// Tier 2 — grounding subdomain (migration target from ai)
-// ---------------------------------------------------------------------------
+} from "../subdomains/synthesis/api";
 
 export type {
   Citation,
@@ -106,11 +103,7 @@ export type {
   CitationBuilderInput,
   ICitationBuilder,
   GroundingCompletedEvent,
-} from "../subdomains/grounding/api";
-
-// ---------------------------------------------------------------------------
-// Tier 2 — synthesis subdomain (migration target from ai)
-// ---------------------------------------------------------------------------
+} from "../subdomains/synthesis/api";
 
 export type {
   GenerationCitation,
@@ -122,14 +115,10 @@ export type {
   SynthesisFailedEvent,
 } from "../subdomains/synthesis/api";
 
-// ---------------------------------------------------------------------------
-// Tier 2 — evaluation subdomain (migration target from ai)
-// ---------------------------------------------------------------------------
-
 export type {
   FeedbackRating,
   QualityFeedback,
   SubmitFeedbackInput,
   IFeedbackPort,
   FeedbackSubmittedEvent,
-} from "../subdomains/evaluation/api";
+} from "../subdomains/synthesis/api";

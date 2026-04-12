@@ -4,21 +4,17 @@
  * Firestore: accounts/{accountId}/collaborationPermissions/{id}
  */
 
-import {
-  collection, doc, getDoc, getDocs, getFirestore,
-  query, serverTimestamp, setDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 import { v7 as generateId } from "@lib-uuid";
 import type { PermissionSnapshot, PermissionLevel, PrincipalType } from "../../domain/aggregates/Permission";
 import type { IPermissionRepository, GrantPermissionInput } from "../../domain/repositories/IPermissionRepository";
 
-function permissionsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "collaborationPermissions");
+function permissionsPath(accountId: string): string {
+  return `accounts/${accountId}/collaborationPermissions`;
 }
 
-function permissionDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
-  return doc(db, "accounts", accountId, "collaborationPermissions", id);
+function permissionPath(accountId: string, id: string): string {
+  return `accounts/${accountId}/collaborationPermissions/${id}`;
 }
 
 function toPermission(id: string, data: Record<string, unknown>): PermissionSnapshot {
@@ -39,10 +35,7 @@ function toPermission(id: string, data: Record<string, unknown>): PermissionSnap
 }
 
 export class FirebasePermissionRepository implements IPermissionRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
   async grant(input: GrantPermissionInput): Promise<PermissionSnapshot> {
-    const db = this.db();
     const id = generateId();
     const now = new Date().toISOString();
     const data = {
@@ -57,27 +50,28 @@ export class FirebasePermissionRepository implements IPermissionRepository {
       grantedAtISO: now,
       expiresAtISO: input.expiresAtISO ?? null,
       linkToken: input.linkToken ?? null,
-      _createdAt: serverTimestamp(),
     };
-    await setDoc(permissionDoc(db, input.accountId, id), data);
+    await firestoreInfrastructureApi.set(permissionPath(input.accountId, id), data);
     return toPermission(id, data);
   }
 
   async revoke(accountId: string, permissionId: string): Promise<void> {
-    const { deleteDoc } = await import("firebase/firestore");
-    await deleteDoc(permissionDoc(this.db(), accountId, permissionId));
+    await firestoreInfrastructureApi.delete(permissionPath(accountId, permissionId));
   }
 
   async findById(accountId: string, permissionId: string): Promise<PermissionSnapshot | null> {
-    const snap = await getDoc(permissionDoc(this.db(), accountId, permissionId));
-    if (!snap.exists()) return null;
-    return toPermission(snap.id, snap.data() as Record<string, unknown>);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      permissionPath(accountId, permissionId),
+    );
+    if (!data) return null;
+    return toPermission(permissionId, data);
   }
 
   async listBySubject(accountId: string, subjectId: string): Promise<PermissionSnapshot[]> {
-    const db = this.db();
-    const q = query(permissionsCol(db, accountId), where("subjectId", "==", subjectId));
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => toPermission(d.id, d.data() as Record<string, unknown>));
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      permissionsPath(accountId),
+      [{ field: "subjectId", op: "==", value: subjectId }],
+    );
+    return docs.map((d) => toPermission(d.id, d.data));
   }
 }

@@ -37,5 +37,6 @@ export { getArticles, getArticle, getCategories, getBacklinks } from "../interfa
 // ─── UI Components ────────────────────────────────────────────────────────────
 export { ArticleDialog } from "../interfaces/components/ArticleDialog";
 export { KnowledgeBaseArticlesRouteScreen } from "../interfaces/components/KnowledgeBaseArticlesRouteScreen";
+export type { KnowledgeBaseArticlesRouteScreenProps } from "../interfaces/components/KnowledgeBaseArticlesRouteScreen";
 export { ArticleDetailPage } from "../interfaces/components/ArticleDetailPage";
 export type { ArticleDetailPageProps } from "../interfaces/components/ArticleDetailPage";

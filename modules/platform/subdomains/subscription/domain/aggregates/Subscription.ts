@@ -1,7 +1,6 @@
 import type { SubscriptionDomainEventType } from "../events/SubscriptionDomainEvent";
 import { createSubscriptionId, canCancel, canRenew } from "../value-objects";
 import type { SubscriptionStatus } from "../value-objects";
-import type { PlanCode } from "../value-objects/PlanCode";
 import type { BillingCycle } from "../value-objects/BillingCycle";
 
 export interface SubscriptionSnapshot {

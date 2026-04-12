@@ -4,21 +4,7 @@
  * Firestore: accounts/{accountId}/knowledgeDatabases/{databaseId}/automations/{automationId}
  */
 
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 import { v7 as generateId } from "@lib-uuid";
 
 import type {
@@ -28,12 +14,12 @@ import type {
 } from "../../domain/aggregates/DatabaseAutomation";
 import type { IAutomationRepository, CreateAutomationInput, UpdateAutomationInput } from "../../domain/repositories/IAutomationRepository";
 
-function automationsCol(db: ReturnType<typeof getFirestore>, accountId: string, databaseId: string) {
-  return collection(db, "accounts", accountId, "knowledgeDatabases", databaseId, "automations");
+function automationsPath(accountId: string, databaseId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/automations`;
 }
 
-function automationDocRef(db: ReturnType<typeof getFirestore>, accountId: string, databaseId: string, automationId: string) {
-  return doc(db, "accounts", accountId, "knowledgeDatabases", databaseId, "automations", automationId);
+function automationPath(accountId: string, databaseId: string, automationId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/automations/${automationId}`;
 }
 
 function toCondition(c: Record<string, unknown>): AutomationCondition {
@@ -68,12 +54,9 @@ function toAutomation(id: string, data: Record<string, unknown>): DatabaseAutoma
 }
 
 export class FirebaseAutomationRepository implements IAutomationRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
   async create(input: CreateAutomationInput): Promise<DatabaseAutomationSnapshot> {
     const id = generateId();
     const now = new Date().toISOString();
-    const docRef = automationDocRef(this.db, input.accountId, input.databaseId, id);
     const payload = {
       databaseId: input.databaseId,
       accountId: input.accountId,
@@ -86,33 +69,31 @@ export class FirebaseAutomationRepository implements IAutomationRepository {
       createdByUserId: input.createdByUserId,
       createdAtISO: now,
       updatedAtISO: now,
-      serverCreatedAt: serverTimestamp(),
     };
-    await setDoc(docRef, payload);
+    await firestoreInfrastructureApi.set(automationPath(input.accountId, input.databaseId, id), payload);
     return toAutomation(id, payload);
   }
 
   async update(input: UpdateAutomationInput): Promise<DatabaseAutomationSnapshot | null> {
     const { id, accountId, databaseId, ...fields } = input;
-    const docRef = automationDocRef(this.db, accountId, databaseId, id);
+    const path = automationPath(accountId, databaseId, id);
     const updates: Record<string, unknown> = { ...fields, updatedAtISO: new Date().toISOString() };
-    await updateDoc(docRef, updates);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) return null;
-    return toAutomation(id, snap.data() as Record<string, unknown>);
+    await firestoreInfrastructureApi.update(path, updates);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+    return toAutomation(id, snap);
   }
 
   async delete(id: string, accountId: string, databaseId: string): Promise<void> {
-    await deleteDoc(automationDocRef(this.db, accountId, databaseId, id));
+    await firestoreInfrastructureApi.delete(automationPath(accountId, databaseId, id));
   }
 
   async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
-    const q = query(
-      automationsCol(this.db, accountId, databaseId),
-      where("databaseId", "==", databaseId),
-      orderBy("createdAtISO", "asc"),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      automationsPath(accountId, databaseId),
+      [{ field: "databaseId", op: "==", value: databaseId }],
+      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
     );
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toAutomation(d.id, d.data() as Record<string, unknown>));
+    return docs.map((d) => toAutomation(d.id, d.data));
   }
 }

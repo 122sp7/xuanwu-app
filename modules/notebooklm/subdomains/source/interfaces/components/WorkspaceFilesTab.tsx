@@ -1,11 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+import { storageInfrastructureApi } from "@/modules/platform/api";
 
 import type { WorkspaceEntity } from "@/modules/workspace/api";
-
-import { getFirebaseStorage } from "@integration-firebase";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
@@ -82,10 +80,9 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
         return;
       }
 
-      const storage = getFirebaseStorage();
-      const storageRef = ref(storage, initResult.data.uploadPath);
-      await uploadBytes(storageRef, file, { contentType: file.type || "application/octet-stream" });
-      await getDownloadURL(storageRef);
+      await storageInfrastructureApi.upload(file, initResult.data.uploadPath, {
+        contentType: file.type || "application/octet-stream",
+      });
 
       const completeResult = await uploadCompleteFile({
         workspaceId: workspace.id,
@@ -106,7 +103,7 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
       setPendingUploadProcessing({
         sourceFileId: initResult.data.fileId,
         filename: file.name,
-        gcsUri: `gs://${storageRef.bucket}/${storageRef.fullPath}`,
+        gcsUri: storageInfrastructureApi.toGsUri(initResult.data.uploadPath),
         mimeType: file.type || "application/octet-stream",
         sizeBytes: file.size,
       });

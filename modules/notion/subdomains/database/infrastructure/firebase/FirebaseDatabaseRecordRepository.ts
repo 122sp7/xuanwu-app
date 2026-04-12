@@ -6,27 +6,24 @@
  */
 
 import {
-  collection,
-  getDoc,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { getFirebaseFirestore } from "@integration-firebase/firestore";
-
-const db = getFirebaseFirestore();
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
 import type { IDatabaseRecordRepository, CreateRecordInput, UpdateRecordInput } from "../../domain/repositories/IDatabaseRecordRepository";
 import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
 
-function recordsCol(accountId: string, databaseId: string) {
-  return collection(db, "accounts", accountId, "knowledgeDatabases", databaseId, "records");
+function recordsPath(accountId: string, databaseId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/records`;
+}
+
+function recordPath(accountId: string, databaseId: string, recordId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/records/${recordId}`;
 }
 
 function toISO(ts: unknown): string {
-  if (ts instanceof Timestamp) return ts.toDate().toISOString();
+  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as { toDate: () => Date }).toDate === "function") {
+    return (ts as { toDate: () => Date }).toDate().toISOString();
+  }
   if (typeof ts === "string") return ts;
   return new Date().toISOString();
 }
@@ -49,23 +46,24 @@ function toSnapshot(id: string, data: Record<string, any>): DatabaseRecordSnapsh
 
 export class FirebaseDatabaseRecordRepository implements IDatabaseRecordRepository {
   async create(input: CreateRecordInput): Promise<DatabaseRecordSnapshot> {
-    const col = recordsCol(input.accountId, input.databaseId);
-    const countSnap = await getDocs(col);
-    const now = serverTimestamp();
-    const docRef = await addDoc(col, {
+    const id = generateId();
+    const countDocs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      recordsPath(input.accountId, input.databaseId),
+    );
+    const now = new Date().toISOString();
+    const data = {
       databaseId: input.databaseId,
       workspaceId: input.workspaceId,
       accountId: input.accountId,
       pageId: input.pageId ?? null,
       properties: input.properties ?? {},
-      order: countSnap.size,
+      order: countDocs.length,
       createdByUserId: input.createdByUserId,
-      createdAt: now,
-      updatedAt: now,
-    });
-    const snap = await getDoc(docRef);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return toSnapshot(docRef.id, snap.data() as Record<string, any>);
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await firestoreInfrastructureApi.set(recordPath(input.accountId, input.databaseId, id), data);
+    return toSnapshot(id, data);
   }
 
   async update(input: UpdateRecordInput): Promise<DatabaseRecordSnapshot> {
@@ -76,31 +74,35 @@ export class FirebaseDatabaseRecordRepository implements IDatabaseRecordReposito
     // Since the record doc lives in accounts/{accountId}/knowledgeDatabases/{databaseId}/records/{id},
     // and we only have id+accountId, we do collection group query.
     const { id, accountId, properties } = input;
-    const { collectionGroup, query: fsQuery, where, getDocs: fsGetDocs } = await import("firebase/firestore");
-    const q = fsQuery(
-      collectionGroup(db, "records"),
-      where("accountId", "==", accountId),
+    const docs = await firestoreInfrastructureApi.queryCollectionGroup<Record<string, unknown>>(
+      "records",
+      [{ field: "accountId", op: "==", value: accountId }],
     );
-    const results = await fsGetDocs(q);
-    const target = results.docs.find((d) => d.id === id);
+    const target = docs.find((d) => d.id === id);
     if (!target) throw new Error(`Record ${id} not found`);
-    await updateDoc(target.ref, { properties, updatedAt: serverTimestamp() });
-    const refreshed = await getDoc(target.ref);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return toSnapshot(id, refreshed.data() as Record<string, any>);
+    await firestoreInfrastructureApi.update(target.path, { properties, updatedAtISO: new Date().toISOString() });
+    const refreshed = await firestoreInfrastructureApi.get<Record<string, unknown>>(target.path);
+    if (!refreshed) {
+      throw new Error(`Record ${id} not found after update`);
+    }
+    return toSnapshot(id, refreshed);
   }
 
   async delete(id: string, accountId: string): Promise<void> {
-    const { collectionGroup, query: fsQuery, where, getDocs: fsGetDocs } = await import("firebase/firestore");
-    const q = fsQuery(collectionGroup(db, "records"), where("accountId", "==", accountId));
-    const results = await fsGetDocs(q);
-    const target = results.docs.find((d) => d.id === id);
-    if (target) await deleteDoc(target.ref);
+    const docs = await firestoreInfrastructureApi.queryCollectionGroup<Record<string, unknown>>(
+      "records",
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    const target = docs.find((d) => d.id === id);
+    if (target) {
+      await firestoreInfrastructureApi.delete(target.path);
+    }
   }
 
   async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecordSnapshot[]> {
-    const snaps = await getDocs(recordsCol(accountId, databaseId));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, any>));
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      recordsPath(accountId, databaseId),
+    );
+    return docs.map((d) => toSnapshot(d.id, d.data));
   }
 }

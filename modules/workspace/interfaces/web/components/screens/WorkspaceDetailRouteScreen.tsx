@@ -24,12 +24,12 @@ export function WorkspaceDetailRouteScreen({
 
   useEffect(() => {
     if (initialTab === "Wiki" && workspaceId) {
-      router.replace(`/knowledge/pages?workspaceId=${encodeURIComponent(workspaceId)}`);
+      router.replace(`/workspace/${encodeURIComponent(workspaceId)}?tab=Overview&panel=knowledge-pages`);
     }
   }, [initialTab, router, workspaceId]);
 
   if (initialTab === "Wiki" && workspaceId) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向工作區知識頁面…</div>;
+    return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向工作區 Overview（Knowledge Pages）…</div>;
   }
 
   return (

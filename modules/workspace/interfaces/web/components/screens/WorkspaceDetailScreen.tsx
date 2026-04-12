@@ -8,12 +8,13 @@ import {
   CardContent,
 } from "@ui-shadcn/ui/card";
 import { Badge } from "@ui-shadcn/ui/badge";
+import { useAuth } from "@/modules/platform/api";
 import { WorkspaceAuditTab } from "@/modules/workspace/api";
 import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
 import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
 import { WorkspaceFlowTab } from "@/modules/workspace/api";
 import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
-import { useApp } from "@/modules/platform/api";
+import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
 
 import {
   createSettingsDraft,
@@ -54,7 +55,8 @@ export function WorkspaceDetailScreen({
   initialTab,
   initialOverviewPanel,
 }: WorkspaceDetailScreenProps) {
-  const { state: appState, dispatch } = useApp();
+  const { state: wsState, dispatch: wsDispatch } = useWorkspaceContext();
+  const { state: authState } = useAuth();
   const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
     workspaceId,
     accountId,
@@ -89,17 +91,18 @@ export function WorkspaceDetailScreen({
         return (
           <WorkspaceOverviewTab
             workspace={workspace}
-            activeWorkspaceId={appState.activeWorkspaceId}
+            activeWorkspaceId={wsState.activeWorkspaceId}
+            currentUserId={authState.user?.id}
             personnelEntries={personnelEntries}
             addressLines={addressLines}
-            showSettingsPanel={initialOverviewPanel === "settings"}
+            initialPanel={initialOverviewPanel}
             onEditClick={() => {
               setSettingsDraft(createSettingsDraft(workspace));
               clearSaveError();
               setIsEditWorkspaceOpen(true);
             }}
             onSetActiveWorkspace={() =>
-              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
+              wsDispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
             }
           />
         );
@@ -178,7 +181,10 @@ export function WorkspaceDetailScreen({
 
   return (
     <div className="space-y-6">
-      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
+      <Link
+        href={accountId ? `/${encodeURIComponent(accountId)}` : "/"}
+        className="inline-flex text-sm font-medium text-primary hover:underline md:hidden"
+      >
         ← 返回 Workspace Hub
       </Link>
 
@@ -227,7 +233,9 @@ export function WorkspaceDetailScreen({
                   return (
                     <Link
                       key={tab}
-                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
+                      href={accountId
+                        ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}?tab=${encodeURIComponent(tab)}`
+                        : "/"}
                       aria-current={isActive ? "page" : undefined}
                       className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
                         isActive

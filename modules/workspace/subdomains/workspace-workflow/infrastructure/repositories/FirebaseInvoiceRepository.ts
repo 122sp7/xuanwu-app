@@ -8,21 +8,9 @@
  */
 
 import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  increment,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
 import type { Invoice, CreateInvoiceInput } from "../../domain/entities/Invoice";
 import type { InvoiceItem, AddInvoiceItemInput } from "../../domain/entities/InvoiceItem";
 import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
@@ -38,16 +26,12 @@ const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
 const DEFAULT_STATUS: InvoiceStatus = "draft";
 
 export class FirebaseInvoiceRepository implements InvoiceRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
+  private invoicePath(invoiceId: string): string {
+    return `${WF_INVOICES_COLLECTION}/${invoiceId}`;
   }
 
-  private get invoiceCollectionRef() {
-    return collection(this.db, WF_INVOICES_COLLECTION);
-  }
-
-  private get itemCollectionRef() {
-    return collection(this.db, WF_INVOICE_ITEMS_COLLECTION);
+  private itemPath(itemId: string): string {
+    return `${WF_INVOICE_ITEMS_COLLECTION}/${itemId}`;
   }
 
   async create(input: CreateInvoiceInput): Promise<Invoice> {
@@ -62,17 +46,16 @@ export class FirebaseInvoiceRepository implements InvoiceRepository {
       closedAtISO: null,
       createdAtISO: nowISO,
       updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
     };
     if (input.sourceReference) {
       docData.sourceReference = { ...input.sourceReference };
     }
 
-    const docRef = await addDoc(this.invoiceCollectionRef, docData);
+    const id = generateId();
+    await firestoreInfrastructureApi.set(this.invoicePath(id), docData);
 
     return {
-      id: docRef.id,
+      id,
       workspaceId: input.workspaceId,
       status: DEFAULT_STATUS,
       totalAmount: 0,
@@ -83,23 +66,21 @@ export class FirebaseInvoiceRepository implements InvoiceRepository {
   }
 
   async delete(invoiceId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
+    await firestoreInfrastructureApi.delete(this.invoicePath(invoiceId));
   }
 
   async findById(invoiceId: string): Promise<Invoice | null> {
-    const snap = await getDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
-    if (!snap.exists()) return null;
-    return toInvoice(snap.id, snap.data() as Record<string, unknown>);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.invoicePath(invoiceId));
+    if (!data) return null;
+    return toInvoice(invoiceId, data);
   }
 
   async findByWorkspaceId(workspaceId: string): Promise<Invoice[]> {
-    const snaps = await getDocs(
-      query(
-        this.invoiceCollectionRef,
-        where("workspaceId", "==", workspaceId),
-      ),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_INVOICES_COLLECTION,
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
     );
-    const invoices = snaps.docs.map((d) => toInvoice(d.id, d.data() as Record<string, unknown>));
+    const invoices = docs.map((d) => toInvoice(d.id, d.data));
     return invoices.sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
   }
 
@@ -108,48 +89,50 @@ export class FirebaseInvoiceRepository implements InvoiceRepository {
     to: InvoiceStatus,
     nowISO: string,
   ): Promise<Invoice | null> {
-    const invoiceRef = doc(this.db, WF_INVOICES_COLLECTION, invoiceId);
-    const snap = await getDoc(invoiceRef);
-    if (!snap.exists()) return null;
+    const path = this.invoicePath(invoiceId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
 
     const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
     const patch: Record<string, unknown> = {
       status: validTo,
       updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
     };
     if (validTo === "submitted") patch.submittedAtISO = nowISO;
     if (validTo === "approved") patch.approvedAtISO = nowISO;
     if (validTo === "paid") patch.paidAtISO = nowISO;
     if (validTo === "closed") patch.closedAtISO = nowISO;
 
-    await updateDoc(invoiceRef, patch);
-    const updated = await getDoc(invoiceRef);
-    if (!updated.exists()) return null;
-    return toInvoice(updated.id, updated.data() as Record<string, unknown>);
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toInvoice(invoiceId, updated);
   }
 
   async addItem(input: AddInvoiceItemInput): Promise<InvoiceItem> {
     const nowISO = new Date().toISOString();
-    const docRef = await addDoc(this.itemCollectionRef, {
+    const itemId = generateId();
+    await firestoreInfrastructureApi.set(this.itemPath(itemId), {
       invoiceId: input.invoiceId,
       taskId: input.taskId,
       amount: input.amount,
       createdAtISO: nowISO,
       updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
     });
 
     // Update invoice totalAmount
-    await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, input.invoiceId), {
-      totalAmount: increment(input.amount),
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
+    const invoicePath = this.invoicePath(input.invoiceId);
+    const invoice = await firestoreInfrastructureApi.get<Record<string, unknown>>(invoicePath);
+    if (invoice) {
+      const totalAmount = typeof invoice.totalAmount === "number" ? invoice.totalAmount : 0;
+      await firestoreInfrastructureApi.update(invoicePath, {
+        totalAmount: totalAmount + input.amount,
+        updatedAtISO: nowISO,
+      });
+    }
 
     return {
-      id: docRef.id,
+      id: itemId,
       invoiceId: input.invoiceId,
       taskId: input.taskId,
       amount: input.amount,
@@ -159,61 +142,68 @@ export class FirebaseInvoiceRepository implements InvoiceRepository {
   }
 
   async findItemById(invoiceItemId: string): Promise<InvoiceItem | null> {
-    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId));
-    if (!snap.exists()) return null;
-    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.itemPath(invoiceItemId));
+    if (!data) return null;
+    return toInvoiceItem(invoiceItemId, data);
   }
 
   async updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null> {
-    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
-    const snap = await getDoc(itemRef);
-    if (!snap.exists()) return null;
+    const itemPath = this.itemPath(invoiceItemId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(itemPath);
+    if (!data) return null;
 
-    const data = snap.data() as Record<string, unknown>;
     const oldAmount = typeof data.amount === "number" ? data.amount : 0;
     const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
     const nowISO = new Date().toISOString();
 
-    await updateDoc(itemRef, { amount, updatedAtISO: nowISO, updatedAt: serverTimestamp() });
+    await firestoreInfrastructureApi.update(itemPath, { amount, updatedAtISO: nowISO });
 
     if (invoiceId) {
-      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
-        totalAmount: increment(amount - oldAmount),
-        updatedAtISO: nowISO,
-        updatedAt: serverTimestamp(),
-      });
+      const invoicePath = this.invoicePath(invoiceId);
+      const invoice = await firestoreInfrastructureApi.get<Record<string, unknown>>(invoicePath);
+      if (invoice) {
+        const totalAmount = typeof invoice.totalAmount === "number" ? invoice.totalAmount : 0;
+        await firestoreInfrastructureApi.update(invoicePath, {
+          totalAmount: totalAmount + (amount - oldAmount),
+          updatedAtISO: nowISO,
+        });
+      }
     }
 
-    const updated = await getDoc(itemRef);
-    if (!updated.exists()) return null;
-    return toInvoiceItem(updated.id, updated.data() as Record<string, unknown>);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(itemPath);
+    if (!updated) return null;
+    return toInvoiceItem(invoiceItemId, updated);
   }
 
   async removeItem(invoiceItemId: string): Promise<void> {
-    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
-    const snap = await getDoc(itemRef);
-    if (!snap.exists()) return;
+    const itemPath = this.itemPath(invoiceItemId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(itemPath);
+    if (!data) return;
 
-    const data = snap.data() as Record<string, unknown>;
     const amount = typeof data.amount === "number" ? data.amount : 0;
     const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
 
-    await deleteDoc(itemRef);
+    await firestoreInfrastructureApi.delete(itemPath);
 
     if (invoiceId) {
-      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
-        totalAmount: increment(-amount),
-        updatedAtISO: new Date().toISOString(),
-        updatedAt: serverTimestamp(),
-      });
+      const invoicePath = this.invoicePath(invoiceId);
+      const invoice = await firestoreInfrastructureApi.get<Record<string, unknown>>(invoicePath);
+      if (invoice) {
+        const totalAmount = typeof invoice.totalAmount === "number" ? invoice.totalAmount : 0;
+        await firestoreInfrastructureApi.update(invoicePath, {
+          totalAmount: totalAmount - amount,
+          updatedAtISO: new Date().toISOString(),
+        });
+      }
     }
   }
 
   async listItems(invoiceId: string): Promise<InvoiceItem[]> {
-    const snaps = await getDocs(
-      query(this.itemCollectionRef, where("invoiceId", "==", invoiceId)),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_INVOICE_ITEMS_COLLECTION,
+      [{ field: "invoiceId", op: "==", value: invoiceId }],
     );
-    return snaps.docs.map((d) => toInvoiceItem(d.id, d.data() as Record<string, unknown>));
+    return docs.map((d) => toInvoiceItem(d.id, d.data));
   }
 }
  

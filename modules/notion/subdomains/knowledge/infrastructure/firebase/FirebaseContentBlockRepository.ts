@@ -6,10 +6,8 @@
  */
 
 import {
-  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
-  query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
 import { v7 as _generateId } from "@lib-uuid";
 import { ContentBlock } from "../../domain/aggregates/ContentBlock";
 import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
@@ -19,11 +17,12 @@ import { BLOCK_TYPES } from "../../domain/value-objects/BlockContent";
 
 const VALID_TYPES = new Set<string>(BLOCK_TYPES);
 
-function blocksCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "contentBlocks");
+function blocksPath(accountId: string): string {
+  return `accounts/${accountId}/contentBlocks`;
 }
-function blockDoc(db: ReturnType<typeof getFirestore>, accountId: string, blockId: string) {
-  return doc(db, "accounts", accountId, "contentBlocks", blockId);
+
+function blockPath(accountId: string, blockId: string): string {
+  return `accounts/${accountId}/contentBlocks/${blockId}`;
 }
 
 function toBlockContent(raw: unknown): BlockContent {
@@ -52,47 +51,51 @@ function toSnapshot(id: string, d: Record<string, unknown>): ContentBlockSnapsho
 }
 
 export class FirebaseContentBlockRepository implements IContentBlockRepository {
-  private get db() { return getFirestore(firebaseClientApp); }
-
   async save(block: ContentBlock): Promise<void> {
     const snap = block.getSnapshot();
-    const ref = blockDoc(this.db, snap.accountId, snap.id);
-    const existing = await getDoc(ref);
-    const data: Record<string, unknown> = { ...snap, updatedAt: serverTimestamp() };
-    if (!existing.exists()) {
-      data.createdAt = serverTimestamp();
-      await setDoc(ref, data);
+    const path = blockPath(snap.accountId, snap.id);
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    const data: Record<string, unknown> = { ...snap };
+    if (!existing) {
+      await firestoreInfrastructureApi.set(path, data);
     } else {
-      await updateDoc(ref, data);
+      await firestoreInfrastructureApi.update(path, data);
     }
   }
 
   async findById(accountId: string, blockId: string): Promise<ContentBlock | null> {
-    const snap = await getDoc(blockDoc(this.db, accountId, blockId));
-    if (!snap.exists()) return null;
-    return ContentBlock.reconstitute(toSnapshot(snap.id, snap.data() as Record<string, unknown>));
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      blockPath(accountId, blockId),
+    );
+    if (!data) return null;
+    return ContentBlock.reconstitute(toSnapshot(blockId, data));
   }
 
   async listByPageId(accountId: string, pageId: string): Promise<ContentBlock[]> {
-    const snaps = await getDocs(
-      query(blocksCol(this.db, accountId), where("pageId", "==", pageId)),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      blocksPath(accountId),
+      [{ field: "pageId", op: "==", value: pageId }],
     );
-    return snaps.docs.map((d) => ContentBlock.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
+    return docs.map((d) => ContentBlock.reconstitute(toSnapshot(d.id, d.data)));
   }
 
   async delete(accountId: string, blockId: string): Promise<void> {
-    await deleteDoc(blockDoc(this.db, accountId, blockId));
+    await firestoreInfrastructureApi.delete(blockPath(accountId, blockId));
   }
 
   async nextOrder(accountId: string, pageId: string): Promise<number> {
-    const snaps = await getDocs(
-      query(blocksCol(this.db, accountId), where("pageId", "==", pageId)),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      blocksPath(accountId),
+      [{ field: "pageId", op: "==", value: pageId }],
     );
-    return snaps.size;
+    return docs.length;
   }
 
   async countByPageId(accountId: string, pageId: string): Promise<number> {
-    const snaps = await getDocs(query(blocksCol(this.db, accountId), where("pageId", "==", pageId)));
-    return snaps.size;
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      blocksPath(accountId),
+      [{ field: "pageId", op: "==", value: pageId }],
+    );
+    return docs.length;
   }
 }

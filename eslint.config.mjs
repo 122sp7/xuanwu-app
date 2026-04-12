@@ -34,20 +34,38 @@ const subdomainElements = [
 
 const moduleElements = [...subdomainElements, ...mainDomainElements];
 
-const sameDomain = (type) => [type, { domain: "${from.domain}" }];
-const sameSubdomain = (type) => [type, { domain: "${from.domain}", subdomain: "${from.subdomain}" }];
+const sameDomain = (type) => ({
+  to: {
+    type,
+    captured: {
+      domain: "{{ from.captured.domain }}",
+    },
+  },
+});
+
+const sameSubdomain = (type) => ({
+  to: {
+    type,
+    captured: {
+      domain: "{{ from.captured.domain }}",
+      subdomain: "{{ from.captured.subdomain }}",
+    },
+  },
+});
+
+const anyDomain = (type) => ({ to: { type } });
 
 const moduleElementTypeRules = [
-  { from: ["main-domain-domain"], allow: [sameDomain("main-domain-domain")] },
-  { from: ["main-domain-application"], allow: [sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api")] },
-  { from: ["main-domain-infrastructure"], allow: [sameDomain("main-domain-infrastructure"), sameDomain("main-domain-application"), sameDomain("main-domain-domain")] },
-  { from: ["main-domain-interfaces"], allow: [sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api"), "main-domain-api"] },
-  { from: ["main-domain-api"], allow: [sameDomain("main-domain-api"), sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("main-domain-infrastructure"), sameDomain("subdomain-api")] },
-  { from: ["subdomain-domain"], allow: [sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain")] },
-  { from: ["subdomain-application"], allow: [sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain")] },
-  { from: ["subdomain-infrastructure"], allow: [sameSubdomain("subdomain-infrastructure"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain")] },
-  { from: ["subdomain-interfaces"], allow: [sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameSubdomain("subdomain-api"), "main-domain-api"] },
-  { from: ["subdomain-api"], allow: [sameSubdomain("subdomain-api"), sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameSubdomain("subdomain-infrastructure"), sameDomain("subdomain-api"), "main-domain-api"] },
+  { from: { type: "main-domain-domain" }, allow: [sameDomain("main-domain-domain")] },
+  { from: { type: "main-domain-application" }, allow: [sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api"), sameDomain("subdomain-application")] },
+  { from: { type: "main-domain-infrastructure" }, allow: [sameDomain("main-domain-infrastructure"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), anyDomain("main-domain-api")] },
+  { from: { type: "main-domain-interfaces" }, allow: [sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("subdomain-api"), anyDomain("main-domain-api")] },
+  { from: { type: "main-domain-api" }, allow: [sameDomain("main-domain-api"), sameDomain("main-domain-interfaces"), sameDomain("main-domain-application"), sameDomain("main-domain-domain"), sameDomain("main-domain-infrastructure"), sameDomain("subdomain-api")] },
+  { from: { type: "subdomain-domain" }, allow: [sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain")] },
+  { from: { type: "subdomain-application" }, allow: [sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain")] },
+  { from: { type: "subdomain-infrastructure" }, allow: [sameSubdomain("subdomain-infrastructure"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameDomain("main-domain-domain"), anyDomain("main-domain-api")] },
+  { from: { type: "subdomain-interfaces" }, allow: [sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameSubdomain("subdomain-api"), anyDomain("main-domain-api")] },
+  { from: { type: "subdomain-api" }, allow: [sameSubdomain("subdomain-api"), sameSubdomain("subdomain-interfaces"), sameSubdomain("subdomain-application"), sameSubdomain("subdomain-domain"), sameSubdomain("subdomain-infrastructure"), sameDomain("subdomain-api"), anyDomain("main-domain-api")] },
 ];
 
 // ─── Restricted import patterns ───────────────────────────────────────────────
@@ -69,6 +87,46 @@ const internalLayer = {
   message: "Use the owning API boundary instead of internal layer paths.",
 };
 const packageToModules = { regex: "^@/modules/", message: "packages/* must remain independent of application modules." };
+const restrictedGenkitImports = {
+  paths: [
+    {
+      name: "genkit",
+      message: "Import Genkit only in modules/platform/subdomains/ai/infrastructure/**.",
+    },
+    {
+      name: "@genkit-ai/google-genai",
+      message: "Import Genkit only in modules/platform/subdomains/ai/infrastructure/**.",
+    },
+  ],
+};
+
+const restrictedDownstreamInterfaceFirebase = {
+  group: ["@integration-firebase", "@integration-firebase/*", "firebase/*"],
+  message:
+    "Downstream interface layers must not import Firebase directly. Use platform API boundaries (Infrastructure/Service APIs) instead.",
+};
+
+const restrictedDownstreamInfrastructureFirebase = {
+  group: ["@integration-firebase", "@integration-firebase/*", "firebase/*"],
+  message:
+    "Downstream infrastructure layers must not import Firebase directly. Delegate through @/modules/platform/api infrastructure APIs.",
+};
+
+const restrictedWorkspaceContextInternalImports = {
+  group: [
+    "@/modules/workspace/interfaces/**",
+    "@/modules/workspace/subdomains/*/interfaces/**",
+  ],
+  message:
+    "notion/notebooklm interface layers must receive workspace scope via props from workspace composition; do not import workspace context directly.",
+};
+
+const restrictedWorkspaceContextApiPath = {
+  name: "@/modules/workspace/api",
+  importNames: ["useWorkspaceContext", "WorkspaceContextProvider"],
+  message:
+    "notion/notebooklm interface layers must not consume workspace context APIs directly. Receive scope via props from workspace composition.",
+};
 
 const legacyAliases = [
   { group: ["@/shared/*"],        message: "Use @shared-types / @shared-utils / … instead." },
@@ -146,9 +204,14 @@ export default defineConfig([
   {
     files: moduleCodeGlobs,
     plugins: { boundaries },
-    settings: { "boundaries/include": moduleCodeGlobs, "boundaries/elements": moduleElements },
+    settings: {
+      "boundaries/include": moduleCodeGlobs,
+      "boundaries/elements": moduleElements,
+      "boundaries/dependency-nodes": ["import"],
+      "boundaries/legacy-templates": false,
+    },
     rules: {
-      "boundaries/element-types": [WARN, { default: "disallow", rules: moduleElementTypeRules }],
+      "boundaries/dependencies": [WARN, { default: "disallow", rules: moduleElementTypeRules }],
     },
   },
 
@@ -178,36 +241,72 @@ export default defineConfig([
     rules: { [restrictedImports([packageToModules])[0]]: restrictedImports([packageToModules])[1] },
   },
 
-  // notebooklm ai subdomain deprecation guardrail (no new downstream coupling)
+  // Genkit must be centralized in platform AI infrastructure adapter.
+  {
+    files: ["modules/**/*.{ts,tsx,js,jsx}"],
+    ignores: ["modules/platform/subdomains/ai/infrastructure/**"],
+    rules: {
+      "no-restricted-imports": [WARN, restrictedGenkitImports],
+    },
+  },
+
+  // Downstream interfaces must consume platform APIs, not Firebase SDK wrappers directly.
   {
     files: [
-      "modules/notebooklm/{application,domain,infrastructure,interfaces}/**/*.{ts,tsx,js,jsx}",
-      "modules/notebooklm/subdomains/{conversation,conversation-versioning,evaluation,grounding,ingestion,note,notebook,retrieval,source,synthesis}/**/*.{ts,tsx,js,jsx}",
+      "modules/notebooklm/**/interfaces/**/*.{ts,tsx,js,jsx}",
+      "modules/notion/**/interfaces/**/*.{ts,tsx,js,jsx}",
+      "modules/workspace/**/interfaces/**/*.{ts,tsx,js,jsx}",
     ],
     rules: {
       [restrictedImports([
-        {
-          group: [
-            "@/modules/notebooklm/subdomains/ai/**",
-            "**/subdomains/ai/**",
-            "../ai/**",
-            "../../ai/**",
-            "../../../ai/**",
-          ],
-          message: "Legacy ai subdomain is in migration; route new behavior via retrieval/grounding/synthesis/evaluation APIs.",
-        },
+        explicitIndex,
+        moduleRootBarrel,
+        subdomainRootBarrel,
+        nonApiModuleSubpath,
+        internalLayer,
+        restrictedDownstreamInterfaceFirebase,
       ])[0]]: restrictedImports([
-        {
-          group: [
-            "@/modules/notebooklm/subdomains/ai/**",
-            "**/subdomains/ai/**",
-            "../ai/**",
-            "../../ai/**",
-            "../../../ai/**",
-          ],
-          message: "Legacy ai subdomain is in migration; route new behavior via retrieval/grounding/synthesis/evaluation APIs.",
-        },
+        explicitIndex,
+        moduleRootBarrel,
+        subdomainRootBarrel,
+        nonApiModuleSubpath,
+        internalLayer,
+        restrictedDownstreamInterfaceFirebase,
       ])[1],
+    },
+  },
+
+  // Downstream infrastructure must delegate Firebase access via platform infrastructure APIs.
+  {
+    files: [
+      "modules/notebooklm/**/infrastructure/**/*.{ts,tsx,js,jsx}",
+      "modules/notion/**/infrastructure/**/*.{ts,tsx,js,jsx}",
+      "modules/workspace/**/infrastructure/**/*.{ts,tsx,js,jsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [WARN, { patterns: [restrictedDownstreamInfrastructureFirebase] }],
+    },
+  },
+
+  // notion/notebooklm interface layers must not read workspace context directly.
+  {
+    files: [
+      "modules/notebooklm/**/interfaces/**/*.{ts,tsx,js,jsx}",
+      "modules/notion/**/interfaces/**/*.{ts,tsx,js,jsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [WARN, {
+        patterns: [
+          explicitIndex,
+          moduleRootBarrel,
+          subdomainRootBarrel,
+          nonApiModuleSubpath,
+          internalLayer,
+          restrictedDownstreamInterfaceFirebase,
+          restrictedWorkspaceContextInternalImports,
+        ],
+        paths: [restrictedWorkspaceContextApiPath],
+      }],
     },
   },
 

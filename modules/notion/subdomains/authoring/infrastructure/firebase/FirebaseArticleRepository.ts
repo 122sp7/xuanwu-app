@@ -5,28 +5,16 @@
  * Note: Preserves same collection path as previous knowledge-base module for data continuity.
  */
 
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  setDoc,
-  where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 import type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../../domain/aggregates/Article";
 import type { IArticleRepository } from "../../domain/repositories/IArticleRepository";
 
-function articlesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "kbArticles");
+function articlesPath(accountId: string): string {
+  return `accounts/${accountId}/kbArticles`;
 }
 
-function articleDoc(db: ReturnType<typeof getFirestore>, accountId: string, articleId: string) {
-  return doc(db, "accounts", accountId, "kbArticles", articleId);
+function articlePath(accountId: string, articleId: string): string {
+  return `accounts/${accountId}/kbArticles/${articleId}`;
 }
 
 function toSnapshot(id: string, data: Record<string, unknown>): ArticleSnapshot {
@@ -58,15 +46,12 @@ function toSnapshot(id: string, data: Record<string, unknown>): ArticleSnapshot 
 }
 
 export class FirebaseArticleRepository implements IArticleRepository {
-  private db() {
-    return getFirestore(firebaseClientApp);
-  }
-
   async getById(accountId: string, articleId: string): Promise<ArticleSnapshot | null> {
-    const db = this.db();
-    const snap = await getDoc(articleDoc(db, accountId, articleId));
-    if (!snap.exists()) return null;
-    return toSnapshot(snap.id, snap.data() as Record<string, unknown>);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      articlePath(accountId, articleId),
+    );
+    if (!data) return null;
+    return toSnapshot(articleId, data);
   }
 
   async list(params: {
@@ -76,36 +61,34 @@ export class FirebaseArticleRepository implements IArticleRepository {
     status?: ArticleStatus;
     limit?: number;
   }): Promise<ArticleSnapshot[]> {
-    const db = this.db();
-    const constraints = [
-      where("workspaceId", "==", params.workspaceId),
-      ...(params.categoryId ? [where("categoryId", "==", params.categoryId)] : []),
-      ...(params.status ? [where("status", "==", params.status)] : []),
-      orderBy("updatedAtISO", "desc"),
+    const where = [
+      { field: "workspaceId", op: "==", value: params.workspaceId } as const,
+      ...(params.categoryId ? [{ field: "categoryId", op: "==", value: params.categoryId } as const] : []),
+      ...(params.status ? [{ field: "status", op: "==", value: params.status } as const] : []),
     ];
-    const q = query(articlesCol(db, params.accountId), ...constraints);
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, unknown>));
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      articlesPath(params.accountId),
+      where,
+      { orderBy: [{ field: "updatedAtISO", direction: "desc" }] },
+    );
+    const limited = typeof params.limit === "number" && params.limit > 0 ? docs.slice(0, params.limit) : docs;
+    return limited.map((d) => toSnapshot(d.id, d.data));
   }
 
   async listByLinkedArticleId(accountId: string, articleId: string): Promise<ArticleSnapshot[]> {
-    const db = this.db();
-    const q = query(
-      articlesCol(db, accountId),
-      where("linkedArticleIds", "array-contains", articleId),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      articlesPath(accountId),
+      [{ field: "linkedArticleIds", op: "array-contains", value: articleId }],
     );
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, unknown>));
+    return docs.map((d) => toSnapshot(d.id, d.data));
   }
 
   async save(snapshot: ArticleSnapshot): Promise<void> {
-    const db = this.db();
     const { id, accountId, ...rest } = snapshot;
-    await setDoc(articleDoc(db, accountId, id), { ...rest, accountId, id });
+    await firestoreInfrastructureApi.set(articlePath(accountId, id), { ...rest, accountId, id });
   }
 
   async delete(accountId: string, articleId: string): Promise<void> {
-    const db = this.db();
-    await deleteDoc(articleDoc(db, accountId, articleId));
+    await firestoreInfrastructureApi.delete(articlePath(accountId, articleId));
   }
 }

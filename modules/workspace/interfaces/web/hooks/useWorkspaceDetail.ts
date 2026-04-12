@@ -42,7 +42,7 @@ export function useWorkspaceDetail(
         const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
         if (cancelled) return;
         if (!detail) {
-          router.replace("/workspace?context=unavailable");
+          router.replace(`/${encodeURIComponent(accountId)}?context=unavailable`);
           return;
         }
         setWorkspace(detail);

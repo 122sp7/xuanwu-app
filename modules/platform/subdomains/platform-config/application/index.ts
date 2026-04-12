@@ -10,6 +10,8 @@ export {
 	SHELL_MOBILE_NAV_ITEMS,
 	SHELL_ORG_PRIMARY_NAV_ITEMS,
 	SHELL_ORG_SECONDARY_NAV_ITEMS,
+	buildShellContextualHref,
+	normalizeShellRoutePath,
 	isExactOrChildPath,
 	listShellRailCatalogItems,
 	resolveShellBreadcrumbLabel,
@@ -19,4 +21,5 @@ export {
 	type ShellNavSection,
 	type ShellRailCatalogItem,
 	type ShellContextSectionConfig,
+	type ShellRouteContext,
 } from "./services/shell-navigation-catalog";

@@ -38,13 +38,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-305 files | 17,578 lines
+302 files | 17,780 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 248 | 11,091 |
-| TypeScript (TSX) | 38 | 5,917 |
-| Markdown | 19 | 570 |
+| TypeScript | 245 | 11,148 |
+| TypeScript (TSX) | 39 | 6,076 |
+| Markdown | 18 | 556 |
 
 **Largest files:**
 - `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)

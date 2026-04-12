@@ -6,34 +6,24 @@
  */
 
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  addDoc,
-  updateDoc,
-  query,
-  where,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { getFirebaseFirestore } from "@integration-firebase/firestore";
-
-const db = getFirebaseFirestore();
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
 import { generateId } from "@shared-utils";
 import type { IDatabaseRepository, CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../../domain/repositories/IDatabaseRepository";
 import type { DatabaseSnapshot, Field } from "../../domain/aggregates/Database";
 
-function databasesCol(accountId: string) {
-  return collection(db, "accounts", accountId, "knowledgeDatabases");
+function databasesPath(accountId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases`;
 }
 
-function databaseDoc(accountId: string, id: string) {
-  return doc(db, "accounts", accountId, "knowledgeDatabases", id);
+function databasePath(accountId: string, id: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${id}`;
 }
 
 function toISO(ts: unknown): string {
-  if (ts instanceof Timestamp) return ts.toDate().toISOString();
+  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as { toDate: () => Date }).toDate === "function") {
+    return (ts as { toDate: () => Date }).toDate().toISOString();
+  }
   if (typeof ts === "string") return ts;
   return new Date().toISOString();
 }
@@ -58,9 +48,9 @@ function toSnapshot(id: string, data: Record<string, any>): DatabaseSnapshot {
 
 export class FirebaseDatabaseRepository implements IDatabaseRepository {
   async create(input: CreateDatabaseInput): Promise<DatabaseSnapshot> {
-    const col = databasesCol(input.accountId);
-    const now = serverTimestamp();
-    const docRef = await addDoc(col, {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
       workspaceId: input.workspaceId,
       accountId: input.accountId,
       name: input.name,
@@ -70,32 +60,32 @@ export class FirebaseDatabaseRepository implements IDatabaseRepository {
       icon: null,
       coverImageUrl: null,
       createdByUserId: input.createdByUserId,
-      createdAt: now,
-      updatedAt: now,
-    });
-    const snap = await getDoc(docRef);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return toSnapshot(docRef.id, snap.data() as Record<string, any>);
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await firestoreInfrastructureApi.set(databasePath(input.accountId, id), data);
+    return toSnapshot(id, data);
   }
 
   async update(input: UpdateDatabaseInput): Promise<DatabaseSnapshot> {
-    const ref = databaseDoc(input.accountId, input.id);
+    const path = databasePath(input.accountId, input.id);
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!existing) {
+      throw new Error(`Database ${input.id} not found`);
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const changes: Record<string, any> = { updatedAt: serverTimestamp() };
+    const changes: Record<string, any> = { updatedAtISO: new Date().toISOString() };
     if (input.name !== undefined) changes.name = input.name;
     if (input.description !== undefined) changes.description = input.description;
     if (input.icon !== undefined) changes.icon = input.icon;
     if (input.coverImageUrl !== undefined) changes.coverImageUrl = input.coverImageUrl;
-    await updateDoc(ref, changes);
-    const snap = await getDoc(ref);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return toSnapshot(input.id, snap.data() as Record<string, any>);
+    await firestoreInfrastructureApi.update(path, changes);
+    return toSnapshot(input.id, { ...existing, ...changes });
   }
 
   async addField(input: AddFieldInput): Promise<Field> {
-    const ref = databaseDoc(input.accountId, input.databaseId);
-    const snap = await getDoc(ref);
-    const data = snap.data() ?? {};
+    const path = databasePath(input.accountId, input.databaseId);
+    const data = (await firestoreInfrastructureApi.get<Record<string, unknown>>(path)) ?? {};
     const fields: Field[] = Array.isArray(data.fields) ? [...data.fields] : [];
     const newField: Field = {
       id: generateId(),
@@ -106,26 +96,32 @@ export class FirebaseDatabaseRepository implements IDatabaseRepository {
       order: fields.length,
     };
     fields.push(newField);
-    await updateDoc(ref, { fields, updatedAt: serverTimestamp() });
+    await firestoreInfrastructureApi.update(path, { fields, updatedAtISO: new Date().toISOString() });
     return newField;
   }
 
   async archive(id: string, accountId: string): Promise<void> {
-    const ref = databaseDoc(accountId, id);
-    await updateDoc(ref, { archived: true, archivedAt: serverTimestamp(), updatedAt: serverTimestamp() });
+    const now = new Date().toISOString();
+    await firestoreInfrastructureApi.update(databasePath(accountId, id), {
+      archived: true,
+      archivedAtISO: now,
+      updatedAtISO: now,
+    });
   }
 
   async findById(id: string, accountId: string): Promise<DatabaseSnapshot | null> {
-    const snap = await getDoc(databaseDoc(accountId, id));
-    if (!snap.exists()) return null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return toSnapshot(id, snap.data() as Record<string, any>);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(databasePath(accountId, id));
+    if (!data) return null;
+    return toSnapshot(id, data);
   }
 
   async listByWorkspace(accountId: string, workspaceId: string): Promise<DatabaseSnapshot[]> {
-    const q = query(databasesCol(accountId), where("workspaceId", "==", workspaceId), where("archived", "!=", true));
-    const snaps = await getDocs(q);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, any>));
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      databasesPath(accountId),
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+    return docs
+      .filter((d) => d.data.archived !== true)
+      .map((d) => toSnapshot(d.id, d.data));
   }
 }

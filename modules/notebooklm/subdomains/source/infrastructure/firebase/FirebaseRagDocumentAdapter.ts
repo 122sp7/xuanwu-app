@@ -7,44 +7,21 @@
  *   knowledge_base/{organizationId}/workspaces/{workspaceId}/documents/{documentId}
  */
 
-import {
-  collection,
-  doc,
-  getDocs,
-  getFirestore,
-  limit,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 
 import type { RagDocumentRecord, RagDocumentStatus } from "../../domain/entities/RagDocument";
 import type { IRagDocumentRepository } from "../../domain/repositories/IRagDocumentRepository";
 
-function buildDocRef(input: {
+function buildDocPath(input: {
   readonly organizationId: string;
   readonly workspaceId: string;
   readonly documentId: string;
-}) {
-  return doc(
-    getFirestore(firebaseClientApp),
-    "knowledge_base", input.organizationId,
-    "workspaces", input.workspaceId,
-    "documents", input.documentId,
-  );
+}): string {
+  return `knowledge_base/${input.organizationId}/workspaces/${input.workspaceId}/documents/${input.documentId}`;
 }
 
-function buildDocCollection(input: { readonly organizationId: string; readonly workspaceId: string }) {
-  return collection(
-    getFirestore(firebaseClientApp),
-    "knowledge_base", input.organizationId,
-    "workspaces", input.workspaceId,
-    "documents",
-  );
+function buildDocCollectionPath(input: { readonly organizationId: string; readonly workspaceId: string }): string {
+  return `knowledge_base/${input.organizationId}/workspaces/${input.workspaceId}/documents`;
 }
 
 function toStringArray(value: unknown): readonly string[] {
@@ -108,32 +85,32 @@ export class FirebaseRagDocumentAdapter implements IRagDocumentRepository {
     readonly workspaceId: string;
     readonly storagePath: string;
   }): Promise<RagDocumentRecord | null> {
-    const snapshots = await getDocs(
-      query(
-        buildDocCollection(scope),
-        where("storagePath", "==", scope.storagePath),
-        limit(1),
-      ),
+    const documents = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      buildDocCollectionPath(scope),
+      [{ field: "storagePath", op: "==", value: scope.storagePath }],
+      { limit: 1 },
     );
-    const [first] = snapshots.docs;
+    const [first] = documents;
     if (!first) return null;
-    return toRagDocumentRecord(first.id, first.data() as Record<string, unknown>, scope);
+    return toRagDocumentRecord(first.id, first.data, scope);
   }
 
   async findByWorkspace(scope: {
     readonly organizationId: string;
     readonly workspaceId: string;
   }): Promise<readonly RagDocumentRecord[]> {
-    const snapshots = await getDocs(
-      query(buildDocCollection(scope), orderBy("createdAtISO", "desc")),
+    const documents = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      buildDocCollectionPath(scope),
+      [],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }] },
     );
-    return snapshots.docs.map((snap) =>
-      toRagDocumentRecord(snap.id, snap.data() as Record<string, unknown>, scope),
+    return documents.map((document) =>
+      toRagDocumentRecord(document.id, document.data, scope),
     );
   }
 
   async saveUploaded(record: RagDocumentRecord): Promise<void> {
-    await setDoc(buildDocRef({ organizationId: record.organizationId, workspaceId: record.workspaceId, documentId: record.id }), {
+    await firestoreInfrastructureApi.set(buildDocPath({ organizationId: record.organizationId, workspaceId: record.workspaceId, documentId: record.id }), {
       id: record.id,
       organizationId: record.organizationId,
       workspaceId: record.workspaceId,
@@ -162,8 +139,6 @@ export class FirebaseRagDocumentAdapter implements IRagDocumentRepository {
       ...(record.expiresAtISO ? { expiresAtISO: record.expiresAtISO } : {}),
       createdAtISO: record.createdAtISO,
       updatedAtISO: record.updatedAtISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
     });
   }
 }

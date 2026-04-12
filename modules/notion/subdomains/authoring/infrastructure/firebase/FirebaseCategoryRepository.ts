@@ -5,28 +5,16 @@
  * Note: Preserves same collection path as previous knowledge-base module for data continuity.
  */
 
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  setDoc,
-  where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 import type { CategorySnapshot } from "../../domain/aggregates/Category";
 import type { ICategoryRepository } from "../../domain/repositories/ICategoryRepository";
 
-function categoriesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "kbCategories");
+function categoriesPath(accountId: string): string {
+  return `accounts/${accountId}/kbCategories`;
 }
 
-function categoryDoc(db: ReturnType<typeof getFirestore>, accountId: string, categoryId: string) {
-  return doc(db, "accounts", accountId, "kbCategories", categoryId);
+function categoryPath(accountId: string, categoryId: string): string {
+  return `accounts/${accountId}/kbCategories/${categoryId}`;
 }
 
 function toSnapshot(id: string, data: Record<string, unknown>): CategorySnapshot {
@@ -49,37 +37,29 @@ function toSnapshot(id: string, data: Record<string, unknown>): CategorySnapshot
 }
 
 export class FirebaseCategoryRepository implements ICategoryRepository {
-  private db() {
-    return getFirestore(firebaseClientApp);
-  }
-
   async getById(accountId: string, categoryId: string): Promise<CategorySnapshot | null> {
-    const db = this.db();
-    const snap = await getDoc(categoryDoc(db, accountId, categoryId));
-    if (!snap.exists()) return null;
-    return toSnapshot(snap.id, snap.data() as Record<string, unknown>);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      categoryPath(accountId, categoryId),
+    );
+    if (!data) return null;
+    return toSnapshot(categoryId, data);
   }
 
   async listByWorkspace(accountId: string, workspaceId: string): Promise<CategorySnapshot[]> {
-    const db = this.db();
-    const q = query(
-      categoriesCol(db, accountId),
-      where("workspaceId", "==", workspaceId),
-      orderBy("depth", "asc"),
-      orderBy("name", "asc"),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      categoriesPath(accountId),
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+      { orderBy: [{ field: "depth", direction: "asc" }, { field: "name", direction: "asc" }] },
     );
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, unknown>));
+    return docs.map((d) => toSnapshot(d.id, d.data));
   }
 
   async save(snapshot: CategorySnapshot): Promise<void> {
-    const db = this.db();
     const { id, accountId, ...rest } = snapshot;
-    await setDoc(categoryDoc(db, accountId, id), { ...rest, accountId, id });
+    await firestoreInfrastructureApi.set(categoryPath(accountId, id), { ...rest, accountId, id });
   }
 
   async delete(accountId: string, categoryId: string): Promise<void> {
-    const db = this.db();
-    await deleteDoc(categoryDoc(db, accountId, categoryId));
+    await firestoreInfrastructureApi.delete(categoryPath(accountId, categoryId));
   }
 }

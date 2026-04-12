@@ -4,11 +4,7 @@
  * Firestore: accounts/{accountId}/collaborationComments/{commentId}
  */
 
-import {
-  collection, doc, getDoc, getDocs, getFirestore,
-  onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
 import { v7 as generateId } from "@lib-uuid";
 import type { CommentSnapshot, SelectionRange } from "../../domain/aggregates/Comment";
 import type {
@@ -19,12 +15,12 @@ import type {
   ResolveCommentInput,
 } from "../../domain/repositories/ICommentRepository";
 
-function commentsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "collaborationComments");
+function commentsPath(accountId: string): string {
+  return `accounts/${accountId}/collaborationComments`;
 }
 
-function commentDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
-  return doc(db, "accounts", accountId, "collaborationComments", id);
+function commentPath(accountId: string, id: string): string {
+  return `accounts/${accountId}/collaborationComments/${id}`;
 }
 
 function toComment(id: string, data: Record<string, unknown>): CommentSnapshot {
@@ -57,10 +53,7 @@ function toComment(id: string, data: Record<string, unknown>): CommentSnapshot {
 }
 
 export class FirebaseCommentRepository implements ICommentRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
   async create(input: CreateCommentInput): Promise<CommentSnapshot> {
-    const db = this.db();
     const id = generateId();
     const now = new Date().toISOString();
     const data = {
@@ -77,63 +70,72 @@ export class FirebaseCommentRepository implements ICommentRepository {
       resolvedByUserId: null,
       createdAtISO: now,
       updatedAtISO: now,
-      _createdAt: serverTimestamp(),
     };
-    await setDoc(commentDoc(db, input.accountId, id), data);
+    await firestoreInfrastructureApi.set(commentPath(input.accountId, id), data);
     return toComment(id, data);
   }
 
   async update(input: UpdateCommentInput): Promise<CommentSnapshot | null> {
-    const db = this.db();
-    const ref = commentDoc(db, input.accountId, input.id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      commentPath(input.accountId, input.id),
+    );
+    if (!existing) return null;
     const now = new Date().toISOString();
-    await updateDoc(ref, { body: input.body, updatedAtISO: now });
-    return toComment(snap.id, { ...snap.data(), body: input.body, updatedAtISO: now });
+    await firestoreInfrastructureApi.update(commentPath(input.accountId, input.id), {
+      body: input.body,
+      updatedAtISO: now,
+    });
+    return toComment(input.id, { ...existing, body: input.body, updatedAtISO: now });
   }
 
   async resolve(input: ResolveCommentInput): Promise<CommentSnapshot | null> {
-    const db = this.db();
-    const ref = commentDoc(db, input.accountId, input.id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      commentPath(input.accountId, input.id),
+    );
+    if (!existing) return null;
     const now = new Date().toISOString();
-    await updateDoc(ref, { resolvedAt: now, resolvedByUserId: input.resolvedByUserId });
-    return toComment(snap.id, { ...snap.data(), resolvedAt: now, resolvedByUserId: input.resolvedByUserId });
+    await firestoreInfrastructureApi.update(commentPath(input.accountId, input.id), {
+      resolvedAt: now,
+      resolvedByUserId: input.resolvedByUserId,
+    });
+    return toComment(input.id, { ...existing, resolvedAt: now, resolvedByUserId: input.resolvedByUserId });
   }
 
   async delete(accountId: string, commentId: string): Promise<void> {
-    const { deleteDoc } = await import("firebase/firestore");
-    await deleteDoc(commentDoc(this.db(), accountId, commentId));
+    await firestoreInfrastructureApi.delete(commentPath(accountId, commentId));
   }
 
   async findById(accountId: string, commentId: string): Promise<CommentSnapshot | null> {
-    const snap = await getDoc(commentDoc(this.db(), accountId, commentId));
-    if (!snap.exists()) return null;
-    return toComment(snap.id, snap.data() as Record<string, unknown>);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      commentPath(accountId, commentId),
+    );
+    if (!data) return null;
+    return toComment(commentId, data);
   }
 
   async listByContent(accountId: string, contentId: string): Promise<CommentSnapshot[]> {
-    const db = this.db();
-    const q = query(
-      commentsCol(db, accountId),
-      where("contentId", "==", contentId),
-      orderBy("_createdAt", "asc"),
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      commentsPath(accountId),
+      [{ field: "contentId", op: "==", value: contentId }],
+      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
     );
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => toComment(d.id, d.data() as Record<string, unknown>));
+    return docs.map((d) => toComment(d.id, d.data));
   }
 
   subscribe(accountId: string, contentId: string, onUpdate: (comments: CommentSnapshot[]) => void): CommentUnsubscribe {
-    const db = this.db();
-    const q = query(
-      commentsCol(db, accountId),
-      where("contentId", "==", contentId),
-      orderBy("_createdAt", "asc"),
+    return firestoreInfrastructureApi.watchCollection<Record<string, unknown>>(
+      commentsPath(accountId),
+      {
+        onNext: (documents) => {
+          const mapped = documents
+            .map((d) => toComment(d.id, d.data))
+            .sort((a, b) => a.createdAtISO.localeCompare(b.createdAtISO));
+          onUpdate(mapped);
+        },
+      },
+      [{ field: "contentId", op: "==", value: contentId }],
     );
-    return onSnapshot(q, (snap) => {
-      onUpdate(snap.docs.map((d) => toComment(d.id, d.data() as Record<string, unknown>)));
-    });
   }
+
+  
 }

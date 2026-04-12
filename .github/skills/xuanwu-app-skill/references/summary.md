@@ -41,24 +41,24 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1502 files | 67,106 lines
+1434 files | 67,693 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1185 | 40,000 |
-| TypeScript (TSX) | 195 | 23,768 |
-| Markdown | 107 | 3,127 |
-| No Extension | 14 | 14 |
+| TypeScript | 1137 | 41,068 |
+| TypeScript (TSX) | 200 | 23,886 |
+| Markdown | 90 | 2,536 |
+| No Extension | 6 | 6 |
 | CSS | 1 | 197 |
 
 **Largest files:**
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
-- `app/(shell)/dev-tools/page.tsx` (475 lines)
+- `app/(shell)/(account)/[accountId]/dev-tools/page.tsx` (477 lines)
 - `packages/ui-shadcn/ui/chart.tsx` (356 lines)
 - `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
-- `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (341 lines)
+- `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (344 lines)
 - `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)
-- `modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx` (321 lines)
-- `modules/workspace/domain/aggregates/Workspace.ts` (305 lines)
+- `app/(shell)/_shell/ShellAppRail.tsx` (323 lines)
+- `modules/platform/api/infrastructure-api.ts` (312 lines)
+- `modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx` (308 lines)
 - `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
-- `modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx` (298 lines)

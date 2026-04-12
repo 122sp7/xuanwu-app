@@ -5,7 +5,7 @@ import { FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useApp } from "@/modules/platform/api";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { storageInfrastructureApi } from "@/modules/platform/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 
@@ -13,7 +13,6 @@ import type { SourceLiveDocument } from "../hooks/useSourceDocumentsSnapshot";
 import { useSourceDocumentsSnapshot } from "../hooks/useSourceDocumentsSnapshot";
 import { deleteSourceDocument, renameSourceDocument } from "../_actions/source-file.actions";
 
-const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
 const WATCH_PATH = "uploads/";
 const ACCEPTED_MIME: Record<string, string> = {
   "application/pdf": ".pdf",
@@ -76,7 +75,7 @@ export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
       id: docId,
       filename: selectedFile.name,
       workspaceId: effectiveWorkspaceId,
-      sourceGcsUri: `gs://${UPLOAD_BUCKET}/${uploadPath}`,
+      sourceGcsUri: storageInfrastructureApi.toGsUri(uploadPath),
       jsonGcsUri: "",
       pageCount: 0,
       status: "processing",
@@ -88,8 +87,6 @@ export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
     });
 
     try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const fileRef = storageApi.ref(storage, uploadPath);
       const customMetadata: Record<string, string> = {
         account_id: activeAccountId,
         filename: selectedFile.name,
@@ -97,7 +94,7 @@ export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
         display_name: selectedFile.name,
       };
       if (effectiveWorkspaceId) customMetadata.workspace_id = effectiveWorkspaceId;
-      await storageApi.uploadBytes(fileRef, selectedFile, { customMetadata });
+      await storageInfrastructureApi.upload(selectedFile, uploadPath, { customMetadata });
       toast.success(`上傳成功：${selectedFile.name}`);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";

@@ -70,7 +70,7 @@ export function CreateWorkspaceDialogRail({
 
     reset();
     onOpenChange(false);
-    onNavigate("/workspace");
+    onNavigate(`/${encodeURIComponent(accountId)}`);
   }
 
   return (

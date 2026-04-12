@@ -1,6 +1,34 @@
 import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Users } from "lucide-react";
 import type { ReactNode } from "react";
 
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
+
+function isWorkspaceScopedPath(pathname: string) {
+  if (pathname.startsWith("/workspace/")) {
+    return true;
+  }
+
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length < 2) {
+    return false;
+  }
+
+  return !NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(segments[0]);
+}
+
 export interface WorkspaceQuickAccessMatcherOptions {
   panel: string | null;
   tab: string | null;
@@ -19,58 +47,74 @@ const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
     label: "首頁",
     icon: <Home className="size-3.5" />,
     isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") &&
+      isWorkspaceScopedPath(pathname) &&
       (options?.tab == null || options.tab === "Overview") &&
       options?.panel !== "settings",
   },
   {
-    href: "/knowledge/pages?workspaceId={workspaceId}",
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-pages",
     label: "知識頁面",
     icon: <FileText className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/knowledge/pages" || pathname.startsWith("/knowledge/pages/"),
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-pages",
   },
   {
-    href: "/knowledge-base/articles?workspaceId={workspaceId}",
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-base-articles",
     label: "文章",
     icon: <BookOpen className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/knowledge-base/articles" || pathname.startsWith("/knowledge-base/articles/"),
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-base-articles",
   },
   {
     href: "/workspace/{workspaceId}?tab=Files",
     label: "檔案",
     icon: <FolderOpen className="size-3.5" />,
     isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") && options?.tab === "Files",
+      isWorkspaceScopedPath(pathname) && options?.tab === "Files",
   },
   {
     href: "/workspace/{workspaceId}?tab=Members",
     label: "成員",
     icon: <Users className="size-3.5" />,
     isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") && options?.tab === "Members",
+      isWorkspaceScopedPath(pathname) && options?.tab === "Members",
   },
   {
     href: "/notebook/rag-query?workspaceId={workspaceId}",
     label: "RAG 查詢",
     icon: <Brain className="size-3.5" />,
     isActive: (pathname: string) =>
-      pathname === "/notebook/rag-query" || pathname.startsWith("/notebook/rag-query/"),
+      pathname === "/notebook/rag-query" ||
+      pathname.startsWith("/notebook/rag-query/") ||
+      pathname.includes("/notebook/rag-query"),
   },
   {
-    href: "/source/libraries?workspaceId={workspaceId}",
+    href: "/workspace/{workspaceId}?tab=Overview&panel=source-libraries",
     label: "資料庫",
     icon: <Database className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/source/libraries" || pathname.startsWith("/source/libraries/"),
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "source-libraries",
   },
 ];
 
-export function buildWorkspaceQuickAccessItems(workspaceId: string): WorkspaceQuickAccessItem[] {
+export function buildWorkspaceQuickAccessItems(
+  workspaceId: string,
+  accountId?: string | null,
+): WorkspaceQuickAccessItem[] {
   const encodedWorkspaceId = encodeURIComponent(workspaceId);
+  const encodedAccountId = accountId ? encodeURIComponent(accountId) : "";
+  const workspaceBaseHref = accountId
+    ? `/${encodedAccountId}/${encodedWorkspaceId}`
+    : "/";
+
   return WORKSPACE_QUICK_ACCESS_TEMPLATES.map((item) => ({
     ...item,
-    href: item.href.replaceAll("{workspaceId}", encodedWorkspaceId),
+    href: item.href
+      .replaceAll("/workspace/{workspaceId}", workspaceBaseHref)
+      .replaceAll(
+        "/notebook/rag-query?workspaceId={workspaceId}",
+        `${workspaceBaseHref}/notebook/rag-query`,
+      )
+      .replaceAll("{workspaceId}", encodedWorkspaceId),
   }));
 }
