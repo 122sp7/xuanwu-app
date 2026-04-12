@@ -7,16 +7,15 @@ export {
 } from "./KnowledgePageUseCases";
 
 export {
-  PublishKnowledgeVersionUseCase,
   VerifyKnowledgePageUseCase,
   ApproveKnowledgePageUseCase,
-  RequestKnowledgePageReviewUseCase,
-  AssignKnowledgePageOwnerUseCase,
+  RequestPageReviewUseCase,
+  AssignPageOwnerUseCase,
 } from "./KnowledgePageReviewUseCases";
 
 export {
-  UpdateKnowledgePageIconUseCase,
-  UpdateKnowledgePageCoverUseCase,
+  UpdatePageIconUseCase,
+  UpdatePageCoverUseCase,
 } from "./KnowledgePageAppearanceUseCases";
 
 export {
