@@ -38,11 +38,11 @@ This skill contains the following reference files:
 
 ## Statistics
 
-459 files | 138,374 lines
+459 files | 138,381 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 459 | 138,374 |
+| Markdown | 459 | 138,381 |
 
 **Largest files:**
 - `.github/skills/xuanwu-app-skill/references/files.md` (73,912 lines)

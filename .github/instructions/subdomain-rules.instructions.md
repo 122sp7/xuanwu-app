@@ -27,14 +27,21 @@ applyTo: 'modules/**/subdomains/**/*.{ts,tsx,js,jsx,md}'
 
 ## 層級約束（Hard Rules）
 
-子域內允許：
+子域內預設允許：
+- `api/`
 - `domain/`
 - `application/`
 - `ports/`（optional）
 
+子域內條件允許：
+- `infrastructure/`、`interfaces/` 僅在 subdomain 具備 mini-module 級獨立能力時可建立。
+- mini-module gate 需同時滿足：
+	1. 具有明確且長期穩定的獨立外部整合責任。
+	2. 需要獨立演化與測試節奏，且無法由 bounded-context 根層承接。
+	3. 於子域 `README.md` 明確記錄為 mini-module 例外與邊界責任。
+
 子域內禁止：
-- `interfaces/`（React / UI）
-- `infrastructure/`（Firebase / DB / API）
+- 在未符合 mini-module gate 時建立 `infrastructure/` 或 `interfaces/`。
 
 ## 單一職責
 
@@ -76,7 +83,7 @@ domain 層必須：
 
 ## 一句話總結
 
-Subdomain = Pure business logic + No framework + No UI + No database
+Subdomain = core-first business capability; adapters/UI only by mini-module exception
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
