@@ -38,14 +38,15 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 ## Development Order
 
 - Use-case contract first: actor, goal, main success scenario, failure branches.
-- Required order: `Use Case -> Domain -> Ports -> Application -> Infrastructure -> Interface`.
+- Recommended order: `Use Case -> Domain -> (Application <-> Ports iterate as needed) -> Infrastructure -> Interface`.
 - Do not build UI first and backfill domain later.
 - Do not call repositories directly from `interfaces/`.
 - Do not force domain design from storage schema first.
 
 ## Module Shape and Naming
 
-- Required shape: `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`.
+- Bounded-context root required shape: `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`.
+- Subdomain default shape follows core-first (`api/`, `domain/`, `application/`, optional `ports/`); subdomain `infrastructure/` and `interfaces/` are gate-based, not always required.
 - Public boundary is `api/`; `index.ts` is aggregate export only.
 - Use case file: `verb-noun.use-case.ts`.
 - Repository interface: `PascalCaseRepository`.

@@ -68,7 +68,7 @@ domain 層必須：
 
 使用業務語言命名子域。
 
-正確：authoring、knowledge-base、workspace
+正確：authoring、taxonomy、workspace
 
 錯誤：utils、common、shared
 
