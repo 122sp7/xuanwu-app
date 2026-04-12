@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-import { quickCreateKnowledgePage } from "@/modules/platform/application/services/shell-quick-create";
+import { quickCreateKnowledgePage } from "@/modules/platform/api";
 import {
   buildWorkspaceQuickAccessItems,
   CustomizeNavigationDialog,

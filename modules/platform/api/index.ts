@@ -103,4 +103,12 @@ export * from "../subdomains/background-job/api";
 
 // Cross-module and app-composition hooks from interfaces layer.
 // Only selective exports — do NOT wildcard re-export "../interfaces".
-export { useApp, Providers, ShellLayout, isActiveOrganizationAccount } from "../interfaces";
+export {
+  useApp,
+  Providers,
+  ShellLayout,
+  isActiveOrganizationAccount,
+  quickCreateKnowledgePage,
+  type QuickCreatePageInput,
+  type QuickCreatePageResult,
+} from "../interfaces";

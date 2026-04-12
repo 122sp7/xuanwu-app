@@ -6,8 +6,6 @@
  * Delegates to the target module's public API boundary only.
  */
 
-import { createKnowledgePage } from "@/modules/notion/api";
-
 // ── Input / output contracts ──────────────────────────────────────────────────
 
 export interface QuickCreatePageInput {
@@ -25,6 +23,13 @@ export interface QuickCreatePageResult {
 
 export async function quickCreateKnowledgePage(
   input: QuickCreatePageInput,
+  createPage: (input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    parentPageId: null;
+    createdByUserId: string;
+  }) => Promise<QuickCreatePageResult>,
 ): Promise<QuickCreatePageResult> {
   if (!input.accountId) {
     return { success: false, error: { message: "目前沒有 active account，無法建立" } };
@@ -32,7 +37,7 @@ export async function quickCreateKnowledgePage(
   if (!input.workspaceId) {
     return { success: false, error: { message: "請先切換到工作區，再建立頁面" } };
   }
-  return createKnowledgePage({
+  return createPage({
     accountId: input.accountId,
     workspaceId: input.workspaceId,
     title: "未命名頁面",

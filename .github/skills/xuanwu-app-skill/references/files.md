@@ -26481,52 +26481,6 @@ Update these files to import from Tier-2 destinations:
 - [ ] Update AGENTS.md compliance memo when done
 ````
 
-## File: modules/notebooklm/notebooklm.instructions.md
-````markdown
----
-description: 'NotebookLM bounded context rules: conversation/source/retrieval/synthesis ownership, downstream dependency position, and subdomain routing.'
-applyTo: 'modules/notebooklm/**/*.{ts,tsx,md}'
----
-
-# NotebookLM Bounded Context (Local)
-
-Use this file as execution guardrails for `modules/notebooklm/`.
-For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/notebooklm/README.md`, and `docs/bounded-contexts.md`.
-
-## Core Rules
-
-- `notebooklm` is **downstream** of `platform`, `workspace`, and `notion`; never import from their internals — use `modules/<context>/api` only.
-- Cross-module consumers import from `modules/notebooklm/api` only.
-- AI provider, model policy, quota, and safety guardrails belong to `platform.ai` — do not reimplement governance here.
-- RAG generation and retrieval logic lives in `subdomains/ai`; notebook session orchestration lives in `subdomains/notebook`; source lifecycle lives in `subdomains/source`.
-- Use ubiquitous language: `Conversation` not `Chat`, `Source` not `Document` (when referring to RAG input), `Notebook` not `Project`.
-
-## Route to Subdomain When
-
-| Concern | Subdomain |
-|---|---|
-| RAG query, generation, retrieval scoring | `ai` |
-| Conversation threads, messages | `conversation` |
-| Notebook session orchestration, agent generation | `notebook` |
-| Source file lifecycle, RAG document registration | `source` |
-| Conversation history versioning | `conversation-versioning` |
-| Output grounding and citation alignment | `grounding` |
-| Source ingestion pipeline | `ingestion` |
-| Inline notes from synthesis output | `note` |
-| Retrieval ranking and recall | `retrieval` |
-| Synthesis and summarisation | `synthesis` |
-| Response quality evaluation | `evaluation` |
-
-## Route Elsewhere When
-
-- Canonical knowledge pages, article publishing → `notion`
-- Identity, entitlements, credentials → `platform`
-- Workspace lifecycle, membership, presence → `workspace`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill hexagonal-ddd
-````
-
 ## File: modules/notebooklm/subdomains/ai/application/use-cases/answer-rag-query.use-case.ts
 ````typescript
 /**
@@ -55233,6 +55187,54 @@ Strategic architecture documentation lives in `docs/contexts/notebooklm/`:
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
+## File: modules/notebooklm/notebooklm.instructions.md
+````markdown
+---
+description: 'NotebookLM bounded context rules: conversation/source/retrieval/synthesis ownership, downstream dependency position, and subdomain routing.'
+applyTo: 'modules/notebooklm/**/*.{ts,tsx,md}'
+---
+
+# NotebookLM Bounded Context (Local)
+
+Use this file as execution guardrails for `modules/notebooklm/`.
+For full reference, align with `.github/instructions/architecture-core.instructions.md`, `docs/contexts/notebooklm/README.md`, and `docs/bounded-contexts.md`.
+
+## Core Rules
+
+- `notebooklm` is **downstream** of `platform`, `workspace`, and `notion`; never import from their internals — use `modules/<context>/api` only.
+- Cross-module consumers import from `modules/notebooklm/api` only.
+- AI provider, model policy, quota, and safety guardrails belong to `platform.ai` — do not reimplement governance here.
+- Do not add new dependencies on `subdomains/ai`; treat it as legacy transition surface pending removal.
+- Route new RAG capabilities to `subdomains/retrieval`, `subdomains/grounding`, `subdomains/synthesis`, and `subdomains/evaluation`.
+- Notebook session orchestration lives in `subdomains/notebook`; source lifecycle lives in `subdomains/source`.
+- Use ubiquitous language: `Conversation` not `Chat`, `Source` not `Document` (when referring to RAG input), `Notebook` not `Project`.
+
+## Route to Subdomain When
+
+| Concern | Subdomain |
+|---|---|
+| Legacy RAG query surface (transition only, do not expand) | `ai` |
+| Conversation threads, messages | `conversation` |
+| Notebook session orchestration, agent generation | `notebook` |
+| Source file lifecycle, RAG document registration | `source` |
+| Conversation history versioning | `conversation-versioning` |
+| Output grounding and citation alignment | `grounding` |
+| Source ingestion pipeline | `ingestion` |
+| Inline notes from synthesis output | `note` |
+| Retrieval ranking and recall | `retrieval` |
+| Synthesis and summarisation | `synthesis` |
+| Response quality evaluation | `evaluation` |
+
+## Route Elsewhere When
+
+- Canonical knowledge pages, article publishing → `notion`
+- Identity, entitlements, credentials → `platform`
+- Workspace lifecycle, membership, presence → `workspace`
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill hexagonal-ddd
+````
+
 ## File: modules/notebooklm/subdomains/conversation/interfaces/_actions/thread.actions.ts
 ````typescript
 "use server";
@@ -55453,43 +55455,6 @@ export type { RetrieveChunksInput, IChunkRetrievalPort } from "./ports/IChunkRet
 export type { RetrievalCompletedEvent, RetrievalFailedEvent } from "./events/RetrievalEvents";
 ````
 
-## File: modules/notebooklm/subdomains/source/api/factories.ts
-````typescript
-import { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
-import { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
-import { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
-import { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
-import { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
-import { waitForParsedDocument as _waitForParsedDocument } from "../infrastructure/firebase/FirebaseDocumentStatusAdapter";
-
-export function makeSourceFileAdapter() {
-  return new FirebaseSourceFileAdapter();
-}
-
-export function makeRagDocumentAdapter() {
-  return new FirebaseRagDocumentAdapter();
-}
-
-export function makeSourceDocumentCommandAdapter() {
-  return new FirebaseSourceDocumentCommandAdapter();
-}
-
-export function makeParsedDocumentAdapter() {
-  return new FirebaseParsedDocumentAdapter();
-}
-
-export function makeKnowledgePageGateway() {
-  return new NotionKnowledgePageGatewayAdapter();
-}
-
-export function waitForParsedDocument(
-  accountId: string,
-  docId: string,
-): Promise<{ pageCount: number; jsonGcsUri: string }> {
-  return _waitForParsedDocument(accountId, docId);
-}
-````
-
 ## File: modules/notebooklm/subdomains/source/api/index.ts
 ````typescript
 /**
@@ -55649,63 +55614,6 @@ export { InMemoryWikiLibraryAdapter } from "../infrastructure/memory/InMemoryWik
 export { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
 export { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
 export { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
-````
-
-## File: modules/notebooklm/subdomains/source/infrastructure/adapters/NotionKnowledgePageGatewayAdapter.ts
-````typescript
-/**
- * Module: notebooklm/subdomains/source
- * Layer: infrastructure/adapters
- * Adapter: NotionKnowledgePageGatewayAdapter — delegates to notion bounded context API.
- *
- * Implements the KnowledgePageGateway port defined in the application layer,
- * bridging the source subdomain to the notion bounded context through its public API.
- * 
- * ⚠️ MIGRATION NOTE (AGENTS.md violation fix):
- * Currently calls notion.api directly. Per AGENTS.md context map rule,
- * notion → notebooklm relationship should use published language tokens:
- *   - knowledge artifact reference
- *   - attachment reference
- *   - taxonomy hint
- * 
- * TODO: Extract published language contract; adapt through port boundary.
- * Status: PLANNED FOR NEXT PHASE (2-3h estimate)
- */
-
-import type { CommandResult } from "@shared-types";
-
-/**
- * DIRECT API CALL — violation of AGENTS.md cross-domain boundary rule.
- * TODO: Replace with published language token-based contract.
- */
-import { addKnowledgeBlock, createKnowledgePage } from "@/modules/notion/api";
-
-import type { KnowledgePageGateway } from "../../application/use-cases/create-knowledge-draft-from-source.use-case";
-
-export class NotionKnowledgePageGatewayAdapter implements KnowledgePageGateway {
-  async createPage(input: {
-    accountId: string;
-    workspaceId: string;
-    title: string;
-    parentPageId: null;
-    createdByUserId: string;
-  }): Promise<CommandResult> {
-    return createKnowledgePage(input);
-  }
-
-  async addBlock(input: {
-    accountId: string;
-    pageId: string;
-    index: number;
-    content: {
-      type: "text";
-      richText: readonly { type: string; plainText: string }[];
-      properties: Record<string, unknown>;
-    };
-  }): Promise<CommandResult> {
-    return addKnowledgeBlock(input);
-  }
-}
 ````
 
 ## File: modules/notebooklm/subdomains/source/interfaces/components/LibrariesView.tsx
@@ -65283,152 +65191,6 @@ export default function SettingsProfilePage() {
 }
 ````
 
-## File: modules/notebooklm/api/index.ts
-````typescript
-/**
- * modules/notebooklm — public API barrel.
- */
-
-export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation/api";
-
-export type {
-  NotebookResponse,
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-  NotebookRepository,
-} from "../subdomains/notebook/api";
-
-export { generateNotebookResponse } from "../subdomains/notebook/api";
-export { saveThread, loadThread } from "../subdomains/conversation/api";
-
-// ---------------------------------------------------------------------------
-// Q&A subdomain — types and UI (replaces @/modules/search/api)
-// ---------------------------------------------------------------------------
-
-export type {
-  AnswerRagQueryInput,
-  AnswerRagQueryResult,
-  RagCitation,
-  RagRetrievalSummary,
-} from "../subdomains/ai/api";
-export { RagQueryView } from "../subdomains/ai/api";
-
-// ---------------------------------------------------------------------------
-// Source subdomain — types, hooks, and UI (replaces @/modules/source/api)
-// ---------------------------------------------------------------------------
-
-export type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-  WikiLibrarySnapshot,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../subdomains/source/api";
-
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../subdomains/source/api";
-
-export {
-  useSourceDocumentsSnapshot,
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../subdomains/source/api";
-
-export {
-  listWikiLibraries,
-  createWikiLibrary,
-  addWikiLibraryField,
-  createWikiLibraryRow,
-  getWikiLibrarySnapshot,
-} from "../subdomains/source/api";
-
-export {
-  SourceDocumentsView,
-  WorkspaceFilesTab,
-  LibrariesView,
-  LibraryTableView,
-  FileProcessingDialog,
-} from "../subdomains/source/api";
-
-// ---------------------------------------------------------------------------
-// conversation subdomain — AI chat UI and helpers
-// ---------------------------------------------------------------------------
-
-export { AiChatPage } from "../subdomains/conversation/api";
-export type { AiChatPageProps, ChatMessage } from "../subdomains/conversation/api";
-
-// ---------------------------------------------------------------------------
-// Context-wide published language (cross-module reference types)
-// ---------------------------------------------------------------------------
-
-export type {
-  NotebookReference,
-  SourceReference,
-  ConversationReference,
-} from "../domain/published-language";
-
-export type { NotebookLmDomainEvent } from "../domain/events";
-
-// ---------------------------------------------------------------------------
-// Tier 2 — retrieval subdomain (migration target from ai)
-// ---------------------------------------------------------------------------
-
-export type {
-  RetrievedChunk,
-  RetrievalSummary,
-  RetrieveChunksInput,
-  IChunkRetrievalPort,
-  RetrievalCompletedEvent,
-  RetrievalFailedEvent,
-} from "../subdomains/retrieval/api";
-
-// ---------------------------------------------------------------------------
-// Tier 2 — grounding subdomain (migration target from ai)
-// ---------------------------------------------------------------------------
-
-export type {
-  Citation,
-  GroundingEvidence,
-  CitationBuilderInput,
-  ICitationBuilder,
-  GroundingCompletedEvent,
-} from "../subdomains/grounding/api";
-
-// ---------------------------------------------------------------------------
-// Tier 2 — synthesis subdomain (migration target from ai)
-// ---------------------------------------------------------------------------
-
-export type {
-  GenerationCitation,
-  GenerateAnswerInput,
-  GenerateAnswerOutput,
-  GenerateAnswerResult,
-  IGenerationPort,
-  SynthesisCompletedEvent,
-  SynthesisFailedEvent,
-} from "../subdomains/synthesis/api";
-
-// ---------------------------------------------------------------------------
-// Tier 2 — evaluation subdomain (migration target from ai)
-// ---------------------------------------------------------------------------
-
-export type {
-  FeedbackRating,
-  QualityFeedback,
-  SubmitFeedbackInput,
-  IFeedbackPort,
-  FeedbackSubmittedEvent,
-} from "../subdomains/evaluation/api";
-````
-
 ## File: modules/notebooklm/api/server.ts
 ````typescript
 /**
@@ -65836,6 +65598,163 @@ When implementing, follow inside-out:
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/subdomains/source/api/factories.ts
+````typescript
+import { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
+import { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
+import { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
+import { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
+import { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
+import { waitForParsedDocument as _waitForParsedDocument } from "../infrastructure/firebase/FirebaseDocumentStatusAdapter";
+import {
+  addKnowledgeBlock,
+  createKnowledgePage,
+} from "@/modules/notion/api";
+
+export function makeSourceFileAdapter() {
+  return new FirebaseSourceFileAdapter();
+}
+
+export function makeRagDocumentAdapter() {
+  return new FirebaseRagDocumentAdapter();
+}
+
+export function makeSourceDocumentCommandAdapter() {
+  return new FirebaseSourceDocumentCommandAdapter();
+}
+
+export function makeParsedDocumentAdapter() {
+  return new FirebaseParsedDocumentAdapter();
+}
+
+export function makeKnowledgePageGateway() {
+  return new NotionKnowledgePageGatewayAdapter({
+    createKnowledgePage,
+    addKnowledgeBlock,
+  });
+}
+
+export function waitForParsedDocument(
+  accountId: string,
+  docId: string,
+): Promise<{ pageCount: number; jsonGcsUri: string }> {
+  return _waitForParsedDocument(accountId, docId);
+}
+````
+
+## File: modules/notebooklm/subdomains/source/infrastructure/adapters/NotionKnowledgePageGatewayAdapter.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/source
+ * Layer: infrastructure/adapters
+ * Adapter: NotionKnowledgePageGatewayAdapter — delegates to notion bounded context API.
+ *
+ * Implements the KnowledgePageGateway port defined in the application layer,
+ * bridging the source subdomain to the notion bounded context through its
+ * top-level public API and published-language tokens.
+ */
+
+import type { CommandResult } from "@shared-types";
+
+import type { KnowledgePageGateway } from "../../application/use-cases/create-knowledge-draft-from-source.use-case";
+
+interface KnowledgeArtifactReferenceToken {
+  readonly artifactId: string;
+  readonly artifactType: "page" | "article";
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly slug: string;
+}
+
+function slugifyTitle(title: string): string {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9\-\u4e00-\u9fff]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function toKnowledgeArtifactReference(input: {
+  accountId: string;
+  workspaceId: string;
+  title: string;
+  artifactId: string;
+}): KnowledgeArtifactReferenceToken {
+  return {
+    artifactId: input.artifactId,
+    artifactType: "page",
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    title: input.title,
+    slug: slugifyTitle(input.title),
+  };
+}
+
+export class NotionKnowledgePageGatewayAdapter implements KnowledgePageGateway {
+  constructor(
+    private readonly deps: {
+      createKnowledgePage: (input: {
+        accountId: string;
+        workspaceId: string;
+        title: string;
+        parentPageId: null;
+        createdByUserId: string;
+      }) => Promise<CommandResult>;
+      addKnowledgeBlock: (input: {
+        accountId: string;
+        pageId: string;
+        index: number;
+        content: {
+          type: "text";
+          richText: readonly { type: string; plainText: string }[];
+          properties: Record<string, unknown>;
+        };
+      }) => Promise<CommandResult>;
+    },
+  ) {}
+
+  async createPage(input: {
+    accountId: string;
+    workspaceId: string;
+    title: string;
+    parentPageId: null;
+    createdByUserId: string;
+  }): Promise<CommandResult> {
+    const result = await this.deps.createKnowledgePage(input);
+    if (!result.success) return result;
+
+    // Normalize cross-context return as notion published-language token.
+    const reference = toKnowledgeArtifactReference({
+      accountId: input.accountId,
+      workspaceId: input.workspaceId,
+      title: input.title,
+      artifactId: result.aggregateId,
+    });
+
+    return {
+      ...result,
+      aggregateId: reference.artifactId,
+    };
+  }
+
+  async addBlock(input: {
+    accountId: string;
+    pageId: string;
+    index: number;
+    content: {
+      type: "text";
+      richText: readonly { type: string; plainText: string }[];
+      properties: Record<string, unknown>;
+    };
+  }): Promise<CommandResult> {
+    return this.deps.addKnowledgeBlock(input);
+  }
+}
 ````
 
 ## File: modules/notebooklm/subdomains/source/interfaces/_actions/source-file.actions.ts
@@ -69506,6 +69425,145 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/api/index.ts
+````typescript
+/**
+ * modules/notebooklm — public API barrel.
+ */
+
+export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation/api";
+
+export type {
+  NotebookResponse,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+  NotebookRepository,
+} from "../subdomains/notebook/api";
+
+export { generateNotebookResponse } from "../subdomains/notebook/api";
+export { saveThread, loadThread } from "../subdomains/conversation/api";
+
+// ---------------------------------------------------------------------------
+// Q&A subdomain — types and UI (replaces @/modules/search/api)
+// ---------------------------------------------------------------------------
+export { RagQueryView } from "../subdomains/ai/api";
+
+// ---------------------------------------------------------------------------
+// Source subdomain — types, hooks, and UI (replaces @/modules/source/api)
+// ---------------------------------------------------------------------------
+
+export type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  WikiLibrarySnapshot,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../subdomains/source/api";
+
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../subdomains/source/api";
+
+export {
+  useSourceDocumentsSnapshot,
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../subdomains/source/api";
+
+export {
+  listWikiLibraries,
+  createWikiLibrary,
+  addWikiLibraryField,
+  createWikiLibraryRow,
+  getWikiLibrarySnapshot,
+} from "../subdomains/source/api";
+
+export {
+  SourceDocumentsView,
+  WorkspaceFilesTab,
+  LibrariesView,
+  LibraryTableView,
+  FileProcessingDialog,
+} from "../subdomains/source/api";
+
+// ---------------------------------------------------------------------------
+// conversation subdomain — AI chat UI and helpers
+// ---------------------------------------------------------------------------
+
+export { AiChatPage } from "../subdomains/conversation/api";
+export type { AiChatPageProps, ChatMessage } from "../subdomains/conversation/api";
+
+// ---------------------------------------------------------------------------
+// Context-wide published language (cross-module reference types)
+// ---------------------------------------------------------------------------
+
+export type {
+  NotebookReference,
+  SourceReference,
+  ConversationReference,
+} from "../domain/published-language";
+
+export type { NotebookLmDomainEvent } from "../domain/events";
+
+// ---------------------------------------------------------------------------
+// Tier 2 — retrieval subdomain (migration target from ai)
+// ---------------------------------------------------------------------------
+
+export type {
+  RetrievedChunk,
+  RetrievalSummary,
+  RetrieveChunksInput,
+  IChunkRetrievalPort,
+  RetrievalCompletedEvent,
+  RetrievalFailedEvent,
+} from "../subdomains/retrieval/api";
+
+// ---------------------------------------------------------------------------
+// Tier 2 — grounding subdomain (migration target from ai)
+// ---------------------------------------------------------------------------
+
+export type {
+  Citation,
+  GroundingEvidence,
+  CitationBuilderInput,
+  ICitationBuilder,
+  GroundingCompletedEvent,
+} from "../subdomains/grounding/api";
+
+// ---------------------------------------------------------------------------
+// Tier 2 — synthesis subdomain (migration target from ai)
+// ---------------------------------------------------------------------------
+
+export type {
+  GenerationCitation,
+  GenerateAnswerInput,
+  GenerateAnswerOutput,
+  GenerateAnswerResult,
+  IGenerationPort,
+  SynthesisCompletedEvent,
+  SynthesisFailedEvent,
+} from "../subdomains/synthesis/api";
+
+// ---------------------------------------------------------------------------
+// Tier 2 — evaluation subdomain (migration target from ai)
+// ---------------------------------------------------------------------------
+
+export type {
+  FeedbackRating,
+  QualityFeedback,
+  SubmitFeedbackInput,
+  IFeedbackPort,
+  FeedbackSubmittedEvent,
+} from "../subdomains/evaluation/api";
 ````
 
 ## File: modules/notebooklm/subdomains/conversation-versioning/README.md
