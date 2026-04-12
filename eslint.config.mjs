@@ -69,6 +69,18 @@ const internalLayer = {
   message: "Use the owning API boundary instead of internal layer paths.",
 };
 const packageToModules = { regex: "^@/modules/", message: "packages/* must remain independent of application modules." };
+const restrictedGenkitImports = {
+  paths: [
+    {
+      name: "genkit",
+      message: "Import Genkit only in modules/platform/subdomains/ai/infrastructure/**.",
+    },
+    {
+      name: "@genkit-ai/google-genai",
+      message: "Import Genkit only in modules/platform/subdomains/ai/infrastructure/**.",
+    },
+  ],
+};
 
 const legacyAliases = [
   { group: ["@/shared/*"],        message: "Use @shared-types / @shared-utils / … instead." },
@@ -176,6 +188,15 @@ export default defineConfig([
   {
     files: packageGlobs,
     rules: { [restrictedImports([packageToModules])[0]]: restrictedImports([packageToModules])[1] },
+  },
+
+  // Genkit must be centralized in platform AI infrastructure adapter.
+  {
+    files: ["modules/**/*.{ts,tsx,js,jsx}"],
+    ignores: ["modules/platform/subdomains/ai/infrastructure/**"],
+    rules: {
+      "no-restricted-imports": [WARN, restrictedGenkitImports],
+    },
   },
 
   globalIgnores([".agents/**",".next/**","out/**","build/**","next-env.d.ts"]),
