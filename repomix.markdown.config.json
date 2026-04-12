@@ -2,6 +2,8 @@
   "$schema": "https://repomix.com/schemas/latest/schema.json",
   "include": [
     ".github/**/*.md",
+    ".serena/**/*.md",
+    "app/**/*.md",
     "docs/**/*.md",
     "features/**/*.md",
     "modules/**/*.md",
