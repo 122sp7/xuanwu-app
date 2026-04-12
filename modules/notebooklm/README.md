@@ -32,10 +32,10 @@
 ```text
 modules/notebooklm/
 ├── api/              # Public API boundary — cross-module entry point only
-├── application/      # Context-wide orchestration (empty, use subdomain layers)
+├── application/      # Context-wide orchestration
 ├── domain/           # Context-wide domain concepts (events, published-language)
-├── infrastructure/   # Context-wide driven adapters (empty, use subdomain layers)
-├── interfaces/       # Context-wide driving adapters (RagQueryView composition)
+├── infrastructure/   # Context-wide driven adapters, grouped by subdomain when needed
+├── interfaces/       # Context-wide driving adapters, grouped by subdomain when needed
 ├── docs/             # Links to strategic documentation
 └── subdomains/
     ├── conversation/  # Tier 1 — 對話 Thread 與 Message
