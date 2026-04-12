@@ -292,39 +292,114 @@ export default function PublicPage() {
 }
 ````
 
-## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/knowledge/pages/[pageId]/page.tsx
+## File: app/(shell)/(legacy)/_shell/WorkspaceRouteShim.tsx
 ````typescript
 "use client";
 
-import { KnowledgePageDetailPage } from "@/modules/notion/api";
-import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export default function AccountWorkspaceKnowledgePageDetailRoute() {
-  const { accountId, activeWorkspaceId, currentUserId } = useWorkspaceOrchestrationContext();
+import { useApp } from "@/modules/platform/api";
+import {
+  buildWorkspaceOverviewPanelHref,
+  type WorkspaceOverviewPanel,
+  useWorkspaceContext,
+} from "@/modules/workspace/api";
 
+interface WorkspaceRouteShimProps {
+  readonly panel?: WorkspaceOverviewPanel;
+  readonly tab?: "Overview" | "Files";
+  readonly loadingMessage: string;
+}
+
+export function WorkspaceRouteShim({
+  panel,
+  tab = "Overview",
+  loadingMessage,
+}: WorkspaceRouteShimProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const {
+    state: { activeAccount },
+  } = useApp();
+  const {
+    state: { activeWorkspaceId },
+  } = useWorkspaceContext();
+
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+  const targetWorkspaceId = requestedWorkspaceId || activeWorkspaceId || "";
+  const activeAccountId = activeAccount?.id ?? "";
+
+  const targetHref = targetWorkspaceId
+    ? activeAccountId
+      ? tab === "Files"
+        ? `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
+        : `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(targetWorkspaceId)}?tab=Overview${
+            panel ? `&panel=${encodeURIComponent(panel)}` : ""
+          }`
+      : tab === "Files"
+        ? `/workspace/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
+        : buildWorkspaceOverviewPanelHref(targetWorkspaceId, panel)
+    : "/workspace";
+
+  useEffect(() => {
+    router.replace(targetHref);
+  }, [router, targetHref]);
+
+  return <div className="px-4 py-6 text-sm text-muted-foreground">{loadingMessage}</div>;
+}
+````
+
+## File: app/(shell)/(legacy)/ai-chat/page.tsx
+````typescript
+"use client";
+
+import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+
+import { useApp } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+
+export default function AiChatRoutePage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const {
+    state: { activeAccount },
+  } = useApp();
+  const { state: wsState } = useWorkspaceContext();
+
+  const accountId = activeAccount?.id ?? "";
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+  const workspaceId = requestedWorkspaceId || wsState.activeWorkspaceId || "";
+
+  useEffect(() => {
+    if (!accountId || !workspaceId) {
+      return;
+    }
+    router.replace(
+      `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/ai-chat`,
+    );
+  }, [accountId, workspaceId, router]);
+
+  return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向 AI Chat…</div>;
+}
+````
+
+## File: app/(shell)/(legacy)/dashboard/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
+
+export default function DashboardPage() {
   return (
-    <KnowledgePageDetailPage
-      accountId={accountId}
-      activeWorkspaceId={activeWorkspaceId || null}
-      currentUserId={currentUserId}
+    <WorkspaceRouteShim
+      loadingMessage="正在導向 Workspace Overview…"
     />
   );
 }
 ````
 
-## File: app/(shell)/dashboard/page.tsx
-````typescript
-/**
- * /dashboard — redirect to workspace (removed from MVP nav, Occam's Razor)
- */
-import { redirect } from "next/navigation";
-
-export default function DashboardPage() {
-  redirect("/workspace");
-}
-````
-
-## File: app/(shell)/dev-tools/dev-tools-badges.tsx
+## File: app/(shell)/(legacy)/dev-tools/dev-tools-badges.tsx
 ````typescript
 "use client";
 
@@ -387,7 +462,7 @@ export function RagBadge({ status, error }: { status?: string; error?: string })
 }
 ````
 
-## File: app/(shell)/dev-tools/dev-tools-helpers.ts
+## File: app/(shell)/(legacy)/dev-tools/dev-tools-helpers.ts
 ````typescript
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -508,7 +583,7 @@ export function mapSnapshotDoc(doc: { id: string; data: () => unknown }): DocRec
 }
 ````
 
-## File: app/(shell)/dev-tools/dev-tools-parsed-docs-section.tsx
+## File: app/(shell)/(legacy)/dev-tools/dev-tools-parsed-docs-section.tsx
 ````typescript
 "use client";
 
@@ -634,7 +709,488 @@ export function DevToolsParsedDocsSection({
 }
 ````
 
-## File: app/(shell)/dev-tools/use-dev-tools-doc-list.ts
+## File: app/(shell)/(legacy)/dev-tools/page.tsx
+````typescript
+"use client";
+
+/**
+ * Module: dev-tools page — /dev-tools
+ * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
+ * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
+ * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
+ *   Doc-list state and operations → useDevToolsDocList hook.
+ *   Parsed-docs table → DevToolsParsedDocsSection component.
+ */
+
+import { useRef, useState, useEffect } from "react";
+import {
+  FlaskConical,
+  FileUp,
+  AlertCircle,
+  FileText,
+  Trash2,
+  Code2,
+  ExternalLink,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
+
+import { useApp } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  UPLOAD_BUCKET,
+  WATCH_PATH,
+  ACCEPTED_MIME,
+  ACCEPTED_EXTS,
+  asRecord,
+  asString,
+  asNumber,
+  type ParseResult,
+  type UploadStatus,
+} from "./dev-tools-helpers";
+import { StatusBadge, RagBadge } from "./dev-tools-badges";
+import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
+import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
+
+// ── Page component ─────────────────────────────────────────────────────────
+
+export default function DevToolsPage() {
+  const { state: appState } = useApp();
+  const { state: wsState } = useWorkspaceContext();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+  const activeWorkspaceId = wsState.activeWorkspaceId ?? "";
+
+  // ── Upload state ──────────────────────────────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<UploadStatus>("idle");
+  const [result, setResult] = useState<ParseResult | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [logs, setLogs] = useState<string[]>([]);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
+
+  // ── Doc list + operations (extracted hook) ────────────────────────────────
+  const {
+    allDocs,
+    selectedDocId,
+    selectedDoc,
+    jsonContent,
+    jsonLoading,
+    deletingId,
+    reindexingId,
+    handleViewOriginal,
+    handleViewJson,
+    handleDeleteDoc,
+    handleManualProcess,
+    closeJsonPreview,
+    formatNormalizationRatio,
+  } = useDevToolsDocList(activeAccountId);
+
+  // Cleanup upload subscription on unmount
+  useEffect(() => {
+    return () => { if (unsubscribeRef.current) unsubscribeRef.current(); };
+  }, []);
+
+  function appendLog(msg: string) {
+    setLogs((prev) => [
+      ...prev,
+      `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`,
+    ]);
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    setResult(null);
+    setErrorMsg(null);
+    setStatus("idle");
+    setLogs([]);
+    if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
+  }
+
+  function buildUuidUploadPath(accountId: string, file: File) {
+    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
+    const docId = crypto.randomUUID();
+    return { uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`, docId };
+  }
+
+  function watchDocument(docId: string) {
+    if (!activeAccountId) {
+      appendLog("❌ 缺少 active account，無法監聽文件狀態");
+      return;
+    }
+    try {
+      const db = getFirebaseFirestore();
+      const docRef = firestoreApi.doc(db, "accounts", activeAccountId, "documents", docId);
+      if (unsubscribeRef.current) unsubscribeRef.current();
+      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {
+        if (!snapshot.exists()) { appendLog("等待 Firestore 初始化…"); return; }
+        const data = asRecord(snapshot.data());
+        const docStatus = asString(data.status, "unknown");
+        appendLog(`Firestore update: status=${docStatus}`);
+        if (docStatus === "completed") {
+          const parsed = asRecord(data.parsed);
+          const r: ParseResult = {
+            doc_id: docId,
+            status: "completed",
+            page_count: asNumber(parsed.page_count) ?? 0,
+            json_gcs_uri: asString(parsed.json_gcs_uri),
+          };
+          setResult(r);
+          setStatus("done");
+          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
+          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+        } else if (docStatus === "error") {
+          const error = asRecord(data.error);
+          const msg = asString(error.message, "未知錯誤");
+          setErrorMsg(msg);
+          setStatus("error");
+          appendLog(`❌ 錯誤：${msg}`);
+          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+        }
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appendLog(`❌ 監聽失敗：${msg}`);
+      setErrorMsg(msg);
+      setStatus("error");
+    }
+  }
+
+  async function handleUploadAndParse() {
+    if (!selectedFile) return;
+    if (!activeAccountId) {
+      setErrorMsg("缺少 active account，無法上傳與解析");
+      setStatus("error");
+      return;
+    }
+    setStatus("uploading");
+    setResult(null);
+    setErrorMsg(null);
+    appendLog("📤 上傳檔案到 Cloud Storage…");
+    try {
+      // Step 1: Upload to GCS
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);
+      const fileRef = storageApi.ref(storage, uploadPath);
+      const snap = await storageApi.uploadBytes(fileRef, selectedFile, {
+        contentType: ACCEPTED_MIME[selectedFile.name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream",
+        customMetadata: {
+          account_id: activeAccountId,
+          workspace_id: activeWorkspaceId,
+          filename: selectedFile.name,
+        },
+      });
+      appendLog(`✅ 上傳完成：${snap.ref.fullPath}`);
+      // Step 2: Watch Firestore for status updates
+      setStatus("waiting");
+      appendLog("⏳ 等待 parse_document 處理…");
+      watchDocument(docId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setErrorMsg(msg);
+      setStatus("error");
+      appendLog(`❌ 上傳失敗：${msg}`);
+    }
+  }
+
+  function reset() {
+    if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
+    setSelectedFile(null);
+    setResult(null);
+    setErrorMsg(null);
+    setStatus("idle");
+    setLogs([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  const isLoading = status === "uploading" || status === "waiting";
+  const parsedDocs = allDocs.filter((doc) => doc.status === "completed");
+  const ragReadyCount = allDocs.filter((doc) => doc.rag_status === "ready").length;
+  const ragErrorCount = allDocs.filter((doc) => doc.rag_status === "error").length;
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-8">
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
+          <FlaskConical className="size-5 text-amber-500" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Dev Tools</h1>
+          <p className="text-xs text-muted-foreground">
+            py_fn · parse_document · Document AI · Firestore 實時監聽
+          </p>
+        </div>
+      </div>
+
+      {/* ── Stats ──────────────────────────────────────────────────── */}
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">全部文件</p>
+          <p className="text-lg font-semibold tracking-tight">{allDocs.length}</p>
+        </div>
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+          <p className="text-[11px] text-emerald-700">解析完成</p>
+          <p className="text-lg font-semibold tracking-tight text-emerald-700">{parsedDocs.length}</p>
+        </div>
+        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+          <p className="text-[11px] text-blue-700">RAG Ready</p>
+          <p className="text-lg font-semibold tracking-tight text-blue-700">{ragReadyCount}</p>
+        </div>
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
+          <p className="text-[11px] text-destructive">RAG Error</p>
+          <p className="text-lg font-semibold tracking-tight text-destructive">{ragErrorCount}</p>
+        </div>
+      </section>
+
+      {/* ── File picker ────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          1. 選擇檔案
+        </h2>
+        <label
+          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 transition
+            ${selectedFile ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
+        >
+          <FileUp className="size-8 text-muted-foreground" />
+          <div className="text-center">
+            <p className="text-sm font-medium">
+              {selectedFile ? selectedFile.name : "點擊或拖曳上傳"}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={Object.keys(ACCEPTED_MIME).join(",")}
+            className="sr-only"
+            onChange={handleFileChange}
+          />
+        </label>
+      </section>
+
+      {/* ── Actions ────────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          2. 執行上傳 &amp; 解析
+        </h2>
+        <div className="flex gap-3">
+          <Button onClick={handleUploadAndParse} disabled={!selectedFile || isLoading} className="gap-2">
+            {isLoading ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />}
+            {status === "uploading" ? "上傳中…" : status === "waiting" ? "等待中…" : "開始"}
+          </Button>
+          <Button variant="outline" onClick={reset} disabled={isLoading}>
+            重置
+          </Button>
+        </div>
+      </section>
+
+      {/* ── Result ─────────────────────────────────────────────────── */}
+      {(status === "done" || status === "error") && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            3. 結果
+          </h2>
+          {status === "done" && result && (
+            <div className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
+              <div className="flex items-center gap-2 text-emerald-600">
+                <CheckCircle2 className="size-4 shrink-0" />
+                <span className="text-sm font-medium">解析成功</span>
+              </div>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <dt className="text-muted-foreground">doc_id</dt>
+                <dd className="font-mono text-xs">{result.doc_id}</dd>
+                <dt className="text-muted-foreground">page_count</dt>
+                <dd className="font-bold">{result.page_count}</dd>
+                <dt className="text-muted-foreground">JSON 位置</dt>
+                <dd className="font-mono text-xs break-all">{result.json_gcs_uri || "—"}</dd>
+              </dl>
+            </div>
+          )}
+          {status === "error" && (
+            <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+              <XCircle className="mt-0.5 size-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+        </section>
+      )}
+
+      {status === "waiting" && (
+        <section className="space-y-3">
+          <div className="flex items-start gap-2 rounded-xl border border-blue-300/30 bg-blue-500/5 p-4 text-sm text-blue-600">
+            <AlertCircle className="mt-0.5 size-4 shrink-0 animate-pulse" />
+            <div>
+              <p className="font-medium">處理中…</p>
+              <p className="mt-1 text-xs opacity-75">Document AI 正在解析檔案，請稍候</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── All uploaded docs table ─────────────────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <FileText className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            已上傳檔案（{allDocs.length}）
+          </h2>
+        </div>
+        {allDocs.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+            尚無上傳記錄
+          </p>
+        ) : (
+          <div className="space-y-0 overflow-hidden rounded-xl border border-border/60">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead>
+                  <tr className="border-b border-border/60 bg-muted/40">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allDocs.map((doc, i) => (
+                    <tr
+                      key={doc.id}
+                      className={`border-b border-border/40 last:border-0 transition-colors ${
+                        selectedDocId === doc.id
+                          ? "bg-primary/8 ring-1 ring-inset ring-primary/20"
+                          : i % 2 === 0 ? "bg-background" : "bg-muted/20"
+                      }`}
+                    >
+                      <td className="px-4 py-2.5 font-mono text-xs max-w-[180px] truncate" title={doc.filename}>
+                        {doc.filename}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <StatusBadge status={doc.status} errorMessage={doc.error_message} />
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <RagBadge status={doc.rag_status} error={doc.rag_error} />
+                      </td>
+                      <td className="px-4 py-2.5 text-xs">
+                        {doc.page_count != null ? doc.page_count : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                        {formatDateTime(doc.uploaded_at)}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => { void handleViewOriginal(doc); }}
+                            disabled={!doc.gcs_uri}
+                            title="查看原始檔案"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
+                          >
+                            <ExternalLink className="size-3.5" />
+                          </button>
+                          <button
+                            onClick={() => { void handleViewJson(doc); }}
+                            disabled={doc.status !== "completed" || !doc.json_gcs_uri}
+                            title="查看 JSON 解析結果"
+                            className={`inline-flex size-7 items-center justify-center rounded-md transition hover:bg-muted disabled:opacity-30 ${
+                              selectedDocId === doc.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            <Code2 className="size-3.5" />
+                          </button>
+                          <button
+                            onClick={() => { void handleDeleteDoc(doc); }}
+                            disabled={deletingId === doc.id}
+                            title="刪除"
+                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                          >
+                            {deletingId === doc.id
+                              ? <Loader2 className="size-3.5 animate-spin" />
+                              : <Trash2 className="size-3.5" />}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* JSON preview panel */}
+            {selectedDocId && (
+              <div className="border-t border-border/60 bg-[#0d1117]">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
+                  <div className="flex items-center gap-2 text-xs text-green-400">
+                    <Code2 className="size-3.5" />
+                    <span className="font-mono">
+                      {selectedDoc?.filename ?? selectedDocId} — JSON
+                    </span>
+                  </div>
+                  <button
+                    onClick={closeJsonPreview}
+                    className="text-white/30 hover:text-white/70 transition text-xs"
+                  >
+                    ✕ 關閉
+                  </button>
+                </div>
+                {selectedDoc?.rag_status === "error" && (
+                  <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs text-destructive">
+                    RAG 失敗：{selectedDoc.rag_error || "未知錯誤"}
+                  </div>
+                )}
+                <div className="max-h-80 overflow-y-auto p-4">
+                  {jsonLoading ? (
+                    <div className="flex items-center gap-2 text-green-400/60 text-xs">
+                      <Loader2 className="size-3.5 animate-spin" /> 載入中…
+                    </div>
+                  ) : (
+                    <pre className="font-mono text-xs leading-relaxed text-green-400 whitespace-pre-wrap break-words">
+                      {jsonContent}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ── Parsed docs table (extracted component) ─────────────────── */}
+      <DevToolsParsedDocsSection
+        parsedDocs={parsedDocs}
+        reindexingId={reindexingId}
+        onViewJson={(doc) => { void handleViewJson(doc); }}
+        onManualProcess={(doc) => { void handleManualProcess(doc, appendLog); }}
+        formatNormalizationRatio={formatNormalizationRatio}
+      />
+
+      {/* ── Console log ────────────────────────────────────────────── */}
+      {logs.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            Console
+          </h2>
+          <div className="max-h-48 overflow-y-auto rounded-xl bg-[#0d1117] p-4">
+            {logs.map((line, i) => (
+              <p key={i} className="font-mono text-xs leading-relaxed text-green-400">
+                {line}
+              </p>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/(legacy)/dev-tools/use-dev-tools-doc-list.ts
 ````typescript
 "use client";
 
@@ -841,16 +1397,301 @@ export function useDevToolsDocList(activeAccountId: string): DocListState & DocL
 export { formatDateTime };
 ````
 
-## File: app/(shell)/notebook/page.tsx
+## File: app/(shell)/(legacy)/knowledge-base/articles/[articleId]/page.tsx
 ````typescript
-import { redirect } from "next/navigation";
+"use client";
 
-export default function NotebookPage() {
-  redirect("/notebook/rag-query");
+import { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
+
+export default function ArticleDetailPageRoute() {
+  const params = useParams<{ articleId: string }>();
+  const router = useRouter();
+  const { accountId, workspaceId } = useWorkspaceOrchestrationContext();
+
+  useEffect(() => {
+    if (!accountId || !workspaceId || !params?.articleId) {
+      return;
+    }
+    router.replace(
+      `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-base/articles/${encodeURIComponent(params.articleId)}`,
+    );
+  }, [accountId, workspaceId, params?.articleId, router]);
+
+  return null;
 }
 ````
 
-## File: app/(shell)/organization/_utils.ts
+## File: app/(shell)/(legacy)/knowledge-base/articles/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
+
+export default function KnowledgeBaseArticlesPage() {
+  return (
+    <WorkspaceRouteShim
+      panel="knowledge-base-articles"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Base Articles）…"
+    />
+  );
+}
+````
+
+## File: app/(shell)/(legacy)/knowledge-base/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
+
+export default function KnowledgeBasePage() {
+  return (
+    <WorkspaceRouteShim
+      panel="knowledge-base-articles"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Base Articles）…"
+    />
+  );
+}
+````
+
+## File: app/(shell)/(legacy)/knowledge-database/databases/[databaseId]/forms/page.tsx
+````typescript
+"use client";
+
+import { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
+
+export default function DatabaseFormsPageRoute() {
+  const params = useParams<{ databaseId: string }>();
+  const router = useRouter();
+  const { accountId, workspaceId } = useWorkspaceOrchestrationContext();
+
+  useEffect(() => {
+    if (!accountId || !workspaceId || !params?.databaseId) {
+      return;
+    }
+    router.replace(
+      `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(params.databaseId)}/forms`,
+    );
+  }, [accountId, workspaceId, params?.databaseId, router]);
+
+  return null;
+}
+````
+
+## File: app/(shell)/(legacy)/knowledge-database/databases/[databaseId]/page.tsx
+````typescript
+"use client";
+
+import { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
+
+export default function DatabaseDetailPageRoute() {
+  const params = useParams<{ databaseId: string }>();
+  const router = useRouter();
+  const { accountId, workspaceId } = useWorkspaceOrchestrationContext();
+
+  useEffect(() => {
+    if (!accountId || !workspaceId || !params?.databaseId) {
+      return;
+    }
+    router.replace(
+      `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(params.databaseId)}`,
+    );
+  }, [accountId, workspaceId, params?.databaseId, router]);
+
+  return null;
+}
+````
+
+## File: app/(shell)/(legacy)/knowledge-database/databases/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
+
+export default function KnowledgeDatabaseDatabasesPage() {
+  return (
+    <WorkspaceRouteShim
+      panel="knowledge-databases"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Databases）…"
+    />
+  );
+}
+````
+
+## File: app/(shell)/(legacy)/knowledge-database/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
+
+export default function KnowledgeDatabasePage() {
+  return (
+    <WorkspaceRouteShim
+      panel="knowledge-databases"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Databases）…"
+    />
+  );
+}
+````
+
+## File: app/(shell)/(legacy)/knowledge/block-editor/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
+
+export default function KnowledgeBlockEditorPage() {
+  return (
+    <WorkspaceRouteShim
+      panel="knowledge-pages"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Pages）…"
+    />
+  );
+}
+````
+
+## File: app/(shell)/(legacy)/knowledge/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
+
+export default function KnowledgeHubPage() {
+  return (
+    <WorkspaceRouteShim
+      panel="knowledge-pages"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Pages）…"
+    />
+  );
+}
+````
+
+## File: app/(shell)/(legacy)/knowledge/pages/[pageId]/page.tsx
+````typescript
+"use client";
+
+import { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
+
+export default function KnowledgePageDetailPageRoute() {
+  const params = useParams<{ pageId: string }>();
+  const router = useRouter();
+  const { accountId, activeWorkspaceId } = useWorkspaceOrchestrationContext();
+
+  useEffect(() => {
+    if (!accountId || !activeWorkspaceId || !params?.pageId) {
+      return;
+    }
+    router.replace(
+      `/${encodeURIComponent(accountId)}/${encodeURIComponent(activeWorkspaceId)}/knowledge/pages/${encodeURIComponent(params.pageId)}`,
+    );
+  }, [accountId, activeWorkspaceId, params?.pageId, router]);
+
+  return null;
+}
+````
+
+## File: app/(shell)/(legacy)/knowledge/pages/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
+
+export default function KnowledgePagesPage() {
+  return (
+    <WorkspaceRouteShim
+      panel="knowledge-pages"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Pages）…"
+    />
+  );
+}
+````
+
+## File: app/(shell)/(legacy)/notebook/page.tsx
+````typescript
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+import { useApp } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+
+export default function NotebookPage() {
+  const router = useRouter();
+  const {
+    state: { activeAccount },
+  } = useApp();
+  const {
+    state: { activeWorkspaceId },
+  } = useWorkspaceContext();
+
+  const accountId = activeAccount?.id ?? "";
+  const workspaceId = activeWorkspaceId ?? "";
+
+  useEffect(() => {
+    if (!accountId || !workspaceId) {
+      return;
+    }
+    router.replace(
+      `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/notebook/rag-query`,
+    );
+  }, [accountId, workspaceId, router]);
+
+  if (!accountId || !workspaceId) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        請先選擇工作區
+      </div>
+    );
+  }
+
+  return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向 Notebook…</div>;
+}
+````
+
+## File: app/(shell)/(legacy)/notebook/rag-query/page.tsx
+````typescript
+"use client";
+
+import { useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+
+import { useApp } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+
+export default function NotebookRagQueryPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const {
+    state: { activeAccount },
+  } = useApp();
+  const { state: wsState } = useWorkspaceContext();
+
+  const accountId = activeAccount?.id ?? "";
+  const requestedWorkspaceId = searchParams.get("workspaceId") ?? "";
+  const workspaceId = requestedWorkspaceId || wsState.activeWorkspaceId || "";
+
+  useEffect(() => {
+    if (!accountId || !workspaceId) {
+      return;
+    }
+
+    router.replace(
+      `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/notebook/rag-query`,
+    );
+  }, [accountId, workspaceId, router]);
+
+  if (!accountId || !workspaceId) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        請先選擇工作區
+      </div>
+    );
+  }
+
+  return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向 Notebook RAG 查詢…</div>;
+}
+````
+
+## File: app/(shell)/(legacy)/organization/_utils.ts
 ````typescript
 export function formatDateTime(value: string | Date | null | undefined): string {
   if (!value) return "—";
@@ -868,20 +1709,200 @@ export function formatDateTime(value: string | Date | null | undefined): string 
 }
 ````
 
-## File: app/(shell)/organization/content/page.tsx
+## File: app/(shell)/(legacy)/organization/audit/_components/OrganizationAuditPage.tsx
 ````typescript
-import { redirect } from "next/navigation";
+"use client";
 
-/**
- * Module: organization/content page
- * Purpose: redirect to the consolidated content hub at /knowledge.
- */
-export default function OrganizationKnowledgePage() {
-  redirect("/knowledge");
+import { useEffect, useMemo, useState } from "react";
+
+import { AuditStream, getOrganizationAuditLogs } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+
+// ── Props ─────────────────────────────────────────────────────────────────────
+
+export interface OrganizationAuditPageProps {
+  organizationId: string | null;
+  workspaces: Record<string, WorkspaceEntity>;
+  workspacesHydrated: boolean;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function formatDateTime(value: string | Date | null | undefined): string {
+  if (!value) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(value instanceof Date ? value : new Date(value));
+  } catch {
+    return value instanceof Date ? value.toISOString() : String(value);
+  }
+}
+
+const MAX_DISPLAYED_AUDIT_LOGS = 50;
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function OrganizationAuditPage({
+  organizationId,
+  workspaces,
+  workspacesHydrated,
+}: OrganizationAuditPageProps) {
+  const [auditLogs, setAuditLogs] = useState<
+    Awaited<ReturnType<typeof getOrganizationAuditLogs>>
+  >([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  // workspaceNameById is derived from the workspaces prop — no extra fetch needed.
+  const workspaceNameById = useMemo(
+    () => new Map(Object.values(workspaces).map((w) => [w.id, w.name])),
+    [workspaces],
+  );
+
+  useEffect(() => {
+    if (!organizationId || !workspacesHydrated) return;
+    let cancelled = false;
+    const workspaceIds = Object.keys(workspaces);
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const logs = await getOrganizationAuditLogs(workspaceIds, MAX_DISPLAYED_AUDIT_LOGS);
+        if (!cancelled) {
+          setAuditLogs(logs);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setAuditLogs([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId, workspacesHydrated, workspaces]);
+
+  if (!organizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">稽核</h1>
+        <p className="mt-1 text-sm text-muted-foreground">組織下所有工作區的 audit log 彙整。</p>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Audit</CardTitle>
+          <CardDescription>組織下所有工作區的 audit log 彙整。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入稽核資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取稽核資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && auditLogs.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的 audit logs。</p>
+          )}
+          {loadState === "loaded" &&
+            auditLogs.slice(0, MAX_DISPLAYED_AUDIT_LOGS).map((log) => (
+              <div key={log.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">{log.action}</p>
+                  <Badge variant="outline">{log.source}</Badge>
+                  <Badge variant="secondary">
+                    {workspaceNameById.get(log.workspaceId) ?? log.workspaceId}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{log.detail || "—"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {formatDateTime(log.occurredAtISO)}
+                </p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      {/* ── 稽核時間軸（新版 AuditStream）─────────────────────────────── */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>稽核時間軸</CardTitle>
+          <CardDescription>
+            以時間軸視覺化呈現稽核事件；嚴重程度由色點標示（藍 = 中、橘 = 高、紅 = 嚴重）。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AuditStream logs={auditLogs} height={500} />
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 ````
 
-## File: app/(shell)/organization/daily/page.tsx
+## File: app/(shell)/(legacy)/organization/audit/page.tsx
+````typescript
+"use client";
+
+import { useApp, isActiveOrganizationAccount } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { OrganizationAuditPage } from "./_components/OrganizationAuditPage";
+
+export default function OrganizationAuditPageRoute() {
+  const { state: appState } = useApp();
+  const { state: wsState } = useWorkspaceContext();
+  const { activeAccount } = appState;
+  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  return (
+    <OrganizationAuditPage
+      organizationId={organizationId}
+      workspaces={wsState.workspaces}
+      workspacesHydrated={wsState.workspacesHydrated}
+    />
+  );
+}
+````
+
+## File: app/(shell)/(legacy)/organization/content/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
+
+export default function OrganizationKnowledgePage() {
+  return (
+    <WorkspaceRouteShim
+      panel="knowledge-pages"
+      loadingMessage="正在導向 Workspace Overview（Knowledge Pages）…"
+    />
+  );
+}
+````
+
+## File: app/(shell)/(legacy)/organization/daily/page.tsx
 ````typescript
 "use client";
 
@@ -924,7 +1945,7 @@ export default function OrganizationDailyPage() {
 }
 ````
 
-## File: app/(shell)/organization/members/page.tsx
+## File: app/(shell)/(legacy)/organization/members/page.tsx
 ````typescript
 "use client";
 
@@ -937,7 +1958,7 @@ export default function OrganizationMembersPage() {
 }
 ````
 
-## File: app/(shell)/organization/page.tsx
+## File: app/(shell)/(legacy)/organization/page.tsx
 ````typescript
 "use client";
 
@@ -1128,7 +2149,7 @@ export default function OrganizationPage() {
 }
 ````
 
-## File: app/(shell)/organization/permissions/page.tsx
+## File: app/(shell)/(legacy)/organization/permissions/page.tsx
 ````typescript
 "use client";
 
@@ -1141,7 +2162,7 @@ export default function OrganizationPermissionsPage() {
 }
 ````
 
-## File: app/(shell)/organization/schedule/dispatcher/page.tsx
+## File: app/(shell)/(legacy)/organization/schedule/dispatcher/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
 
@@ -1154,7 +2175,7 @@ export default function DispatcherPage() {
 }
 ````
 
-## File: app/(shell)/organization/schedule/page.tsx
+## File: app/(shell)/(legacy)/organization/schedule/page.tsx
 ````typescript
 "use client";
 
@@ -1198,7 +2219,7 @@ export default function OrganizationSchedulePage() {
 }
 ````
 
-## File: app/(shell)/organization/teams/page.tsx
+## File: app/(shell)/(legacy)/organization/teams/page.tsx
 ````typescript
 "use client";
 
@@ -1211,7 +2232,7 @@ export default function OrganizationTeamsPage() {
 }
 ````
 
-## File: app/(shell)/organization/workspaces/page.tsx
+## File: app/(shell)/(legacy)/organization/workspaces/page.tsx
 ````typescript
 "use client";
 
@@ -1228,7 +2249,7 @@ export default function OrganizationWorkspacesPage() {
 }
 ````
 
-## File: app/(shell)/settings/general/page.tsx
+## File: app/(shell)/(legacy)/settings/general/page.tsx
 ````typescript
 /**
  * /settings/general — redirect to workspace (removed from MVP nav, Occam's Razor)
@@ -1240,7 +2261,7 @@ export default function SettingsGeneralPage() {
 }
 ````
 
-## File: app/(shell)/settings/notifications/page.tsx
+## File: app/(shell)/(legacy)/settings/notifications/page.tsx
 ````typescript
 "use client";
 
@@ -1253,15 +2274,121 @@ export default function NotificationCenterPage() {
 }
 ````
 
-## File: app/(shell)/settings/page.tsx
+## File: app/(shell)/(legacy)/settings/page.tsx
 ````typescript
-/**
- * /settings — redirect to workspace (removed from MVP nav, Occam's Razor)
- */
-import { redirect } from "next/navigation";
+import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
 
 export default function SettingsPage() {
-  redirect("/workspace");
+  return (
+    <WorkspaceRouteShim
+      panel="settings"
+      loadingMessage="正在導向 Workspace Settings…"
+    />
+  );
+}
+````
+
+## File: app/(shell)/(legacy)/settings/profile/page.tsx
+````typescript
+"use client";
+
+import { SettingsProfileRouteScreen, useAuth } from "@/modules/platform/api";
+
+export default function SettingsProfilePage() {
+  const { state: authState } = useAuth();
+
+  return (
+    <SettingsProfileRouteScreen
+      actorId={authState.user?.id ?? null}
+      fallbackDisplayName={authState.user?.name ?? ""}
+    />
+  );
+}
+````
+
+## File: app/(shell)/(legacy)/source/documents/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
+
+export default function SourceDocumentsPage() {
+  return (
+    <WorkspaceRouteShim
+      tab="Files"
+      loadingMessage="正在導向 Workspace Files…"
+    />
+  );
+}
+````
+
+## File: app/(shell)/(legacy)/source/libraries/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
+
+export default function SourceLibrariesPage() {
+  return (
+    <WorkspaceRouteShim
+      panel="source-libraries"
+      loadingMessage="正在導向 Workspace Overview（Source Libraries）…"
+    />
+  );
+}
+````
+
+## File: app/(shell)/(legacy)/source/page.tsx
+````typescript
+import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
+
+export default function SourcePage() {
+  return (
+    <WorkspaceRouteShim
+      panel="source-libraries"
+      loadingMessage="正在導向 Workspace Overview（Source Libraries）…"
+    />
+  );
+}
+````
+
+## File: app/(shell)/(legacy)/workspace-feed/page.tsx
+````typescript
+"use client";
+
+/**
+ * Route: /workspace-feed
+ * Purpose: Workspace activity feed — shows posts, reactions, and replies for the
+ *          currently active workspace.
+ */
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+import { useApp } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+
+export default function WorkspaceFeedPage() {
+  const router = useRouter();
+  const { state: appState } = useApp();
+  const { state: wsState } = useWorkspaceContext();
+  const accountId = appState.activeAccount?.id ?? "";
+  const workspaceId = wsState.activeWorkspaceId ?? "";
+
+  useEffect(() => {
+    if (!accountId || !workspaceId) {
+      return;
+    }
+    router.replace(
+      `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/workspace-feed`,
+    );
+  }, [accountId, workspaceId, router]);
+
+  if (!accountId || !workspaceId) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        請先選擇工作區
+      </div>
+    );
+  }
+
+  return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向 Workspace Feed…</div>;
 }
 ````
 
@@ -18995,6 +20122,70 @@ export type {
 } from "../../domain/entities/WikiContentTree";
 ````
 
+## File: modules/workspace/application/dtos/workspace-interfaces.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for workspace root interfaces.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+
+// --- Aggregate types ---
+export type {
+  Address,
+  AddressInput,
+  Capability,
+  CapabilitySpec,
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceEntity,
+  WorkspaceGrant,
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+  WorkspaceLocation,
+  WorkspaceName,
+  WorkspaceNameInput,
+  WorkspacePersonnel,
+  WorkspacePersonnelCustomRole,
+  WorkspaceVisibility,
+  WorkspaceVisibilityInput,
+} from "../../domain/aggregates/Workspace";
+
+// --- Value-object helpers (values, not just types) ---
+export {
+  WORKSPACE_LIFECYCLE_STATES,
+  WORKSPACE_VISIBILITIES,
+  createAddress,
+  createWorkspaceLifecycleState,
+  createWorkspaceName,
+  createWorkspaceVisibility,
+  formatAddress,
+  isTerminalWorkspaceLifecycleState,
+  isWorkspaceVisible,
+  workspaceNameEquals,
+} from "../../domain/value-objects";
+
+// --- Domain events ---
+export type {
+  WorkspaceCreatedEvent,
+  WorkspaceDomainEvent,
+  WorkspaceLifecycleTransitionedEvent,
+  WorkspaceVisibilityChangedEvent,
+} from "../../domain/events/workspace.events";
+
+export {
+  WORKSPACE_CREATED_EVENT_TYPE,
+  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
+  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
+  createWorkspaceCreatedEvent,
+  createWorkspaceLifecycleTransitionedEvent,
+  createWorkspaceVisibilityChangedEvent,
+} from "../../domain/events/workspace.events";
+
+// --- Ports ---
+export type { WorkspaceCommandPort } from "../../domain/ports/input/WorkspaceCommandPort";
+export type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";
+````
+
 ## File: modules/workspace/application/dtos/workspace-member-view.dto.ts
 ````typescript
 export type {
@@ -20287,6 +21478,80 @@ export * from "./workspace-member.contract";
 export * from "./wiki-content.contract";
 ````
 
+## File: modules/workspace/interfaces/api/contracts/wiki-content.contract.ts
+````typescript
+export type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiAccountType,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+  WikiWorkspaceRef,
+} from "../../../application/dtos/wiki-content-tree.dto";
+````
+
+## File: modules/workspace/interfaces/api/contracts/workspace-member.contract.ts
+````typescript
+export type {
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberAccessSource,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../../../application/dtos/workspace-member-view.dto";
+````
+
+## File: modules/workspace/interfaces/api/contracts/workspace.contract.ts
+````typescript
+export type {
+  Address,
+  AddressInput,
+  Capability,
+  CapabilitySpec,
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceEntity,
+  WorkspaceGrant,
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+  WorkspaceLocation,
+  WorkspaceName,
+  WorkspaceNameInput,
+  WorkspacePersonnel,
+  WorkspacePersonnelCustomRole,
+  WorkspaceVisibility,
+  WorkspaceVisibilityInput,
+} from "../../../application/dtos/workspace-interfaces.dto";
+
+export {
+  WORKSPACE_LIFECYCLE_STATES,
+  WORKSPACE_VISIBILITIES,
+  createAddress,
+  createWorkspaceLifecycleState,
+  createWorkspaceName,
+  createWorkspaceVisibility,
+  formatAddress,
+  isTerminalWorkspaceLifecycleState,
+  isWorkspaceVisible,
+  workspaceNameEquals,
+} from "../../../application/dtos/workspace-interfaces.dto";
+
+export type {
+  WorkspaceCreatedEvent,
+  WorkspaceDomainEvent,
+  WorkspaceLifecycleTransitionedEvent,
+  WorkspaceVisibilityChangedEvent,
+} from "../../../application/dtos/workspace-interfaces.dto";
+
+export {
+  WORKSPACE_CREATED_EVENT_TYPE,
+  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
+  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
+  createWorkspaceCreatedEvent,
+  createWorkspaceLifecycleTransitionedEvent,
+  createWorkspaceVisibilityChangedEvent,
+} from "../../../application/dtos/workspace-interfaces.dto";
+````
+
 ## File: modules/workspace/interfaces/api/facades/index.ts
 ````typescript
 /**
@@ -20447,6 +21712,101 @@ export async function getWorkspaceByIdForAccount(
 ````typescript
 export * from "./workspace-runtime";
 export * from "./workspace-session-context";
+````
+
+## File: modules/workspace/interfaces/api/runtime/workspace-runtime.ts
+````typescript
+import { WorkspaceCommandApplicationService } from "../../../application/services/WorkspaceCommandApplicationService";
+import { WorkspaceQueryApplicationService } from "../../../application/services/WorkspaceQueryApplicationService";
+import {
+  makeWikiWorkspaceRepo,
+  makeWorkspaceDomainEventPublisher,
+  makeWorkspaceQueryRepo,
+  makeWorkspaceRepo,
+} from "../../../api/runtime/factories";
+import type { WorkspaceCommandPort } from "../../../application/dtos/workspace-interfaces.dto";
+import type { WorkspaceQueryPort } from "../../../application/dtos/workspace-interfaces.dto";
+import { createWorkspaceSessionContext } from "./workspace-session-context";
+
+let _sessionContext: ReturnType<typeof createWorkspaceSessionContext> | undefined;
+
+function getSessionContext() {
+  if (!_sessionContext) {
+    // Lazy-load the organization query functions to break the circular module
+    // evaluation chain: workspace-runtime → platform/api → organization/interfaces
+    // → organization/api → workspace (via barrel re-exports).
+    //
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const platformApi = require("@/modules/platform/api");
+
+    const workspaceRepo = makeWorkspaceRepo();
+    const workspaceQueryRepo = makeWorkspaceQueryRepo({
+      getOrganizationMembers: platformApi.getOrganizationMembers,
+      getOrganizationTeams: platformApi.getOrganizationTeams,
+    });
+    const wikiWorkspaceRepo = makeWikiWorkspaceRepo();
+    const workspaceDomainEventPublisher = makeWorkspaceDomainEventPublisher();
+
+    const commandPort: WorkspaceCommandPort = new WorkspaceCommandApplicationService({
+      workspaceRepo,
+      workspaceCapabilityRepo: workspaceRepo,
+      workspaceAccessRepo: workspaceRepo,
+      workspaceLocationRepo: workspaceRepo,
+      workspaceDomainEventPublisher,
+    });
+
+    const queryPort: WorkspaceQueryPort = new WorkspaceQueryApplicationService({
+      workspaceRepo,
+      workspaceQueryRepo,
+      wikiWorkspaceRepo,
+    });
+
+    _sessionContext = createWorkspaceSessionContext(commandPort, queryPort);
+  }
+  return _sessionContext;
+}
+
+/**
+ * Lazy-initialized workspace ports.
+ * Proxy objects defer all property access until first actual use, breaking
+ * the circular module-evaluation chain at build time while preserving the
+ * same public API as the previous eager singletons.
+ */
+export const workspaceSessionContext = new Proxy(
+  {} as ReturnType<typeof createWorkspaceSessionContext>,
+  { get: (_target, prop) => getSessionContext()[prop as keyof ReturnType<typeof createWorkspaceSessionContext>] },
+);
+
+export const workspaceCommandPort: WorkspaceCommandPort = new Proxy(
+  {} as WorkspaceCommandPort,
+  { get: (_target, prop) => getSessionContext().workspaceCommandPort[prop as keyof WorkspaceCommandPort] },
+);
+
+export const workspaceQueryPort: WorkspaceQueryPort = new Proxy(
+  {} as WorkspaceQueryPort,
+  { get: (_target, prop) => getSessionContext().workspaceQueryPort[prop as keyof WorkspaceQueryPort] },
+);
+````
+
+## File: modules/workspace/interfaces/api/runtime/workspace-session-context.ts
+````typescript
+import type { WorkspaceCommandPort } from "../../../application/dtos/workspace-interfaces.dto";
+import type { WorkspaceQueryPort } from "../../../application/dtos/workspace-interfaces.dto";
+
+export interface WorkspaceSessionContext {
+  readonly workspaceCommandPort: WorkspaceCommandPort;
+  readonly workspaceQueryPort: WorkspaceQueryPort;
+}
+
+export function createWorkspaceSessionContext(
+  workspaceCommandPort: WorkspaceCommandPort,
+  workspaceQueryPort: WorkspaceQueryPort,
+): WorkspaceSessionContext {
+  return {
+    workspaceCommandPort,
+    workspaceQueryPort,
+  };
+}
 ````
 
 ## File: modules/workspace/interfaces/web/components/cards/WorkspaceContextCard.tsx
@@ -23355,6 +24715,16 @@ export function makeAuditRepo() {
 }
 ````
 
+## File: modules/workspace/subdomains/audit/application/dto/audit.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the audit subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
+export type { AuditSeverity } from "../../domain/schema";
+````
+
 ## File: modules/workspace/subdomains/audit/domain/aggregates/AuditEntry.ts
 ````typescript
 import type { AuditLogSource } from "../entities/AuditLog";
@@ -23722,6 +25092,282 @@ export { ActorIdSchema, createActorId, unsafeActorId } from "./ActorId";
 export type { ActorId } from "./ActorId";
 ````
 
+## File: modules/workspace/subdomains/audit/interfaces/components/AuditStream.tsx
+````typescript
+"use client";
+
+import { format } from "date-fns";
+import { zhTW } from "date-fns/locale/zh-TW";
+import { ShieldAlert } from "lucide-react";
+
+import { Badge } from "@ui-shadcn/ui/badge";
+import { ScrollArea } from "@ui-shadcn/ui/scroll-area";
+
+import type { AuditLogEntity, AuditLogSource } from "../../application/dto/audit.dto";
+import type { AuditSeverity } from "../../application/dto/audit.dto";
+
+interface AuditStreamItem {
+  id: string;
+  actorName: string;
+  action: string;
+  resourceType: string;
+  detail: string;
+  severity: AuditSeverity;
+  workspaceId: string;
+  occurredAtISO: string;
+}
+
+const SOURCE_SEVERITY: Record<AuditLogSource, AuditSeverity> = {
+  workspace: "low",
+  finance: "high",
+  notification: "low",
+  system: "medium",
+};
+
+function toStreamItem(entity: AuditLogEntity): AuditStreamItem {
+  return {
+    id: entity.id,
+    actorName: entity.actorId,
+    action: entity.action,
+    resourceType: entity.source,
+    detail: entity.detail,
+    severity: SOURCE_SEVERITY[entity.source] ?? "low",
+    workspaceId: entity.workspaceId,
+    occurredAtISO: entity.occurredAtISO,
+  };
+}
+
+const SEVERITY_DOT: Record<AuditSeverity, string> = {
+  low: "bg-muted-foreground/40",
+  medium: "bg-blue-500",
+  high: "bg-orange-500",
+  critical: "bg-destructive",
+};
+
+const SEVERITY_LABEL: Record<AuditSeverity, string> = {
+  low: "低",
+  medium: "中",
+  high: "高",
+  critical: "嚴重",
+};
+
+interface AuditRowProps {
+  item: AuditStreamItem;
+}
+
+function AuditRow({ item }: AuditRowProps) {
+  const timeLabel = (() => {
+    try {
+      return format(new Date(item.occurredAtISO), "yyyy-MM-dd HH:mm:ss", { locale: zhTW });
+    } catch {
+      return item.occurredAtISO;
+    }
+  })();
+
+  return (
+    <div className="mb-6 ml-6 relative group">
+      <span
+        className={`absolute -left-[1.85rem] flex h-3.5 w-3.5 items-center justify-center rounded-full ring-2 ring-background ${SEVERITY_DOT[item.severity]}`}
+      />
+
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1">
+        <div className="space-y-0.5 min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5 text-sm">
+            <span className="font-semibold truncate max-w-[120px]">{item.actorName}</span>
+            <span className="text-muted-foreground">執行了</span>
+            <Badge variant="outline" className="text-xs uppercase px-1.5 py-0">
+              {item.action}
+            </Badge>
+            <span className="text-muted-foreground">於</span>
+            <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">
+              {item.resourceType}
+            </code>
+            {item.severity === "critical" && (
+              <ShieldAlert className="h-3.5 w-3.5 text-destructive shrink-0" />
+            )}
+          </div>
+
+          {item.detail && (
+            <p className="text-xs text-muted-foreground">{item.detail}</p>
+          )}
+
+          <div className="flex items-center gap-2 mt-1">
+            <Badge variant="secondary" className="text-xs px-1.5 py-0">
+              {SEVERITY_LABEL[item.severity]}
+            </Badge>
+            <span className="text-xs text-muted-foreground">@{item.workspaceId}</span>
+          </div>
+        </div>
+
+        <time className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
+          {timeLabel}
+        </time>
+      </div>
+    </div>
+  );
+}
+
+interface AuditStreamProps {
+  logs: readonly AuditLogEntity[];
+  height?: number;
+}
+
+export function AuditStream({ logs, height = 500 }: AuditStreamProps) {
+  if (logs.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground py-8 text-center">
+        目前尚無稽核紀錄。
+      </p>
+    );
+  }
+
+  const items = logs.map(toStreamItem);
+
+  return (
+    <ScrollArea className="w-full rounded-md border" style={{ height }}>
+      <div className="p-4">
+        <div className="relative border-l border-border/60 ml-1.5">
+          {items.map((item) => (
+            <AuditRow key={item.id} item={item} />
+          ))}
+        </div>
+      </div>
+    </ScrollArea>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/audit/interfaces/components/WorkspaceAuditTab.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import type { AuditLogEntity } from "../../application/dto/audit.dto";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { getWorkspaceAuditLogs } from "../queries/audit.queries";
+
+function formatAuditDate(value: string) {
+  if (!value) {
+    return "—";
+  }
+
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
+}
+
+interface WorkspaceAuditTabProps {
+  readonly workspaceId: string;
+}
+
+export function WorkspaceAuditTab({ workspaceId }: WorkspaceAuditTabProps) {
+  const [logs, setLogs] = useState<AuditLogEntity[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadLogs() {
+      setLoadState("loading");
+
+      try {
+        const nextLogs = await getWorkspaceAuditLogs(workspaceId);
+        if (cancelled) {
+          return;
+        }
+
+        setLogs(nextLogs);
+        setLoadState("loaded");
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[WorkspaceAuditTab] Failed to load audit logs:", error);
+        }
+
+        if (!cancelled) {
+          setLogs([]);
+          setLoadState("error");
+        }
+      }
+    }
+
+    void loadLogs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId]);
+
+  return (
+    <Card className="border border-border/50">
+      <CardHeader>
+        <CardTitle>Audit</CardTitle>
+        <CardDescription>
+          工作區相關行為紀錄、來源與時間軸。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {loadState === "loading" && (
+          <p className="text-sm text-muted-foreground">Loading audit log…</p>
+        )}
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">
+            無法載入 audit log，請重新整理頁面或稍後再試。
+          </p>
+        )}
+
+        {loadState === "loaded" && logs.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            目前尚未記錄這個工作區的 audit entries。
+          </p>
+        )}
+
+        {loadState === "loaded" && logs.length > 0 && (
+          <div className="space-y-3">
+            {logs.map((log) => (
+              <div
+                key={log.id}
+                className="rounded-xl border border-border/40 px-4 py-4"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">{log.action}</p>
+                      <Badge variant="outline">{log.source}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{log.detail || "—"}</p>
+                    <p className="text-xs text-muted-foreground">Actor: {log.actorId}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {formatAuditDate(log.occurredAtISO)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+````
+
 ## File: modules/workspace/subdomains/feed/api/factories.ts
 ````typescript
 import { FirebaseWorkspaceFeedInteractionRepository } from "../infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository";
@@ -23899,6 +25545,69 @@ export class WorkspaceFeedFacade {
 }
 
 export const workspaceFeedFacade = new WorkspaceFeedFacade();
+````
+
+## File: modules/workspace/subdomains/feed/application/dto/workspace-feed.dto.ts
+````typescript
+import { z } from "@lib-zod";
+
+/**
+ * Application-layer DTO re-exports for the feed subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+
+const AccountScopeSchema = z.object({
+  accountId: z.string().min(1),
+});
+
+const WorkspaceScopeSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1),
+});
+
+export const FeedLimitSchema = z.number().int().min(1).max(200).default(50);
+
+export const CreateWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
+  authorAccountId: z.string().min(1),
+  content: z.string().trim().min(1).max(5000),
+});
+
+export type CreateWorkspaceFeedPostDto = z.infer<typeof CreateWorkspaceFeedPostSchema>;
+
+export const ReplyWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
+  parentPostId: z.string().min(1),
+  authorAccountId: z.string().min(1),
+  content: z.string().trim().min(1).max(5000),
+});
+
+export type ReplyWorkspaceFeedPostDto = z.infer<typeof ReplyWorkspaceFeedPostSchema>;
+
+export const RepostWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
+  sourcePostId: z.string().min(1),
+  actorAccountId: z.string().min(1),
+  comment: z.string().trim().max(1000).optional(),
+});
+
+export type RepostWorkspaceFeedPostDto = z.infer<typeof RepostWorkspaceFeedPostSchema>;
+
+export const FeedInteractionSchema = AccountScopeSchema.extend({
+  postId: z.string().min(1),
+  actorAccountId: z.string().min(1),
+});
+
+export type FeedInteractionDto = z.infer<typeof FeedInteractionSchema>;
+
+export const ListWorkspaceFeedSchema = WorkspaceScopeSchema.extend({
+  limit: FeedLimitSchema.optional(),
+});
+
+export type ListWorkspaceFeedDto = z.infer<typeof ListWorkspaceFeedSchema>;
+
+export const ListAccountFeedSchema = AccountScopeSchema.extend({
+  limit: FeedLimitSchema.optional(),
+});
+
+export type ListAccountFeedDto = z.infer<typeof ListAccountFeedSchema>;
 ````
 
 ## File: modules/workspace/subdomains/feed/application/use-cases/workspace-feed-interaction.use-cases.ts
@@ -24303,6 +26012,491 @@ export async function shareWorkspaceFeedPost(input: FeedInteractionDto): Promise
 }
 ````
 
+## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedAccountView.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Eye, Heart, MessageCircle, Repeat2, Share2, Star } from "lucide-react";
+
+import { useApp } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
+import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto";
+
+interface WorkspaceFeedAccountViewProps {
+  readonly accountId: string;
+}
+
+export function WorkspaceFeedAccountView({ accountId }: WorkspaceFeedAccountViewProps) {
+  const { state: appState } = useApp();
+  const actorId = appState.activeAccount?.id ?? accountId;
+
+  const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [activeReplyPostId, setActiveReplyPostId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [actingPostId, setActingPostId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const refreshFeed = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const rows = await workspaceFeedFacade.getAccountFeed(accountId, 80);
+      setPosts(rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "載入 account feed 失敗");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [accountId]);
+
+  useEffect(() => {
+    void refreshFeed();
+  }, [refreshFeed]);
+
+  async function handleAction(post: WorkspaceFeedPost, action: "like" | "view" | "bookmark" | "share" | "repost") {
+    setActingPostId(post.id);
+    setError(null);
+    try {
+      if (action === "like") {
+        await workspaceFeedFacade.like({ accountId, postId: post.id, actorAccountId: actorId });
+      }
+      if (action === "view") {
+        await workspaceFeedFacade.view({ accountId, postId: post.id, actorAccountId: actorId });
+      }
+      if (action === "bookmark") {
+        await workspaceFeedFacade.bookmark({ accountId, postId: post.id, actorAccountId: actorId });
+      }
+      if (action === "share") {
+        await workspaceFeedFacade.share({ accountId, postId: post.id, actorAccountId: actorId });
+      }
+      if (action === "repost") {
+        await workspaceFeedFacade.repost({
+          accountId,
+          workspaceId: post.workspaceId,
+          sourcePostId: post.id,
+          actorAccountId: actorId,
+        });
+      }
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "互動失敗");
+    } finally {
+      setActingPostId(null);
+    }
+  }
+
+  async function handleReply(post: WorkspaceFeedPost) {
+    const content = replyDrafts[post.id]?.trim() ?? "";
+    if (!content) return;
+
+    setActingPostId(post.id);
+    setError(null);
+    try {
+      await workspaceFeedFacade.reply({
+        accountId,
+        workspaceId: post.workspaceId,
+        parentPostId: post.id,
+        authorAccountId: actorId,
+        content,
+      });
+      setReplyDrafts((prev) => ({ ...prev, [post.id]: "" }));
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "回覆失敗");
+    } finally {
+      setActingPostId(null);
+    }
+  }
+
+  return (
+    <>
+      {error && (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
+      )}
+
+      <div className="space-y-3">
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">載入 account feed 中...</p>
+        ) : posts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">目前沒有任何 workspace 貼文。</p>
+        ) : (
+          posts.map((post) => (
+            <article key={post.id} className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {post.type.toUpperCase()} · workspace {post.workspaceId} · {new Date(post.createdAtISO).toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground">by {post.authorAccountId}</p>
+              </div>
+
+              <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={activeReplyPostId === post.id ? "default" : "outline"}
+                  onClick={() => setActiveReplyPostId((current) => (current === post.id ? null : post.id))}
+                >
+                  <MessageCircle className="mr-1 h-4 w-4" />
+                  Reply {post.replyCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "repost")} disabled={actingPostId === post.id}>
+                  <Repeat2 className="mr-1 h-4 w-4" />
+                  Repost {post.repostCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "like")} disabled={actingPostId === post.id}>
+                  <Heart className="mr-1 h-4 w-4" />
+                  Like {post.likeCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "view")} disabled={actingPostId === post.id}>
+                  <Eye className="mr-1 h-4 w-4" />
+                  View {post.viewCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "bookmark")} disabled={actingPostId === post.id}>
+                  <Star className="mr-1 h-4 w-4" />
+                  bookmark {post.bookmarkCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "share")} disabled={actingPostId === post.id}>
+                  <Share2 className="mr-1 h-4 w-4" />
+                  share {post.shareCount}
+                </Button>
+              </div>
+
+              {activeReplyPostId === post.id && (
+                <div className="space-y-2 rounded-xl border border-border/40 p-3">
+                  <Textarea
+                    value={replyDrafts[post.id] ?? ""}
+                    onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
+                    placeholder="回覆這則貼文..."
+                    rows={2}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" type="button" variant="ghost" onClick={() => setActiveReplyPostId(null)}>
+                      取消
+                    </Button>
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={() => void handleReply(post)}
+                      disabled={actingPostId === post.id || !(replyDrafts[post.id] ?? "").trim()}
+                    >
+                      回覆
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </article>
+          ))
+        )}
+      </div>
+    </>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedWorkspaceView.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Eye, Heart, MessageCircle, Repeat2, Send, Share2, Star } from "lucide-react";
+
+import { useApp } from "@/modules/platform/api";
+import { Avatar, AvatarFallback, AvatarImage } from "@ui-shadcn/ui/avatar";
+import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
+import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto";
+
+interface WorkspaceFeedWorkspaceViewProps {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly workspaceName: string;
+}
+
+export function WorkspaceFeedWorkspaceView({
+  accountId,
+  workspaceId,
+  workspaceName,
+}: WorkspaceFeedWorkspaceViewProps) {
+  const { state: appState } = useApp();
+  const actor = appState.activeAccount;
+  const actorId = actor?.id ?? accountId;
+
+  const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
+  const [composer, setComposer] = useState("");
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
+  const [activeReplyPostId, setActiveReplyPostId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [actingPostId, setActingPostId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const actorName = actor?.name ?? "未知";
+  const actorAvatar = "photoURL" in (actor ?? {}) ? (actor as { photoURL?: string }).photoURL : undefined;
+  const actorInitial = actorName.charAt(0).toUpperCase();
+
+  const canPublish = useMemo(() => composer.trim().length > 0, [composer]);
+
+  const refreshFeed = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const rows = await workspaceFeedFacade.getWorkspaceFeed(accountId, workspaceId, 50);
+      setPosts(rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "載入 feed 失敗");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [accountId, workspaceId]);
+
+  useEffect(() => {
+    void refreshFeed();
+  }, [refreshFeed]);
+
+  async function handlePublish() {
+    if (!canPublish || isPublishing) return;
+    setIsPublishing(true);
+    setError(null);
+    try {
+      const createdId = await workspaceFeedFacade.createPost({
+        accountId,
+        workspaceId,
+        authorAccountId: actorId,
+        content: composer.trim(),
+      });
+      if (!createdId) {
+        setError("建立貼文失敗");
+        return;
+      }
+      setComposer("");
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立貼文失敗");
+    } finally {
+      setIsPublishing(false);
+    }
+  }
+
+  async function handleAction(postId: string, action: "like" | "view" | "bookmark" | "share" | "repost") {
+    setActingPostId(postId);
+    setError(null);
+    try {
+      if (action === "like") {
+        await workspaceFeedFacade.like({ accountId, postId, actorAccountId: actorId });
+      }
+      if (action === "view") {
+        await workspaceFeedFacade.view({ accountId, postId, actorAccountId: actorId });
+      }
+      if (action === "bookmark") {
+        await workspaceFeedFacade.bookmark({ accountId, postId, actorAccountId: actorId });
+      }
+      if (action === "share") {
+        await workspaceFeedFacade.share({ accountId, postId, actorAccountId: actorId });
+      }
+      if (action === "repost") {
+        const current = posts.find((row) => row.id === postId);
+        if (!current) return;
+        await workspaceFeedFacade.repost({
+          accountId,
+          workspaceId: current.workspaceId,
+          sourcePostId: postId,
+          actorAccountId: actorId,
+        });
+      }
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "互動失敗");
+    } finally {
+      setActingPostId(null);
+    }
+  }
+
+  async function handleReply(postId: string) {
+    const text = replyDrafts[postId]?.trim() ?? "";
+    if (!text) return;
+    setActingPostId(postId);
+    setError(null);
+    try {
+      const current = posts.find((row) => row.id === postId);
+      if (!current) return;
+      await workspaceFeedFacade.reply({
+        accountId,
+        workspaceId: current.workspaceId,
+        parentPostId: postId,
+        authorAccountId: actorId,
+        content: text,
+      });
+      setReplyDrafts((prev) => ({ ...prev, [postId]: "" }));
+      await refreshFeed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "回覆失敗");
+    } finally {
+      setActingPostId(null);
+    }
+  }
+
+  return (
+    <section className="mx-auto max-w-3xl space-y-6 rounded-3xl border border-border/60 bg-card/50 p-6">
+      <header className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <Avatar className="h-12 w-12 shrink-0">
+            <AvatarImage src={actorAvatar} alt={actorName} />
+            <AvatarFallback className="text-sm font-bold">{actorInitial}</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="text-sm font-semibold">{workspaceName} Feed</p>
+            <p className="text-xs text-muted-foreground">workspaceId: {workspaceId}</p>
+          </div>
+        </div>
+        <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+          live
+        </div>
+      </header>
+
+      <div className="space-y-3 rounded-2xl border border-border/60 bg-background/80 p-4">
+        <Textarea
+          value={composer}
+          onChange={(event) => setComposer(event.target.value)}
+          placeholder="發佈你的想法到 workspace feed..."
+          rows={4}
+        />
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">actor: {actorName} / account: {accountId}</p>
+          <Button type="button" onClick={handlePublish} disabled={!canPublish || isPublishing}>
+            <Send className="mr-2 h-4 w-4" />
+            {isPublishing ? "送出中..." : "發佈"}
+          </Button>
+        </div>
+      </div>
+
+      {error && (
+        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
+      )}
+
+      <div className="space-y-3">
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">載入 feed 中...</p>
+        ) : posts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">目前還沒有貼文，發佈第一則吧。</p>
+        ) : (
+          posts.map((post) => (
+            <article key={post.id} className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  {post.type.toUpperCase()} · {post.workspaceId} · {new Date(post.createdAtISO).toLocaleString()}
+                </p>
+                <p className="text-xs text-muted-foreground">by {post.authorAccountId}</p>
+              </div>
+              <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant={activeReplyPostId === post.id ? "default" : "outline"}
+                  onClick={() => setActiveReplyPostId((current) => (current === post.id ? null : post.id))}
+                >
+                  <MessageCircle className="mr-1 h-4 w-4" />
+                  Reply {post.replyCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "repost")} disabled={actingPostId === post.id}>
+                  <Repeat2 className="mr-1 h-4 w-4" />
+                  Repost {post.repostCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "like")} disabled={actingPostId === post.id}>
+                  <Heart className="mr-1 h-4 w-4" />
+                  Like {post.likeCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "view")} disabled={actingPostId === post.id}>
+                  <Eye className="mr-1 h-4 w-4" />
+                  View {post.viewCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "bookmark")} disabled={actingPostId === post.id}>
+                  <Star className="mr-1 h-4 w-4" />
+                  bookmark {post.bookmarkCount}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "share")} disabled={actingPostId === post.id}>
+                  <Share2 className="mr-1 h-4 w-4" />
+                  share {post.shareCount}
+                </Button>
+              </div>
+
+              {activeReplyPostId === post.id && (
+                <div className="space-y-2 rounded-xl border border-border/40 p-3">
+                  <Textarea
+                    value={replyDrafts[post.id] ?? ""}
+                    onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
+                    placeholder="回覆這則貼文..."
+                    rows={2}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" type="button" variant="ghost" onClick={() => setActiveReplyPostId(null)}>
+                      取消
+                    </Button>
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={() => void handleReply(post.id)}
+                      disabled={actingPostId === post.id || !(replyDrafts[post.id] ?? "").trim()}
+                    >
+                      回覆
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </article>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/feed/interfaces/queries/workspace-feed.queries.ts
+````typescript
+import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto";
+import {
+  GetWorkspaceFeedPostUseCase,
+  ListAccountWorkspaceFeedUseCase,
+  ListWorkspaceFeedUseCase,
+} from "../../application/use-cases/workspace-feed.use-cases";
+import { makeWorkspaceFeedPostRepo } from "../../api/factories";
+
+export async function getWorkspaceFeedPost(
+  accountId: string,
+  postId: string,
+): Promise<WorkspaceFeedPost | null> {
+  return new GetWorkspaceFeedPostUseCase(makeWorkspaceFeedPostRepo()).execute(
+    accountId,
+    postId,
+  );
+}
+
+export async function getWorkspaceFeed(
+  accountId: string,
+  workspaceId: string,
+  limit = 50,
+): Promise<WorkspaceFeedPost[]> {
+  return new ListWorkspaceFeedUseCase(makeWorkspaceFeedPostRepo()).execute({
+    accountId,
+    workspaceId,
+    limit,
+  });
+}
+
+export async function getAccountWorkspaceFeed(accountId: string, limit = 50): Promise<WorkspaceFeedPost[]> {
+  return new ListAccountWorkspaceFeedUseCase(makeWorkspaceFeedPostRepo()).execute({
+    accountId,
+    limit,
+  });
+}
+````
+
 ## File: modules/workspace/subdomains/scheduling/api/factories.ts
 ````typescript
 import { FirebaseDemandRepository } from "../infrastructure/firebase/FirebaseDemandRepository";
@@ -24383,6 +26577,34 @@ export const AssignMemberSchema = z.object({
 });
 
 export type AssignMemberInput = z.infer<typeof AssignMemberSchema>;
+````
+
+## File: modules/workspace/subdomains/scheduling/application/dto/work-demand.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the scheduling subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type { WorkDemand, DemandPriority } from "../../domain/types";
+export { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../../domain/types";
+
+import type { DemandPriority } from "../../domain/types";
+
+export interface CreateDemandInput {
+  workspaceId: string;
+  accountId: string;
+  requesterId: string;
+  title: string;
+  description?: string;
+  priority: DemandPriority;
+  scheduledAt: string;
+}
+
+export interface AssignMemberInput {
+  demandId: string;
+  userId: string;
+  assignedBy: string;
+}
 ````
 
 ## File: modules/workspace/subdomains/scheduling/application/work-demand.use-cases.ts
@@ -24666,6 +26888,650 @@ export async function assignWorkDemand(raw: AssignMemberInput): Promise<CommandR
       err instanceof Error ? err.message : "Unexpected error",
     );
   }
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/AccountSchedulingView.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { Users } from "lucide-react";
+
+import type { WorkDemand } from "../application/dto/work-demand.dto";
+import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../application/dto/work-demand.dto";
+import { assignWorkDemand } from "./_actions/work-demand.actions";
+import { getAccountDemands } from "./queries/work-demand.queries";
+
+export interface AccountMember {
+  id: string;
+  name: string;
+}
+
+const PRIORITY_DOT: Record<WorkDemand["priority"], string> = {
+  low: "bg-green-400",
+  medium: "bg-amber-400",
+  high: "bg-red-500",
+};
+
+const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "outline" | "destructive"> = {
+  draft: "outline",
+  open: "secondary",
+  in_progress: "default",
+  completed: "default",
+};
+
+interface AccountSchedulingViewProps {
+  readonly accountId: string;
+  readonly currentUserId: string;
+  readonly availableMembers?: AccountMember[];
+}
+
+export function AccountSchedulingView({
+  accountId,
+  currentUserId,
+  availableMembers = [],
+}: AccountSchedulingViewProps) {
+  const [demands, setDemands] = useState<WorkDemand[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [pendingAssign, setPendingAssign] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadDemands = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const data = await getAccountDemands(accountId);
+      setDemands(data);
+      setLoadState("loaded");
+    } catch {
+      setLoadState("error");
+    }
+  }, [accountId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!cancelled) await loadDemands();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadDemands]);
+
+  async function handleAssign(demandId: string, userId: string) {
+    setPendingAssign(demandId);
+    setActionError(null);
+    try {
+      const result = await assignWorkDemand({
+        demandId,
+        userId,
+        assignedBy: currentUserId,
+      });
+      if (!result.success) {
+        setActionError(result.error.message);
+        return;
+      }
+      await loadDemands();
+    } finally {
+      setPendingAssign(null);
+    }
+  }
+
+  const byWorkspace = demands.reduce<Record<string, WorkDemand[]>>((acc, d) => {
+    if (!acc[d.workspaceId]) acc[d.workspaceId] = [];
+    acc[d.workspaceId].push(d);
+    return acc;
+  }, {});
+
+  const workspaceEntries = Object.entries(byWorkspace);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <Users className="h-5 w-5 text-primary" />
+        <div>
+          <h2 className="text-lg font-semibold">工作需求總覽</h2>
+          <p className="text-sm text-muted-foreground">
+            顯示名下所有 Workspace 提出的需求，可在此指派成員。
+          </p>
+        </div>
+      </div>
+
+      {actionError && (
+        <p role="alert" className="text-sm text-destructive">
+          {actionError}
+        </p>
+      )}
+
+      {loadState === "loading" && (
+        <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
+          載入中…
+        </div>
+      )}
+
+      {loadState === "error" && (
+        <p className="text-sm text-destructive">載入失敗，請重新整理。</p>
+      )}
+
+      {loadState === "loaded" && demands.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+          目前名下所有 Workspace 均無工作需求。
+        </div>
+      )}
+
+      {loadState === "loaded" && workspaceEntries.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {workspaceEntries.map(([wsId, wsDemands]) => (
+            <Card key={wsId} className="flex flex-col">
+              <CardHeader className="bg-muted/40 pb-3">
+                <CardTitle className="text-sm font-semibold truncate">
+                  Workspace: <span className="font-mono text-xs">{wsId.slice(0, 8)}…</span>
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  {wsDemands.length} 筆需求
+                </p>
+              </CardHeader>
+              <CardContent className="flex-1 space-y-3 p-4">
+                {wsDemands.map((demand) => (
+                  <div
+                    key={demand.id}
+                    className="rounded-md border border-border/60 bg-background p-3 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-medium leading-snug flex-1 min-w-0 truncate">
+                        {demand.title}
+                      </p>
+                      <span
+                        title={DEMAND_PRIORITY_LABELS[demand.priority]}
+                        className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${PRIORITY_DOT[demand.priority]}`}
+                      />
+                    </div>
+
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <Badge variant={STATUS_VARIANT[demand.status]} className="text-[10px]">
+                        {DEMAND_STATUS_LABELS[demand.status]}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {demand.scheduledAt}
+                      </span>
+                    </div>
+
+                    {availableMembers.length > 0 && (
+                      <div className="mt-2.5">
+                        <p className="mb-1 text-[10px] text-muted-foreground">指派給</p>
+                        <Select
+                          value={demand.assignedUserId ?? ""}
+                          onValueChange={(userId) => {
+                            if (userId) void handleAssign(demand.id, userId);
+                          }}
+                          disabled={pendingAssign === demand.id}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue placeholder="選擇成員…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableMembers.map((member) => (
+                              <SelectItem key={member.id} value={member.id}>
+                                {member.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {availableMembers.length === 0 && demand.assignedUserId && (
+                      <p className="mt-1.5 text-xs text-muted-foreground">
+                        已指派：{demand.assignedUserId}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {loadState === "loaded" && (
+        <div className="flex justify-end">
+          <Button variant="ghost" size="sm" onClick={loadDemands}>
+            重新整理
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/components/CalendarWidget.tsx
+````typescript
+"use client";
+
+import { useMemo, useState } from "react";
+
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  format,
+  getDay,
+  isSameMonth,
+  isToday,
+  startOfMonth,
+  subMonths,
+} from "@lib-date-fns";
+import { Button } from "@ui-shadcn/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
+import type { WorkDemand } from "../../application/dto/work-demand.dto";
+import { DEMAND_STATUS_LABELS } from "../../application/dto/work-demand.dto";
+
+interface CalendarWidgetProps {
+  demands: WorkDemand[];
+  onDayClick?: (date: Date) => void;
+}
+
+const DAY_HEADERS = ["日", "一", "二", "三", "四", "五", "六"] as const;
+
+const STATUS_DOT_CLASSES: Record<WorkDemand["status"], string> = {
+  draft: "bg-muted-foreground",
+  open: "bg-blue-500",
+  in_progress: "bg-amber-500",
+  completed: "bg-green-500",
+};
+
+function CalendarDayCell({
+  day,
+  isCurrentMonth,
+  dayDemands,
+  onDayClick,
+}: {
+  day: Date;
+  isCurrentMonth: boolean;
+  dayDemands: WorkDemand[];
+  onDayClick?: (date: Date) => void;
+}) {
+  const today = isToday(day);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={format(day, "yyyy-MM-dd")}
+      onClick={() => onDayClick?.(day)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onDayClick?.(day);
+      }}
+      className={[
+        "relative min-h-[72px] rounded-lg border p-1.5 text-sm transition-colors",
+        isCurrentMonth
+          ? "border-border/50 bg-card hover:bg-accent/40 cursor-pointer"
+          : "border-transparent bg-muted/20 text-muted-foreground cursor-default",
+        today ? "ring-2 ring-primary ring-offset-1" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      <span
+        className={[
+          "flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium",
+          today ? "bg-primary text-primary-foreground" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {format(day, "d")}
+      </span>
+
+      <div className="mt-1 space-y-0.5">
+        {dayDemands.slice(0, 3).map((d) => (
+          <div
+            key={d.id}
+            title={`${d.title} (${DEMAND_STATUS_LABELS[d.status]})`}
+            className="flex items-center gap-1 truncate"
+          >
+            <span
+              className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT_CLASSES[d.status]}`}
+            />
+            <span className="truncate text-[10px] leading-none text-foreground/80">
+              {d.title}
+            </span>
+          </div>
+        ))}
+        {dayDemands.length > 3 && (
+          <span className="text-[10px] text-muted-foreground">
+            +{dayDemands.length - 3} more
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function CalendarWidget({ demands, onDayClick }: CalendarWidgetProps) {
+  const [currentMonth, setCurrentMonth] = useState<Date>(startOfMonth(new Date()));
+
+  const monthDays = useMemo(
+    () =>
+      eachDayOfInterval({
+        start: startOfMonth(currentMonth),
+        end: endOfMonth(currentMonth),
+      }),
+    [currentMonth],
+  );
+
+  const leadingBlanks = useMemo(() => getDay(startOfMonth(currentMonth)), [currentMonth]);
+
+  const demandsByDate = useMemo(() => {
+    const map = new Map<string, WorkDemand[]>();
+    for (const d of demands) {
+      const key = d.scheduledAt.slice(0, 10);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(d);
+    }
+    return map;
+  }, [demands]);
+
+  function getDayDemands(day: Date): WorkDemand[] {
+    return demandsByDate.get(format(day, "yyyy-MM-dd")) ?? [];
+  }
+
+  const legendEntries: { status: WorkDemand["status"]; label: string }[] = [
+    { status: "open", label: DEMAND_STATUS_LABELS.open },
+    { status: "in_progress", label: DEMAND_STATUS_LABELS.in_progress },
+    { status: "completed", label: DEMAND_STATUS_LABELS.completed },
+    { status: "draft", label: DEMAND_STATUS_LABELS.draft },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold">
+          {format(currentMonth, "yyyy 年 M 月")}
+        </h2>
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="上個月"
+            onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCurrentMonth(startOfMonth(new Date()))}
+          >
+            今天
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="下個月"
+            onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        {legendEntries.map(({ status, label }) => (
+          <div key={status} className="flex items-center gap-1.5">
+            <span
+              className={`h-2 w-2 rounded-full ${STATUS_DOT_CLASSES[status]}`}
+            />
+            <span className="text-xs text-muted-foreground">{label}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-1">
+        {DAY_HEADERS.map((h) => (
+          <div
+            key={h}
+            className="pb-1 text-center text-xs font-medium text-muted-foreground"
+          >
+            {h}
+          </div>
+        ))}
+
+        {Array.from({ length: leadingBlanks }).map((_, i) => (
+          <div key={`blank-${i}`} />
+        ))}
+
+        {monthDays.map((day) => (
+          <CalendarDayCell
+            key={day.toISOString()}
+            day={day}
+            isCurrentMonth={isSameMonth(day, currentMonth)}
+            dayDemands={getDayDemands(day)}
+            onDayClick={isSameMonth(day, currentMonth) ? onDayClick : undefined}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/WorkspaceSchedulingTab.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Plus } from "lucide-react";
+
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+import type { WorkDemand } from "../application/dto/work-demand.dto";
+import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../application/dto/work-demand.dto";
+import { submitWorkDemand } from "./_actions/work-demand.actions";
+import { getWorkspaceDemands } from "./queries/work-demand.queries";
+import { CalendarWidget } from "./components/CalendarWidget";
+import { CreateDemandForm } from "./components/CreateDemandForm";
+import type { CreateDemandFormValues } from "./components/CreateDemandForm";
+
+const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "outline" | "destructive"> = {
+  draft: "outline",
+  open: "secondary",
+  in_progress: "default",
+  completed: "default",
+};
+
+const PRIORITY_CLASS: Record<WorkDemand["priority"], string> = {
+  low: "text-muted-foreground",
+  medium: "text-amber-600",
+  high: "text-red-600",
+};
+
+interface WorkspaceSchedulingTabProps {
+  readonly workspace: WorkspaceEntity;
+  readonly accountId: string;
+  readonly currentUserId: string;
+}
+
+export function WorkspaceSchedulingTab({
+  workspace,
+  accountId,
+  currentUserId,
+}: WorkspaceSchedulingTabProps) {
+  const [demands, setDemands] = useState<WorkDemand[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [formOpen, setFormOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadDemands = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const data = await getWorkspaceDemands(workspace.id);
+      setDemands(data);
+      setLoadState("loaded");
+    } catch {
+      setLoadState("error");
+    }
+  }, [workspace.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!cancelled) await loadDemands();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadDemands]);
+
+  function handleDayClick(date: Date) {
+    setSelectedDate(date);
+    setFormOpen(true);
+  }
+
+  function handleNewDemand() {
+    setSelectedDate(undefined);
+    setFormOpen(true);
+  }
+
+  async function handleSubmit(values: CreateDemandFormValues) {
+    setActionError(null);
+    const result = await submitWorkDemand({
+      workspaceId: workspace.id,
+      accountId,
+      requesterId: currentUserId,
+      title: values.title,
+      description: values.description,
+      priority: values.priority,
+      scheduledAt: values.scheduledAt,
+    });
+    if (!result.success) {
+      throw new Error(result.error.message);
+    }
+    await loadDemands();
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">{workspace.name} — 工作規劃</h2>
+          <p className="text-sm text-muted-foreground">
+            點擊日期或「新增需求」快速建立工作需求。
+          </p>
+        </div>
+        <Button size="sm" onClick={handleNewDemand}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          新增需求
+        </Button>
+      </div>
+
+      {actionError && (
+        <p role="alert" className="text-sm text-destructive">
+          {actionError}
+        </p>
+      )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">排程日曆</CardTitle>
+          <CardDescription className="text-xs">
+            點擊日期快速排程新需求
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadState === "loading" ? (
+            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+              載入中…
+            </div>
+          ) : (
+            <CalendarWidget demands={demands} onDayClick={handleDayClick} />
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          需求列表 ({demands.length})
+        </h3>
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">載入失敗，請重新整理。</p>
+        )}
+
+        {loadState === "loaded" && demands.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            目前尚無需求。點擊日曆日期或「新增需求」開始排程。
+          </div>
+        )}
+
+        {demands.map((demand) => (
+          <div
+            key={demand.id}
+            className="flex items-start justify-between rounded-lg border border-border/60 bg-card px-4 py-3"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium text-sm">{demand.title}</p>
+              {demand.description && (
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {demand.description}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                排程日期：{demand.scheduledAt}
+              </p>
+            </div>
+            <div className="ml-4 flex shrink-0 flex-col items-end gap-1.5">
+              <Badge variant={STATUS_VARIANT[demand.status]}>
+                {DEMAND_STATUS_LABELS[demand.status]}
+              </Badge>
+              <span className={`text-xs font-medium ${PRIORITY_CLASS[demand.priority]}`}>
+                {DEMAND_PRIORITY_LABELS[demand.priority]}優先
+              </span>
+              {demand.assignedUserId && (
+                <span className="text-xs text-muted-foreground">已指派</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <CreateDemandForm
+        open={formOpen}
+        initialDate={selectedDate}
+        onClose={() => setFormOpen(false)}
+        onSubmit={handleSubmit}
+      />
+    </div>
+  );
 }
 ````
 
@@ -25616,6 +28482,21 @@ export interface UpdateTaskDto {
   readonly assigneeId?: string;
   readonly dueDateISO?: string;
 }
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/application/dto/workflow.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the workspace-workflow subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type { Task } from "../../domain/entities/Task";
+export type { Issue } from "../../domain/entities/Issue";
+export type { Invoice } from "../../domain/entities/Invoice";
+export type { InvoiceItem } from "../../domain/entities/InvoiceItem";
+export type { TaskStatus } from "../../domain/value-objects/TaskStatus";
+export type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+export type { IssueStage } from "../../domain/value-objects/IssueStage";
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/application/ports/InvoiceService.ts
@@ -28832,6 +31713,757 @@ export function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: Crea
       </DialogContent>
     </Dialog>
   );
+}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/InvoiceRow.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { Invoice } from "../../application/dto/workflow.dto";
+import type { InvoiceStatus } from "../../application/dto/workflow.dto";
+import {
+  wfApproveInvoice,
+  wfCloseInvoice,
+  wfPayInvoice,
+  wfRejectInvoice,
+  wfReviewInvoice,
+  wfSubmitInvoice,
+} from "../_actions/workspace-flow.actions";
+
+const INVOICE_STATUS_VARIANT: Record<
+  InvoiceStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  draft: "outline",
+  submitted: "secondary",
+  finance_review: "secondary",
+  approved: "default",
+  paid: "default",
+  closed: "outline",
+};
+
+const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
+  draft: "草稿",
+  submitted: "已提交",
+  finance_review: "財務審核",
+  approved: "已核准",
+  paid: "已付款",
+  closed: "已結清",
+};
+
+function formatShortDate(iso: string | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+function formatCurrency(amount: number): string {
+  try {
+    return new Intl.NumberFormat("zh-TW", {
+      style: "currency",
+      currency: "TWD",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `TWD ${amount}`;
+  }
+}
+
+export interface InvoiceRowProps {
+  invoice: Invoice;
+  onTransitioned: () => void;
+}
+
+export function InvoiceRow({ invoice, onTransitioned }: InvoiceRowProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderActions() {
+    switch (invoice.status) {
+      case "draft":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitInvoice(invoice.id))}>提交</Button>;
+      case "submitted":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfReviewInvoice(invoice.id))}>送審</Button>;
+      case "finance_review":
+        return (
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveInvoice(invoice.id))}>核准</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfRejectInvoice(invoice.id))}>退回</Button>
+          </div>
+        );
+      case "approved":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPayInvoice(invoice.id))}>付款</Button>;
+      case "paid":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseInvoice(invoice.id))}>結清</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border/40 px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">
+            #{invoice.id.slice(-8).toUpperCase()}
+          </p>
+          <p className="text-xs text-muted-foreground">建立：{formatShortDate(invoice.createdAtISO)}</p>
+          {invoice.paidAtISO && (
+            <p className="text-xs text-muted-foreground">付款：{formatShortDate(invoice.paidAtISO)}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <Badge variant={INVOICE_STATUS_VARIANT[invoice.status]}>
+            {INVOICE_STATUS_LABEL[invoice.status]}
+          </Badge>
+          <p className="text-sm font-semibold text-foreground">{formatCurrency(invoice.totalAmount)}</p>
+          {renderActions()}
+        </div>
+      </div>
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/IssueRow.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { Issue } from "../../application/dto/workflow.dto";
+import type { IssueStage } from "../../application/dto/workflow.dto";
+import {
+  wfCloseIssue,
+  wfFailIssueRetest,
+  wfFixIssue,
+  wfPassIssueRetest,
+  wfStartIssue,
+  wfSubmitIssueRetest,
+} from "../_actions/workspace-flow.actions";
+
+export const ISSUE_STAGE_LABEL: Record<IssueStage, string> = {
+  task: "任務",
+  qa: "QA",
+  acceptance: "驗收",
+};
+
+const ISSUE_STATUS_VARIANT: Record<
+  Issue["status"],
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  open: "destructive",
+  investigating: "destructive",
+  fixing: "secondary",
+  retest: "secondary",
+  resolved: "default",
+  closed: "outline",
+};
+
+const ISSUE_STATUS_LABEL: Record<Issue["status"], string> = {
+  open: "開啟",
+  investigating: "調查中",
+  fixing: "修復中",
+  retest: "重測中",
+  resolved: "已解決",
+  closed: "已關閉",
+};
+
+export interface IssueRowProps {
+  issue: Issue;
+  onTransitioned: () => void;
+}
+
+export function IssueRow({ issue, onTransitioned }: IssueRowProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderActions() {
+    switch (issue.status) {
+      case "open":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfStartIssue(issue.id))}>開始調查</Button>;
+      case "investigating":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFixIssue(issue.id))}>開始修復</Button>;
+      case "fixing":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitIssueRetest(issue.id))}>送重測</Button>;
+      case "retest":
+        return (
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassIssueRetest(issue.id))}>通過</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFailIssueRetest(issue.id))}>失敗</Button>
+          </div>
+        );
+      case "resolved":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseIssue(issue.id))}>關閉</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-border/30 px-3 py-2.5 text-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-0.5 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant={ISSUE_STATUS_VARIANT[issue.status]} className="text-xs">
+              {ISSUE_STATUS_LABEL[issue.status]}
+            </Badge>
+            <Badge variant="outline" className="text-xs">{ISSUE_STAGE_LABEL[issue.stage]}</Badge>
+            <span className="font-medium text-foreground truncate">{issue.title}</span>
+          </div>
+          {issue.description && (
+            <p className="text-xs text-muted-foreground line-clamp-1">{issue.description}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="shrink-0">{renderActions()}</div>
+      </div>
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/OpenIssueDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import type { IssueStage } from "../../application/dto/workflow.dto";
+import { wfOpenIssue } from "../_actions/workspace-flow.actions";
+import { ISSUE_STAGE_LABEL } from "./IssueRow";
+
+export interface OpenIssueDialogProps {
+  open: boolean;
+  taskId: string;
+  currentUserId: string;
+  onClose: () => void;
+  onCreated: () => void;
+}
+
+export function OpenIssueDialog({ open, taskId, currentUserId, onClose, onCreated }: OpenIssueDialogProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [stage, setStage] = useState<IssueStage>("task");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setStage("task");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) { setError("請輸入議題標題。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfOpenIssue({
+        taskId,
+        stage,
+        title: t,
+        description: description.trim() || undefined,
+        createdBy: currentUserId,
+      });
+      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
+      onCreated();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>開啟議題</DialogTitle>
+          <DialogDescription>記錄此任務發現的問題或異常。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="issue-title">標題 *</Label>
+            <Input
+              id="issue-title"
+              placeholder="問題簡述"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="issue-description">描述（選填）</Label>
+            <Textarea
+              id="issue-description"
+              placeholder="問題詳情、重現步驟…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>發生階段</Label>
+            <div className="flex gap-2">
+              {(["task", "qa", "acceptance"] as const).map((s) => (
+                <Button
+                  key={s}
+                  type="button"
+                  size="sm"
+                  variant={stage === s ? "default" : "outline"}
+                  onClick={() => setStage(s)}
+                  disabled={submitting}
+                >
+                  {ISSUE_STAGE_LABEL[s]}
+                </Button>
+              ))}
+            </div>
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "開啟議題"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/TaskRow.tsx
+````typescript
+"use client";
+
+import { useCallback, useState } from "react";
+
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { Issue } from "../../application/dto/workflow.dto";
+import type { Task } from "../../application/dto/workflow.dto";
+import type { TaskStatus } from "../../application/dto/workflow.dto";
+import {
+  wfApproveTaskAcceptance,
+  wfArchiveTask,
+  wfPassTaskQa,
+  wfSubmitTaskToQa,
+} from "../_actions/workspace-flow.actions";
+import { getWorkspaceFlowIssues } from "../queries/workspace-flow.queries";
+import { AssignTaskDialog } from "./AssignTaskDialog";
+import { IssueRow } from "./IssueRow";
+import { OpenIssueDialog } from "./OpenIssueDialog";
+
+const TASK_STATUS_VARIANT: Record<
+  TaskStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  draft: "outline",
+  in_progress: "secondary",
+  qa: "secondary",
+  acceptance: "default",
+  accepted: "default",
+  archived: "outline",
+};
+
+const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  draft: "草稿",
+  in_progress: "進行中",
+  qa: "QA 審查",
+  acceptance: "驗收中",
+  accepted: "已驗收",
+  archived: "已歸檔",
+};
+
+function formatShortDate(iso: string | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+export interface TaskRowProps {
+  task: Task;
+  currentUserId: string;
+  onTransitioned: () => void;
+}
+
+export function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [issuesExpanded, setIssuesExpanded] = useState(false);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [issuesLoaded, setIssuesLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadIssues = useCallback(async () => {
+    try {
+      const data = await getWorkspaceFlowIssues(task.id);
+      setIssues(data);
+      setIssuesLoaded(true);
+    } catch {
+      // non-fatal
+    }
+  }, [task.id]);
+
+  async function toggleIssues() {
+    if (!issuesExpanded && !issuesLoaded) {
+      await loadIssues();
+    }
+    setIssuesExpanded((v) => !v);
+  }
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderTaskAction() {
+    switch (task.status) {
+      case "draft":
+        return (
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => setAssignDialogOpen(true)}>
+            指派任務
+          </Button>
+        );
+      case "in_progress":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitTaskToQa(task.id))}>送 QA</Button>;
+      case "qa":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassTaskQa(task.id))}>QA 通過</Button>;
+      case "acceptance":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveTaskAcceptance(task.id))}>驗收通過</Button>;
+      case "accepted":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfArchiveTask(task.id))}>歸檔</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border/40 px-4 py-4 space-y-3">
+      {/* ── Task header ─────────────────────── */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">{task.title}</p>
+          {task.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
+          )}
+          {task.assigneeId && (
+            <p className="text-xs text-muted-foreground">指派：{task.assigneeId}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <Badge variant={TASK_STATUS_VARIANT[task.status]}>{TASK_STATUS_LABEL[task.status]}</Badge>
+          {task.dueDateISO && (
+            <p className="text-xs text-muted-foreground">截止：{formatShortDate(task.dueDateISO)}</p>
+          )}
+        </div>
+      </div>
+
+      {/* ── Action row ──────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2">
+        {renderTaskAction()}
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground"
+          onClick={() => setIssueDialogOpen(true)}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          開議題
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground ml-auto"
+          onClick={toggleIssues}
+        >
+          {issuesExpanded ? (
+            <ChevronDown className="mr-1 h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="mr-1 h-3.5 w-3.5" />
+          )}
+          議題{issuesLoaded ? ` (${issues.length})` : ""}
+        </Button>
+      </div>
+
+      {/* ── Issues sub-list ─────────────────── */}
+      {issuesExpanded && (
+        <div className="space-y-2 pl-1">
+          {issues.length === 0 ? (
+            <p className="text-xs text-muted-foreground">此任務目前無議題。</p>
+          ) : (
+            issues.map((issue) => (
+              <IssueRow
+                key={issue.id}
+                issue={issue}
+                onTransitioned={loadIssues}
+              />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ── Dialogs ─────────────────────────── */}
+      <AssignTaskDialog
+        open={assignDialogOpen}
+        taskId={task.id}
+        onClose={() => setAssignDialogOpen(false)}
+        onDone={onTransitioned}
+      />
+      <OpenIssueDialog
+        open={issueDialogOpen}
+        taskId={task.id}
+        currentUserId={currentUserId}
+        onClose={() => setIssueDialogOpen(false)}
+        onCreated={async () => {
+          await loadIssues();
+          if (!issuesExpanded) setIssuesExpanded(true);
+        }}
+      />
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/contracts/workspace-flow.contract.ts
+````typescript
+/**
+ * @module workspace-flow/interfaces/contracts
+ * @file workspace-flow.contract.ts
+ * @description Module-local interface contracts for workspace-flow UI adapters.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Expand with view-model contracts as UI adapters are added
+ */
+
+import type { Task } from "../../application/dto/workflow.dto";
+import type { Issue } from "../../application/dto/workflow.dto";
+import type { Invoice } from "../../application/dto/workflow.dto";
+import type { InvoiceItem } from "../../application/dto/workflow.dto";
+
+// ── Summary read models (lean projections for UI) ─────────────────────────────
+
+export interface TaskSummary {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly status: Task["status"];
+  readonly assigneeId?: string;
+}
+
+export interface IssueSummary {
+  readonly id: string;
+  readonly taskId: string;
+  readonly title: string;
+  readonly status: Issue["status"];
+  readonly stage: Issue["stage"];
+}
+
+export interface InvoiceSummary {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly status: Invoice["status"];
+  readonly totalAmount: number;
+}
+
+export interface InvoiceItemSummary {
+  readonly id: string;
+  readonly invoiceId: string;
+  readonly taskId: string;
+  readonly amount: InvoiceItem["amount"];
+}
+
+// ── Projection helpers ────────────────────────────────────────────────────────
+
+export function toTaskSummary(task: Task): TaskSummary {
+  return {
+    id: task.id,
+    workspaceId: task.workspaceId,
+    title: task.title,
+    status: task.status,
+    assigneeId: task.assigneeId,
+  };
+}
+
+export function toIssueSummary(issue: Issue): IssueSummary {
+  return {
+    id: issue.id,
+    taskId: issue.taskId,
+    title: issue.title,
+    status: issue.status,
+    stage: issue.stage,
+  };
+}
+
+export function toInvoiceSummary(invoice: Invoice): InvoiceSummary {
+  return {
+    id: invoice.id,
+    workspaceId: invoice.workspaceId,
+    status: invoice.status,
+    totalAmount: invoice.totalAmount,
+  };
+}
+
+export function toInvoiceItemSummary(item: InvoiceItem): InvoiceItemSummary {
+  return {
+    id: item.id,
+    invoiceId: item.invoiceId,
+    taskId: item.taskId,
+    amount: item.amount,
+  };
+}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/queries/workspace-flow.queries.ts
+````typescript
+/**
+ * @module workspace-flow/interfaces/queries
+ * @file workspace-flow.queries.ts
+ * @description Server-side read queries for workspace-flow entities.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add pagination support and caching layer
+ */
+
+import type { Task } from "../../application/dto/workflow.dto";
+import type { Issue } from "../../application/dto/workflow.dto";
+import type { Invoice } from "../../application/dto/workflow.dto";
+import type { InvoiceItem } from "../../application/dto/workflow.dto";
+import { makeInvoiceRepo, makeIssueRepo, makeTaskRepo } from "../../api/factories";
+
+/**
+ * List all tasks for a workspace.
+ *
+ * @param workspaceId - The workspace to query
+ */
+export async function getWorkspaceFlowTasks(workspaceId: string): Promise<Task[]> {
+  return makeTaskRepo().findByWorkspaceId(workspaceId);
+}
+
+/**
+ * Get a single task by id.
+ *
+ * @param taskId - The task identifier
+ */
+export async function getWorkspaceFlowTask(taskId: string): Promise<Task | null> {
+  return makeTaskRepo().findById(taskId);
+}
+
+/**
+ * List all issues for a task.
+ *
+ * @param taskId - The task identifier
+ */
+export async function getWorkspaceFlowIssues(taskId: string): Promise<Issue[]> {
+  return makeIssueRepo().findByTaskId(taskId);
+}
+
+/**
+ * List all invoices for a workspace.
+ *
+ * @param workspaceId - The workspace to query
+ */
+export async function getWorkspaceFlowInvoices(workspaceId: string): Promise<Invoice[]> {
+  return makeInvoiceRepo().findByWorkspaceId(workspaceId);
+}
+
+/**
+ * Get items for an invoice.
+ *
+ * @param invoiceId - The invoice identifier
+ */
+export async function getWorkspaceFlowInvoiceItems(invoiceId: string): Promise<InvoiceItem[]> {
+  return makeInvoiceRepo().listItems(invoiceId);
 }
 ````
 
@@ -37155,242 +40787,6 @@ export function ShellContextNavSection({
 }
 ````
 
-## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
-````typescript
-"use client";
-
-/**
- * ShellDashboardSidebar — app/(shell)/_shell composition layer.
- * Moved from modules/platform because it composes workspace module components.
- */
-
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { toast } from "sonner";
-
-import {
-  buildWorkspaceQuickAccessItems,
-  CustomizeNavigationDialog,
-  getWorkspaceIdFromPath,
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  readNavPreferences,
-  buildWorkspaceContextHref,
-  supportsWorkspaceSearchContext,
-  type NavPreferences,
-  useRecentWorkspaces,
-  useSidebarLocale,
-  WorkspaceQuickAccessRow,
-} from "@/modules/workspace/api";
-
-import {
-  quickCreateKnowledgePage,
-} from "./shell-quick-create";
-import {
-  type DashboardSidebarProps,
-  ORGANIZATION_MANAGEMENT_ITEMS,
-  ACCOUNT_NAV_ITEMS,
-  SECTION_TITLES,
-  resolveNavSection,
-  isActiveRoute,
-  isActiveOrganizationAccount,
-} from "./ShellSidebarNavData";
-import { ShellSidebarHeader } from "./ShellSidebarHeader";
-import { DashboardSidebarBody } from "./ShellSidebarBody";
-
-export function ShellDashboardSidebar({
-  pathname,
-  userId,
-  activeAccount,
-  workspaces,
-  workspacesHydrated,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps) {
-  const searchParams = useSearchParams();
-
-  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
-    activeAccount?.id,
-    pathname,
-    workspaces,
-  );
-  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
-  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
-  const [customizeOpen, setCustomizeOpen] = useState(false);
-  const localeBundle = useSidebarLocale();
-
-  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
-
-  const visibleOrganizationManagementItems = useMemo(
-    () => ORGANIZATION_MANAGEMENT_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
-    [navPrefs.pinnedWorkspace],
-  );
-
-  const visibleAccountItems = useMemo(
-    () => ACCOUNT_NAV_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
-    [navPrefs.pinnedWorkspace],
-  );
-
-  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
-
-  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
-    ? navPrefs.maxWorkspaces
-    : MAX_VISIBLE_RECENT_WORKSPACES;
-
-  const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-
-  useEffect(() => {
-    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
-    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(pathWorkspaceId);
-      return;
-    }
-
-    if (!supportsWorkspaceSearchContext(pathname)) {
-      return;
-    }
-
-    if (currentSearchWorkspaceId && currentSearchWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(currentSearchWorkspaceId);
-    }
-  }, [pathname, activeWorkspaceId, currentSearchWorkspaceId, onSelectWorkspace]);
-
-  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
-  const visibleRecentWorkspaceLinks = isExpanded
-    ? recentWorkspaceLinks
-    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
-
-  const allWorkspaceLinks = useMemo(
-    () =>
-      workspaces
-        .map((workspace) => ({
-          id: workspace.id,
-          name: workspace.name,
-          href: buildWorkspaceContextHref(pathname, workspace.id),
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces, pathname],
-  );
-
-  const section = resolveNavSection(pathname);
-  const sectionMeta = SECTION_TITLES[section];
-  const workspacePathId = getWorkspaceIdFromPath(pathname);
-  const currentPanel = searchParams.get("panel");
-  const currentWorkspaceTab = searchParams.get("tab");
-  const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
-  const hasWorkspaceToolContext =
-    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
-    (section === "knowledge" ||
-      section === "knowledge-base" ||
-      section === "source" ||
-      section === "notebook");
-  const workspaceQuickAccessId =
-    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
-  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
-  const workspaceSettingsHref = workspaceQuickAccessId
-    ? `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
-    : "";
-  const workspaceQuickAccessItems = useMemo(
-    () =>
-      showWorkspaceQuickAccess && workspaceQuickAccessId
-        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId)
-        : [],
-    [showWorkspaceQuickAccess, workspaceQuickAccessId],
-  );
-
-  async function handleQuickCreatePage() {
-    const accountId = activeAccount?.id ?? "";
-    if (!accountId || !activeWorkspaceId) {
-      toast.error(!accountId ? "目前沒有 active account，無法建立" : "請先切換到工作區，再建立頁面");
-      return;
-    }
-    setCreatingKind("page");
-    try {
-      const result = await quickCreateKnowledgePage({
-        accountId,
-        workspaceId: activeWorkspaceId,
-        createdByUserId: userId ?? accountId,
-      });
-      if (result.success) {
-        toast.success("已建立頁面");
-      } else {
-        toast.error(result.error?.message ?? "建立頁面失敗");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("建立頁面失敗");
-    } finally {
-      setCreatingKind(null);
-    }
-  }
-
-  return (
-    <div className="contents">
-      <aside
-        aria-label="Secondary navigation"
-        className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
-          collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
-        }`}
-      >
-        <ShellSidebarHeader
-          sectionLabel={sectionMeta.label}
-          sectionIcon={sectionMeta.icon}
-          onOpenCustomize={() => {
-            setCustomizeOpen(true);
-          }}
-          onToggleCollapsed={onToggleCollapsed}
-        />
-
-        <WorkspaceQuickAccessRow
-          items={workspaceQuickAccessItems}
-          pathname={pathname}
-          currentPanel={currentPanel}
-          currentWorkspaceTab={currentWorkspaceTab}
-          workspaceSettingsHref={workspaceSettingsHref}
-          isActiveRoute={(href) => isActiveRoute(pathname, href)}
-        />
-
-        <DashboardSidebarBody
-          section={section}
-          isActiveRoute={(href) => isActiveRoute(pathname, href)}
-          activeAccountId={activeAccount?.id ?? null}
-          showAccountManagement={showAccountManagement}
-          visibleAccountItems={visibleAccountItems}
-          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
-          workspacePathId={workspacePathId}
-          navPrefs={navPrefs}
-          localeBundle={localeBundle}
-          showRecentWorkspaces={showRecentWorkspaces}
-          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
-          hasOverflow={hasOverflow}
-          isExpanded={isExpanded}
-          activeWorkspaceId={activeWorkspaceId}
-          onSelectWorkspace={onSelectWorkspace}
-          onToggleExpanded={() => {
-            setIsExpanded((prev) => !prev);
-          }}
-          pathname={pathname}
-          workspacesHydrated={workspacesHydrated}
-          allWorkspaceLinks={allWorkspaceLinks}
-          currentSearchWorkspaceId={currentSearchWorkspaceId}
-          creatingKind={creatingKind}
-          onQuickCreatePage={() => {
-            void handleQuickCreatePage();
-          }}
-        />
-      </aside>
-
-      <CustomizeNavigationDialog
-        open={customizeOpen}
-        onOpenChange={setCustomizeOpen}
-        onPreferencesChange={setNavPrefs}
-      />
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/_shell/ShellSidebarHeader.tsx
 ````typescript
 "use client";
@@ -37447,50 +40843,29 @@ export function ShellSidebarHeader({
 }
 ````
 
-## File: app/(shell)/_shell/WorkspaceRouteShim.tsx
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/ai-chat/page.tsx
 ````typescript
 "use client";
 
-import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 
-import {
-  buildWorkspaceOverviewPanelHref,
-  type WorkspaceOverviewPanel,
-  useWorkspaceContext,
-} from "@/modules/workspace/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { AiChatPage } from "@/modules/notebooklm/api";
 
-interface WorkspaceRouteShimProps {
-  readonly panel?: WorkspaceOverviewPanel;
-  readonly tab?: "Overview" | "Files";
-  readonly loadingMessage: string;
-}
+export default function AccountWorkspaceAiChatPage() {
+  const params = useParams<{ accountId: string; workspaceId: string }>();
+  const { state: wsState } = useWorkspaceContext();
 
-export function WorkspaceRouteShim({
-  panel,
-  tab = "Overview",
-  loadingMessage,
-}: WorkspaceRouteShimProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const {
-    state: { activeWorkspaceId },
-  } = useWorkspaceContext();
+  const accountId = typeof params.accountId === "string" ? params.accountId : "";
+  const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
 
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-  const targetWorkspaceId = requestedWorkspaceId || activeWorkspaceId || "";
-
-  const targetHref = targetWorkspaceId
-    ? tab === "Files"
-      ? `/workspace/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
-      : buildWorkspaceOverviewPanelHref(targetWorkspaceId, panel)
-    : "/workspace";
-
-  useEffect(() => {
-    router.replace(targetHref);
-  }, [router, targetHref]);
-
-  return <div className="px-4 py-6 text-sm text-muted-foreground">{loadingMessage}</div>;
+  return (
+    <AiChatPage
+      accountId={accountId}
+      workspaces={wsState.workspaces ?? {}}
+      requestedWorkspaceId={workspaceId}
+    />
+  );
 }
 ````
 
@@ -37507,6 +40882,26 @@ interface AccountWorkspaceDashboardPageProps {
 
 export default function AccountWorkspaceDashboardPage({ params }: AccountWorkspaceDashboardPageProps) {
   redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/knowledge-base/articles/[articleId]/page.tsx
+````typescript
+"use client";
+
+import { ArticleDetailPage } from "@/modules/notion/api";
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
+
+export default function AccountWorkspaceArticleDetailPageRoute() {
+  const { accountId, workspaceId, currentUserId } = useWorkspaceOrchestrationContext();
+
+  return (
+    <ArticleDetailPage
+      accountId={accountId}
+      workspaceId={workspaceId}
+      currentUserId={currentUserId}
+    />
+  );
 }
 ````
 
@@ -37539,6 +40934,46 @@ interface AccountWorkspaceKnowledgeBasePageProps {
 
 export default function AccountWorkspaceKnowledgeBasePage({ params }: AccountWorkspaceKnowledgeBasePageProps) {
   redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}?tab=Overview&panel=knowledge-base-articles`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/knowledge-database/databases/[databaseId]/forms/page.tsx
+````typescript
+"use client";
+
+import { DatabaseFormsPage } from "@/modules/notion/api";
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
+
+export default function AccountWorkspaceDatabaseFormsPageRoute() {
+  const { accountId, workspaceId, currentUserId } = useWorkspaceOrchestrationContext();
+
+  return (
+    <DatabaseFormsPage
+      accountId={accountId}
+      workspaceId={workspaceId}
+      currentUserId={currentUserId}
+    />
+  );
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/knowledge-database/databases/[databaseId]/page.tsx
+````typescript
+"use client";
+
+import { DatabaseDetailPage } from "@/modules/notion/api";
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
+
+export default function AccountWorkspaceDatabaseDetailPageRoute() {
+  const { accountId, workspaceId, currentUserId } = useWorkspaceOrchestrationContext();
+
+  return (
+    <DatabaseDetailPage
+      accountId={accountId}
+      workspaceId={workspaceId}
+      currentUserId={currentUserId}
+    />
+  );
 }
 ````
 
@@ -37603,6 +41038,26 @@ interface AccountWorkspaceKnowledgePageProps {
 
 export default function AccountWorkspaceKnowledgePage({ params }: AccountWorkspaceKnowledgePageProps) {
   redirect(`/${encodeURIComponent(params.accountId)}/${encodeURIComponent(params.workspaceId)}?tab=Overview&panel=knowledge-pages`);
+}
+````
+
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/knowledge/pages/[pageId]/page.tsx
+````typescript
+"use client";
+
+import { KnowledgePageDetailPage } from "@/modules/notion/api";
+import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
+
+export default function AccountWorkspaceKnowledgePageDetailRoute() {
+  const { accountId, activeWorkspaceId, currentUserId } = useWorkspaceOrchestrationContext();
+
+  return (
+    <KnowledgePageDetailPage
+      accountId={accountId}
+      activeWorkspaceId={activeWorkspaceId || null}
+      currentUserId={currentUserId}
+    />
+  );
 }
 ````
 
@@ -37712,811 +41167,19 @@ export default function AccountWorkspaceSourcePage({ params }: AccountWorkspaceS
 }
 ````
 
-## File: app/(shell)/ai-chat/page.tsx
+## File: app/(shell)/(account)/[accountId]/(workspace)/[workspaceId]/workspace-feed/page.tsx
 ````typescript
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
 
-import { useAuth } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { AiChatPage } from "@/modules/notebooklm/api";
-
-export default function AiChatRoutePage() {
-  const searchParams = useSearchParams();
-  const { state: wsState } = useWorkspaceContext();
-  const { state: authState } = useAuth();
-  const accountId = authState.user?.id ?? "";
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-
-  return (
-    <AiChatPage
-      accountId={accountId}
-      workspaces={wsState.workspaces ?? {}}
-      requestedWorkspaceId={requestedWorkspaceId}
-    />
-  );
-}
-````
-
-## File: app/(shell)/dev-tools/page.tsx
-````typescript
-"use client";
-
-/**
- * Module: dev-tools page — /dev-tools
- * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
- * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
- * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
- *   Doc-list state and operations → useDevToolsDocList hook.
- *   Parsed-docs table → DevToolsParsedDocsSection component.
- */
-
-import { useRef, useState, useEffect } from "react";
-import {
-  FlaskConical,
-  FileUp,
-  AlertCircle,
-  FileText,
-  Trash2,
-  Code2,
-  ExternalLink,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
-
-import { useApp } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  UPLOAD_BUCKET,
-  WATCH_PATH,
-  ACCEPTED_MIME,
-  ACCEPTED_EXTS,
-  asRecord,
-  asString,
-  asNumber,
-  type ParseResult,
-  type UploadStatus,
-} from "./dev-tools-helpers";
-import { StatusBadge, RagBadge } from "./dev-tools-badges";
-import { useDevToolsDocList, formatDateTime } from "./use-dev-tools-doc-list";
-import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
-
-// ── Page component ─────────────────────────────────────────────────────────
-
-export default function DevToolsPage() {
-  const { state: appState } = useApp();
-  const { state: wsState } = useWorkspaceContext();
-  const activeAccountId = appState.activeAccount?.id ?? "";
-  const activeWorkspaceId = wsState.activeWorkspaceId ?? "";
-
-  // ── Upload state ──────────────────────────────────────────────────────────
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<UploadStatus>("idle");
-  const [result, setResult] = useState<ParseResult | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [logs, setLogs] = useState<string[]>([]);
-  const unsubscribeRef = useRef<(() => void) | null>(null);
-
-  // ── Doc list + operations (extracted hook) ────────────────────────────────
-  const {
-    allDocs,
-    selectedDocId,
-    selectedDoc,
-    jsonContent,
-    jsonLoading,
-    deletingId,
-    reindexingId,
-    handleViewOriginal,
-    handleViewJson,
-    handleDeleteDoc,
-    handleManualProcess,
-    closeJsonPreview,
-    formatNormalizationRatio,
-  } = useDevToolsDocList(activeAccountId);
-
-  // Cleanup upload subscription on unmount
-  useEffect(() => {
-    return () => { if (unsubscribeRef.current) unsubscribeRef.current(); };
-  }, []);
-
-  function appendLog(msg: string) {
-    setLogs((prev) => [
-      ...prev,
-      `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`,
-    ]);
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null;
-    setSelectedFile(file);
-    setResult(null);
-    setErrorMsg(null);
-    setStatus("idle");
-    setLogs([]);
-    if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
-  }
-
-  function buildUuidUploadPath(accountId: string, file: File) {
-    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
-    const docId = crypto.randomUUID();
-    return { uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`, docId };
-  }
-
-  function watchDocument(docId: string) {
-    if (!activeAccountId) {
-      appendLog("❌ 缺少 active account，無法監聽文件狀態");
-      return;
-    }
-    try {
-      const db = getFirebaseFirestore();
-      const docRef = firestoreApi.doc(db, "accounts", activeAccountId, "documents", docId);
-      if (unsubscribeRef.current) unsubscribeRef.current();
-      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {
-        if (!snapshot.exists()) { appendLog("等待 Firestore 初始化…"); return; }
-        const data = asRecord(snapshot.data());
-        const docStatus = asString(data.status, "unknown");
-        appendLog(`Firestore update: status=${docStatus}`);
-        if (docStatus === "completed") {
-          const parsed = asRecord(data.parsed);
-          const r: ParseResult = {
-            doc_id: docId,
-            status: "completed",
-            page_count: asNumber(parsed.page_count) ?? 0,
-            json_gcs_uri: asString(parsed.json_gcs_uri),
-          };
-          setResult(r);
-          setStatus("done");
-          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
-          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-        } else if (docStatus === "error") {
-          const error = asRecord(data.error);
-          const msg = asString(error.message, "未知錯誤");
-          setErrorMsg(msg);
-          setStatus("error");
-          appendLog(`❌ 錯誤：${msg}`);
-          if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-        }
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      appendLog(`❌ 監聽失敗：${msg}`);
-      setErrorMsg(msg);
-      setStatus("error");
-    }
-  }
-
-  async function handleUploadAndParse() {
-    if (!selectedFile) return;
-    if (!activeAccountId) {
-      setErrorMsg("缺少 active account，無法上傳與解析");
-      setStatus("error");
-      return;
-    }
-    setStatus("uploading");
-    setResult(null);
-    setErrorMsg(null);
-    appendLog("📤 上傳檔案到 Cloud Storage…");
-    try {
-      // Step 1: Upload to GCS
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);
-      const fileRef = storageApi.ref(storage, uploadPath);
-      const snap = await storageApi.uploadBytes(fileRef, selectedFile, {
-        contentType: ACCEPTED_MIME[selectedFile.name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream",
-        customMetadata: {
-          account_id: activeAccountId,
-          workspace_id: activeWorkspaceId,
-          filename: selectedFile.name,
-        },
-      });
-      appendLog(`✅ 上傳完成：${snap.ref.fullPath}`);
-      // Step 2: Watch Firestore for status updates
-      setStatus("waiting");
-      appendLog("⏳ 等待 parse_document 處理…");
-      watchDocument(docId);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setErrorMsg(msg);
-      setStatus("error");
-      appendLog(`❌ 上傳失敗：${msg}`);
-    }
-  }
-
-  function reset() {
-    if (unsubscribeRef.current) { unsubscribeRef.current(); unsubscribeRef.current = null; }
-    setSelectedFile(null);
-    setResult(null);
-    setErrorMsg(null);
-    setStatus("idle");
-    setLogs([]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
-
-  const isLoading = status === "uploading" || status === "waiting";
-  const parsedDocs = allDocs.filter((doc) => doc.status === "completed");
-  const ragReadyCount = allDocs.filter((doc) => doc.rag_status === "ready").length;
-  const ragErrorCount = allDocs.filter((doc) => doc.rag_status === "error").length;
-
-  return (
-    <div className="mx-auto max-w-2xl space-y-8">
-      {/* ── Header ─────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
-          <FlaskConical className="size-5 text-amber-500" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Dev Tools</h1>
-          <p className="text-xs text-muted-foreground">
-            py_fn · parse_document · Document AI · Firestore 實時監聽
-          </p>
-        </div>
-      </div>
-
-      {/* ── Stats ──────────────────────────────────────────────────── */}
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
-          <p className="text-[11px] text-muted-foreground">全部文件</p>
-          <p className="text-lg font-semibold tracking-tight">{allDocs.length}</p>
-        </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
-          <p className="text-[11px] text-emerald-700">解析完成</p>
-          <p className="text-lg font-semibold tracking-tight text-emerald-700">{parsedDocs.length}</p>
-        </div>
-        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2">
-          <p className="text-[11px] text-blue-700">RAG Ready</p>
-          <p className="text-lg font-semibold tracking-tight text-blue-700">{ragReadyCount}</p>
-        </div>
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
-          <p className="text-[11px] text-destructive">RAG Error</p>
-          <p className="text-lg font-semibold tracking-tight text-destructive">{ragErrorCount}</p>
-        </div>
-      </section>
-
-      {/* ── File picker ────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          1. 選擇檔案
-        </h2>
-        <label
-          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 transition
-            ${selectedFile ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
-        >
-          <FileUp className="size-8 text-muted-foreground" />
-          <div className="text-center">
-            <p className="text-sm font-medium">
-              {selectedFile ? selectedFile.name : "點擊或拖曳上傳"}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={Object.keys(ACCEPTED_MIME).join(",")}
-            className="sr-only"
-            onChange={handleFileChange}
-          />
-        </label>
-      </section>
-
-      {/* ── Actions ────────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          2. 執行上傳 &amp; 解析
-        </h2>
-        <div className="flex gap-3">
-          <Button onClick={handleUploadAndParse} disabled={!selectedFile || isLoading} className="gap-2">
-            {isLoading ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />}
-            {status === "uploading" ? "上傳中…" : status === "waiting" ? "等待中…" : "開始"}
-          </Button>
-          <Button variant="outline" onClick={reset} disabled={isLoading}>
-            重置
-          </Button>
-        </div>
-      </section>
-
-      {/* ── Result ─────────────────────────────────────────────────── */}
-      {(status === "done" || status === "error") && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            3. 結果
-          </h2>
-          {status === "done" && result && (
-            <div className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
-              <div className="flex items-center gap-2 text-emerald-600">
-                <CheckCircle2 className="size-4 shrink-0" />
-                <span className="text-sm font-medium">解析成功</span>
-              </div>
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <dt className="text-muted-foreground">doc_id</dt>
-                <dd className="font-mono text-xs">{result.doc_id}</dd>
-                <dt className="text-muted-foreground">page_count</dt>
-                <dd className="font-bold">{result.page_count}</dd>
-                <dt className="text-muted-foreground">JSON 位置</dt>
-                <dd className="font-mono text-xs break-all">{result.json_gcs_uri || "—"}</dd>
-              </dl>
-            </div>
-          )}
-          {status === "error" && (
-            <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              <XCircle className="mt-0.5 size-4 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-        </section>
-      )}
-
-      {status === "waiting" && (
-        <section className="space-y-3">
-          <div className="flex items-start gap-2 rounded-xl border border-blue-300/30 bg-blue-500/5 p-4 text-sm text-blue-600">
-            <AlertCircle className="mt-0.5 size-4 shrink-0 animate-pulse" />
-            <div>
-              <p className="font-medium">處理中…</p>
-              <p className="mt-1 text-xs opacity-75">Document AI 正在解析檔案，請稍候</p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── All uploaded docs table ─────────────────────────────────── */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <FileText className="size-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            已上傳檔案（{allDocs.length}）
-          </h2>
-        </div>
-        {allDocs.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-            尚無上傳記錄
-          </p>
-        ) : (
-          <div className="space-y-0 overflow-hidden rounded-xl border border-border/60">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead>
-                  <tr className="border-b border-border/60 bg-muted/40">
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allDocs.map((doc, i) => (
-                    <tr
-                      key={doc.id}
-                      className={`border-b border-border/40 last:border-0 transition-colors ${
-                        selectedDocId === doc.id
-                          ? "bg-primary/8 ring-1 ring-inset ring-primary/20"
-                          : i % 2 === 0 ? "bg-background" : "bg-muted/20"
-                      }`}
-                    >
-                      <td className="px-4 py-2.5 font-mono text-xs max-w-[180px] truncate" title={doc.filename}>
-                        {doc.filename}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <StatusBadge status={doc.status} errorMessage={doc.error_message} />
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <RagBadge status={doc.rag_status} error={doc.rag_error} />
-                      </td>
-                      <td className="px-4 py-2.5 text-xs">
-                        {doc.page_count != null ? doc.page_count : "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                        {formatDateTime(doc.uploaded_at)}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => { void handleViewOriginal(doc); }}
-                            disabled={!doc.gcs_uri}
-                            title="查看原始檔案"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
-                          >
-                            <ExternalLink className="size-3.5" />
-                          </button>
-                          <button
-                            onClick={() => { void handleViewJson(doc); }}
-                            disabled={doc.status !== "completed" || !doc.json_gcs_uri}
-                            title="查看 JSON 解析結果"
-                            className={`inline-flex size-7 items-center justify-center rounded-md transition hover:bg-muted disabled:opacity-30 ${
-                              selectedDocId === doc.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            <Code2 className="size-3.5" />
-                          </button>
-                          <button
-                            onClick={() => { void handleDeleteDoc(doc); }}
-                            disabled={deletingId === doc.id}
-                            title="刪除"
-                            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
-                          >
-                            {deletingId === doc.id
-                              ? <Loader2 className="size-3.5 animate-spin" />
-                              : <Trash2 className="size-3.5" />}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* JSON preview panel */}
-            {selectedDocId && (
-              <div className="border-t border-border/60 bg-[#0d1117]">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
-                  <div className="flex items-center gap-2 text-xs text-green-400">
-                    <Code2 className="size-3.5" />
-                    <span className="font-mono">
-                      {selectedDoc?.filename ?? selectedDocId} — JSON
-                    </span>
-                  </div>
-                  <button
-                    onClick={closeJsonPreview}
-                    className="text-white/30 hover:text-white/70 transition text-xs"
-                  >
-                    ✕ 關閉
-                  </button>
-                </div>
-                {selectedDoc?.rag_status === "error" && (
-                  <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs text-destructive">
-                    RAG 失敗：{selectedDoc.rag_error || "未知錯誤"}
-                  </div>
-                )}
-                <div className="max-h-80 overflow-y-auto p-4">
-                  {jsonLoading ? (
-                    <div className="flex items-center gap-2 text-green-400/60 text-xs">
-                      <Loader2 className="size-3.5 animate-spin" /> 載入中…
-                    </div>
-                  ) : (
-                    <pre className="font-mono text-xs leading-relaxed text-green-400 whitespace-pre-wrap break-words">
-                      {jsonContent}
-                    </pre>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* ── Parsed docs table (extracted component) ─────────────────── */}
-      <DevToolsParsedDocsSection
-        parsedDocs={parsedDocs}
-        reindexingId={reindexingId}
-        onViewJson={(doc) => { void handleViewJson(doc); }}
-        onManualProcess={(doc) => { void handleManualProcess(doc, appendLog); }}
-        formatNormalizationRatio={formatNormalizationRatio}
-      />
-
-      {/* ── Console log ────────────────────────────────────────────── */}
-      {logs.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Console
-          </h2>
-          <div className="max-h-48 overflow-y-auto rounded-xl bg-[#0d1117] p-4">
-            {logs.map((line, i) => (
-              <p key={i} className="font-mono text-xs leading-relaxed text-green-400">
-                {line}
-              </p>
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/knowledge-base/articles/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
-
-export default function KnowledgeBaseArticlesPage() {
-  return (
-    <WorkspaceRouteShim
-      panel="knowledge-base-articles"
-      loadingMessage="正在導向 Workspace Overview（Knowledge Base Articles）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/knowledge-base/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
-
-export default function KnowledgeBasePage() {
-  return (
-    <WorkspaceRouteShim
-      panel="knowledge-base-articles"
-      loadingMessage="正在導向 Workspace Overview（Knowledge Base Articles）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/knowledge-database/databases/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
-
-export default function KnowledgeDatabaseDatabasesPage() {
-  return (
-    <WorkspaceRouteShim
-      panel="knowledge-databases"
-      loadingMessage="正在導向 Workspace Overview（Knowledge Databases）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/knowledge-database/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
-
-export default function KnowledgeDatabasePage() {
-  return (
-    <WorkspaceRouteShim
-      panel="knowledge-databases"
-      loadingMessage="正在導向 Workspace Overview（Knowledge Databases）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/knowledge/block-editor/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
-
-export default function KnowledgeBlockEditorPage() {
-  return (
-    <WorkspaceRouteShim
-      panel="knowledge-pages"
-      loadingMessage="正在導向 Workspace Overview（Knowledge Pages）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/knowledge/pages/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
-
-export default function KnowledgePagesPage() {
-  return (
-    <WorkspaceRouteShim
-      panel="knowledge-pages"
-      loadingMessage="正在導向 Workspace Overview（Knowledge Pages）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/organization/audit/_components/OrganizationAuditPage.tsx
-````typescript
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
-
-import { AuditStream, getOrganizationAuditLogs } from "@/modules/workspace/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-export interface OrganizationAuditPageProps {
-  organizationId: string | null;
-  workspaces: Record<string, WorkspaceEntity>;
-  workspacesHydrated: boolean;
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function formatDateTime(value: string | Date | null | undefined): string {
-  if (!value) return "—";
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(value instanceof Date ? value : new Date(value));
-  } catch {
-    return value instanceof Date ? value.toISOString() : String(value);
-  }
-}
-
-const MAX_DISPLAYED_AUDIT_LOGS = 50;
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function OrganizationAuditPage({
-  organizationId,
-  workspaces,
-  workspacesHydrated,
-}: OrganizationAuditPageProps) {
-  const [auditLogs, setAuditLogs] = useState<
-    Awaited<ReturnType<typeof getOrganizationAuditLogs>>
-  >([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  // workspaceNameById is derived from the workspaces prop — no extra fetch needed.
-  const workspaceNameById = useMemo(
-    () => new Map(Object.values(workspaces).map((w) => [w.id, w.name])),
-    [workspaces],
-  );
-
-  useEffect(() => {
-    if (!organizationId || !workspacesHydrated) return;
-    let cancelled = false;
-    const workspaceIds = Object.keys(workspaces);
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const logs = await getOrganizationAuditLogs(workspaceIds, MAX_DISPLAYED_AUDIT_LOGS);
-        if (!cancelled) {
-          setAuditLogs(logs);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setAuditLogs([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [organizationId, workspacesHydrated, workspaces]);
-
-  if (!organizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">稽核</h1>
-        <p className="mt-1 text-sm text-muted-foreground">組織下所有工作區的 audit log 彙整。</p>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Audit</CardTitle>
-          <CardDescription>組織下所有工作區的 audit log 彙整。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入稽核資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取稽核資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && auditLogs.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的 audit logs。</p>
-          )}
-          {loadState === "loaded" &&
-            auditLogs.slice(0, MAX_DISPLAYED_AUDIT_LOGS).map((log) => (
-              <div key={log.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium">{log.action}</p>
-                  <Badge variant="outline">{log.source}</Badge>
-                  <Badge variant="secondary">
-                    {workspaceNameById.get(log.workspaceId) ?? log.workspaceId}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{log.detail || "—"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {formatDateTime(log.occurredAtISO)}
-                </p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      {/* ── 稽核時間軸（新版 AuditStream）─────────────────────────────── */}
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>稽核時間軸</CardTitle>
-          <CardDescription>
-            以時間軸視覺化呈現稽核事件；嚴重程度由色點標示（藍 = 中、橘 = 高、紅 = 嚴重）。
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AuditStream logs={auditLogs} height={500} />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/organization/audit/page.tsx
-````typescript
-"use client";
-
-import { useApp, isActiveOrganizationAccount } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
-import { OrganizationAuditPage } from "./_components/OrganizationAuditPage";
-
-export default function OrganizationAuditPageRoute() {
-  const { state: appState } = useApp();
-  const { state: wsState } = useWorkspaceContext();
-  const { activeAccount } = appState;
-  const organizationId = isActiveOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  return (
-    <OrganizationAuditPage
-      organizationId={organizationId}
-      workspaces={wsState.workspaces}
-      workspacesHydrated={wsState.workspacesHydrated}
-    />
-  );
-}
-````
-
-## File: app/(shell)/source/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
-
-export default function SourcePage() {
-  return (
-    <WorkspaceRouteShim
-      panel="source-libraries"
-      loadingMessage="正在導向 Workspace Overview（Source Libraries）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/workspace-feed/page.tsx
-````typescript
-"use client";
-
-/**
- * Route: /workspace-feed
- * Purpose: Workspace activity feed — shows posts, reactions, and replies for the
- *          currently active workspace.
- */
-
-import { useApp } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
 import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
 
-export default function WorkspaceFeedPage() {
-  const { state: appState } = useApp();
-  const { state: wsState } = useWorkspaceContext();
-  const accountId = appState.activeAccount?.id ?? "";
-  const workspaceId = wsState.activeWorkspaceId ?? "";
-  const workspaceName = "工作區";
+export default function AccountWorkspaceFeedPage() {
+  const params = useParams<{ accountId: string; workspaceId: string }>();
+
+  const accountId = typeof params.accountId === "string" ? params.accountId : "";
+  const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
 
   if (!accountId || !workspaceId) {
     return (
@@ -38532,7 +41195,7 @@ export default function WorkspaceFeedPage() {
       <WorkspaceFeedWorkspaceView
         accountId={accountId}
         workspaceId={workspaceId}
-        workspaceName={workspaceName}
+        workspaceName="工作區"
       />
     </div>
   );
@@ -43317,312 +45980,6 @@ export class FirebaseCategoryRepository implements ICategoryRepository {
 }
 ````
 
-## File: modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  Archive,
-  ArrowLeft,
-  BadgeCheck,
-  Edit,
-  FileClock,
-  MessageSquare,
-  History,
-  Globe,
-  Link2,
-} from "lucide-react";
-
-import { getArticle, getCategories, getBacklinks } from "../queries";
-import {
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-} from "../_actions/article.actions";
-import { ArticleDialog } from "./ArticleDialog";
-import type { ArticleSnapshot as Article } from "../../application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
-import { CommentPanel, VersionHistoryPanel } from "@/modules/notion/api";
-import { ReactMarkdown } from "@lib-react-markdown";
-import { remarkGfm } from "@lib-remark-gfm";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-export interface ArticleDetailPageProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function ArticleDetailPage({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: ArticleDetailPageProps) {
-  const params = useParams();
-  const router = useRouter();
-  const articleId = params.articleId as string;
-
-  const [article, setArticle] = useState<Article | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [backlinks, setBacklinks] = useState<Article[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editOpen, setEditOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const articleListHref =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-base/articles`
-      : "/knowledge-base/articles";
-
-  const load = useCallback(async () => {
-    if (!accountId || !articleId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const [art, cats, bls] = await Promise.all([
-        getArticle(accountId, articleId),
-        getCategories(accountId, workspaceId),
-        getBacklinks(accountId, articleId),
-      ]);
-      setArticle(art);
-      setCategories(cats);
-      setBacklinks(bls);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId, articleId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handlePublish() {
-    startTransition(async () => {
-      await publishArticle({ id: articleId, accountId });
-      await load();
-    });
-  }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveArticle({ id: articleId, accountId });
-      await load();
-    });
-  }
-
-  function handleVerify() {
-    startTransition(async () => {
-      await verifyArticle({ id: articleId, accountId, verifiedByUserId: currentUserId });
-      await load();
-    });
-  }
-
-  function handleRequestReview() {
-    startTransition(async () => {
-      await requestArticleReview({ id: articleId, accountId });
-      await load();
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-40" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-      </div>
-    );
-  }
-
-  if (!article) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到文章。</p>
-      </div>
-    );
-  }
-
-  const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
-    draft: "outline",
-    published: "default",
-    archived: "secondary",
-  };
-  const statusLabel: Record<string, string> = {
-    draft: "草稿",
-    published: "已發佈",
-    archived: "已封存",
-  };
-  const veriLabel: Record<string, string> = {
-    verified: "已驗證",
-    needs_review: "待審查",
-    unverified: "未驗證",
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Back + actions bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push(articleListHref)}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 文章列表
-        </Button>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          {article.status === "draft" && (
-            <Button size="sm" variant="outline" onClick={handlePublish} disabled={isPending}>
-              <Globe className="mr-1.5 h-3.5 w-3.5" /> 發佈
-            </Button>
-          )}
-          {article.status !== "archived" && (
-            <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
-              <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
-            </Button>
-          )}
-          {article.verificationState !== "verified" && (
-            <Button size="sm" variant="outline" onClick={handleVerify} disabled={isPending}>
-              <BadgeCheck className="mr-1.5 h-3.5 w-3.5" /> 標記已驗證
-            </Button>
-          )}
-          {article.verificationState === "verified" && (
-            <Button size="sm" variant="outline" onClick={handleRequestReview} disabled={isPending}>
-              <FileClock className="mr-1.5 h-3.5 w-3.5" /> 請求審查
-            </Button>
-          )}
-          <Button size="sm" onClick={() => setEditOpen(true)}>
-            <Edit className="mr-1.5 h-3.5 w-3.5" /> 編輯
-          </Button>
-        </div>
-      </div>
-
-      {/* Header */}
-      <header className="space-y-2 border-b border-border/60 pb-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={statusVariant[article.status] ?? "outline"}>
-            {statusLabel[article.status] ?? article.status}
-          </Badge>
-          {article.verificationState && (
-            <Badge variant="outline" className="text-xs">
-              {veriLabel[article.verificationState] ?? article.verificationState}
-            </Badge>
-          )}
-          {article.tags.map((tag) => (
-            <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-              {tag}
-            </span>
-          ))}
-        </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{article.title}</h1>
-        <p className="text-xs text-muted-foreground">
-          v{article.version} · 更新於 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
-        </p>
-      </header>
-
-      {/* Body tabs */}
-      <Tabs defaultValue="content" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="content">內容</TabsTrigger>
-          <TabsTrigger value="backlinks">
-            <Link2 className="mr-1 h-3.5 w-3.5" /> 反向連結
-            {backlinks.length > 0 && (
-              <span className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
-                {backlinks.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="comments">
-            <MessageSquare className="mr-1 h-3.5 w-3.5" /> 留言
-          </TabsTrigger>
-          <TabsTrigger value="versions">
-            <History className="mr-1 h-3.5 w-3.5" /> 版本
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="content">
-          <div className="prose prose-sm dark:prose-invert min-h-[200px] max-w-none rounded-lg border border-border/60 bg-muted/10 p-4">
-            {article.content ? (
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {article.content}
-              </ReactMarkdown>
-            ) : (
-              <p className="text-sm text-muted-foreground">此文章尚無內容。</p>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="backlinks">
-          {backlinks.length === 0 ? (
-            <p className="rounded-lg border border-border/60 bg-muted/10 p-4 text-sm text-muted-foreground">
-              尚無其他文章引用此文章。
-            </p>
-          ) : (
-            <ul className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-4">
-              {backlinks.map((bl) => (
-                <li key={bl.id}>
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/knowledge-base/articles/${bl.id}`)}
-                    className="text-sm text-primary hover:underline text-left"
-                  >
-                    {bl.title}
-                  </button>
-                  <p className="text-[10px] text-muted-foreground">
-                    {new Date(bl.updatedAtISO).toLocaleDateString("zh-TW")}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </TabsContent>
-
-        <TabsContent value="comments">
-          {currentUserId ? (
-            <CommentPanel
-              accountId={accountId}
-              workspaceId={workspaceId}
-              contentId={articleId}
-              contentType="article"
-              currentUserId={currentUserId}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">請先登入以查看留言。</p>
-          )}
-        </TabsContent>
-
-        <TabsContent value="versions">
-          {currentUserId ? (
-            <VersionHistoryPanel
-              accountId={accountId}
-              contentId={articleId}
-              currentUserId={currentUserId}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">請先登入以查看版本歷程。</p>
-          )}
-        </TabsContent>
-      </Tabs>
-
-      <ArticleDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        categories={categories}
-        article={article}
-        onSuccess={() => void load()}
-      />
-    </div>
-  );
-}
-````
-
 ## File: modules/notion/subdomains/authoring/interfaces/components/ArticleDialog.tsx
 ````typescript
 "use client";
@@ -45841,433 +48198,6 @@ export function DatabaseCalendarView({ database, accountId }: DatabaseCalendarVi
 }
 ````
 
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseDetailPage.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  ArrowLeft,
-  Archive,
-  FileText,
-  PlusCircle,
-  Table2,
-  Kanban,
-  List,
-  Calendar,
-  LayoutGrid,
-  Zap,
-} from "lucide-react";
-
-import { getDatabase } from "../queries";
-import { addDatabaseField, archiveDatabase } from "../_actions/database.actions";
-import { DatabaseTableView } from "./DatabaseTableView";
-import { DatabaseBoardView } from "./DatabaseBoardView";
-import { DatabaseListView } from "./DatabaseListView";
-import { DatabaseCalendarView } from "./DatabaseCalendarView";
-import { DatabaseGalleryView } from "./DatabaseGalleryView";
-import { DatabaseAutomationView } from "./DatabaseAutomationView";
-import { AddFieldDialog } from "./DatabaseAddFieldDialog";
-import type { DatabaseSnapshot as Database, FieldType } from "../../application/dto/database.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-export interface DatabaseDetailPageProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function DatabaseDetailPage({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: DatabaseDetailPageProps) {
-  const params = useParams();
-  const router = useRouter();
-  const databaseId = params.databaseId as string;
-
-  const [database, setDatabase] = useState<Database | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [addFieldOpen, setAddFieldOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"table" | "board" | "list" | "calendar" | "gallery" | "automations">("table");
-  const [isPending, startTransition] = useTransition();
-  const workspaceBasePath =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
-  const databasesHref =
-    accountId && workspaceId
-      ? `${workspaceBasePath}/knowledge-database/databases`
-      : "/knowledge-database/databases";
-  const formsHref =
-    accountId && workspaceId
-      ? `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`
-      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`;
-
-  const load = useCallback(async () => {
-    if (!accountId || !databaseId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const db = await getDatabase(accountId, databaseId);
-      setDatabase(db);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, databaseId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handleAddField(name: string, type: FieldType, required: boolean) {
-    startTransition(async () => {
-      await addDatabaseField({
-        databaseId,
-        accountId,
-        name,
-        type,
-        config: {},
-        required,
-      });
-      await load();
-    });
-  }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveDatabase({ id: databaseId, accountId });
-      router.push(databasesHref);
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-      </div>
-    );
-  }
-
-  if (!database) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Top bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
-        </Button>
-      </div>
-
-      {/* Page header */}
-      <header className="space-y-1 border-b border-border/60 pb-4">
-        <div className="flex items-center gap-2">
-          {database.icon && <span className="text-xl">{database.icon}</span>}
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{database.name}</h1>
-        </div>
-        {database.description && (
-          <p className="text-sm text-muted-foreground">{database.description}</p>
-        )}
-        <p className="text-xs text-muted-foreground/70">
-          {database.fields.length} 個欄位 · 更新於 {new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
-        </p>
-      </header>
-
-      {/* View switcher + actions */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center rounded-md border border-border/60 p-0.5">
-          <button
-            type="button"
-            onClick={() => setViewMode("table")}
-            title="表格視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Table2 className="h-3 w-3" /> 表格
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("board")}
-            title="看板視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "board" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Kanban className="h-3 w-3" /> 看板
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("list")}
-            title="清單視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <List className="h-3 w-3" /> 清單
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("calendar")}
-            title="日曆視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Calendar className="h-3 w-3" /> 日曆
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("gallery")}
-            title="圖庫視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "gallery" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <LayoutGrid className="h-3 w-3" /> 圖庫
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("automations")}
-            title="自動化規則"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "automations" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Zap className="h-3 w-3" /> 自動化
-          </button>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => router.push(formsHref)}
-            disabled={isPending}
-          >
-            <FileText className="mr-1.5 h-3.5 w-3.5" /> 表單
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
-            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
-            <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
-          </Button>
-        </div>
-      </div>
-
-      {/* View */}
-      {viewMode === "table" && (
-        <DatabaseTableView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "board" && (
-        <DatabaseBoardView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "list" && (
-        <DatabaseListView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "calendar" && (
-        <DatabaseCalendarView
-          database={database}
-          accountId={accountId}
-        />
-      )}
-      {viewMode === "gallery" && (
-        <DatabaseGalleryView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "automations" && (
-        <DatabaseAutomationView
-          databaseId={databaseId}
-          accountId={accountId}
-          currentUserId={currentUserId}
-        />
-      )}
-
-      <AddFieldDialog
-        open={addFieldOpen}
-        onOpenChange={setAddFieldOpen}
-        onAdd={handleAddField}
-        isPending={isPending}
-      />
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/database/interfaces/components/DatabaseFormsPage.tsx
-````typescript
-"use client";
-
-/**
- * Route: /knowledge-database/databases/[databaseId]/forms
- * Purpose: Manage database forms — create and embed form links for a specific database.
- */
-
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
-
-import { getDatabase } from "../queries";
-import { DatabaseFormView } from "./DatabaseFormView";
-import type { DatabaseSnapshot as Database } from "../../application/dto/database.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-export interface DatabaseFormsPageProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function DatabaseFormsPage({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: DatabaseFormsPageProps) {
-  const params = useParams();
-  const router = useRouter();
-  const databaseId = params.databaseId as string;
-
-  const [database, setDatabase] = useState<Database | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"preview" | "share">("preview");
-  const databaseDetailHref =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(databaseId)}`
-      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}`;
-
-  const load = useCallback(async () => {
-    if (!accountId || !databaseId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const db = await getDatabase(accountId, databaseId);
-      setDatabase(db);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, databaseId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-      </div>
-    );
-  }
-
-  if (!database) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
-      </div>
-    );
-  }
-
-  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-
-  return (
-    <div className="space-y-4">
-      {/* Top bar */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push(databaseDetailHref)}
-        >
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回資料庫
-        </Button>
-        <div className="ml-auto">
-          <Button size="sm" variant="outline" disabled>
-            <Plus className="mr-1.5 h-3.5 w-3.5" /> 建立新表單
-          </Button>
-        </div>
-      </div>
-
-      <header className="space-y-1 border-b border-border/60 pb-4">
-        <h1 className="text-xl font-semibold">{database.name} — 表單</h1>
-        <p className="text-sm text-muted-foreground">
-          使用表單讓外部使用者提交記錄到此資料庫。
-        </p>
-      </header>
-
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "preview" | "share")}>
-        <TabsList>
-          <TabsTrigger value="preview">預覽表單</TabsTrigger>
-          <TabsTrigger value="share">分享設定</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="preview" className="mt-4">
-          <div className="rounded-xl border border-border/60 bg-card px-6 py-2">
-            <DatabaseFormView
-              database={database}
-              accountId={accountId}
-              workspaceId={workspaceId}
-              submitterId={currentUserId}
-              title={`${database.name} 表單`}
-              description={database.description ?? undefined}
-            />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="share" className="mt-4">
-          <div className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
-            <div className="space-y-1.5">
-              <p className="text-sm font-medium">表單連結</p>
-              <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                <span className="flex-1 truncate">{shareUrl}</span>
-                <button
-                  type="button"
-                  onClick={() => void navigator.clipboard.writeText(shareUrl)}
-                  className="shrink-0 text-muted-foreground hover:text-foreground"
-                  title="複製連結"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                分享此連結讓其他人填寫表單並將記錄直接存入資料庫。
-              </p>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-````
-
 ## File: modules/notion/subdomains/database/interfaces/components/DatabaseFormView.tsx
 ````typescript
 "use client";
@@ -48319,459 +50249,6 @@ export function BlockEditorView() {
         );
       })}
     </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageDetailPage.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
-
-import { getKnowledgePage } from "../queries";
-import {
-  renameKnowledgePage,
-  archiveKnowledgePage,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "../_actions/knowledge-page.actions";
-import type { KnowledgePageSnapshot as KnowledgePage } from "../../application/dto/knowledge.dto";
-import { PageEditorView } from "./PageEditorView";
-import { CommentPanel } from "@/modules/notion/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-export interface KnowledgePageDetailPageProps {
-  accountId: string;
-  activeWorkspaceId: string | null;
-  currentUserId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function KnowledgePageDetailPage({
-  accountId,
-  activeWorkspaceId,
-  currentUserId,
-}: KnowledgePageDetailPageProps) {
-  const params = useParams();
-  const router = useRouter();
-  const pageId = params.pageId as string;
-
-  const [page, setPage] = useState<KnowledgePage | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [commentOpen, setCommentOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const workspaceBasePath =
-    accountId && activeWorkspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(activeWorkspaceId)}`
-      : "/workspace";
-  const pageListHref =
-    accountId && activeWorkspaceId
-      ? `${workspaceBasePath}/knowledge/pages`
-      : "/workspace?tab=Overview&panel=knowledge-pages";
-
-  const load = useCallback(async () => {
-    if (!accountId || !pageId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const p = await getKnowledgePage(accountId, pageId);
-      setPage(p);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, pageId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handleRename(title: string) {
-    startTransition(async () => {
-      const result = await renameKnowledgePage({ accountId, pageId, title });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, title } : prev);
-      }
-    });
-  }
-
-  function handleIconChange(iconUrl: string) {
-    startTransition(async () => {
-      const result = await updateKnowledgePageIcon({ accountId, pageId, iconUrl });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, iconUrl: iconUrl || undefined } : prev);
-      }
-    });
-  }
-
-  function handleCoverChange(coverUrl: string) {
-    startTransition(async () => {
-      const result = await updateKnowledgePageCover({ accountId, pageId, coverUrl });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, coverUrl: coverUrl || undefined } : prev);
-      }
-    });
-  }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveKnowledgePage({ accountId, pageId });
-      router.push(pageListHref);
-    });
-  }
-
-  // ── Loading skeleton ────────────────────────────────────────────────────────
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-6 w-72" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </div>
-    );
-  }
-
-  // ── Not found ───────────────────────────────────────────────────────────────
-
-  if (!page) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" />
-          頁面列表
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到此頁面，可能已被封存或刪除。</p>
-      </div>
-    );
-  }
-
-  // ── Page view ───────────────────────────────────────────────────────────────
-
-  const updatedAt = page.updatedAtISO
-    ? new Date(page.updatedAtISO).toLocaleDateString("zh-TW", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : null;
-
-  return (
-    <div className="space-y-0">
-      {/* Cover image */}
-      {page.coverUrl && (
-        <div
-          className="relative h-40 w-full overflow-hidden rounded-t-xl bg-muted"
-          style={{ backgroundImage: `url(${page.coverUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
-        />
-      )}
-
-      <div className="space-y-4 px-0 pt-4">
-        {/* Top bar */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
-            頁面列表
-          </Button>
-          <div className="ml-auto flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={commentOpen ? "default" : "outline"}
-              onClick={() => setCommentOpen((v) => !v)}
-            >
-              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-              留言
-            </Button>
-            {page.status === "active" && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleArchive}
-                disabled={isPending}
-              >
-                <Archive className="mr-1.5 h-3.5 w-3.5" />
-                封存
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Page header */}
-        <header className="space-y-2 border-b border-border/60 pb-4">
-          {/* Icon row */}
-          <div className="flex items-end gap-3">
-            <IconPicker
-              value={page.iconUrl}
-              onChange={handleIconChange}
-              isPending={isPending}
-            />
-            <CoverEditor
-              value={page.coverUrl}
-              onChange={handleCoverChange}
-              isPending={isPending}
-            />
-          </div>
-          <TitleEditor
-            initialTitle={page.title}
-            onSave={handleRename}
-            isPending={isPending}
-          />
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {page.status === "archived" && (
-              <Badge variant="secondary">已封存</Badge>
-            )}
-            {page.approvalState === "approved" && (
-              <Badge variant="default">已審核</Badge>
-            )}
-            {page.verificationState === "verified" && (
-              <Badge variant="outline">已驗證</Badge>
-            )}
-            {page.verificationState === "needs_review" && (
-              <Badge variant="destructive">待審查</Badge>
-            )}
-            {updatedAt && <span>更新於 {updatedAt}</span>}
-          </div>
-        </header>
-
-        {/* Main content + optional comment side panel */}
-        <div className={`flex gap-4 ${commentOpen ? "items-start" : ""}`}>
-          {/* Block editor — connected to Firebase */}
-          <div className="min-w-0 flex-1">
-            {accountId ? (
-              <PageEditorView accountId={accountId} pageId={pageId} />
-            ) : (
-              <p className="text-sm text-muted-foreground">請先登入以載入內容。</p>
-            )}
-          </div>
-
-          {/* Comment panel — slides in from right */}
-          {commentOpen && accountId && (
-            <aside className="w-72 shrink-0 rounded-xl border border-border/60 bg-card p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-semibold">留言</span>
-                <button
-                  type="button"
-                  onClick={() => setCommentOpen(false)}
-                  className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground"
-                  aria-label="關閉留言面板"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <CommentPanel
-                accountId={accountId}
-                workspaceId={activeWorkspaceId ?? ""}
-                contentId={pageId}
-                contentType="page"
-                currentUserId={currentUserId}
-              />
-            </aside>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgeSidebarSection.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
-import { useState } from "react";
-
-interface WorkspaceLinkItem {
-  id: string;
-  name: string;
-  href: string;
-}
-
-interface KnowledgeSidebarSectionProps {
-  readonly pathname: string;
-  readonly workspacesHydrated: boolean;
-  readonly allWorkspaceLinks: WorkspaceLinkItem[];
-  readonly activeAccountId: string | null;
-  readonly activeWorkspaceId: string | null;
-  readonly creatingKind: "page" | "database" | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onQuickCreatePage: () => void | Promise<void>;
-}
-
-function isActiveRoute(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-function withContextQuery(href: string, accountId: string | null, workspaceId: string | null): string {
-  if (!accountId && !workspaceId) {
-    return href;
-  }
-
-  const [path, search = ""] = href.split("?");
-  const params = new URLSearchParams(search);
-
-  if (accountId) {
-    params.set("accountId", accountId);
-  }
-
-  if (workspaceId) {
-    params.set("workspaceId", workspaceId);
-  }
-
-  const query = params.toString();
-  return query.length > 0 ? `${path}?${query}` : path;
-}
-
-export function KnowledgeSidebarSection({
-  pathname,
-  workspacesHydrated,
-  allWorkspaceLinks,
-  activeAccountId,
-  activeWorkspaceId,
-  creatingKind,
-  onSelectWorkspace,
-  onQuickCreatePage,
-}: KnowledgeSidebarSectionProps) {
-  const [isKnowledgeWorkspacesExpanded, setIsKnowledgeWorkspacesExpanded] = useState(
-    () => Boolean(activeWorkspaceId),
-  );
-
-  const workspaceBasePath =
-    activeAccountId && activeWorkspaceId
-      ? `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(activeWorkspaceId)}`
-      : "";
-
-  const contextualPagesHref = workspaceBasePath
-    ? `${workspaceBasePath}/knowledge/pages`
-    : withContextQuery("/knowledge/pages", activeAccountId, activeWorkspaceId);
-
-  return (
-    <nav className="space-y-0.5" aria-label="Knowledge navigation">
-      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-        知識管理
-      </p>
-      {(activeAccountId || activeWorkspaceId) && (
-        <p className="px-2 pb-1 text-[11px] text-muted-foreground">
-          {activeAccountId ? `Account: ${activeAccountId.slice(0, 8)}` : "Account: -"}
-          {" · "}
-          {activeWorkspaceId ? `Workspace: ${activeWorkspaceId.slice(0, 8)}` : "Workspace: -"}
-        </p>
-      )}
-      <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
-        <Link
-          href={contextualPagesHref}
-          aria-current={pathname.includes("/knowledge/pages") ? "page" : undefined}
-          className={`flex-1 ${
-            pathname.includes("/knowledge/pages")
-              ? "text-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          頁面
-        </Link>
-        <button
-          type="button"
-          onClick={() => void onQuickCreatePage()}
-          disabled={creatingKind !== null}
-          className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15 disabled:opacity-50"
-          aria-label="快速新增頁面"
-          title="新增頁面"
-        >
-          <Plus className="size-3.5" />
-        </button>
-      </div>
-      {(
-        [
-          {
-            href: workspaceBasePath
-              ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
-              : "/knowledge",
-            label: "Knowledge Hub",
-          },
-          {
-            href: workspaceBasePath
-              ? `${workspaceBasePath}/knowledge/block-editor`
-              : "/knowledge/block-editor",
-            label: "區塊編輯器",
-          },
-        ] as const
-      ).map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-        const contextualHref = workspaceBasePath
-          ? item.href
-          : withContextQuery(item.href, activeAccountId, activeWorkspaceId);
-        return (
-          <Link
-            key={item.href}
-            href={contextualHref}
-            aria-current={active ? "page" : undefined}
-            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-              active
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-      <div className="my-1.5 border-t border-border/40" />
-
-      <button
-        type="button"
-        onClick={() => {
-          setIsKnowledgeWorkspacesExpanded((prev) => !prev);
-        }}
-        className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-        aria-expanded={isKnowledgeWorkspacesExpanded}
-      >
-        <span>Workspaces</span>
-        {isKnowledgeWorkspacesExpanded ? (
-          <ChevronDown className="size-3.5" />
-        ) : (
-          <ChevronRight className="size-3.5" />
-        )}
-      </button>
-
-      {isKnowledgeWorkspacesExpanded && (
-        <div className="space-y-0.5 pl-2">
-          {!workspacesHydrated ? (
-            <p className="px-2 py-1.5 text-[11px] text-muted-foreground">工作區載入中...</p>
-          ) : allWorkspaceLinks.length === 0 ? (
-            <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
-          ) : (
-            allWorkspaceLinks.map((workspace) => {
-              const active = activeWorkspaceId === workspace.id;
-              return (
-                <Link
-                  key={workspace.id}
-                  href={workspace.href}
-                  onClick={() => {
-                    onSelectWorkspace(workspace.id);
-                  }}
-                  aria-current={active ? "page" : undefined}
-                  className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                    active
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                  title={workspace.name}
-                >
-                  <span className="truncate">{workspace.name}</span>
-                </Link>
-              );
-            })
-          )}
-        </div>
-      )}
-    </nav>
   );
 }
 ````
@@ -52850,6 +54327,365 @@ export const notificationService = {
 };
 ````
 
+## File: modules/platform/subdomains/notification/interfaces/components/NotificationBell.tsx
+````typescript
+"use client";
+
+/**
+ * NotificationBell — Reusable notification bell for shell header.
+ * Lives in platform/subdomains/notification/interfaces.
+ */
+
+import Link from "next/link";
+import { Bell } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import {
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "../_actions/notification.actions";
+import { getNotificationsForRecipient } from "../queries/notification.queries";
+import type { NotificationEntity } from "../../application/dtos/notification.dto";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+
+const NOTIFICATION_LIMIT = 20;
+
+function formatNotificationTime(timestamp: number) {
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+interface NotificationBellProps {
+  readonly recipientId: string;
+}
+
+export function NotificationBell({ recipientId }: NotificationBellProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
+
+  const unreadCount = useMemo(
+    () => notifications.reduce((count, n) => count + (n.read ? 0 : 1), 0),
+    [notifications],
+  );
+
+  const loadNotifications = useCallback(async () => {
+    if (!recipientId) {
+      setNotifications([]);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const next = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
+      setNotifications(next);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [recipientId]);
+
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
+
+  async function handleOpenChange(nextOpen: boolean) {
+    setIsOpen(nextOpen);
+    if (nextOpen) {
+      await loadNotifications();
+    }
+  }
+
+  async function handleMarkOneRead(notificationId: string) {
+    if (!recipientId) return;
+    setIsMutating(true);
+    const previous = notifications;
+    setNotifications((current) =>
+      current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
+    );
+    try {
+      const result = await markNotificationRead(notificationId, recipientId);
+      if (!result.success) setNotifications(previous);
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleMarkAllRead() {
+    if (!recipientId || unreadCount === 0) return;
+    setIsMutating(true);
+    const previous = notifications;
+    setNotifications((current) => current.map((n) => ({ ...n, read: true })));
+    try {
+      const result = await markAllNotificationsRead(recipientId);
+      if (!result.success) setNotifications(previous);
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  return (
+    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          aria-label="Open notifications"
+          className="relative text-muted-foreground"
+        >
+          <Bell className="h-4 w-4" />
+          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80 p-0">
+        <div className="flex items-center justify-between px-3 py-2">
+          <p className="text-sm font-semibold">Notifications</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={isMutating || unreadCount === 0}
+            onClick={handleMarkAllRead}
+          >
+            Mark all read
+          </Button>
+        </div>
+        <DropdownMenuSeparator />
+        <div className="max-h-80 overflow-y-auto">
+          {isLoading ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
+          ) : notifications.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
+          ) : (
+            notifications.map((notification) => (
+              <button
+                key={notification.id}
+                type="button"
+                onClick={() => void handleMarkOneRead(notification.id)}
+                disabled={isMutating}
+                className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium">{notification.title}</p>
+                  {!notification.read ? (
+                    <span
+                      className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary"
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                  {notification.message}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {formatNotificationTime(notification.timestamp)}
+                </p>
+              </button>
+            ))
+          )}
+        </div>
+        <DropdownMenuSeparator />
+        <div className="py-1 text-center">
+          <Link
+            href="/settings/notifications"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            查看全部通知
+          </Link>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+````
+
+## File: modules/platform/subdomains/notification/interfaces/components/NotificationsPage.tsx
+````typescript
+/**
+ * Route: /settings/notifications
+ * Purpose: Full-page notification center showing all notifications for the
+ *          authenticated user with read/unread filtering and bulk actions.
+ */
+"use client";
+
+import { Bell, CheckCheck, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+
+import {
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "../_actions/notification.actions";
+import { getNotificationsForRecipient } from "../queries/notification.queries";
+import type { NotificationEntity } from "../../application/dtos/notification.dto";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+type Filter = "all" | "unread";
+
+const TYPE_BADGE: Record<string, string> = {
+  info: "bg-blue-100 text-blue-800",
+  alert: "bg-red-100 text-red-800",
+  success: "bg-green-100 text-green-800",
+  warning: "bg-yellow-100 text-yellow-800",
+};
+
+function formatTime(ts: number) {
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(ts));
+}
+
+export interface NotificationsPageProps {
+  recipientId: string;
+}
+
+export function NotificationsPage({ recipientId }: NotificationsPageProps) {
+  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [isPending, startTransition] = useTransition();
+
+  const load = useCallback(async () => {
+    if (!recipientId) { setIsLoading(false); return; }
+    setIsLoading(true);
+    try {
+      const data = await getNotificationsForRecipient(recipientId, 100);
+      setNotifications(data);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [recipientId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const displayed = useMemo(
+    () => filter === "unread" ? notifications.filter((n) => !n.read) : notifications,
+    [notifications, filter],
+  );
+
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications],
+  );
+
+  function handleMarkOne(id: string) {
+    startTransition(async () => {
+      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+      await markNotificationRead(id, recipientId);
+    });
+  }
+
+  function handleMarkAll() {
+    startTransition(async () => {
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      await markAllNotificationsRead(recipientId);
+    });
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-6">
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bell className="h-5 w-5 text-muted-foreground" />
+          <h1 className="text-xl font-semibold">通知</h1>
+          {unreadCount > 0 && (
+            <Badge variant="secondary" className="ml-1">{unreadCount} 未讀</Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setFilter((f) => f === "all" ? "unread" : "all")}
+            className="text-xs"
+          >
+            {filter === "all" ? "只看未讀" : "顯示全部"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isPending || unreadCount === 0}
+            onClick={handleMarkAll}
+            className="text-xs gap-1"
+          >
+            <CheckCheck className="h-3.5 w-3.5" />
+            全部已讀
+          </Button>
+        </div>
+      </div>
+
+      {/* Body */}
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : displayed.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground">
+          <Bell className="h-10 w-10 opacity-30" />
+          <p className="text-sm">{filter === "unread" ? "沒有未讀通知" : "目前沒有通知"}</p>
+        </div>
+      ) : (
+        <ul className="divide-y divide-border rounded-lg border">
+          {displayed.map((n) => (
+            <li
+              key={n.id}
+              className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40 ${n.read ? "opacity-60" : ""}`}
+            >
+              {!n.read && (
+                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />
+              )}
+              {n.read && <span className="mt-2 h-2 w-2 shrink-0" />}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-medium">{n.title}</p>
+                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${TYPE_BADGE[n.type] ?? ""}`}>
+                    {n.type}
+                  </span>
+                </div>
+                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.message}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{formatTime(n.timestamp)}</p>
+              </div>
+              {!n.read && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={isPending}
+                  onClick={() => handleMarkOne(n.id)}
+                  title="標記已讀"
+                  className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+````
+
 ## File: modules/platform/subdomains/organization/application/dtos/organization.dto.ts
 ````typescript
 /**
@@ -53800,70 +55636,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/workspace/application/dtos/workspace-interfaces.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for workspace root interfaces.
- * Interfaces must import from here, not from domain/ directly.
- */
-
-// --- Aggregate types ---
-export type {
-  Address,
-  AddressInput,
-  Capability,
-  CapabilitySpec,
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceEntity,
-  WorkspaceGrant,
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-  WorkspaceLocation,
-  WorkspaceName,
-  WorkspaceNameInput,
-  WorkspacePersonnel,
-  WorkspacePersonnelCustomRole,
-  WorkspaceVisibility,
-  WorkspaceVisibilityInput,
-} from "../../domain/aggregates/Workspace";
-
-// --- Value-object helpers (values, not just types) ---
-export {
-  WORKSPACE_LIFECYCLE_STATES,
-  WORKSPACE_VISIBILITIES,
-  createAddress,
-  createWorkspaceLifecycleState,
-  createWorkspaceName,
-  createWorkspaceVisibility,
-  formatAddress,
-  isTerminalWorkspaceLifecycleState,
-  isWorkspaceVisible,
-  workspaceNameEquals,
-} from "../../domain/value-objects";
-
-// --- Domain events ---
-export type {
-  WorkspaceCreatedEvent,
-  WorkspaceDomainEvent,
-  WorkspaceLifecycleTransitionedEvent,
-  WorkspaceVisibilityChangedEvent,
-} from "../../domain/events/workspace.events";
-
-export {
-  WORKSPACE_CREATED_EVENT_TYPE,
-  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
-  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
-  createWorkspaceCreatedEvent,
-  createWorkspaceLifecycleTransitionedEvent,
-  createWorkspaceVisibilityChangedEvent,
-} from "../../domain/events/workspace.events";
-
-// --- Ports ---
-export type { WorkspaceCommandPort } from "../../domain/ports/input/WorkspaceCommandPort";
-export type { WorkspaceQueryPort } from "../../domain/ports/input/WorkspaceQueryPort";
-````
-
 ## File: modules/workspace/application/use-cases/workspace-location.use-cases.ts
 ````typescript
 /**
@@ -54472,175 +56244,6 @@ For full reference, align with `.github/instructions/firestore-schema.instructio
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 #use skill xuanwu-development-contracts
-````
-
-## File: modules/workspace/interfaces/api/contracts/wiki-content.contract.ts
-````typescript
-export type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiAccountType,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-  WikiWorkspaceRef,
-} from "../../../application/dtos/wiki-content-tree.dto";
-````
-
-## File: modules/workspace/interfaces/api/contracts/workspace-member.contract.ts
-````typescript
-export type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberAccessSource,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../../../application/dtos/workspace-member-view.dto";
-````
-
-## File: modules/workspace/interfaces/api/contracts/workspace.contract.ts
-````typescript
-export type {
-  Address,
-  AddressInput,
-  Capability,
-  CapabilitySpec,
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceEntity,
-  WorkspaceGrant,
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-  WorkspaceLocation,
-  WorkspaceName,
-  WorkspaceNameInput,
-  WorkspacePersonnel,
-  WorkspacePersonnelCustomRole,
-  WorkspaceVisibility,
-  WorkspaceVisibilityInput,
-} from "../../../application/dtos/workspace-interfaces.dto";
-
-export {
-  WORKSPACE_LIFECYCLE_STATES,
-  WORKSPACE_VISIBILITIES,
-  createAddress,
-  createWorkspaceLifecycleState,
-  createWorkspaceName,
-  createWorkspaceVisibility,
-  formatAddress,
-  isTerminalWorkspaceLifecycleState,
-  isWorkspaceVisible,
-  workspaceNameEquals,
-} from "../../../application/dtos/workspace-interfaces.dto";
-
-export type {
-  WorkspaceCreatedEvent,
-  WorkspaceDomainEvent,
-  WorkspaceLifecycleTransitionedEvent,
-  WorkspaceVisibilityChangedEvent,
-} from "../../../application/dtos/workspace-interfaces.dto";
-
-export {
-  WORKSPACE_CREATED_EVENT_TYPE,
-  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
-  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
-  createWorkspaceCreatedEvent,
-  createWorkspaceLifecycleTransitionedEvent,
-  createWorkspaceVisibilityChangedEvent,
-} from "../../../application/dtos/workspace-interfaces.dto";
-````
-
-## File: modules/workspace/interfaces/api/runtime/workspace-runtime.ts
-````typescript
-import { WorkspaceCommandApplicationService } from "../../../application/services/WorkspaceCommandApplicationService";
-import { WorkspaceQueryApplicationService } from "../../../application/services/WorkspaceQueryApplicationService";
-import {
-  makeWikiWorkspaceRepo,
-  makeWorkspaceDomainEventPublisher,
-  makeWorkspaceQueryRepo,
-  makeWorkspaceRepo,
-} from "../../../api/runtime/factories";
-import type { WorkspaceCommandPort } from "../../../application/dtos/workspace-interfaces.dto";
-import type { WorkspaceQueryPort } from "../../../application/dtos/workspace-interfaces.dto";
-import { createWorkspaceSessionContext } from "./workspace-session-context";
-
-let _sessionContext: ReturnType<typeof createWorkspaceSessionContext> | undefined;
-
-function getSessionContext() {
-  if (!_sessionContext) {
-    // Lazy-load the organization query functions to break the circular module
-    // evaluation chain: workspace-runtime → platform/api → organization/interfaces
-    // → organization/api → workspace (via barrel re-exports).
-    //
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const platformApi = require("@/modules/platform/api");
-
-    const workspaceRepo = makeWorkspaceRepo();
-    const workspaceQueryRepo = makeWorkspaceQueryRepo({
-      getOrganizationMembers: platformApi.getOrganizationMembers,
-      getOrganizationTeams: platformApi.getOrganizationTeams,
-    });
-    const wikiWorkspaceRepo = makeWikiWorkspaceRepo();
-    const workspaceDomainEventPublisher = makeWorkspaceDomainEventPublisher();
-
-    const commandPort: WorkspaceCommandPort = new WorkspaceCommandApplicationService({
-      workspaceRepo,
-      workspaceCapabilityRepo: workspaceRepo,
-      workspaceAccessRepo: workspaceRepo,
-      workspaceLocationRepo: workspaceRepo,
-      workspaceDomainEventPublisher,
-    });
-
-    const queryPort: WorkspaceQueryPort = new WorkspaceQueryApplicationService({
-      workspaceRepo,
-      workspaceQueryRepo,
-      wikiWorkspaceRepo,
-    });
-
-    _sessionContext = createWorkspaceSessionContext(commandPort, queryPort);
-  }
-  return _sessionContext;
-}
-
-/**
- * Lazy-initialized workspace ports.
- * Proxy objects defer all property access until first actual use, breaking
- * the circular module-evaluation chain at build time while preserving the
- * same public API as the previous eager singletons.
- */
-export const workspaceSessionContext = new Proxy(
-  {} as ReturnType<typeof createWorkspaceSessionContext>,
-  { get: (_target, prop) => getSessionContext()[prop as keyof ReturnType<typeof createWorkspaceSessionContext>] },
-);
-
-export const workspaceCommandPort: WorkspaceCommandPort = new Proxy(
-  {} as WorkspaceCommandPort,
-  { get: (_target, prop) => getSessionContext().workspaceCommandPort[prop as keyof WorkspaceCommandPort] },
-);
-
-export const workspaceQueryPort: WorkspaceQueryPort = new Proxy(
-  {} as WorkspaceQueryPort,
-  { get: (_target, prop) => getSessionContext().workspaceQueryPort[prop as keyof WorkspaceQueryPort] },
-);
-````
-
-## File: modules/workspace/interfaces/api/runtime/workspace-session-context.ts
-````typescript
-import type { WorkspaceCommandPort } from "../../../application/dtos/workspace-interfaces.dto";
-import type { WorkspaceQueryPort } from "../../../application/dtos/workspace-interfaces.dto";
-
-export interface WorkspaceSessionContext {
-  readonly workspaceCommandPort: WorkspaceCommandPort;
-  readonly workspaceQueryPort: WorkspaceQueryPort;
-}
-
-export function createWorkspaceSessionContext(
-  workspaceCommandPort: WorkspaceCommandPort,
-  workspaceQueryPort: WorkspaceQueryPort,
-): WorkspaceSessionContext {
-  return {
-    workspaceCommandPort,
-    workspaceQueryPort,
-  };
-}
 ````
 
 ## File: modules/workspace/interfaces/interfaces.instructions.md
@@ -55662,16 +57265,6 @@ export { AuditStream } from "../interfaces/components/AuditStream";
 export { RecordAuditEntryUseCase } from "../application/use-cases/record-audit-entry.use-case";
 ````
 
-## File: modules/workspace/subdomains/audit/application/dto/audit.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the audit subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
-export type { AuditSeverity } from "../../domain/schema";
-````
-
 ## File: modules/workspace/subdomains/audit/application/queries/list-audit-logs.queries.ts
 ````typescript
 import type { AuditLogEntity } from "../../domain/entities/AuditLog";
@@ -55803,343 +57396,44 @@ export function unsafeActorId(raw: string): ActorId {
 }
 ````
 
-## File: modules/workspace/subdomains/audit/interfaces/components/AuditStream.tsx
+## File: modules/workspace/subdomains/audit/interfaces/queries/audit.queries.ts
 ````typescript
-"use client";
-
-import { format } from "date-fns";
-import { zhTW } from "date-fns/locale/zh-TW";
-import { ShieldAlert } from "lucide-react";
-
-import { Badge } from "@ui-shadcn/ui/badge";
-import { ScrollArea } from "@ui-shadcn/ui/scroll-area";
-
-import type { AuditLogEntity, AuditLogSource } from "../../application/dto/audit.dto";
-import type { AuditSeverity } from "../../application/dto/audit.dto";
-
-interface AuditStreamItem {
-  id: string;
-  actorName: string;
-  action: string;
-  resourceType: string;
-  detail: string;
-  severity: AuditSeverity;
-  workspaceId: string;
-  occurredAtISO: string;
-}
-
-const SOURCE_SEVERITY: Record<AuditLogSource, AuditSeverity> = {
-  workspace: "low",
-  finance: "high",
-  notification: "low",
-  system: "medium",
-};
-
-function toStreamItem(entity: AuditLogEntity): AuditStreamItem {
-  return {
-    id: entity.id,
-    actorName: entity.actorId,
-    action: entity.action,
-    resourceType: entity.source,
-    detail: entity.detail,
-    severity: SOURCE_SEVERITY[entity.source] ?? "low",
-    workspaceId: entity.workspaceId,
-    occurredAtISO: entity.occurredAtISO,
-  };
-}
-
-const SEVERITY_DOT: Record<AuditSeverity, string> = {
-  low: "bg-muted-foreground/40",
-  medium: "bg-blue-500",
-  high: "bg-orange-500",
-  critical: "bg-destructive",
-};
-
-const SEVERITY_LABEL: Record<AuditSeverity, string> = {
-  low: "低",
-  medium: "中",
-  high: "高",
-  critical: "嚴重",
-};
-
-interface AuditRowProps {
-  item: AuditStreamItem;
-}
-
-function AuditRow({ item }: AuditRowProps) {
-  const timeLabel = (() => {
-    try {
-      return format(new Date(item.occurredAtISO), "yyyy-MM-dd HH:mm:ss", { locale: zhTW });
-    } catch {
-      return item.occurredAtISO;
-    }
-  })();
-
-  return (
-    <div className="mb-6 ml-6 relative group">
-      <span
-        className={`absolute -left-[1.85rem] flex h-3.5 w-3.5 items-center justify-center rounded-full ring-2 ring-background ${SEVERITY_DOT[item.severity]}`}
-      />
-
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1">
-        <div className="space-y-0.5 min-w-0">
-          <div className="flex flex-wrap items-center gap-1.5 text-sm">
-            <span className="font-semibold truncate max-w-[120px]">{item.actorName}</span>
-            <span className="text-muted-foreground">執行了</span>
-            <Badge variant="outline" className="text-xs uppercase px-1.5 py-0">
-              {item.action}
-            </Badge>
-            <span className="text-muted-foreground">於</span>
-            <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">
-              {item.resourceType}
-            </code>
-            {item.severity === "critical" && (
-              <ShieldAlert className="h-3.5 w-3.5 text-destructive shrink-0" />
-            )}
-          </div>
-
-          {item.detail && (
-            <p className="text-xs text-muted-foreground">{item.detail}</p>
-          )}
-
-          <div className="flex items-center gap-2 mt-1">
-            <Badge variant="secondary" className="text-xs px-1.5 py-0">
-              {SEVERITY_LABEL[item.severity]}
-            </Badge>
-            <span className="text-xs text-muted-foreground">@{item.workspaceId}</span>
-          </div>
-        </div>
-
-        <time className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-          {timeLabel}
-        </time>
-      </div>
-    </div>
-  );
-}
-
-interface AuditStreamProps {
-  logs: readonly AuditLogEntity[];
-  height?: number;
-}
-
-export function AuditStream({ logs, height = 500 }: AuditStreamProps) {
-  if (logs.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        目前尚無稽核紀錄。
-      </p>
-    );
-  }
-
-  const items = logs.map(toStreamItem);
-
-  return (
-    <ScrollArea className="w-full rounded-md border" style={{ height }}>
-      <div className="p-4">
-        <div className="relative border-l border-border/60 ml-1.5">
-          {items.map((item) => (
-            <AuditRow key={item.id} item={item} />
-          ))}
-        </div>
-      </div>
-    </ScrollArea>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/audit/interfaces/components/WorkspaceAuditTab.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
 import type { AuditLogEntity } from "../../application/dto/audit.dto";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { getWorkspaceAuditLogs } from "../queries/audit.queries";
+  ListOrganizationAuditLogsUseCase,
+  ListWorkspaceAuditLogsUseCase,
+} from "../../application/queries/list-audit-logs.queries";
+import { makeAuditRepo } from "../../api/factories";
 
-function formatAuditDate(value: string) {
-  if (!value) {
-    return "—";
+const auditRepo = makeAuditRepo();
+const listWorkspaceAuditLogsUseCase = new ListWorkspaceAuditLogsUseCase(auditRepo);
+const listOrganizationAuditLogsUseCase = new ListOrganizationAuditLogsUseCase(auditRepo);
+
+export async function getWorkspaceAuditLogs(
+  workspaceId: string,
+): Promise<AuditLogEntity[]> {
+  const normalizedWorkspaceId = workspaceId.trim();
+  if (!normalizedWorkspaceId) {
+    return [];
   }
 
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(value));
-  } catch {
-    return value;
+  return listWorkspaceAuditLogsUseCase.execute(normalizedWorkspaceId);
+}
+
+export async function getOrganizationAuditLogs(
+  workspaceIds: string[],
+  maxCount = 200,
+): Promise<AuditLogEntity[]> {
+  const normalizedWorkspaceIds = workspaceIds
+    .map((workspaceId) => workspaceId.trim())
+    .filter(Boolean);
+
+  if (normalizedWorkspaceIds.length === 0) {
+    return [];
   }
+
+  return listOrganizationAuditLogsUseCase.execute(normalizedWorkspaceIds, maxCount);
 }
-
-interface WorkspaceAuditTabProps {
-  readonly workspaceId: string;
-}
-
-export function WorkspaceAuditTab({ workspaceId }: WorkspaceAuditTabProps) {
-  const [logs, setLogs] = useState<AuditLogEntity[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadLogs() {
-      setLoadState("loading");
-
-      try {
-        const nextLogs = await getWorkspaceAuditLogs(workspaceId);
-        if (cancelled) {
-          return;
-        }
-
-        setLogs(nextLogs);
-        setLoadState("loaded");
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[WorkspaceAuditTab] Failed to load audit logs:", error);
-        }
-
-        if (!cancelled) {
-          setLogs([]);
-          setLoadState("error");
-        }
-      }
-    }
-
-    void loadLogs();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [workspaceId]);
-
-  return (
-    <Card className="border border-border/50">
-      <CardHeader>
-        <CardTitle>Audit</CardTitle>
-        <CardDescription>
-          工作區相關行為紀錄、來源與時間軸。
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {loadState === "loading" && (
-          <p className="text-sm text-muted-foreground">Loading audit log…</p>
-        )}
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">
-            無法載入 audit log，請重新整理頁面或稍後再試。
-          </p>
-        )}
-
-        {loadState === "loaded" && logs.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            目前尚未記錄這個工作區的 audit entries。
-          </p>
-        )}
-
-        {loadState === "loaded" && logs.length > 0 && (
-          <div className="space-y-3">
-            {logs.map((log) => (
-              <div
-                key={log.id}
-                className="rounded-xl border border-border/40 px-4 py-4"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground">{log.action}</p>
-                      <Badge variant="outline">{log.source}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{log.detail || "—"}</p>
-                    <p className="text-xs text-muted-foreground">Actor: {log.actorId}</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {formatAuditDate(log.occurredAtISO)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/feed/application/dto/workspace-feed.dto.ts
-````typescript
-import { z } from "@lib-zod";
-
-/**
- * Application-layer DTO re-exports for the feed subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
-
-const AccountScopeSchema = z.object({
-  accountId: z.string().min(1),
-});
-
-const WorkspaceScopeSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1),
-});
-
-export const FeedLimitSchema = z.number().int().min(1).max(200).default(50);
-
-export const CreateWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
-  authorAccountId: z.string().min(1),
-  content: z.string().trim().min(1).max(5000),
-});
-
-export type CreateWorkspaceFeedPostDto = z.infer<typeof CreateWorkspaceFeedPostSchema>;
-
-export const ReplyWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
-  parentPostId: z.string().min(1),
-  authorAccountId: z.string().min(1),
-  content: z.string().trim().min(1).max(5000),
-});
-
-export type ReplyWorkspaceFeedPostDto = z.infer<typeof ReplyWorkspaceFeedPostSchema>;
-
-export const RepostWorkspaceFeedPostSchema = WorkspaceScopeSchema.extend({
-  sourcePostId: z.string().min(1),
-  actorAccountId: z.string().min(1),
-  comment: z.string().trim().max(1000).optional(),
-});
-
-export type RepostWorkspaceFeedPostDto = z.infer<typeof RepostWorkspaceFeedPostSchema>;
-
-export const FeedInteractionSchema = AccountScopeSchema.extend({
-  postId: z.string().min(1),
-  actorAccountId: z.string().min(1),
-});
-
-export type FeedInteractionDto = z.infer<typeof FeedInteractionSchema>;
-
-export const ListWorkspaceFeedSchema = WorkspaceScopeSchema.extend({
-  limit: FeedLimitSchema.optional(),
-});
-
-export type ListWorkspaceFeedDto = z.infer<typeof ListWorkspaceFeedSchema>;
-
-export const ListAccountFeedSchema = AccountScopeSchema.extend({
-  limit: FeedLimitSchema.optional(),
-});
-
-export type ListAccountFeedDto = z.infer<typeof ListAccountFeedSchema>;
 ````
 
 ## File: modules/workspace/subdomains/feed/application/queries/workspace-feed-post.queries.ts
@@ -56600,491 +57894,6 @@ export class FirebaseWorkspaceFeedPostRepository implements WorkspaceFeedPostRep
 }
 ````
 
-## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedAccountView.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { Eye, Heart, MessageCircle, Repeat2, Share2, Star } from "lucide-react";
-
-import { useApp } from "@/modules/platform/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
-import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto";
-
-interface WorkspaceFeedAccountViewProps {
-  readonly accountId: string;
-}
-
-export function WorkspaceFeedAccountView({ accountId }: WorkspaceFeedAccountViewProps) {
-  const { state: appState } = useApp();
-  const actorId = appState.activeAccount?.id ?? accountId;
-
-  const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
-  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
-  const [activeReplyPostId, setActiveReplyPostId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [actingPostId, setActingPostId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const refreshFeed = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const rows = await workspaceFeedFacade.getAccountFeed(accountId, 80);
-      setPosts(rows);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "載入 account feed 失敗");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accountId]);
-
-  useEffect(() => {
-    void refreshFeed();
-  }, [refreshFeed]);
-
-  async function handleAction(post: WorkspaceFeedPost, action: "like" | "view" | "bookmark" | "share" | "repost") {
-    setActingPostId(post.id);
-    setError(null);
-    try {
-      if (action === "like") {
-        await workspaceFeedFacade.like({ accountId, postId: post.id, actorAccountId: actorId });
-      }
-      if (action === "view") {
-        await workspaceFeedFacade.view({ accountId, postId: post.id, actorAccountId: actorId });
-      }
-      if (action === "bookmark") {
-        await workspaceFeedFacade.bookmark({ accountId, postId: post.id, actorAccountId: actorId });
-      }
-      if (action === "share") {
-        await workspaceFeedFacade.share({ accountId, postId: post.id, actorAccountId: actorId });
-      }
-      if (action === "repost") {
-        await workspaceFeedFacade.repost({
-          accountId,
-          workspaceId: post.workspaceId,
-          sourcePostId: post.id,
-          actorAccountId: actorId,
-        });
-      }
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "互動失敗");
-    } finally {
-      setActingPostId(null);
-    }
-  }
-
-  async function handleReply(post: WorkspaceFeedPost) {
-    const content = replyDrafts[post.id]?.trim() ?? "";
-    if (!content) return;
-
-    setActingPostId(post.id);
-    setError(null);
-    try {
-      await workspaceFeedFacade.reply({
-        accountId,
-        workspaceId: post.workspaceId,
-        parentPostId: post.id,
-        authorAccountId: actorId,
-        content,
-      });
-      setReplyDrafts((prev) => ({ ...prev, [post.id]: "" }));
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "回覆失敗");
-    } finally {
-      setActingPostId(null);
-    }
-  }
-
-  return (
-    <>
-      {error && (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
-      )}
-
-      <div className="space-y-3">
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">載入 account feed 中...</p>
-        ) : posts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">目前沒有任何 workspace 貼文。</p>
-        ) : (
-          posts.map((post) => (
-            <article key={post.id} className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {post.type.toUpperCase()} · workspace {post.workspaceId} · {new Date(post.createdAtISO).toLocaleString()}
-                </p>
-                <p className="text-xs text-muted-foreground">by {post.authorAccountId}</p>
-              </div>
-
-              <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>
-
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant={activeReplyPostId === post.id ? "default" : "outline"}
-                  onClick={() => setActiveReplyPostId((current) => (current === post.id ? null : post.id))}
-                >
-                  <MessageCircle className="mr-1 h-4 w-4" />
-                  Reply {post.replyCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "repost")} disabled={actingPostId === post.id}>
-                  <Repeat2 className="mr-1 h-4 w-4" />
-                  Repost {post.repostCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "like")} disabled={actingPostId === post.id}>
-                  <Heart className="mr-1 h-4 w-4" />
-                  Like {post.likeCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "view")} disabled={actingPostId === post.id}>
-                  <Eye className="mr-1 h-4 w-4" />
-                  View {post.viewCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "bookmark")} disabled={actingPostId === post.id}>
-                  <Star className="mr-1 h-4 w-4" />
-                  bookmark {post.bookmarkCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post, "share")} disabled={actingPostId === post.id}>
-                  <Share2 className="mr-1 h-4 w-4" />
-                  share {post.shareCount}
-                </Button>
-              </div>
-
-              {activeReplyPostId === post.id && (
-                <div className="space-y-2 rounded-xl border border-border/40 p-3">
-                  <Textarea
-                    value={replyDrafts[post.id] ?? ""}
-                    onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
-                    placeholder="回覆這則貼文..."
-                    rows={2}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" type="button" variant="ghost" onClick={() => setActiveReplyPostId(null)}>
-                      取消
-                    </Button>
-                    <Button
-                      size="sm"
-                      type="button"
-                      onClick={() => void handleReply(post)}
-                      disabled={actingPostId === post.id || !(replyDrafts[post.id] ?? "").trim()}
-                    >
-                      回覆
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </article>
-          ))
-        )}
-      </div>
-    </>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedWorkspaceView.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Eye, Heart, MessageCircle, Repeat2, Send, Share2, Star } from "lucide-react";
-
-import { useApp } from "@/modules/platform/api";
-import { Avatar, AvatarFallback, AvatarImage } from "@ui-shadcn/ui/avatar";
-import { Button } from "@ui-shadcn/ui/button";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import { workspaceFeedFacade } from "../../api/workspace-feed.facade";
-import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto";
-
-interface WorkspaceFeedWorkspaceViewProps {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly workspaceName: string;
-}
-
-export function WorkspaceFeedWorkspaceView({
-  accountId,
-  workspaceId,
-  workspaceName,
-}: WorkspaceFeedWorkspaceViewProps) {
-  const { state: appState } = useApp();
-  const actor = appState.activeAccount;
-  const actorId = actor?.id ?? accountId;
-
-  const [posts, setPosts] = useState<WorkspaceFeedPost[]>([]);
-  const [composer, setComposer] = useState("");
-  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({});
-  const [activeReplyPostId, setActiveReplyPostId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [actingPostId, setActingPostId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const actorName = actor?.name ?? "未知";
-  const actorAvatar = "photoURL" in (actor ?? {}) ? (actor as { photoURL?: string }).photoURL : undefined;
-  const actorInitial = actorName.charAt(0).toUpperCase();
-
-  const canPublish = useMemo(() => composer.trim().length > 0, [composer]);
-
-  const refreshFeed = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const rows = await workspaceFeedFacade.getWorkspaceFeed(accountId, workspaceId, 50);
-      setPosts(rows);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "載入 feed 失敗");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => {
-    void refreshFeed();
-  }, [refreshFeed]);
-
-  async function handlePublish() {
-    if (!canPublish || isPublishing) return;
-    setIsPublishing(true);
-    setError(null);
-    try {
-      const createdId = await workspaceFeedFacade.createPost({
-        accountId,
-        workspaceId,
-        authorAccountId: actorId,
-        content: composer.trim(),
-      });
-      if (!createdId) {
-        setError("建立貼文失敗");
-        return;
-      }
-      setComposer("");
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "建立貼文失敗");
-    } finally {
-      setIsPublishing(false);
-    }
-  }
-
-  async function handleAction(postId: string, action: "like" | "view" | "bookmark" | "share" | "repost") {
-    setActingPostId(postId);
-    setError(null);
-    try {
-      if (action === "like") {
-        await workspaceFeedFacade.like({ accountId, postId, actorAccountId: actorId });
-      }
-      if (action === "view") {
-        await workspaceFeedFacade.view({ accountId, postId, actorAccountId: actorId });
-      }
-      if (action === "bookmark") {
-        await workspaceFeedFacade.bookmark({ accountId, postId, actorAccountId: actorId });
-      }
-      if (action === "share") {
-        await workspaceFeedFacade.share({ accountId, postId, actorAccountId: actorId });
-      }
-      if (action === "repost") {
-        const current = posts.find((row) => row.id === postId);
-        if (!current) return;
-        await workspaceFeedFacade.repost({
-          accountId,
-          workspaceId: current.workspaceId,
-          sourcePostId: postId,
-          actorAccountId: actorId,
-        });
-      }
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "互動失敗");
-    } finally {
-      setActingPostId(null);
-    }
-  }
-
-  async function handleReply(postId: string) {
-    const text = replyDrafts[postId]?.trim() ?? "";
-    if (!text) return;
-    setActingPostId(postId);
-    setError(null);
-    try {
-      const current = posts.find((row) => row.id === postId);
-      if (!current) return;
-      await workspaceFeedFacade.reply({
-        accountId,
-        workspaceId: current.workspaceId,
-        parentPostId: postId,
-        authorAccountId: actorId,
-        content: text,
-      });
-      setReplyDrafts((prev) => ({ ...prev, [postId]: "" }));
-      await refreshFeed();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "回覆失敗");
-    } finally {
-      setActingPostId(null);
-    }
-  }
-
-  return (
-    <section className="mx-auto max-w-3xl space-y-6 rounded-3xl border border-border/60 bg-card/50 p-6">
-      <header className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-12 w-12 shrink-0">
-            <AvatarImage src={actorAvatar} alt={actorName} />
-            <AvatarFallback className="text-sm font-bold">{actorInitial}</AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="text-sm font-semibold">{workspaceName} Feed</p>
-            <p className="text-xs text-muted-foreground">workspaceId: {workspaceId}</p>
-          </div>
-        </div>
-        <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-          live
-        </div>
-      </header>
-
-      <div className="space-y-3 rounded-2xl border border-border/60 bg-background/80 p-4">
-        <Textarea
-          value={composer}
-          onChange={(event) => setComposer(event.target.value)}
-          placeholder="發佈你的想法到 workspace feed..."
-          rows={4}
-        />
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">actor: {actorName} / account: {accountId}</p>
-          <Button type="button" onClick={handlePublish} disabled={!canPublish || isPublishing}>
-            <Send className="mr-2 h-4 w-4" />
-            {isPublishing ? "送出中..." : "發佈"}
-          </Button>
-        </div>
-      </div>
-
-      {error && (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p>
-      )}
-
-      <div className="space-y-3">
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">載入 feed 中...</p>
-        ) : posts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">目前還沒有貼文，發佈第一則吧。</p>
-        ) : (
-          posts.map((post) => (
-            <article key={post.id} className="space-y-3 rounded-2xl border border-border/60 bg-background/70 p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {post.type.toUpperCase()} · {post.workspaceId} · {new Date(post.createdAtISO).toLocaleString()}
-                </p>
-                <p className="text-xs text-muted-foreground">by {post.authorAccountId}</p>
-              </div>
-              <p className="whitespace-pre-wrap text-sm leading-6">{post.content}</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant={activeReplyPostId === post.id ? "default" : "outline"}
-                  onClick={() => setActiveReplyPostId((current) => (current === post.id ? null : post.id))}
-                >
-                  <MessageCircle className="mr-1 h-4 w-4" />
-                  Reply {post.replyCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "repost")} disabled={actingPostId === post.id}>
-                  <Repeat2 className="mr-1 h-4 w-4" />
-                  Repost {post.repostCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "like")} disabled={actingPostId === post.id}>
-                  <Heart className="mr-1 h-4 w-4" />
-                  Like {post.likeCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "view")} disabled={actingPostId === post.id}>
-                  <Eye className="mr-1 h-4 w-4" />
-                  View {post.viewCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "bookmark")} disabled={actingPostId === post.id}>
-                  <Star className="mr-1 h-4 w-4" />
-                  bookmark {post.bookmarkCount}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleAction(post.id, "share")} disabled={actingPostId === post.id}>
-                  <Share2 className="mr-1 h-4 w-4" />
-                  share {post.shareCount}
-                </Button>
-              </div>
-
-              {activeReplyPostId === post.id && (
-                <div className="space-y-2 rounded-xl border border-border/40 p-3">
-                  <Textarea
-                    value={replyDrafts[post.id] ?? ""}
-                    onChange={(event) => setReplyDrafts((prev) => ({ ...prev, [post.id]: event.target.value }))}
-                    placeholder="回覆這則貼文..."
-                    rows={2}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" type="button" variant="ghost" onClick={() => setActiveReplyPostId(null)}>
-                      取消
-                    </Button>
-                    <Button
-                      size="sm"
-                      type="button"
-                      onClick={() => void handleReply(post.id)}
-                      disabled={actingPostId === post.id || !(replyDrafts[post.id] ?? "").trim()}
-                    >
-                      回覆
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </article>
-          ))
-        )}
-      </div>
-    </section>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/feed/interfaces/queries/workspace-feed.queries.ts
-````typescript
-import type { WorkspaceFeedPost } from "../../application/dto/workspace-feed.dto";
-import {
-  GetWorkspaceFeedPostUseCase,
-  ListAccountWorkspaceFeedUseCase,
-  ListWorkspaceFeedUseCase,
-} from "../../application/use-cases/workspace-feed.use-cases";
-import { makeWorkspaceFeedPostRepo } from "../../api/factories";
-
-export async function getWorkspaceFeedPost(
-  accountId: string,
-  postId: string,
-): Promise<WorkspaceFeedPost | null> {
-  return new GetWorkspaceFeedPostUseCase(makeWorkspaceFeedPostRepo()).execute(
-    accountId,
-    postId,
-  );
-}
-
-export async function getWorkspaceFeed(
-  accountId: string,
-  workspaceId: string,
-  limit = 50,
-): Promise<WorkspaceFeedPost[]> {
-  return new ListWorkspaceFeedUseCase(makeWorkspaceFeedPostRepo()).execute({
-    accountId,
-    workspaceId,
-    limit,
-  });
-}
-
-export async function getAccountWorkspaceFeed(accountId: string, limit = 50): Promise<WorkspaceFeedPost[]> {
-  return new ListAccountWorkspaceFeedUseCase(makeWorkspaceFeedPostRepo()).execute({
-    accountId,
-    limit,
-  });
-}
-````
-
 ## File: modules/workspace/subdomains/lifecycle/application/services/WorkspaceLifecycleApplicationService.ts
 ````typescript
 /**
@@ -57496,34 +58305,6 @@ export function fetchWorkspaceMembers(
 export type { WorkspaceQueryRepository } from "../../../../domain/ports/output/WorkspaceQueryRepository";
 ````
 
-## File: modules/workspace/subdomains/scheduling/application/dto/work-demand.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the scheduling subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type { WorkDemand, DemandPriority } from "../../domain/types";
-export { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../../domain/types";
-
-import type { DemandPriority } from "../../domain/types";
-
-export interface CreateDemandInput {
-  workspaceId: string;
-  accountId: string;
-  requesterId: string;
-  title: string;
-  description?: string;
-  priority: DemandPriority;
-  scheduledAt: string;
-}
-
-export interface AssignMemberInput {
-  demandId: string;
-  userId: string;
-  assignedBy: string;
-}
-````
-
 ## File: modules/workspace/subdomains/scheduling/infrastructure/firebase/FirebaseDemandRepository.ts
 ````typescript
 import {
@@ -57629,20 +58410,24 @@ export class FirebaseDemandRepository implements IDemandRepository {
 }
 ````
 
-## File: modules/workspace/subdomains/scheduling/interfaces/AccountSchedulingView.tsx
+## File: modules/workspace/subdomains/scheduling/interfaces/components/CreateDemandForm.tsx
 ````typescript
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
-import { Badge } from "@ui-shadcn/ui/badge";
+import { format } from "@lib-date-fns";
 import { Button } from "@ui-shadcn/ui/button";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
 import {
   Select,
   SelectContent,
@@ -57650,626 +58435,190 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@ui-shadcn/ui/select";
-import { Users } from "lucide-react";
+import { Textarea } from "@ui-shadcn/ui/textarea";
 
-import type { WorkDemand } from "../application/dto/work-demand.dto";
-import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../application/dto/work-demand.dto";
-import { assignWorkDemand } from "./_actions/work-demand.actions";
-import { getAccountDemands } from "./queries/work-demand.queries";
+import { DEMAND_PRIORITY_LABELS } from "../../application/dto/work-demand.dto";
+import type { DemandPriority } from "../../application/dto/work-demand.dto";
 
-export interface AccountMember {
-  id: string;
-  name: string;
+export interface CreateDemandFormValues {
+  title: string;
+  description: string;
+  priority: DemandPriority;
+  scheduledAt: string;
 }
 
-const PRIORITY_DOT: Record<WorkDemand["priority"], string> = {
-  low: "bg-green-400",
-  medium: "bg-amber-400",
-  high: "bg-red-500",
-};
-
-const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "outline" | "destructive"> = {
-  draft: "outline",
-  open: "secondary",
-  in_progress: "default",
-  completed: "default",
-};
-
-interface AccountSchedulingViewProps {
-  readonly accountId: string;
-  readonly currentUserId: string;
-  readonly availableMembers?: AccountMember[];
+interface CreateDemandFormProps {
+  open: boolean;
+  initialDate?: Date;
+  onClose: () => void;
+  onSubmit: (values: CreateDemandFormValues) => Promise<void>;
 }
 
-export function AccountSchedulingView({
-  accountId,
-  currentUserId,
-  availableMembers = [],
-}: AccountSchedulingViewProps) {
-  const [demands, setDemands] = useState<WorkDemand[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [pendingAssign, setPendingAssign] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+export function CreateDemandForm({
+  open,
+  initialDate,
+  onClose,
+  onSubmit,
+}: CreateDemandFormProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState<DemandPriority>("medium");
+  const [scheduledAt, setScheduledAt] = useState(
+    initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const loadDemands = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const data = await getAccountDemands(accountId);
-      setDemands(data);
-      setLoadState("loaded");
-    } catch {
-      setLoadState("error");
+  const handleOpen = (isOpen: boolean) => {
+    if (isOpen && initialDate) {
+      setScheduledAt(format(initialDate, "yyyy-MM-dd"));
     }
-  }, [accountId]);
+    if (!isOpen) handleClose();
+  };
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      if (!cancelled) await loadDemands();
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadDemands]);
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setPriority("medium");
+    setScheduledAt(initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"));
+    setError(null);
+    onClose();
+  }
 
-  async function handleAssign(demandId: string, userId: string) {
-    setPendingAssign(demandId);
-    setActionError(null);
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) {
+      setError("請輸入需求標題。");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
     try {
-      const result = await assignWorkDemand({
-        demandId,
-        userId,
-        assignedBy: currentUserId,
-      });
-      if (!result.success) {
-        setActionError(result.error.message);
-        return;
-      }
-      await loadDemands();
+      await onSubmit({ title: t, description: description.trim(), priority, scheduledAt });
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "提交失敗，請再試一次。");
     } finally {
-      setPendingAssign(null);
+      setSubmitting(false);
     }
   }
 
-  const byWorkspace = demands.reduce<Record<string, WorkDemand[]>>((acc, d) => {
-    if (!acc[d.workspaceId]) acc[d.workspaceId] = [];
-    acc[d.workspaceId].push(d);
-    return acc;
-  }, {});
-
-  const workspaceEntries = Object.entries(byWorkspace);
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Users className="h-5 w-5 text-primary" />
-        <div>
-          <h2 className="text-lg font-semibold">工作需求總覽</h2>
-          <p className="text-sm text-muted-foreground">
-            顯示名下所有 Workspace 提出的需求，可在此指派成員。
-          </p>
-        </div>
-      </div>
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>建立工作需求</DialogTitle>
+          <DialogDescription>
+            填寫需求詳情後送出，Account 管理員將收到通知並指派成員。
+          </DialogDescription>
+        </DialogHeader>
 
-      {actionError && (
-        <p role="alert" className="text-sm text-destructive">
-          {actionError}
-        </p>
-      )}
-
-      {loadState === "loading" && (
-        <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">
-          載入中…
-        </div>
-      )}
-
-      {loadState === "error" && (
-        <p className="text-sm text-destructive">載入失敗，請重新整理。</p>
-      )}
-
-      {loadState === "loaded" && demands.length === 0 && (
-        <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-          目前名下所有 Workspace 均無工作需求。
-        </div>
-      )}
-
-      {loadState === "loaded" && workspaceEntries.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {workspaceEntries.map(([wsId, wsDemands]) => (
-            <Card key={wsId} className="flex flex-col">
-              <CardHeader className="bg-muted/40 pb-3">
-                <CardTitle className="text-sm font-semibold truncate">
-                  Workspace: <span className="font-mono text-xs">{wsId.slice(0, 8)}…</span>
-                </CardTitle>
-                <p className="text-xs text-muted-foreground">
-                  {wsDemands.length} 筆需求
-                </p>
-              </CardHeader>
-              <CardContent className="flex-1 space-y-3 p-4">
-                {wsDemands.map((demand) => (
-                  <div
-                    key={demand.id}
-                    className="rounded-md border border-border/60 bg-background p-3 shadow-sm"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-medium leading-snug flex-1 min-w-0 truncate">
-                        {demand.title}
-                      </p>
-                      <span
-                        title={DEMAND_PRIORITY_LABELS[demand.priority]}
-                        className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${PRIORITY_DOT[demand.priority]}`}
-                      />
-                    </div>
-
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <Badge variant={STATUS_VARIANT[demand.status]} className="text-[10px]">
-                        {DEMAND_STATUS_LABELS[demand.status]}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {demand.scheduledAt}
-                      </span>
-                    </div>
-
-                    {availableMembers.length > 0 && (
-                      <div className="mt-2.5">
-                        <p className="mb-1 text-[10px] text-muted-foreground">指派給</p>
-                        <Select
-                          value={demand.assignedUserId ?? ""}
-                          onValueChange={(userId) => {
-                            if (userId) void handleAssign(demand.id, userId);
-                          }}
-                          disabled={pendingAssign === demand.id}
-                        >
-                          <SelectTrigger className="h-7 text-xs">
-                            <SelectValue placeholder="選擇成員…" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableMembers.map((member) => (
-                              <SelectItem key={member.id} value={member.id}>
-                                {member.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    {availableMembers.length === 0 && demand.assignedUserId && (
-                      <p className="mt-1.5 text-xs text-muted-foreground">
-                        已指派：{demand.assignedUserId}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {loadState === "loaded" && (
-        <div className="flex justify-end">
-          <Button variant="ghost" size="sm" onClick={loadDemands}>
-            重新整理
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/scheduling/interfaces/components/CalendarWidget.tsx
-````typescript
-"use client";
-
-import { useMemo, useState } from "react";
-
-import {
-  addMonths,
-  eachDayOfInterval,
-  endOfMonth,
-  format,
-  getDay,
-  isSameMonth,
-  isToday,
-  startOfMonth,
-  subMonths,
-} from "@lib-date-fns";
-import { Button } from "@ui-shadcn/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-
-import type { WorkDemand } from "../../application/dto/work-demand.dto";
-import { DEMAND_STATUS_LABELS } from "../../application/dto/work-demand.dto";
-
-interface CalendarWidgetProps {
-  demands: WorkDemand[];
-  onDayClick?: (date: Date) => void;
-}
-
-const DAY_HEADERS = ["日", "一", "二", "三", "四", "五", "六"] as const;
-
-const STATUS_DOT_CLASSES: Record<WorkDemand["status"], string> = {
-  draft: "bg-muted-foreground",
-  open: "bg-blue-500",
-  in_progress: "bg-amber-500",
-  completed: "bg-green-500",
-};
-
-function CalendarDayCell({
-  day,
-  isCurrentMonth,
-  dayDemands,
-  onDayClick,
-}: {
-  day: Date;
-  isCurrentMonth: boolean;
-  dayDemands: WorkDemand[];
-  onDayClick?: (date: Date) => void;
-}) {
-  const today = isToday(day);
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-label={format(day, "yyyy-MM-dd")}
-      onClick={() => onDayClick?.(day)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") onDayClick?.(day);
-      }}
-      className={[
-        "relative min-h-[72px] rounded-lg border p-1.5 text-sm transition-colors",
-        isCurrentMonth
-          ? "border-border/50 bg-card hover:bg-accent/40 cursor-pointer"
-          : "border-transparent bg-muted/20 text-muted-foreground cursor-default",
-        today ? "ring-2 ring-primary ring-offset-1" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-    >
-      <span
-        className={[
-          "flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium",
-          today ? "bg-primary text-primary-foreground" : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
-      >
-        {format(day, "d")}
-      </span>
-
-      <div className="mt-1 space-y-0.5">
-        {dayDemands.slice(0, 3).map((d) => (
-          <div
-            key={d.id}
-            title={`${d.title} (${DEMAND_STATUS_LABELS[d.status]})`}
-            className="flex items-center gap-1 truncate"
-          >
-            <span
-              className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT_CLASSES[d.status]}`}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="demand-title">標題 *</Label>
+            <Input
+              id="demand-title"
+              placeholder="需要完成什麼工作？"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
             />
-            <span className="truncate text-[10px] leading-none text-foreground/80">
-              {d.title}
-            </span>
           </div>
-        ))}
-        {dayDemands.length > 3 && (
-          <span className="text-[10px] text-muted-foreground">
-            +{dayDemands.length - 3} more
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
 
-export function CalendarWidget({ demands, onDayClick }: CalendarWidgetProps) {
-  const [currentMonth, setCurrentMonth] = useState<Date>(startOfMonth(new Date()));
-
-  const monthDays = useMemo(
-    () =>
-      eachDayOfInterval({
-        start: startOfMonth(currentMonth),
-        end: endOfMonth(currentMonth),
-      }),
-    [currentMonth],
-  );
-
-  const leadingBlanks = useMemo(() => getDay(startOfMonth(currentMonth)), [currentMonth]);
-
-  const demandsByDate = useMemo(() => {
-    const map = new Map<string, WorkDemand[]>();
-    for (const d of demands) {
-      const key = d.scheduledAt.slice(0, 10);
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(d);
-    }
-    return map;
-  }, [demands]);
-
-  function getDayDemands(day: Date): WorkDemand[] {
-    return demandsByDate.get(format(day, "yyyy-MM-dd")) ?? [];
-  }
-
-  const legendEntries: { status: WorkDemand["status"]; label: string }[] = [
-    { status: "open", label: DEMAND_STATUS_LABELS.open },
-    { status: "in_progress", label: DEMAND_STATUS_LABELS.in_progress },
-    { status: "completed", label: DEMAND_STATUS_LABELS.completed },
-    { status: "draft", label: DEMAND_STATUS_LABELS.draft },
-  ];
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold">
-          {format(currentMonth, "yyyy 年 M 月")}
-        </h2>
-        <div className="flex gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="上個月"
-            onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setCurrentMonth(startOfMonth(new Date()))}
-          >
-            今天
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="下個月"
-            onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap gap-3">
-        {legendEntries.map(({ status, label }) => (
-          <div key={status} className="flex items-center gap-1.5">
-            <span
-              className={`h-2 w-2 rounded-full ${STATUS_DOT_CLASSES[status]}`}
+          <div className="space-y-1.5">
+            <Label htmlFor="demand-description">描述（選填）</Label>
+            <Textarea
+              id="demand-description"
+              placeholder="詳細說明需求背景或驗收條件…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
             />
-            <span className="text-xs text-muted-foreground">{label}</span>
           </div>
-        ))}
-      </div>
 
-      <div className="grid grid-cols-7 gap-1">
-        {DAY_HEADERS.map((h) => (
-          <div
-            key={h}
-            className="pb-1 text-center text-xs font-medium text-muted-foreground"
-          >
-            {h}
-          </div>
-        ))}
-
-        {Array.from({ length: leadingBlanks }).map((_, i) => (
-          <div key={`blank-${i}`} />
-        ))}
-
-        {monthDays.map((day) => (
-          <CalendarDayCell
-            key={day.toISOString()}
-            day={day}
-            isCurrentMonth={isSameMonth(day, currentMonth)}
-            dayDemands={getDayDemands(day)}
-            onDayClick={isSameMonth(day, currentMonth) ? onDayClick : undefined}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/scheduling/interfaces/WorkspaceSchedulingTab.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Plus } from "lucide-react";
-
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-
-import type { WorkDemand } from "../application/dto/work-demand.dto";
-import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../application/dto/work-demand.dto";
-import { submitWorkDemand } from "./_actions/work-demand.actions";
-import { getWorkspaceDemands } from "./queries/work-demand.queries";
-import { CalendarWidget } from "./components/CalendarWidget";
-import { CreateDemandForm } from "./components/CreateDemandForm";
-import type { CreateDemandFormValues } from "./components/CreateDemandForm";
-
-const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "outline" | "destructive"> = {
-  draft: "outline",
-  open: "secondary",
-  in_progress: "default",
-  completed: "default",
-};
-
-const PRIORITY_CLASS: Record<WorkDemand["priority"], string> = {
-  low: "text-muted-foreground",
-  medium: "text-amber-600",
-  high: "text-red-600",
-};
-
-interface WorkspaceSchedulingTabProps {
-  readonly workspace: WorkspaceEntity;
-  readonly accountId: string;
-  readonly currentUserId: string;
-}
-
-export function WorkspaceSchedulingTab({
-  workspace,
-  accountId,
-  currentUserId,
-}: WorkspaceSchedulingTabProps) {
-  const [demands, setDemands] = useState<WorkDemand[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [formOpen, setFormOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const loadDemands = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const data = await getWorkspaceDemands(workspace.id);
-      setDemands(data);
-      setLoadState("loaded");
-    } catch {
-      setLoadState("error");
-    }
-  }, [workspace.id]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      if (!cancelled) await loadDemands();
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadDemands]);
-
-  function handleDayClick(date: Date) {
-    setSelectedDate(date);
-    setFormOpen(true);
-  }
-
-  function handleNewDemand() {
-    setSelectedDate(undefined);
-    setFormOpen(true);
-  }
-
-  async function handleSubmit(values: CreateDemandFormValues) {
-    setActionError(null);
-    const result = await submitWorkDemand({
-      workspaceId: workspace.id,
-      accountId,
-      requesterId: currentUserId,
-      title: values.title,
-      description: values.description,
-      priority: values.priority,
-      scheduledAt: values.scheduledAt,
-    });
-    if (!result.success) {
-      throw new Error(result.error.message);
-    }
-    await loadDemands();
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">{workspace.name} — 工作規劃</h2>
-          <p className="text-sm text-muted-foreground">
-            點擊日期或「新增需求」快速建立工作需求。
-          </p>
-        </div>
-        <Button size="sm" onClick={handleNewDemand}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          新增需求
-        </Button>
-      </div>
-
-      {actionError && (
-        <p role="alert" className="text-sm text-destructive">
-          {actionError}
-        </p>
-      )}
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">排程日曆</CardTitle>
-          <CardDescription className="text-xs">
-            點擊日期快速排程新需求
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loadState === "loading" ? (
-            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-              載入中…
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="demand-priority">優先級</Label>
+              <Select
+                value={priority}
+                onValueChange={(v) => setPriority(v as DemandPriority)}
+                disabled={submitting}
+              >
+                <SelectTrigger id="demand-priority">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(["low", "medium", "high"] as const).map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {DEMAND_PRIORITY_LABELS[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          ) : (
-            <CalendarWidget demands={demands} onDayClick={handleDayClick} />
+
+            <div className="space-y-1.5">
+              <Label htmlFor="demand-date">排程日期 *</Label>
+              <Input
+                id="demand-date"
+                type="date"
+                value={scheduledAt}
+                onChange={(e) => setScheduledAt(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
           )}
-        </CardContent>
-      </Card>
 
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          需求列表 ({demands.length})
-        </h3>
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">載入失敗，請重新整理。</p>
-        )}
-
-        {loadState === "loaded" && demands.length === 0 && (
-          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            目前尚無需求。點擊日曆日期或「新增需求」開始排程。
-          </div>
-        )}
-
-        {demands.map((demand) => (
-          <div
-            key={demand.id}
-            className="flex items-start justify-between rounded-lg border border-border/60 bg-card px-4 py-3"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium text-sm">{demand.title}</p>
-              {demand.description && (
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {demand.description}
-                </p>
-              )}
-              <p className="mt-1 text-xs text-muted-foreground">
-                排程日期：{demand.scheduledAt}
-              </p>
-            </div>
-            <div className="ml-4 flex shrink-0 flex-col items-end gap-1.5">
-              <Badge variant={STATUS_VARIANT[demand.status]}>
-                {DEMAND_STATUS_LABELS[demand.status]}
-              </Badge>
-              <span className={`text-xs font-medium ${PRIORITY_CLASS[demand.priority]}`}>
-                {DEMAND_PRIORITY_LABELS[demand.priority]}優先
-              </span>
-              {demand.assignedUserId && (
-                <span className="text-xs text-muted-foreground">已指派</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <CreateDemandForm
-        open={formOpen}
-        initialDate={selectedDate}
-        onClose={() => setFormOpen(false)}
-        onSubmit={handleSubmit}
-      />
-    </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
+              取消
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "提交中…" : "建立需求"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/interfaces/queries/work-demand.queries.ts
+````typescript
+import type { WorkDemand } from "../../application/dto/work-demand.dto";
+import {
+  ListWorkspaceDemandsUseCase,
+  ListAccountDemandsUseCase,
+} from "../../application/work-demand.use-cases";
+import { makeDemandRepo } from "../../api/factories";
+
+function makeRepo() {
+  return makeDemandRepo();
+}
+
+export async function getWorkspaceDemands(workspaceId: string): Promise<WorkDemand[]> {
+  const normalizedWorkspaceId = workspaceId.trim();
+  if (!normalizedWorkspaceId) {
+    return [];
+  }
+  return new ListWorkspaceDemandsUseCase(makeRepo()).execute(normalizedWorkspaceId);
+}
+
+export async function getAccountDemands(accountId: string): Promise<WorkDemand[]> {
+  const normalizedAccountId = accountId.trim();
+  if (!normalizedAccountId) {
+    return [];
+  }
+  return new ListAccountDemandsUseCase(makeRepo()).execute(normalizedAccountId);
 }
 ````
 
@@ -58425,21 +58774,6 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/application/dto/workflow.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the workspace-workflow subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type { Task } from "../../domain/entities/Task";
-export type { Issue } from "../../domain/entities/Issue";
-export type { Invoice } from "../../domain/entities/Invoice";
-export type { InvoiceItem } from "../../domain/entities/InvoiceItem";
-export type { TaskStatus } from "../../domain/value-objects/TaskStatus";
-export type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-export type { IssueStage } from "../../domain/value-objects/IssueStage";
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/domain/index.ts
@@ -58986,754 +59320,346 @@ export class FirebaseTaskRepository implements TaskRepository {
 }
 ````
 
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/InvoiceRow.tsx
+## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx
 ````typescript
 "use client";
 
-import { useState } from "react";
+/**
+ * @module workspace-flow/interfaces/components
+ * @file WorkspaceFlowTab.tsx
+ * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
+ *
+ * MVP interactive surface:
+ * - Create Task dialog
+ * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
+ * - Per-task expandable Issue sub-list with transition buttons
+ * - Open Issue dialog
+ * - Create Invoice button + Invoice lifecycle transitions
+ *
+ * @author workspace-flow
+ * @since 2026-03-27
+ */
 
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { Plus } from "lucide-react";
+
 import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Separator } from "@ui-shadcn/ui/separator";
 
 import type { Invoice } from "../../application/dto/workflow.dto";
-import type { InvoiceStatus } from "../../application/dto/workflow.dto";
-import {
-  wfApproveInvoice,
-  wfCloseInvoice,
-  wfPayInvoice,
-  wfRejectInvoice,
-  wfReviewInvoice,
-  wfSubmitInvoice,
-} from "../_actions/workspace-flow.actions";
-
-const INVOICE_STATUS_VARIANT: Record<
-  InvoiceStatus,
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  draft: "outline",
-  submitted: "secondary",
-  finance_review: "secondary",
-  approved: "default",
-  paid: "default",
-  closed: "outline",
-};
-
-const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
-  draft: "草稿",
-  submitted: "已提交",
-  finance_review: "財務審核",
-  approved: "已核准",
-  paid: "已付款",
-  closed: "已結清",
-};
-
-function formatShortDate(iso: string | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
-function formatCurrency(amount: number): string {
-  try {
-    return new Intl.NumberFormat("zh-TW", {
-      style: "currency",
-      currency: "TWD",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    return `TWD ${amount}`;
-  }
-}
-
-export interface InvoiceRowProps {
-  invoice: Invoice;
-  onTransitioned: () => void;
-}
-
-export function InvoiceRow({ invoice, onTransitioned }: InvoiceRowProps) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderActions() {
-    switch (invoice.status) {
-      case "draft":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitInvoice(invoice.id))}>提交</Button>;
-      case "submitted":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfReviewInvoice(invoice.id))}>送審</Button>;
-      case "finance_review":
-        return (
-          <div className="flex gap-1.5">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveInvoice(invoice.id))}>核准</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfRejectInvoice(invoice.id))}>退回</Button>
-          </div>
-        );
-      case "approved":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPayInvoice(invoice.id))}>付款</Button>;
-      case "paid":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseInvoice(invoice.id))}>結清</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-xl border border-border/40 px-4 py-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">
-            #{invoice.id.slice(-8).toUpperCase()}
-          </p>
-          <p className="text-xs text-muted-foreground">建立：{formatShortDate(invoice.createdAtISO)}</p>
-          {invoice.paidAtISO && (
-            <p className="text-xs text-muted-foreground">付款：{formatShortDate(invoice.paidAtISO)}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Badge variant={INVOICE_STATUS_VARIANT[invoice.status]}>
-            {INVOICE_STATUS_LABEL[invoice.status]}
-          </Badge>
-          <p className="text-sm font-semibold text-foreground">{formatCurrency(invoice.totalAmount)}</p>
-          {renderActions()}
-        </div>
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/IssueRow.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-
-import type { Issue } from "../../application/dto/workflow.dto";
-import type { IssueStage } from "../../application/dto/workflow.dto";
-import {
-  wfCloseIssue,
-  wfFailIssueRetest,
-  wfFixIssue,
-  wfPassIssueRetest,
-  wfStartIssue,
-  wfSubmitIssueRetest,
-} from "../_actions/workspace-flow.actions";
-
-export const ISSUE_STAGE_LABEL: Record<IssueStage, string> = {
-  task: "任務",
-  qa: "QA",
-  acceptance: "驗收",
-};
-
-const ISSUE_STATUS_VARIANT: Record<
-  Issue["status"],
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  open: "destructive",
-  investigating: "destructive",
-  fixing: "secondary",
-  retest: "secondary",
-  resolved: "default",
-  closed: "outline",
-};
-
-const ISSUE_STATUS_LABEL: Record<Issue["status"], string> = {
-  open: "開啟",
-  investigating: "調查中",
-  fixing: "修復中",
-  retest: "重測中",
-  resolved: "已解決",
-  closed: "已關閉",
-};
-
-export interface IssueRowProps {
-  issue: Issue;
-  onTransitioned: () => void;
-}
-
-export function IssueRow({ issue, onTransitioned }: IssueRowProps) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderActions() {
-    switch (issue.status) {
-      case "open":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfStartIssue(issue.id))}>開始調查</Button>;
-      case "investigating":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFixIssue(issue.id))}>開始修復</Button>;
-      case "fixing":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitIssueRetest(issue.id))}>送重測</Button>;
-      case "retest":
-        return (
-          <div className="flex gap-1.5">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassIssueRetest(issue.id))}>通過</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFailIssueRetest(issue.id))}>失敗</Button>
-          </div>
-        );
-      case "resolved":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseIssue(issue.id))}>關閉</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-lg border border-border/30 px-3 py-2.5 text-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div className="space-y-0.5 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <Badge variant={ISSUE_STATUS_VARIANT[issue.status]} className="text-xs">
-              {ISSUE_STATUS_LABEL[issue.status]}
-            </Badge>
-            <Badge variant="outline" className="text-xs">{ISSUE_STAGE_LABEL[issue.stage]}</Badge>
-            <span className="font-medium text-foreground truncate">{issue.title}</span>
-          </div>
-          {issue.description && (
-            <p className="text-xs text-muted-foreground line-clamp-1">{issue.description}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="shrink-0">{renderActions()}</div>
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/OpenIssueDialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import type { IssueStage } from "../../application/dto/workflow.dto";
-import { wfOpenIssue } from "../_actions/workspace-flow.actions";
-import { ISSUE_STAGE_LABEL } from "./IssueRow";
-
-export interface OpenIssueDialogProps {
-  open: boolean;
-  taskId: string;
-  currentUserId: string;
-  onClose: () => void;
-  onCreated: () => void;
-}
-
-export function OpenIssueDialog({ open, taskId, currentUserId, onClose, onCreated }: OpenIssueDialogProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [stage, setStage] = useState<IssueStage>("task");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setStage("task");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) { setError("請輸入議題標題。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfOpenIssue({
-        taskId,
-        stage,
-        title: t,
-        description: description.trim() || undefined,
-        createdBy: currentUserId,
-      });
-      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
-      onCreated();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>開啟議題</DialogTitle>
-          <DialogDescription>記錄此任務發現的問題或異常。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="issue-title">標題 *</Label>
-            <Input
-              id="issue-title"
-              placeholder="問題簡述"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="issue-description">描述（選填）</Label>
-            <Textarea
-              id="issue-description"
-              placeholder="問題詳情、重現步驟…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>發生階段</Label>
-            <div className="flex gap-2">
-              {(["task", "qa", "acceptance"] as const).map((s) => (
-                <Button
-                  key={s}
-                  type="button"
-                  size="sm"
-                  variant={stage === s ? "default" : "outline"}
-                  onClick={() => setStage(s)}
-                  disabled={submitting}
-                >
-                  {ISSUE_STAGE_LABEL[s]}
-                </Button>
-              ))}
-            </div>
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "開啟議題"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/TaskRow.tsx
-````typescript
-"use client";
-
-import { useCallback, useState } from "react";
-
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
-
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-
 import type { Issue } from "../../application/dto/workflow.dto";
 import type { Task } from "../../application/dto/workflow.dto";
-import type { TaskStatus } from "../../application/dto/workflow.dto";
+import { wfCreateInvoice } from "../_actions/workspace-flow.actions";
 import {
-  wfApproveTaskAcceptance,
-  wfArchiveTask,
-  wfPassTaskQa,
-  wfSubmitTaskToQa,
-} from "../_actions/workspace-flow.actions";
-import { getWorkspaceFlowIssues } from "../queries/workspace-flow.queries";
-import { AssignTaskDialog } from "./AssignTaskDialog";
+  getWorkspaceFlowIssues,
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowTasks,
+} from "../queries/workspace-flow.queries";
+import { CreateTaskDialog } from "./CreateTaskDialog";
 import { IssueRow } from "./IssueRow";
-import { OpenIssueDialog } from "./OpenIssueDialog";
+import { InvoiceRow } from "./InvoiceRow";
+import { TaskRow } from "./TaskRow";
 
-const TASK_STATUS_VARIANT: Record<
-  TaskStatus,
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  draft: "outline",
-  in_progress: "secondary",
-  qa: "secondary",
-  acceptance: "default",
-  accepted: "default",
-  archived: "outline",
-};
+// ── Types ──────────────────────────────────────────────────────────────────────
 
-const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
-  draft: "草稿",
-  in_progress: "進行中",
-  qa: "QA 審查",
-  acceptance: "驗收中",
-  accepted: "已驗收",
-  archived: "已歸檔",
-};
+type FlowSection = "tasks" | "qa" | "acceptance" | "issues" | "invoices";
 
-function formatShortDate(iso: string | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
+interface WorkspaceFlowTabProps {
+  readonly workspaceId: string;
+  readonly currentUserId?: string;
+  readonly initialSection?: FlowSection;
 }
 
-export interface TaskRowProps {
-  task: Task;
-  currentUserId: string;
-  onTransitioned: () => void;
-}
+// ── Main Component ─────────────────────────────────────────────────────────────
 
-export function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
-  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
-  const [issuesExpanded, setIssuesExpanded] = useState(false);
+export function WorkspaceFlowTab({
+  workspaceId,
+  currentUserId = "anonymous",
+  initialSection = "tasks",
+}: WorkspaceFlowTabProps) {
+  const [section, setSection] = useState<FlowSection>(initialSection);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
-  const [issuesLoaded, setIssuesLoaded] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const loadIssues = useCallback(async () => {
+  const loadData = useCallback(async () => {
+    setLoadState("loading");
     try {
-      const data = await getWorkspaceFlowIssues(task.id);
-      setIssues(data);
-      setIssuesLoaded(true);
-    } catch {
-      // non-fatal
-    }
-  }, [task.id]);
-
-  async function toggleIssues() {
-    if (!issuesExpanded && !issuesLoaded) {
-      await loadIssues();
-    }
-    setIssuesExpanded((v) => !v);
-  }
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
+      const [nextTasks, nextInvoices] = await Promise.all([
+        getWorkspaceFlowTasks(workspaceId),
+        getWorkspaceFlowInvoices(workspaceId),
+      ]);
+      const issueMatrix = await Promise.all(
+        nextTasks.map(async (task) => {
+          try {
+            return await getWorkspaceFlowIssues(task.id);
+          } catch {
+            return [] as Issue[];
+          }
+        }),
+      );
+      setTasks(nextTasks);
+      setInvoices(nextInvoices);
+      setIssues(issueMatrix.flat());
+      setLoadState("loaded");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceFlowTab] Failed to load flow data:", err);
+      }
+      setLoadState("error");
     }
-  }
+  }, [workspaceId]);
 
-  function renderTaskAction() {
-    switch (task.status) {
-      case "draft":
-        return (
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => setAssignDialogOpen(true)}>
-            指派任務
-          </Button>
-        );
-      case "in_progress":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitTaskToQa(task.id))}>送 QA</Button>;
-      case "qa":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassTaskQa(task.id))}>QA 通過</Button>;
-      case "acceptance":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveTaskAcceptance(task.id))}>驗收通過</Button>;
-      case "accepted":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfArchiveTask(task.id))}>歸檔</Button>;
-      default:
-        return null;
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    setSection(initialSection);
+  }, [initialSection]);
+
+  const qaTasks = useMemo(
+    () => tasks.filter((task) => task.status === "qa"),
+    [tasks],
+  );
+
+  const acceptanceTasks = useMemo(
+    () => tasks.filter((task) => task.status === "acceptance" || task.status === "accepted"),
+    [tasks],
+  );
+
+  async function handleCreateInvoice() {
+    setCreatingInvoice(true);
+    setActionError(null);
+    try {
+      const result = await wfCreateInvoice(workspaceId);
+      if (!result.success) { setActionError(result.error.message ?? "建立發票失敗"); }
+      else { await loadData(); }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "建立發票失敗");
+    } finally {
+      setCreatingInvoice(false);
     }
   }
 
   return (
-    <div className="rounded-xl border border-border/40 px-4 py-4 space-y-3">
-      {/* ── Task header ─────────────────────── */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">{task.title}</p>
-          {task.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
-          )}
-          {task.assigneeId && (
-            <p className="text-xs text-muted-foreground">指派：{task.assigneeId}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Badge variant={TASK_STATUS_VARIANT[task.status]}>{TASK_STATUS_LABEL[task.status]}</Badge>
-          {task.dueDateISO && (
-            <p className="text-xs text-muted-foreground">截止：{formatShortDate(task.dueDateISO)}</p>
-          )}
-        </div>
-      </div>
-
-      {/* ── Action row ──────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2">
-        {renderTaskAction()}
+    <div className="space-y-4">
+      {/* ── Section switcher ─────────────────────────────────────────── */}
+      <div className="flex gap-2">
         <Button
+          variant={section === "tasks" ? "default" : "outline"}
           size="sm"
-          variant="ghost"
-          className="text-muted-foreground"
-          onClick={() => setIssueDialogOpen(true)}
+          onClick={() => setSection("tasks")}
         >
-          <Plus className="mr-1 h-3.5 w-3.5" />
-          開議題
+          任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
         </Button>
         <Button
+          variant={section === "qa" ? "default" : "outline"}
           size="sm"
-          variant="ghost"
-          className="text-muted-foreground ml-auto"
-          onClick={toggleIssues}
+          onClick={() => setSection("qa")}
         >
-          {issuesExpanded ? (
-            <ChevronDown className="mr-1 h-3.5 w-3.5" />
-          ) : (
-            <ChevronRight className="mr-1 h-3.5 w-3.5" />
-          )}
-          議題{issuesLoaded ? ` (${issues.length})` : ""}
+          質檢{loadState === "loaded" ? ` (${qaTasks.length})` : ""}
+        </Button>
+        <Button
+          variant={section === "acceptance" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("acceptance")}
+        >
+          驗收{loadState === "loaded" ? ` (${acceptanceTasks.length})` : ""}
+        </Button>
+        <Button
+          variant={section === "issues" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("issues")}
+        >
+          問題單{loadState === "loaded" ? ` (${issues.length})` : ""}
+        </Button>
+        <Button
+          variant={section === "invoices" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("invoices")}
+        >
+          財務{loadState === "loaded" ? ` (${invoices.length})` : ""}
         </Button>
       </div>
 
-      {/* ── Issues sub-list ─────────────────── */}
-      {issuesExpanded && (
-        <div className="space-y-2 pl-1">
-          {issues.length === 0 ? (
-            <p className="text-xs text-muted-foreground">此任務目前無議題。</p>
-          ) : (
-            issues.map((issue) => (
-              <IssueRow
-                key={issue.id}
-                issue={issue}
-                onTransitioned={loadIssues}
-              />
-            ))
-          )}
-        </div>
+      {/* ── Loading state ─────────────────────────────────────────────── */}
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">載入中…</CardContent>
+        </Card>
       )}
 
-      {/* ── Dialogs ─────────────────────────── */}
-      <AssignTaskDialog
-        open={assignDialogOpen}
-        taskId={task.id}
-        onClose={() => setAssignDialogOpen(false)}
-        onDone={onTransitioned}
-      />
-      <OpenIssueDialog
-        open={issueDialogOpen}
-        taskId={task.id}
-        currentUserId={currentUserId}
-        onClose={() => setIssueDialogOpen(false)}
-        onCreated={async () => {
-          await loadIssues();
-          if (!issuesExpanded) setIssuesExpanded(true);
-        }}
+      {/* ── Error state ───────────────────────────────────────────────── */}
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入資料，請重新整理頁面後再試。
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Tasks section ─────────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "tasks" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>任務</CardTitle>
+                <CardDescription>工作區所有任務與其進度狀態。</CardDescription>
+              </div>
+              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                建立任務
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {tasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前尚無任務，點擊右上角「建立任務」開始。</p>
+            ) : (
+              tasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  currentUserId={currentUserId}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── QA section ────────────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "qa" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle>質檢</CardTitle>
+            <CardDescription>等待 QA 審查或處於 QA 階段的任務。</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {qaTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前沒有等待質檢的任務。</p>
+            ) : (
+              qaTasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  currentUserId={currentUserId}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Acceptance section ────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "acceptance" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle>驗收</CardTitle>
+            <CardDescription>進行驗收中與已完成驗收的任務。</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {acceptanceTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前沒有驗收中的任務。</p>
+            ) : (
+              acceptanceTasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  currentUserId={currentUserId}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Issues section ────────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "issues" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <CardTitle>問題單</CardTitle>
+            <CardDescription>跨任務檢視所有議題狀態與處理進度。</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {issues.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前沒有問題單。</p>
+            ) : (
+              issues.map((issue) => (
+                <IssueRow
+                  key={issue.id}
+                  issue={issue}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Invoices section ──────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "invoices" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>財務</CardTitle>
+                <CardDescription>工作區帳務請款紀錄。</CardDescription>
+              </div>
+              <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                {creatingInvoice ? "建立中…" : "建立發票"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {actionError && (
+              <p role="alert" className="text-sm text-destructive">{actionError}</p>
+            )}
+            {invoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前尚無發票紀錄，點擊右上角「建立發票」開始。</p>
+            ) : (
+              <>
+                <Separator />
+                {invoices.map((invoice) => (
+                  <InvoiceRow
+                    key={invoice.id}
+                    invoice={invoice}
+                    onTransitioned={loadData}
+                  />
+                ))}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Create Task Dialog ─────────────────────────────────────────── */}
+      <CreateTaskDialog
+        open={createTaskOpen}
+        workspaceId={workspaceId}
+        onClose={() => setCreateTaskOpen(false)}
+        onCreated={loadData}
       />
     </div>
   );
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/contracts/workspace-flow.contract.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/contracts
- * @file workspace-flow.contract.ts
- * @description Module-local interface contracts for workspace-flow UI adapters.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Expand with view-model contracts as UI adapters are added
- */
-
-import type { Task } from "../../application/dto/workflow.dto";
-import type { Issue } from "../../application/dto/workflow.dto";
-import type { Invoice } from "../../application/dto/workflow.dto";
-import type { InvoiceItem } from "../../application/dto/workflow.dto";
-
-// ── Summary read models (lean projections for UI) ─────────────────────────────
-
-export interface TaskSummary {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly status: Task["status"];
-  readonly assigneeId?: string;
-}
-
-export interface IssueSummary {
-  readonly id: string;
-  readonly taskId: string;
-  readonly title: string;
-  readonly status: Issue["status"];
-  readonly stage: Issue["stage"];
-}
-
-export interface InvoiceSummary {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly status: Invoice["status"];
-  readonly totalAmount: number;
-}
-
-export interface InvoiceItemSummary {
-  readonly id: string;
-  readonly invoiceId: string;
-  readonly taskId: string;
-  readonly amount: InvoiceItem["amount"];
-}
-
-// ── Projection helpers ────────────────────────────────────────────────────────
-
-export function toTaskSummary(task: Task): TaskSummary {
-  return {
-    id: task.id,
-    workspaceId: task.workspaceId,
-    title: task.title,
-    status: task.status,
-    assigneeId: task.assigneeId,
-  };
-}
-
-export function toIssueSummary(issue: Issue): IssueSummary {
-  return {
-    id: issue.id,
-    taskId: issue.taskId,
-    title: issue.title,
-    status: issue.status,
-    stage: issue.stage,
-  };
-}
-
-export function toInvoiceSummary(invoice: Invoice): InvoiceSummary {
-  return {
-    id: invoice.id,
-    workspaceId: invoice.workspaceId,
-    status: invoice.status,
-    totalAmount: invoice.totalAmount,
-  };
-}
-
-export function toInvoiceItemSummary(item: InvoiceItem): InvoiceItemSummary {
-  return {
-    id: item.id,
-    invoiceId: item.invoiceId,
-    taskId: item.taskId,
-    amount: item.amount,
-  };
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/queries/workspace-flow.queries.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/queries
- * @file workspace-flow.queries.ts
- * @description Server-side read queries for workspace-flow entities.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add pagination support and caching layer
- */
-
-import type { Task } from "../../application/dto/workflow.dto";
-import type { Issue } from "../../application/dto/workflow.dto";
-import type { Invoice } from "../../application/dto/workflow.dto";
-import type { InvoiceItem } from "../../application/dto/workflow.dto";
-import { makeInvoiceRepo, makeIssueRepo, makeTaskRepo } from "../../api/factories";
-
-/**
- * List all tasks for a workspace.
- *
- * @param workspaceId - The workspace to query
- */
-export async function getWorkspaceFlowTasks(workspaceId: string): Promise<Task[]> {
-  return makeTaskRepo().findByWorkspaceId(workspaceId);
-}
-
-/**
- * Get a single task by id.
- *
- * @param taskId - The task identifier
- */
-export async function getWorkspaceFlowTask(taskId: string): Promise<Task | null> {
-  return makeTaskRepo().findById(taskId);
-}
-
-/**
- * List all issues for a task.
- *
- * @param taskId - The task identifier
- */
-export async function getWorkspaceFlowIssues(taskId: string): Promise<Issue[]> {
-  return makeIssueRepo().findByTaskId(taskId);
-}
-
-/**
- * List all invoices for a workspace.
- *
- * @param workspaceId - The workspace to query
- */
-export async function getWorkspaceFlowInvoices(workspaceId: string): Promise<Invoice[]> {
-  return makeInvoiceRepo().findByWorkspaceId(workspaceId);
-}
-
-/**
- * Get items for an invoice.
- *
- * @param invoiceId - The invoice identifier
- */
-export async function getWorkspaceFlowInvoiceItems(invoiceId: string): Promise<InvoiceItem[]> {
-  return makeInvoiceRepo().listItems(invoiceId);
 }
 ````
 
@@ -59895,6 +59821,244 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{ state, dispatch }}>
       {children}
     </AppContext.Provider>
+  );
+}
+````
+
+## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
+````typescript
+"use client";
+
+/**
+ * ShellDashboardSidebar — app/(shell)/_shell composition layer.
+ * Moved from modules/platform because it composes workspace module components.
+ */
+
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
+
+import {
+  buildWorkspaceQuickAccessItems,
+  CustomizeNavigationDialog,
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  readNavPreferences,
+  buildWorkspaceContextHref,
+  supportsWorkspaceSearchContext,
+  type NavPreferences,
+  useRecentWorkspaces,
+  useSidebarLocale,
+  WorkspaceQuickAccessRow,
+} from "@/modules/workspace/api";
+
+import {
+  quickCreateKnowledgePage,
+} from "./shell-quick-create";
+import {
+  type DashboardSidebarProps,
+  ORGANIZATION_MANAGEMENT_ITEMS,
+  ACCOUNT_NAV_ITEMS,
+  SECTION_TITLES,
+  resolveNavSection,
+  isActiveRoute,
+  isActiveOrganizationAccount,
+} from "./ShellSidebarNavData";
+import { ShellSidebarHeader } from "./ShellSidebarHeader";
+import { DashboardSidebarBody } from "./ShellSidebarBody";
+
+export function ShellDashboardSidebar({
+  pathname,
+  userId,
+  activeAccount,
+  workspaces,
+  workspacesHydrated,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps) {
+  const searchParams = useSearchParams();
+
+  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
+    activeAccount?.id,
+    pathname,
+    workspaces,
+  );
+  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
+  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const localeBundle = useSidebarLocale();
+
+  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
+
+  const visibleOrganizationManagementItems = useMemo(
+    () => ORGANIZATION_MANAGEMENT_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
+    [navPrefs.pinnedWorkspace],
+  );
+
+  const visibleAccountItems = useMemo(
+    () => ACCOUNT_NAV_ITEMS.filter((item) => navPrefs.pinnedWorkspace.includes(item.id)),
+    [navPrefs.pinnedWorkspace],
+  );
+
+  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
+
+  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
+    ? navPrefs.maxWorkspaces
+    : MAX_VISIBLE_RECENT_WORKSPACES;
+
+  const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+
+  useEffect(() => {
+    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
+    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(pathWorkspaceId);
+      return;
+    }
+
+    if (!supportsWorkspaceSearchContext(pathname)) {
+      return;
+    }
+
+    if (currentSearchWorkspaceId && currentSearchWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(currentSearchWorkspaceId);
+    }
+  }, [pathname, activeWorkspaceId, currentSearchWorkspaceId, onSelectWorkspace]);
+
+  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
+  const visibleRecentWorkspaceLinks = isExpanded
+    ? recentWorkspaceLinks
+    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
+
+  const allWorkspaceLinks = useMemo(
+    () =>
+      workspaces
+        .map((workspace) => ({
+          id: workspace.id,
+          name: workspace.name,
+          href: buildWorkspaceContextHref(pathname, workspace.id),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces, pathname],
+  );
+
+  const section = resolveNavSection(pathname);
+  const sectionMeta = SECTION_TITLES[section];
+  const workspacePathId = getWorkspaceIdFromPath(pathname);
+  const currentPanel = searchParams.get("panel");
+  const currentWorkspaceTab = searchParams.get("tab");
+  const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
+  const hasWorkspaceToolContext =
+    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
+    (section === "knowledge" ||
+      section === "knowledge-base" ||
+      section === "source" ||
+      section === "notebook");
+  const workspaceQuickAccessId =
+    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
+  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
+  const workspaceSettingsHref = workspaceQuickAccessId
+    ? activeAccount?.id
+      ? `/${encodeURIComponent(activeAccount.id)}/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
+      : `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
+    : "";
+  const workspaceQuickAccessItems = useMemo(
+    () =>
+      showWorkspaceQuickAccess && workspaceQuickAccessId
+        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId, activeAccount?.id)
+        : [],
+    [showWorkspaceQuickAccess, workspaceQuickAccessId, activeAccount?.id],
+  );
+
+  async function handleQuickCreatePage() {
+    const accountId = activeAccount?.id ?? "";
+    if (!accountId || !activeWorkspaceId) {
+      toast.error(!accountId ? "目前沒有 active account，無法建立" : "請先切換到工作區，再建立頁面");
+      return;
+    }
+    setCreatingKind("page");
+    try {
+      const result = await quickCreateKnowledgePage({
+        accountId,
+        workspaceId: activeWorkspaceId,
+        createdByUserId: userId ?? accountId,
+      });
+      if (result.success) {
+        toast.success("已建立頁面");
+      } else {
+        toast.error(result.error?.message ?? "建立頁面失敗");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("建立頁面失敗");
+    } finally {
+      setCreatingKind(null);
+    }
+  }
+
+  return (
+    <div className="contents">
+      <aside
+        aria-label="Secondary navigation"
+        className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
+          collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
+        }`}
+      >
+        <ShellSidebarHeader
+          sectionLabel={sectionMeta.label}
+          sectionIcon={sectionMeta.icon}
+          onOpenCustomize={() => {
+            setCustomizeOpen(true);
+          }}
+          onToggleCollapsed={onToggleCollapsed}
+        />
+
+        <WorkspaceQuickAccessRow
+          items={workspaceQuickAccessItems}
+          pathname={pathname}
+          currentPanel={currentPanel}
+          currentWorkspaceTab={currentWorkspaceTab}
+          workspaceSettingsHref={workspaceSettingsHref}
+          isActiveRoute={(href) => isActiveRoute(pathname, href)}
+        />
+
+        <DashboardSidebarBody
+          section={section}
+          isActiveRoute={(href) => isActiveRoute(pathname, href)}
+          activeAccountId={activeAccount?.id ?? null}
+          showAccountManagement={showAccountManagement}
+          visibleAccountItems={visibleAccountItems}
+          visibleOrganizationManagementItems={visibleOrganizationManagementItems}
+          workspacePathId={workspacePathId}
+          navPrefs={navPrefs}
+          localeBundle={localeBundle}
+          showRecentWorkspaces={showRecentWorkspaces}
+          visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+          hasOverflow={hasOverflow}
+          isExpanded={isExpanded}
+          activeWorkspaceId={activeWorkspaceId}
+          onSelectWorkspace={onSelectWorkspace}
+          onToggleExpanded={() => {
+            setIsExpanded((prev) => !prev);
+          }}
+          pathname={pathname}
+          workspacesHydrated={workspacesHydrated}
+          allWorkspaceLinks={allWorkspaceLinks}
+          currentSearchWorkspaceId={currentSearchWorkspaceId}
+          creatingKind={creatingKind}
+          onQuickCreatePage={() => {
+            void handleQuickCreatePage();
+          }}
+        />
+      </aside>
+
+      <CustomizeNavigationDialog
+        open={customizeOpen}
+        onOpenChange={setCustomizeOpen}
+        onPreferencesChange={setNavPrefs}
+      />
+    </div>
   );
 }
 ````
@@ -60104,6 +60268,64 @@ export function DashboardSidebarBody({
 }
 ````
 
+## File: app/(shell)/_shell/WorkspaceRouteShim.tsx
+````typescript
+"use client";
+
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { useApp } from "@/modules/platform/api";
+import {
+  buildWorkspaceOverviewPanelHref,
+  type WorkspaceOverviewPanel,
+  useWorkspaceContext,
+} from "@/modules/workspace/api";
+
+interface WorkspaceRouteShimProps {
+  readonly panel?: WorkspaceOverviewPanel;
+  readonly tab?: "Overview" | "Files";
+  readonly loadingMessage: string;
+}
+
+export function WorkspaceRouteShim({
+  panel,
+  tab = "Overview",
+  loadingMessage,
+}: WorkspaceRouteShimProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const {
+    state: { activeAccount },
+  } = useApp();
+  const {
+    state: { activeWorkspaceId },
+  } = useWorkspaceContext();
+
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+  const targetWorkspaceId = requestedWorkspaceId || activeWorkspaceId || "";
+  const activeAccountId = activeAccount?.id ?? "";
+
+  const targetHref = targetWorkspaceId
+    ? activeAccountId
+      ? tab === "Files"
+        ? `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
+        : `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(targetWorkspaceId)}?tab=Overview${
+            panel ? `&panel=${encodeURIComponent(panel)}` : ""
+          }`
+      : tab === "Files"
+        ? `/workspace/${encodeURIComponent(targetWorkspaceId)}?tab=Files`
+        : buildWorkspaceOverviewPanelHref(targetWorkspaceId, panel)
+    : "/workspace";
+
+  useEffect(() => {
+    router.replace(targetHref);
+  }, [router, targetHref]);
+
+  return <div className="px-4 py-6 text-sm text-muted-foreground">{loadingMessage}</div>;
+}
+````
+
 ## File: app/(shell)/(account)/[accountId]/layout.tsx
 ````typescript
 import type { ReactNode } from "react";
@@ -60215,100 +60437,6 @@ export default function AccountWorkspaceHubPage() {
 }
 ````
 
-## File: app/(shell)/knowledge-base/articles/[articleId]/page.tsx
-````typescript
-"use client";
-
-import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
-import { ArticleDetailPage } from "@/modules/notion/api";
-
-export default function ArticleDetailPageRoute() {
-  const { accountId, workspaceId, currentUserId } = useWorkspaceOrchestrationContext();
-
-  return (
-    <ArticleDetailPage
-      accountId={accountId}
-      workspaceId={workspaceId}
-      currentUserId={currentUserId}
-    />
-  );
-}
-````
-
-## File: app/(shell)/knowledge-database/databases/[databaseId]/forms/page.tsx
-````typescript
-"use client";
-
-import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
-import { DatabaseFormsPage } from "@/modules/notion/api";
-
-export default function DatabaseFormsPageRoute() {
-  const { accountId, workspaceId, currentUserId } = useWorkspaceOrchestrationContext();
-
-  return (
-    <DatabaseFormsPage
-      accountId={accountId}
-      workspaceId={workspaceId}
-      currentUserId={currentUserId}
-    />
-  );
-}
-````
-
-## File: app/(shell)/knowledge-database/databases/[databaseId]/page.tsx
-````typescript
-"use client";
-
-import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
-import { DatabaseDetailPage } from "@/modules/notion/api";
-
-export default function DatabaseDetailPageRoute() {
-  const { accountId, workspaceId, currentUserId } = useWorkspaceOrchestrationContext();
-
-  return (
-    <DatabaseDetailPage
-      accountId={accountId}
-      workspaceId={workspaceId}
-      currentUserId={currentUserId}
-    />
-  );
-}
-````
-
-## File: app/(shell)/knowledge/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../_shell/WorkspaceRouteShim";
-
-export default function KnowledgeHubPage() {
-  return (
-    <WorkspaceRouteShim
-      panel="knowledge-pages"
-      loadingMessage="正在導向 Workspace Overview（Knowledge Pages）…"
-    />
-  );
-}
-````
-
-## File: app/(shell)/knowledge/pages/[pageId]/page.tsx
-````typescript
-"use client";
-
-import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
-import { KnowledgePageDetailPage } from "@/modules/notion/api";
-
-export default function KnowledgePageDetailPageRoute() {
-  const { accountId, activeWorkspaceId, currentUserId } = useWorkspaceOrchestrationContext();
-
-  return (
-    <KnowledgePageDetailPage
-      accountId={accountId}
-      activeWorkspaceId={activeWorkspaceId || null}
-      currentUserId={currentUserId}
-    />
-  );
-}
-````
-
 ## File: app/(shell)/layout.tsx
 ````typescript
 "use client";
@@ -60322,20 +60450,6 @@ import { ShellLayout } from "./_shell";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return <ShellLayout>{children}</ShellLayout>;
-}
-````
-
-## File: app/(shell)/source/documents/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
-
-export default function SourceDocumentsPage() {
-  return (
-    <WorkspaceRouteShim
-      tab="Files"
-      loadingMessage="正在導向 Workspace Files…"
-    />
-  );
 }
 ````
 
@@ -61862,219 +61976,307 @@ Strategic architecture documentation lives in `docs/contexts/notion/`:
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
-## File: modules/notion/subdomains/authoring/interfaces/components/KnowledgeBaseArticlesRouteScreen.tsx
+## File: modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx
 ````typescript
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  Archive,
+  ArrowLeft,
+  BadgeCheck,
+  Edit,
+  FileClock,
+  MessageSquare,
+  History,
+  Globe,
+  Link2,
+} from "lucide-react";
 
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
+import { getArticle, getCategories, getBacklinks } from "../queries";
+import {
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+} from "../_actions/article.actions";
+import { ArticleDialog } from "./ArticleDialog";
+import type { ArticleSnapshot as Article } from "../../application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
+import { CommentPanel, VersionHistoryPanel } from "@/modules/notion/api";
+import { ReactMarkdown } from "@lib-react-markdown";
+import { remarkGfm } from "@lib-remark-gfm";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
 
-import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
-import { getArticles, getCategories } from "../queries";
-import { ArticleDialog } from "./ArticleDialog";
-import { CategoryTreePanel } from "./CategoryTreePanel";
+// ── Props ─────────────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "草稿", variant: "outline" },
-  published: { label: "已發佈", variant: "default" },
-  archived: { label: "已封存", variant: "secondary" },
-};
+export interface ArticleDetailPageProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
 
-const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
-  verified: { label: "已驗證", icon: BadgeCheck },
-  needs_review: { label: "待審查", icon: FileClock },
-  unverified: { label: "未驗證", icon: CircleDot },
-};
+// ── Component ─────────────────────────────────────────────────────────────────
 
-/**
- * KnowledgeBaseArticlesRouteScreen
- * Route-level screen component for /knowledge-base/articles.
- * Encapsulates data-loading, filtering and layout so the Next.js route
- * file stays thin (params/context wiring only).
- */
-export function KnowledgeBaseArticlesRouteScreen() {
+export function ArticleDetailPage({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: ArticleDetailPageProps) {
+  const params = useParams();
   const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
+  const articleId = params.articleId as string;
 
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = wsState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-  const workspaceBasePath =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
-  const overviewHref = workspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
-    : "/workspace";
-
-  const [articles, setArticles] = useState<Article[]>([]);
+  const [article, setArticle] = useState<Article | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [backlinks, setBacklinks] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const articleListHref =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-base/articles`
+      : "/knowledge-base/articles";
 
   const load = useCallback(async () => {
-    if (!accountId || !workspaceId) { setLoading(false); return; }
+    if (!accountId || !articleId) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [arts, cats] = await Promise.all([
-        getArticles({ accountId, workspaceId }),
+      const [art, cats, bls] = await Promise.all([
+        getArticle(accountId, articleId),
         getCategories(accountId, workspaceId),
+        getBacklinks(accountId, articleId),
       ]);
-      setArticles(arts);
+      setArticle(art);
       setCategories(cats);
+      setBacklinks(bls);
     } finally {
       setLoading(false);
     }
-  }, [accountId, workspaceId]);
+  }, [accountId, workspaceId, articleId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
-  const filteredArticles = useMemo(() => {
-    if (!selectedCategoryId) return articles;
-    const cat = categories.find((c) => c.id === selectedCategoryId);
-    if (!cat) return articles;
-    return articles.filter((a) => cat.articleIds.includes(a.id));
-  }, [articles, categories, selectedCategoryId]);
-
-  function handleSuccess(articleId?: string) {
-    if (articleId) {
-      if (accountId && workspaceId) {
-        router.push(
-          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
-        );
-      } else {
-        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
-      }
-    } else {
-      load();
-    }
+  function handlePublish() {
+    startTransition(async () => {
+      await publishArticle({ id: articleId, accountId });
+      await load();
+    });
   }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveArticle({ id: articleId, accountId });
+      await load();
+    });
+  }
+
+  function handleVerify() {
+    startTransition(async () => {
+      await verifyArticle({ id: articleId, accountId, verifiedByUserId: currentUserId });
+      await load();
+    });
+  }
+
+  function handleRequestReview() {
+    startTransition(async () => {
+      await requestArticleReview({ id: articleId, accountId });
+      await load();
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!article) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到文章。</p>
+      </div>
+    );
+  }
+
+  const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
+    draft: "outline",
+    published: "default",
+    archived: "secondary",
+  };
+  const statusLabel: Record<string, string> = {
+    draft: "草稿",
+    published: "已發佈",
+    archived: "已封存",
+  };
+  const veriLabel: Record<string, string> = {
+    verified: "已驗證",
+    needs_review: "待審查",
+    unverified: "未驗證",
+  };
 
   return (
     <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
-        <p className="text-sm text-muted-foreground">
-          組織知識庫的 SOP 文章、通用文件與驗證管治。
+      {/* Back + actions bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => router.push(articleListHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 文章列表
+        </Button>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {article.status === "draft" && (
+            <Button size="sm" variant="outline" onClick={handlePublish} disabled={isPending}>
+              <Globe className="mr-1.5 h-3.5 w-3.5" /> 發佈
+            </Button>
+          )}
+          {article.status !== "archived" && (
+            <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
+              <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
+            </Button>
+          )}
+          {article.verificationState !== "verified" && (
+            <Button size="sm" variant="outline" onClick={handleVerify} disabled={isPending}>
+              <BadgeCheck className="mr-1.5 h-3.5 w-3.5" /> 標記已驗證
+            </Button>
+          )}
+          {article.verificationState === "verified" && (
+            <Button size="sm" variant="outline" onClick={handleRequestReview} disabled={isPending}>
+              <FileClock className="mr-1.5 h-3.5 w-3.5" /> 請求審查
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setEditOpen(true)}>
+            <Edit className="mr-1.5 h-3.5 w-3.5" /> 編輯
+          </Button>
+        </div>
+      </div>
+
+      {/* Header */}
+      <header className="space-y-2 border-b border-border/60 pb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={statusVariant[article.status] ?? "outline"}>
+            {statusLabel[article.status] ?? article.status}
+          </Badge>
+          {article.verificationState && (
+            <Badge variant="outline" className="text-xs">
+              {veriLabel[article.verificationState] ?? article.verificationState}
+            </Badge>
+          )}
+          {article.tags.map((tag) => (
+            <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              {tag}
+            </span>
+          ))}
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{article.title}</h1>
+        <p className="text-xs text-muted-foreground">
+          v{article.version} · 更新於 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
         </p>
       </header>
 
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!accountId || !workspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增文章
-        </Button>
-      </div>
+      {/* Body tabs */}
+      <Tabs defaultValue="content" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="content">內容</TabsTrigger>
+          <TabsTrigger value="backlinks">
+            <Link2 className="mr-1 h-3.5 w-3.5" /> 反向連結
+            {backlinks.length > 0 && (
+              <span className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                {backlinks.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="comments">
+            <MessageSquare className="mr-1 h-3.5 w-3.5" /> 留言
+          </TabsTrigger>
+          <TabsTrigger value="versions">
+            <History className="mr-1 h-3.5 w-3.5" /> 版本
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="content">
+          <div className="prose prose-sm dark:prose-invert min-h-[200px] max-w-none rounded-lg border border-border/60 bg-muted/10 p-4">
+            {article.content ? (
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {article.content}
+              </ReactMarkdown>
+            ) : (
+              <p className="text-sm text-muted-foreground">此文章尚無內容。</p>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="backlinks">
+          {backlinks.length === 0 ? (
+            <p className="rounded-lg border border-border/60 bg-muted/10 p-4 text-sm text-muted-foreground">
+              尚無其他文章引用此文章。
+            </p>
+          ) : (
+            <ul className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-4">
+              {backlinks.map((bl) => (
+                <li key={bl.id}>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/knowledge-base/articles/${bl.id}`)}
+                    className="text-sm text-primary hover:underline text-left"
+                  >
+                    {bl.title}
+                  </button>
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(bl.updatedAtISO).toLocaleDateString("zh-TW")}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </TabsContent>
+
+        <TabsContent value="comments">
+          {currentUserId ? (
+            <CommentPanel
+              accountId={accountId}
+              workspaceId={workspaceId}
+              contentId={articleId}
+              contentType="article"
+              currentUserId={currentUserId}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">請先登入以查看留言。</p>
+          )}
+        </TabsContent>
+
+        <TabsContent value="versions">
+          {currentUserId ? (
+            <VersionHistoryPanel
+              accountId={accountId}
+              contentId={articleId}
+              currentUserId={currentUserId}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">請先登入以查看版本歷程。</p>
+          )}
+        </TabsContent>
+      </Tabs>
 
       <ArticleDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        open={editOpen}
+        onOpenChange={setEditOpen}
         accountId={accountId}
         workspaceId={workspaceId}
         currentUserId={currentUserId}
         categories={categories}
-        onSuccess={handleSuccess}
+        article={article}
+        onSuccess={() => void load()}
       />
-
-      {!accountId || !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
-        </p>
-      ) : loading ? (
-        <div className="flex gap-4">
-          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
-          <div className="grid flex-1 gap-3 sm:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full rounded-lg" />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="flex gap-4">
-          <CategoryTreePanel
-            categories={categories}
-            selectedId={selectedCategoryId}
-            onSelect={setSelectedCategoryId}
-          />
-
-          <div className="flex-1">
-            {filteredArticles.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
-                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {filteredArticles.map((article) => {
-                  const status = STATUS_CONFIG[article.status];
-                  const veri = VERIFICATION_CONFIG[article.verificationState];
-                  const VeriIcon = veri.icon;
-                  return (
-                    <Card
-                      key={article.id}
-                      className="cursor-pointer hover:bg-muted/10 transition-colors"
-                      onClick={() => handleSuccess(article.id)}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
-                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <VeriIcon className="h-3 w-3" />
-                          <span>{veri.label}</span>
-                        </div>
-                        {article.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {article.tags.slice(0, 3).map((tag) => (
-                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <p className="text-[10px] text-muted-foreground/70">
-                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -62277,166 +62479,428 @@ export class DeleteViewUseCase {
 export { ListViewsUseCase } from "../queries/view.queries";
 ````
 
-## File: modules/notion/subdomains/database/interfaces/components/KnowledgeDatabasesRouteScreen.tsx
+## File: modules/notion/subdomains/database/interfaces/components/DatabaseDetailPage.tsx
 ````typescript
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Table2 } from "lucide-react";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Archive,
+  FileText,
+  PlusCircle,
+  Table2,
+  Kanban,
+  List,
+  Calendar,
+  LayoutGrid,
+  Zap,
+} from "lucide-react";
 
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
+import { getDatabase } from "../queries";
+import { addDatabaseField, archiveDatabase } from "../_actions/database.actions";
+import { DatabaseTableView } from "./DatabaseTableView";
+import { DatabaseBoardView } from "./DatabaseBoardView";
+import { DatabaseListView } from "./DatabaseListView";
+import { DatabaseCalendarView } from "./DatabaseCalendarView";
+import { DatabaseGalleryView } from "./DatabaseGalleryView";
+import { DatabaseAutomationView } from "./DatabaseAutomationView";
+import { AddFieldDialog } from "./DatabaseAddFieldDialog";
+import type { DatabaseSnapshot as Database, FieldType } from "../../application/dto/database.dto";
 import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-import type { DatabaseSnapshot as Database } from "../../application/dto/database.dto";
-import { getDatabases } from "../queries";
-import { DatabaseDialog } from "./DatabaseDialog";
+// ── Props ─────────────────────────────────────────────────────────────────────
 
-/**
- * KnowledgeDatabasesRouteScreen
- * Route-level screen component for /knowledge-database/databases.
- * Encapsulates data-loading and layout so the Next.js route file stays thin.
- */
-export function KnowledgeDatabasesRouteScreen() {
+export interface DatabaseDetailPageProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function DatabaseDetailPage({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: DatabaseDetailPageProps) {
+  const params = useParams();
   const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
+  const databaseId = params.databaseId as string;
 
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = wsState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
+  const [database, setDatabase] = useState<Database | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [addFieldOpen, setAddFieldOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "board" | "list" | "calendar" | "gallery" | "automations">("table");
+  const [isPending, startTransition] = useTransition();
   const workspaceBasePath =
     accountId && workspaceId
       ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
       : "/workspace";
-  const overviewHref = workspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-databases`
-    : "/workspace";
-
-  const [databases, setDatabases] = useState<Database[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const databasesHref =
+    accountId && workspaceId
+      ? `${workspaceBasePath}/knowledge-database/databases`
+      : "/knowledge-database/databases";
+  const formsHref =
+    accountId && workspaceId
+      ? `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`
+      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}/forms`;
 
   const load = useCallback(async () => {
-    if (!accountId || !workspaceId) { setLoading(false); return; }
+    if (!accountId || !databaseId) { setLoading(false); return; }
     setLoading(true);
     try {
-      const data = await getDatabases(accountId, workspaceId);
-      setDatabases(data);
+      const db = await getDatabase(accountId, databaseId);
+      setDatabase(db);
     } finally {
       setLoading(false);
     }
-  }, [accountId, workspaceId]);
+  }, [accountId, databaseId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
-  function handleSuccess(databaseId?: string) {
-    if (databaseId) {
-      if (accountId && workspaceId) {
-        router.push(
-          `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}`,
-        );
-      } else {
-        router.push(`/knowledge-database/databases/${encodeURIComponent(databaseId)}`);
-      }
-    } else {
-      load();
-    }
+  function handleAddField(name: string, type: FieldType, required: boolean) {
+    startTransition(async () => {
+      await addDatabaseField({
+        databaseId,
+        accountId,
+        name,
+        type,
+        config: {},
+        required,
+      });
+      await load();
+    });
+  }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveDatabase({ id: databaseId, accountId });
+      router.push(databasesHref);
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!database) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
-        <p className="text-sm text-muted-foreground">
-          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!accountId || !workspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增資料庫
+      {/* Top bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
         </Button>
       </div>
 
-      <DatabaseDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        onSuccess={handleSuccess}
-      />
-
-      {!accountId || !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
+      {/* Page header */}
+      <header className="space-y-1 border-b border-border/60 pb-4">
+        <div className="flex items-center gap-2">
+          {database.icon && <span className="text-xl">{database.icon}</span>}
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{database.name}</h1>
+        </div>
+        {database.description && (
+          <p className="text-sm text-muted-foreground">{database.description}</p>
+        )}
+        <p className="text-xs text-muted-foreground/70">
+          {database.fields.length} 個欄位 · 更新於 {new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
         </p>
-      ) : loading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-lg" />
-          ))}
+      </header>
+
+      {/* View switcher + actions */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center rounded-md border border-border/60 p-0.5">
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            title="表格視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Table2 className="h-3 w-3" /> 表格
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("board")}
+            title="看板視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "board" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Kanban className="h-3 w-3" /> 看板
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("list")}
+            title="清單視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <List className="h-3 w-3" /> 清單
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("calendar")}
+            title="日曆視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Calendar className="h-3 w-3" /> 日曆
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("gallery")}
+            title="圖庫視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "gallery" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <LayoutGrid className="h-3 w-3" /> 圖庫
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("automations")}
+            title="自動化規則"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "automations" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Zap className="h-3 w-3" /> 自動化
+          </button>
         </div>
-      ) : databases.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-          <Table2 className="h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => router.push(formsHref)}
+            disabled={isPending}
+          >
+            <FileText className="mr-1.5 h-3.5 w-3.5" /> 表單
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
+            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
+            <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
+          </Button>
         </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {databases.map((db) => (
-            <Card
-              key={db.id}
-              className="cursor-pointer hover:bg-muted/10 transition-colors"
-              onClick={() => handleSuccess(db.id)}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-start gap-2">
-                  {db.icon ? (
-                    <span className="text-lg leading-none">{db.icon}</span>
-                  ) : (
-                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  )}
-                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {db.description && (
-                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
-                )}
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
-                  <span>{db.fields.length} 個欄位</span>
-                  <span>·</span>
-                  <span>{db.viewIds.length} 個視圖</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground/50">
-                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      </div>
+
+      {/* View */}
+      {viewMode === "table" && (
+        <DatabaseTableView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
       )}
+      {viewMode === "board" && (
+        <DatabaseBoardView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "list" && (
+        <DatabaseListView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "calendar" && (
+        <DatabaseCalendarView
+          database={database}
+          accountId={accountId}
+        />
+      )}
+      {viewMode === "gallery" && (
+        <DatabaseGalleryView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "automations" && (
+        <DatabaseAutomationView
+          databaseId={databaseId}
+          accountId={accountId}
+          currentUserId={currentUserId}
+        />
+      )}
+
+      <AddFieldDialog
+        open={addFieldOpen}
+        onOpenChange={setAddFieldOpen}
+        onAdd={handleAddField}
+        isPending={isPending}
+      />
+    </div>
+  );
+}
+````
+
+## File: modules/notion/subdomains/database/interfaces/components/DatabaseFormsPage.tsx
+````typescript
+"use client";
+
+/**
+ * Route: /knowledge-database/databases/[databaseId]/forms
+ * Purpose: Manage database forms — create and embed form links for a specific database.
+ */
+
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
+
+import { getDatabase } from "../queries";
+import { DatabaseFormView } from "./DatabaseFormView";
+import type { DatabaseSnapshot as Database } from "../../application/dto/database.dto";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+
+// ── Props ─────────────────────────────────────────────────────────────────────
+
+export interface DatabaseFormsPageProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function DatabaseFormsPage({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: DatabaseFormsPageProps) {
+  const params = useParams();
+  const router = useRouter();
+  const databaseId = params.databaseId as string;
+
+  const [database, setDatabase] = useState<Database | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"preview" | "share">("preview");
+  const databaseDetailHref =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(databaseId)}`
+      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}`;
+
+  const load = useCallback(async () => {
+    if (!accountId || !databaseId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const db = await getDatabase(accountId, databaseId);
+      setDatabase(db);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, databaseId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!database) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
+      </div>
+    );
+  }
+
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+
+  return (
+    <div className="space-y-4">
+      {/* Top bar */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push(databaseDetailHref)}
+        >
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回資料庫
+        </Button>
+        <div className="ml-auto">
+          <Button size="sm" variant="outline" disabled>
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> 建立新表單
+          </Button>
+        </div>
+      </div>
+
+      <header className="space-y-1 border-b border-border/60 pb-4">
+        <h1 className="text-xl font-semibold">{database.name} — 表單</h1>
+        <p className="text-sm text-muted-foreground">
+          使用表單讓外部使用者提交記錄到此資料庫。
+        </p>
+      </header>
+
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "preview" | "share")}>
+        <TabsList>
+          <TabsTrigger value="preview">預覽表單</TabsTrigger>
+          <TabsTrigger value="share">分享設定</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="preview" className="mt-4">
+          <div className="rounded-xl border border-border/60 bg-card px-6 py-2">
+            <DatabaseFormView
+              database={database}
+              accountId={accountId}
+              workspaceId={workspaceId}
+              submitterId={currentUserId}
+              title={`${database.name} 表單`}
+              description={database.description ?? undefined}
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="share" className="mt-4">
+          <div className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium">表單連結</p>
+              <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                <span className="flex-1 truncate">{shareUrl}</span>
+                <button
+                  type="button"
+                  onClick={() => void navigator.clipboard.writeText(shareUrl)}
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                  title="複製連結"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                分享此連結讓其他人填寫表單並將記錄直接存入資料庫。
+              </p>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -62552,140 +63016,258 @@ export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promi
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePagesRouteScreen.tsx
+## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageDetailPage.tsx
 ````typescript
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
 
-import { useApp } from "@/modules/platform/api";
-import { useAuth } from "@/modules/platform/api";
-import { useWorkspaceContext } from "@/modules/workspace/api";
+import { getKnowledgePage } from "../queries";
+import {
+  renameKnowledgePage,
+  archiveKnowledgePage,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "../_actions/knowledge-page.actions";
+import type { KnowledgePageSnapshot as KnowledgePage } from "../../application/dto/knowledge.dto";
+import { PageEditorView } from "./PageEditorView";
+import { CommentPanel } from "@/modules/notion/api";
+import { Button } from "@ui-shadcn/ui/button";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
 
-import type { KnowledgePageTreeNode } from "../../application/dto/knowledge.dto";
-import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
-import { PageTreeView } from "./PageTreeView";
+// ── Props ─────────────────────────────────────────────────────────────────────
 
-/**
- * KnowledgePagesRouteScreen
- * Route-level screen component for /knowledge/pages.
- * Encapsulates data-loading, scope resolution and layout so that the
- * Next.js route file stays thin (params/context wiring only).
- */
-export function KnowledgePagesRouteScreen() {
+export interface KnowledgePageDetailPageProps {
+  accountId: string;
+  activeWorkspaceId: string | null;
+  currentUserId: string;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function KnowledgePageDetailPage({
+  accountId,
+  activeWorkspaceId,
+  currentUserId,
+}: KnowledgePageDetailPageProps) {
+  const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: wsState } = useWorkspaceContext();
+  const pageId = params.pageId as string;
 
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-  const scopeParam = searchParams.get("scope")?.trim() ?? "";
-  const isAccountSummary = scopeParam === "account";
-  const workspaceId = isAccountSummary ? "" : requestedWorkspaceId || wsState.activeWorkspaceId || "";
-  const currentUserId = authState.user?.id ?? "";
-  const workspaceBasePath =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
-  const overviewHref = workspaceId
-    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
-    : "/workspace";
-
-  function buildPageDetailHref(pageId: string) {
-    if (accountId && workspaceId) {
-      return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
-    }
-    return `/knowledge/pages/${encodeURIComponent(pageId)}${
-      workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ""
-    }`;
-  }
-
-  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
+  const [page, setPage] = useState<KnowledgePage | null>(null);
   const [loading, setLoading] = useState(true);
+  const [commentOpen, setCommentOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const workspaceBasePath =
+    accountId && activeWorkspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(activeWorkspaceId)}`
+      : "/workspace";
+  const pageListHref =
+    accountId && activeWorkspaceId
+      ? `${workspaceBasePath}/knowledge/pages`
+      : "/workspace?tab=Overview&panel=knowledge-pages";
 
   const load = useCallback(async () => {
-    if (!accountId) { setLoading(false); return; }
-    if (!isAccountSummary && !workspaceId) {
-      setNodes([]);
-      setLoading(false);
-      return;
-    }
-
+    if (!accountId || !pageId) { setLoading(false); return; }
     setLoading(true);
     try {
-      const tree = isAccountSummary
-        ? await getKnowledgePageTree(accountId)
-        : await getKnowledgePageTreeByWorkspace(accountId, workspaceId);
-      setNodes(tree);
+      const p = await getKnowledgePage(accountId, pageId);
+      setPage(p);
     } finally {
       setLoading(false);
     }
-  }, [accountId, isAccountSummary, workspaceId]);
+  }, [accountId, pageId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);
+
+  function handleRename(title: string) {
+    startTransition(async () => {
+      const result = await renameKnowledgePage({ accountId, pageId, title });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, title } : prev);
+      }
+    });
+  }
+
+  function handleIconChange(iconUrl: string) {
+    startTransition(async () => {
+      const result = await updateKnowledgePageIcon({ accountId, pageId, iconUrl });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, iconUrl: iconUrl || undefined } : prev);
+      }
+    });
+  }
+
+  function handleCoverChange(coverUrl: string) {
+    startTransition(async () => {
+      const result = await updateKnowledgePageCover({ accountId, pageId, coverUrl });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, coverUrl: coverUrl || undefined } : prev);
+      }
+    });
+  }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveKnowledgePage({ accountId, pageId });
+      router.push(pageListHref);
+    });
+  }
+
+  // ── Loading skeleton ────────────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-6 w-72" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  // ── Not found ───────────────────────────────────────────────────────────────
+
+  if (!page) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" />
+          頁面列表
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到此頁面，可能已被封存或刪除。</p>
+      </div>
+    );
+  }
+
+  // ── Page view ───────────────────────────────────────────────────────────────
+
+  const updatedAt = page.updatedAtISO
+    ? new Date(page.updatedAtISO).toLocaleDateString("zh-TW", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
 
   return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
-            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
-          </Badge>
-          <p className="text-sm text-muted-foreground">
-            {isAccountSummary
-              ? "這是顯式 account summary mode。僅用於跨工作區總覽，預設不在此建立新頁面。"
-              : "知識頁面階層樹預設綁定目前工作區。點選頁面進入內容編輯器。"}
-          </p>
-        </div>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push(overviewHref)}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-      </div>
-
-      {!accountId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入。
-        </p>
-      ) : !isAccountSummary && !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未選定工作區。請先從工作區進入知識頁面，或在網址帶入 workspaceId 後再查看頁面樹。
-        </p>
-      ) : loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-8 w-full" />
-          ))}
-        </div>
-      ) : (
-        <PageTreeView
-          nodes={nodes}
-          accountId={accountId}
-          workspaceId={workspaceId || undefined}
-          currentUserId={currentUserId}
-          allowCreate={!isAccountSummary && Boolean(workspaceId)}
-          emptyStateDescription={
-            isAccountSummary
-              ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"
-              : "這個工作區尚無頁面。點擊「新增頁面」開始建立。"
-          }
-          onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
-          onCreated={() => load()}
+    <div className="space-y-0">
+      {/* Cover image */}
+      {page.coverUrl && (
+        <div
+          className="relative h-40 w-full overflow-hidden rounded-t-xl bg-muted"
+          style={{ backgroundImage: `url(${page.coverUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
         />
       )}
+
+      <div className="space-y-4 px-0 pt-4">
+        {/* Top bar */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
+            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            頁面列表
+          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={commentOpen ? "default" : "outline"}
+              onClick={() => setCommentOpen((v) => !v)}
+            >
+              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+              留言
+            </Button>
+            {page.status === "active" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleArchive}
+                disabled={isPending}
+              >
+                <Archive className="mr-1.5 h-3.5 w-3.5" />
+                封存
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Page header */}
+        <header className="space-y-2 border-b border-border/60 pb-4">
+          {/* Icon row */}
+          <div className="flex items-end gap-3">
+            <IconPicker
+              value={page.iconUrl}
+              onChange={handleIconChange}
+              isPending={isPending}
+            />
+            <CoverEditor
+              value={page.coverUrl}
+              onChange={handleCoverChange}
+              isPending={isPending}
+            />
+          </div>
+          <TitleEditor
+            initialTitle={page.title}
+            onSave={handleRename}
+            isPending={isPending}
+          />
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {page.status === "archived" && (
+              <Badge variant="secondary">已封存</Badge>
+            )}
+            {page.approvalState === "approved" && (
+              <Badge variant="default">已審核</Badge>
+            )}
+            {page.verificationState === "verified" && (
+              <Badge variant="outline">已驗證</Badge>
+            )}
+            {page.verificationState === "needs_review" && (
+              <Badge variant="destructive">待審查</Badge>
+            )}
+            {updatedAt && <span>更新於 {updatedAt}</span>}
+          </div>
+        </header>
+
+        {/* Main content + optional comment side panel */}
+        <div className={`flex gap-4 ${commentOpen ? "items-start" : ""}`}>
+          {/* Block editor — connected to Firebase */}
+          <div className="min-w-0 flex-1">
+            {accountId ? (
+              <PageEditorView accountId={accountId} pageId={pageId} />
+            ) : (
+              <p className="text-sm text-muted-foreground">請先登入以載入內容。</p>
+            )}
+          </div>
+
+          {/* Comment panel — slides in from right */}
+          {commentOpen && accountId && (
+            <aside className="w-72 shrink-0 rounded-xl border border-border/60 bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-semibold">留言</span>
+                <button
+                  type="button"
+                  onClick={() => setCommentOpen(false)}
+                  className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  aria-label="關閉留言面板"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <CommentPanel
+                accountId={accountId}
+                workspaceId={activeWorkspaceId ?? ""}
+                contentId={pageId}
+                contentType="page"
+                currentUserId={currentUserId}
+              />
+            </aside>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -64277,6 +64859,132 @@ export { accountService, createClientAccountUseCases } from "./account-service";
 export { createAccountQueryRepository } from "./account-service";
 ````
 
+## File: modules/platform/subdomains/account/interfaces/_actions/account-policy.actions.ts
+````typescript
+"use server";
+
+/**
+ * Account Policy Server Actions — thin adapter: Server Actions → Application Use Cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { accountService } from "../../api";
+import type { CreatePolicyInput, UpdatePolicyInput } from "../../application/dtos/account.dto";
+
+export async function createAccountPolicy(input: CreatePolicyInput): Promise<CommandResult> {
+  try {
+    return await accountService.createPolicy(input);
+  } catch (err) {
+    return commandFailureFrom("CREATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateAccountPolicy(
+  policyId: string,
+  accountId: string,
+  data: UpdatePolicyInput,
+  traceId?: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.updatePolicy(policyId, accountId, data, traceId);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteAccountPolicy(
+  policyId: string,
+  accountId: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.deletePolicy(policyId, accountId);
+  } catch (err) {
+    return commandFailureFrom("DELETE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/platform/subdomains/account/interfaces/_actions/account.actions.ts
+````typescript
+"use server";
+
+/**
+ * Account Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { accountService } from "../../api";
+import type { UpdateProfileInput, OrganizationRole } from "../../application/dtos/account.dto";
+
+export async function createUserAccount(
+  userId: string,
+  name: string,
+  email: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.createUserAccount(userId, name, email);
+  } catch (err) {
+    return commandFailureFrom("CREATE_USER_ACCOUNT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateUserProfile(
+  userId: string,
+  data: UpdateProfileInput,
+): Promise<CommandResult> {
+  try {
+    return await accountService.updateUserProfile(userId, data);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_USER_PROFILE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function creditWallet(
+  accountId: string,
+  amount: number,
+  description: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.creditWallet(accountId, amount, description);
+  } catch (err) {
+    return commandFailureFrom("WALLET_CREDIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function debitWallet(
+  accountId: string,
+  amount: number,
+  description: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.debitWallet(accountId, amount, description);
+  } catch (err) {
+    return commandFailureFrom("WALLET_DEBIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function assignAccountRole(
+  accountId: string,
+  role: OrganizationRole,
+  grantedBy: string,
+  traceId?: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.assignRole(accountId, role, grantedBy, traceId);
+  } catch (err) {
+    return commandFailureFrom("ASSIGN_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function revokeAccountRole(accountId: string): Promise<CommandResult> {
+  try {
+    return await accountService.revokeRole(accountId);
+  } catch (err) {
+    return commandFailureFrom("REVOKE_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
 ## File: modules/platform/subdomains/account/README.md
 ````markdown
 # Account
@@ -64788,362 +65496,57 @@ export * from "./events";
 export * from "./value-objects";
 ````
 
-## File: modules/platform/subdomains/notification/interfaces/components/NotificationBell.tsx
+## File: modules/platform/subdomains/notification/interfaces/_actions/notification.actions.ts
 ````typescript
-"use client";
+"use server";
 
 /**
- * NotificationBell — Reusable notification bell for shell header.
- * Lives in platform/subdomains/notification/interfaces.
+ * Notification Server Actions — thin adapters over use cases.
  */
 
-import Link from "next/link";
-import { Bell } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { notificationService } from "../../api";
+import type { DispatchNotificationInput } from "../../application/dtos/notification.dto";
 
-import {
-  markNotificationRead,
-  markAllNotificationsRead,
-} from "../_actions/notification.actions";
-import { getNotificationsForRecipient } from "../queries/notification.queries";
-import type { NotificationEntity } from "../../application/dtos/notification.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-
-const NOTIFICATION_LIMIT = 20;
-
-function formatNotificationTime(timestamp: number) {
-  return new Intl.DateTimeFormat("zh-TW", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
+export async function dispatchNotification(input: DispatchNotificationInput): Promise<CommandResult> {
+  try {
+    return await notificationService.dispatch(input);
+  } catch (err) {
+    return commandFailureFrom("DISPATCH_NOTIFICATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
 }
 
-interface NotificationBellProps {
-  readonly recipientId: string;
+export async function markNotificationRead(
+  notificationId: string,
+  recipientId: string,
+): Promise<CommandResult> {
+  try {
+    return await notificationService.markAsRead(notificationId, recipientId);
+  } catch (err) {
+    return commandFailureFrom("MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
 }
 
-export function NotificationBell({ recipientId }: NotificationBellProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isMutating, setIsMutating] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
-
-  const unreadCount = useMemo(
-    () => notifications.reduce((count, n) => count + (n.read ? 0 : 1), 0),
-    [notifications],
-  );
-
-  const loadNotifications = useCallback(async () => {
-    if (!recipientId) {
-      setNotifications([]);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const next = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
-      setNotifications(next);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [recipientId]);
-
-  useEffect(() => {
-    void loadNotifications();
-  }, [loadNotifications]);
-
-  async function handleOpenChange(nextOpen: boolean) {
-    setIsOpen(nextOpen);
-    if (nextOpen) {
-      await loadNotifications();
-    }
+export async function markAllNotificationsRead(recipientId: string): Promise<CommandResult> {
+  try {
+    return await notificationService.markAllAsRead(recipientId);
+  } catch (err) {
+    return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
-
-  async function handleMarkOneRead(notificationId: string) {
-    if (!recipientId) return;
-    setIsMutating(true);
-    const previous = notifications;
-    setNotifications((current) =>
-      current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
-    );
-    try {
-      const result = await markNotificationRead(notificationId, recipientId);
-      if (!result.success) setNotifications(previous);
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function handleMarkAllRead() {
-    if (!recipientId || unreadCount === 0) return;
-    setIsMutating(true);
-    const previous = notifications;
-    setNotifications((current) => current.map((n) => ({ ...n, read: true })));
-    try {
-      const result = await markAllNotificationsRead(recipientId);
-      if (!result.success) setNotifications(previous);
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  return (
-    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          aria-label="Open notifications"
-          className="relative text-muted-foreground"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between px-3 py-2">
-          <p className="text-sm font-semibold">Notifications</p>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            disabled={isMutating || unreadCount === 0}
-            onClick={handleMarkAllRead}
-          >
-            Mark all read
-          </Button>
-        </div>
-        <DropdownMenuSeparator />
-        <div className="max-h-80 overflow-y-auto">
-          {isLoading ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
-          ) : notifications.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
-          ) : (
-            notifications.map((notification) => (
-              <button
-                key={notification.id}
-                type="button"
-                onClick={() => void handleMarkOneRead(notification.id)}
-                disabled={isMutating}
-                className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium">{notification.title}</p>
-                  {!notification.read ? (
-                    <span
-                      className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary"
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                </div>
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                  {notification.message}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {formatNotificationTime(notification.timestamp)}
-                </p>
-              </button>
-            ))
-          )}
-        </div>
-        <DropdownMenuSeparator />
-        <div className="py-1 text-center">
-          <Link
-            href="/settings/notifications"
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            查看全部通知
-          </Link>
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
 }
 ````
 
-## File: modules/platform/subdomains/notification/interfaces/components/NotificationsPage.tsx
+## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
 ````typescript
 /**
- * Route: /settings/notifications
- * Purpose: Full-page notification center showing all notifications for the
- *          authenticated user with read/unread filtering and bulk actions.
+ * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
  */
-"use client";
 
-import { Bell, CheckCheck, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-
-import {
-  markAllNotificationsRead,
-  markNotificationRead,
-} from "../_actions/notification.actions";
-import { getNotificationsForRecipient } from "../queries/notification.queries";
+import { notificationService } from "../../api";
 import type { NotificationEntity } from "../../application/dtos/notification.dto";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-type Filter = "all" | "unread";
-
-const TYPE_BADGE: Record<string, string> = {
-  info: "bg-blue-100 text-blue-800",
-  alert: "bg-red-100 text-red-800",
-  success: "bg-green-100 text-green-800",
-  warning: "bg-yellow-100 text-yellow-800",
-};
-
-function formatTime(ts: number) {
-  return new Intl.DateTimeFormat("zh-TW", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(ts));
-}
-
-export interface NotificationsPageProps {
-  recipientId: string;
-}
-
-export function NotificationsPage({ recipientId }: NotificationsPageProps) {
-  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState<Filter>("all");
-  const [isPending, startTransition] = useTransition();
-
-  const load = useCallback(async () => {
-    if (!recipientId) { setIsLoading(false); return; }
-    setIsLoading(true);
-    try {
-      const data = await getNotificationsForRecipient(recipientId, 100);
-      setNotifications(data);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [recipientId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  const displayed = useMemo(
-    () => filter === "unread" ? notifications.filter((n) => !n.read) : notifications,
-    [notifications, filter],
-  );
-
-  const unreadCount = useMemo(
-    () => notifications.filter((n) => !n.read).length,
-    [notifications],
-  );
-
-  function handleMarkOne(id: string) {
-    startTransition(async () => {
-      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
-      await markNotificationRead(id, recipientId);
-    });
-  }
-
-  function handleMarkAll() {
-    startTransition(async () => {
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      await markAllNotificationsRead(recipientId);
-    });
-  }
-
-  return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-xl font-semibold">通知</h1>
-          {unreadCount > 0 && (
-            <Badge variant="secondary" className="ml-1">{unreadCount} 未讀</Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setFilter((f) => f === "all" ? "unread" : "all")}
-            className="text-xs"
-          >
-            {filter === "all" ? "只看未讀" : "顯示全部"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isPending || unreadCount === 0}
-            onClick={handleMarkAll}
-            className="text-xs gap-1"
-          >
-            <CheckCheck className="h-3.5 w-3.5" />
-            全部已讀
-          </Button>
-        </div>
-      </div>
-
-      {/* Body */}
-      {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : displayed.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground">
-          <Bell className="h-10 w-10 opacity-30" />
-          <p className="text-sm">{filter === "unread" ? "沒有未讀通知" : "目前沒有通知"}</p>
-        </div>
-      ) : (
-        <ul className="divide-y divide-border rounded-lg border">
-          {displayed.map((n) => (
-            <li
-              key={n.id}
-              className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40 ${n.read ? "opacity-60" : ""}`}
-            >
-              {!n.read && (
-                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />
-              )}
-              {n.read && <span className="mt-2 h-2 w-2 shrink-0" />}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-medium">{n.title}</p>
-                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${TYPE_BADGE[n.type] ?? ""}`}>
-                    {n.type}
-                  </span>
-                </div>
-                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.message}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">{formatTime(n.timestamp)}</p>
-              </div>
-              {!n.read && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={isPending}
-                  onClick={() => handleMarkOne(n.id)}
-                  title="標記已讀"
-                  className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
+export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
+  return notificationService.getForRecipient(recipientId, maxCount);
 }
 ````
 
@@ -65290,6 +65693,167 @@ export { organizationService, organizationQueryService } from "../infrastructure
 
 // --- Interfaces (UI, queries, actions) ---
 export * from "../interfaces";
+````
+
+## File: modules/platform/subdomains/organization/interfaces/_actions/organization-policy.actions.ts
+````typescript
+"use server";
+
+/**
+ * Organization Policy Server Actions — thin adapters over use cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { organizationService } from "../../api";
+import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../application/dtos/organization.dto";
+
+export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
+  try { return await organizationService.createOrgPolicy(input); }
+  catch (err) { return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateOrgPolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
+  try { return await organizationService.updateOrgPolicy(policyId, data); }
+  catch (err) { return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteOrgPolicy(policyId); }
+  catch (err) { return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+````
+
+## File: modules/platform/subdomains/organization/interfaces/_actions/organization.actions.ts
+````typescript
+"use server";
+
+/**
+ * Organization Server Actions — thin adapters over use cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { organizationService } from "../../api";
+import type {
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+} from "../../application/dtos/organization.dto";
+
+export async function createOrganization(cmd: CreateOrganizationCommand): Promise<CommandResult> {
+  try { return await organizationService.createOrganization(cmd); }
+  catch (err) { return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createOrganizationWithTeam(
+  cmd: CreateOrganizationCommand,
+  teamName: string,
+  teamType: "internal" | "external" = "internal",
+): Promise<CommandResult> {
+  try { return await organizationService.createOrganizationWithTeam(cmd, teamName, teamType); }
+  catch (err) { return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateOrganizationSettings(cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> {
+  try { return await organizationService.updateSettings(cmd); }
+  catch (err) { return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteOrganization(organizationId); }
+  catch (err) { return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
+  try { return await organizationService.inviteMember(input); }
+  catch (err) { return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function recruitMember(
+  organizationId: string,
+  memberId: string,
+  name: string,
+  email: string,
+): Promise<CommandResult> {
+  try { return await organizationService.recruitMember(organizationId, memberId, name, email); }
+  catch (err) { return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function dismissMember(organizationId: string, memberId: string): Promise<CommandResult> {
+  try { return await organizationService.removeMember(organizationId, memberId); }
+  catch (err) { return commandFailureFrom("REMOVE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
+  try { return await organizationService.updateMemberRole(input); }
+  catch (err) { return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
+  try { return await organizationService.createTeam(input); }
+  catch (err) { return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteTeam(organizationId: string, teamId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteTeam(organizationId, teamId); }
+  catch (err) { return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateTeamMembers(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+  action: "add" | "remove",
+): Promise<CommandResult> {
+  try { return await organizationService.updateTeamMembers(organizationId, teamId, memberId, action); }
+  catch (err) { return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createPartnerGroup(organizationId: string, groupName: string): Promise<CommandResult> {
+  try { return await organizationService.createPartnerGroup(organizationId, groupName); }
+  catch (err) { return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function sendPartnerInvite(
+  organizationId: string,
+  teamId: string,
+  email: string,
+): Promise<CommandResult> {
+  try { return await organizationService.sendPartnerInvite(organizationId, teamId, email); }
+  catch (err) { return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function dismissPartnerMember(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+): Promise<CommandResult> {
+  try { return await organizationService.dismissPartnerMember(organizationId, teamId, memberId); }
+  catch (err) { return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+````
+
+## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
+````typescript
+/**
+ * Organization Queries — delegates to organizationQueryService via the subdomain api/ boundary.
+ */
+
+import { organizationQueryService } from "../../api";
+import type { MemberReference, Team, OrgPolicy } from "../../application/dtos/organization.dto";
+
+export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
+  return organizationQueryService.getMembers(organizationId);
+}
+
+export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
+  return organizationQueryService.getTeams(organizationId);
+}
+
+export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
+  return organizationQueryService.getOrgPolicies(orgId);
+}
 ````
 
 ## File: modules/platform/subdomains/organization/README.md
@@ -66338,86 +66902,6 @@ Strategic architecture documentation lives in `docs/contexts/workspace/`:
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
-## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
-````typescript
-import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Users } from "lucide-react";
-import type { ReactNode } from "react";
-
-export interface WorkspaceQuickAccessMatcherOptions {
-  panel: string | null;
-  tab: string | null;
-}
-
-export interface WorkspaceQuickAccessItem {
-  href: string;
-  label: string;
-  icon: ReactNode;
-  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
-}
-
-const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
-  {
-    href: "/workspace/{workspaceId}?tab=Overview",
-    label: "首頁",
-    icon: <Home className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") &&
-      (options?.tab == null || options.tab === "Overview") &&
-      options?.panel !== "settings",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-pages",
-    label: "知識頁面",
-    icon: <FileText className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") && options?.tab === "Overview" && options?.panel === "knowledge-pages",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-base-articles",
-    label: "文章",
-    icon: <BookOpen className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") && options?.tab === "Overview" && options?.panel === "knowledge-base-articles",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Files",
-    label: "檔案",
-    icon: <FolderOpen className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") && options?.tab === "Files",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Members",
-    label: "成員",
-    icon: <Users className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") && options?.tab === "Members",
-  },
-  {
-    href: "/notebook/rag-query?workspaceId={workspaceId}",
-    label: "RAG 查詢",
-    icon: <Brain className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/notebook/rag-query" || pathname.startsWith("/notebook/rag-query/"),
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Overview&panel=source-libraries",
-    label: "資料庫",
-    icon: <Database className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") && options?.tab === "Overview" && options?.panel === "source-libraries",
-  },
-];
-
-export function buildWorkspaceQuickAccessItems(workspaceId: string): WorkspaceQuickAccessItem[] {
-  const encodedWorkspaceId = encodeURIComponent(workspaceId);
-  return WORKSPACE_QUICK_ACCESS_TEMPLATES.map((item) => ({
-    ...item,
-    href: item.href.replaceAll("{workspaceId}", encodedWorkspaceId),
-  }));
-}
-````
-
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
 ````typescript
 "use client";
@@ -67081,46 +67565,6 @@ export class FirebaseAuditRepository implements AuditRepository {
 }
 ````
 
-## File: modules/workspace/subdomains/audit/interfaces/queries/audit.queries.ts
-````typescript
-import type { AuditLogEntity } from "../../application/dto/audit.dto";
-import {
-  ListOrganizationAuditLogsUseCase,
-  ListWorkspaceAuditLogsUseCase,
-} from "../../application/queries/list-audit-logs.queries";
-import { makeAuditRepo } from "../../api/factories";
-
-const auditRepo = makeAuditRepo();
-const listWorkspaceAuditLogsUseCase = new ListWorkspaceAuditLogsUseCase(auditRepo);
-const listOrganizationAuditLogsUseCase = new ListOrganizationAuditLogsUseCase(auditRepo);
-
-export async function getWorkspaceAuditLogs(
-  workspaceId: string,
-): Promise<AuditLogEntity[]> {
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedWorkspaceId) {
-    return [];
-  }
-
-  return listWorkspaceAuditLogsUseCase.execute(normalizedWorkspaceId);
-}
-
-export async function getOrganizationAuditLogs(
-  workspaceIds: string[],
-  maxCount = 200,
-): Promise<AuditLogEntity[]> {
-  const normalizedWorkspaceIds = workspaceIds
-    .map((workspaceId) => workspaceId.trim())
-    .filter(Boolean);
-
-  if (normalizedWorkspaceIds.length === 0) {
-    return [];
-  }
-
-  return listOrganizationAuditLogsUseCase.execute(normalizedWorkspaceIds, maxCount);
-}
-````
-
 ## File: modules/workspace/subdomains/audit/README.md
 ````markdown
 # Audit
@@ -67350,218 +67794,6 @@ export type {
 export {};
 ````
 
-## File: modules/workspace/subdomains/scheduling/interfaces/components/CreateDemandForm.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import { format } from "@lib-date-fns";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import { DEMAND_PRIORITY_LABELS } from "../../application/dto/work-demand.dto";
-import type { DemandPriority } from "../../application/dto/work-demand.dto";
-
-export interface CreateDemandFormValues {
-  title: string;
-  description: string;
-  priority: DemandPriority;
-  scheduledAt: string;
-}
-
-interface CreateDemandFormProps {
-  open: boolean;
-  initialDate?: Date;
-  onClose: () => void;
-  onSubmit: (values: CreateDemandFormValues) => Promise<void>;
-}
-
-export function CreateDemandForm({
-  open,
-  initialDate,
-  onClose,
-  onSubmit,
-}: CreateDemandFormProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState<DemandPriority>("medium");
-  const [scheduledAt, setScheduledAt] = useState(
-    initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleOpen = (isOpen: boolean) => {
-    if (isOpen && initialDate) {
-      setScheduledAt(format(initialDate, "yyyy-MM-dd"));
-    }
-    if (!isOpen) handleClose();
-  };
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setPriority("medium");
-    setScheduledAt(initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"));
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) {
-      setError("請輸入需求標題。");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      await onSubmit({ title: t, description: description.trim(), priority, scheduledAt });
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "提交失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>建立工作需求</DialogTitle>
-          <DialogDescription>
-            填寫需求詳情後送出，Account 管理員將收到通知並指派成員。
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="demand-title">標題 *</Label>
-            <Input
-              id="demand-title"
-              placeholder="需要完成什麼工作？"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="demand-description">描述（選填）</Label>
-            <Textarea
-              id="demand-description"
-              placeholder="詳細說明需求背景或驗收條件…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="demand-priority">優先級</Label>
-              <Select
-                value={priority}
-                onValueChange={(v) => setPriority(v as DemandPriority)}
-                disabled={submitting}
-              >
-                <SelectTrigger id="demand-priority">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(["low", "medium", "high"] as const).map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {DEMAND_PRIORITY_LABELS[p]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="demand-date">排程日期 *</Label>
-              <Input
-                id="demand-date"
-                type="date"
-                value={scheduledAt}
-                onChange={(e) => setScheduledAt(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-          </div>
-
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
-              取消
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "提交中…" : "建立需求"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/workspace/subdomains/scheduling/interfaces/queries/work-demand.queries.ts
-````typescript
-import type { WorkDemand } from "../../application/dto/work-demand.dto";
-import {
-  ListWorkspaceDemandsUseCase,
-  ListAccountDemandsUseCase,
-} from "../../application/work-demand.use-cases";
-import { makeDemandRepo } from "../../api/factories";
-
-function makeRepo() {
-  return makeDemandRepo();
-}
-
-export async function getWorkspaceDemands(workspaceId: string): Promise<WorkDemand[]> {
-  const normalizedWorkspaceId = workspaceId.trim();
-  if (!normalizedWorkspaceId) {
-    return [];
-  }
-  return new ListWorkspaceDemandsUseCase(makeRepo()).execute(normalizedWorkspaceId);
-}
-
-export async function getAccountDemands(accountId: string): Promise<WorkDemand[]> {
-  const normalizedAccountId = accountId.trim();
-  if (!normalizedAccountId) {
-    return [];
-  }
-  return new ListAccountDemandsUseCase(makeRepo()).execute(normalizedAccountId);
-}
-````
-
 ## File: modules/workspace/subdomains/scheduling/README.md
 ````markdown
 # Scheduling
@@ -67656,349 +67888,6 @@ export type {
  * (FirebaseWorkspaceRepository) injected through ports.
  */
 export {};
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx
-````typescript
-"use client";
-
-/**
- * @module workspace-flow/interfaces/components
- * @file WorkspaceFlowTab.tsx
- * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
- *
- * MVP interactive surface:
- * - Create Task dialog
- * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
- * - Per-task expandable Issue sub-list with transition buttons
- * - Open Issue dialog
- * - Create Invoice button + Invoice lifecycle transitions
- *
- * @author workspace-flow
- * @since 2026-03-27
- */
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-
-import { Plus } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Separator } from "@ui-shadcn/ui/separator";
-
-import type { Invoice } from "../../application/dto/workflow.dto";
-import type { Issue } from "../../application/dto/workflow.dto";
-import type { Task } from "../../application/dto/workflow.dto";
-import { wfCreateInvoice } from "../_actions/workspace-flow.actions";
-import {
-  getWorkspaceFlowIssues,
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowTasks,
-} from "../queries/workspace-flow.queries";
-import { CreateTaskDialog } from "./CreateTaskDialog";
-import { IssueRow } from "./IssueRow";
-import { InvoiceRow } from "./InvoiceRow";
-import { TaskRow } from "./TaskRow";
-
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-type FlowSection = "tasks" | "qa" | "acceptance" | "issues" | "invoices";
-
-interface WorkspaceFlowTabProps {
-  readonly workspaceId: string;
-  readonly currentUserId?: string;
-  readonly initialSection?: FlowSection;
-}
-
-// ── Main Component ─────────────────────────────────────────────────────────────
-
-export function WorkspaceFlowTab({
-  workspaceId,
-  currentUserId = "anonymous",
-  initialSection = "tasks",
-}: WorkspaceFlowTabProps) {
-  const [section, setSection] = useState<FlowSection>(initialSection);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [createTaskOpen, setCreateTaskOpen] = useState(false);
-  const [creatingInvoice, setCreatingInvoice] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const loadData = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const [nextTasks, nextInvoices] = await Promise.all([
-        getWorkspaceFlowTasks(workspaceId),
-        getWorkspaceFlowInvoices(workspaceId),
-      ]);
-      const issueMatrix = await Promise.all(
-        nextTasks.map(async (task) => {
-          try {
-            return await getWorkspaceFlowIssues(task.id);
-          } catch {
-            return [] as Issue[];
-          }
-        }),
-      );
-      setTasks(nextTasks);
-      setInvoices(nextInvoices);
-      setIssues(issueMatrix.flat());
-      setLoadState("loaded");
-    } catch (err) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceFlowTab] Failed to load flow data:", err);
-      }
-      setLoadState("error");
-    }
-  }, [workspaceId]);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
-
-  useEffect(() => {
-    setSection(initialSection);
-  }, [initialSection]);
-
-  const qaTasks = useMemo(
-    () => tasks.filter((task) => task.status === "qa"),
-    [tasks],
-  );
-
-  const acceptanceTasks = useMemo(
-    () => tasks.filter((task) => task.status === "acceptance" || task.status === "accepted"),
-    [tasks],
-  );
-
-  async function handleCreateInvoice() {
-    setCreatingInvoice(true);
-    setActionError(null);
-    try {
-      const result = await wfCreateInvoice(workspaceId);
-      if (!result.success) { setActionError(result.error.message ?? "建立發票失敗"); }
-      else { await loadData(); }
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "建立發票失敗");
-    } finally {
-      setCreatingInvoice(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* ── Section switcher ─────────────────────────────────────────── */}
-      <div className="flex gap-2">
-        <Button
-          variant={section === "tasks" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("tasks")}
-        >
-          任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
-        </Button>
-        <Button
-          variant={section === "qa" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("qa")}
-        >
-          質檢{loadState === "loaded" ? ` (${qaTasks.length})` : ""}
-        </Button>
-        <Button
-          variant={section === "acceptance" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("acceptance")}
-        >
-          驗收{loadState === "loaded" ? ` (${acceptanceTasks.length})` : ""}
-        </Button>
-        <Button
-          variant={section === "issues" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("issues")}
-        >
-          問題單{loadState === "loaded" ? ` (${issues.length})` : ""}
-        </Button>
-        <Button
-          variant={section === "invoices" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("invoices")}
-        >
-          財務{loadState === "loaded" ? ` (${invoices.length})` : ""}
-        </Button>
-      </div>
-
-      {/* ── Loading state ─────────────────────────────────────────────── */}
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">載入中…</CardContent>
-        </Card>
-      )}
-
-      {/* ── Error state ───────────────────────────────────────────────── */}
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入資料，請重新整理頁面後再試。
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Tasks section ─────────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "tasks" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>任務</CardTitle>
-                <CardDescription>工作區所有任務與其進度狀態。</CardDescription>
-              </div>
-              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                建立任務
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {tasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前尚無任務，點擊右上角「建立任務」開始。</p>
-            ) : (
-              tasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  currentUserId={currentUserId}
-                  onTransitioned={loadData}
-                />
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── QA section ────────────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "qa" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <CardTitle>質檢</CardTitle>
-            <CardDescription>等待 QA 審查或處於 QA 階段的任務。</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {qaTasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前沒有等待質檢的任務。</p>
-            ) : (
-              qaTasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  currentUserId={currentUserId}
-                  onTransitioned={loadData}
-                />
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Acceptance section ────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "acceptance" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <CardTitle>驗收</CardTitle>
-            <CardDescription>進行驗收中與已完成驗收的任務。</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {acceptanceTasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前沒有驗收中的任務。</p>
-            ) : (
-              acceptanceTasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  currentUserId={currentUserId}
-                  onTransitioned={loadData}
-                />
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Issues section ────────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "issues" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <CardTitle>問題單</CardTitle>
-            <CardDescription>跨任務檢視所有議題狀態與處理進度。</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {issues.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前沒有問題單。</p>
-            ) : (
-              issues.map((issue) => (
-                <IssueRow
-                  key={issue.id}
-                  issue={issue}
-                  onTransitioned={loadData}
-                />
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Invoices section ──────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "invoices" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>財務</CardTitle>
-                <CardDescription>工作區帳務請款紀錄。</CardDescription>
-              </div>
-              <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                {creatingInvoice ? "建立中…" : "建立發票"}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {actionError && (
-              <p role="alert" className="text-sm text-destructive">{actionError}</p>
-            )}
-            {invoices.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前尚無發票紀錄，點擊右上角「建立發票」開始。</p>
-            ) : (
-              <>
-                <Separator />
-                {invoices.map((invoice) => (
-                  <InvoiceRow
-                    key={invoice.id}
-                    invoice={invoice}
-                    onTransitioned={loadData}
-                  />
-                ))}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Create Task Dialog ─────────────────────────────────────────── */}
-      <CreateTaskDialog
-        open={createTaskOpen}
-        workspaceId={workspaceId}
-        onClose={() => setCreateTaskOpen(false)}
-        onCreated={loadData}
-      />
-    </div>
-  );
-}
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/README.md
@@ -68567,66 +68456,6 @@ export default function AccountWorkspaceDetailPage() {
 }
 ````
 
-## File: app/(shell)/notebook/rag-query/page.tsx
-````typescript
-"use client";
-
-import { useSearchParams } from "next/navigation";
-
-import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
-import { RagQueryView } from "@/modules/notebooklm/api";
-
-export default function NotebookRagQueryPage() {
-  const searchParams = useSearchParams();
-  const requestedWorkspaceId = searchParams.get("workspaceId") ?? "";
-  const { workspaceId } = useWorkspaceOrchestrationContext({ requestedWorkspaceId });
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
-        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
-      </header>
-
-      <RagQueryView workspaceId={workspaceId || undefined} />
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/settings/profile/page.tsx
-````typescript
-"use client";
-
-import { SettingsProfileRouteScreen, useAuth } from "@/modules/platform/api";
-
-export default function SettingsProfilePage() {
-  const { state: authState } = useAuth();
-
-  return (
-    <SettingsProfileRouteScreen
-      actorId={authState.user?.id ?? null}
-      fallbackDisplayName={authState.user?.name ?? ""}
-    />
-  );
-}
-````
-
-## File: app/(shell)/source/libraries/page.tsx
-````typescript
-import { WorkspaceRouteShim } from "../../_shell/WorkspaceRouteShim";
-
-export default function SourceLibrariesPage() {
-  return (
-    <WorkspaceRouteShim
-      panel="source-libraries"
-      loadingMessage="正在導向 Workspace Overview（Source Libraries）…"
-    />
-  );
-}
-````
-
 ## File: modules/notebooklm/notebooklm.instructions.md
 ````markdown
 ---
@@ -69075,6 +68904,224 @@ export * from "../subdomains/taxonomy/api";
 export * from "../subdomains/relations/api";
 ````
 
+## File: modules/notion/subdomains/authoring/interfaces/components/KnowledgeBaseArticlesRouteScreen.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
+
+import { useApp } from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState } from "../../application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../application/dto/authoring.dto";
+import { getArticles, getCategories } from "../queries";
+import { ArticleDialog } from "./ArticleDialog";
+import { CategoryTreePanel } from "./CategoryTreePanel";
+
+const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  draft: { label: "草稿", variant: "outline" },
+  published: { label: "已發佈", variant: "default" },
+  archived: { label: "已封存", variant: "secondary" },
+};
+
+const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
+  verified: { label: "已驗證", icon: BadgeCheck },
+  needs_review: { label: "待審查", icon: FileClock },
+  unverified: { label: "未驗證", icon: CircleDot },
+};
+
+/**
+ * KnowledgeBaseArticlesRouteScreen
+ * Route-level screen component for /knowledge-base/articles.
+ * Encapsulates data-loading, filtering and layout so the Next.js route
+ * file stays thin (params/context wiring only).
+ */
+export function KnowledgeBaseArticlesRouteScreen() {
+  const router = useRouter();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = wsState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+  const workspaceBasePath =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
+      : "/workspace";
+  const overviewHref = workspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
+    : "/workspace";
+
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!accountId || !workspaceId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [arts, cats] = await Promise.all([
+        getArticles({ accountId, workspaceId }),
+        getCategories(accountId, workspaceId),
+      ]);
+      setArticles(arts);
+      setCategories(cats);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, workspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filteredArticles = useMemo(() => {
+    if (!selectedCategoryId) return articles;
+    const cat = categories.find((c) => c.id === selectedCategoryId);
+    if (!cat) return articles;
+    return articles.filter((a) => cat.articleIds.includes(a.id));
+  }, [articles, categories, selectedCategoryId]);
+
+  function handleSuccess(articleId?: string) {
+    if (articleId) {
+      if (accountId && workspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-base/articles/${encodeURIComponent(articleId)}`,
+        );
+      } else {
+        router.push(`/knowledge-base/articles/${encodeURIComponent(articleId)}`);
+      }
+    } else {
+      load();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
+        <p className="text-sm text-muted-foreground">
+          組織知識庫的 SOP 文章、通用文件與驗證管治。
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!accountId || !workspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增文章
+        </Button>
+      </div>
+
+      <ArticleDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        categories={categories}
+        onSuccess={handleSuccess}
+      />
+
+      {!accountId || !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="flex gap-4">
+          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
+          <div className="grid flex-1 gap-3 sm:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-4">
+          <CategoryTreePanel
+            categories={categories}
+            selectedId={selectedCategoryId}
+            onSelect={setSelectedCategoryId}
+          />
+
+          <div className="flex-1">
+            {filteredArticles.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {filteredArticles.map((article) => {
+                  const status = STATUS_CONFIG[article.status];
+                  const veri = VERIFICATION_CONFIG[article.verificationState];
+                  const VeriIcon = veri.icon;
+                  return (
+                    <Card
+                      key={article.id}
+                      className="cursor-pointer hover:bg-muted/10 transition-colors"
+                      onClick={() => handleSuccess(article.id)}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
+                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <VeriIcon className="h-3 w-3" />
+                          <span>{veri.label}</span>
+                        </div>
+                        {article.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {article.tags.slice(0, 3).map((tag) => (
+                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground/70">
+                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
 ## File: modules/notion/subdomains/authoring/README.md
 ````markdown
 # Authoring
@@ -69141,6 +69188,171 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/notion/subdomains/database/interfaces/components/KnowledgeDatabasesRouteScreen.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Table2 } from "lucide-react";
+
+import { useApp } from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { DatabaseSnapshot as Database } from "../../application/dto/database.dto";
+import { getDatabases } from "../queries";
+import { DatabaseDialog } from "./DatabaseDialog";
+
+/**
+ * KnowledgeDatabasesRouteScreen
+ * Route-level screen component for /knowledge-database/databases.
+ * Encapsulates data-loading and layout so the Next.js route file stays thin.
+ */
+export function KnowledgeDatabasesRouteScreen() {
+  const router = useRouter();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = wsState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+  const workspaceBasePath =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
+      : "/workspace";
+  const overviewHref = workspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-databases`
+    : "/workspace";
+
+  const [databases, setDatabases] = useState<Database[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!accountId || !workspaceId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const data = await getDatabases(accountId, workspaceId);
+      setDatabases(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, workspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handleSuccess(databaseId?: string) {
+    if (databaseId) {
+      if (accountId && workspaceId) {
+        router.push(
+          `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}`,
+        );
+      } else {
+        router.push(`/knowledge-database/databases/${encodeURIComponent(databaseId)}`);
+      }
+    } else {
+      load();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
+        <p className="text-sm text-muted-foreground">
+          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!accountId || !workspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增資料庫
+        </Button>
+      </div>
+
+      <DatabaseDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        onSuccess={handleSuccess}
+      />
+
+      {!accountId || !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : databases.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+          <Table2 className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {databases.map((db) => (
+            <Card
+              key={db.id}
+              className="cursor-pointer hover:bg-muted/10 transition-colors"
+              onClick={() => handleSuccess(db.id)}
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-start gap-2">
+                  {db.icon ? (
+                    <span className="text-lg leading-none">{db.icon}</span>
+                  ) : (
+                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {db.description && (
+                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
+                )}
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
+                  <span>{db.fields.length} 個欄位</span>
+                  <span>·</span>
+                  <span>{db.viewIds.length} 個視圖</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/50">
+                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
 ## File: modules/notion/subdomains/database/README.md
 ````markdown
 # Database
@@ -69172,6 +69384,337 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgePagesRouteScreen.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { useApp } from "@/modules/platform/api";
+import { useAuth } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import type { KnowledgePageTreeNode } from "../../application/dto/knowledge.dto";
+import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
+import { PageTreeView } from "./PageTreeView";
+
+/**
+ * KnowledgePagesRouteScreen
+ * Route-level screen component for /knowledge/pages.
+ * Encapsulates data-loading, scope resolution and layout so that the
+ * Next.js route file stays thin (params/context wiring only).
+ */
+export function KnowledgePagesRouteScreen() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+  const scopeParam = searchParams.get("scope")?.trim() ?? "";
+  const isAccountSummary = scopeParam === "account";
+  const workspaceId = isAccountSummary ? "" : requestedWorkspaceId || wsState.activeWorkspaceId || "";
+  const currentUserId = authState.user?.id ?? "";
+  const workspaceBasePath =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
+      : "/workspace";
+  const overviewHref = workspaceId
+    ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
+    : "/workspace";
+
+  function buildPageDetailHref(pageId: string) {
+    if (accountId && workspaceId) {
+      return `${workspaceBasePath}/knowledge/pages/${encodeURIComponent(pageId)}`;
+    }
+    return `/knowledge/pages/${encodeURIComponent(pageId)}${
+      workspaceId ? `?workspaceId=${encodeURIComponent(workspaceId)}` : ""
+    }`;
+  }
+
+  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!accountId) { setLoading(false); return; }
+    if (!isAccountSummary && !workspaceId) {
+      setNodes([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const tree = isAccountSummary
+        ? await getKnowledgePageTree(accountId)
+        : await getKnowledgePageTreeByWorkspace(accountId, workspaceId);
+      setNodes(tree);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, isAccountSummary, workspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
+            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
+          </Badge>
+          <p className="text-sm text-muted-foreground">
+            {isAccountSummary
+              ? "這是顯式 account summary mode。僅用於跨工作區總覽，預設不在此建立新頁面。"
+              : "知識頁面階層樹預設綁定目前工作區。點選頁面進入內容編輯器。"}
+          </p>
+        </div>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(overviewHref)}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+      </div>
+
+      {!accountId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號情境，請先登入。
+        </p>
+      ) : !isAccountSummary && !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未選定工作區。請先從工作區進入知識頁面，或在網址帶入 workspaceId 後再查看頁面樹。
+        </p>
+      ) : loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
+          ))}
+        </div>
+      ) : (
+        <PageTreeView
+          nodes={nodes}
+          accountId={accountId}
+          workspaceId={workspaceId || undefined}
+          currentUserId={currentUserId}
+          allowCreate={!isAccountSummary && Boolean(workspaceId)}
+          emptyStateDescription={
+            isAccountSummary
+              ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"
+              : "這個工作區尚無頁面。點擊「新增頁面」開始建立。"
+          }
+          onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
+          onCreated={() => load()}
+        />
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/components/KnowledgeSidebarSection.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { useState } from "react";
+
+interface WorkspaceLinkItem {
+  id: string;
+  name: string;
+  href: string;
+}
+
+interface KnowledgeSidebarSectionProps {
+  readonly pathname: string;
+  readonly workspacesHydrated: boolean;
+  readonly allWorkspaceLinks: WorkspaceLinkItem[];
+  readonly activeAccountId: string | null;
+  readonly activeWorkspaceId: string | null;
+  readonly creatingKind: "page" | "database" | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onQuickCreatePage: () => void | Promise<void>;
+}
+
+function withContextQuery(href: string, accountId: string | null, workspaceId: string | null): string {
+  if (!accountId && !workspaceId) {
+    return href;
+  }
+
+  const [path, search = ""] = href.split("?");
+  const params = new URLSearchParams(search);
+
+  if (accountId) {
+    params.set("accountId", accountId);
+  }
+
+  if (workspaceId) {
+    params.set("workspaceId", workspaceId);
+  }
+
+  const query = params.toString();
+  return query.length > 0 ? `${path}?${query}` : path;
+}
+
+export function KnowledgeSidebarSection({
+  pathname,
+  workspacesHydrated,
+  allWorkspaceLinks,
+  activeAccountId,
+  activeWorkspaceId,
+  creatingKind,
+  onSelectWorkspace,
+  onQuickCreatePage,
+}: KnowledgeSidebarSectionProps) {
+  const [isKnowledgeWorkspacesExpanded, setIsKnowledgeWorkspacesExpanded] = useState(
+    () => Boolean(activeWorkspaceId),
+  );
+
+  const workspaceBasePath =
+    activeAccountId && activeWorkspaceId
+      ? `/${encodeURIComponent(activeAccountId)}/${encodeURIComponent(activeWorkspaceId)}`
+      : "";
+
+  const contextualPagesHref = workspaceBasePath
+    ? `${workspaceBasePath}/knowledge/pages`
+    : withContextQuery("/knowledge/pages", activeAccountId, activeWorkspaceId);
+
+  return (
+    <nav className="space-y-0.5" aria-label="Knowledge navigation">
+      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+        知識管理
+      </p>
+      {(activeAccountId || activeWorkspaceId) && (
+        <p className="px-2 pb-1 text-[11px] text-muted-foreground">
+          {activeAccountId ? `Account: ${activeAccountId.slice(0, 8)}` : "Account: -"}
+          {" · "}
+          {activeWorkspaceId ? `Workspace: ${activeWorkspaceId.slice(0, 8)}` : "Workspace: -"}
+        </p>
+      )}
+      <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
+        <Link
+          href={contextualPagesHref}
+          aria-current={pathname.includes("/knowledge/pages") ? "page" : undefined}
+          className={`flex-1 ${
+            pathname.includes("/knowledge/pages")
+              ? "text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          頁面
+        </Link>
+        <button
+          type="button"
+          onClick={() => void onQuickCreatePage()}
+          disabled={creatingKind !== null}
+          className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15 disabled:opacity-50"
+          aria-label="快速新增頁面"
+          title="新增頁面"
+        >
+          <Plus className="size-3.5" />
+        </button>
+      </div>
+      {(
+        [
+          {
+            href: workspaceBasePath
+              ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
+              : "/workspace",
+            label: "Knowledge Hub",
+          },
+          {
+            href: workspaceBasePath
+              ? `${workspaceBasePath}/knowledge/block-editor`
+              : "/workspace",
+            label: "區塊編輯器",
+          },
+        ] as const
+      ).map((item) => {
+        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const contextualHref = workspaceBasePath
+          ? item.href
+          : withContextQuery(item.href, activeAccountId, activeWorkspaceId);
+        return (
+          <Link
+            key={item.href}
+            href={contextualHref}
+            aria-current={active ? "page" : undefined}
+            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+      <div className="my-1.5 border-t border-border/40" />
+
+      <button
+        type="button"
+        onClick={() => {
+          setIsKnowledgeWorkspacesExpanded((prev) => !prev);
+        }}
+        className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+        aria-expanded={isKnowledgeWorkspacesExpanded}
+      >
+        <span>Workspaces</span>
+        {isKnowledgeWorkspacesExpanded ? (
+          <ChevronDown className="size-3.5" />
+        ) : (
+          <ChevronRight className="size-3.5" />
+        )}
+      </button>
+
+      {isKnowledgeWorkspacesExpanded && (
+        <div className="space-y-0.5 pl-2">
+          {!workspacesHydrated ? (
+            <p className="px-2 py-1.5 text-[11px] text-muted-foreground">工作區載入中...</p>
+          ) : allWorkspaceLinks.length === 0 ? (
+            <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
+          ) : (
+            allWorkspaceLinks.map((workspace) => {
+              const active = activeWorkspaceId === workspace.id;
+              return (
+                <Link
+                  key={workspace.id}
+                  href={workspace.href}
+                  onClick={() => {
+                    onSelectWorkspace(workspace.id);
+                  }}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                    active
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                  title={workspace.name}
+                >
+                  <span className="truncate">{workspace.name}</span>
+                </Link>
+              );
+            })
+          )}
+        </div>
+      )}
+    </nav>
+  );
+}
 ````
 
 ## File: modules/notion/subdomains/knowledge/README.md
@@ -70073,344 +70616,79 @@ export async function updateLegacyUserProfile(userId: string, input: UpdateProfi
 }
 ````
 
-## File: modules/platform/subdomains/account/interfaces/_actions/account-policy.actions.ts
+## File: modules/platform/subdomains/account/interfaces/queries/account.queries.ts
 ````typescript
-"use server";
-
 /**
- * Account Policy Server Actions — thin adapter: Server Actions → Application Use Cases.
+ * Account Read Queries — thin wrappers over the AccountQueryRepository port.
+ * NOT Server Actions — callable from React components/hooks directly.
  */
 
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { accountService } from "../../api";
-import type { CreatePolicyInput, UpdatePolicyInput } from "../../application/dtos/account.dto";
+import { createAccountQueryRepository } from "../../api";
+import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
+import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dtos/account.dto";
 
-export async function createAccountPolicy(input: CreatePolicyInput): Promise<CommandResult> {
-  try {
-    return await accountService.createPolicy(input);
-  } catch (err) {
-    return commandFailureFrom("CREATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+let _accountQueryRepo: AccountQueryRepository | undefined;
+
+function getAccountQueryRepo(): AccountQueryRepository {
+  if (!_accountQueryRepo) _accountQueryRepo = createAccountQueryRepository();
+  return _accountQueryRepo;
 }
 
-export async function updateAccountPolicy(
-  policyId: string,
-  accountId: string,
-  data: UpdatePolicyInput,
-  traceId?: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.updatePolicy(policyId, accountId, data, traceId);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
+  return getAccountQueryRepo().getUserProfile(userId);
 }
 
-export async function deleteAccountPolicy(
-  policyId: string,
-  accountId: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.deletePolicy(policyId, accountId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/platform/subdomains/account/interfaces/_actions/account.actions.ts
-````typescript
-"use server";
-
-/**
- * Account Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { accountService } from "../../api";
-import type { UpdateProfileInput, OrganizationRole } from "../../application/dtos/account.dto";
-
-export async function createUserAccount(
+export function subscribeToUserProfile(
   userId: string,
-  name: string,
-  email: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.createUserAccount(userId, name, email);
-  } catch (err) {
-    return commandFailureFrom("CREATE_USER_ACCOUNT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+  onUpdate: (profile: AccountEntity | null) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
 }
 
-export async function updateUserProfile(
+export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
+  return getAccountQueryRepo().getWalletBalance(accountId);
+}
+
+export function subscribeToWalletBalance(
+  accountId: string,
+  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToWalletBalance(accountId, onUpdate);
+}
+
+export function subscribeToWalletTransactions(
+  accountId: string,
+  maxCount: number,
+  onUpdate: (txs: WalletTransaction[]) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToWalletTransactions(accountId, maxCount, onUpdate);
+}
+
+export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
+  return getAccountQueryRepo().getAccountRole(accountId);
+}
+
+export function subscribeToAccountRoles(
+  accountId: string,
+  onUpdate: (record: AccountRoleRecord | null) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToAccountRoles(accountId, onUpdate);
+}
+
+export function subscribeToAccountsForUser(
   userId: string,
-  data: UpdateProfileInput,
-): Promise<CommandResult> {
-  try {
-    return await accountService.updateUserProfile(userId, data);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_USER_PROFILE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+  onUpdate: (accounts: Record<string, AccountEntity>) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToAccountsForUser(userId, onUpdate);
 }
 
-export async function creditWallet(
-  accountId: string,
-  amount: number,
-  description: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.creditWallet(accountId, amount, description);
-  } catch (err) {
-    return commandFailureFrom("WALLET_CREDIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+export async function getAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
+  // Policy reads are server-side only; keep client bundles free of policy repo deps.
+  return [];
 }
 
-export async function debitWallet(
-  accountId: string,
-  amount: number,
-  description: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.debitWallet(accountId, amount, description);
-  } catch (err) {
-    return commandFailureFrom("WALLET_DEBIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function assignAccountRole(
-  accountId: string,
-  role: OrganizationRole,
-  grantedBy: string,
-  traceId?: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.assignRole(accountId, role, grantedBy, traceId);
-  } catch (err) {
-    return commandFailureFrom("ASSIGN_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function revokeAccountRole(accountId: string): Promise<CommandResult> {
-  try {
-    return await accountService.revokeRole(accountId);
-  } catch (err) {
-    return commandFailureFrom("REVOKE_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/platform/subdomains/notification/interfaces/_actions/notification.actions.ts
-````typescript
-"use server";
-
-/**
- * Notification Server Actions — thin adapters over use cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { notificationService } from "../../api";
-import type { DispatchNotificationInput } from "../../application/dtos/notification.dto";
-
-export async function dispatchNotification(input: DispatchNotificationInput): Promise<CommandResult> {
-  try {
-    return await notificationService.dispatch(input);
-  } catch (err) {
-    return commandFailureFrom("DISPATCH_NOTIFICATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function markNotificationRead(
-  notificationId: string,
-  recipientId: string,
-): Promise<CommandResult> {
-  try {
-    return await notificationService.markAsRead(notificationId, recipientId);
-  } catch (err) {
-    return commandFailureFrom("MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function markAllNotificationsRead(recipientId: string): Promise<CommandResult> {
-  try {
-    return await notificationService.markAllAsRead(recipientId);
-  } catch (err) {
-    return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
-````typescript
-/**
- * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
- */
-
-import { notificationService } from "../../api";
-import type { NotificationEntity } from "../../application/dtos/notification.dto";
-
-export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
-  return notificationService.getForRecipient(recipientId, maxCount);
-}
-````
-
-## File: modules/platform/subdomains/organization/interfaces/_actions/organization-policy.actions.ts
-````typescript
-"use server";
-
-/**
- * Organization Policy Server Actions — thin adapters over use cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { organizationService } from "../../api";
-import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../application/dtos/organization.dto";
-
-export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
-  try { return await organizationService.createOrgPolicy(input); }
-  catch (err) { return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function updateOrgPolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
-  try { return await organizationService.updateOrgPolicy(policyId, data); }
-  catch (err) { return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
-  try { return await organizationService.deleteOrgPolicy(policyId); }
-  catch (err) { return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-````
-
-## File: modules/platform/subdomains/organization/interfaces/_actions/organization.actions.ts
-````typescript
-"use server";
-
-/**
- * Organization Server Actions — thin adapters over use cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { organizationService } from "../../api";
-import type {
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-} from "../../application/dtos/organization.dto";
-
-export async function createOrganization(cmd: CreateOrganizationCommand): Promise<CommandResult> {
-  try { return await organizationService.createOrganization(cmd); }
-  catch (err) { return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function createOrganizationWithTeam(
-  cmd: CreateOrganizationCommand,
-  teamName: string,
-  teamType: "internal" | "external" = "internal",
-): Promise<CommandResult> {
-  try { return await organizationService.createOrganizationWithTeam(cmd, teamName, teamType); }
-  catch (err) { return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function updateOrganizationSettings(cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> {
-  try { return await organizationService.updateSettings(cmd); }
-  catch (err) { return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
-  try { return await organizationService.deleteOrganization(organizationId); }
-  catch (err) { return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
-  try { return await organizationService.inviteMember(input); }
-  catch (err) { return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function recruitMember(
-  organizationId: string,
-  memberId: string,
-  name: string,
-  email: string,
-): Promise<CommandResult> {
-  try { return await organizationService.recruitMember(organizationId, memberId, name, email); }
-  catch (err) { return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function dismissMember(organizationId: string, memberId: string): Promise<CommandResult> {
-  try { return await organizationService.removeMember(organizationId, memberId); }
-  catch (err) { return commandFailureFrom("REMOVE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
-  try { return await organizationService.updateMemberRole(input); }
-  catch (err) { return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
-  try { return await organizationService.createTeam(input); }
-  catch (err) { return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function deleteTeam(organizationId: string, teamId: string): Promise<CommandResult> {
-  try { return await organizationService.deleteTeam(organizationId, teamId); }
-  catch (err) { return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function updateTeamMembers(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-  action: "add" | "remove",
-): Promise<CommandResult> {
-  try { return await organizationService.updateTeamMembers(organizationId, teamId, memberId, action); }
-  catch (err) { return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function createPartnerGroup(organizationId: string, groupName: string): Promise<CommandResult> {
-  try { return await organizationService.createPartnerGroup(organizationId, groupName); }
-  catch (err) { return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function sendPartnerInvite(
-  organizationId: string,
-  teamId: string,
-  email: string,
-): Promise<CommandResult> {
-  try { return await organizationService.sendPartnerInvite(organizationId, teamId, email); }
-  catch (err) { return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function dismissPartnerMember(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-): Promise<CommandResult> {
-  try { return await organizationService.dismissPartnerMember(organizationId, teamId, memberId); }
-  catch (err) { return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-````
-
-## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
-````typescript
-/**
- * Organization Queries — delegates to organizationQueryService via the subdomain api/ boundary.
- */
-
-import { organizationQueryService } from "../../api";
-import type { MemberReference, Team, OrgPolicy } from "../../application/dtos/organization.dto";
-
-export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
-  return organizationQueryService.getMembers(organizationId);
-}
-
-export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
-  return organizationQueryService.getTeams(organizationId);
-}
-
-export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
-  return organizationQueryService.getOrgPolicies(orgId);
+export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
+  return [];
 }
 ````
 
@@ -70709,6 +70987,130 @@ export class WorkspaceQueryApplicationService implements WorkspaceQueryPort {
   buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {
     return buildWikiContentTree(seeds, this.dependencies.wikiWorkspaceRepo);
   }
+}
+````
+
+## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
+````typescript
+import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Users } from "lucide-react";
+import type { ReactNode } from "react";
+
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
+
+function isWorkspaceScopedPath(pathname: string) {
+  if (pathname.startsWith("/workspace/")) {
+    return true;
+  }
+
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length < 2) {
+    return false;
+  }
+
+  return !NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(segments[0]);
+}
+
+export interface WorkspaceQuickAccessMatcherOptions {
+  panel: string | null;
+  tab: string | null;
+}
+
+export interface WorkspaceQuickAccessItem {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
+}
+
+const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
+  {
+    href: "/workspace/{workspaceId}?tab=Overview",
+    label: "首頁",
+    icon: <Home className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) &&
+      (options?.tab == null || options.tab === "Overview") &&
+      options?.panel !== "settings",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-pages",
+    label: "知識頁面",
+    icon: <FileText className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-pages",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-base-articles",
+    label: "文章",
+    icon: <BookOpen className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-base-articles",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Files",
+    label: "檔案",
+    icon: <FolderOpen className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Files",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Members",
+    label: "成員",
+    icon: <Users className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Members",
+  },
+  {
+    href: "/notebook/rag-query?workspaceId={workspaceId}",
+    label: "RAG 查詢",
+    icon: <Brain className="size-3.5" />,
+    isActive: (pathname: string) =>
+      pathname === "/notebook/rag-query" ||
+      pathname.startsWith("/notebook/rag-query/") ||
+      pathname.includes("/notebook/rag-query"),
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=source-libraries",
+    label: "資料庫",
+    icon: <Database className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "source-libraries",
+  },
+];
+
+export function buildWorkspaceQuickAccessItems(
+  workspaceId: string,
+  accountId?: string | null,
+): WorkspaceQuickAccessItem[] {
+  const encodedWorkspaceId = encodeURIComponent(workspaceId);
+  const encodedAccountId = accountId ? encodeURIComponent(accountId) : "";
+  const workspaceBaseHref = accountId
+    ? `/${encodedAccountId}/${encodedWorkspaceId}`
+    : `/workspace/${encodedWorkspaceId}`;
+
+  return WORKSPACE_QUICK_ACCESS_TEMPLATES.map((item) => ({
+    ...item,
+    href: item.href
+      .replaceAll("/workspace/{workspaceId}", workspaceBaseHref)
+      .replaceAll(
+        "/notebook/rag-query?workspaceId={workspaceId}",
+        `${workspaceBaseHref}/notebook/rag-query`,
+      )
+      .replaceAll("{workspaceId}", encodedWorkspaceId),
+  }));
 }
 ````
 
@@ -71663,82 +72065,6 @@ export {
 	updateAccountProfile as updateAccountProfileFromService,
 	configureLegacyAccountProfileDataSource,
 } from "./account-profile-service";
-````
-
-## File: modules/platform/subdomains/account/interfaces/queries/account.queries.ts
-````typescript
-/**
- * Account Read Queries — thin wrappers over the AccountQueryRepository port.
- * NOT Server Actions — callable from React components/hooks directly.
- */
-
-import { createAccountQueryRepository } from "../../api";
-import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
-import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dtos/account.dto";
-
-let _accountQueryRepo: AccountQueryRepository | undefined;
-
-function getAccountQueryRepo(): AccountQueryRepository {
-  if (!_accountQueryRepo) _accountQueryRepo = createAccountQueryRepository();
-  return _accountQueryRepo;
-}
-
-export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
-  return getAccountQueryRepo().getUserProfile(userId);
-}
-
-export function subscribeToUserProfile(
-  userId: string,
-  onUpdate: (profile: AccountEntity | null) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
-}
-
-export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
-  return getAccountQueryRepo().getWalletBalance(accountId);
-}
-
-export function subscribeToWalletBalance(
-  accountId: string,
-  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToWalletBalance(accountId, onUpdate);
-}
-
-export function subscribeToWalletTransactions(
-  accountId: string,
-  maxCount: number,
-  onUpdate: (txs: WalletTransaction[]) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToWalletTransactions(accountId, maxCount, onUpdate);
-}
-
-export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
-  return getAccountQueryRepo().getAccountRole(accountId);
-}
-
-export function subscribeToAccountRoles(
-  accountId: string,
-  onUpdate: (record: AccountRoleRecord | null) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToAccountRoles(accountId, onUpdate);
-}
-
-export function subscribeToAccountsForUser(
-  userId: string,
-  onUpdate: (accounts: Record<string, AccountEntity>) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToAccountsForUser(userId, onUpdate);
-}
-
-export async function getAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
-  // Policy reads are server-side only; keep client bundles free of policy repo deps.
-  return [];
-}
-
-export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
-  return [];
-}
 ````
 
 ## File: modules/platform/subdomains/ai/api/index.ts

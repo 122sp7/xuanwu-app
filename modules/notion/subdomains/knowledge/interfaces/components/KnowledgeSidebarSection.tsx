@@ -21,10 +21,6 @@ interface KnowledgeSidebarSectionProps {
   readonly onQuickCreatePage: () => void | Promise<void>;
 }
 
-function isActiveRoute(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
-
 function withContextQuery(href: string, accountId: string | null, workspaceId: string | null): string {
   if (!accountId && !workspaceId) {
     return href;
