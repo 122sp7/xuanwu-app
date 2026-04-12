@@ -1,4 +1,4 @@
-import { FirebaseThreadRepository } from "../infrastructure/firebase/FirebaseThreadRepository";
+import { FirebaseThreadRepository } from "../../../infrastructure/conversation/firebase/FirebaseThreadRepository";
 
 export function makeThreadRepo() {
   return new FirebaseThreadRepository();

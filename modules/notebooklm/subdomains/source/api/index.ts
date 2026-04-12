@@ -41,7 +41,7 @@ export type {
 // ---------------------------------------------------------------------------
 
 import type { IWikiLibraryRepository } from "../domain/repositories/IWikiLibraryRepository";
-import { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
+import { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
 import {
   listWikiLibraries as _listWikiLibraries,
   createWikiLibrary as _createWikiLibrary,
@@ -109,16 +109,16 @@ export {
 
 export type {
   UseSourceDocumentsSnapshotResult,
-} from "../interfaces/hooks/useSourceDocumentsSnapshot";
+} from "../../../interfaces/source/hooks/useSourceDocumentsSnapshot";
 export {
   useSourceDocumentsSnapshot,
-} from "../interfaces/hooks/useSourceDocumentsSnapshot";
+} from "../../../interfaces/source/hooks/useSourceDocumentsSnapshot";
 
 // ---------------------------------------------------------------------------
 // Queries
 // ---------------------------------------------------------------------------
 
-export { getWorkspaceFiles, getWorkspaceRagDocuments } from "../interfaces/queries/source-file.queries";
+export { getWorkspaceFiles, getWorkspaceRagDocuments } from "../../../interfaces/source/queries/source-file.queries";
 
 // ---------------------------------------------------------------------------
 // Server actions
@@ -130,12 +130,12 @@ export {
   registerUploadedRagDocument,
   deleteSourceDocument,
   renameSourceDocument,
-} from "../interfaces/_actions/source-file.actions";
+} from "../../../interfaces/source/_actions/source-file.actions";
 
 export {
   createKnowledgeDraftFromSourceDocument,
   processSourceDocumentWorkflow,
-} from "../interfaces/_actions/source-processing.actions";
+} from "../../../interfaces/source/_actions/source-processing.actions";
 export type {
   SourceProcessingExecutionSummary,
   SourceProcessingTaskResult,
@@ -146,20 +146,20 @@ export type {
 // UI components
 // ---------------------------------------------------------------------------
 
-export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
-export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
-export { LibrariesView } from "../interfaces/components/LibrariesView";
-export { LibraryTableView } from "../interfaces/components/LibraryTableView";
-export { FileProcessingDialog } from "../interfaces/components/FileProcessingDialog";
+export { SourceDocumentsView } from "../../../interfaces/source/components/SourceDocumentsView";
+export { WorkspaceFilesTab } from "../../../interfaces/source/components/WorkspaceFilesTab";
+export { LibrariesView } from "../../../interfaces/source/components/LibrariesView";
+export { LibraryTableView } from "../../../interfaces/source/components/LibraryTableView";
+export { FileProcessingDialog } from "../../../interfaces/source/components/FileProcessingDialog";
 
 // ---------------------------------------------------------------------------
 // Infrastructure (for direct injection in server-side wiring)
 // ---------------------------------------------------------------------------
 
-export { FirebaseSourceFileAdapter } from "../infrastructure/firebase/FirebaseSourceFileAdapter";
-export { FirebaseRagDocumentAdapter } from "../infrastructure/firebase/FirebaseRagDocumentAdapter";
-export { FirebaseWikiLibraryAdapter } from "../infrastructure/firebase/FirebaseWikiLibraryAdapter";
-export { InMemoryWikiLibraryAdapter } from "../infrastructure/memory/InMemoryWikiLibraryAdapter";
-export { FirebaseSourceDocumentCommandAdapter } from "../infrastructure/firebase/FirebaseSourceDocumentCommandAdapter";
-export { FirebaseParsedDocumentAdapter } from "../infrastructure/firebase/FirebaseParsedDocumentAdapter";
-export { NotionKnowledgePageGatewayAdapter } from "../infrastructure/adapters/NotionKnowledgePageGatewayAdapter";
+export { FirebaseSourceFileAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceFileAdapter";
+export { FirebaseRagDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseRagDocumentAdapter";
+export { FirebaseWikiLibraryAdapter } from "../../../infrastructure/source/firebase/FirebaseWikiLibraryAdapter";
+export { InMemoryWikiLibraryAdapter } from "../../../infrastructure/source/memory/InMemoryWikiLibraryAdapter";
+export { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
+export { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
+export { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
