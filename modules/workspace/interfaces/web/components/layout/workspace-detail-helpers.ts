@@ -4,8 +4,8 @@ import type { WorkspaceTabGroup } from "../../navigation/workspace-tabs";
 
 export const MOBILE_TAB_GROUP_ORDER: WorkspaceTabGroup[] = [
   "primary",
-  "modules",
   "library",
+  "modules",
   "spaces",
   "databases",
 ];

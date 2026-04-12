@@ -4,27 +4,26 @@ export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" |
 
 export const WORKSPACE_TAB_SIDEBAR_GROUP_ORDER: readonly WorkspaceTabGroup[] = [
   "primary",
+  "library",
   "modules",
   "spaces",
   "databases",
-  "library",
 ];
 
 export const WORKSPACE_TAB_VALUES = [
   "Overview",
+  "Files",
   "Members",
   "Daily",
-  "Files",
-  "Schedule",
-  "Audit",
   "Tasks",
   "TaskQa",
   "TaskAcceptance",
   "TaskIssues",
   "TaskFinance",
+  "Schedule",
+  "Audit",
   "Feed",
   "Knowledge",
-  "WorkspaceSettings",
   "NotionKnowledge",
   "NotionAuthoring",
   "NotionDatabase",
@@ -37,6 +36,7 @@ export const WORKSPACE_TAB_VALUES = [
   "NotebookSource",
   "NotebookSynthesis",
   "AiChat",
+  "WorkspaceSettings",
 ] as const;
 
 export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
@@ -84,16 +84,15 @@ export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceT
   library: ["Files", "Members"],
   modules: [
     "Daily",
-    "Schedule",
-    "Audit",
     "Tasks",
     "TaskQa",
     "TaskAcceptance",
     "TaskIssues",
     "TaskFinance",
+    "Schedule",
+    "Audit",
     "Feed",
     "Knowledge",
-    "WorkspaceSettings",
     "NotionKnowledge",
     "NotionAuthoring",
     "NotionDatabase",
@@ -106,6 +105,7 @@ export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceT
     "NotebookSource",
     "NotebookSynthesis",
     "AiChat",
+    "WorkspaceSettings",
   ],
 };
 
