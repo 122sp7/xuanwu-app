@@ -1,0 +1,1 @@
+export { FirebaseRelationRepository } from "./FirebaseRelationRepository";
