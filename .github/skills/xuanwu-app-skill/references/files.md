@@ -12865,6 +12865,143 @@ export interface PermissionEvaluationView {
 export * from "./access-control.dto";
 ````
 
+## File: modules/platform/subdomains/access-control/application/use-cases/access-control.use-cases.ts
+````typescript
+/**
+ * Access-Control Use Cases — pure application logic.
+ */
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { AccessPolicy } from "../../domain/aggregates/AccessPolicy";
+import {
+  allowDecision,
+  denyDecision,
+} from "../../../../domain/value-objects/PermissionDecision";
+import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
+import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
+import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
+import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
+
+// ─── Evaluate Permission ──────────────────────────────────────────────────────
+
+export class EvaluatePermissionUseCase {
+  constructor(private readonly repo: AccessPolicyRepository) {}
+
+  async execute(input: {
+    subjectId: string;
+    resourceType: string;
+    resourceId?: string;
+    action: string;
+  }): Promise<CommandResult> {
+    try {
+      const policies = await this.repo.findActiveBySubjectAndResource(
+        input.subjectId,
+        input.resourceType,
+        input.resourceId,
+      );
+
+      // Explicit deny takes priority (deny-override semantics)
+      const hasDeny = policies.some(
+        (p) => p.effect === "deny" && p.actions.includes(input.action),
+      );
+      if (hasDeny) {
+        return commandSuccess(JSON.stringify(denyDecision("Explicit deny policy matched")), Date.now());
+      }
+
+      const hasAllow = policies.some(
+        (p) => p.effect === "allow" && p.actions.includes(input.action),
+      );
+      if (hasAllow) {
+        return commandSuccess(JSON.stringify(allowDecision("Allow policy matched")), Date.now());
+      }
+
+      return commandSuccess(JSON.stringify(denyDecision("No matching allow policy")), Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "EVALUATE_PERMISSION_FAILED",
+        err instanceof Error ? err.message : "Failed to evaluate permission",
+      );
+    }
+  }
+}
+
+// ─── Create Access Policy ─────────────────────────────────────────────────────
+
+export class CreateAccessPolicyUseCase {
+  constructor(private readonly repo: AccessPolicyRepository) {}
+
+  async execute(input: {
+    subjectRef: SubjectRef;
+    resourceRef: ResourceRef;
+    actions: string[];
+    effect: PolicyEffect;
+    conditions?: string[];
+  }): Promise<CommandResult> {
+    try {
+      const id = crypto.randomUUID();
+      const policy = AccessPolicy.create(id, input);
+      await this.repo.save(policy.getSnapshot());
+      return commandSuccess(id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CREATE_ACCESS_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to create access policy",
+      );
+    }
+  }
+}
+
+// ─── Update Access Policy ─────────────────────────────────────────────────────
+
+export class UpdateAccessPolicyUseCase {
+  constructor(private readonly repo: AccessPolicyRepository) {}
+
+  async execute(
+    policyId: string,
+    input: { actions?: string[]; effect?: PolicyEffect; conditions?: string[] },
+  ): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(policyId);
+      if (!snapshot) {
+        return commandFailureFrom("POLICY_NOT_FOUND", `AccessPolicy ${policyId} not found`);
+      }
+      const policy = AccessPolicy.reconstitute(snapshot);
+      policy.update(input);
+      await this.repo.update(policy.getSnapshot());
+      return commandSuccess(policyId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_ACCESS_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to update access policy",
+      );
+    }
+  }
+}
+
+// ─── Delete (Deactivate) Access Policy ───────────────────────────────────────
+
+export class DeactivateAccessPolicyUseCase {
+  constructor(private readonly repo: AccessPolicyRepository) {}
+
+  async execute(policyId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(policyId);
+      if (!snapshot) {
+        return commandFailureFrom("POLICY_NOT_FOUND", `AccessPolicy ${policyId} not found`);
+      }
+      const policy = AccessPolicy.reconstitute(snapshot);
+      policy.deactivate();
+      await this.repo.update(policy.getSnapshot());
+      return commandSuccess(policyId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "DEACTIVATE_ACCESS_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to deactivate access policy",
+      );
+    }
+  }
+}
+````
+
 ## File: modules/platform/subdomains/access-control/application/use-cases/index.ts
 ````typescript
 export * from "./access-control.use-cases";
@@ -13288,6 +13425,34 @@ Access control policies and permission resolution.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/account-profile/application/dtos/account-profile.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the account-profile subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type {
+  AccountProfile,
+  AccountProfileId,
+  AccountProfileTheme,
+  UpdateAccountProfileInput,
+} from "../../domain/entities/AccountProfile";
+export type { Unsubscribe } from "../../domain/repositories/AccountProfileQueryRepository";
+````
+
+## File: modules/platform/subdomains/account-profile/application/index.ts
+````typescript
+export { GetAccountProfileUseCase, SubscribeAccountProfileUseCase } from "./use-cases/get-account-profile.use-case";
+export { UpdateAccountProfileUseCase } from "./use-cases/update-account-profile.use-case";
+export type {
+	AccountProfile,
+	AccountProfileId,
+	AccountProfileTheme,
+	Unsubscribe,
+	UpdateAccountProfileInput,
+} from "./dtos/account-profile.dto";
 ````
 
 ## File: modules/platform/subdomains/account-profile/application/use-cases/get-account-profile.use-case.ts
@@ -13808,6 +13973,29 @@ export function createLegacyAccountProfileCommandRepository(
 }
 ````
 
+## File: modules/platform/subdomains/account-profile/interfaces/_actions/account-profile.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { updateAccountProfile } from "../../api";
+import type { UpdateAccountProfileInput } from "../../application/dtos/account-profile.dto";
+
+export async function updateProfile(
+	actorId: string,
+	input: UpdateAccountProfileInput,
+): Promise<CommandResult> {
+	try {
+		return await updateAccountProfile(actorId, input);
+	} catch (err) {
+		return commandFailureFrom(
+			"UPDATE_ACCOUNT_PROFILE_FAILED",
+			err instanceof Error ? err.message : "Unexpected error",
+		);
+	}
+}
+````
+
 ## File: modules/platform/subdomains/account-profile/interfaces/components/screens/SettingsProfileRouteScreen.tsx
 ````typescript
 "use client";
@@ -14001,6 +14189,31 @@ export { updateProfile } from "./_actions/account-profile.actions";
 export { SettingsProfileRouteScreen } from "./components/screens/SettingsProfileRouteScreen";
 ````
 
+## File: modules/platform/subdomains/account-profile/interfaces/queries/account-profile.queries.ts
+````typescript
+/**
+ * Account Profile Read Queries — thin wrappers over account-profile API use cases.
+ * NOT Server Actions — callable from React components/hooks directly.
+ */
+
+import { getAccountProfile, subscribeToAccountProfile } from "../../api";
+import type {
+  AccountProfile,
+  Unsubscribe,
+} from "../../application/dtos/account-profile.dto";
+
+export async function getProfile(actorId: string): Promise<AccountProfile | null> {
+  return getAccountProfile(actorId);
+}
+
+export function subscribeToProfile(
+  actorId: string,
+  onUpdate: (profile: AccountProfile | null) => void,
+): Unsubscribe {
+  return subscribeToAccountProfile(actorId, onUpdate);
+}
+````
+
 ## File: modules/platform/subdomains/account-profile/README.md
 ````markdown
 # Account Profile
@@ -14016,6 +14229,54 @@ User profile preferences and settings.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/account/api/legacy-account-profile.bridge.ts
+````typescript
+import { type UpdateProfileInput } from "../application/dtos/account.dto";
+import { accountService, createAccountQueryRepository } from "../infrastructure/account-service";
+import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
+
+let _accountQueryRepo: AccountQueryRepository | undefined;
+
+function getAccountQueryRepo(): AccountQueryRepository {
+  if (!_accountQueryRepo) {
+    _accountQueryRepo = createAccountQueryRepository();
+  }
+  return _accountQueryRepo;
+}
+
+export async function getLegacyUserProfile(userId: string) {
+  return getAccountQueryRepo().getUserProfile(userId);
+}
+
+export function subscribeToLegacyUserProfile(
+  userId: string,
+  onUpdate: (profile: Awaited<ReturnType<typeof getLegacyUserProfile>>) => void,
+) {
+  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
+}
+
+export async function updateLegacyUserProfile(userId: string, input: UpdateProfileInput): Promise<void> {
+  await accountService.updateUserProfile(userId, input);
+}
+````
+
+## File: modules/platform/subdomains/account/application/dtos/account.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the account subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type {
+  AccountEntity,
+  WalletTransaction,
+  AccountRoleRecord,
+  UpdateProfileInput,
+  OrganizationRole,
+} from "../../domain/entities/Account";
+export type { WalletBalanceSnapshot, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
+export type { AccountPolicy, CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
 ````
 
 ## File: modules/platform/subdomains/account/application/use-cases/account-policy.use-cases.ts
@@ -15526,6 +15787,132 @@ export { accountService, createClientAccountUseCases } from "./account-service";
 export { createAccountQueryRepository } from "./account-service";
 ````
 
+## File: modules/platform/subdomains/account/interfaces/_actions/account-policy.actions.ts
+````typescript
+"use server";
+
+/**
+ * Account Policy Server Actions — thin adapter: Server Actions → Application Use Cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { accountService } from "../../api";
+import type { CreatePolicyInput, UpdatePolicyInput } from "../../application/dtos/account.dto";
+
+export async function createAccountPolicy(input: CreatePolicyInput): Promise<CommandResult> {
+  try {
+    return await accountService.createPolicy(input);
+  } catch (err) {
+    return commandFailureFrom("CREATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateAccountPolicy(
+  policyId: string,
+  accountId: string,
+  data: UpdatePolicyInput,
+  traceId?: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.updatePolicy(policyId, accountId, data, traceId);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteAccountPolicy(
+  policyId: string,
+  accountId: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.deletePolicy(policyId, accountId);
+  } catch (err) {
+    return commandFailureFrom("DELETE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/platform/subdomains/account/interfaces/_actions/account.actions.ts
+````typescript
+"use server";
+
+/**
+ * Account Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { accountService } from "../../api";
+import type { UpdateProfileInput, OrganizationRole } from "../../application/dtos/account.dto";
+
+export async function createUserAccount(
+  userId: string,
+  name: string,
+  email: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.createUserAccount(userId, name, email);
+  } catch (err) {
+    return commandFailureFrom("CREATE_USER_ACCOUNT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateUserProfile(
+  userId: string,
+  data: UpdateProfileInput,
+): Promise<CommandResult> {
+  try {
+    return await accountService.updateUserProfile(userId, data);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_USER_PROFILE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function creditWallet(
+  accountId: string,
+  amount: number,
+  description: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.creditWallet(accountId, amount, description);
+  } catch (err) {
+    return commandFailureFrom("WALLET_CREDIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function debitWallet(
+  accountId: string,
+  amount: number,
+  description: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.debitWallet(accountId, amount, description);
+  } catch (err) {
+    return commandFailureFrom("WALLET_DEBIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function assignAccountRole(
+  accountId: string,
+  role: OrganizationRole,
+  grantedBy: string,
+  traceId?: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.assignRole(accountId, role, grantedBy, traceId);
+  } catch (err) {
+    return commandFailureFrom("ASSIGN_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function revokeAccountRole(accountId: string): Promise<CommandResult> {
+  try {
+    return await accountService.revokeRole(accountId);
+  } catch (err) {
+    return commandFailureFrom("REVOKE_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
 ## File: modules/platform/subdomains/account/interfaces/components/HeaderUserAvatar.tsx
 ````typescript
 "use client";
@@ -15673,6 +16060,82 @@ export {
   updateAccountPolicy,
   deleteAccountPolicy,
 } from "./_actions/account-policy.actions";
+````
+
+## File: modules/platform/subdomains/account/interfaces/queries/account.queries.ts
+````typescript
+/**
+ * Account Read Queries — thin wrappers over the AccountQueryRepository port.
+ * NOT Server Actions — callable from React components/hooks directly.
+ */
+
+import { createAccountQueryRepository } from "../../api";
+import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
+import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dtos/account.dto";
+
+let _accountQueryRepo: AccountQueryRepository | undefined;
+
+function getAccountQueryRepo(): AccountQueryRepository {
+  if (!_accountQueryRepo) _accountQueryRepo = createAccountQueryRepository();
+  return _accountQueryRepo;
+}
+
+export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
+  return getAccountQueryRepo().getUserProfile(userId);
+}
+
+export function subscribeToUserProfile(
+  userId: string,
+  onUpdate: (profile: AccountEntity | null) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
+}
+
+export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
+  return getAccountQueryRepo().getWalletBalance(accountId);
+}
+
+export function subscribeToWalletBalance(
+  accountId: string,
+  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToWalletBalance(accountId, onUpdate);
+}
+
+export function subscribeToWalletTransactions(
+  accountId: string,
+  maxCount: number,
+  onUpdate: (txs: WalletTransaction[]) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToWalletTransactions(accountId, maxCount, onUpdate);
+}
+
+export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
+  return getAccountQueryRepo().getAccountRole(accountId);
+}
+
+export function subscribeToAccountRoles(
+  accountId: string,
+  onUpdate: (record: AccountRoleRecord | null) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToAccountRoles(accountId, onUpdate);
+}
+
+export function subscribeToAccountsForUser(
+  userId: string,
+  onUpdate: (accounts: Record<string, AccountEntity>) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToAccountsForUser(userId, onUpdate);
+}
+
+export async function getAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
+  // Policy reads are server-side only; keep client bundles free of policy repo deps.
+  return [];
+}
+
+export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
+  return [];
+}
 ````
 
 ## File: modules/platform/subdomains/ai/README.md
@@ -16537,6 +17000,127 @@ export * from "./entitlement.dto";
 ````typescript
 export * from "./dtos";
 export * from "./use-cases";
+````
+
+## File: modules/platform/subdomains/entitlement/application/use-cases/entitlement.use-cases.ts
+````typescript
+/**
+ * Entitlement Use Cases — pure application logic.
+ * All cross-domain dependencies are injected via ports.
+ */
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { EntitlementGrant } from "../../domain/aggregates/EntitlementGrant";
+import type { EntitlementGrantRepository } from "../../domain/repositories/EntitlementGrantRepository";
+
+// ─── Grant Entitlement ────────────────────────────────────────────────────────
+
+export class GrantEntitlementUseCase {
+  constructor(private readonly repo: EntitlementGrantRepository) {}
+
+  async execute(input: {
+    contextId: string;
+    featureKey: string;
+    quota?: number | null;
+    expiresAt?: string | null;
+  }): Promise<CommandResult> {
+    try {
+      const id = crypto.randomUUID();
+      const grant = EntitlementGrant.create(id, input);
+      await this.repo.save(grant.getSnapshot());
+      return commandSuccess(id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "GRANT_ENTITLEMENT_FAILED",
+        err instanceof Error ? err.message : "Failed to grant entitlement",
+      );
+    }
+  }
+}
+
+// ─── Suspend Entitlement ──────────────────────────────────────────────────────
+
+export class SuspendEntitlementUseCase {
+  constructor(private readonly repo: EntitlementGrantRepository) {}
+
+  async execute(entitlementId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(entitlementId);
+      if (!snapshot) {
+        return commandFailureFrom("ENTITLEMENT_NOT_FOUND", `Entitlement ${entitlementId} not found`);
+      }
+      const grant = EntitlementGrant.reconstitute(snapshot);
+      grant.suspend();
+      await this.repo.update(grant.getSnapshot());
+      return commandSuccess(entitlementId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "SUSPEND_ENTITLEMENT_FAILED",
+        err instanceof Error ? err.message : "Failed to suspend entitlement",
+      );
+    }
+  }
+}
+
+// ─── Revoke Entitlement ───────────────────────────────────────────────────────
+
+export class RevokeEntitlementUseCase {
+  constructor(private readonly repo: EntitlementGrantRepository) {}
+
+  async execute(entitlementId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(entitlementId);
+      if (!snapshot) {
+        return commandFailureFrom("ENTITLEMENT_NOT_FOUND", `Entitlement ${entitlementId} not found`);
+      }
+      const grant = EntitlementGrant.reconstitute(snapshot);
+      grant.revoke();
+      await this.repo.update(grant.getSnapshot());
+      return commandSuccess(entitlementId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "REVOKE_ENTITLEMENT_FAILED",
+        err instanceof Error ? err.message : "Failed to revoke entitlement",
+      );
+    }
+  }
+}
+
+// ─── Resolve Entitlements (query-style) ───────────────────────────────────────
+
+export class ResolveEntitlementsUseCase {
+  constructor(private readonly repo: EntitlementGrantRepository) {}
+
+  async execute(contextId: string): Promise<CommandResult> {
+    try {
+      const snapshots = await this.repo.findByContextId(contextId);
+      const active = snapshots.filter((s) => s.status === "active");
+      return commandSuccess(JSON.stringify(active), Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "RESOLVE_ENTITLEMENTS_FAILED",
+        err instanceof Error ? err.message : "Failed to resolve entitlements",
+      );
+    }
+  }
+}
+
+// ─── Check Feature Entitlement ────────────────────────────────────────────────
+
+export class CheckFeatureEntitlementUseCase {
+  constructor(private readonly repo: EntitlementGrantRepository) {}
+
+  async execute(contextId: string, featureKey: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findActiveByContextAndFeature(contextId, featureKey);
+      return commandSuccess(JSON.stringify({ entitled: snapshot !== null, snapshot }), Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CHECK_ENTITLEMENT_FAILED",
+        err instanceof Error ? err.message : "Failed to check entitlement",
+      );
+    }
+  }
+}
 ````
 
 ## File: modules/platform/subdomains/entitlement/application/use-cases/index.ts
@@ -18067,6 +18651,15 @@ export type { NotificationsPageProps } from "../interfaces/components/Notificati
 export * from "../interfaces";
 ````
 
+## File: modules/platform/subdomains/notification/application/dtos/notification.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the notification subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type { NotificationEntity, DispatchNotificationInput } from "../../domain/entities/Notification";
+````
+
 ## File: modules/platform/subdomains/notification/application/index.ts
 ````typescript
 export {
@@ -18560,6 +19153,220 @@ export const notificationService = {
 };
 ````
 
+## File: modules/platform/subdomains/notification/interfaces/_actions/notification.actions.ts
+````typescript
+"use server";
+
+/**
+ * Notification Server Actions — thin adapters over use cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { notificationService } from "../../api";
+import type { DispatchNotificationInput } from "../../application/dtos/notification.dto";
+
+export async function dispatchNotification(input: DispatchNotificationInput): Promise<CommandResult> {
+  try {
+    return await notificationService.dispatch(input);
+  } catch (err) {
+    return commandFailureFrom("DISPATCH_NOTIFICATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function markNotificationRead(
+  notificationId: string,
+  recipientId: string,
+): Promise<CommandResult> {
+  try {
+    return await notificationService.markAsRead(notificationId, recipientId);
+  } catch (err) {
+    return commandFailureFrom("MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function markAllNotificationsRead(recipientId: string): Promise<CommandResult> {
+  try {
+    return await notificationService.markAllAsRead(recipientId);
+  } catch (err) {
+    return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/platform/subdomains/notification/interfaces/components/NotificationsPage.tsx
+````typescript
+/**
+ * Route: /settings/notifications
+ * Purpose: Full-page notification center showing all notifications for the
+ *          authenticated user with read/unread filtering and bulk actions.
+ */
+"use client";
+
+import { Bell, CheckCheck, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+
+import {
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "../_actions/notification.actions";
+import { getNotificationsForRecipient } from "../queries/notification.queries";
+import type { NotificationEntity } from "../../application/dtos/notification.dto";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+type Filter = "all" | "unread";
+
+const TYPE_BADGE: Record<string, string> = {
+  info: "bg-blue-100 text-blue-800",
+  alert: "bg-red-100 text-red-800",
+  success: "bg-green-100 text-green-800",
+  warning: "bg-yellow-100 text-yellow-800",
+};
+
+function formatTime(ts: number) {
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(ts));
+}
+
+export interface NotificationsPageProps {
+  recipientId: string;
+}
+
+export function NotificationsPage({ recipientId }: NotificationsPageProps) {
+  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [isPending, startTransition] = useTransition();
+
+  const load = useCallback(async () => {
+    if (!recipientId) { setIsLoading(false); return; }
+    setIsLoading(true);
+    try {
+      const data = await getNotificationsForRecipient(recipientId, 100);
+      setNotifications(data);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [recipientId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const displayed = useMemo(
+    () => filter === "unread" ? notifications.filter((n) => !n.read) : notifications,
+    [notifications, filter],
+  );
+
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications],
+  );
+
+  function handleMarkOne(id: string) {
+    startTransition(async () => {
+      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+      await markNotificationRead(id, recipientId);
+    });
+  }
+
+  function handleMarkAll() {
+    startTransition(async () => {
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      await markAllNotificationsRead(recipientId);
+    });
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-6">
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bell className="h-5 w-5 text-muted-foreground" />
+          <h1 className="text-xl font-semibold">通知</h1>
+          {unreadCount > 0 && (
+            <Badge variant="secondary" className="ml-1">{unreadCount} 未讀</Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setFilter((f) => f === "all" ? "unread" : "all")}
+            className="text-xs"
+          >
+            {filter === "all" ? "只看未讀" : "顯示全部"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isPending || unreadCount === 0}
+            onClick={handleMarkAll}
+            className="text-xs gap-1"
+          >
+            <CheckCheck className="h-3.5 w-3.5" />
+            全部已讀
+          </Button>
+        </div>
+      </div>
+
+      {/* Body */}
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : displayed.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground">
+          <Bell className="h-10 w-10 opacity-30" />
+          <p className="text-sm">{filter === "unread" ? "沒有未讀通知" : "目前沒有通知"}</p>
+        </div>
+      ) : (
+        <ul className="divide-y divide-border rounded-lg border">
+          {displayed.map((n) => (
+            <li
+              key={n.id}
+              className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40 ${n.read ? "opacity-60" : ""}`}
+            >
+              {!n.read && (
+                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />
+              )}
+              {n.read && <span className="mt-2 h-2 w-2 shrink-0" />}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-medium">{n.title}</p>
+                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${TYPE_BADGE[n.type] ?? ""}`}>
+                    {n.type}
+                  </span>
+                </div>
+                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.message}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{formatTime(n.timestamp)}</p>
+              </div>
+              {!n.read && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={isPending}
+                  onClick={() => handleMarkOne(n.id)}
+                  title="標記已讀"
+                  className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+````
+
 ## File: modules/platform/subdomains/notification/interfaces/index.ts
 ````typescript
 export { getNotificationsForRecipient } from "./queries/notification.queries";
@@ -18568,6 +19375,20 @@ export {
   markNotificationRead,
   markAllNotificationsRead,
 } from "./_actions/notification.actions";
+````
+
+## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
+````typescript
+/**
+ * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
+ */
+
+import { notificationService } from "../../api";
+import type { NotificationEntity } from "../../application/dtos/notification.dto";
+
+export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
+  return notificationService.getForRecipient(recipientId, maxCount);
+}
 ````
 
 ## File: modules/platform/subdomains/observability/api/index.ts
@@ -18650,6 +19471,26 @@ User and organization onboarding flows.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/organization/application/dtos/organization.dto.ts
+````typescript
+/**
+ * Application-layer DTO re-exports for the organization subdomain.
+ * Interfaces must import from here, not from domain/ directly.
+ */
+export type {
+  MemberReference,
+  Team,
+  OrgPolicy,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+} from "../../domain/entities/Organization";
 ````
 
 ## File: modules/platform/subdomains/organization/application/index.ts
@@ -20231,6 +21072,145 @@ export function toOrgPolicy(id: string, data: Record<string, unknown>): OrgPolic
 export { organizationService, organizationQueryService } from "./organization-service";
 ````
 
+## File: modules/platform/subdomains/organization/interfaces/_actions/organization-policy.actions.ts
+````typescript
+"use server";
+
+/**
+ * Organization Policy Server Actions — thin adapters over use cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { organizationService } from "../../api";
+import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../application/dtos/organization.dto";
+
+export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
+  try { return await organizationService.createOrgPolicy(input); }
+  catch (err) { return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateOrgPolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
+  try { return await organizationService.updateOrgPolicy(policyId, data); }
+  catch (err) { return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteOrgPolicy(policyId); }
+  catch (err) { return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+````
+
+## File: modules/platform/subdomains/organization/interfaces/_actions/organization.actions.ts
+````typescript
+"use server";
+
+/**
+ * Organization Server Actions — thin adapters over use cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { organizationService } from "../../api";
+import type {
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+} from "../../application/dtos/organization.dto";
+
+export async function createOrganization(cmd: CreateOrganizationCommand): Promise<CommandResult> {
+  try { return await organizationService.createOrganization(cmd); }
+  catch (err) { return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createOrganizationWithTeam(
+  cmd: CreateOrganizationCommand,
+  teamName: string,
+  teamType: "internal" | "external" = "internal",
+): Promise<CommandResult> {
+  try { return await organizationService.createOrganizationWithTeam(cmd, teamName, teamType); }
+  catch (err) { return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateOrganizationSettings(cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> {
+  try { return await organizationService.updateSettings(cmd); }
+  catch (err) { return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteOrganization(organizationId); }
+  catch (err) { return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
+  try { return await organizationService.inviteMember(input); }
+  catch (err) { return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function recruitMember(
+  organizationId: string,
+  memberId: string,
+  name: string,
+  email: string,
+): Promise<CommandResult> {
+  try { return await organizationService.recruitMember(organizationId, memberId, name, email); }
+  catch (err) { return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function dismissMember(organizationId: string, memberId: string): Promise<CommandResult> {
+  try { return await organizationService.removeMember(organizationId, memberId); }
+  catch (err) { return commandFailureFrom("REMOVE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
+  try { return await organizationService.updateMemberRole(input); }
+  catch (err) { return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
+  try { return await organizationService.createTeam(input); }
+  catch (err) { return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteTeam(organizationId: string, teamId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteTeam(organizationId, teamId); }
+  catch (err) { return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateTeamMembers(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+  action: "add" | "remove",
+): Promise<CommandResult> {
+  try { return await organizationService.updateTeamMembers(organizationId, teamId, memberId, action); }
+  catch (err) { return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createPartnerGroup(organizationId: string, groupName: string): Promise<CommandResult> {
+  try { return await organizationService.createPartnerGroup(organizationId, groupName); }
+  catch (err) { return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function sendPartnerInvite(
+  organizationId: string,
+  teamId: string,
+  email: string,
+): Promise<CommandResult> {
+  try { return await organizationService.sendPartnerInvite(organizationId, teamId, email); }
+  catch (err) { return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function dismissPartnerMember(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+): Promise<CommandResult> {
+  try { return await organizationService.dismissPartnerMember(organizationId, teamId, memberId); }
+  catch (err) { return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+````
+
 ## File: modules/platform/subdomains/organization/interfaces/components/MembersPage.tsx
 ````typescript
 "use client";
@@ -20898,6 +21878,28 @@ export function TeamsPage({ organizationId }: TeamsPageProps) {
 }
 ````
 
+## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
+````typescript
+/**
+ * Organization Queries — delegates to organizationQueryService via the subdomain api/ boundary.
+ */
+
+import { organizationQueryService } from "../../api";
+import type { MemberReference, Team, OrgPolicy } from "../../application/dtos/organization.dto";
+
+export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
+  return organizationQueryService.getMembers(organizationId);
+}
+
+export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
+  return organizationQueryService.getTeams(organizationId);
+}
+
+export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
+  return organizationQueryService.getOrgPolicies(orgId);
+}
+````
+
 ## File: modules/platform/subdomains/platform-config/domain/index.ts
 ````typescript
 // Purpose: Domain layer placeholder for platform subdomain 'platform-config'.
@@ -21121,6 +22123,132 @@ export * from "./use-cases";
 ## File: modules/platform/subdomains/subscription/application/use-cases/index.ts
 ````typescript
 export * from "./subscription.use-cases";
+````
+
+## File: modules/platform/subdomains/subscription/application/use-cases/subscription.use-cases.ts
+````typescript
+/**
+ * Subscription Use Cases — pure application logic.
+ */
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import { Subscription } from "../../domain/aggregates/Subscription";
+import type { SubscriptionRepository } from "../../domain/repositories/SubscriptionRepository";
+import type { BillingCycle } from "../../domain/value-objects/BillingCycle";
+
+// ─── Activate Subscription ────────────────────────────────────────────────────
+
+export class ActivateSubscriptionUseCase {
+  constructor(private readonly repo: SubscriptionRepository) {}
+
+  async execute(input: {
+    contextId: string;
+    planCode: string;
+    billingCycle: BillingCycle;
+    currentPeriodEnd?: string | null;
+  }): Promise<CommandResult> {
+    try {
+      const id = crypto.randomUUID();
+      const sub = Subscription.create(id, input);
+      await this.repo.save(sub.getSnapshot());
+      return commandSuccess(id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "ACTIVATE_SUBSCRIPTION_FAILED",
+        err instanceof Error ? err.message : "Failed to activate subscription",
+      );
+    }
+  }
+}
+
+// ─── Cancel Subscription ──────────────────────────────────────────────────────
+
+export class CancelSubscriptionUseCase {
+  constructor(private readonly repo: SubscriptionRepository) {}
+
+  async execute(subscriptionId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(subscriptionId);
+      if (!snapshot) {
+        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
+      }
+      const sub = Subscription.reconstitute(snapshot);
+      sub.cancel();
+      await this.repo.update(sub.getSnapshot());
+      return commandSuccess(subscriptionId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CANCEL_SUBSCRIPTION_FAILED",
+        err instanceof Error ? err.message : "Failed to cancel subscription",
+      );
+    }
+  }
+}
+
+// ─── Renew Subscription ───────────────────────────────────────────────────────
+
+export class RenewSubscriptionUseCase {
+  constructor(private readonly repo: SubscriptionRepository) {}
+
+  async execute(subscriptionId: string, newPeriodEnd: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(subscriptionId);
+      if (!snapshot) {
+        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
+      }
+      const sub = Subscription.reconstitute(snapshot);
+      sub.renew(newPeriodEnd);
+      await this.repo.update(sub.getSnapshot());
+      return commandSuccess(subscriptionId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "RENEW_SUBSCRIPTION_FAILED",
+        err instanceof Error ? err.message : "Failed to renew subscription",
+      );
+    }
+  }
+}
+
+// ─── Get Active Subscription (query-style) ───────────────────────────────────
+
+export class GetActiveSubscriptionUseCase {
+  constructor(private readonly repo: SubscriptionRepository) {}
+
+  async execute(contextId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findActiveByContextId(contextId);
+      return commandSuccess(JSON.stringify(snapshot), Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "GET_ACTIVE_SUBSCRIPTION_FAILED",
+        err instanceof Error ? err.message : "Failed to get active subscription",
+      );
+    }
+  }
+}
+
+// ─── Mark Past Due ────────────────────────────────────────────────────────────
+
+export class MarkSubscriptionPastDueUseCase {
+  constructor(private readonly repo: SubscriptionRepository) {}
+
+  async execute(subscriptionId: string): Promise<CommandResult> {
+    try {
+      const snapshot = await this.repo.findById(subscriptionId);
+      if (!snapshot) {
+        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
+      }
+      const sub = Subscription.reconstitute(snapshot);
+      sub.markPastDue();
+      await this.repo.update(sub.getSnapshot());
+      return commandSuccess(subscriptionId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "MARK_PAST_DUE_FAILED",
+        err instanceof Error ? err.message : "Failed to mark subscription past due",
+      );
+    }
+  }
+}
 ````
 
 ## File: modules/platform/subdomains/subscription/domain/aggregates/index.ts
@@ -25262,62 +26390,6 @@ export function WorkspaceSettingsInformationFields({
       )}
     />
   );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/layout/workspace-detail-helpers.ts
-````typescript
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { formatDate } from "@shared-utils";
-import type { WorkspaceTabGroup } from "../../navigation/workspace-tabs";
-
-export const MOBILE_TAB_GROUP_ORDER: WorkspaceTabGroup[] = [
-  "primary",
-  "modules",
-  "library",
-  "spaces",
-  "databases",
-];
-
-export const lifecycleBadgeVariant: Record<
-  WorkspaceEntity["lifecycleState"],
-  "default" | "secondary" | "outline"
-> = {
-  active: "default",
-  preparatory: "secondary",
-  stopped: "outline",
-};
-
-export function getWorkspaceInitials(name: string): string {
-  const tokens = name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2);
-
-  if (tokens.length === 0) {
-    return "WS";
-  }
-
-  return tokens.map((token) => token[0]?.toUpperCase() ?? "").join("");
-}
-
-export function formatTimestamp(
-  timestamp: WorkspaceEntity["createdAt"] | undefined,
-): string {
-  if (!timestamp) {
-    return "—";
-  }
-  try {
-    return formatDate(timestamp.toDate());
-  } catch {
-    return "—";
-  }
-}
-
-export function trimOrUndefined(value: string): string | undefined {
-  const trimmed = value.trim();
-  return trimmed || undefined;
 }
 ````
 
@@ -51672,312 +52744,6 @@ export {
 } from "./category.actions";
 ````
 
-## File: modules/notion/interfaces/authoring/components/ArticleDetailPanel.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  Archive,
-  ArrowLeft,
-  BadgeCheck,
-  Edit,
-  FileClock,
-  MessageSquare,
-  History,
-  Globe,
-  Link2,
-} from "lucide-react";
-
-import { getArticle, getCategories, getBacklinks } from "../queries";
-import {
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-} from "../_actions/article.actions";
-import { ArticleDialog } from "./ArticleDialog";
-import type { ArticleSnapshot as Article } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
-import { CommentPanel, VersionHistoryPanel } from "@/modules/notion/api";
-import { ReactMarkdown } from "@lib-react-markdown";
-import { remarkGfm } from "@lib-remark-gfm";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-export interface ArticleDetailPanelProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function ArticleDetailPanel({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: ArticleDetailPanelProps) {
-  const params = useParams();
-  const router = useRouter();
-  const articleId = params.articleId as string;
-
-  const [article, setArticle] = useState<Article | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [backlinks, setBacklinks] = useState<Article[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editOpen, setEditOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const articleListHref =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-base/articles`
-      : "/knowledge-base/articles";
-
-  const load = useCallback(async () => {
-    if (!accountId || !articleId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const [art, cats, bls] = await Promise.all([
-        getArticle(accountId, articleId),
-        getCategories(accountId, workspaceId),
-        getBacklinks(accountId, articleId),
-      ]);
-      setArticle(art);
-      setCategories(cats);
-      setBacklinks(bls);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId, articleId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handlePublish() {
-    startTransition(async () => {
-      await publishArticle({ id: articleId, accountId });
-      await load();
-    });
-  }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveArticle({ id: articleId, accountId });
-      await load();
-    });
-  }
-
-  function handleVerify() {
-    startTransition(async () => {
-      await verifyArticle({ id: articleId, accountId, verifiedByUserId: currentUserId });
-      await load();
-    });
-  }
-
-  function handleRequestReview() {
-    startTransition(async () => {
-      await requestArticleReview({ id: articleId, accountId });
-      await load();
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-40" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-      </div>
-    );
-  }
-
-  if (!article) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到文章。</p>
-      </div>
-    );
-  }
-
-  const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
-    draft: "outline",
-    published: "default",
-    archived: "secondary",
-  };
-  const statusLabel: Record<string, string> = {
-    draft: "草稿",
-    published: "已發佈",
-    archived: "已封存",
-  };
-  const veriLabel: Record<string, string> = {
-    verified: "已驗證",
-    needs_review: "待審查",
-    unverified: "未驗證",
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Back + actions bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push(articleListHref)}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 文章列表
-        </Button>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          {article.status === "draft" && (
-            <Button size="sm" variant="outline" onClick={handlePublish} disabled={isPending}>
-              <Globe className="mr-1.5 h-3.5 w-3.5" /> 發佈
-            </Button>
-          )}
-          {article.status !== "archived" && (
-            <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
-              <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
-            </Button>
-          )}
-          {article.verificationState !== "verified" && (
-            <Button size="sm" variant="outline" onClick={handleVerify} disabled={isPending}>
-              <BadgeCheck className="mr-1.5 h-3.5 w-3.5" /> 標記已驗證
-            </Button>
-          )}
-          {article.verificationState === "verified" && (
-            <Button size="sm" variant="outline" onClick={handleRequestReview} disabled={isPending}>
-              <FileClock className="mr-1.5 h-3.5 w-3.5" /> 請求審查
-            </Button>
-          )}
-          <Button size="sm" onClick={() => setEditOpen(true)}>
-            <Edit className="mr-1.5 h-3.5 w-3.5" /> 編輯
-          </Button>
-        </div>
-      </div>
-
-      {/* Header */}
-      <header className="space-y-2 border-b border-border/60 pb-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={statusVariant[article.status] ?? "outline"}>
-            {statusLabel[article.status] ?? article.status}
-          </Badge>
-          {article.verificationState && (
-            <Badge variant="outline" className="text-xs">
-              {veriLabel[article.verificationState] ?? article.verificationState}
-            </Badge>
-          )}
-          {article.tags.map((tag) => (
-            <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-              {tag}
-            </span>
-          ))}
-        </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{article.title}</h1>
-        <p className="text-xs text-muted-foreground">
-          v{article.version} · 更新於 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
-        </p>
-      </header>
-
-      {/* Body tabs */}
-      <Tabs defaultValue="content" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="content">內容</TabsTrigger>
-          <TabsTrigger value="backlinks">
-            <Link2 className="mr-1 h-3.5 w-3.5" /> 反向連結
-            {backlinks.length > 0 && (
-              <span className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
-                {backlinks.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="comments">
-            <MessageSquare className="mr-1 h-3.5 w-3.5" /> 留言
-          </TabsTrigger>
-          <TabsTrigger value="versions">
-            <History className="mr-1 h-3.5 w-3.5" /> 版本
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="content">
-          <div className="prose prose-sm dark:prose-invert min-h-[200px] max-w-none rounded-lg border border-border/60 bg-muted/10 p-4">
-            {article.content ? (
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {article.content}
-              </ReactMarkdown>
-            ) : (
-              <p className="text-sm text-muted-foreground">此文章尚無內容。</p>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="backlinks">
-          {backlinks.length === 0 ? (
-            <p className="rounded-lg border border-border/60 bg-muted/10 p-4 text-sm text-muted-foreground">
-              尚無其他文章引用此文章。
-            </p>
-          ) : (
-            <ul className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-4">
-              {backlinks.map((bl) => (
-                <li key={bl.id}>
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/knowledge-base/articles/${bl.id}`)}
-                    className="text-sm text-primary hover:underline text-left"
-                  >
-                    {bl.title}
-                  </button>
-                  <p className="text-[10px] text-muted-foreground">
-                    {new Date(bl.updatedAtISO).toLocaleDateString("zh-TW")}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </TabsContent>
-
-        <TabsContent value="comments">
-          {currentUserId ? (
-            <CommentPanel
-              accountId={accountId}
-              workspaceId={workspaceId}
-              contentId={articleId}
-              contentType="article"
-              currentUserId={currentUserId}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">請先登入以查看留言。</p>
-          )}
-        </TabsContent>
-
-        <TabsContent value="versions">
-          {currentUserId ? (
-            <VersionHistoryPanel
-              accountId={accountId}
-              contentId={articleId}
-              currentUserId={currentUserId}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">請先登入以查看版本歷程。</p>
-          )}
-        </TabsContent>
-      </Tabs>
-
-      <ArticleDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        categories={categories}
-        article={article}
-        onSuccess={() => void load()}
-      />
-    </div>
-  );
-}
-````
-
 ## File: modules/notion/interfaces/authoring/components/ArticleDialog.tsx
 ````typescript
 "use client";
@@ -55147,143 +55913,6 @@ export * from "./use-cases";
 export * from "./services/shell-account-access";
 ````
 
-## File: modules/platform/subdomains/access-control/application/use-cases/access-control.use-cases.ts
-````typescript
-/**
- * Access-Control Use Cases — pure application logic.
- */
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import { AccessPolicy } from "../../domain/aggregates/AccessPolicy";
-import {
-  allowDecision,
-  denyDecision,
-} from "../../../../domain/value-objects/PermissionDecision";
-import type { AccessPolicyRepository } from "../../domain/repositories/AccessPolicyRepository";
-import type { SubjectRef } from "../../domain/value-objects/SubjectRef";
-import type { ResourceRef } from "../../domain/value-objects/ResourceRef";
-import type { PolicyEffect } from "../../domain/value-objects/PolicyEffect";
-
-// ─── Evaluate Permission ──────────────────────────────────────────────────────
-
-export class EvaluatePermissionUseCase {
-  constructor(private readonly repo: AccessPolicyRepository) {}
-
-  async execute(input: {
-    subjectId: string;
-    resourceType: string;
-    resourceId?: string;
-    action: string;
-  }): Promise<CommandResult> {
-    try {
-      const policies = await this.repo.findActiveBySubjectAndResource(
-        input.subjectId,
-        input.resourceType,
-        input.resourceId,
-      );
-
-      // Explicit deny takes priority (deny-override semantics)
-      const hasDeny = policies.some(
-        (p) => p.effect === "deny" && p.actions.includes(input.action),
-      );
-      if (hasDeny) {
-        return commandSuccess(JSON.stringify(denyDecision("Explicit deny policy matched")), Date.now());
-      }
-
-      const hasAllow = policies.some(
-        (p) => p.effect === "allow" && p.actions.includes(input.action),
-      );
-      if (hasAllow) {
-        return commandSuccess(JSON.stringify(allowDecision("Allow policy matched")), Date.now());
-      }
-
-      return commandSuccess(JSON.stringify(denyDecision("No matching allow policy")), Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "EVALUATE_PERMISSION_FAILED",
-        err instanceof Error ? err.message : "Failed to evaluate permission",
-      );
-    }
-  }
-}
-
-// ─── Create Access Policy ─────────────────────────────────────────────────────
-
-export class CreateAccessPolicyUseCase {
-  constructor(private readonly repo: AccessPolicyRepository) {}
-
-  async execute(input: {
-    subjectRef: SubjectRef;
-    resourceRef: ResourceRef;
-    actions: string[];
-    effect: PolicyEffect;
-    conditions?: string[];
-  }): Promise<CommandResult> {
-    try {
-      const id = crypto.randomUUID();
-      const policy = AccessPolicy.create(id, input);
-      await this.repo.save(policy.getSnapshot());
-      return commandSuccess(id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_ACCESS_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to create access policy",
-      );
-    }
-  }
-}
-
-// ─── Update Access Policy ─────────────────────────────────────────────────────
-
-export class UpdateAccessPolicyUseCase {
-  constructor(private readonly repo: AccessPolicyRepository) {}
-
-  async execute(
-    policyId: string,
-    input: { actions?: string[]; effect?: PolicyEffect; conditions?: string[] },
-  ): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(policyId);
-      if (!snapshot) {
-        return commandFailureFrom("POLICY_NOT_FOUND", `AccessPolicy ${policyId} not found`);
-      }
-      const policy = AccessPolicy.reconstitute(snapshot);
-      policy.update(input);
-      await this.repo.update(policy.getSnapshot());
-      return commandSuccess(policyId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_ACCESS_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to update access policy",
-      );
-    }
-  }
-}
-
-// ─── Delete (Deactivate) Access Policy ───────────────────────────────────────
-
-export class DeactivateAccessPolicyUseCase {
-  constructor(private readonly repo: AccessPolicyRepository) {}
-
-  async execute(policyId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(policyId);
-      if (!snapshot) {
-        return commandFailureFrom("POLICY_NOT_FOUND", `AccessPolicy ${policyId} not found`);
-      }
-      const policy = AccessPolicy.reconstitute(snapshot);
-      policy.deactivate();
-      await this.repo.update(policy.getSnapshot());
-      return commandSuccess(policyId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DEACTIVATE_ACCESS_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to deactivate access policy",
-      );
-    }
-  }
-}
-````
-
 ## File: modules/platform/subdomains/account-profile/api/index.ts
 ````typescript
 /**
@@ -55347,34 +55976,6 @@ export { SettingsProfileRouteScreen } from "../interfaces";
 export type { LegacyAccountProfileDataSource } from "../infrastructure";
 ````
 
-## File: modules/platform/subdomains/account-profile/application/dtos/account-profile.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the account-profile subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type {
-  AccountProfile,
-  AccountProfileId,
-  AccountProfileTheme,
-  UpdateAccountProfileInput,
-} from "../../domain/entities/AccountProfile";
-export type { Unsubscribe } from "../../domain/repositories/AccountProfileQueryRepository";
-````
-
-## File: modules/platform/subdomains/account-profile/application/index.ts
-````typescript
-export { GetAccountProfileUseCase, SubscribeAccountProfileUseCase } from "./use-cases/get-account-profile.use-case";
-export { UpdateAccountProfileUseCase } from "./use-cases/update-account-profile.use-case";
-export type {
-	AccountProfile,
-	AccountProfileId,
-	AccountProfileTheme,
-	Unsubscribe,
-	UpdateAccountProfileInput,
-} from "./dtos/account-profile.dto";
-````
-
 ## File: modules/platform/subdomains/account-profile/infrastructure/index.ts
 ````typescript
 export {
@@ -55390,54 +55991,6 @@ export {
 	updateAccountProfile as updateAccountProfileFromService,
 	configureLegacyAccountProfileDataSource,
 } from "./account-profile-service";
-````
-
-## File: modules/platform/subdomains/account-profile/interfaces/_actions/account-profile.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { updateAccountProfile } from "../../api";
-import type { UpdateAccountProfileInput } from "../../application/dtos/account-profile.dto";
-
-export async function updateProfile(
-	actorId: string,
-	input: UpdateAccountProfileInput,
-): Promise<CommandResult> {
-	try {
-		return await updateAccountProfile(actorId, input);
-	} catch (err) {
-		return commandFailureFrom(
-			"UPDATE_ACCOUNT_PROFILE_FAILED",
-			err instanceof Error ? err.message : "Unexpected error",
-		);
-	}
-}
-````
-
-## File: modules/platform/subdomains/account-profile/interfaces/queries/account-profile.queries.ts
-````typescript
-/**
- * Account Profile Read Queries — thin wrappers over account-profile API use cases.
- * NOT Server Actions — callable from React components/hooks directly.
- */
-
-import { getAccountProfile, subscribeToAccountProfile } from "../../api";
-import type {
-  AccountProfile,
-  Unsubscribe,
-} from "../../application/dtos/account-profile.dto";
-
-export async function getProfile(actorId: string): Promise<AccountProfile | null> {
-  return getAccountProfile(actorId);
-}
-
-export function subscribeToProfile(
-  actorId: string,
-  onUpdate: (profile: AccountProfile | null) => void,
-): Unsubscribe {
-  return subscribeToAccountProfile(actorId, onUpdate);
-}
 ````
 
 ## File: modules/platform/subdomains/account/api/index.ts
@@ -55474,54 +56027,6 @@ export type {
 export type { WalletBalanceSnapshot, Unsubscribe } from "../domain/repositories/AccountQueryRepository";
 export type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
 export * from "../interfaces";
-````
-
-## File: modules/platform/subdomains/account/api/legacy-account-profile.bridge.ts
-````typescript
-import { type UpdateProfileInput } from "../application/dtos/account.dto";
-import { accountService, createAccountQueryRepository } from "../infrastructure/account-service";
-import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
-
-let _accountQueryRepo: AccountQueryRepository | undefined;
-
-function getAccountQueryRepo(): AccountQueryRepository {
-  if (!_accountQueryRepo) {
-    _accountQueryRepo = createAccountQueryRepository();
-  }
-  return _accountQueryRepo;
-}
-
-export async function getLegacyUserProfile(userId: string) {
-  return getAccountQueryRepo().getUserProfile(userId);
-}
-
-export function subscribeToLegacyUserProfile(
-  userId: string,
-  onUpdate: (profile: Awaited<ReturnType<typeof getLegacyUserProfile>>) => void,
-) {
-  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
-}
-
-export async function updateLegacyUserProfile(userId: string, input: UpdateProfileInput): Promise<void> {
-  await accountService.updateUserProfile(userId, input);
-}
-````
-
-## File: modules/platform/subdomains/account/application/dtos/account.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the account subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type {
-  AccountEntity,
-  WalletTransaction,
-  AccountRoleRecord,
-  UpdateProfileInput,
-  OrganizationRole,
-} from "../../domain/entities/Account";
-export type { WalletBalanceSnapshot, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
-export type { AccountPolicy, CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
 ````
 
 ## File: modules/platform/subdomains/account/application/index.ts
@@ -55576,208 +56081,6 @@ export class IdentityTokenRefreshAdapter implements TokenRefreshPort {
 }
 
 export const tokenRefreshAdapter = new IdentityTokenRefreshAdapter();
-````
-
-## File: modules/platform/subdomains/account/interfaces/_actions/account-policy.actions.ts
-````typescript
-"use server";
-
-/**
- * Account Policy Server Actions — thin adapter: Server Actions → Application Use Cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { accountService } from "../../api";
-import type { CreatePolicyInput, UpdatePolicyInput } from "../../application/dtos/account.dto";
-
-export async function createAccountPolicy(input: CreatePolicyInput): Promise<CommandResult> {
-  try {
-    return await accountService.createPolicy(input);
-  } catch (err) {
-    return commandFailureFrom("CREATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateAccountPolicy(
-  policyId: string,
-  accountId: string,
-  data: UpdatePolicyInput,
-  traceId?: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.updatePolicy(policyId, accountId, data, traceId);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteAccountPolicy(
-  policyId: string,
-  accountId: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.deletePolicy(policyId, accountId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/platform/subdomains/account/interfaces/_actions/account.actions.ts
-````typescript
-"use server";
-
-/**
- * Account Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { accountService } from "../../api";
-import type { UpdateProfileInput, OrganizationRole } from "../../application/dtos/account.dto";
-
-export async function createUserAccount(
-  userId: string,
-  name: string,
-  email: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.createUserAccount(userId, name, email);
-  } catch (err) {
-    return commandFailureFrom("CREATE_USER_ACCOUNT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateUserProfile(
-  userId: string,
-  data: UpdateProfileInput,
-): Promise<CommandResult> {
-  try {
-    return await accountService.updateUserProfile(userId, data);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_USER_PROFILE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function creditWallet(
-  accountId: string,
-  amount: number,
-  description: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.creditWallet(accountId, amount, description);
-  } catch (err) {
-    return commandFailureFrom("WALLET_CREDIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function debitWallet(
-  accountId: string,
-  amount: number,
-  description: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.debitWallet(accountId, amount, description);
-  } catch (err) {
-    return commandFailureFrom("WALLET_DEBIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function assignAccountRole(
-  accountId: string,
-  role: OrganizationRole,
-  grantedBy: string,
-  traceId?: string,
-): Promise<CommandResult> {
-  try {
-    return await accountService.assignRole(accountId, role, grantedBy, traceId);
-  } catch (err) {
-    return commandFailureFrom("ASSIGN_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function revokeAccountRole(accountId: string): Promise<CommandResult> {
-  try {
-    return await accountService.revokeRole(accountId);
-  } catch (err) {
-    return commandFailureFrom("REVOKE_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/platform/subdomains/account/interfaces/queries/account.queries.ts
-````typescript
-/**
- * Account Read Queries — thin wrappers over the AccountQueryRepository port.
- * NOT Server Actions — callable from React components/hooks directly.
- */
-
-import { createAccountQueryRepository } from "../../api";
-import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
-import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dtos/account.dto";
-
-let _accountQueryRepo: AccountQueryRepository | undefined;
-
-function getAccountQueryRepo(): AccountQueryRepository {
-  if (!_accountQueryRepo) _accountQueryRepo = createAccountQueryRepository();
-  return _accountQueryRepo;
-}
-
-export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
-  return getAccountQueryRepo().getUserProfile(userId);
-}
-
-export function subscribeToUserProfile(
-  userId: string,
-  onUpdate: (profile: AccountEntity | null) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
-}
-
-export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
-  return getAccountQueryRepo().getWalletBalance(accountId);
-}
-
-export function subscribeToWalletBalance(
-  accountId: string,
-  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToWalletBalance(accountId, onUpdate);
-}
-
-export function subscribeToWalletTransactions(
-  accountId: string,
-  maxCount: number,
-  onUpdate: (txs: WalletTransaction[]) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToWalletTransactions(accountId, maxCount, onUpdate);
-}
-
-export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
-  return getAccountQueryRepo().getAccountRole(accountId);
-}
-
-export function subscribeToAccountRoles(
-  accountId: string,
-  onUpdate: (record: AccountRoleRecord | null) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToAccountRoles(accountId, onUpdate);
-}
-
-export function subscribeToAccountsForUser(
-  userId: string,
-  onUpdate: (accounts: Record<string, AccountEntity>) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToAccountsForUser(userId, onUpdate);
-}
-
-export async function getAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
-  // Policy reads are server-side only; keep client bundles free of policy repo deps.
-  return [];
-}
-
-export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
-  return [];
-}
 ````
 
 ## File: modules/platform/subdomains/account/README.md
@@ -55942,127 +56245,6 @@ export class GenkitAiTextGenerationAdapter implements AiTextGenerationPort {
 ## File: modules/platform/subdomains/ai/infrastructure/index.ts
 ````typescript
 export { GenkitAiTextGenerationAdapter } from "./genkit/GenkitAiTextGenerationAdapter";
-````
-
-## File: modules/platform/subdomains/entitlement/application/use-cases/entitlement.use-cases.ts
-````typescript
-/**
- * Entitlement Use Cases — pure application logic.
- * All cross-domain dependencies are injected via ports.
- */
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import { EntitlementGrant } from "../../domain/aggregates/EntitlementGrant";
-import type { EntitlementGrantRepository } from "../../domain/repositories/EntitlementGrantRepository";
-
-// ─── Grant Entitlement ────────────────────────────────────────────────────────
-
-export class GrantEntitlementUseCase {
-  constructor(private readonly repo: EntitlementGrantRepository) {}
-
-  async execute(input: {
-    contextId: string;
-    featureKey: string;
-    quota?: number | null;
-    expiresAt?: string | null;
-  }): Promise<CommandResult> {
-    try {
-      const id = crypto.randomUUID();
-      const grant = EntitlementGrant.create(id, input);
-      await this.repo.save(grant.getSnapshot());
-      return commandSuccess(id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "GRANT_ENTITLEMENT_FAILED",
-        err instanceof Error ? err.message : "Failed to grant entitlement",
-      );
-    }
-  }
-}
-
-// ─── Suspend Entitlement ──────────────────────────────────────────────────────
-
-export class SuspendEntitlementUseCase {
-  constructor(private readonly repo: EntitlementGrantRepository) {}
-
-  async execute(entitlementId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(entitlementId);
-      if (!snapshot) {
-        return commandFailureFrom("ENTITLEMENT_NOT_FOUND", `Entitlement ${entitlementId} not found`);
-      }
-      const grant = EntitlementGrant.reconstitute(snapshot);
-      grant.suspend();
-      await this.repo.update(grant.getSnapshot());
-      return commandSuccess(entitlementId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "SUSPEND_ENTITLEMENT_FAILED",
-        err instanceof Error ? err.message : "Failed to suspend entitlement",
-      );
-    }
-  }
-}
-
-// ─── Revoke Entitlement ───────────────────────────────────────────────────────
-
-export class RevokeEntitlementUseCase {
-  constructor(private readonly repo: EntitlementGrantRepository) {}
-
-  async execute(entitlementId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(entitlementId);
-      if (!snapshot) {
-        return commandFailureFrom("ENTITLEMENT_NOT_FOUND", `Entitlement ${entitlementId} not found`);
-      }
-      const grant = EntitlementGrant.reconstitute(snapshot);
-      grant.revoke();
-      await this.repo.update(grant.getSnapshot());
-      return commandSuccess(entitlementId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "REVOKE_ENTITLEMENT_FAILED",
-        err instanceof Error ? err.message : "Failed to revoke entitlement",
-      );
-    }
-  }
-}
-
-// ─── Resolve Entitlements (query-style) ───────────────────────────────────────
-
-export class ResolveEntitlementsUseCase {
-  constructor(private readonly repo: EntitlementGrantRepository) {}
-
-  async execute(contextId: string): Promise<CommandResult> {
-    try {
-      const snapshots = await this.repo.findByContextId(contextId);
-      const active = snapshots.filter((s) => s.status === "active");
-      return commandSuccess(JSON.stringify(active), Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "RESOLVE_ENTITLEMENTS_FAILED",
-        err instanceof Error ? err.message : "Failed to resolve entitlements",
-      );
-    }
-  }
-}
-
-// ─── Check Feature Entitlement ────────────────────────────────────────────────
-
-export class CheckFeatureEntitlementUseCase {
-  constructor(private readonly repo: EntitlementGrantRepository) {}
-
-  async execute(contextId: string, featureKey: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findActiveByContextAndFeature(contextId, featureKey);
-      return commandSuccess(JSON.stringify({ entitled: snapshot !== null, snapshot }), Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CHECK_ENTITLEMENT_FAILED",
-        err instanceof Error ? err.message : "Failed to check entitlement",
-      );
-    }
-  }
-}
 ````
 
 ## File: modules/platform/subdomains/identity/interfaces/index.ts
@@ -56267,240 +56449,188 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/platform/subdomains/notification/application/dtos/notification.dto.ts
+## File: modules/platform/subdomains/notification/interfaces/components/NotificationBell.tsx
 ````typescript
-/**
- * Application-layer DTO re-exports for the notification subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type { NotificationEntity, DispatchNotificationInput } from "../../domain/entities/Notification";
-````
-
-## File: modules/platform/subdomains/notification/interfaces/_actions/notification.actions.ts
-````typescript
-"use server";
-
-/**
- * Notification Server Actions — thin adapters over use cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { notificationService } from "../../api";
-import type { DispatchNotificationInput } from "../../application/dtos/notification.dto";
-
-export async function dispatchNotification(input: DispatchNotificationInput): Promise<CommandResult> {
-  try {
-    return await notificationService.dispatch(input);
-  } catch (err) {
-    return commandFailureFrom("DISPATCH_NOTIFICATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function markNotificationRead(
-  notificationId: string,
-  recipientId: string,
-): Promise<CommandResult> {
-  try {
-    return await notificationService.markAsRead(notificationId, recipientId);
-  } catch (err) {
-    return commandFailureFrom("MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function markAllNotificationsRead(recipientId: string): Promise<CommandResult> {
-  try {
-    return await notificationService.markAllAsRead(recipientId);
-  } catch (err) {
-    return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/platform/subdomains/notification/interfaces/components/NotificationsPage.tsx
-````typescript
-/**
- * Route: /settings/notifications
- * Purpose: Full-page notification center showing all notifications for the
- *          authenticated user with read/unread filtering and bulk actions.
- */
 "use client";
 
-import { Bell, CheckCheck, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+/**
+ * NotificationBell — Reusable notification bell for shell header.
+ * Lives in platform/subdomains/notification/interfaces.
+ */
+
+import Link from "next/link";
+import { Bell } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  markAllNotificationsRead,
   markNotificationRead,
+  markAllNotificationsRead,
 } from "../_actions/notification.actions";
 import { getNotificationsForRecipient } from "../queries/notification.queries";
 import type { NotificationEntity } from "../../application/dtos/notification.dto";
-import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
 
-type Filter = "all" | "unread";
+const NOTIFICATION_LIMIT = 20;
 
-const TYPE_BADGE: Record<string, string> = {
-  info: "bg-blue-100 text-blue-800",
-  alert: "bg-red-100 text-red-800",
-  success: "bg-green-100 text-green-800",
-  warning: "bg-yellow-100 text-yellow-800",
-};
-
-function formatTime(ts: number) {
+function formatNotificationTime(timestamp: number) {
   return new Intl.DateTimeFormat("zh-TW", {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(ts));
+  }).format(new Date(timestamp));
 }
 
-export interface NotificationsPageProps {
-  recipientId: string;
+interface NotificationBellProps {
+  readonly recipientId: string;
 }
 
-export function NotificationsPage({ recipientId }: NotificationsPageProps) {
+export function NotificationBell({ recipientId }: NotificationBellProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
   const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState<Filter>("all");
-  const [isPending, startTransition] = useTransition();
 
-  const load = useCallback(async () => {
-    if (!recipientId) { setIsLoading(false); return; }
+  const unreadCount = useMemo(
+    () => notifications.reduce((count, n) => count + (n.read ? 0 : 1), 0),
+    [notifications],
+  );
+
+  const loadNotifications = useCallback(async () => {
+    if (!recipientId) {
+      setNotifications([]);
+      return;
+    }
     setIsLoading(true);
     try {
-      const data = await getNotificationsForRecipient(recipientId, 100);
-      setNotifications(data);
+      const next = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
+      setNotifications(next);
     } finally {
       setIsLoading(false);
     }
   }, [recipientId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
 
-  const displayed = useMemo(
-    () => filter === "unread" ? notifications.filter((n) => !n.read) : notifications,
-    [notifications, filter],
-  );
-
-  const unreadCount = useMemo(
-    () => notifications.filter((n) => !n.read).length,
-    [notifications],
-  );
-
-  function handleMarkOne(id: string) {
-    startTransition(async () => {
-      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
-      await markNotificationRead(id, recipientId);
-    });
+  async function handleOpenChange(nextOpen: boolean) {
+    setIsOpen(nextOpen);
+    if (nextOpen) {
+      await loadNotifications();
+    }
   }
 
-  function handleMarkAll() {
-    startTransition(async () => {
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      await markAllNotificationsRead(recipientId);
-    });
+  async function handleMarkOneRead(notificationId: string) {
+    if (!recipientId) return;
+    setIsMutating(true);
+    const previous = notifications;
+    setNotifications((current) =>
+      current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
+    );
+    try {
+      const result = await markNotificationRead(notificationId, recipientId);
+      if (!result.success) setNotifications(previous);
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleMarkAllRead() {
+    if (!recipientId || unreadCount === 0) return;
+    setIsMutating(true);
+    const previous = notifications;
+    setNotifications((current) => current.map((n) => ({ ...n, read: true })));
+    try {
+      const result = await markAllNotificationsRead(recipientId);
+      if (!result.success) setNotifications(previous);
+    } finally {
+      setIsMutating(false);
+    }
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-xl font-semibold">通知</h1>
-          {unreadCount > 0 && (
-            <Badge variant="secondary" className="ml-1">{unreadCount} 未讀</Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
+    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          aria-label="Open notifications"
+          className="relative text-muted-foreground"
+        >
+          <Bell className="h-4 w-4" />
+          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80 p-0">
+        <div className="flex items-center justify-between px-3 py-2">
+          <p className="text-sm font-semibold">Notifications</p>
           <Button
+            type="button"
             variant="ghost"
             size="sm"
-            onClick={() => setFilter((f) => f === "all" ? "unread" : "all")}
-            className="text-xs"
+            className="h-7 px-2 text-xs"
+            disabled={isMutating || unreadCount === 0}
+            onClick={handleMarkAllRead}
           >
-            {filter === "all" ? "只看未讀" : "顯示全部"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isPending || unreadCount === 0}
-            onClick={handleMarkAll}
-            className="text-xs gap-1"
-          >
-            <CheckCheck className="h-3.5 w-3.5" />
-            全部已讀
+            Mark all read
           </Button>
         </div>
-      </div>
-
-      {/* Body */}
-      {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : displayed.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground">
-          <Bell className="h-10 w-10 opacity-30" />
-          <p className="text-sm">{filter === "unread" ? "沒有未讀通知" : "目前沒有通知"}</p>
-        </div>
-      ) : (
-        <ul className="divide-y divide-border rounded-lg border">
-          {displayed.map((n) => (
-            <li
-              key={n.id}
-              className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40 ${n.read ? "opacity-60" : ""}`}
-            >
-              {!n.read && (
-                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />
-              )}
-              {n.read && <span className="mt-2 h-2 w-2 shrink-0" />}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-medium">{n.title}</p>
-                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${TYPE_BADGE[n.type] ?? ""}`}>
-                    {n.type}
-                  </span>
+        <DropdownMenuSeparator />
+        <div className="max-h-80 overflow-y-auto">
+          {isLoading ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
+          ) : notifications.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
+          ) : (
+            notifications.map((notification) => (
+              <button
+                key={notification.id}
+                type="button"
+                onClick={() => void handleMarkOneRead(notification.id)}
+                disabled={isMutating}
+                className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium">{notification.title}</p>
+                  {!notification.read ? (
+                    <span
+                      className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary"
+                      aria-hidden="true"
+                    />
+                  ) : null}
                 </div>
-                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.message}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">{formatTime(n.timestamp)}</p>
-              </div>
-              {!n.read && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={isPending}
-                  onClick={() => handleMarkOne(n.id)}
-                  title="標記已讀"
-                  className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                  {notification.message}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {formatNotificationTime(notification.timestamp)}
+                </p>
+              </button>
+            ))
+          )}
+        </div>
+        <DropdownMenuSeparator />
+        <div className="py-1 text-center">
+          <Link
+            href={`/${encodeURIComponent(recipientId)}/settings/notifications`}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            查看全部通知
+          </Link>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
-}
-````
-
-## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
-````typescript
-/**
- * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
- */
-
-import { notificationService } from "../../api";
-import type { NotificationEntity } from "../../application/dtos/notification.dto";
-
-export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
-  return notificationService.getForRecipient(recipientId, maxCount);
 }
 ````
 
@@ -56613,165 +56743,6 @@ export { organizationService, organizationQueryService } from "../infrastructure
 
 // --- Interfaces (UI, queries, actions) ---
 export * from "../interfaces";
-````
-
-## File: modules/platform/subdomains/organization/application/dtos/organization.dto.ts
-````typescript
-/**
- * Application-layer DTO re-exports for the organization subdomain.
- * Interfaces must import from here, not from domain/ directly.
- */
-export type {
-  MemberReference,
-  Team,
-  OrgPolicy,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-} from "../../domain/entities/Organization";
-````
-
-## File: modules/platform/subdomains/organization/interfaces/_actions/organization-policy.actions.ts
-````typescript
-"use server";
-
-/**
- * Organization Policy Server Actions — thin adapters over use cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { organizationService } from "../../api";
-import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../application/dtos/organization.dto";
-
-export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
-  try { return await organizationService.createOrgPolicy(input); }
-  catch (err) { return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function updateOrgPolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
-  try { return await organizationService.updateOrgPolicy(policyId, data); }
-  catch (err) { return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
-  try { return await organizationService.deleteOrgPolicy(policyId); }
-  catch (err) { return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-````
-
-## File: modules/platform/subdomains/organization/interfaces/_actions/organization.actions.ts
-````typescript
-"use server";
-
-/**
- * Organization Server Actions — thin adapters over use cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { organizationService } from "../../api";
-import type {
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-} from "../../application/dtos/organization.dto";
-
-export async function createOrganization(cmd: CreateOrganizationCommand): Promise<CommandResult> {
-  try { return await organizationService.createOrganization(cmd); }
-  catch (err) { return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function createOrganizationWithTeam(
-  cmd: CreateOrganizationCommand,
-  teamName: string,
-  teamType: "internal" | "external" = "internal",
-): Promise<CommandResult> {
-  try { return await organizationService.createOrganizationWithTeam(cmd, teamName, teamType); }
-  catch (err) { return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function updateOrganizationSettings(cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> {
-  try { return await organizationService.updateSettings(cmd); }
-  catch (err) { return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
-  try { return await organizationService.deleteOrganization(organizationId); }
-  catch (err) { return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
-  try { return await organizationService.inviteMember(input); }
-  catch (err) { return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function recruitMember(
-  organizationId: string,
-  memberId: string,
-  name: string,
-  email: string,
-): Promise<CommandResult> {
-  try { return await organizationService.recruitMember(organizationId, memberId, name, email); }
-  catch (err) { return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function dismissMember(organizationId: string, memberId: string): Promise<CommandResult> {
-  try { return await organizationService.removeMember(organizationId, memberId); }
-  catch (err) { return commandFailureFrom("REMOVE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
-  try { return await organizationService.updateMemberRole(input); }
-  catch (err) { return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
-  try { return await organizationService.createTeam(input); }
-  catch (err) { return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function deleteTeam(organizationId: string, teamId: string): Promise<CommandResult> {
-  try { return await organizationService.deleteTeam(organizationId, teamId); }
-  catch (err) { return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function updateTeamMembers(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-  action: "add" | "remove",
-): Promise<CommandResult> {
-  try { return await organizationService.updateTeamMembers(organizationId, teamId, memberId, action); }
-  catch (err) { return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function createPartnerGroup(organizationId: string, groupName: string): Promise<CommandResult> {
-  try { return await organizationService.createPartnerGroup(organizationId, groupName); }
-  catch (err) { return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function sendPartnerInvite(
-  organizationId: string,
-  teamId: string,
-  email: string,
-): Promise<CommandResult> {
-  try { return await organizationService.sendPartnerInvite(organizationId, teamId, email); }
-  catch (err) { return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
-
-export async function dismissPartnerMember(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-): Promise<CommandResult> {
-  try { return await organizationService.dismissPartnerMember(organizationId, teamId, memberId); }
-  catch (err) { return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
-}
 ````
 
 ## File: modules/platform/subdomains/organization/interfaces/components/AccountSwitcher.tsx
@@ -57147,28 +57118,6 @@ export {
 export { createOrgPolicy, updateOrgPolicy, deleteOrgPolicy } from "./_actions/organization-policy.actions";
 ````
 
-## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
-````typescript
-/**
- * Organization Queries — delegates to organizationQueryService via the subdomain api/ boundary.
- */
-
-import { organizationQueryService } from "../../api";
-import type { MemberReference, Team, OrgPolicy } from "../../application/dtos/organization.dto";
-
-export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
-  return organizationQueryService.getMembers(organizationId);
-}
-
-export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
-  return organizationQueryService.getTeams(organizationId);
-}
-
-export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
-  return organizationQueryService.getOrgPolicies(orgId);
-}
-````
-
 ## File: modules/platform/subdomains/organization/README.md
 ````markdown
 # Organization
@@ -57253,132 +57202,6 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
-````
-
-## File: modules/platform/subdomains/subscription/application/use-cases/subscription.use-cases.ts
-````typescript
-/**
- * Subscription Use Cases — pure application logic.
- */
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import { Subscription } from "../../domain/aggregates/Subscription";
-import type { SubscriptionRepository } from "../../domain/repositories/SubscriptionRepository";
-import type { BillingCycle } from "../../domain/value-objects/BillingCycle";
-
-// ─── Activate Subscription ────────────────────────────────────────────────────
-
-export class ActivateSubscriptionUseCase {
-  constructor(private readonly repo: SubscriptionRepository) {}
-
-  async execute(input: {
-    contextId: string;
-    planCode: string;
-    billingCycle: BillingCycle;
-    currentPeriodEnd?: string | null;
-  }): Promise<CommandResult> {
-    try {
-      const id = crypto.randomUUID();
-      const sub = Subscription.create(id, input);
-      await this.repo.save(sub.getSnapshot());
-      return commandSuccess(id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "ACTIVATE_SUBSCRIPTION_FAILED",
-        err instanceof Error ? err.message : "Failed to activate subscription",
-      );
-    }
-  }
-}
-
-// ─── Cancel Subscription ──────────────────────────────────────────────────────
-
-export class CancelSubscriptionUseCase {
-  constructor(private readonly repo: SubscriptionRepository) {}
-
-  async execute(subscriptionId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(subscriptionId);
-      if (!snapshot) {
-        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
-      }
-      const sub = Subscription.reconstitute(snapshot);
-      sub.cancel();
-      await this.repo.update(sub.getSnapshot());
-      return commandSuccess(subscriptionId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CANCEL_SUBSCRIPTION_FAILED",
-        err instanceof Error ? err.message : "Failed to cancel subscription",
-      );
-    }
-  }
-}
-
-// ─── Renew Subscription ───────────────────────────────────────────────────────
-
-export class RenewSubscriptionUseCase {
-  constructor(private readonly repo: SubscriptionRepository) {}
-
-  async execute(subscriptionId: string, newPeriodEnd: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(subscriptionId);
-      if (!snapshot) {
-        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
-      }
-      const sub = Subscription.reconstitute(snapshot);
-      sub.renew(newPeriodEnd);
-      await this.repo.update(sub.getSnapshot());
-      return commandSuccess(subscriptionId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "RENEW_SUBSCRIPTION_FAILED",
-        err instanceof Error ? err.message : "Failed to renew subscription",
-      );
-    }
-  }
-}
-
-// ─── Get Active Subscription (query-style) ───────────────────────────────────
-
-export class GetActiveSubscriptionUseCase {
-  constructor(private readonly repo: SubscriptionRepository) {}
-
-  async execute(contextId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findActiveByContextId(contextId);
-      return commandSuccess(JSON.stringify(snapshot), Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "GET_ACTIVE_SUBSCRIPTION_FAILED",
-        err instanceof Error ? err.message : "Failed to get active subscription",
-      );
-    }
-  }
-}
-
-// ─── Mark Past Due ────────────────────────────────────────────────────────────
-
-export class MarkSubscriptionPastDueUseCase {
-  constructor(private readonly repo: SubscriptionRepository) {}
-
-  async execute(subscriptionId: string): Promise<CommandResult> {
-    try {
-      const snapshot = await this.repo.findById(subscriptionId);
-      if (!snapshot) {
-        return commandFailureFrom("SUBSCRIPTION_NOT_FOUND", `Subscription ${subscriptionId} not found`);
-      }
-      const sub = Subscription.reconstitute(snapshot);
-      sub.markPastDue();
-      await this.repo.update(sub.getSnapshot());
-      return commandSuccess(subscriptionId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "MARK_PAST_DUE_FAILED",
-        err instanceof Error ? err.message : "Failed to mark subscription past due",
-      );
-    }
-  }
-}
 ````
 
 ## File: modules/platform/subdomains/subscription/domain/aggregates/Subscription.ts
@@ -58762,6 +58585,62 @@ export async function createWorkspaceLocation(
 }
 ````
 
+## File: modules/workspace/interfaces/web/components/layout/workspace-detail-helpers.ts
+````typescript
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { formatDate } from "@shared-utils";
+import type { WorkspaceTabGroup } from "../../navigation/workspace-tabs";
+
+export const MOBILE_TAB_GROUP_ORDER: WorkspaceTabGroup[] = [
+  "primary",
+  "library",
+  "modules",
+  "spaces",
+  "databases",
+];
+
+export const lifecycleBadgeVariant: Record<
+  WorkspaceEntity["lifecycleState"],
+  "default" | "secondary" | "outline"
+> = {
+  active: "default",
+  preparatory: "secondary",
+  stopped: "outline",
+};
+
+export function getWorkspaceInitials(name: string): string {
+  const tokens = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  if (tokens.length === 0) {
+    return "WS";
+  }
+
+  return tokens.map((token) => token[0]?.toUpperCase() ?? "").join("");
+}
+
+export function formatTimestamp(
+  timestamp: WorkspaceEntity["createdAt"] | undefined,
+): string {
+  if (!timestamp) {
+    return "—";
+  }
+  try {
+    return formatDate(timestamp.toDate());
+  } catch {
+    return "—";
+  }
+}
+
+export function trimOrUndefined(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+````
+
 ## File: modules/workspace/interfaces/web/components/rails/CreateWorkspaceDialogRail.tsx
 ````typescript
 "use client";
@@ -59650,55 +59529,6 @@ export function renderWorkspaceCrossModuleTabSurface(
     default:
       return null;
   }
-}
-````
-
-## File: modules/workspace/interfaces/web/hooks/useWorkspaceOrchestrationContext.ts
-````typescript
-import { useApp, useAuth } from "@/modules/platform/api";
-
-import { resolveWorkspaceFromMap } from "../utils/workspace-map";
-import { useWorkspaceContext } from "../providers/WorkspaceContextProvider";
-
-export interface WorkspaceOrchestrationContext {
-  readonly accountId: string;
-  readonly currentUserId: string;
-  readonly activeWorkspaceId: string;
-  readonly workspaceId: string;
-}
-
-export interface UseWorkspaceOrchestrationContextOptions {
-  readonly requestedWorkspaceId?: string;
-}
-
-/**
- * Provides normalized account/workspace actor context for app route shims.
- * This keeps route-level composition thin and moves orchestration into workspace API.
- */
-export function useWorkspaceOrchestrationContext(
-  options: UseWorkspaceOrchestrationContextOptions = {},
-): WorkspaceOrchestrationContext {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const { state: workspaceState } = useWorkspaceContext();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const currentUserId = authState.user?.id ?? "";
-  const activeWorkspaceId = workspaceState.activeWorkspaceId ?? "";
-
-  const requestedWorkspaceId = options.requestedWorkspaceId?.trim() ?? "";
-  const resolvedWorkspace = resolveWorkspaceFromMap(
-    workspaceState.workspaces,
-    requestedWorkspaceId,
-  );
-  const workspaceId = resolvedWorkspace?.id ?? activeWorkspaceId;
-
-  return {
-    accountId,
-    currentUserId,
-    activeWorkspaceId,
-    workspaceId,
-  };
 }
 ````
 
@@ -64828,6 +64658,320 @@ export async function deleteCategory(input: z.infer<typeof DeleteCategorySchema>
 }
 ````
 
+## File: modules/notion/interfaces/authoring/components/ArticleDetailPanel.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  Archive,
+  ArrowLeft,
+  BadgeCheck,
+  Edit,
+  FileClock,
+  MessageSquare,
+  History,
+  Globe,
+  Link2,
+} from "lucide-react";
+
+import { getArticle, getCategories, getBacklinks } from "../queries";
+import {
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+} from "../_actions/article.actions";
+import { ArticleDialog } from "./ArticleDialog";
+import type { ArticleSnapshot as Article } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import type { CategorySnapshot as Category } from "../../../subdomains/authoring/application/dto/authoring.dto";
+import { CommentPanel, VersionHistoryPanel } from "@/modules/notion/api";
+import { ReactMarkdown } from "@lib-react-markdown";
+import { remarkGfm } from "@lib-remark-gfm";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+
+// ── Props ─────────────────────────────────────────────────────────────────────
+
+export interface ArticleDetailPanelProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function ArticleDetailPanel({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: ArticleDetailPanelProps) {
+  const params = useParams();
+  const router = useRouter();
+  const articleId = params.articleId as string;
+
+  const [article, setArticle] = useState<Article | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [backlinks, setBacklinks] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  const articleDetailBasePath =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-base/articles`
+      : "/knowledge-base/articles";
+  const articleListHref =
+    accountId && workspaceId
+      ? articleDetailBasePath
+      : "/knowledge-base/articles";
+
+  function buildArticleDetailHref(targetArticleId: string): string {
+    return `${articleDetailBasePath}/${encodeURIComponent(targetArticleId)}`;
+  }
+
+  const load = useCallback(async () => {
+    if (!accountId || !articleId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [art, cats, bls] = await Promise.all([
+        getArticle(accountId, articleId),
+        getCategories(accountId, workspaceId),
+        getBacklinks(accountId, articleId),
+      ]);
+      setArticle(art);
+      setCategories(cats);
+      setBacklinks(bls);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, workspaceId, articleId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function handlePublish() {
+    startTransition(async () => {
+      await publishArticle({ id: articleId, accountId });
+      await load();
+    });
+  }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveArticle({ id: articleId, accountId });
+      await load();
+    });
+  }
+
+  function handleVerify() {
+    startTransition(async () => {
+      await verifyArticle({ id: articleId, accountId, verifiedByUserId: currentUserId });
+      await load();
+    });
+  }
+
+  function handleRequestReview() {
+    startTransition(async () => {
+      await requestArticleReview({ id: articleId, accountId });
+      await load();
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!article) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push(articleListHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到文章。</p>
+      </div>
+    );
+  }
+
+  const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
+    draft: "outline",
+    published: "default",
+    archived: "secondary",
+  };
+  const statusLabel: Record<string, string> = {
+    draft: "草稿",
+    published: "已發佈",
+    archived: "已封存",
+  };
+  const veriLabel: Record<string, string> = {
+    verified: "已驗證",
+    needs_review: "待審查",
+    unverified: "未驗證",
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Back + actions bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => router.push(articleListHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 文章列表
+        </Button>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {article.status === "draft" && (
+            <Button size="sm" variant="outline" onClick={handlePublish} disabled={isPending}>
+              <Globe className="mr-1.5 h-3.5 w-3.5" /> 發佈
+            </Button>
+          )}
+          {article.status !== "archived" && (
+            <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
+              <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
+            </Button>
+          )}
+          {article.verificationState !== "verified" && (
+            <Button size="sm" variant="outline" onClick={handleVerify} disabled={isPending}>
+              <BadgeCheck className="mr-1.5 h-3.5 w-3.5" /> 標記已驗證
+            </Button>
+          )}
+          {article.verificationState === "verified" && (
+            <Button size="sm" variant="outline" onClick={handleRequestReview} disabled={isPending}>
+              <FileClock className="mr-1.5 h-3.5 w-3.5" /> 請求審查
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setEditOpen(true)}>
+            <Edit className="mr-1.5 h-3.5 w-3.5" /> 編輯
+          </Button>
+        </div>
+      </div>
+
+      {/* Header */}
+      <header className="space-y-2 border-b border-border/60 pb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={statusVariant[article.status] ?? "outline"}>
+            {statusLabel[article.status] ?? article.status}
+          </Badge>
+          {article.verificationState && (
+            <Badge variant="outline" className="text-xs">
+              {veriLabel[article.verificationState] ?? article.verificationState}
+            </Badge>
+          )}
+          {article.tags.map((tag) => (
+            <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              {tag}
+            </span>
+          ))}
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{article.title}</h1>
+        <p className="text-xs text-muted-foreground">
+          v{article.version} · 更新於 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+        </p>
+      </header>
+
+      {/* Body tabs */}
+      <Tabs defaultValue="content" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="content">內容</TabsTrigger>
+          <TabsTrigger value="backlinks">
+            <Link2 className="mr-1 h-3.5 w-3.5" /> 反向連結
+            {backlinks.length > 0 && (
+              <span className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                {backlinks.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="comments">
+            <MessageSquare className="mr-1 h-3.5 w-3.5" /> 留言
+          </TabsTrigger>
+          <TabsTrigger value="versions">
+            <History className="mr-1 h-3.5 w-3.5" /> 版本
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="content">
+          <div className="prose prose-sm dark:prose-invert min-h-[200px] max-w-none rounded-lg border border-border/60 bg-muted/10 p-4">
+            {article.content ? (
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {article.content}
+              </ReactMarkdown>
+            ) : (
+              <p className="text-sm text-muted-foreground">此文章尚無內容。</p>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="backlinks">
+          {backlinks.length === 0 ? (
+            <p className="rounded-lg border border-border/60 bg-muted/10 p-4 text-sm text-muted-foreground">
+              尚無其他文章引用此文章。
+            </p>
+          ) : (
+            <ul className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-4">
+              {backlinks.map((bl) => (
+                <li key={bl.id}>
+                  <button
+                    type="button"
+                    onClick={() => router.push(buildArticleDetailHref(bl.id))}
+                    className="text-sm text-primary hover:underline text-left"
+                  >
+                    {bl.title}
+                  </button>
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(bl.updatedAtISO).toLocaleDateString("zh-TW")}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </TabsContent>
+
+        <TabsContent value="comments">
+          {currentUserId ? (
+            <CommentPanel
+              accountId={accountId}
+              workspaceId={workspaceId}
+              contentId={articleId}
+              contentType="article"
+              currentUserId={currentUserId}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">請先登入以查看留言。</p>
+          )}
+        </TabsContent>
+
+        <TabsContent value="versions">
+          {currentUserId ? (
+            <VersionHistoryPanel
+              accountId={accountId}
+              contentId={articleId}
+              currentUserId={currentUserId}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">請先登入以查看版本歷程。</p>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <ArticleDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        categories={categories}
+        article={article}
+        onSuccess={() => void load()}
+      />
+    </div>
+  );
+}
+````
+
 ## File: modules/notion/interfaces/authoring/queries/index.ts
 ````typescript
 // TODO: export getArticle, getArticlesByWorkspace, getCategoryTree
@@ -66645,191 +66789,6 @@ export function resolveActiveAccount(input: ResolveActiveAccountInput): Selectab
 }
 ````
 
-## File: modules/platform/subdomains/notification/interfaces/components/NotificationBell.tsx
-````typescript
-"use client";
-
-/**
- * NotificationBell — Reusable notification bell for shell header.
- * Lives in platform/subdomains/notification/interfaces.
- */
-
-import Link from "next/link";
-import { Bell } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-
-import {
-  markNotificationRead,
-  markAllNotificationsRead,
-} from "../_actions/notification.actions";
-import { getNotificationsForRecipient } from "../queries/notification.queries";
-import type { NotificationEntity } from "../../application/dtos/notification.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-
-const NOTIFICATION_LIMIT = 20;
-
-function formatNotificationTime(timestamp: number) {
-  return new Intl.DateTimeFormat("zh-TW", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
-}
-
-interface NotificationBellProps {
-  readonly recipientId: string;
-}
-
-export function NotificationBell({ recipientId }: NotificationBellProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isMutating, setIsMutating] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
-
-  const unreadCount = useMemo(
-    () => notifications.reduce((count, n) => count + (n.read ? 0 : 1), 0),
-    [notifications],
-  );
-
-  const loadNotifications = useCallback(async () => {
-    if (!recipientId) {
-      setNotifications([]);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const next = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
-      setNotifications(next);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [recipientId]);
-
-  useEffect(() => {
-    void loadNotifications();
-  }, [loadNotifications]);
-
-  async function handleOpenChange(nextOpen: boolean) {
-    setIsOpen(nextOpen);
-    if (nextOpen) {
-      await loadNotifications();
-    }
-  }
-
-  async function handleMarkOneRead(notificationId: string) {
-    if (!recipientId) return;
-    setIsMutating(true);
-    const previous = notifications;
-    setNotifications((current) =>
-      current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
-    );
-    try {
-      const result = await markNotificationRead(notificationId, recipientId);
-      if (!result.success) setNotifications(previous);
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function handleMarkAllRead() {
-    if (!recipientId || unreadCount === 0) return;
-    setIsMutating(true);
-    const previous = notifications;
-    setNotifications((current) => current.map((n) => ({ ...n, read: true })));
-    try {
-      const result = await markAllNotificationsRead(recipientId);
-      if (!result.success) setNotifications(previous);
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  return (
-    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          aria-label="Open notifications"
-          className="relative text-muted-foreground"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between px-3 py-2">
-          <p className="text-sm font-semibold">Notifications</p>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            disabled={isMutating || unreadCount === 0}
-            onClick={handleMarkAllRead}
-          >
-            Mark all read
-          </Button>
-        </div>
-        <DropdownMenuSeparator />
-        <div className="max-h-80 overflow-y-auto">
-          {isLoading ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
-          ) : notifications.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
-          ) : (
-            notifications.map((notification) => (
-              <button
-                key={notification.id}
-                type="button"
-                onClick={() => void handleMarkOneRead(notification.id)}
-                disabled={isMutating}
-                className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium">{notification.title}</p>
-                  {!notification.read ? (
-                    <span
-                      className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary"
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                </div>
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                  {notification.message}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {formatNotificationTime(notification.timestamp)}
-                </p>
-              </button>
-            ))
-          )}
-        </div>
-        <DropdownMenuSeparator />
-        <div className="py-1 text-center">
-          <Link
-            href={`/${encodeURIComponent(recipientId)}/settings/notifications`}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            查看全部通知
-          </Link>
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-````
-
 ## File: modules/platform/subdomains/organization/infrastructure/organization-service.ts
 ````typescript
 /**
@@ -67373,6 +67332,68 @@ export function useWorkspaceDetail(
   }, [accountId, accountsHydrated, router, workspaceId, accessibleAccountIds]);
 
   return { workspace, loadState, setWorkspace };
+}
+````
+
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceOrchestrationContext.ts
+````typescript
+import { useParams } from "next/navigation";
+
+import { useApp, useAuth } from "@/modules/platform/api";
+
+import { resolveWorkspaceFromMap } from "../utils/workspace-map";
+import { useWorkspaceContext } from "../providers/WorkspaceContextProvider";
+
+export interface WorkspaceOrchestrationContext {
+  readonly accountId: string;
+  readonly currentUserId: string;
+  readonly activeWorkspaceId: string;
+  readonly workspaceId: string;
+}
+
+export interface UseWorkspaceOrchestrationContextOptions {
+  readonly requestedWorkspaceId?: string;
+}
+
+function normalizeRouteParam(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) {
+    return value[0]?.trim() ?? "";
+  }
+  return value?.trim() ?? "";
+}
+
+/**
+ * Provides normalized account/workspace actor context for app route shims.
+ * This keeps route-level composition thin and moves orchestration into workspace API.
+ */
+export function useWorkspaceOrchestrationContext(
+  options: UseWorkspaceOrchestrationContextOptions = {},
+): WorkspaceOrchestrationContext {
+  const routeParams = useParams<{ accountId?: string | string[]; workspaceId?: string | string[] }>();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const { state: workspaceState } = useWorkspaceContext();
+
+  const routeAccountId = normalizeRouteParam(routeParams.accountId);
+  const routeWorkspaceId = normalizeRouteParam(routeParams.workspaceId);
+
+  const accountId = routeAccountId || appState.activeAccount?.id || authState.user?.id || "";
+  const currentUserId = authState.user?.id ?? "";
+  const activeWorkspaceId = workspaceState.activeWorkspaceId ?? routeWorkspaceId;
+
+  const requestedWorkspaceId = options.requestedWorkspaceId?.trim() || routeWorkspaceId;
+  const resolvedWorkspace = resolveWorkspaceFromMap(
+    workspaceState.workspaces,
+    requestedWorkspaceId,
+  );
+  const workspaceId = resolvedWorkspace?.id ?? requestedWorkspaceId ?? activeWorkspaceId;
+
+  return {
+    accountId,
+    currentUserId,
+    activeWorkspaceId,
+    workspaceId,
+  };
 }
 ````
 
@@ -68781,201 +68802,6 @@ export function useRecentWorkspaces(
 }
 
 export { MAX_VISIBLE_RECENT_WORKSPACES, getWorkspaceIdFromPath };
-````
-
-## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
-````typescript
-/**
- * nav-preferences-data.ts  (workspace BC – interfaces/web/navigation)
- * Owns: NavPreferences type, nav-item catalogs, default values,
- *   validation helpers, and localStorage read/write utilities.
- * Constraints: No React imports. No UI imports. Pure data / serialization.
- */
-
-import {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "./workspace-nav-items";
-
-// Re-export for consumers that import from this file directly.
-export { WORKSPACE_NAV_ITEMS, normalizeWorkspaceOrder };
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export interface NavPreferences {
-  pinnedPersonal: string[];
-  pinnedWorkspace: string[];
-  showLimitedWorkspaces: boolean;
-  maxWorkspaces: number;
-  workspaceOrder: string[];
-}
-
-export interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
-
-const STORAGE_KEY = "xuanwu:nav-preferences";
-
-// ── Personal nav items ─────────────────────────────────────────────────────
-
-export const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
-  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
-];
-
-// ── Organization management items ─────────────────────────────────────────
-
-export const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
-  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
-  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
-  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
-];
-
-export const DIALOG_TEXT = {
-  zh: {
-    title: "Customize navigation",
-    description:
-      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
-    sectionPersonal: "個人",
-    sectionWorkspace: "工作區",
-    sectionOrganization: "組織管理",
-    sectionDisplay: "顯示設定",
-    limitedLabel: "側欄僅顯示固定數量的最近工作區",
-    limitedInputLabel: "工作區數量",
-    done: "完成",
-    recentWorkspaces: "最近工作區",
-  },
-  en: {
-    title: "Customize navigation",
-    description:
-      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
-    sectionPersonal: "Personal",
-    sectionWorkspace: "Workspace",
-    sectionOrganization: "Organization",
-    sectionDisplay: "Display",
-    limitedLabel: "Show a limited number of recent workspaces in sidebar",
-    limitedInputLabel: "Number of workspaces",
-    done: "Done",
-    recentWorkspaces: "Recent workspaces",
-  },
-} as const;
-
-// ── Defaults + validation ──────────────────────────────────────────────────
-
-export const DEFAULT_PREFS: NavPreferences = {
-  pinnedPersonal: ["recent-workspaces"],
-  pinnedWorkspace: [
-    ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
-    ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
-  ],
-  showLimitedWorkspaces: true,
-  maxWorkspaces: 10,
-  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
-};
-
-const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
-const VALID_WORKSPACE_ITEM_IDS = new Set([
-  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
-  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
-]);
-
-const WORKFLOW_PIN_MIGRATION_IDS = [
-  "task-qa",
-  "task-acceptance",
-  "task-issues",
-  "task-finance",
-] as const;
-
-/**
- * Notion / NotebookLM orchestration tabs added via workspace orchestration layer.
- * Existing users whose localStorage pre-dates these tabs need auto-migration.
- */
-const NOTION_NOTEBOOKLM_PIN_MIGRATION_IDS = [
-  "knowledge",
-  "workspace-settings",
-  "notion-knowledge",
-  "notion-authoring",
-  "notion-database",
-  "notion-collaboration",
-  "notion-relations",
-  "notion-taxonomy",
-  "notebook",
-  "notebook-conversation",
-  "notebook-notebook",
-  "notebook-source",
-  "notebook-synthesis",
-  "ai-chat",
-] as const;
-
-function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
-  if (!Array.isArray(ids)) return fallback;
-  const normalized = ids
-    .filter((id): id is string => typeof id === "string")
-    .filter((id) => validSet.has(id));
-  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
-}
-
-function migrateWorkflowPins(ids: string[]): string[] {
-  if (!ids.includes("tasks")) return ids;
-  const next = [...ids];
-  for (const id of WORKFLOW_PIN_MIGRATION_IDS) {
-    if (!next.includes(id) && VALID_WORKSPACE_ITEM_IDS.has(id)) {
-      next.push(id);
-    }
-  }
-  return next;
-}
-
-function migrateNotionNotebooklmPins(ids: string[]): string[] {
-  const next = [...ids];
-  let changed = false;
-  for (const id of NOTION_NOTEBOOKLM_PIN_MIGRATION_IDS) {
-    if (!next.includes(id) && VALID_WORKSPACE_ITEM_IDS.has(id)) {
-      next.push(id);
-      changed = true;
-    }
-  }
-  return changed ? next : ids;
-}
-
-// ── localStorage helpers ───────────────────────────────────────────────────
-
-export function readNavPreferences(): NavPreferences {
-  if (typeof window === "undefined") return DEFAULT_PREFS;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_PREFS;
-    const parsed = JSON.parse(raw) as Partial<NavPreferences>;
-    const normalizedWorkspacePinned = normalizePinnedIds(
-      parsed.pinnedWorkspace,
-      VALID_WORKSPACE_ITEM_IDS,
-      DEFAULT_PREFS.pinnedWorkspace,
-    );
-    return {
-      pinnedPersonal: normalizePinnedIds(
-        parsed.pinnedPersonal,
-        VALID_PERSONAL_ITEM_IDS,
-        DEFAULT_PREFS.pinnedPersonal,
-      ),
-      pinnedWorkspace: migrateNotionNotebooklmPins(migrateWorkflowPins(normalizedWorkspacePinned)),
-      showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
-      maxWorkspaces:
-        typeof parsed.maxWorkspaces === "number"
-          ? parsed.maxWorkspaces
-          : DEFAULT_PREFS.maxWorkspaces,
-      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
-    };
-  } catch {
-    return DEFAULT_PREFS;
-  }
-}
-
-export function writeNavPreferences(prefs: NavPreferences): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-}
 ````
 
 ## File: app/(shell)/_shell/ShellDashboardSidebar.tsx
@@ -70398,147 +70224,245 @@ export function WorkspaceOverviewTab({
 }
 ````
 
-## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
+## File: modules/workspace/interfaces/web/navigation/nav-preferences-data.ts
 ````typescript
-export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+/**
+ * nav-preferences-data.ts  (workspace BC – interfaces/web/navigation)
+ * Owns: NavPreferences type, nav-item catalogs, default values,
+ *   validation helpers, and localStorage read/write utilities.
+ * Constraints: No React imports. No UI imports. Pure data / serialization.
+ */
 
-export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+import {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "./workspace-nav-items";
 
-export const WORKSPACE_TAB_SIDEBAR_GROUP_ORDER: readonly WorkspaceTabGroup[] = [
-  "primary",
-  "modules",
-  "spaces",
-  "databases",
-  "library",
+// Re-export for consumers that import from this file directly.
+export { WORKSPACE_NAV_ITEMS, normalizeWorkspaceOrder };
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+export interface NavPreferences {
+  pinnedPersonal: string[];
+  pinnedWorkspace: string[];
+  showLimitedWorkspaces: boolean;
+  maxWorkspaces: number;
+  workspaceOrder: string[];
+}
+
+export interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+
+const STORAGE_KEY = "xuanwu:nav-preferences";
+
+// ── Personal nav items ─────────────────────────────────────────────────────
+
+export const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
+  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
 ];
 
-export const WORKSPACE_TAB_VALUES = [
-  "Overview",
-  "Members",
-  "Daily",
-  "Files",
-  "Schedule",
-  "Audit",
-  "Tasks",
-  "TaskQa",
-  "TaskAcceptance",
-  "TaskIssues",
-  "TaskFinance",
-  "Feed",
-  "Knowledge",
-  "WorkspaceSettings",
-  "NotionKnowledge",
-  "NotionAuthoring",
-  "NotionDatabase",
-  "NotionCollaboration",
-  "NotionRelations",
-  "NotionTaxonomy",
-  "Notebook",
-  "NotebookConversation",
-  "NotebookNotebook",
-  "NotebookSource",
-  "NotebookSynthesis",
-  "AiChat",
+// ── Organization management items ─────────────────────────────────────────
+
+export const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
+  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
+  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
+  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
+];
+
+export const DIALOG_TEXT = {
+  zh: {
+    title: "Customize navigation",
+    description:
+      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
+    sectionPersonal: "個人",
+    sectionWorkspace: "工作區",
+    sectionOrganization: "組織管理",
+    sectionDisplay: "顯示設定",
+    limitedLabel: "側欄僅顯示固定數量的最近工作區",
+    limitedInputLabel: "工作區數量",
+    done: "完成",
+    recentWorkspaces: "最近工作區",
+  },
+  en: {
+    title: "Customize navigation",
+    description:
+      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
+    sectionPersonal: "Personal",
+    sectionWorkspace: "Workspace",
+    sectionOrganization: "Organization",
+    sectionDisplay: "Display",
+    limitedLabel: "Show a limited number of recent workspaces in sidebar",
+    limitedInputLabel: "Number of workspaces",
+    done: "Done",
+    recentWorkspaces: "Recent workspaces",
+  },
+} as const;
+
+// ── Defaults + validation ──────────────────────────────────────────────────
+
+export const DEFAULT_PREFS: NavPreferences = {
+  pinnedPersonal: ["recent-workspaces"],
+  pinnedWorkspace: [
+    ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
+    ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
+  ],
+  showLimitedWorkspaces: true,
+  maxWorkspaces: 10,
+  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
+};
+
+/**
+ * Legacy default order before workspace tab UX reorder.
+ * Only exact legacy defaults are migrated; custom user orders are preserved.
+ */
+const LEGACY_DEFAULT_WORKSPACE_ORDER = [
+  "home",
+  "daily",
+  "schedule",
+  "audit",
+  "tasks",
+  "task-qa",
+  "task-acceptance",
+  "task-issues",
+  "task-finance",
+  "feed",
+  "knowledge",
+  "workspace-settings",
+  "notion-knowledge",
+  "notion-authoring",
+  "notion-database",
+  "notion-collaboration",
+  "notion-relations",
+  "notion-taxonomy",
+  "notebook",
+  "notebook-conversation",
+  "notebook-notebook",
+  "notebook-source",
+  "notebook-synthesis",
+  "ai-chat",
+  "files",
+  "members",
 ] as const;
 
-export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
+const VALID_WORKSPACE_ITEM_IDS = new Set([
+  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
+  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
+]);
 
-interface WorkspaceTabMeta {
-  readonly label: string;
-  readonly prefId: string;
-  readonly group: WorkspaceTabGroup;
-  readonly status: WorkspaceTabDevStatus;
+const WORKFLOW_PIN_MIGRATION_IDS = [
+  "task-qa",
+  "task-acceptance",
+  "task-issues",
+  "task-finance",
+] as const;
+
+/**
+ * Notion / NotebookLM orchestration tabs added via workspace orchestration layer.
+ * Existing users whose localStorage pre-dates these tabs need auto-migration.
+ */
+const NOTION_NOTEBOOKLM_PIN_MIGRATION_IDS = [
+  "knowledge",
+  "workspace-settings",
+  "notion-knowledge",
+  "notion-authoring",
+  "notion-database",
+  "notion-collaboration",
+  "notion-relations",
+  "notion-taxonomy",
+  "notebook",
+  "notebook-conversation",
+  "notebook-notebook",
+  "notebook-source",
+  "notebook-synthesis",
+  "ai-chat",
+] as const;
+
+function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
+  if (!Array.isArray(ids)) return fallback;
+  const normalized = ids
+    .filter((id): id is string => typeof id === "string")
+    .filter((id) => validSet.has(id));
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
 }
 
-export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
-  Overview: { label: "Home", prefId: "home", group: "primary", status: "🏗️" },
-  Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
-  Daily: { label: "Daily", prefId: "daily", group: "modules", status: "✅" },
-  Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
-  Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
-  Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
-  Tasks: { label: "Tasks", prefId: "tasks", group: "modules", status: "🏗️" },
-  TaskQa: { label: "Task QA", prefId: "task-qa", group: "modules", status: "🏗️" },
-  TaskAcceptance: { label: "Task Acceptance", prefId: "task-acceptance", group: "modules", status: "🏗️" },
-  TaskIssues: { label: "Task Issues", prefId: "task-issues", group: "modules", status: "🏗️" },
-  TaskFinance: { label: "Task Finance", prefId: "task-finance", group: "modules", status: "🏗️" },
-  Feed: { label: "Feed", prefId: "feed", group: "modules", status: "🏗️" },
-  Knowledge: { label: "Knowledge", prefId: "knowledge", group: "modules", status: "🏗️" },
-  WorkspaceSettings: { label: "Workspace Settings", prefId: "workspace-settings", group: "modules", status: "✅" },
-  NotionKnowledge: { label: "Notion Knowledge", prefId: "notion-knowledge", group: "modules", status: "🏗️" },
-  NotionAuthoring: { label: "Notion Authoring", prefId: "notion-authoring", group: "modules", status: "🏗️" },
-  NotionDatabase: { label: "Notion Database", prefId: "notion-database", group: "modules", status: "🏗️" },
-  NotionCollaboration: { label: "Notion Collaboration", prefId: "notion-collaboration", group: "modules", status: "🏗️" },
-  NotionRelations: { label: "Notion Relations", prefId: "notion-relations", group: "modules", status: "🏗️" },
-  NotionTaxonomy: { label: "Notion Taxonomy", prefId: "notion-taxonomy", group: "modules", status: "🏗️" },
-  Notebook: { label: "Notebook", prefId: "notebook", group: "modules", status: "🏗️" },
-  NotebookConversation: { label: "NotebookLM Conversation", prefId: "notebook-conversation", group: "modules", status: "🏗️" },
-  NotebookNotebook: { label: "NotebookLM Notebook", prefId: "notebook-notebook", group: "modules", status: "🏗️" },
-  NotebookSource: { label: "NotebookLM Source", prefId: "notebook-source", group: "modules", status: "🏗️" },
-  NotebookSynthesis: { label: "NotebookLM Synthesis", prefId: "notebook-synthesis", group: "modules", status: "🏗️" },
-  AiChat: { label: "AI Chat", prefId: "ai-chat", group: "modules", status: "🏗️" },
-};
-
-export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
-  primary: ["Overview"],
-  spaces: [],
-  databases: [],
-  library: ["Files", "Members"],
-  modules: [
-    "Daily",
-    "Schedule",
-    "Audit",
-    "Tasks",
-    "TaskQa",
-    "TaskAcceptance",
-    "TaskIssues",
-    "TaskFinance",
-    "Feed",
-    "Knowledge",
-    "WorkspaceSettings",
-    "NotionKnowledge",
-    "NotionAuthoring",
-    "NotionDatabase",
-    "NotionCollaboration",
-    "NotionRelations",
-    "NotionTaxonomy",
-    "Notebook",
-    "NotebookConversation",
-    "NotebookNotebook",
-    "NotebookSource",
-    "NotebookSynthesis",
-    "AiChat",
-  ],
-};
-
-const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);
-
-export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue {
-  return WORKSPACE_TAB_VALUE_SET.has(value);
+function migrateWorkflowPins(ids: string[]): string[] {
+  if (!ids.includes("tasks")) return ids;
+  const next = [...ids];
+  for (const id of WORKFLOW_PIN_MIGRATION_IDS) {
+    if (!next.includes(id) && VALID_WORKSPACE_ITEM_IDS.has(id)) {
+      next.push(id);
+    }
+  }
+  return next;
 }
 
-export function getWorkspaceTabMeta(tab: WorkspaceTabValue) {
-  return WORKSPACE_TAB_META[tab];
+function migrateNotionNotebooklmPins(ids: string[]): string[] {
+  const next = [...ids];
+  let changed = false;
+  for (const id of NOTION_NOTEBOOKLM_PIN_MIGRATION_IDS) {
+    if (!next.includes(id) && VALID_WORKSPACE_ITEM_IDS.has(id)) {
+      next.push(id);
+      changed = true;
+    }
+  }
+  return changed ? next : ids;
 }
 
-export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus {
-  return WORKSPACE_TAB_META[tab].status;
+function isExactOrderMatch(source: string[], target: readonly string[]): boolean {
+  if (source.length !== target.length) {
+    return false;
+  }
+  return source.every((id, index) => id === target[index]);
 }
 
-export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string {
-  return WORKSPACE_TAB_META[tab].label;
+function migrateWorkspaceOrder(order: string[]): string[] {
+  if (isExactOrderMatch(order, LEGACY_DEFAULT_WORKSPACE_ORDER)) {
+    return DEFAULT_PREFS.workspaceOrder;
+  }
+  return order;
 }
 
-export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
-  return WORKSPACE_TAB_META[tab].prefId;
+// ── localStorage helpers ───────────────────────────────────────────────────
+
+export function readNavPreferences(): NavPreferences {
+  if (typeof window === "undefined") return DEFAULT_PREFS;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_PREFS;
+    const parsed = JSON.parse(raw) as Partial<NavPreferences>;
+    const normalizedWorkspacePinned = normalizePinnedIds(
+      parsed.pinnedWorkspace,
+      VALID_WORKSPACE_ITEM_IDS,
+      DEFAULT_PREFS.pinnedWorkspace,
+    );
+    return {
+      pinnedPersonal: normalizePinnedIds(
+        parsed.pinnedPersonal,
+        VALID_PERSONAL_ITEM_IDS,
+        DEFAULT_PREFS.pinnedPersonal,
+      ),
+      pinnedWorkspace: migrateNotionNotebooklmPins(migrateWorkflowPins(normalizedWorkspacePinned)),
+      showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
+      maxWorkspaces:
+        typeof parsed.maxWorkspaces === "number"
+          ? parsed.maxWorkspaces
+          : DEFAULT_PREFS.maxWorkspaces,
+      workspaceOrder: migrateWorkspaceOrder(normalizeWorkspaceOrder(parsed.workspaceOrder)),
+    };
+  } catch {
+    return DEFAULT_PREFS;
+  }
 }
 
-export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
-  return WORKSPACE_TAB_GROUPS[group];
-}
-
-export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[] {
-  return WORKSPACE_TAB_SIDEBAR_GROUP_ORDER.flatMap((group) => getWorkspaceTabsByGroup(group));
+export function writeNavPreferences(prefs: NavPreferences): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
 }
 ````
 
@@ -71519,159 +71443,6 @@ export function KnowledgeBaseArticlesPanel({
 }
 ````
 
-## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
-````typescript
-"use client";
-
-/**
- * Route: /knowledge-database/databases/[databaseId]/forms
- * Purpose: Manage database forms ??create and embed form links for a specific database.
- */
-
-import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
-
-import { getDatabase } from "../queries";
-import { DatabaseFormPanel } from "./DatabaseFormPanel";
-import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-
-// ?? Props ?????????????????????????????????????????????????????????????????????
-
-export interface DatabaseFormsPanelProps {
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-// ?? Component ?????????????????????????????????????????????????????????????????
-
-export function DatabaseFormsPanel({
-  accountId,
-  workspaceId,
-  currentUserId,
-}: DatabaseFormsPanelProps) {
-  const params = useParams();
-  const router = useRouter();
-  const databaseId = params.databaseId as string;
-
-  const [database, setDatabase] = useState<Database | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"preview" | "share">("preview");
-  const databaseDetailHref =
-    accountId && workspaceId
-      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(databaseId)}`
-      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}`;
-
-  const load = useCallback(async () => {
-    if (!accountId || !databaseId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const db = await getDatabase(accountId, databaseId);
-      setDatabase(db);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, databaseId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-      </div>
-    );
-  }
-
-  if (!database) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
-        </Button>
-        <p className="text-sm text-muted-foreground">Database not found.</p>
-      </div>
-    );
-  }
-
-  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-
-  return (
-    <div className="space-y-4">
-      {/* Top bar */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push(databaseDetailHref)}
-        >
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to database
-        </Button>
-        <div className="ml-auto">
-          <Button size="sm" variant="outline" disabled>
-            <Plus className="mr-1.5 h-3.5 w-3.5" /> Form builder coming soon
-          </Button>
-        </div>
-      </div>
-
-      <header className="space-y-1 border-b border-border/60 pb-4">
-        <h1 className="text-xl font-semibold">{database.name} Forms</h1>
-        <p className="text-sm text-muted-foreground">
-          Preview and share forms for collecting structured input.
-        </p>
-      </header>
-
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "preview" | "share")}>
-        <TabsList>
-          <TabsTrigger value="preview">Preview form</TabsTrigger>
-          <TabsTrigger value="share">Share link</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="preview" className="mt-4">
-          <div className="rounded-xl border border-border/60 bg-card px-6 py-2">
-            <DatabaseFormPanel
-              database={database}
-              accountId={accountId}
-              workspaceId={workspaceId}
-              submitterId={currentUserId}
-              title={`${database.name} Form`}
-              description={database.description ?? undefined}
-            />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="share" className="mt-4">
-          <div className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
-            <div className="space-y-1.5">
-              <p className="text-sm font-medium">Form URL</p>
-              <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                <span className="flex-1 truncate">{shareUrl}</span>
-                <button
-                  type="button"
-                  onClick={() => void navigator.clipboard.writeText(shareUrl)}
-                  className="shrink-0 text-muted-foreground hover:text-foreground"
-                  title="Copy URL"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Share this URL with users who need to submit records.
-              </p>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-````
-
 ## File: modules/notion/interfaces/knowledge/components/KnowledgePagesPanel.tsx
 ````typescript
 "use client";
@@ -72479,6 +72250,713 @@ export const functionsInfrastructureApi: FunctionsAPI = {
 };
 ````
 
+## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
+````typescript
+import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Library, MessageSquare, Notebook, Shield, User, Users } from "lucide-react";
+import type { ReactNode } from "react";
+
+const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
+  "workspace",
+  "workspace-feed",
+  "knowledge",
+  "knowledge-base",
+  "knowledge-database",
+  "source",
+  "notebook",
+  "ai-chat",
+  "organization",
+  "settings",
+  "dashboard",
+  "dev-tools",
+]);
+
+function isWorkspaceScopedPath(pathname: string) {
+  if (pathname.startsWith("/workspace/")) {
+    return true;
+  }
+
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length < 2) {
+    return false;
+  }
+
+  return !NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(segments[0]);
+}
+
+export interface WorkspaceQuickAccessMatcherOptions {
+  panel: string | null;
+  tab: string | null;
+}
+
+export interface WorkspaceQuickAccessItem {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
+}
+
+const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
+  {
+    href: "/workspace/{workspaceId}?tab=Overview",
+    label: "首頁",
+    icon: <Home className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) &&
+      (options?.tab == null || options.tab === "Overview") &&
+      options?.panel == null,
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-pages",
+    label: "知識頁面",
+    icon: <FileText className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-pages",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-base-articles",
+    label: "文章",
+    icon: <BookOpen className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-base-articles",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Files",
+    label: "檔案",
+    icon: <FolderOpen className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Files",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Members",
+    label: "成員",
+    icon: <Users className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Members",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Knowledge",
+    label: "知識庫",
+    icon: <Notebook className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Knowledge",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Notebook",
+    label: "RAG 查詢",
+    icon: <Brain className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Notebook",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=AiChat",
+    label: "AI 對話",
+    icon: <MessageSquare className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "AiChat",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-databases",
+    label: "資料庫",
+    icon: <Database className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-databases",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=source-libraries",
+    label: "來源庫",
+    icon: <Library className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "source-libraries",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=governance",
+    label: "治理",
+    icon: <Shield className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "governance",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=profile",
+    label: "工作區資料",
+    icon: <User className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "profile",
+  },
+];
+
+export function buildWorkspaceQuickAccessItems(
+  workspaceId: string,
+  accountId?: string | null,
+): WorkspaceQuickAccessItem[] {
+  const encodedWorkspaceId = encodeURIComponent(workspaceId);
+  const encodedAccountId = accountId ? encodeURIComponent(accountId) : "";
+  const workspaceBaseHref = accountId
+    ? `/${encodedAccountId}/${encodedWorkspaceId}`
+    : "/";
+
+  return WORKSPACE_QUICK_ACCESS_TEMPLATES.map((item) => ({
+    ...item,
+    href: item.href
+      .replaceAll("/workspace/{workspaceId}", workspaceBaseHref)
+      .replaceAll("{workspaceId}", encodedWorkspaceId),
+  }));
+}
+````
+
+## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
+````typescript
+export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+
+export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+
+export const WORKSPACE_TAB_SIDEBAR_GROUP_ORDER: readonly WorkspaceTabGroup[] = [
+  "primary",
+  "library",
+  "modules",
+  "spaces",
+  "databases",
+];
+
+export const WORKSPACE_TAB_VALUES = [
+  "Overview",
+  "Files",
+  "Members",
+  "Daily",
+  "Tasks",
+  "TaskQa",
+  "TaskAcceptance",
+  "TaskIssues",
+  "TaskFinance",
+  "Schedule",
+  "Audit",
+  "Feed",
+  "Knowledge",
+  "NotionKnowledge",
+  "NotionAuthoring",
+  "NotionDatabase",
+  "NotionCollaboration",
+  "NotionRelations",
+  "NotionTaxonomy",
+  "Notebook",
+  "NotebookConversation",
+  "NotebookNotebook",
+  "NotebookSource",
+  "NotebookSynthesis",
+  "AiChat",
+  "WorkspaceSettings",
+] as const;
+
+export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+
+interface WorkspaceTabMeta {
+  readonly label: string;
+  readonly prefId: string;
+  readonly group: WorkspaceTabGroup;
+  readonly status: WorkspaceTabDevStatus;
+}
+
+export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
+  Overview: { label: "Home", prefId: "home", group: "primary", status: "🏗️" },
+  Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
+  Daily: { label: "Daily", prefId: "daily", group: "modules", status: "✅" },
+  Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
+  Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
+  Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
+  Tasks: { label: "Tasks", prefId: "tasks", group: "modules", status: "🏗️" },
+  TaskQa: { label: "Task QA", prefId: "task-qa", group: "modules", status: "🏗️" },
+  TaskAcceptance: { label: "Task Acceptance", prefId: "task-acceptance", group: "modules", status: "🏗️" },
+  TaskIssues: { label: "Task Issues", prefId: "task-issues", group: "modules", status: "🏗️" },
+  TaskFinance: { label: "Task Finance", prefId: "task-finance", group: "modules", status: "🏗️" },
+  Feed: { label: "Feed", prefId: "feed", group: "modules", status: "🏗️" },
+  Knowledge: { label: "Knowledge", prefId: "knowledge", group: "modules", status: "🏗️" },
+  WorkspaceSettings: { label: "Workspace Settings", prefId: "workspace-settings", group: "modules", status: "✅" },
+  NotionKnowledge: { label: "Notion Knowledge", prefId: "notion-knowledge", group: "modules", status: "🏗️" },
+  NotionAuthoring: { label: "Notion Authoring", prefId: "notion-authoring", group: "modules", status: "🏗️" },
+  NotionDatabase: { label: "Notion Database", prefId: "notion-database", group: "modules", status: "🏗️" },
+  NotionCollaboration: { label: "Notion Collaboration", prefId: "notion-collaboration", group: "modules", status: "🏗️" },
+  NotionRelations: { label: "Notion Relations", prefId: "notion-relations", group: "modules", status: "🏗️" },
+  NotionTaxonomy: { label: "Notion Taxonomy", prefId: "notion-taxonomy", group: "modules", status: "🏗️" },
+  Notebook: { label: "Notebook", prefId: "notebook", group: "modules", status: "🏗️" },
+  NotebookConversation: { label: "NotebookLM Conversation", prefId: "notebook-conversation", group: "modules", status: "🏗️" },
+  NotebookNotebook: { label: "NotebookLM Notebook", prefId: "notebook-notebook", group: "modules", status: "🏗️" },
+  NotebookSource: { label: "NotebookLM Source", prefId: "notebook-source", group: "modules", status: "🏗️" },
+  NotebookSynthesis: { label: "NotebookLM Synthesis", prefId: "notebook-synthesis", group: "modules", status: "🏗️" },
+  AiChat: { label: "AI Chat", prefId: "ai-chat", group: "modules", status: "🏗️" },
+};
+
+export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
+  primary: ["Overview"],
+  spaces: [],
+  databases: [],
+  library: ["Files", "Members"],
+  modules: [
+    "Daily",
+    "Tasks",
+    "TaskQa",
+    "TaskAcceptance",
+    "TaskIssues",
+    "TaskFinance",
+    "Schedule",
+    "Audit",
+    "Feed",
+    "Knowledge",
+    "NotionKnowledge",
+    "NotionAuthoring",
+    "NotionDatabase",
+    "NotionCollaboration",
+    "NotionRelations",
+    "NotionTaxonomy",
+    "Notebook",
+    "NotebookConversation",
+    "NotebookNotebook",
+    "NotebookSource",
+    "NotebookSynthesis",
+    "AiChat",
+    "WorkspaceSettings",
+  ],
+};
+
+const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);
+
+export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue {
+  return WORKSPACE_TAB_VALUE_SET.has(value);
+}
+
+export function getWorkspaceTabMeta(tab: WorkspaceTabValue) {
+  return WORKSPACE_TAB_META[tab];
+}
+
+export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus {
+  return WORKSPACE_TAB_META[tab].status;
+}
+
+export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string {
+  return WORKSPACE_TAB_META[tab].label;
+}
+
+export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
+  return WORKSPACE_TAB_META[tab].prefId;
+}
+
+export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
+  return WORKSPACE_TAB_GROUPS[group];
+}
+
+export function getWorkspaceTabsInSidebarOrder(): WorkspaceTabValue[] {
+  return WORKSPACE_TAB_SIDEBAR_GROUP_ORDER.flatMap((group) => getWorkspaceTabsByGroup(group));
+}
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseFormsPanel.tsx
+````typescript
+"use client";
+
+/**
+ * Route: /knowledge-database/databases/[databaseId]/forms
+ * Purpose: Manage database forms ??create and embed form links for a specific database.
+ */
+
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
+
+import { getDatabase } from "../queries";
+import { DatabaseFormPanel } from "./DatabaseFormPanel";
+import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+
+// ?? Props ?????????????????????????????????????????????????????????????????????
+
+export interface DatabaseFormsPanelProps {
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+
+// ?? Component ?????????????????????????????????????????????????????????????????
+
+export function DatabaseFormsPanel({
+  accountId,
+  workspaceId,
+  currentUserId,
+}: DatabaseFormsPanelProps) {
+  const params = useParams();
+  const router = useRouter();
+  const databaseId = params.databaseId as string;
+
+  const [database, setDatabase] = useState<Database | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"preview" | "share">("preview");
+  const databaseDetailHref =
+    accountId && workspaceId
+      ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-database/databases/${encodeURIComponent(databaseId)}`
+      : `/knowledge-database/databases/${encodeURIComponent(databaseId)}`;
+
+  const load = useCallback(async () => {
+    if (!accountId || !databaseId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const db = await getDatabase(accountId, databaseId);
+      setDatabase(db);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, databaseId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!database) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push(databaseDetailHref)}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
+        </Button>
+        <p className="text-sm text-muted-foreground">Database not found.</p>
+      </div>
+    );
+  }
+
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
+
+  return (
+    <div className="space-y-4">
+      {/* Top bar */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push(databaseDetailHref)}
+        >
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to database
+        </Button>
+        <div className="ml-auto">
+          <Button size="sm" variant="outline" disabled>
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> Form builder coming soon
+          </Button>
+        </div>
+      </div>
+
+      <header className="space-y-1 border-b border-border/60 pb-4">
+        <h1 className="text-xl font-semibold">{database.name} Forms</h1>
+        <p className="text-sm text-muted-foreground">
+          Preview and share forms for collecting structured input.
+        </p>
+      </header>
+
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "preview" | "share")}>
+        <TabsList>
+          <TabsTrigger value="preview">Preview form</TabsTrigger>
+          <TabsTrigger value="share">Share link</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="preview" className="mt-4">
+          <div className="rounded-xl border border-border/60 bg-card px-6 py-2">
+            <DatabaseFormPanel
+              database={database}
+              accountId={accountId}
+              workspaceId={workspaceId}
+              submitterId={currentUserId}
+              title={`${database.name} Form`}
+              description={database.description ?? undefined}
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="share" className="mt-4">
+          <div className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium">Form URL</p>
+              <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                <span className="flex-1 truncate">{shareUrl}</span>
+                <button
+                  type="button"
+                  onClick={() => void navigator.clipboard.writeText(shareUrl)}
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                  title="Copy URL"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Share this URL with users who need to submit records.
+              </p>
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+````
+
+## File: modules/notion/interfaces/database/components/DatabaseListPanel.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/database
+ * Layer: interfaces/components
+ * Purpose: DatabaseListPanel ??flat record list with fields as readable rows.
+ */
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { getRecords } from "../queries";
+import { createRecord, deleteRecord } from "../_actions/database.actions";
+import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
+
+interface DatabaseListPanelProps {
+  database: DatabaseSnapshot;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+
+function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
+  if (record.properties && typeof record.properties === "object") {
+    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
+  }
+  return null;
+}
+
+function displayValue(val: unknown, type: string): string {
+  if (val == null || val === "") return "";
+  if (type === "checkbox") return val ? "Yes" : "No";
+  return String(val);
+}
+
+export function DatabaseListPanel({ database, accountId, workspaceId, currentUserId }: DatabaseListPanelProps) {
+  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [isPending, startTransition] = useTransition();
+
+  const titleField = database.fields.find((f) => f.type === "text") ?? database.fields[0] ?? null;
+  const secondaryFields = database.fields.filter((f) => f !== titleField);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function toggleExpand(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function handleAdd() {
+    startTransition(async () => {
+      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
+      void load();
+    });
+  }
+
+  function handleDelete(recordId: string) {
+    startTransition(async () => {
+      await deleteRecord(accountId, recordId);
+      setRecords((prev) => prev.filter((r) => r.id !== recordId));
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      {records.length === 0 ? (
+        <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">No records</p>
+      ) : (
+        records.map((record) => {
+          const isOpen = expanded.has(record.id);
+          const title = titleField
+            ? displayValue(getProperty(record, titleField.id), titleField.type) || "Untitled"
+            : record.id.slice(0, 8);
+
+          return (
+            <div key={record.id} className="rounded-md border border-border/60 bg-card">
+              <div className="flex items-center gap-2 px-3 py-2">
+                <button
+                  type="button"
+                  className="rounded p-0.5 text-muted-foreground hover:bg-muted"
+                  onClick={() => toggleExpand(record.id)}
+                >
+                  {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                </button>
+                <span className="flex-1 truncate text-sm font-medium text-foreground">{title}</span>
+                <div className="hidden gap-1 sm:flex">
+                  {secondaryFields.slice(0, 2).map((field) => {
+                    const val = displayValue(getProperty(record, field.id), field.type);
+                    if (!val) return null;
+                    return (
+                      <Badge key={field.id} variant="outline" className="text-[10px]">
+                        {field.name}: {val.length > 12 ? `${val.slice(0, 12)}...` : val}
+                      </Badge>
+                    );
+                  })}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                  disabled={isPending}
+                  onClick={() => handleDelete(record.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              {isOpen && (
+                <div className="border-t border-border/40 px-4 py-3">
+                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
+                    {database.fields.map((field) => {
+                      const val = displayValue(getProperty(record, field.id), field.type);
+                      return (
+                        <div key={field.id} className="contents">
+                          <dt className="text-muted-foreground">{field.name}</dt>
+                          <dd className="text-foreground">{val || <span className="text-muted-foreground/50">N/A</span>}</dd>
+                        </div>
+                      );
+                    })}
+                    <div className="contents">
+                      <dt className="text-muted-foreground">Created at</dt>
+                      <dd className="text-foreground">
+                        {new Date(record.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="mt-1 w-full text-xs">
+        <Plus className="mr-1.5 h-3 w-3" /> Add record
+      </Button>
+    </div>
+  );
+}
+````
+
+## File: modules/notion/subdomains/knowledge/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ */
+
+// ?? Types (read-only snapshots ??no aggregate class refs) ?????????????????????
+export type { KnowledgePageSnapshot } from "../domain/aggregates/KnowledgePage";
+/** @alias KnowledgePageSnapshot ??provided for backward-compatibility */
+export type { KnowledgePageSnapshot as KnowledgePage } from "../domain/aggregates/KnowledgePage";
+export type { ContentBlockSnapshot } from "../domain/aggregates/ContentBlock";
+export type { KnowledgeCollectionSnapshot } from "../domain/aggregates/KnowledgeCollection";
+
+// ?? Server action DTOs ????????????????????????????????????????????????????????
+export type { CreateKnowledgePageDto, RenameKnowledgePageDto, MoveKnowledgePageDto, ArchiveKnowledgePageDto, ReorderKnowledgePageBlocksDto } from "../application/dto/KnowledgePageDto";
+export type { AddKnowledgeBlockDto, UpdateKnowledgeBlockDto, DeleteKnowledgeBlockDto } from "../application/dto/ContentBlockDto";
+export type { CreateKnowledgeCollectionDto } from "../application/dto/KnowledgeCollectionDto";
+
+// ?? Query functions (server-side reads) ???????????????????????????????????????
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePagesByWorkspace,
+  getKnowledgePageTree,
+  getKnowledgePageTreeByWorkspace,
+  getKnowledgeBlocks,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "../../../interfaces/knowledge/queries";
+
+// ?? Server actions (drives: app router, Server Components) ????????????????????
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  archiveKnowledgeCollection,
+} from "../../../interfaces/knowledge/_actions";
+
+// ?? UI Components ?????????????????????????????????????????????????????????????
+export { PageTreePanel } from "../../../interfaces/knowledge/components/PageTreePanel";
+export type { PageTreePanelProps } from "../../../interfaces/knowledge/components/PageTreePanel";
+export { PageDialog } from "../../../interfaces/knowledge/components/PageDialog";
+export { BlockEditorPanel } from "../../../interfaces/knowledge/components/BlockEditorPanel";
+export { PageEditorPanel } from "../../../interfaces/knowledge/components/PageEditorPanel";
+export type { PageEditorPanelProps } from "../../../interfaces/knowledge/components/PageEditorPanel";
+export { KnowledgePagesPanel } from "../../../interfaces/knowledge/components/KnowledgePagesPanel";
+export type { KnowledgePagesPanelProps } from "../../../interfaces/knowledge/components/KnowledgePagesPanel";
+
+// ?? Store ?????????????????????????????????????????????????????????????????????
+export { useBlockEditorStore } from "../../../interfaces/knowledge/store/block-editor.store";
+export type { EditorBlock } from "../../../interfaces/knowledge/store/block-editor.store";
+
+// ?? Tree node type (needed by app/ pages) ?????????????????????????????????????
+export type { KnowledgePageTreeNode } from "../domain/aggregates/KnowledgePage";
+
+// ?? Domain events (published language ??for cross-module event subscriptions) ?
+export type { PageApprovedEvent, PageApprovedPayload, ExtractedTask, ExtractedInvoice } from "../domain/events/KnowledgePageEvents";
+
+// ?? Sidebar component ?????????????????????????????????????????????????????????
+
+// ?? Page header widgets ???????????????????????????????????????????????????????
+export { TitleEditor, IconPicker, CoverEditor } from "../../../interfaces/knowledge/components/KnowledgePageHeaderWidgets";
+export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../../../interfaces/knowledge/components/KnowledgePageHeaderWidgets";
+
+// ?? Route screen components ???????????????????????????????????????????????????
+export { KnowledgeDetailPanel } from "../../../interfaces/knowledge/components/KnowledgeDetailPanel";
+export type { KnowledgeDetailPanelProps } from "../../../interfaces/knowledge/components/KnowledgeDetailPanel";
+````
+
 ## File: modules/platform/subdomains/platform-config/application/services/shell-navigation-catalog.ts
 ````typescript
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -72754,7 +73232,6 @@ export const SHELL_CONTEXT_SECTION_CONFIG: Partial<
   Record<ShellNavSection, ShellContextSectionConfig>
 > = {
   "knowledge-base": { title: "知識庫", items: [{ href: "/knowledge-base/articles", label: "文章" }] },
-  "knowledge-database": { title: "資料庫", items: [{ href: "/knowledge-database/databases", label: "資料庫" }] },
   source: { title: "來源文件", items: [{ href: "/source/libraries", label: "資料庫" }] },
   notebook: { title: "筆記本", items: [{ href: "/notebook/rag-query", label: "問答 / 引用" }] },
   "ai-chat": { title: "筆記本 / AI", items: [{ href: "/ai-chat", label: "筆記本介面" }] },
@@ -72787,7 +73264,7 @@ export function resolveShellNavSection(pathname: string): ShellNavSection {
   if (normalizedPathname.startsWith("/workspace")) return "workspace";
   if (normalizedPathname.startsWith("/dashboard")) return "dashboard";
   if (normalizedPathname.startsWith("/knowledge-base")) return "knowledge-base";
-  if (normalizedPathname.startsWith("/knowledge-database")) return "knowledge-database";
+  if (normalizedPathname.startsWith("/knowledge-database")) return "knowledge";
   if (normalizedPathname.startsWith("/knowledge")) return "knowledge";
   if (normalizedPathname.startsWith("/source")) return "source";
   if (normalizedPathname.startsWith("/notebook")) return "notebook";
@@ -72815,416 +73292,6 @@ export function resolveShellPageTitle(pathname: string): string {
 export function resolveShellBreadcrumbLabel(segment: string): string {
   return BREADCRUMB_LABELS[segment] ?? segment;
 }
-````
-
-## File: modules/workspace/interfaces/web/components/navigation/workspace-quick-access.tsx
-````typescript
-import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Library, MessageSquare, Notebook, Shield, User, Users } from "lucide-react";
-import type { ReactNode } from "react";
-
-const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
-  "workspace",
-  "workspace-feed",
-  "knowledge",
-  "knowledge-base",
-  "knowledge-database",
-  "source",
-  "notebook",
-  "ai-chat",
-  "organization",
-  "settings",
-  "dashboard",
-  "dev-tools",
-]);
-
-function isWorkspaceScopedPath(pathname: string) {
-  if (pathname.startsWith("/workspace/")) {
-    return true;
-  }
-
-  const segments = pathname.split("/").filter(Boolean);
-  if (segments.length < 2) {
-    return false;
-  }
-
-  return !NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES.has(segments[0]);
-}
-
-export interface WorkspaceQuickAccessMatcherOptions {
-  panel: string | null;
-  tab: string | null;
-}
-
-export interface WorkspaceQuickAccessItem {
-  href: string;
-  label: string;
-  icon: ReactNode;
-  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
-}
-
-const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
-  {
-    href: "/workspace/{workspaceId}?tab=Overview",
-    label: "首頁",
-    icon: <Home className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) &&
-      (options?.tab == null || options.tab === "Overview") &&
-      options?.panel == null,
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-pages",
-    label: "知識頁面",
-    icon: <FileText className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-pages",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-base-articles",
-    label: "文章",
-    icon: <BookOpen className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-base-articles",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Files",
-    label: "檔案",
-    icon: <FolderOpen className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Files",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Members",
-    label: "成員",
-    icon: <Users className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Members",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Knowledge",
-    label: "知識庫",
-    icon: <Notebook className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Knowledge",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Notebook",
-    label: "RAG 查詢",
-    icon: <Brain className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Notebook",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=AiChat",
-    label: "AI 對話",
-    icon: <MessageSquare className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "AiChat",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-databases",
-    label: "資料庫",
-    icon: <Database className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-databases",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Overview&panel=source-libraries",
-    label: "來源庫",
-    icon: <Library className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "source-libraries",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Overview&panel=governance",
-    label: "治理",
-    icon: <Shield className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "governance",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Overview&panel=profile",
-    label: "工作區資料",
-    icon: <User className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "profile",
-  },
-];
-
-export function buildWorkspaceQuickAccessItems(
-  workspaceId: string,
-  accountId?: string | null,
-): WorkspaceQuickAccessItem[] {
-  const encodedWorkspaceId = encodeURIComponent(workspaceId);
-  const encodedAccountId = accountId ? encodeURIComponent(accountId) : "";
-  const workspaceBaseHref = accountId
-    ? `/${encodedAccountId}/${encodedWorkspaceId}`
-    : "/";
-
-  return WORKSPACE_QUICK_ACCESS_TEMPLATES.map((item) => ({
-    ...item,
-    href: item.href
-      .replaceAll("/workspace/{workspaceId}", workspaceBaseHref)
-      .replaceAll("{workspaceId}", encodedWorkspaceId),
-  }));
-}
-````
-
-## File: modules/notion/interfaces/database/components/DatabaseListPanel.tsx
-````typescript
-"use client";
-
-/**
- * Module: notion/subdomains/database
- * Layer: interfaces/components
- * Purpose: DatabaseListPanel ??flat record list with fields as readable rows.
- */
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { getRecords } from "../queries";
-import { createRecord, deleteRecord } from "../_actions/database.actions";
-import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
-
-interface DatabaseListPanelProps {
-  database: DatabaseSnapshot;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-}
-
-function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
-  if (record.properties && typeof record.properties === "object") {
-    return (record.properties as Record<string, unknown>)[fieldId] ?? null;
-  }
-  return null;
-}
-
-function displayValue(val: unknown, type: string): string {
-  if (val == null || val === "") return "";
-  if (type === "checkbox") return val ? "Yes" : "No";
-  return String(val);
-}
-
-export function DatabaseListPanel({ database, accountId, workspaceId, currentUserId }: DatabaseListPanelProps) {
-  const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [isPending, startTransition] = useTransition();
-
-  const titleField = database.fields.find((f) => f.type === "text") ?? database.fields[0] ?? null;
-  const secondaryFields = database.fields.filter((f) => f !== titleField);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getRecords(accountId, database.id);
-      setRecords(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, database.id]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function toggleExpand(id: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function handleAdd() {
-    startTransition(async () => {
-      await createRecord({ databaseId: database.id, workspaceId, accountId, properties: {}, createdByUserId: currentUserId });
-      void load();
-    });
-  }
-
-  function handleDelete(recordId: string) {
-    startTransition(async () => {
-      await deleteRecord(accountId, recordId);
-      setRecords((prev) => prev.filter((r) => r.id !== recordId));
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-2">
-        {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-1">
-      {records.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">No records</p>
-      ) : (
-        records.map((record) => {
-          const isOpen = expanded.has(record.id);
-          const title = titleField
-            ? displayValue(getProperty(record, titleField.id), titleField.type) || "Untitled"
-            : record.id.slice(0, 8);
-
-          return (
-            <div key={record.id} className="rounded-md border border-border/60 bg-card">
-              <div className="flex items-center gap-2 px-3 py-2">
-                <button
-                  type="button"
-                  className="rounded p-0.5 text-muted-foreground hover:bg-muted"
-                  onClick={() => toggleExpand(record.id)}
-                >
-                  {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                </button>
-                <span className="flex-1 truncate text-sm font-medium text-foreground">{title}</span>
-                <div className="hidden gap-1 sm:flex">
-                  {secondaryFields.slice(0, 2).map((field) => {
-                    const val = displayValue(getProperty(record, field.id), field.type);
-                    if (!val) return null;
-                    return (
-                      <Badge key={field.id} variant="outline" className="text-[10px]">
-                        {field.name}: {val.length > 12 ? `${val.slice(0, 12)}...` : val}
-                      </Badge>
-                    );
-                  })}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                  disabled={isPending}
-                  onClick={() => handleDelete(record.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              {isOpen && (
-                <div className="border-t border-border/40 px-4 py-3">
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-xs">
-                    {database.fields.map((field) => {
-                      const val = displayValue(getProperty(record, field.id), field.type);
-                      return (
-                        <div key={field.id} className="contents">
-                          <dt className="text-muted-foreground">{field.name}</dt>
-                          <dd className="text-foreground">{val || <span className="text-muted-foreground/50">N/A</span>}</dd>
-                        </div>
-                      );
-                    })}
-                    <div className="contents">
-                      <dt className="text-muted-foreground">Created at</dt>
-                      <dd className="text-foreground">
-                        {new Date(record.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-              )}
-            </div>
-          );
-        })
-      )}
-      <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="mt-1 w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> Add record
-      </Button>
-    </div>
-  );
-}
-````
-
-## File: modules/notion/subdomains/knowledge/api/index.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: api (public boundary)
- * Purpose: Exposes only what external consumers need.
- *          All cross-module access must go through this file only.
- */
-
-// ?? Types (read-only snapshots ??no aggregate class refs) ?????????????????????
-export type { KnowledgePageSnapshot } from "../domain/aggregates/KnowledgePage";
-/** @alias KnowledgePageSnapshot ??provided for backward-compatibility */
-export type { KnowledgePageSnapshot as KnowledgePage } from "../domain/aggregates/KnowledgePage";
-export type { ContentBlockSnapshot } from "../domain/aggregates/ContentBlock";
-export type { KnowledgeCollectionSnapshot } from "../domain/aggregates/KnowledgeCollection";
-
-// ?? Server action DTOs ????????????????????????????????????????????????????????
-export type { CreateKnowledgePageDto, RenameKnowledgePageDto, MoveKnowledgePageDto, ArchiveKnowledgePageDto, ReorderKnowledgePageBlocksDto } from "../application/dto/KnowledgePageDto";
-export type { AddKnowledgeBlockDto, UpdateKnowledgeBlockDto, DeleteKnowledgeBlockDto } from "../application/dto/ContentBlockDto";
-export type { CreateKnowledgeCollectionDto } from "../application/dto/KnowledgeCollectionDto";
-
-// ?? Query functions (server-side reads) ???????????????????????????????????????
-export {
-  getKnowledgePage,
-  getKnowledgePages,
-  getKnowledgePagesByWorkspace,
-  getKnowledgePageTree,
-  getKnowledgePageTreeByWorkspace,
-  getKnowledgeBlocks,
-  getKnowledgeCollection,
-  getKnowledgeCollections,
-} from "../../../interfaces/knowledge/queries";
-
-// ?? Server actions (drives: app router, Server Components) ????????????????????
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  archiveKnowledgeCollection,
-} from "../../../interfaces/knowledge/_actions";
-
-// ?? UI Components ?????????????????????????????????????????????????????????????
-export { PageTreePanel } from "../../../interfaces/knowledge/components/PageTreePanel";
-export type { PageTreePanelProps } from "../../../interfaces/knowledge/components/PageTreePanel";
-export { PageDialog } from "../../../interfaces/knowledge/components/PageDialog";
-export { BlockEditorPanel } from "../../../interfaces/knowledge/components/BlockEditorPanel";
-export { PageEditorPanel } from "../../../interfaces/knowledge/components/PageEditorPanel";
-export type { PageEditorPanelProps } from "../../../interfaces/knowledge/components/PageEditorPanel";
-export { KnowledgePagesPanel } from "../../../interfaces/knowledge/components/KnowledgePagesPanel";
-export type { KnowledgePagesPanelProps } from "../../../interfaces/knowledge/components/KnowledgePagesPanel";
-
-// ?? Store ?????????????????????????????????????????????????????????????????????
-export { useBlockEditorStore } from "../../../interfaces/knowledge/store/block-editor.store";
-export type { EditorBlock } from "../../../interfaces/knowledge/store/block-editor.store";
-
-// ?? Tree node type (needed by app/ pages) ?????????????????????????????????????
-export type { KnowledgePageTreeNode } from "../domain/aggregates/KnowledgePage";
-
-// ?? Domain events (published language ??for cross-module event subscriptions) ?
-export type { PageApprovedEvent, PageApprovedPayload, ExtractedTask, ExtractedInvoice } from "../domain/events/KnowledgePageEvents";
-
-// ?? Sidebar component ?????????????????????????????????????????????????????????
-
-// ?? Page header widgets ???????????????????????????????????????????????????????
-export { TitleEditor, IconPicker, CoverEditor } from "../../../interfaces/knowledge/components/KnowledgePageHeaderWidgets";
-export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../../../interfaces/knowledge/components/KnowledgePageHeaderWidgets";
-
-// ?? Route screen components ???????????????????????????????????????????????????
-export { KnowledgeDetailPanel } from "../../../interfaces/knowledge/components/KnowledgeDetailPanel";
-export type { KnowledgeDetailPanelProps } from "../../../interfaces/knowledge/components/KnowledgeDetailPanel";
 ````
 
 ## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewKnowledgePanels.tsx
