@@ -8,6 +8,7 @@ import {
   CardContent,
 } from "@ui-shadcn/ui/card";
 import { Badge } from "@ui-shadcn/ui/badge";
+import { useAuth } from "@/modules/platform/api";
 import { WorkspaceAuditTab } from "@/modules/workspace/api";
 import { WorkspaceFilesTab } from "@/modules/notebooklm/api";
 import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
@@ -55,6 +56,7 @@ export function WorkspaceDetailScreen({
   initialOverviewPanel,
 }: WorkspaceDetailScreenProps) {
   const { state: wsState, dispatch: wsDispatch } = useWorkspaceContext();
+  const { state: authState } = useAuth();
   const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
     workspaceId,
     accountId,
@@ -90,6 +92,7 @@ export function WorkspaceDetailScreen({
           <WorkspaceOverviewTab
             workspace={workspace}
             activeWorkspaceId={wsState.activeWorkspaceId}
+            currentUserId={authState.user?.id}
             personnelEntries={personnelEntries}
             addressLines={addressLines}
             initialPanel={initialOverviewPanel}

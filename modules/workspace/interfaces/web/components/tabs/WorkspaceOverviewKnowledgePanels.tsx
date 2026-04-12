@@ -8,10 +8,12 @@ import { TabsContent } from "@ui-shadcn/ui/tabs";
 
 interface WorkspaceOverviewKnowledgePanelsProps {
   readonly workspace: WorkspaceEntity;
+  readonly currentUserId?: string | null;
 }
 
 export function WorkspaceOverviewKnowledgePanels({
   workspace,
+  currentUserId,
 }: WorkspaceOverviewKnowledgePanelsProps) {
   return (
     <>
@@ -27,6 +29,7 @@ export function WorkspaceOverviewKnowledgePanels({
             <KnowledgePagesRouteScreen
               accountId={workspace.accountId}
               workspaceId={workspace.id}
+              currentUserId={currentUserId}
             />
           </CardContent>
         </Card>
@@ -44,6 +47,7 @@ export function WorkspaceOverviewKnowledgePanels({
             <KnowledgeBaseArticlesRouteScreen
               accountId={workspace.accountId}
               workspaceId={workspace.id}
+              currentUserId={currentUserId}
             />
           </CardContent>
         </Card>
@@ -61,6 +65,7 @@ export function WorkspaceOverviewKnowledgePanels({
             <KnowledgeDatabasesRouteScreen
               accountId={workspace.accountId}
               workspaceId={workspace.id}
+              currentUserId={currentUserId}
             />
           </CardContent>
         </Card>

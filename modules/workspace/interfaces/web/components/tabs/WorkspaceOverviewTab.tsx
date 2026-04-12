@@ -21,6 +21,7 @@ import { WorkspaceOverviewKnowledgePanels } from "./WorkspaceOverviewKnowledgePa
 interface WorkspaceOverviewTabProps {
   readonly workspace: WorkspaceEntity;
   readonly activeWorkspaceId: string | null | undefined;
+  readonly currentUserId?: string | null;
   readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
   readonly addressLines: string[];
   readonly initialPanel?: string;
@@ -55,6 +56,7 @@ function resolveWorkspaceOverviewSurface(panel?: string): WorkspaceOverviewSurfa
 export function WorkspaceOverviewTab({
   workspace,
   activeWorkspaceId,
+  currentUserId,
   personnelEntries,
   addressLines,
   initialPanel,
@@ -159,7 +161,7 @@ export function WorkspaceOverviewTab({
           )}
         </TabsContent>
 
-        <WorkspaceOverviewKnowledgePanels workspace={workspace} />
+        <WorkspaceOverviewKnowledgePanels workspace={workspace} currentUserId={currentUserId} />
 
         <TabsContent value="governance" className="mt-4 space-y-4">
           <div className="grid gap-4 xl:grid-cols-2">
