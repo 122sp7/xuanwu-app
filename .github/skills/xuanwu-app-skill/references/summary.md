@@ -41,19 +41,19 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1469 files | 69,501 lines
+1469 files | 69,481 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 1175 | 43,081 |
-| TypeScript (TSX) | 201 | 24,035 |
+| TypeScript | 1175 | 43,152 |
+| TypeScript (TSX) | 201 | 23,944 |
 | Markdown | 74 | 2,170 |
 | No Extension | 18 | 18 |
 | CSS | 1 | 197 |
 
 **Largest files:**
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
-- `app/(shell)/(account)/[accountId]/dev-tools/page.tsx` (477 lines)
+- `app/(shell)/(account)/[accountId]/dev-tools/page.tsx` (480 lines)
 - `packages/ui-shadcn/ui/chart.tsx` (356 lines)
 - `modules/platform/subdomains/organization/domain/aggregates/Organization.ts` (351 lines)
 - `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)
