@@ -110,7 +110,7 @@ export function DashboardSidebarBody({
   currentSearchWorkspaceId,
 }: ShellSidebarBodyProps) {
   const contextSection = SHELL_CONTEXT_SECTION_CONFIG[section];
-  const scopedWorkspacePathId = workspacePathId ?? currentSearchWorkspaceId ?? activeWorkspaceId;
+  const _scopedWorkspacePathId = workspacePathId ?? currentSearchWorkspaceId ?? activeWorkspaceId;
 
   return (
     <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
