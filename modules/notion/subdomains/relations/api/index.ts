@@ -22,3 +22,17 @@ export type {
   RelationCreatedEvent,
   RelationRemovedEvent,
 } from "../domain/events/RelationEvents";
+
+// ── Application DTOs ──────────────────────────────────────────────────────────
+export type {
+  CreateRelationDto,
+  RelationDto,
+} from "../application/dto/RelationDto";
+
+// ── Use cases ─────────────────────────────────────────────────────────────────
+export {
+  CreateRelationUseCase,
+  RemoveRelationUseCase,
+  ListRelationsBySourceUseCase,
+  ListRelationsByTargetUseCase,
+} from "../application/use-cases/RelationUseCases";
