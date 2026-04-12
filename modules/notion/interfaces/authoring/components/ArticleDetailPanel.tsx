@@ -57,10 +57,18 @@ export function ArticleDetailPanel({
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const articleListHref =
+  const articleDetailBasePath =
     accountId && workspaceId
       ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}/knowledge-base/articles`
       : "/knowledge-base/articles";
+  const articleListHref =
+    accountId && workspaceId
+      ? articleDetailBasePath
+      : "/knowledge-base/articles";
+
+  function buildArticleDetailHref(targetArticleId: string): string {
+    return `${articleDetailBasePath}/${encodeURIComponent(targetArticleId)}`;
+  }
 
   const load = useCallback(async () => {
     if (!accountId || !articleId) { setLoading(false); return; }
@@ -122,7 +130,7 @@ export function ArticleDetailPanel({
   if (!article) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+        <Button variant="ghost" size="sm" onClick={() => router.push(articleListHref)}>
           <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
         </Button>
         <p className="text-sm text-muted-foreground">找不到文章。</p>
@@ -246,7 +254,7 @@ export function ArticleDetailPanel({
                 <li key={bl.id}>
                   <button
                     type="button"
-                    onClick={() => router.push(`/knowledge-base/articles/${bl.id}`)}
+                    onClick={() => router.push(buildArticleDetailHref(bl.id))}
                     className="text-sm text-primary hover:underline text-left"
                   >
                     {bl.title}
