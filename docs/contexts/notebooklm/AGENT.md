@@ -8,20 +8,14 @@
 
 ## Canonical Ownership
 
-- ingestion
 - source
-- retrieval
-- grounding
 - notebook
 - conversation
-- note
-- synthesis
-- evaluation
-- conversation-versioning
+- synthesis (owns retrieval, grounding, generation, evaluation as internal facets)
 
 ## Route Here When
 
-- 問題核心是 notebook、conversation、source ingestion、retrieval、grounding、synthesis。
+- 問題核心是 notebook、conversation、source ingestion、synthesis（retrieval、grounding、generation、evaluation）。
 - 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
 - 問題要把知識來源轉成可對話與可綜合的推理材料。
 
@@ -35,15 +29,14 @@
 ## Guardrails
 
 - notebooklm 的輸出是衍生產物，不直接等於正典知識內容。
-- retrieval 與 grounding 應作為獨立邊界，而不是隱含在 platform.ai 接入或 source 裡。
-- ingestion 應與 source reference 分離，避免來源處理與來源語義耦合。
+- synthesis 將 retrieval、grounding、generation、evaluation 作為內部 facets；只有當語言分歧或演化速率不同時才拆分為獨立子域。
 - evaluation 應作為品質與回歸語言，而不只是分析儀表板指標。
 - 跨主域互動只經過 published language、API 邊界或事件。
 
 ## Dependency Direction
 
 - notebooklm 內部依賴方向固定為 interfaces -> application -> domain <- infrastructure。
-- application 只能透過 ports 協調 retrieval、grounding、ingestion、synthesis 所需的外部能力。
+- application 只能透過 ports 協調 synthesis 所需的外部能力。
 - infrastructure 只實作 ports 與邊界轉譯，不反向定義 domain 語言。
 
 ## Hard Prohibitions
@@ -51,6 +44,7 @@
 - 不得把 notion 的 KnowledgeArtifact 直接當成 notebooklm 的本地主域模型。
 - 不得讓 domain 或 application 直接依賴模型 SDK、向量儲存或外部檔案處理框架。
 - 不得讓 notebooklm 直接改寫 workspace 或 notion 的內部狀態，而繞過其 API 邊界。
+- 不得建立獨立的 `ai` 子域與 platform.ai 語義重疊。
 
 ## Copilot Generation Rules
 
@@ -80,8 +74,8 @@ flowchart LR
 	Notion["notion upstream"] -->|Published Language| Boundary
 	Boundary --> Translation["Local DTO / ACL when needed"]
 	Translation --> App["Application orchestration"]
-	App --> Domain["Conversation / Retrieval / Grounding / Synthesis"]
-	Domain --> Output["Grounded output / notes / evaluation"]
+	App --> Domain["Conversation / Source / Synthesis pipeline"]
+	Domain --> Output["Grounded output / evaluation"]
 ```
 
 ## Document Network
