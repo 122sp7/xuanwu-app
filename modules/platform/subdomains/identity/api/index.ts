@@ -3,6 +3,12 @@
  * Consumers (e.g. infrastructure in sibling subdomains) must import through this barrel.
  */
 export * from "../application";
-export * from "../infrastructure";
+export {
+  createIdentityRepository,
+  createTokenRefreshRepository,
+  createClientAuthUseCases,
+  identityApi,
+} from "../infrastructure";
+export type { EmitTokenRefreshSignalInput } from "../infrastructure";
 export * from "../domain";
 export * from "../interfaces";

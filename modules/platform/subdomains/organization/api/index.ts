@@ -9,7 +9,7 @@
  * (./server.ts) or via direct import from action / service files.
  */
 
-import { createTeamRepository } from "../../team/infrastructure/team-composition";
+import { createTeamRepository } from "../../team/api";
 import { configureOrganizationTeamPortFactory } from "../infrastructure/organization-service";
 
 configureOrganizationTeamPortFactory(createTeamRepository);

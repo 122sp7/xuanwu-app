@@ -9,7 +9,7 @@ import { configureTokenRefreshEmitter } from "../infrastructure/identity-token-r
 configureTokenRefreshEmitter(identityApi.emitTokenRefreshSignal);
 
 export * from "../application";
-export { accountService, createClientAccountUseCases, createAccountQueryRepository } from "../infrastructure";
+export { accountService, createClientAccountUseCases } from "../infrastructure";
 export type {
   AccountEntity,
   AccountType,

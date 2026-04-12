@@ -2,12 +2,12 @@
 
 import { getFirebaseAuth } from "@integration-firebase";
 import { useEffect } from "react";
-import { FirebaseTokenRefreshRepository } from "../../api";
+import { createTokenRefreshRepository } from "../../api";
 
-let _tokenRefreshRepo: FirebaseTokenRefreshRepository | undefined;
+let _tokenRefreshRepo: ReturnType<typeof createTokenRefreshRepository> | undefined;
 
-function getTokenRefreshRepo(): FirebaseTokenRefreshRepository {
-	if (!_tokenRefreshRepo) _tokenRefreshRepo = new FirebaseTokenRefreshRepository();
+function getTokenRefreshRepo() {
+	if (!_tokenRefreshRepo) _tokenRefreshRepo = createTokenRefreshRepository();
 	return _tokenRefreshRepo;
 }
 
