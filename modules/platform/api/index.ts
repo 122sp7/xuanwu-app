@@ -105,10 +105,12 @@ export * from "../subdomains/background-job/api";
 // Only selective exports — do NOT wildcard re-export "../interfaces".
 export {
   useApp,
-  Providers,
-  ShellLayout,
-  isActiveOrganizationAccount,
-  quickCreateKnowledgePage,
-  type QuickCreatePageInput,
-  type QuickCreatePageResult,
 } from "../interfaces";
+
+// access-control — account type guards and route fallback
+export {
+  isOrganizationActor,
+  isActiveOrganizationAccount,
+  resolveOrganizationRouteFallback,
+  type ShellAccountActor,
+} from "../subdomains/access-control/api";

@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 
 import { useApp } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
 import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
 import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
 import { Button } from "@ui-shadcn/ui/button";
@@ -46,8 +47,9 @@ import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
 
 export default function DevToolsPage() {
   const { state: appState } = useApp();
+  const { state: wsState } = useWorkspaceContext();
   const activeAccountId = appState.activeAccount?.id ?? "";
-  const activeWorkspaceId = appState.activeWorkspaceId ?? "";
+  const activeWorkspaceId = wsState.activeWorkspaceId ?? "";
 
   // ── Upload state ──────────────────────────────────────────────────────────
   const fileInputRef = useRef<HTMLInputElement>(null);

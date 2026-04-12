@@ -6,6 +6,7 @@ import { Plus, Table2 } from "lucide-react";
 
 import { useApp } from "@/modules/platform/api";
 import { useAuth } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
@@ -23,9 +24,10 @@ export function KnowledgeDatabasesRouteScreen() {
   const router = useRouter();
   const { state: appState } = useApp();
   const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
 
   const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
+  const workspaceId = wsState.activeWorkspaceId ?? "";
   const currentUserId = authState.user?.id ?? "";
 
   const [databases, setDatabases] = useState<Database[]>([]);

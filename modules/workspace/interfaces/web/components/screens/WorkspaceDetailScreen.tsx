@@ -14,6 +14,7 @@ import { WorkspaceSchedulingTab } from "@/modules/workspace/api";
 import { WorkspaceFlowTab } from "@/modules/workspace/api";
 import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
 import { useApp } from "@/modules/platform/api";
+import { useWorkspaceContext } from "../../providers/WorkspaceContextProvider";
 
 import {
   createSettingsDraft,
@@ -55,6 +56,7 @@ export function WorkspaceDetailScreen({
   initialOverviewPanel,
 }: WorkspaceDetailScreenProps) {
   const { state: appState, dispatch } = useApp();
+  const { state: wsState } = useWorkspaceContext();
   const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
     workspaceId,
     accountId,
@@ -89,7 +91,7 @@ export function WorkspaceDetailScreen({
         return (
           <WorkspaceOverviewTab
             workspace={workspace}
-            activeWorkspaceId={appState.activeWorkspaceId}
+            activeWorkspaceId={wsState.activeWorkspaceId}
             personnelEntries={personnelEntries}
             addressLines={addressLines}
             showSettingsPanel={initialOverviewPanel === "settings"}

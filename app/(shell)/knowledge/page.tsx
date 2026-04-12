@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
 
 import { useApp, useAuth } from "@/modules/platform/api"
-import { buildWikiContentTree } from "@/modules/workspace/api";
+import { buildWikiContentTree, useWorkspaceContext } from "@/modules/workspace/api";
 import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
@@ -48,6 +48,7 @@ const QUICK_ACCESS = [
 export default function KnowledgeHubPage() {
   const { state: appState } = useApp();
   const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
   const [contentTree, setContentTree] = useState<WikiAccountContentNode[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -108,7 +109,7 @@ export default function KnowledgeHubPage() {
 
   const activeAccount = contentTree.find((node) => node.isActive);
   const highlightedWorkspace =
-    activeAccount?.workspaces.find((workspace) => workspace.workspaceId === appState.activeWorkspaceId) ??
+    activeAccount?.workspaces.find((workspace) => workspace.workspaceId === wsState.activeWorkspaceId) ??
     activeAccount?.workspaces[0];
 
   return (

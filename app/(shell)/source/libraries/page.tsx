@@ -1,14 +1,16 @@
 "use client";
 
 import { useApp, useAuth } from "@/modules/platform/api"
+import { useWorkspaceContext } from "@/modules/workspace/api";
 import { LibrariesView, LibraryTableView } from "@/modules/notebooklm/api";
 
 export default function SourceLibrariesPage() {
   const { state: appState } = useApp();
   const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
 
   const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? undefined;
+  const workspaceId = wsState.activeWorkspaceId ?? undefined;
 
   return (
     <div className="space-y-4">

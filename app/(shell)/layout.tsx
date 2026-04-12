@@ -2,10 +2,10 @@
 
 /**
  * app/(shell)/layout.tsx — Next.js route layout shim.
- * Canonical implementation: modules/platform/interfaces/web/components/ShellRootLayout.tsx
+ * Canonical implementation: app/(shell)/_shell/ShellRootLayout.tsx
  */
 
-import { ShellLayout } from "@/modules/platform/api";
+import { ShellLayout } from "./_shell";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return <ShellLayout>{children}</ShellLayout>;

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { useApp } from "@/modules/platform/api";
 import { useAuth } from "@/modules/platform/api";
+import { useWorkspaceContext } from "@/modules/workspace/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
@@ -23,12 +24,13 @@ export function KnowledgePagesRouteScreen() {
   const searchParams = useSearchParams();
   const { state: appState } = useApp();
   const { state: authState } = useAuth();
+  const { state: wsState } = useWorkspaceContext();
 
   const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
   const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
   const scopeParam = searchParams.get("scope")?.trim() ?? "";
   const isAccountSummary = scopeParam === "account";
-  const workspaceId = isAccountSummary ? "" : requestedWorkspaceId || appState.activeWorkspaceId || "";
+  const workspaceId = isAccountSummary ? "" : requestedWorkspaceId || wsState.activeWorkspaceId || "";
   const currentUserId = authState.user?.id ?? "";
 
   const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
