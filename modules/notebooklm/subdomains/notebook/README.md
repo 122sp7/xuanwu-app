@@ -5,7 +5,7 @@ Notebook container and organization.
 ## Ownership
 
 - **Bounded Context**: notebooklm
-- **Status**: Stub — awaiting use case definition
+- **Status**: Active — GenerateNotebookResponseUseCase + PlatformTextGenerationAdapter + Server Actions wired
 
 ## Development Order
 

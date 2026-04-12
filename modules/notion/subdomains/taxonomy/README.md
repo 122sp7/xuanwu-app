@@ -6,7 +6,7 @@
 
 - **Bounded Context**: notion
 - **Subdomain Type**: Recommended Gap
-- **Status**: Stub — awaiting use case definition
+- **Status**: Active — domain + application + infrastructure adapter + composition wired
 
 ## Layers
 
