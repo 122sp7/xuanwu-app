@@ -27,21 +27,19 @@ applyTo: 'modules/**/subdomains/**/*.{ts,tsx,js,jsx,md}'
 
 ## 層級約束（Hard Rules）
 
-子域內預設允許：
+子域預設形狀（default）採 core-first：
 - `api/`
 - `domain/`
 - `application/`
 - `ports/`（optional）
 
-子域內條件允許：
-- `infrastructure/`、`interfaces/` 僅在 subdomain 具備 mini-module 級獨立能力時可建立。
-- mini-module gate 需同時滿足：
-	1. 具有明確且長期穩定的獨立外部整合責任。
-	2. 需要獨立演化與測試節奏，且無法由 bounded-context 根層承接。
-	3. 於子域 `README.md` 明確記錄為 mini-module 例外與邊界責任。
+子域內 `infrastructure/` 與 `interfaces/` 不是預設必建，僅在符合 mini-module gate 時允許建立：
+1. 該子域存在明確且持續的外部整合壓力（runtime / process / provider boundary）。
+2. 需要由子域本身承接本地 I/O 或 transport 組裝，而非 bounded context 根層共享能力。
+3. 仍維持 `interfaces -> application -> domain <- infrastructure`，且 business rule 不外溢到 adapter/UI。
+4. 跨子域與跨 bounded context 協作仍只能經由 `api/` 或事件契約，不得直接依賴他域內部。
 
-子域內禁止：
-- 在未符合 mini-module gate 時建立 `infrastructure/` 或 `interfaces/`。
+若不符合上述 gate，`infrastructure/` 與 `interfaces/` 應維持在 bounded context 根層，由 context-wide adapter/composition 承接。
 
 ## 單一職責
 
@@ -70,7 +68,7 @@ domain 層必須：
 
 使用業務語言命名子域。
 
-正確：authoring、knowledge-base、workspace
+正確：authoring、taxonomy、workspace
 
 錯誤：utils、common、shared
 
@@ -83,7 +81,7 @@ domain 層必須：
 
 ## 一句話總結
 
-Subdomain = core-first business capability; adapters/UI only by mini-module exception
+Subdomain = Business capability first; default core-first, add infra/interfaces only when real boundary pressure exists
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
