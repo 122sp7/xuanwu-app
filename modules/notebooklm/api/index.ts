@@ -1,5 +1,9 @@
 /**
  * modules/notebooklm — public API barrel.
+ *
+ * Stable cross-module semantic surface for notebooklm.
+ * Browser-facing route composition should prefer workspace/api when workspace
+ * is the orchestration owner.
  */
 
 export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation/api";
@@ -15,12 +19,13 @@ export { generateNotebookResponse } from "../subdomains/notebook/api";
 export { saveThread, loadThread } from "../subdomains/conversation/api";
 
 // ---------------------------------------------------------------------------
-// NotebookLM root interfaces — Q&A UI
+// NotebookLM downstream UI surface
+// Consumed by workspace as the composition owner for browser-facing flows.
 // ---------------------------------------------------------------------------
 export { RagQueryPanel } from "../subdomains/synthesis/api";
 
 // ---------------------------------------------------------------------------
-// Source subdomain — types, hooks, and UI (replaces @/modules/source/api)
+// Source subdomain — semantic downstream capability surface
 // ---------------------------------------------------------------------------
 
 export type {
