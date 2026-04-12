@@ -81,5 +81,5 @@ export { TitleEditor, IconPicker, CoverEditor } from "../../../interfaces/knowle
 export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../../../interfaces/knowledge/components/KnowledgePageHeaderWidgets";
 
 // ── Route screen components ───────────────────────────────────────────────────
-export { KnowledgePageDetailPage } from "../../../interfaces/knowledge/components/KnowledgePageDetailPage";
-export type { KnowledgePageDetailPageProps } from "../../../interfaces/knowledge/components/KnowledgePageDetailPage";
+export { KnowledgePageDetailScreen } from "../../../interfaces/knowledge/components/KnowledgePageDetailPage";
+export type { KnowledgePageDetailScreenProps } from "../../../interfaces/knowledge/components/KnowledgePageDetailPage";

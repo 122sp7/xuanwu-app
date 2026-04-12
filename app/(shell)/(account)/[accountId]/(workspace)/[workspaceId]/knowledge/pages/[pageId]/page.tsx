@@ -1,13 +1,13 @@
 "use client";
 
-import { KnowledgePageDetailPage } from "@/modules/notion/api";
+import { KnowledgePageDetailScreen } from "@/modules/notion/api";
 import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
 
 export default function AccountWorkspaceKnowledgePageDetailRoute() {
   const { accountId, activeWorkspaceId, currentUserId } = useWorkspaceOrchestrationContext();
 
   return (
-    <KnowledgePageDetailPage
+    <KnowledgePageDetailScreen
       accountId={accountId}
       activeWorkspaceId={activeWorkspaceId || null}
       currentUserId={currentUserId}
