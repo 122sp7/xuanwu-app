@@ -55832,6 +55832,84 @@ export {
 } from "./shell-quick-create";
 ````
 
+## File: modules/platform/interfaces/web/providers/ShellAppContext.ts
+````typescript
+"use client";
+
+/**
+ * ShellAppContext — platform/interfaces/web layer
+ *
+ * Context definition, types, and the useApp() hook.
+ * Owns NO workspace-module dependencies — workspace state is managed by
+ * WorkspaceContextProvider in the workspace bounded context.
+ *
+ * The AppProvider that creates this context lives in app/(shell)/ where
+ * cross-module composition is allowed.
+ */
+
+import {
+  createContext,
+  useContext,
+  type Dispatch,
+} from "react";
+
+import type { AccountEntity } from "../../../subdomains/account/api";
+import type { ActiveAccount } from "../../../api/contracts";
+
+// ── State ────────────────────────────────────────────────────────────────────
+
+export interface AppState {
+  /** All organization accounts visible to the signed-in user. */
+  accounts: Record<string, AccountEntity>;
+  /** True once the first Firestore snapshot has been received. */
+  accountsHydrated: boolean;
+  /** Bootstrap phase for optimistic seeding. */
+  bootstrapPhase: "idle" | "seeded" | "hydrated";
+  /** Currently selected account (personal user account or an organization). */
+  activeAccount: ActiveAccount | null;
+}
+
+export type AppAction =
+  | {
+      type: "SEED_ACTIVE_ACCOUNT";
+      payload: { user: { id: string; name: string; email: string } };
+    }
+  | {
+      type: "SET_ACCOUNTS";
+      payload: {
+        accounts: Record<string, AccountEntity>;
+        user: { id: string; name: string; email: string };
+        preferredActiveAccountId?: string | null;
+      };
+    }
+  | { type: "SET_ACTIVE_ACCOUNT"; payload: ActiveAccount | null }
+  | { type: "RESET_STATE" };
+
+export interface AppContextValue {
+  state: AppState;
+  dispatch: Dispatch<AppAction>;
+}
+
+export const AppContext = createContext<AppContextValue | null>(null);
+
+// ── Initial State ────────────────────────────────────────────────────────────
+
+export const APP_INITIAL_STATE: AppState = {
+  accounts: {},
+  accountsHydrated: false,
+  bootstrapPhase: "idle",
+  activeAccount: null,
+};
+
+// ── Hook ─────────────────────────────────────────────────────────────────────
+
+export function useApp() {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error("useApp must be used within AppProvider");
+  return ctx;
+}
+````
+
 ## File: modules/platform/interfaces/web/shell/header/components/ShellHeaderControls.tsx
 ````typescript
 "use client";
@@ -60218,79 +60296,6 @@ export function WorkspaceHubScreen({
       />
     </div>
   );
-}
-````
-
-## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { WorkspaceEntity } from "../../api/contracts";
-import { getWorkspaceByIdForAccount } from "../../api/facades";
-
-export type WorkspaceLoadState = "loading" | "loaded" | "error";
-
-export interface UseWorkspaceDetailResult {
-  workspace: WorkspaceEntity | null;
-  loadState: WorkspaceLoadState;
-  setWorkspace: (ws: WorkspaceEntity) => void;
-}
-
-export function useWorkspaceDetail(
-  workspaceId: string,
-  accountId: string | null | undefined,
-  accountsHydrated: boolean,
-): UseWorkspaceDetailResult {
-  const router = useRouter();
-  const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
-  const [loadState, setLoadState] = useState<WorkspaceLoadState>("loading");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadWorkspace() {
-      if (!workspaceId) {
-        setLoadState("error");
-        return;
-      }
-
-      if (!accountId || !accountsHydrated) {
-        setWorkspace(null);
-        setLoadState("loading");
-        return;
-      }
-
-      setLoadState("loading");
-      try {
-        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
-        if (cancelled) return;
-        if (!detail) {
-          router.replace(`/${encodeURIComponent(accountId)}?context=unavailable`);
-          return;
-        }
-        setWorkspace(detail);
-        setLoadState("loaded");
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[useWorkspaceDetail] Failed to load workspace:", error);
-        }
-        if (!cancelled) {
-          setWorkspace(null);
-          setLoadState("error");
-        }
-      }
-    }
-
-    void loadWorkspace();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accountId, accountsHydrated, router, workspaceId]);
-
-  return { workspace, loadState, setWorkspace };
 }
 ````
 
@@ -67441,6 +67446,100 @@ export class WorkspaceQueryApplicationService implements WorkspaceQueryPort {
 }
 ````
 
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { WorkspaceEntity } from "../../api/contracts";
+import { getWorkspaceById, getWorkspaceByIdForAccount } from "../../api/facades";
+
+export type WorkspaceLoadState = "loading" | "loaded" | "error";
+
+export interface UseWorkspaceDetailResult {
+  workspace: WorkspaceEntity | null;
+  loadState: WorkspaceLoadState;
+  setWorkspace: (ws: WorkspaceEntity) => void;
+}
+
+export function useWorkspaceDetail(
+  workspaceId: string,
+  accountId: string | null | undefined,
+  accountsHydrated: boolean,
+  accessibleAccountIds: readonly string[] = [],
+): UseWorkspaceDetailResult {
+  const router = useRouter();
+  const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
+  const [loadState, setLoadState] = useState<WorkspaceLoadState>("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWorkspace() {
+      if (!workspaceId) {
+        setLoadState("error");
+        return;
+      }
+
+      if (!accountId || !accountsHydrated) {
+        setWorkspace(null);
+        setLoadState("loading");
+        return;
+      }
+
+      setLoadState("loading");
+      try {
+        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
+        if (cancelled) return;
+        if (!detail) {
+          const fallbackWorkspace = await getWorkspaceById(workspaceId);
+          if (cancelled) return;
+
+          const fallbackAccountId = fallbackWorkspace?.accountId?.trim();
+          const canAccessFallbackAccount =
+            typeof fallbackAccountId === "string" &&
+            fallbackAccountId.length > 0 &&
+            accessibleAccountIds.includes(fallbackAccountId);
+
+          if (
+            fallbackWorkspace &&
+            canAccessFallbackAccount &&
+            fallbackAccountId !== accountId
+          ) {
+            const query = typeof window === "undefined" ? "" : window.location.search;
+            const targetPath = `/${encodeURIComponent(fallbackAccountId)}/${encodeURIComponent(workspaceId)}`;
+            router.replace(query ? `${targetPath}${query}` : targetPath);
+            return;
+          }
+
+          router.replace(`/${encodeURIComponent(accountId)}?context=unavailable`);
+          return;
+        }
+        setWorkspace(detail);
+        setLoadState("loaded");
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[useWorkspaceDetail] Failed to load workspace:", error);
+        }
+        if (!cancelled) {
+          setWorkspace(null);
+          setLoadState("error");
+        }
+      }
+    }
+
+    void loadWorkspace();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId, accountsHydrated, router, workspaceId, accessibleAccountIds]);
+
+  return { workspace, loadState, setWorkspace };
+}
+````
+
 ## File: modules/workspace/interfaces/web/providers/WorkspaceContextProvider.tsx
 ````typescript
 "use client";
@@ -68880,84 +68979,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/platform/interfaces/web/providers/ShellAppContext.ts
-````typescript
-"use client";
-
-/**
- * ShellAppContext — platform/interfaces/web layer
- *
- * Context definition, types, and the useApp() hook.
- * Owns NO workspace-module dependencies — workspace state is managed by
- * WorkspaceContextProvider in the workspace bounded context.
- *
- * The AppProvider that creates this context lives in app/(shell)/ where
- * cross-module composition is allowed.
- */
-
-import {
-  createContext,
-  useContext,
-  type Dispatch,
-} from "react";
-
-import type { AccountEntity } from "../../../subdomains/account/api";
-import type { ActiveAccount } from "../../../api/contracts";
-
-// ── State ────────────────────────────────────────────────────────────────────
-
-export interface AppState {
-  /** All organization accounts visible to the signed-in user. */
-  accounts: Record<string, AccountEntity>;
-  /** True once the first Firestore snapshot has been received. */
-  accountsHydrated: boolean;
-  /** Bootstrap phase for optimistic seeding. */
-  bootstrapPhase: "idle" | "seeded" | "hydrated";
-  /** Currently selected account (personal user account or an organization). */
-  activeAccount: ActiveAccount | null;
-}
-
-export type AppAction =
-  | {
-      type: "SEED_ACTIVE_ACCOUNT";
-      payload: { user: { id: string; name: string; email: string } };
-    }
-  | {
-      type: "SET_ACCOUNTS";
-      payload: {
-        accounts: Record<string, AccountEntity>;
-        user: { id: string; name: string; email: string };
-        preferredActiveAccountId?: string | null;
-      };
-    }
-  | { type: "SET_ACTIVE_ACCOUNT"; payload: ActiveAccount | null }
-  | { type: "RESET_STATE" };
-
-export interface AppContextValue {
-  state: AppState;
-  dispatch: Dispatch<AppAction>;
-}
-
-export const AppContext = createContext<AppContextValue | null>(null);
-
-// ── Initial State ────────────────────────────────────────────────────────────
-
-export const APP_INITIAL_STATE: AppState = {
-  accounts: {},
-  accountsHydrated: false,
-  bootstrapPhase: "idle",
-  activeAccount: null,
-};
-
-// ── Hook ─────────────────────────────────────────────────────────────────────
-
-export function useApp() {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error("useApp must be used within AppProvider");
-  return ctx;
-}
 ````
 
 ## File: modules/platform/interfaces/web/shell/search/ShellGlobalSearchDialog.tsx
@@ -74750,6 +74771,161 @@ export function KnowledgeDetailPanel({
 }
 ````
 
+## File: modules/platform/interfaces/web/index.ts
+````typescript
+export { ShellHeaderControls } from "./shell/header/components/ShellHeaderControls";
+export { ShellThemeToggle } from "./shell/header/components/ShellThemeToggle";
+export { ShellNotificationButton } from "./shell/header/components/ShellNotificationButton";
+export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
+export { ShellTranslationSwitcher } from "./shell/header/components/ShellTranslationSwitcher";
+export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
+export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
+
+// providers — context and useApp from platform-only ShellAppContext
+export {
+  AppContext,
+  APP_INITIAL_STATE,
+  useApp,
+  type AppState,
+  type AppAction,
+  type AppContextValue,
+} from "./providers/ShellAppContext";
+export type { ActiveAccount } from "../../api/contracts";
+````
+
+## File: modules/notebooklm/api/index.ts
+````typescript
+/**
+ * modules/notebooklm — public API barrel.
+ *
+ * Stable cross-module semantic surface for notebooklm.
+ * Browser-facing route composition should prefer workspace/api when workspace
+ * is the orchestration owner.
+ */
+
+export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation/api";
+
+export type {
+  NotebookResponse,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+  NotebookRepository,
+} from "../subdomains/notebook/api";
+
+export { generateNotebookResponse } from "../subdomains/notebook/api";
+export { saveThread, loadThread } from "../subdomains/conversation/api";
+
+// ---------------------------------------------------------------------------
+// NotebookLM downstream UI surface
+// Consumed by workspace as the composition owner for browser-facing flows.
+// ---------------------------------------------------------------------------
+export { RagQueryPanel } from "../subdomains/synthesis/api";
+
+// ---------------------------------------------------------------------------
+// Source subdomain — semantic downstream capability surface
+// ---------------------------------------------------------------------------
+
+export type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  WikiLibrarySnapshot,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../subdomains/source/api";
+
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../subdomains/source/api";
+
+export {
+  useSourceDocumentsSnapshot,
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../subdomains/source/api";
+
+export {
+  listWikiLibraries,
+  createWikiLibrary,
+  addWikiLibraryField,
+  createWikiLibraryRow,
+  getWikiLibrarySnapshot,
+} from "../subdomains/source/api";
+
+export {
+  SourceDocumentsPanel,
+  WorkspaceFilesTab,
+  LibrariesPanel,
+  LibraryTablePanel,
+  FileProcessingDialog,
+} from "../subdomains/source/api";
+
+// ---------------------------------------------------------------------------
+// conversation subdomain — AI chat UI and helpers
+// ---------------------------------------------------------------------------
+
+export { ConversationPanel } from "../subdomains/conversation/api";
+export type { ConversationPanelProps, ChatMessage } from "../subdomains/conversation/api";
+
+// ---------------------------------------------------------------------------
+// Context-wide published language (cross-module reference types)
+// ---------------------------------------------------------------------------
+
+export type {
+  NotebookReference,
+  SourceReference,
+  ConversationReference,
+} from "../domain/published-language";
+
+export type { NotebookLmDomainEvent } from "../domain/events";
+
+// ---------------------------------------------------------------------------
+// Synthesis subdomain — complete RAG pipeline
+// (retrieval → grounding → synthesis → evaluation)
+// ---------------------------------------------------------------------------
+
+export type {
+  RetrievedChunk,
+  RetrievalSummary,
+  RetrieveChunksInput,
+  IChunkRetrievalPort,
+  RetrievalCompletedEvent,
+  RetrievalFailedEvent,
+} from "../subdomains/synthesis/api";
+
+export type {
+  Citation,
+  GroundingEvidence,
+  CitationBuilderInput,
+  ICitationBuilder,
+  GroundingCompletedEvent,
+} from "../subdomains/synthesis/api";
+
+export type {
+  GenerationCitation,
+  GenerateAnswerInput,
+  GenerateAnswerOutput,
+  GenerateAnswerResult,
+  IGenerationPort,
+  SynthesisCompletedEvent,
+  SynthesisFailedEvent,
+} from "../subdomains/synthesis/api";
+
+export type {
+  FeedbackRating,
+  QualityFeedback,
+  SubmitFeedbackInput,
+  IFeedbackPort,
+  FeedbackSubmittedEvent,
+} from "../subdomains/synthesis/api";
+````
+
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
 ````typescript
 "use client";
@@ -74762,7 +74938,7 @@ import {
   CardContent,
 } from "@ui-shadcn/ui/card";
 import { Badge } from "@ui-shadcn/ui/badge";
-import { useAuth } from "@/modules/platform/api";
+import { useApp, useAuth } from "@/modules/platform/api";
 import {
   ConversationPanel,
   RagQueryPanel,
@@ -74815,10 +74991,21 @@ export function WorkspaceDetailScreen({
 }: WorkspaceDetailScreenProps) {
   const { state: wsState, dispatch: wsDispatch } = useWorkspaceContext();
   const { state: authState } = useAuth();
+  const { state: appState } = useApp();
+  const accessibleAccountIds = useMemo(
+    () =>
+      [
+        authState.user?.id,
+        appState.activeAccount?.id,
+        ...Object.keys(appState.accounts),
+      ].filter((id): id is string => Boolean(id && id.trim())),
+    [authState.user?.id, appState.activeAccount?.id, appState.accounts],
+  );
   const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
     workspaceId,
     accountId,
     accountsHydrated,
+    accessibleAccountIds,
   );
   const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
@@ -75033,161 +75220,6 @@ export function WorkspaceDetailScreen({
     </div>
   );
 }
-````
-
-## File: modules/notebooklm/api/index.ts
-````typescript
-/**
- * modules/notebooklm — public API barrel.
- *
- * Stable cross-module semantic surface for notebooklm.
- * Browser-facing route composition should prefer workspace/api when workspace
- * is the orchestration owner.
- */
-
-export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation/api";
-
-export type {
-  NotebookResponse,
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-  NotebookRepository,
-} from "../subdomains/notebook/api";
-
-export { generateNotebookResponse } from "../subdomains/notebook/api";
-export { saveThread, loadThread } from "../subdomains/conversation/api";
-
-// ---------------------------------------------------------------------------
-// NotebookLM downstream UI surface
-// Consumed by workspace as the composition owner for browser-facing flows.
-// ---------------------------------------------------------------------------
-export { RagQueryPanel } from "../subdomains/synthesis/api";
-
-// ---------------------------------------------------------------------------
-// Source subdomain — semantic downstream capability surface
-// ---------------------------------------------------------------------------
-
-export type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-  WikiLibrarySnapshot,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../subdomains/source/api";
-
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../subdomains/source/api";
-
-export {
-  useSourceDocumentsSnapshot,
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../subdomains/source/api";
-
-export {
-  listWikiLibraries,
-  createWikiLibrary,
-  addWikiLibraryField,
-  createWikiLibraryRow,
-  getWikiLibrarySnapshot,
-} from "../subdomains/source/api";
-
-export {
-  SourceDocumentsPanel,
-  WorkspaceFilesTab,
-  LibrariesPanel,
-  LibraryTablePanel,
-  FileProcessingDialog,
-} from "../subdomains/source/api";
-
-// ---------------------------------------------------------------------------
-// conversation subdomain — AI chat UI and helpers
-// ---------------------------------------------------------------------------
-
-export { ConversationPanel } from "../subdomains/conversation/api";
-export type { ConversationPanelProps, ChatMessage } from "../subdomains/conversation/api";
-
-// ---------------------------------------------------------------------------
-// Context-wide published language (cross-module reference types)
-// ---------------------------------------------------------------------------
-
-export type {
-  NotebookReference,
-  SourceReference,
-  ConversationReference,
-} from "../domain/published-language";
-
-export type { NotebookLmDomainEvent } from "../domain/events";
-
-// ---------------------------------------------------------------------------
-// Synthesis subdomain — complete RAG pipeline
-// (retrieval → grounding → synthesis → evaluation)
-// ---------------------------------------------------------------------------
-
-export type {
-  RetrievedChunk,
-  RetrievalSummary,
-  RetrieveChunksInput,
-  IChunkRetrievalPort,
-  RetrievalCompletedEvent,
-  RetrievalFailedEvent,
-} from "../subdomains/synthesis/api";
-
-export type {
-  Citation,
-  GroundingEvidence,
-  CitationBuilderInput,
-  ICitationBuilder,
-  GroundingCompletedEvent,
-} from "../subdomains/synthesis/api";
-
-export type {
-  GenerationCitation,
-  GenerateAnswerInput,
-  GenerateAnswerOutput,
-  GenerateAnswerResult,
-  IGenerationPort,
-  SynthesisCompletedEvent,
-  SynthesisFailedEvent,
-} from "../subdomains/synthesis/api";
-
-export type {
-  FeedbackRating,
-  QualityFeedback,
-  SubmitFeedbackInput,
-  IFeedbackPort,
-  FeedbackSubmittedEvent,
-} from "../subdomains/synthesis/api";
-````
-
-## File: modules/platform/interfaces/web/index.ts
-````typescript
-export { ShellHeaderControls } from "./shell/header/components/ShellHeaderControls";
-export { ShellThemeToggle } from "./shell/header/components/ShellThemeToggle";
-export { ShellNotificationButton } from "./shell/header/components/ShellNotificationButton";
-export { ShellUserAvatar } from "./shell/header/components/ShellUserAvatar";
-export { ShellTranslationSwitcher } from "./shell/header/components/ShellTranslationSwitcher";
-export { ShellAppBreadcrumbs } from "./shell/breadcrumbs/ShellAppBreadcrumbs";
-export { ShellGlobalSearchDialog, useShellGlobalSearch } from "./shell/search/ShellGlobalSearchDialog";
-
-// providers — context and useApp from platform-only ShellAppContext
-export {
-  AppContext,
-  APP_INITIAL_STATE,
-  useApp,
-  type AppState,
-  type AppAction,
-  type AppContextValue,
-} from "./providers/ShellAppContext";
-export type { ActiveAccount } from "../../api/contracts";
 ````
 
 ## File: modules/platform/api/index.ts
