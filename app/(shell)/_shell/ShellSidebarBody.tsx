@@ -8,7 +8,6 @@
 import Link from "next/link";
 
 import {
-  WorkspaceKnowledgeSidebarSection,
   WorkspaceSectionContent,
   type NavPreferences,
   type SidebarLocaleBundle,
@@ -51,12 +50,7 @@ interface ShellSidebarBodyProps {
   activeWorkspaceId: string | null;
   onSelectWorkspace: (workspaceId: string | null) => void;
   onToggleExpanded: () => void;
-  pathname: string;
-  workspacesHydrated: boolean;
-  allWorkspaceLinks: WorkspaceLink[];
   currentSearchWorkspaceId: string;
-  creatingKind: "page" | "database" | null;
-  onQuickCreatePage: () => void;
 }
 
 function ManagedNavGroup({
@@ -113,14 +107,10 @@ export function DashboardSidebarBody({
   activeWorkspaceId,
   onSelectWorkspace,
   onToggleExpanded,
-  pathname,
-  workspacesHydrated,
-  allWorkspaceLinks,
   currentSearchWorkspaceId,
-  creatingKind,
-  onQuickCreatePage,
 }: ShellSidebarBodyProps) {
   const contextSection = SHELL_CONTEXT_SECTION_CONFIG[section];
+  const scopedWorkspacePathId = workspacePathId ?? currentSearchWorkspaceId ?? activeWorkspaceId;
 
   return (
     <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
@@ -194,16 +184,23 @@ export function DashboardSidebarBody({
       )}
 
       {section === "knowledge" && (
-        <WorkspaceKnowledgeSidebarSection
-          pathname={pathname}
-          workspacesHydrated={workspacesHydrated}
-          allWorkspaceLinks={allWorkspaceLinks}
-          activeAccountId={activeAccountId}
-          activeWorkspaceId={currentSearchWorkspaceId || activeWorkspaceId}
-          creatingKind={creatingKind}
-          onSelectWorkspace={onSelectWorkspace}
-          onQuickCreatePage={onQuickCreatePage}
-        />
+        <div className="space-y-2">
+          <WorkspaceSectionContent
+            workspacePathId={scopedWorkspacePathId}
+            navPrefs={navPrefs}
+            localeBundle={localeBundle}
+            showRecentWorkspaces={showRecentWorkspaces}
+            visibleRecentWorkspaceLinks={visibleRecentWorkspaceLinks}
+            hasOverflow={hasOverflow}
+            isExpanded={isExpanded}
+            activeWorkspaceId={activeWorkspaceId}
+            isActiveRoute={isActiveRoute}
+            onSelectWorkspace={onSelectWorkspace}
+            onToggleExpanded={onToggleExpanded}
+            getItemClassName={sidebarItemClass}
+            sectionTitleClassName={sidebarSectionTitleClass}
+          />
+        </div>
       )}
 
       {contextSection && (

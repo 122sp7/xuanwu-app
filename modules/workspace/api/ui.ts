@@ -27,7 +27,6 @@ export { WorkspaceMembersTab } from "../interfaces/web/components/tabs/Workspace
 // ── Layout components ────────────────────────────────────────────────────────
 
 export { WorkspaceSidebarSection } from "../interfaces/web/components/layout/WorkspaceSidebarSection";
-export { WorkspaceKnowledgeSidebarSection } from "../interfaces/web/components/layout/WorkspaceKnowledgeSidebarSection";
 export { WorkspaceQuickAccessRow } from "../interfaces/web/components/layout/WorkspaceQuickAccessRow";
 export { WorkspaceSectionContent } from "../interfaces/web/components/layout/WorkspaceSectionContent";
 
