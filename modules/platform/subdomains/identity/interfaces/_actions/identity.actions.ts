@@ -10,9 +10,13 @@ import {
 	SignOutUseCase,
 } from "../../application/use-cases/identity.use-cases";
 import { createIdentityRepository } from "../../api";
+import type { IdentityRepository } from "../../domain/repositories/IdentityRepository";
 
-function getRepo() {
-	return createIdentityRepository();
+let _identityRepo: IdentityRepository | undefined;
+
+function getRepo(): IdentityRepository {
+	if (!_identityRepo) _identityRepo = createIdentityRepository();
+	return _identityRepo;
 }
 
 export async function signIn(email: string, password: string): Promise<CommandResult> {
