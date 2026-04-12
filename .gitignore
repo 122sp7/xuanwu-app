@@ -74,3 +74,4 @@ venv/
 .playwright-mcp
 .tmp-eslint*.json
 tsconfig.tsbuildinfo
+.env
