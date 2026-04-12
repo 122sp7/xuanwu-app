@@ -2084,6 +2084,21 @@ export function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: s
 }
 ````
 
+## File: modules/notebooklm/subdomains/notebook/api/index.ts
+````typescript
+export type {
+  NotebookResponse,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../domain/entities/AgentGeneration";
+
+export type { NotebookRepository } from "../domain/repositories/NotebookRepository";
+
+export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-notebook-response.use-case";
+
+export { generateNotebookResponse } from "../interfaces/_actions/generate-notebook-response.actions";
+````
+
 ## File: modules/notebooklm/subdomains/notebook/application/use-cases/generate-notebook-response.use-case.ts
 ````typescript
 import type {
@@ -4886,210 +4901,6 @@ export {};
 export type { ArticleStatus, ArticleVerificationState } from "../aggregates/Article";
 ````
 
-## File: modules/notion/subdomains/authoring/infrastructure/firebase/FirebaseArticleRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/authoring
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/kbArticles/{articleId}
- * Note: Preserves same collection path as previous knowledge-base module for data continuity.
- */
-
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  setDoc,
-  where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../../domain/aggregates/Article";
-import type { IArticleRepository } from "../../domain/repositories/IArticleRepository";
-
-function articlesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "kbArticles");
-}
-
-function articleDoc(db: ReturnType<typeof getFirestore>, accountId: string, articleId: string) {
-  return doc(db, "accounts", accountId, "kbArticles", articleId);
-}
-
-function toSnapshot(id: string, data: Record<string, unknown>): ArticleSnapshot {
-  return {
-    id,
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    categoryId: typeof data.categoryId === "string" ? data.categoryId : null,
-    title: typeof data.title === "string" ? data.title : "",
-    content: typeof data.content === "string" ? data.content : "",
-    tags: Array.isArray(data.tags)
-      ? (data.tags as unknown[]).filter((t): t is string => typeof t === "string")
-      : [],
-    status: (data.status as ArticleStatus) ?? "draft",
-    version: typeof data.version === "number" ? data.version : 1,
-    verificationState: (data.verificationState as ArticleVerificationState) ?? "unverified",
-    ownerId: typeof data.ownerId === "string" ? data.ownerId : null,
-    verifiedByUserId: typeof data.verifiedByUserId === "string" ? data.verifiedByUserId : null,
-    verifiedAtISO: typeof data.verifiedAtISO === "string" ? data.verifiedAtISO : null,
-    verificationExpiresAtISO:
-      typeof data.verificationExpiresAtISO === "string" ? data.verificationExpiresAtISO : null,
-    linkedArticleIds: Array.isArray(data.linkedArticleIds)
-      ? (data.linkedArticleIds as unknown[]).filter((l): l is string => typeof l === "string")
-      : [],
-    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseArticleRepository implements IArticleRepository {
-  private db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async getById(accountId: string, articleId: string): Promise<ArticleSnapshot | null> {
-    const db = this.db();
-    const snap = await getDoc(articleDoc(db, accountId, articleId));
-    if (!snap.exists()) return null;
-    return toSnapshot(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async list(params: {
-    accountId: string;
-    workspaceId: string;
-    categoryId?: string;
-    status?: ArticleStatus;
-    limit?: number;
-  }): Promise<ArticleSnapshot[]> {
-    const db = this.db();
-    const constraints = [
-      where("workspaceId", "==", params.workspaceId),
-      ...(params.categoryId ? [where("categoryId", "==", params.categoryId)] : []),
-      ...(params.status ? [where("status", "==", params.status)] : []),
-      orderBy("updatedAtISO", "desc"),
-    ];
-    const q = query(articlesCol(db, params.accountId), ...constraints);
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async listByLinkedArticleId(accountId: string, articleId: string): Promise<ArticleSnapshot[]> {
-    const db = this.db();
-    const q = query(
-      articlesCol(db, accountId),
-      where("linkedArticleIds", "array-contains", articleId),
-    );
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async save(snapshot: ArticleSnapshot): Promise<void> {
-    const db = this.db();
-    const { id, accountId, ...rest } = snapshot;
-    await setDoc(articleDoc(db, accountId, id), { ...rest, accountId, id });
-  }
-
-  async delete(accountId: string, articleId: string): Promise<void> {
-    const db = this.db();
-    await deleteDoc(articleDoc(db, accountId, articleId));
-  }
-}
-````
-
-## File: modules/notion/subdomains/authoring/infrastructure/firebase/FirebaseCategoryRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/authoring
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/kbCategories/{categoryId}
- * Note: Preserves same collection path as previous knowledge-base module for data continuity.
- */
-
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  setDoc,
-  where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { CategorySnapshot } from "../../domain/aggregates/Category";
-import type { ICategoryRepository } from "../../domain/repositories/ICategoryRepository";
-
-function categoriesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "kbCategories");
-}
-
-function categoryDoc(db: ReturnType<typeof getFirestore>, accountId: string, categoryId: string) {
-  return doc(db, "accounts", accountId, "kbCategories", categoryId);
-}
-
-function toSnapshot(id: string, data: Record<string, unknown>): CategorySnapshot {
-  return {
-    id,
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    name: typeof data.name === "string" ? data.name : "",
-    slug: typeof data.slug === "string" ? data.slug : "",
-    parentCategoryId: typeof data.parentCategoryId === "string" ? data.parentCategoryId : null,
-    depth: typeof data.depth === "number" ? data.depth : 0,
-    articleIds: Array.isArray(data.articleIds)
-      ? (data.articleIds as unknown[]).filter((a): a is string => typeof a === "string")
-      : [],
-    description: typeof data.description === "string" ? data.description : null,
-    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseCategoryRepository implements ICategoryRepository {
-  private db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async getById(accountId: string, categoryId: string): Promise<CategorySnapshot | null> {
-    const db = this.db();
-    const snap = await getDoc(categoryDoc(db, accountId, categoryId));
-    if (!snap.exists()) return null;
-    return toSnapshot(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByWorkspace(accountId: string, workspaceId: string): Promise<CategorySnapshot[]> {
-    const db = this.db();
-    const q = query(
-      categoriesCol(db, accountId),
-      where("workspaceId", "==", workspaceId),
-      orderBy("depth", "asc"),
-      orderBy("name", "asc"),
-    );
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async save(snapshot: CategorySnapshot): Promise<void> {
-    const db = this.db();
-    const { id, accountId, ...rest } = snapshot;
-    await setDoc(categoryDoc(db, accountId, id), { ...rest, accountId, id });
-  }
-
-  async delete(accountId: string, categoryId: string): Promise<void> {
-    const db = this.db();
-    await deleteDoc(categoryDoc(db, accountId, categoryId));
-  }
-}
-````
-
 ## File: modules/notion/subdomains/authoring/infrastructure/firebase/index.ts
 ````typescript
 // TODO: export FirebaseArticleRepository, FirebaseCategoryRepository
@@ -5875,321 +5686,6 @@ export {};
 // TODO: export CommentId, PermissionId, VersionId, ContentId, PermissionLevel
 
 export {};
-````
-
-## File: modules/notion/subdomains/collaboration/infrastructure/firebase/FirebaseCommentRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/collaboration
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/collaborationComments/{commentId}
- */
-
-import {
-  collection, doc, getDoc, getDocs, getFirestore,
-  onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-import type { CommentSnapshot, SelectionRange } from "../../domain/aggregates/Comment";
-import type {
-  ICommentRepository,
-  CommentUnsubscribe,
-  CreateCommentInput,
-  UpdateCommentInput,
-  ResolveCommentInput,
-} from "../../domain/repositories/ICommentRepository";
-
-function commentsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "collaborationComments");
-}
-
-function commentDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
-  return doc(db, "accounts", accountId, "collaborationComments", id);
-}
-
-function toComment(id: string, data: Record<string, unknown>): CommentSnapshot {
-  return {
-    id,
-    contentId: typeof data.contentId === "string" ? data.contentId : "",
-    contentType: data.contentType === "article" ? "article" : "page",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    authorId: typeof data.authorId === "string" ? data.authorId : "",
-    body: typeof data.body === "string" ? data.body : "",
-    parentCommentId: typeof data.parentCommentId === "string" ? data.parentCommentId : null,
-    blockId: typeof data.blockId === "string" ? data.blockId : null,
-    selectionRange: (
-      data.selectionRange !== null &&
-      typeof data.selectionRange === "object" &&
-      typeof (data.selectionRange as Record<string, unknown>).from === "number" &&
-      typeof (data.selectionRange as Record<string, unknown>).to === "number"
-    )
-      ? {
-          from: (data.selectionRange as Record<string, unknown>).from as number,
-          to: (data.selectionRange as Record<string, unknown>).to as number,
-        } as SelectionRange
-      : null,
-    resolvedAt: typeof data.resolvedAt === "string" ? data.resolvedAt : null,
-    resolvedByUserId: typeof data.resolvedByUserId === "string" ? data.resolvedByUserId : null,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseCommentRepository implements ICommentRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
-  async create(input: CreateCommentInput): Promise<CommentSnapshot> {
-    const db = this.db();
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      contentId: input.contentId,
-      contentType: input.contentType,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      authorId: input.authorId,
-      body: input.body,
-      parentCommentId: input.parentCommentId ?? null,
-      blockId: input.blockId ?? null,
-      selectionRange: input.selectionRange ?? null,
-      resolvedAt: null,
-      resolvedByUserId: null,
-      createdAtISO: now,
-      updatedAtISO: now,
-      _createdAt: serverTimestamp(),
-    };
-    await setDoc(commentDoc(db, input.accountId, id), data);
-    return toComment(id, data);
-  }
-
-  async update(input: UpdateCommentInput): Promise<CommentSnapshot | null> {
-    const db = this.db();
-    const ref = commentDoc(db, input.accountId, input.id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    const now = new Date().toISOString();
-    await updateDoc(ref, { body: input.body, updatedAtISO: now });
-    return toComment(snap.id, { ...snap.data(), body: input.body, updatedAtISO: now });
-  }
-
-  async resolve(input: ResolveCommentInput): Promise<CommentSnapshot | null> {
-    const db = this.db();
-    const ref = commentDoc(db, input.accountId, input.id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    const now = new Date().toISOString();
-    await updateDoc(ref, { resolvedAt: now, resolvedByUserId: input.resolvedByUserId });
-    return toComment(snap.id, { ...snap.data(), resolvedAt: now, resolvedByUserId: input.resolvedByUserId });
-  }
-
-  async delete(accountId: string, commentId: string): Promise<void> {
-    const { deleteDoc } = await import("firebase/firestore");
-    await deleteDoc(commentDoc(this.db(), accountId, commentId));
-  }
-
-  async findById(accountId: string, commentId: string): Promise<CommentSnapshot | null> {
-    const snap = await getDoc(commentDoc(this.db(), accountId, commentId));
-    if (!snap.exists()) return null;
-    return toComment(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByContent(accountId: string, contentId: string): Promise<CommentSnapshot[]> {
-    const db = this.db();
-    const q = query(
-      commentsCol(db, accountId),
-      where("contentId", "==", contentId),
-      orderBy("_createdAt", "asc"),
-    );
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => toComment(d.id, d.data() as Record<string, unknown>));
-  }
-
-  subscribe(accountId: string, contentId: string, onUpdate: (comments: CommentSnapshot[]) => void): CommentUnsubscribe {
-    const db = this.db();
-    const q = query(
-      commentsCol(db, accountId),
-      where("contentId", "==", contentId),
-      orderBy("_createdAt", "asc"),
-    );
-    return onSnapshot(q, (snap) => {
-      onUpdate(snap.docs.map((d) => toComment(d.id, d.data() as Record<string, unknown>)));
-    });
-  }
-}
-````
-
-## File: modules/notion/subdomains/collaboration/infrastructure/firebase/FirebasePermissionRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/collaboration
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/collaborationPermissions/{id}
- */
-
-import {
-  collection, doc, getDoc, getDocs, getFirestore,
-  query, serverTimestamp, setDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-import type { PermissionSnapshot, PermissionLevel, PrincipalType } from "../../domain/aggregates/Permission";
-import type { IPermissionRepository, GrantPermissionInput } from "../../domain/repositories/IPermissionRepository";
-
-function permissionsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "collaborationPermissions");
-}
-
-function permissionDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
-  return doc(db, "accounts", accountId, "collaborationPermissions", id);
-}
-
-function toPermission(id: string, data: Record<string, unknown>): PermissionSnapshot {
-  return {
-    id,
-    subjectId: typeof data.subjectId === "string" ? data.subjectId : "",
-    subjectType: (data.subjectType as PermissionSnapshot["subjectType"]) ?? "page",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    principalId: typeof data.principalId === "string" ? data.principalId : "",
-    principalType: (data.principalType as PrincipalType) ?? "user",
-    level: (data.level as PermissionLevel) ?? "view",
-    grantedByUserId: typeof data.grantedByUserId === "string" ? data.grantedByUserId : "",
-    grantedAtISO: typeof data.grantedAtISO === "string" ? data.grantedAtISO : "",
-    expiresAtISO: typeof data.expiresAtISO === "string" ? data.expiresAtISO : null,
-    linkToken: typeof data.linkToken === "string" ? data.linkToken : null,
-  };
-}
-
-export class FirebasePermissionRepository implements IPermissionRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
-  async grant(input: GrantPermissionInput): Promise<PermissionSnapshot> {
-    const db = this.db();
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      subjectId: input.subjectId,
-      subjectType: input.subjectType,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      principalId: input.principalId,
-      principalType: input.principalType,
-      level: input.level,
-      grantedByUserId: input.grantedByUserId,
-      grantedAtISO: now,
-      expiresAtISO: input.expiresAtISO ?? null,
-      linkToken: input.linkToken ?? null,
-      _createdAt: serverTimestamp(),
-    };
-    await setDoc(permissionDoc(db, input.accountId, id), data);
-    return toPermission(id, data);
-  }
-
-  async revoke(accountId: string, permissionId: string): Promise<void> {
-    const { deleteDoc } = await import("firebase/firestore");
-    await deleteDoc(permissionDoc(this.db(), accountId, permissionId));
-  }
-
-  async findById(accountId: string, permissionId: string): Promise<PermissionSnapshot | null> {
-    const snap = await getDoc(permissionDoc(this.db(), accountId, permissionId));
-    if (!snap.exists()) return null;
-    return toPermission(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listBySubject(accountId: string, subjectId: string): Promise<PermissionSnapshot[]> {
-    const db = this.db();
-    const q = query(permissionsCol(db, accountId), where("subjectId", "==", subjectId));
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => toPermission(d.id, d.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/notion/subdomains/collaboration/infrastructure/firebase/FirebaseVersionRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/collaboration
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/collaborationVersions/{versionId}
- */
-
-import {
-  collection, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-import type { VersionSnapshot } from "../../domain/aggregates/Version";
-import type { IVersionRepository, CreateVersionInput } from "../../domain/repositories/IVersionRepository";
-
-function versionsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "collaborationVersions");
-}
-
-function versionDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
-  return doc(db, "accounts", accountId, "collaborationVersions", id);
-}
-
-function toVersion(id: string, data: Record<string, unknown>): VersionSnapshot {
-  return {
-    id,
-    contentId: typeof data.contentId === "string" ? data.contentId : "",
-    contentType: data.contentType === "article" ? "article" : "page",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    snapshotBlocks: Array.isArray(data.snapshotBlocks) ? data.snapshotBlocks : [],
-    label: typeof data.label === "string" ? data.label : null,
-    description: typeof data.description === "string" ? data.description : null,
-    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-  };
-}
-
-export class FirebaseVersionRepository implements IVersionRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
-  async create(input: CreateVersionInput): Promise<VersionSnapshot> {
-    const db = this.db();
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      contentId: input.contentId,
-      contentType: input.contentType,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      snapshotBlocks: input.snapshotBlocks,
-      label: input.label ?? null,
-      description: input.description ?? null,
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      _createdAt: serverTimestamp(),
-    };
-    await setDoc(versionDoc(db, input.accountId, id), data);
-    return toVersion(id, data);
-  }
-
-  async findById(accountId: string, versionId: string): Promise<VersionSnapshot | null> {
-    const db = this.db();
-    const snap = await getDoc(versionDoc(db, accountId, versionId));
-    if (!snap.exists()) return null;
-    return toVersion(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByContent(accountId: string, contentId: string): Promise<VersionSnapshot[]> {
-    const db = this.db();
-    const q = query(versionsCol(db, accountId), where("contentId", "==", contentId), orderBy("createdAtISO", "desc"));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toVersion(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async delete(accountId: string, versionId: string): Promise<void> {
-    const db = this.db();
-    const { deleteDoc } = await import("firebase/firestore");
-    await deleteDoc(versionDoc(db, accountId, versionId));
-  }
-}
 ````
 
 ## File: modules/notion/subdomains/collaboration/infrastructure/firebase/index.ts
@@ -7020,496 +6516,6 @@ export {};
 // TODO: export FieldType, ViewType, FieldValue
 
 export {};
-````
-
-## File: modules/notion/subdomains/database/infrastructure/firebase/FirebaseAutomationRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/knowledgeDatabases/{databaseId}/automations/{automationId}
- */
-
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-
-import type {
-  DatabaseAutomationSnapshot,
-  AutomationCondition,
-  AutomationAction,
-} from "../../domain/aggregates/DatabaseAutomation";
-import type { IAutomationRepository, CreateAutomationInput, UpdateAutomationInput } from "../../domain/repositories/IAutomationRepository";
-
-function automationsCol(db: ReturnType<typeof getFirestore>, accountId: string, databaseId: string) {
-  return collection(db, "accounts", accountId, "knowledgeDatabases", databaseId, "automations");
-}
-
-function automationDocRef(db: ReturnType<typeof getFirestore>, accountId: string, databaseId: string, automationId: string) {
-  return doc(db, "accounts", accountId, "knowledgeDatabases", databaseId, "automations", automationId);
-}
-
-function toCondition(c: Record<string, unknown>): AutomationCondition {
-  return {
-    fieldId: typeof c.fieldId === "string" ? c.fieldId : "",
-    operator: (c.operator as AutomationCondition["operator"]) ?? "equals",
-    value: typeof c.value === "string" ? c.value : undefined,
-  };
-}
-
-function toAction(a: Record<string, unknown>): AutomationAction {
-  return {
-    type: (a.type as AutomationAction["type"]) ?? "send_notification",
-    config: typeof a.config === "object" && a.config !== null ? (a.config as Record<string, string>) : {},
-  };
-}
-
-function toAutomation(id: string, data: Record<string, unknown>): DatabaseAutomationSnapshot {
-  return {
-    id,
-    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    name: typeof data.name === "string" ? data.name : "",
-    enabled: data.enabled !== false,
-    trigger: (data.trigger as DatabaseAutomationSnapshot["trigger"]) ?? "record_created",
-    triggerFieldId: typeof data.triggerFieldId === "string" ? data.triggerFieldId : undefined,
-    conditions: Array.isArray(data.conditions) ? (data.conditions as Record<string, unknown>[]).map(toCondition) : [],
-    actions: Array.isArray(data.actions) ? (data.actions as Record<string, unknown>[]).map(toAction) : [],
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : new Date().toISOString(),
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : new Date().toISOString(),
-  };
-}
-
-export class FirebaseAutomationRepository implements IAutomationRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
-  async create(input: CreateAutomationInput): Promise<DatabaseAutomationSnapshot> {
-    const id = generateId();
-    const now = new Date().toISOString();
-    const docRef = automationDocRef(this.db, input.accountId, input.databaseId, id);
-    const payload = {
-      databaseId: input.databaseId,
-      accountId: input.accountId,
-      name: input.name,
-      enabled: true,
-      trigger: input.trigger,
-      triggerFieldId: input.triggerFieldId ?? null,
-      conditions: input.conditions ?? [],
-      actions: input.actions ?? [],
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-      serverCreatedAt: serverTimestamp(),
-    };
-    await setDoc(docRef, payload);
-    return toAutomation(id, payload);
-  }
-
-  async update(input: UpdateAutomationInput): Promise<DatabaseAutomationSnapshot | null> {
-    const { id, accountId, databaseId, ...fields } = input;
-    const docRef = automationDocRef(this.db, accountId, databaseId, id);
-    const updates: Record<string, unknown> = { ...fields, updatedAtISO: new Date().toISOString() };
-    await updateDoc(docRef, updates);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) return null;
-    return toAutomation(id, snap.data() as Record<string, unknown>);
-  }
-
-  async delete(id: string, accountId: string, databaseId: string): Promise<void> {
-    await deleteDoc(automationDocRef(this.db, accountId, databaseId, id));
-  }
-
-  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
-    const q = query(
-      automationsCol(this.db, accountId, databaseId),
-      where("databaseId", "==", databaseId),
-      orderBy("createdAtISO", "asc"),
-    );
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toAutomation(d.id, d.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/notion/subdomains/database/infrastructure/firebase/FirebaseDatabaseRecordRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: infrastructure/firebase
- * Purpose: Firestore implementation of IDatabaseRecordRepository.
- *          Firestore path: accounts/{accountId}/knowledgeDatabases/{databaseId}/records/{recordId}
- */
-
-import {
-  collection,
-  getDoc,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { getFirebaseFirestore } from "@integration-firebase/firestore";
-
-const db = getFirebaseFirestore();
-import type { IDatabaseRecordRepository, CreateRecordInput, UpdateRecordInput } from "../../domain/repositories/IDatabaseRecordRepository";
-import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
-
-function recordsCol(accountId: string, databaseId: string) {
-  return collection(db, "accounts", accountId, "knowledgeDatabases", databaseId, "records");
-}
-
-function toISO(ts: unknown): string {
-  if (ts instanceof Timestamp) return ts.toDate().toISOString();
-  if (typeof ts === "string") return ts;
-  return new Date().toISOString();
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toSnapshot(id: string, data: Record<string, any>): DatabaseRecordSnapshot {
-  return {
-    id,
-    databaseId: data.databaseId ?? "",
-    workspaceId: data.workspaceId ?? "",
-    accountId: data.accountId ?? "",
-    pageId: data.pageId ?? null,
-    properties: typeof data.properties === "object" && data.properties !== null ? data.properties : {},
-    order: typeof data.order === "number" ? data.order : 0,
-    createdByUserId: data.createdByUserId ?? "",
-    createdAtISO: toISO(data.createdAt),
-    updatedAtISO: toISO(data.updatedAt),
-  };
-}
-
-export class FirebaseDatabaseRecordRepository implements IDatabaseRecordRepository {
-  async create(input: CreateRecordInput): Promise<DatabaseRecordSnapshot> {
-    const col = recordsCol(input.accountId, input.databaseId);
-    const countSnap = await getDocs(col);
-    const now = serverTimestamp();
-    const docRef = await addDoc(col, {
-      databaseId: input.databaseId,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      pageId: input.pageId ?? null,
-      properties: input.properties ?? {},
-      order: countSnap.size,
-      createdByUserId: input.createdByUserId,
-      createdAt: now,
-      updatedAt: now,
-    });
-    const snap = await getDoc(docRef);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return toSnapshot(docRef.id, snap.data() as Record<string, any>);
-  }
-
-  async update(input: UpdateRecordInput): Promise<DatabaseRecordSnapshot> {
-    // We need to find which database this record belongs to. Properties are keyed by field IDs.
-    // The record stores databaseId on the document; we fetch it via a collection-group query approach.
-    // For simplicity, the input should come from a context where databaseId is available.
-    // Here we use a direct path by reading the doc first from a stored databaseId lookup.
-    // Since the record doc lives in accounts/{accountId}/knowledgeDatabases/{databaseId}/records/{id},
-    // and we only have id+accountId, we do collection group query.
-    const { id, accountId, properties } = input;
-    const { collectionGroup, query: fsQuery, where, getDocs: fsGetDocs } = await import("firebase/firestore");
-    const q = fsQuery(
-      collectionGroup(db, "records"),
-      where("accountId", "==", accountId),
-    );
-    const results = await fsGetDocs(q);
-    const target = results.docs.find((d) => d.id === id);
-    if (!target) throw new Error(`Record ${id} not found`);
-    await updateDoc(target.ref, { properties, updatedAt: serverTimestamp() });
-    const refreshed = await getDoc(target.ref);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return toSnapshot(id, refreshed.data() as Record<string, any>);
-  }
-
-  async delete(id: string, accountId: string): Promise<void> {
-    const { collectionGroup, query: fsQuery, where, getDocs: fsGetDocs } = await import("firebase/firestore");
-    const q = fsQuery(collectionGroup(db, "records"), where("accountId", "==", accountId));
-    const results = await fsGetDocs(q);
-    const target = results.docs.find((d) => d.id === id);
-    if (target) await deleteDoc(target.ref);
-  }
-
-  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecordSnapshot[]> {
-    const snaps = await getDocs(recordsCol(accountId, databaseId));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, any>));
-  }
-}
-````
-
-## File: modules/notion/subdomains/database/infrastructure/firebase/FirebaseDatabaseRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: infrastructure/firebase
- * Purpose: Firestore implementation of IDatabaseRepository.
- *          Firestore path: accounts/{accountId}/knowledgeDatabases/{databaseId}
- */
-
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  addDoc,
-  updateDoc,
-  query,
-  where,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { getFirebaseFirestore } from "@integration-firebase/firestore";
-
-const db = getFirebaseFirestore();
-import { generateId } from "@shared-utils";
-import type { IDatabaseRepository, CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../../domain/repositories/IDatabaseRepository";
-import type { DatabaseSnapshot, Field } from "../../domain/aggregates/Database";
-
-function databasesCol(accountId: string) {
-  return collection(db, "accounts", accountId, "knowledgeDatabases");
-}
-
-function databaseDoc(accountId: string, id: string) {
-  return doc(db, "accounts", accountId, "knowledgeDatabases", id);
-}
-
-function toISO(ts: unknown): string {
-  if (ts instanceof Timestamp) return ts.toDate().toISOString();
-  if (typeof ts === "string") return ts;
-  return new Date().toISOString();
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toSnapshot(id: string, data: Record<string, any>): DatabaseSnapshot {
-  return {
-    id,
-    workspaceId: data.workspaceId ?? "",
-    accountId: data.accountId ?? "",
-    name: data.name ?? "",
-    description: data.description ?? null,
-    fields: Array.isArray(data.fields) ? data.fields : [],
-    viewIds: Array.isArray(data.viewIds) ? data.viewIds : [],
-    icon: data.icon ?? null,
-    coverImageUrl: data.coverImageUrl ?? null,
-    createdByUserId: data.createdByUserId ?? "",
-    createdAtISO: toISO(data.createdAt),
-    updatedAtISO: toISO(data.updatedAt),
-  };
-}
-
-export class FirebaseDatabaseRepository implements IDatabaseRepository {
-  async create(input: CreateDatabaseInput): Promise<DatabaseSnapshot> {
-    const col = databasesCol(input.accountId);
-    const now = serverTimestamp();
-    const docRef = await addDoc(col, {
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      name: input.name,
-      description: input.description ?? null,
-      fields: [],
-      viewIds: [],
-      icon: null,
-      coverImageUrl: null,
-      createdByUserId: input.createdByUserId,
-      createdAt: now,
-      updatedAt: now,
-    });
-    const snap = await getDoc(docRef);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return toSnapshot(docRef.id, snap.data() as Record<string, any>);
-  }
-
-  async update(input: UpdateDatabaseInput): Promise<DatabaseSnapshot> {
-    const ref = databaseDoc(input.accountId, input.id);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const changes: Record<string, any> = { updatedAt: serverTimestamp() };
-    if (input.name !== undefined) changes.name = input.name;
-    if (input.description !== undefined) changes.description = input.description;
-    if (input.icon !== undefined) changes.icon = input.icon;
-    if (input.coverImageUrl !== undefined) changes.coverImageUrl = input.coverImageUrl;
-    await updateDoc(ref, changes);
-    const snap = await getDoc(ref);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return toSnapshot(input.id, snap.data() as Record<string, any>);
-  }
-
-  async addField(input: AddFieldInput): Promise<Field> {
-    const ref = databaseDoc(input.accountId, input.databaseId);
-    const snap = await getDoc(ref);
-    const data = snap.data() ?? {};
-    const fields: Field[] = Array.isArray(data.fields) ? [...data.fields] : [];
-    const newField: Field = {
-      id: generateId(),
-      name: input.name,
-      type: input.type,
-      config: input.config ?? {},
-      required: input.required ?? false,
-      order: fields.length,
-    };
-    fields.push(newField);
-    await updateDoc(ref, { fields, updatedAt: serverTimestamp() });
-    return newField;
-  }
-
-  async archive(id: string, accountId: string): Promise<void> {
-    const ref = databaseDoc(accountId, id);
-    await updateDoc(ref, { archived: true, archivedAt: serverTimestamp(), updatedAt: serverTimestamp() });
-  }
-
-  async findById(id: string, accountId: string): Promise<DatabaseSnapshot | null> {
-    const snap = await getDoc(databaseDoc(accountId, id));
-    if (!snap.exists()) return null;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return toSnapshot(id, snap.data() as Record<string, any>);
-  }
-
-  async listByWorkspace(accountId: string, workspaceId: string): Promise<DatabaseSnapshot[]> {
-    const q = query(databasesCol(accountId), where("workspaceId", "==", workspaceId), where("archived", "!=", true));
-    const snaps = await getDocs(q);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, any>));
-  }
-}
-````
-
-## File: modules/notion/subdomains/database/infrastructure/firebase/FirebaseViewRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/database
- * Layer: infrastructure/firebase
- * Purpose: Firestore implementation of IViewRepository.
- *          Firestore path: accounts/{accountId}/knowledgeDatabases/{databaseId}/views/{viewId}
- */
-
-import {
-  collection,
-  getDoc,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { getFirebaseFirestore } from "@integration-firebase/firestore";
-
-const db = getFirebaseFirestore();
-import type { IViewRepository, CreateViewInput, UpdateViewInput } from "../../domain/repositories/IViewRepository";
-import type { ViewSnapshot } from "../../domain/aggregates/View";
-
-function viewsCol(accountId: string, databaseId: string) {
-  return collection(db, "accounts", accountId, "knowledgeDatabases", databaseId, "views");
-}
-
-function toISO(ts: unknown): string {
-  if (ts instanceof Timestamp) return ts.toDate().toISOString();
-  if (typeof ts === "string") return ts;
-  return new Date().toISOString();
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toSnapshot(id: string, data: Record<string, any>): ViewSnapshot {
-  return {
-    id,
-    databaseId: data.databaseId ?? "",
-    workspaceId: data.workspaceId ?? "",
-    accountId: data.accountId ?? "",
-    name: data.name ?? "",
-    type: data.type ?? "table",
-    filters: Array.isArray(data.filters) ? data.filters : [],
-    sorts: Array.isArray(data.sorts) ? data.sorts : [],
-    groupBy: data.groupBy ?? null,
-    visibleFieldIds: Array.isArray(data.visibleFieldIds) ? data.visibleFieldIds : [],
-    hiddenFieldIds: Array.isArray(data.hiddenFieldIds) ? data.hiddenFieldIds : [],
-    boardGroupFieldId: data.boardGroupFieldId ?? null,
-    calendarDateFieldId: data.calendarDateFieldId ?? null,
-    timelineStartFieldId: data.timelineStartFieldId ?? null,
-    timelineEndFieldId: data.timelineEndFieldId ?? null,
-    createdByUserId: data.createdByUserId ?? "",
-    createdAtISO: toISO(data.createdAt),
-    updatedAtISO: toISO(data.updatedAt),
-  };
-}
-
-export class FirebaseViewRepository implements IViewRepository {
-  async create(input: CreateViewInput): Promise<ViewSnapshot> {
-    const col = viewsCol(input.accountId, input.databaseId);
-    const now = serverTimestamp();
-    const docRef = await addDoc(col, {
-      databaseId: input.databaseId,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      name: input.name,
-      type: input.type,
-      filters: [],
-      sorts: [],
-      groupBy: null,
-      visibleFieldIds: [],
-      hiddenFieldIds: [],
-      boardGroupFieldId: null,
-      calendarDateFieldId: null,
-      timelineStartFieldId: null,
-      timelineEndFieldId: null,
-      createdByUserId: input.createdByUserId,
-      createdAt: now,
-      updatedAt: now,
-    });
-    const snap = await getDoc(docRef);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return toSnapshot(docRef.id, snap.data() as Record<string, any>);
-  }
-
-  async update(input: UpdateViewInput): Promise<ViewSnapshot> {
-    // Fetch databaseId via collection group since we only have id+accountId
-    const { collectionGroup, query: fsQuery, where, getDocs: fsGetDocs } = await import("firebase/firestore");
-    const q = fsQuery(collectionGroup(db, "views"), where("accountId", "==", input.accountId));
-    const results = await fsGetDocs(q);
-    const target = results.docs.find((d) => d.id === input.id);
-    if (!target) throw new Error(`View ${input.id} not found`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const changes: Record<string, any> = { updatedAt: serverTimestamp() };
-    if (input.name !== undefined) changes.name = input.name;
-    if (input.filters !== undefined) changes.filters = input.filters;
-    if (input.sorts !== undefined) changes.sorts = input.sorts;
-    if (input.visibleFieldIds !== undefined) changes.visibleFieldIds = input.visibleFieldIds;
-    if (input.hiddenFieldIds !== undefined) changes.hiddenFieldIds = input.hiddenFieldIds;
-    await updateDoc(target.ref, changes);
-    const refreshed = await getDoc(target.ref);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return toSnapshot(input.id, refreshed.data() as Record<string, any>);
-  }
-
-  async delete(id: string, accountId: string): Promise<void> {
-    const { collectionGroup, query: fsQuery, where, getDocs: fsGetDocs } = await import("firebase/firestore");
-    const q = fsQuery(collectionGroup(db, "views"), where("accountId", "==", accountId));
-    const results = await fsGetDocs(q);
-    const target = results.docs.find((d) => d.id === id);
-    if (target) await deleteDoc(target.ref);
-  }
-
-  async listByDatabase(accountId: string, databaseId: string): Promise<ViewSnapshot[]> {
-    const snaps = await getDocs(viewsCol(accountId, databaseId));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return snaps.docs.map((d) => toSnapshot(d.id, d.data() as Record<string, any>));
-  }
-}
 ````
 
 ## File: modules/notion/subdomains/database/infrastructure/firebase/index.ts
@@ -9426,398 +8432,6 @@ import { z } from "@lib-zod";
 
 export const VerificationStateSchema = z.enum(["verified", "needs_review"]);
 export type VerificationState = z.infer<typeof VerificationStateSchema>;
-````
-
-## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseBacklinkIndexRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing IBacklinkIndexRepository.
- * Firestore paths:
- *   accounts/{accountId}/backlinkIndex/{targetPageId}
- *   accounts/{accountId}/backlinkOutbound/{sourcePageId}
- */
-
-import { doc, getDoc, getFirestore, writeBatch } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { IBacklinkIndexRepository, UpsertBacklinkEntriesInput, RemoveBacklinksFromSourceInput } from "../../domain/repositories/IBacklinkIndexRepository";
-import { BacklinkIndex } from "../../domain/aggregates/BacklinkIndex";
-import type { BacklinkEntry, BacklinkIndexSnapshot } from "../../domain/aggregates/BacklinkIndex";
-
-function backlinkIndexDoc(db: ReturnType<typeof getFirestore>, accountId: string, targetPageId: string) {
-  return doc(db, "accounts", accountId, "backlinkIndex", targetPageId);
-}
-function backlinkOutboundDoc(db: ReturnType<typeof getFirestore>, accountId: string, sourcePageId: string) {
-  return doc(db, "accounts", accountId, "backlinkOutbound", sourcePageId);
-}
-
-function toEntries(raw: unknown): BacklinkEntry[] {
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .filter((e): e is Record<string, unknown> => typeof e === "object" && e !== null)
-    .map((e) => ({
-      sourcePageId: typeof e.sourcePageId === "string" ? e.sourcePageId : "",
-      sourcePageTitle: typeof e.sourcePageTitle === "string" ? e.sourcePageTitle : "",
-      blockId: typeof e.blockId === "string" ? e.blockId : "",
-      lastSeenAtISO: typeof e.lastSeenAtISO === "string" ? e.lastSeenAtISO : "",
-    }));
-}
-
-export class FirebaseBacklinkIndexRepository implements IBacklinkIndexRepository {
-  private get db() { return getFirestore(firebaseClientApp); }
-
-  async upsertFromSource(input: UpsertBacklinkEntriesInput): Promise<void> {
-    const { accountId, targetPageId, sourcePageId, entries } = input;
-    const ref = backlinkIndexDoc(this.db, accountId, targetPageId);
-    const snap = await getDoc(ref);
-    const existing = snap.exists() ? toEntries((snap.data() as Record<string, unknown>).entries) : [];
-    const nowISO = new Date().toISOString();
-    const filtered = existing.filter((e) => !entries.some((ne) => e.blockId === ne.blockId && e.sourcePageId === sourcePageId));
-    const newEntries: BacklinkEntry[] = entries.map((e) => ({ sourcePageId, sourcePageTitle: (e as BacklinkEntry).sourcePageTitle ?? "", blockId: e.blockId, lastSeenAtISO: nowISO }));
-    const merged = [...filtered, ...newEntries];
-
-    const batch = writeBatch(this.db);
-    batch.set(ref, { targetPageId, accountId, entries: merged, updatedAtISO: nowISO }, { merge: true });
-
-    // Update outbound index
-    const outRef = backlinkOutboundDoc(this.db, accountId, sourcePageId);
-    batch.set(outRef, { sourcePageId, accountId, targetPageIds: [targetPageId], updatedAtISO: nowISO }, { merge: true });
-    await batch.commit();
-  }
-
-  async removeFromSource(input: RemoveBacklinksFromSourceInput): Promise<void> {
-    const { accountId, sourcePageId } = input;
-    const outRef = backlinkOutboundDoc(this.db, accountId, sourcePageId);
-    const outSnap = await getDoc(outRef);
-    const targetPageIds: string[] = outSnap.exists()
-      ? ((outSnap.data() as Record<string, unknown>).targetPageIds as string[] ?? [])
-      : [];
-
-    const batch = writeBatch(this.db);
-    const nowISO = new Date().toISOString();
-    for (const targetPageId of targetPageIds) {
-      const ref = backlinkIndexDoc(this.db, accountId, targetPageId);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) continue;
-      const entries = toEntries((snap.data() as Record<string, unknown>).entries).filter((e) => e.sourcePageId !== sourcePageId);
-      batch.set(ref, { entries, updatedAtISO: nowISO }, { merge: true });
-    }
-    batch.set(outRef, { targetPageIds: [], updatedAtISO: nowISO }, { merge: true });
-    await batch.commit();
-  }
-
-  async findByTargetPage(accountId: string, targetPageId: string): Promise<BacklinkIndex | null> {
-    const snap = await getDoc(backlinkIndexDoc(this.db, accountId, targetPageId));
-    if (!snap.exists()) return null;
-    const d = snap.data() as Record<string, unknown>;
-    const snapshot: BacklinkIndexSnapshot = {
-      targetPageId,
-      accountId,
-      entries: toEntries(d.entries),
-      updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
-    };
-    return BacklinkIndex.reconstitute(snapshot);
-  }
-
-  async listOutboundTargets(accountId: string, sourcePageId: string): Promise<ReadonlyArray<string>> {
-    const snap = await getDoc(backlinkOutboundDoc(this.db, accountId, sourcePageId));
-    if (!snap.exists()) return [];
-    const d = snap.data() as Record<string, unknown>;
-    return Array.isArray(d.targetPageIds) ? (d.targetPageIds as string[]) : [];
-  }
-}
-````
-
-## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseContentBlockRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing IContentBlockRepository.
- * Firestore path: accounts/{accountId}/contentBlocks/{blockId}
- */
-
-import {
-  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
-  query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as _generateId } from "@lib-uuid";
-import { ContentBlock } from "../../domain/aggregates/ContentBlock";
-import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
-import type { IContentBlockRepository } from "../../domain/repositories/IContentBlockRepository";
-import type { BlockContent } from "../../domain/value-objects/BlockContent";
-import { BLOCK_TYPES } from "../../domain/value-objects/BlockContent";
-
-const VALID_TYPES = new Set<string>(BLOCK_TYPES);
-
-function blocksCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "contentBlocks");
-}
-function blockDoc(db: ReturnType<typeof getFirestore>, accountId: string, blockId: string) {
-  return doc(db, "accounts", accountId, "contentBlocks", blockId);
-}
-
-function toBlockContent(raw: unknown): BlockContent {
-  if (typeof raw !== "object" || raw === null) return { type: "text", richText: [] };
-  const obj = raw as Record<string, unknown>;
-  const type = typeof obj.type === "string" && VALID_TYPES.has(obj.type) ? (obj.type as BlockContent["type"]) : "text";
-  return {
-    type,
-    richText: Array.isArray(obj.richText) ? (obj.richText as BlockContent["richText"]) : [],
-    properties: typeof obj.properties === "object" && obj.properties !== null ? (obj.properties as Record<string, unknown>) : undefined,
-  };
-}
-
-function toSnapshot(id: string, d: Record<string, unknown>): ContentBlockSnapshot {
-  return {
-    id,
-    pageId: typeof d.pageId === "string" ? d.pageId : "",
-    accountId: typeof d.accountId === "string" ? d.accountId : "",
-    content: toBlockContent(d.content),
-    order: typeof d.order === "number" ? d.order : 0,
-    parentBlockId: typeof d.parentBlockId === "string" ? d.parentBlockId : null,
-    childBlockIds: Array.isArray(d.childBlockIds) ? (d.childBlockIds as string[]) : [],
-    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
-    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
-  };
-}
-
-export class FirebaseContentBlockRepository implements IContentBlockRepository {
-  private get db() { return getFirestore(firebaseClientApp); }
-
-  async save(block: ContentBlock): Promise<void> {
-    const snap = block.getSnapshot();
-    const ref = blockDoc(this.db, snap.accountId, snap.id);
-    const existing = await getDoc(ref);
-    const data: Record<string, unknown> = { ...snap, updatedAt: serverTimestamp() };
-    if (!existing.exists()) {
-      data.createdAt = serverTimestamp();
-      await setDoc(ref, data);
-    } else {
-      await updateDoc(ref, data);
-    }
-  }
-
-  async findById(accountId: string, blockId: string): Promise<ContentBlock | null> {
-    const snap = await getDoc(blockDoc(this.db, accountId, blockId));
-    if (!snap.exists()) return null;
-    return ContentBlock.reconstitute(toSnapshot(snap.id, snap.data() as Record<string, unknown>));
-  }
-
-  async listByPageId(accountId: string, pageId: string): Promise<ContentBlock[]> {
-    const snaps = await getDocs(
-      query(blocksCol(this.db, accountId), where("pageId", "==", pageId)),
-    );
-    return snaps.docs.map((d) => ContentBlock.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
-  }
-
-  async delete(accountId: string, blockId: string): Promise<void> {
-    await deleteDoc(blockDoc(this.db, accountId, blockId));
-  }
-
-  async nextOrder(accountId: string, pageId: string): Promise<number> {
-    const snaps = await getDocs(
-      query(blocksCol(this.db, accountId), where("pageId", "==", pageId)),
-    );
-    return snaps.size;
-  }
-
-  async countByPageId(accountId: string, pageId: string): Promise<number> {
-    const snaps = await getDocs(query(blocksCol(this.db, accountId), where("pageId", "==", pageId)));
-    return snaps.size;
-  }
-}
-````
-
-## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseKnowledgeCollectionRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing IKnowledgeCollectionRepository.
- * Firestore path: accounts/{accountId}/knowledgeCollections/{collectionId}
- */
-
-import {
-  collection, doc, getDoc, getDocs,
-  getFirestore, query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { KnowledgeCollection } from "../../domain/aggregates/KnowledgeCollection";
-import type { KnowledgeCollectionSnapshot } from "../../domain/aggregates/KnowledgeCollection";
-import type { IKnowledgeCollectionRepository } from "../../domain/repositories/IKnowledgeCollectionRepository";
-
-function col(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "knowledgeCollections");
-}
-function docRef(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
-  return doc(db, "accounts", accountId, "knowledgeCollections", id);
-}
-
-function toSnapshot(id: string, d: Record<string, unknown>): KnowledgeCollectionSnapshot {
-  return {
-    id,
-    accountId: typeof d.accountId === "string" ? d.accountId : "",
-    workspaceId: typeof d.workspaceId === "string" ? d.workspaceId : undefined,
-    name: typeof d.name === "string" ? d.name : "",
-    description: typeof d.description === "string" ? d.description : undefined,
-    columns: Array.isArray(d.columns) ? (d.columns as KnowledgeCollectionSnapshot["columns"]) : [],
-    pageIds: Array.isArray(d.pageIds) ? (d.pageIds as string[]) : [],
-    status: d.status === "archived" ? "archived" : "active",
-    spaceType: d.spaceType === "wiki" ? "wiki" : "database",
-    createdByUserId: typeof d.createdByUserId === "string" ? d.createdByUserId : "",
-    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
-    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
-  };
-}
-
-export class FirebaseKnowledgeCollectionRepository implements IKnowledgeCollectionRepository {
-  private get db() { return getFirestore(firebaseClientApp); }
-
-  async save(coll: KnowledgeCollection): Promise<void> {
-    const snap = coll.getSnapshot();
-    const ref = docRef(this.db, snap.accountId, snap.id);
-    const existing = await getDoc(ref);
-    const data: Record<string, unknown> = { ...snap, columns: [...snap.columns], pageIds: [...snap.pageIds], updatedAt: serverTimestamp() };
-    if (!existing.exists()) { data.createdAt = serverTimestamp(); await setDoc(ref, data); }
-    else { await updateDoc(ref, data); }
-  }
-
-  async findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null> {
-    const snap = await getDoc(docRef(this.db, accountId, collectionId));
-    if (!snap.exists()) return null;
-    return KnowledgeCollection.reconstitute(toSnapshot(snap.id, snap.data() as Record<string, unknown>));
-  }
-
-  async listByAccountId(accountId: string): Promise<KnowledgeCollection[]> {
-    const snaps = await getDocs(col(this.db, accountId));
-    return snaps.docs.map((d) => KnowledgeCollection.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
-  }
-
-  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]> {
-    const snaps = await getDocs(query(col(this.db, accountId), where("workspaceId", "==", workspaceId)));
-    return snaps.docs.map((d) => KnowledgeCollection.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
-  }
-}
-````
-
-## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseKnowledgePageRepository.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing IKnowledgePageRepository.
- * Firestore path: accounts/{accountId}/contentPages/{pageId}
- */
-
-import {
-  collection, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as _generateId } from "@lib-uuid";
-import { KnowledgePage } from "../../domain/aggregates/KnowledgePage";
-import type { KnowledgePageSnapshot } from "../../domain/aggregates/KnowledgePage";
-import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
-
-function pagesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "contentPages");
-}
-function pageDoc(db: ReturnType<typeof getFirestore>, accountId: string, pageId: string) {
-  return doc(db, "accounts", accountId, "contentPages", pageId);
-}
-
-function toSnapshot(id: string, d: Record<string, unknown>): KnowledgePageSnapshot {
-  return {
-    id,
-    accountId: typeof d.accountId === "string" ? d.accountId : "",
-    workspaceId: typeof d.workspaceId === "string" ? d.workspaceId : undefined,
-    title: typeof d.title === "string" ? d.title : "",
-    slug: typeof d.slug === "string" ? d.slug : "",
-    parentPageId: typeof d.parentPageId === "string" ? d.parentPageId : null,
-    order: typeof d.order === "number" ? d.order : 0,
-    blockIds: Array.isArray(d.blockIds) ? (d.blockIds as string[]) : [],
-    status: d.status === "archived" ? "archived" : "active",
-    approvalState: d.approvalState === "approved" ? "approved" : d.approvalState === "pending" ? "pending" : undefined,
-    approvedAtISO: typeof d.approvedAtISO === "string" ? d.approvedAtISO : undefined,
-    approvedByUserId: typeof d.approvedByUserId === "string" ? d.approvedByUserId : undefined,
-    verificationState: d.verificationState === "verified" ? "verified" : d.verificationState === "needs_review" ? "needs_review" : undefined,
-    ownerId: typeof d.ownerId === "string" ? d.ownerId : undefined,
-    verifiedByUserId: typeof d.verifiedByUserId === "string" ? d.verifiedByUserId : undefined,
-    verifiedAtISO: typeof d.verifiedAtISO === "string" ? d.verifiedAtISO : undefined,
-    verificationExpiresAtISO: typeof d.verificationExpiresAtISO === "string" ? d.verificationExpiresAtISO : undefined,
-    iconUrl: typeof d.iconUrl === "string" ? d.iconUrl : undefined,
-    coverUrl: typeof d.coverUrl === "string" ? d.coverUrl : undefined,
-    createdByUserId: typeof d.createdByUserId === "string" ? d.createdByUserId : "",
-    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
-    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
-  };
-}
-
-export class FirebaseKnowledgePageRepository implements IKnowledgePageRepository {
-  private get db() { return getFirestore(firebaseClientApp); }
-
-  async save(page: KnowledgePage): Promise<void> {
-    const snap = page.getSnapshot();
-    const ref = pageDoc(this.db, snap.accountId, snap.id);
-    const existing = await getDoc(ref);
-    const data: Record<string, unknown> = {
-      ...snap,
-      blockIds: [...snap.blockIds],
-      updatedAt: serverTimestamp(),
-    };
-    if (!existing.exists()) {
-      data.createdAt = serverTimestamp();
-      await setDoc(ref, data);
-    } else {
-      await updateDoc(ref, data);
-    }
-  }
-
-  async findById(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    const snap = await getDoc(pageDoc(this.db, accountId, pageId));
-    if (!snap.exists()) return null;
-    return KnowledgePage.reconstitute(toSnapshot(snap.id, snap.data() as Record<string, unknown>));
-  }
-
-  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
-    const snaps = await getDocs(
-      query(pagesCol(this.db, accountId), where("status", "==", "active"), orderBy("order", "asc")),
-    );
-    return snaps.docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
-  }
-
-  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
-    const snaps = await getDocs(
-      query(pagesCol(this.db, accountId), where("workspaceId", "==", workspaceId), where("status", "==", "active"), orderBy("order", "asc")),
-    );
-    return snaps.docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
-  }
-
-  async countByParent(accountId: string, parentPageId: string | null): Promise<number> {
-    const snaps = await getDocs(
-      query(pagesCol(this.db, accountId), where("parentPageId", "==", parentPageId ?? null)),
-    );
-    return snaps.size;
-  }
-
-  async findSnapshotById(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
-    const page = await this.findById(accountId, pageId);
-    return page ? page.getSnapshot() : null;
-  }
-
-  async listSnapshotsByAccountId(accountId: string): Promise<KnowledgePageSnapshot[]> {
-    const pages = await this.listByAccountId(accountId);
-    return pages.map((p) => p.getSnapshot());
-  }
-
-  async listSnapshotsByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
-    const pages = await this.listByWorkspaceId(accountId, workspaceId);
-    return pages.map((p) => p.getSnapshot());
-  }
-}
 ````
 
 ## File: modules/notion/subdomains/knowledge/infrastructure/firebase/index.ts
@@ -16441,6 +15055,76 @@ export class FirebaseTokenRefreshRepository implements TokenRefreshRepository {
 }
 ````
 
+## File: modules/platform/subdomains/identity/infrastructure/identity-service.ts
+````typescript
+/**
+ * identity-service.ts — Adapter-layer composition root.
+ *
+ * Wires Firebase-backed repositories into identity use cases.
+ * Lives in adapters/ because it instantiates infrastructure adapters.
+ * Dependency direction: adapters/ -> application/ -> domain/ (correct, no violation).
+ */
+
+import type { TokenRefreshReason } from "../domain";
+import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
+import {
+	RegisterUseCase,
+	SendPasswordResetEmailUseCase,
+	SignInAnonymouslyUseCase,
+	SignInUseCase,
+} from "../application/use-cases/identity.use-cases";
+import { FirebaseIdentityRepository } from "./firebase/FirebaseIdentityRepository";
+import { FirebaseTokenRefreshRepository } from "./firebase/FirebaseTokenRefreshRepository";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface EmitTokenRefreshSignalInput {
+	accountId: string;
+	reason: TokenRefreshReason;
+	traceId?: string;
+}
+
+// ─── Server-side token refresh signal emitter ─────────────────────────────────
+
+let _tokenRefreshRepo: FirebaseTokenRefreshRepository | undefined;
+let _emitUseCase: EmitTokenRefreshSignalUseCase | undefined;
+
+function getEmitUseCase(): EmitTokenRefreshSignalUseCase {
+	if (!_emitUseCase) {
+		if (!_tokenRefreshRepo) _tokenRefreshRepo = new FirebaseTokenRefreshRepository();
+		_emitUseCase = new EmitTokenRefreshSignalUseCase(_tokenRefreshRepo);
+	}
+	return _emitUseCase;
+}
+
+/**
+ * identityApi — server-side operations for identity management.
+ * Intended for use in Server Actions and server-side code paths.
+ */
+export const identityApi = {
+	async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void> {
+		await getEmitUseCase().execute(input.accountId, input.reason, input.traceId);
+	},
+} as const;
+
+// ─── Client-side use-case factory ─────────────────────────────────────────────
+
+/**
+ * createClientAuthUseCases — creates Firebase-wired client-side auth use cases.
+ * Each call returns fresh use-case instances sharing one repository instance.
+ * Use only in "use client" components or client-side hooks.
+ */
+export function createClientAuthUseCases() {
+	const repo = new FirebaseIdentityRepository();
+	return {
+		signInUseCase: new SignInUseCase(repo),
+		signInAnonymouslyUseCase: new SignInAnonymouslyUseCase(repo),
+		registerUseCase: new RegisterUseCase(repo),
+		sendPasswordResetEmailUseCase: new SendPasswordResetEmailUseCase(repo),
+	};
+}
+````
+
 ## File: modules/platform/subdomains/identity/infrastructure/index.ts
 ````typescript
 export { FirebaseIdentityRepository } from "./firebase/FirebaseIdentityRepository";
@@ -18323,6 +17007,673 @@ export function CreateOrganizationDialog({
 }
 ````
 
+## File: modules/platform/subdomains/organization/interfaces/components/MembersPage.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { dismissMember, inviteMember } from "../_actions/organization.actions";
+import { getOrganizationMembers } from "../queries/organization.queries";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+
+type MemberRole = "Admin" | "Member" | "Guest";
+
+export interface MembersPageProps {
+  organizationId: string | null;
+}
+
+export function MembersPage({ organizationId }: MembersPageProps) {
+  const [members, setMembers] = useState<Awaited<ReturnType<typeof getOrganizationMembers>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<MemberRole>("Member");
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
+  async function loadMembers(orgId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getOrganizationMembers(orgId);
+      setMembers(data);
+      setLoadState("loaded");
+    } catch {
+      setMembers([]);
+      setLoadState("error");
+    }
+  }
+
+  useEffect(() => {
+    if (!organizationId) return;
+    const orgId: string = organizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrganizationMembers(orgId);
+        if (!cancelled) {
+          setMembers(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setMembers([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId]);
+
+  async function handleInvite() {
+    if (!organizationId || !inviteEmail.trim()) return;
+    setInviteSubmitting(true);
+    setInviteError(null);
+    const result = await inviteMember({
+      organizationId,
+      email: inviteEmail.trim(),
+      teamId: "",
+      role: inviteRole,
+      protocol: "email",
+    });
+    setInviteSubmitting(false);
+    if (result.success) {
+      setInviteOpen(false);
+      setInviteEmail("");
+      setInviteRole("Member");
+      await loadMembers(organizationId);
+    } else {
+      setInviteError(result.error.message);
+    }
+  }
+
+  async function handleDismiss(memberId: string) {
+    if (!organizationId) return;
+    setRemovingId(memberId);
+    await dismissMember(organizationId, memberId);
+    setRemovingId(null);
+    await loadMembers(organizationId);
+  }
+
+  if (!organizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">成員</h1>
+          <p className="mt-1 text-sm text-muted-foreground">組織成員清單與目前角色。</p>
+        </div>
+        <Button onClick={() => setInviteOpen(true)}>邀請成員</Button>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Members</CardTitle>
+          <CardDescription>組織成員清單與目前角色。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入成員資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取成員資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && members.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的成員資料。</p>
+          )}
+          {loadState === "loaded" &&
+            members.map((member) => (
+              <div
+                key={member.id}
+                className="flex items-center justify-between rounded-lg border border-border/40 px-3 py-2"
+              >
+                <div>
+                  <p className="text-sm font-medium">{member.name}</p>
+                  <p className="text-xs text-muted-foreground">{member.email}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{member.role}</Badge>
+                  <Badge variant="secondary">{member.presence}</Badge>
+                  {member.role !== "Owner" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={removingId === member.id}
+                      onClick={() => handleDismiss(member.id)}
+                    >
+                      移除
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>邀請成員</DialogTitle>
+            <DialogDescription>輸入電子信箱以邀請新成員加入組織。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="invite-email">電子信箱</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder="member@example.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="invite-role">角色</Label>
+              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as MemberRole)}>
+                <SelectTrigger id="invite-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Member">Member</SelectItem>
+                  <SelectItem value="Guest">Guest</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleInvite} disabled={inviteSubmitting || !inviteEmail.trim()}>
+              {inviteSubmitting ? "邀請中…" : "送出邀請"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+````
+
+## File: modules/platform/subdomains/organization/interfaces/components/PermissionsPage.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { createOrgPolicy } from "../_actions/organization-policy.actions";
+import { getOrgPolicies } from "../queries/organization.queries";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+
+type PolicyScope = "workspace" | "member" | "global";
+
+export interface PermissionsPageProps {
+  organizationId: string | null;
+}
+
+export function PermissionsPage({ organizationId }: PermissionsPageProps) {
+  const [policies, setPolicies] = useState<Awaited<ReturnType<typeof getOrgPolicies>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newScope, setNewScope] = useState<PolicyScope>("member");
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  async function loadPolicies(orgId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getOrgPolicies(orgId);
+      setPolicies(data);
+      setLoadState("loaded");
+    } catch {
+      setPolicies([]);
+      setLoadState("error");
+    }
+  }
+
+  useEffect(() => {
+    if (!organizationId) return;
+    const orgId: string = organizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrgPolicies(orgId);
+        if (!cancelled) {
+          setPolicies(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setPolicies([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId]);
+
+  async function handleCreate() {
+    if (!organizationId || !newName.trim()) return;
+    setCreateSubmitting(true);
+    setCreateError(null);
+    const result = await createOrgPolicy({
+      orgId: organizationId,
+      name: newName.trim(),
+      description: newDescription.trim(),
+      rules: [],
+      scope: newScope,
+    });
+    setCreateSubmitting(false);
+    if (result.success) {
+      setCreateOpen(false);
+      setNewName("");
+      setNewDescription("");
+      setNewScope("member");
+      await loadPolicies(organizationId);
+    } else {
+      setCreateError(result.error.message);
+    }
+  }
+
+  if (!organizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">權限</h1>
+          <p className="mt-1 text-sm text-muted-foreground">組織層級政策規則與 scope。</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>新增政策</Button>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Permissions</CardTitle>
+          <CardDescription>組織層級政策規則與 scope。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入政策資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取政策資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && policies.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的政策資料。</p>
+          )}
+          {loadState === "loaded" &&
+            policies.map((policy) => (
+              <div key={policy.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">{policy.name}</p>
+                  <Badge variant="outline">{policy.scope}</Badge>
+                  <Badge variant={policy.isActive ? "default" : "secondary"}>
+                    {policy.isActive ? "active" : "inactive"}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{policy.description}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Rules: {policy.rules.length}</p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新增政策</DialogTitle>
+            <DialogDescription>建立組織層級存取控制政策。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="policy-name">名稱</Label>
+              <Input
+                id="policy-name"
+                placeholder="政策名稱"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="policy-description">描述</Label>
+              <Input
+                id="policy-description"
+                placeholder="選填"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="policy-scope">Scope</Label>
+              <Select value={newScope} onValueChange={(v) => setNewScope(v as PolicyScope)}>
+                <SelectTrigger id="policy-scope">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Member（成員）</SelectItem>
+                  <SelectItem value="workspace">Workspace（工作區）</SelectItem>
+                  <SelectItem value="global">Global（全域）</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
+              {createSubmitting ? "建立中…" : "建立"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+````
+
+## File: modules/platform/subdomains/organization/interfaces/components/TeamsPage.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { createTeam } from "../_actions/organization.actions";
+import { getOrganizationTeams } from "../queries/organization.queries";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+
+export interface TeamsPageProps {
+  organizationId: string | null;
+}
+
+export function TeamsPage({ organizationId }: TeamsPageProps) {
+  const [teams, setTeams] = useState<Awaited<ReturnType<typeof getOrganizationTeams>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newType, setNewType] = useState<"internal" | "external">("internal");
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  async function loadTeams(orgId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getOrganizationTeams(orgId);
+      setTeams(data);
+      setLoadState("loaded");
+    } catch {
+      setTeams([]);
+      setLoadState("error");
+    }
+  }
+
+  useEffect(() => {
+    if (!organizationId) return;
+    const orgId: string = organizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrganizationTeams(orgId);
+        if (!cancelled) {
+          setTeams(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setTeams([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId]);
+
+  async function handleCreate() {
+    if (!organizationId || !newName.trim()) return;
+    setCreateSubmitting(true);
+    setCreateError(null);
+    const result = await createTeam({
+      organizationId,
+      name: newName.trim(),
+      description: newDescription.trim(),
+      type: newType,
+    });
+    setCreateSubmitting(false);
+    if (result.success) {
+      setCreateOpen(false);
+      setNewName("");
+      setNewDescription("");
+      setNewType("internal");
+      await loadTeams(organizationId);
+    } else {
+      setCreateError(result.error.message);
+    }
+  }
+
+  if (!organizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">團隊</h1>
+          <p className="mt-1 text-sm text-muted-foreground">組織團隊與成員關聯。</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>建立團隊</Button>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Teams</CardTitle>
+          <CardDescription>組織團隊與成員關聯。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入團隊資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取團隊資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && teams.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的團隊資料。</p>
+          )}
+          {loadState === "loaded" &&
+            teams.map((team) => (
+              <div key={team.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">{team.name}</p>
+                  <Badge variant="outline">{team.type}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{team.description || "—"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Members: {team.memberIds.length}
+                </p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>建立團隊</DialogTitle>
+            <DialogDescription>填寫團隊名稱與類型以建立新團隊。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="team-name">名稱</Label>
+              <Input
+                id="team-name"
+                placeholder="團隊名稱"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="team-description">描述</Label>
+              <Input
+                id="team-description"
+                placeholder="選填"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="team-type">類型</Label>
+              <Select
+                value={newType}
+                onValueChange={(v) => setNewType(v as "internal" | "external")}
+              >
+                <SelectTrigger id="team-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internal">Internal（內部）</SelectItem>
+                  <SelectItem value="external">External（外部）</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
+              {createSubmitting ? "建立中…" : "建立"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+````
+
 ## File: modules/platform/subdomains/platform-config/domain/index.ts
 ````typescript
 // Purpose: Domain layer placeholder for platform subdomain 'platform-config'.
@@ -19962,494 +19313,6 @@ export class FirebaseWikiWorkspaceRepository implements WikiWorkspaceRepository 
       id: workspace.id,
       name: workspace.name,
     }));
-  }
-}
-````
-
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
-````typescript
-import type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../../domain/entities/WorkspaceMemberView";
-import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
-import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
-
-const personnelLabels = {
-  managerId: "Manager",
-  supervisorId: "Supervisor",
-  safetyOfficerId: "Safety officer",
-} as const;
-
-const personnelLabelEntries = Object.entries(personnelLabels) as Array<
-  [keyof typeof personnelLabels, string]
->;
-
-interface OrganizationMemberReference {
-  id: string;
-  name: string;
-  email?: string;
-  role?: string;
-  presence?: string;
-  isExternal?: boolean;
-}
-
-interface OrganizationTeam {
-  id: string;
-  name: string;
-  memberIds: string[];
-}
-
-interface OrganizationDirectoryGateway {
-  getOrganizationMembers(organizationId: string): Promise<OrganizationMemberReference[]>;
-  getOrganizationTeams(organizationId: string): Promise<OrganizationTeam[]>;
-}
-
-const defaultOrganizationDirectoryGateway: OrganizationDirectoryGateway = {
-  async getOrganizationMembers() {
-    return [];
-  },
-  async getOrganizationTeams() {
-    return [];
-  },
-};
-
-function toPresence(value: OrganizationMemberReference["presence"] | undefined): WorkspaceMemberPresence {
-  if (value === "active" || value === "away" || value === "offline") {
-    return value;
-  }
-
-  return "unknown";
-}
-
-function createFallbackMember(id: string): WorkspaceMemberView {
-  return {
-    id,
-    displayName: id,
-    presence: "unknown",
-    isExternal: false,
-    accessChannels: [],
-  };
-}
-
-export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
-  constructor(
-    private readonly organizationDirectoryGateway: OrganizationDirectoryGateway = defaultOrganizationDirectoryGateway,
-  ) {}
-
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
-
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ) {
-    const normalizedAccountId = accountId.trim();
-    if (!normalizedAccountId) {
-      onUpdate([]);
-      return () => {};
-    }
-
-    const q = query(
-      collection(this.db, "workspaces"),
-      where("accountId", "==", normalizedAccountId),
-    );
-
-    return onSnapshot(q, (snap) => {
-      const workspaces = snap.docs.map((docSnap) =>
-        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
-      );
-      onUpdate(workspaces);
-    });
-  }
-
-  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    const workspace = await this.workspaceRepo.findById(workspaceId);
-    if (!workspace) {
-      return [];
-    }
-
-    const members = new Map<string, WorkspaceMemberView>();
-    const memberChannelKeys = new Map<string, Set<string>>();
-
-    const mergeMember = (
-      memberId: string,
-      channel: WorkspaceMemberAccessChannel,
-      orgMember?: OrganizationMemberReference,
-    ) => {
-      const current = members.get(memberId) ?? createFallbackMember(memberId);
-      const channelKey = [
-        channel.source,
-        channel.label,
-        channel.role ?? "",
-        channel.protocol ?? "",
-        channel.teamId ?? "",
-      ].join("::");
-      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
-      memberChannelKeys.set(memberId, knownChannelKeys);
-      const hasSameChannel = knownChannelKeys.has(channelKey);
-      if (!hasSameChannel) {
-        knownChannelKeys.add(channelKey);
-      }
-
-      members.set(memberId, {
-        id: memberId,
-        displayName: orgMember?.name || current.displayName,
-        email: orgMember?.email ?? current.email,
-        organizationRole: orgMember?.role ?? current.organizationRole,
-        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
-        isExternal: orgMember?.isExternal ?? current.isExternal,
-        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
-      });
-    };
-
-    if (workspace.accountType === "organization") {
-      const [organizationMembers, teams] = await Promise.all([
-        this.organizationDirectoryGateway.getOrganizationMembers(workspace.accountId),
-        this.organizationDirectoryGateway.getOrganizationTeams(workspace.accountId),
-      ]);
-
-      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
-      const teamMap = new Map(teams.map((team) => [team.id, team]));
-
-      const mergeTeam = (team: OrganizationTeam, role?: string, protocol?: string) => {
-        const label = team.name || team.id;
-        team.memberIds.forEach((memberId: string) => {
-          mergeMember(
-            memberId,
-            {
-              source: "team",
-              label,
-              role,
-              protocol,
-              teamId: team.id,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        });
-      };
-
-      workspace.teamIds.forEach((teamId) => {
-        const team = teamMap.get(teamId);
-        if (team) {
-          mergeTeam(team);
-        }
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(
-            grant.userId,
-            {
-              source: "direct",
-              label: "Direct access",
-              role: grant.role,
-              protocol: grant.protocol,
-            },
-            organizationMemberMap.get(grant.userId),
-          );
-        }
-
-        if (grant.teamId) {
-          const team = teamMap.get(grant.teamId);
-          if (team) {
-            mergeTeam(team, grant.role, grant.protocol);
-          }
-        }
-      });
-
-      personnelLabelEntries.forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field];
-        if (memberId) {
-          mergeMember(
-            memberId,
-            {
-              source: "personnel",
-              label,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        }
-      });
-    } else {
-      mergeMember(workspace.accountId, {
-        source: "owner",
-        label: "Workspace owner",
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(grant.userId, {
-            source: "direct",
-            label: "Direct access",
-            role: grant.role,
-            protocol: grant.protocol,
-          });
-        }
-      });
-
-      personnelLabelEntries.forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field];
-        if (memberId) {
-          mergeMember(memberId, {
-            source: "personnel",
-            label,
-          });
-        }
-      });
-    }
-
-    return Array.from(members.values()).sort((left, right) =>
-      left.displayName.localeCompare(right.displayName),
-    );
-  }
-}
-````
-
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
-````typescript
-/**
- * FirebaseWorkspaceRepository — Infrastructure adapter for workspace persistence.
- * Translates Firestore documents ↔ Domain WorkspaceEntity.
- * Firebase SDK only exists in this file.
- */
-
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  query,
-  where,
-  documentId,
-  arrayUnion,
-  arrayRemove,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
-import type { WorkspaceCapabilityRepository } from "../../domain/ports/output/WorkspaceCapabilityRepository";
-import type { WorkspaceAccessRepository } from "../../domain/ports/output/WorkspaceAccessRepository";
-import type { WorkspaceLocationRepository } from "../../domain/ports/output/WorkspaceLocationRepository";
-import type {
-  WorkspaceEntity,
-  Capability,
-  WorkspaceGrant,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceLocation,
-} from "../../domain/aggregates/Workspace";
-import { createAddress } from "../../domain/value-objects/Address";
-import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
-import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
-import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
-
-// ─── Mapper ───────────────────────────────────────────────────────────────────
-
-const VALID_ACCOUNT_TYPES = new Set<WorkspaceEntity["accountType"]>(["user", "organization"]);
-
-export function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity {
-  const accountType = VALID_ACCOUNT_TYPES.has(data.accountType as WorkspaceEntity["accountType"])
-    ? (data.accountType as WorkspaceEntity["accountType"])
-    : "user";
-
-  return {
-    id,
-    name: createWorkspaceName(typeof data.name === "string" ? data.name : "Untitled workspace"),
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    accountType,
-    lifecycleState: createWorkspaceLifecycleState(
-      data.lifecycleState === "active" ||
-        data.lifecycleState === "stopped" ||
-        data.lifecycleState === "preparatory"
-        ? data.lifecycleState
-        : "preparatory",
-    ),
-    visibility: createWorkspaceVisibility(
-      data.visibility === "hidden" || data.visibility === "visible"
-        ? data.visibility
-        : "visible",
-    ),
-    capabilities: Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [],
-    grants: Array.isArray(data.grants) ? (data.grants as WorkspaceGrant[]) : [],
-    teamIds: Array.isArray(data.teamIds) ? (data.teamIds as string[]) : [],
-    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
-    address: data.address != null ? createAddress(data.address as NonNullable<UpdateWorkspaceSettingsCommand["address"]>) : undefined,
-    locations: Array.isArray(data.locations) ? (data.locations as WorkspaceLocation[]) : undefined,
-    personnel: data.personnel != null ? (data.personnel as WorkspaceEntity["personnel"]) : undefined,
-    createdAt: data.createdAt as WorkspaceEntity["createdAt"],
-  };
-}
-
-// ─── Repository ───────────────────────────────────────────────────────────────
-
-export class FirebaseWorkspaceRepository
-  implements
-    WorkspaceRepository,
-    WorkspaceCapabilityRepository,
-    WorkspaceAccessRepository,
-    WorkspaceLocationRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async findById(id: string): Promise<WorkspaceEntity | null> {
-    const snap = await getDoc(doc(this.db, "workspaces", id));
-    if (!snap.exists()) return null;
-    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
-    const q = query(
-      collection(this.db, "workspaces"),
-      where("accountId", "==", accountId),
-      where(documentId(), "==", workspaceId),
-    );
-    const snaps = await getDocs(q);
-    const snap = snaps.docs[0];
-    if (!snap) return null;
-    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]> {
-    const q = query(collection(this.db, "workspaces"), where("accountId", "==", accountId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toWorkspaceEntity(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async save(workspace: WorkspaceEntity): Promise<string> {
-    const ref = doc(this.db, "workspaces", workspace.id);
-    const payload: Record<string, unknown> = {
-      name: workspace.name,
-      accountId: workspace.accountId,
-      accountType: workspace.accountType,
-      lifecycleState: workspace.lifecycleState,
-      visibility: workspace.visibility,
-      capabilities: workspace.capabilities,
-      grants: workspace.grants,
-      teamIds: workspace.teamIds,
-      createdAt: serverTimestamp(),
-    };
-
-    if (workspace.photoURL !== undefined) payload.photoURL = workspace.photoURL;
-    if (workspace.address !== undefined) payload.address = workspace.address;
-    if (workspace.locations !== undefined) payload.locations = workspace.locations;
-    if (workspace.personnel !== undefined) payload.personnel = workspace.personnel;
-
-    await setDoc(ref, payload);
-    return workspace.id;
-  }
-
-  async updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void> {
-    const updates: Record<string, unknown> = { updatedAt: serverTimestamp() };
-    if (command.name !== undefined) updates.name = command.name;
-    if (command.visibility !== undefined) updates.visibility = command.visibility;
-    if (command.lifecycleState !== undefined) updates.lifecycleState = command.lifecycleState;
-    if (command.address !== undefined) updates.address = command.address;
-    if (command.personnel !== undefined) updates.personnel = command.personnel;
-    await updateDoc(doc(this.db, "workspaces", command.workspaceId), updates);
-  }
-
-  async delete(id: string): Promise<void> {
-    await deleteDoc(doc(this.db, "workspaces", id));
-  }
-
-  async mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      capabilities: arrayUnion(...capabilities),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async unmountCapability(workspaceId: string, capabilityId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const caps = ((data.capabilities as Capability[]) ?? []).filter((c) => c.id !== capabilityId);
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      capabilities: caps,
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async grantTeamAccess(workspaceId: string, teamId: string): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      teamIds: arrayUnion(teamId),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async revokeTeamAccess(workspaceId: string, teamId: string): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      teamIds: arrayRemove(teamId),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      grants: arrayUnion(grant),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async revokeIndividualAccess(workspaceId: string, userId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const grants = ((data.grants as WorkspaceGrant[]) ?? []).filter((g) => g.userId !== userId);
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      grants,
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async createLocation(
-    workspaceId: string,
-    location: Omit<WorkspaceLocation, "locationId">,
-  ): Promise<string> {
-    const locationId = crypto.randomUUID();
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      locations: arrayUnion({ ...location, locationId }),
-      updatedAt: serverTimestamp(),
-    });
-    return locationId;
-  }
-
-  async updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const locations = ((data.locations as WorkspaceLocation[]) ?? []).map((l) =>
-      l.locationId === location.locationId ? location : l,
-    );
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      locations,
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async deleteLocation(workspaceId: string, locationId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const locations = ((data.locations as WorkspaceLocation[]) ?? []).filter(
-      (l) => l.locationId !== locationId,
-    );
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      locations,
-      updatedAt: serverTimestamp(),
-    });
   }
 }
 ````
@@ -24512,320 +23375,6 @@ export interface WorkspaceFeedInteractionRepository {
 }
 ````
 
-## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository.ts
-````typescript
-import {
-  collection,
-  doc,
-  getDoc,
-  getFirestore,
-  serverTimestamp,
-  setDoc,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-
-import type { WorkspaceFeedInteractionRepository } from "../../domain/repositories/workspace-feed.repositories";
-
-type FirestoreDb = ReturnType<typeof getFirestore>;
-
-function postDoc(db: FirestoreDb, accountId: string, postId: string) {
-  return doc(db, "accounts", accountId, "workspaceFeedPosts", postId);
-}
-
-function likesDoc(db: FirestoreDb, accountId: string, postId: string, actorAccountId: string) {
-  return doc(postDoc(db, accountId, postId), "likes", actorAccountId);
-}
-
-function bookmarksDoc(db: FirestoreDb, accountId: string, postId: string, actorAccountId: string) {
-  return doc(postDoc(db, accountId, postId), "bookmarks", actorAccountId);
-}
-
-function viewsCol(db: FirestoreDb, accountId: string, postId: string) {
-  return collection(postDoc(db, accountId, postId), "views");
-}
-
-function sharesCol(db: FirestoreDb, accountId: string, postId: string) {
-  return collection(postDoc(db, accountId, postId), "shares");
-}
-
-export class FirebaseWorkspaceFeedInteractionRepository implements WorkspaceFeedInteractionRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async like(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
-    const ref = likesDoc(this.db, accountId, postId, actorAccountId);
-    const snap = await getDoc(ref);
-    if (snap.exists()) return false;
-
-    await setDoc(ref, {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-    return true;
-  }
-
-  async bookmark(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
-    const ref = bookmarksDoc(this.db, accountId, postId, actorAccountId);
-    const snap = await getDoc(ref);
-    if (snap.exists()) return false;
-
-    await setDoc(ref, {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-    return true;
-  }
-
-  async view(accountId: string, postId: string, actorAccountId: string): Promise<void> {
-    await setDoc(doc(viewsCol(this.db, accountId, postId), generateId()), {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-  }
-
-  async share(accountId: string, postId: string, actorAccountId: string): Promise<void> {
-    await setDoc(doc(sharesCol(this.db, accountId, postId), generateId()), {
-      accountId,
-      postId,
-      actorAccountId,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-  }
-}
-````
-
-## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedPostRepository.ts
-````typescript
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  increment,
-  limit,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-
-import type {
-  CreateWorkspaceFeedPostInput,
-  CreateWorkspaceFeedReplyInput,
-  CreateWorkspaceFeedRepostInput,
-  WorkspaceFeedCounterPatch,
-  WorkspaceFeedPost,
-} from "../../domain/entities/workspace-feed-post.entity";
-import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
-
-type FirestoreDb = ReturnType<typeof getFirestore>;
-
-function postsCol(db: FirestoreDb, accountId: string) {
-  return collection(db, "accounts", accountId, "workspaceFeedPosts");
-}
-
-function postDoc(db: FirestoreDb, accountId: string, postId: string) {
-  return doc(db, "accounts", accountId, "workspaceFeedPosts", postId);
-}
-
-function repostMapDoc(db: FirestoreDb, accountId: string, actorAccountId: string, sourcePostId: string) {
-  return doc(db, "accounts", accountId, "workspaceFeedReposts", `${actorAccountId}__${sourcePostId}`);
-}
-
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function asNumber(value: unknown): number {
-  return typeof value === "number" ? value : 0;
-}
-
-function toWorkspaceFeedPost(id: string, data: Record<string, unknown>): WorkspaceFeedPost {
-  const type = asString(data.type, "post");
-  return {
-    id,
-    accountId: asString(data.accountId),
-    workspaceId: asString(data.workspaceId),
-    authorAccountId: asString(data.authorAccountId),
-    type: type === "reply" || type === "repost" ? type : "post",
-    content: asString(data.content),
-    replyToPostId: typeof data.replyToPostId === "string" ? data.replyToPostId : null,
-    repostOfPostId: typeof data.repostOfPostId === "string" ? data.repostOfPostId : null,
-    likeCount: asNumber(data.likeCount),
-    replyCount: asNumber(data.replyCount),
-    repostCount: asNumber(data.repostCount),
-    viewCount: asNumber(data.viewCount),
-    bookmarkCount: asNumber(data.bookmarkCount),
-    shareCount: asNumber(data.shareCount),
-    createdAtISO: asString(data.createdAtISO),
-    updatedAtISO: asString(data.updatedAtISO),
-  };
-}
-
-function createBasePostData(
-  accountId: string,
-  workspaceId: string,
-  authorAccountId: string,
-  content: string,
-  type: "post" | "reply" | "repost",
-): Record<string, unknown> {
-  const nowISO = new Date().toISOString();
-  return {
-    accountId,
-    workspaceId,
-    authorAccountId,
-    type,
-    content,
-    likeCount: 0,
-    replyCount: 0,
-    repostCount: 0,
-    viewCount: 0,
-    bookmarkCount: 0,
-    shareCount: 0,
-    createdAtISO: nowISO,
-    updatedAtISO: nowISO,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  };
-}
-
-export class FirebaseWorkspaceFeedPostRepository implements WorkspaceFeedPostRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async createPost(input: CreateWorkspaceFeedPostInput): Promise<WorkspaceFeedPost> {
-    const id = generateId();
-    const data = createBasePostData(
-      input.accountId,
-      input.workspaceId,
-      input.authorAccountId,
-      input.content,
-      "post",
-    );
-    await setDoc(postDoc(this.db, input.accountId, id), data);
-    return toWorkspaceFeedPost(id, data);
-  }
-
-  async createReply(input: CreateWorkspaceFeedReplyInput): Promise<WorkspaceFeedPost> {
-    const id = generateId();
-    const data: Record<string, unknown> = {
-      ...createBasePostData(
-        input.accountId,
-        input.workspaceId,
-        input.authorAccountId,
-        input.content,
-        "reply",
-      ),
-      replyToPostId: input.parentPostId,
-      repostOfPostId: null,
-    };
-
-    await setDoc(postDoc(this.db, input.accountId, id), data);
-    await this.patchCounters(input.accountId, input.parentPostId, { replyDelta: 1 });
-    return toWorkspaceFeedPost(id, data);
-  }
-
-  async createRepost(input: CreateWorkspaceFeedRepostInput): Promise<WorkspaceFeedPost | null> {
-    const mapRef = repostMapDoc(this.db, input.accountId, input.actorAccountId, input.sourcePostId);
-    const existingMap = await getDoc(mapRef);
-    if (existingMap.exists()) {
-      const repostPostId = asString(existingMap.data().repostPostId);
-      if (!repostPostId) return null;
-      return this.findById(input.accountId, repostPostId);
-    }
-
-    const source = await this.findById(input.accountId, input.sourcePostId);
-    if (!source) return null;
-
-    const id = generateId();
-    const content = input.comment?.trim() || source.content;
-    const data: Record<string, unknown> = {
-      ...createBasePostData(
-        input.accountId,
-        input.workspaceId,
-        input.actorAccountId,
-        content,
-        "repost",
-      ),
-      replyToPostId: null,
-      repostOfPostId: input.sourcePostId,
-    };
-
-    await setDoc(postDoc(this.db, input.accountId, id), data);
-    await setDoc(mapRef, {
-      accountId: input.accountId,
-      workspaceId: input.workspaceId,
-      sourcePostId: input.sourcePostId,
-      actorAccountId: input.actorAccountId,
-      repostPostId: id,
-      createdAtISO: new Date().toISOString(),
-      createdAt: serverTimestamp(),
-    });
-    await this.patchCounters(input.accountId, input.sourcePostId, { repostDelta: 1 });
-    return toWorkspaceFeedPost(id, data);
-  }
-
-  async patchCounters(accountId: string, postId: string, patch: WorkspaceFeedCounterPatch): Promise<void> {
-    const updates: Record<string, unknown> = {
-      updatedAtISO: new Date().toISOString(),
-      updatedAt: serverTimestamp(),
-    };
-    if (patch.likeDelta) updates.likeCount = increment(patch.likeDelta);
-    if (patch.replyDelta) updates.replyCount = increment(patch.replyDelta);
-    if (patch.repostDelta) updates.repostCount = increment(patch.repostDelta);
-    if (patch.viewDelta) updates.viewCount = increment(patch.viewDelta);
-    if (patch.bookmarkDelta) updates.bookmarkCount = increment(patch.bookmarkDelta);
-    if (patch.shareDelta) updates.shareCount = increment(patch.shareDelta);
-    await updateDoc(postDoc(this.db, accountId, postId), updates);
-  }
-
-  async findById(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
-    const snap = await getDoc(postDoc(this.db, accountId, postId));
-    if (!snap.exists()) return null;
-    return toWorkspaceFeedPost(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByWorkspaceId(accountId: string, workspaceId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
-    const snaps = await getDocs(
-      query(
-        postsCol(this.db, accountId),
-        where("workspaceId", "==", workspaceId),
-        orderBy("createdAtISO", "desc"),
-        limit(maxRows),
-      ),
-    );
-    return snaps.docs.map((row) => toWorkspaceFeedPost(row.id, row.data() as Record<string, unknown>));
-  }
-
-  async listByAccountId(accountId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
-    const snaps = await getDocs(
-      query(postsCol(this.db, accountId), orderBy("createdAtISO", "desc"), limit(maxRows)),
-    );
-    return snaps.docs.map((row) => toWorkspaceFeedPost(row.id, row.data() as Record<string, unknown>));
-  }
-}
-````
-
 ## File: modules/workspace/subdomains/feed/infrastructure/index.ts
 ````typescript
 export { FirebaseWorkspaceFeedPostRepository } from "./firebase/FirebaseWorkspaceFeedPostRepository";
@@ -25220,124 +23769,6 @@ export type WorkDemandAssignedEvent = {
 export type WorkDemandDomainEvent =
   | WorkDemandCreatedEvent
   | WorkDemandAssignedEvent;
-````
-
-## File: modules/workspace/subdomains/scheduling/infrastructure/firebase/FirebaseDemandRepository.ts
-````typescript
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  serverTimestamp,
-  setDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type { WorkDemand } from "../../domain/types";
-import type { IDemandRepository } from "../../domain/repository";
-
-const DEMANDS_COLLECTION = "workspacePlannerDemands";
-
-function toWorkDemand(id: string, data: Record<string, unknown>): WorkDemand {
-  const status = data.status;
-  const priority = data.priority;
-
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    requesterId: typeof data.requesterId === "string" ? data.requesterId : "",
-    title: typeof data.title === "string" ? data.title : "",
-    description: typeof data.description === "string" ? data.description : "",
-    status:
-      status === "draft" || status === "open" || status === "in_progress" || status === "completed"
-        ? status
-        : "draft",
-    priority: priority === "low" || priority === "medium" || priority === "high" ? priority : "medium",
-    scheduledAt: typeof data.scheduledAt === "string" ? data.scheduledAt : "",
-    assignedUserId: typeof data.assignedUserId === "string" ? data.assignedUserId : undefined,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseDemandRepository implements IDemandRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
-  private get collectionRef() {
-    return collection(this.db, DEMANDS_COLLECTION);
-  }
-
-  async listByWorkspace(workspaceId: string): Promise<WorkDemand[]> {
-    const snaps = await getDocs(
-      query(this.collectionRef, where("workspaceId", "==", workspaceId)),
-    );
-    return snaps.docs
-      .map((item) => toWorkDemand(item.id, item.data() as Record<string, unknown>))
-      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
-  }
-
-  async listByAccount(accountId: string): Promise<WorkDemand[]> {
-    const snaps = await getDocs(
-      query(this.collectionRef, where("accountId", "==", accountId)),
-    );
-    return snaps.docs
-      .map((item) => toWorkDemand(item.id, item.data() as Record<string, unknown>))
-      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
-  }
-
-  async save(demand: WorkDemand): Promise<void> {
-    const demandRef = doc(this.db, DEMANDS_COLLECTION, demand.id);
-    const existing = await getDoc(demandRef);
-    if (existing.exists()) {
-      await this.update(demand);
-      return;
-    }
-
-    await setDoc(demandRef, {
-      workspaceId: demand.workspaceId,
-      accountId: demand.accountId,
-      requesterId: demand.requesterId,
-      title: demand.title,
-      description: demand.description,
-      status: demand.status,
-      priority: demand.priority,
-      scheduledAt: demand.scheduledAt,
-      assignedUserId: demand.assignedUserId ?? null,
-      createdAtISO: demand.createdAtISO,
-      updatedAtISO: demand.updatedAtISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async update(demand: WorkDemand): Promise<void> {
-    await setDoc(doc(this.db, DEMANDS_COLLECTION, demand.id), {
-      workspaceId: demand.workspaceId,
-      accountId: demand.accountId,
-      requesterId: demand.requesterId,
-      title: demand.title,
-      description: demand.description,
-      status: demand.status,
-      priority: demand.priority,
-      scheduledAt: demand.scheduledAt,
-      assignedUserId: demand.assignedUserId ?? null,
-      updatedAtISO: demand.updatedAtISO,
-      updatedAt: serverTimestamp(),
-    }, { merge: true });
-  }
-
-  async findById(id: string): Promise<WorkDemand | null> {
-    const snap = await getDoc(doc(this.db, DEMANDS_COLLECTION, id));
-    if (!snap.exists()) return null;
-    return toWorkDemand(snap.id, snap.data() as Record<string, unknown>);
-  }
-}
 ````
 
 ## File: modules/workspace/subdomains/scheduling/infrastructure/mock-demand-repository.ts
@@ -29047,575 +27478,6 @@ export const WF_INVOICES_COLLECTION = "workspaceFlowInvoices" as const;
 
 /** Top-level Firestore collection for workspace-flow invoice items. */
 export const WF_INVOICE_ITEMS_COLLECTION = "workspaceFlowInvoiceItems" as const;
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseInvoiceItemRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseInvoiceItemRepository.ts
- * @description Firebase Firestore repository for InvoiceItem CRUD operations.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add query pagination support
- */
-
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
-import { toInvoiceItem } from "../firebase/invoice-item.converter";
-import { WF_INVOICE_ITEMS_COLLECTION } from "../firebase/workspace-flow.collections";
-
-export class FirebaseInvoiceItemRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get collectionRef() {
-    return collection(this.db, WF_INVOICE_ITEMS_COLLECTION);
-  }
-
-  async findById(itemId: string): Promise<InvoiceItem | null> {
-    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, itemId));
-    if (!snap.exists()) return null;
-    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByInvoiceId(invoiceId: string): Promise<InvoiceItem[]> {
-    const snaps = await getDocs(
-      query(this.collectionRef, where("invoiceId", "==", invoiceId)),
-    );
-    return snaps.docs.map((d) => toInvoiceItem(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async delete(itemId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, itemId));
-  }
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseInvoiceRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseInvoiceRepository.ts
- * @description Firebase Firestore implementation of InvoiceRepository for workspace-flow.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  increment,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { Invoice, CreateInvoiceInput } from "../../domain/entities/Invoice";
-import type { InvoiceItem, AddInvoiceItemInput } from "../../domain/entities/InvoiceItem";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import { toInvoice } from "../firebase/invoice.converter";
-import { toInvoiceItem } from "../firebase/invoice-item.converter";
-import {
-  WF_INVOICES_COLLECTION,
-  WF_INVOICE_ITEMS_COLLECTION,
-} from "../firebase/workspace-flow.collections";
-
-const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
-const DEFAULT_STATUS: InvoiceStatus = "draft";
-
-export class FirebaseInvoiceRepository implements InvoiceRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get invoiceCollectionRef() {
-    return collection(this.db, WF_INVOICES_COLLECTION);
-  }
-
-  private get itemCollectionRef() {
-    return collection(this.db, WF_INVOICE_ITEMS_COLLECTION);
-  }
-
-  async create(input: CreateInvoiceInput): Promise<Invoice> {
-    const nowISO = new Date().toISOString();
-    const docData: Record<string, unknown> = {
-      workspaceId: input.workspaceId,
-      status: DEFAULT_STATUS,
-      totalAmount: 0,
-      submittedAtISO: null,
-      approvedAtISO: null,
-      paidAtISO: null,
-      closedAtISO: null,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-    if (input.sourceReference) {
-      docData.sourceReference = { ...input.sourceReference };
-    }
-
-    const docRef = await addDoc(this.invoiceCollectionRef, docData);
-
-    return {
-      id: docRef.id,
-      workspaceId: input.workspaceId,
-      status: DEFAULT_STATUS,
-      totalAmount: 0,
-      sourceReference: input.sourceReference,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async delete(invoiceId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
-  }
-
-  async findById(invoiceId: string): Promise<Invoice | null> {
-    const snap = await getDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
-    if (!snap.exists()) return null;
-    return toInvoice(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<Invoice[]> {
-    const snaps = await getDocs(
-      query(
-        this.invoiceCollectionRef,
-        where("workspaceId", "==", workspaceId),
-      ),
-    );
-    const invoices = snaps.docs.map((d) => toInvoice(d.id, d.data() as Record<string, unknown>));
-    return invoices.sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
-  }
-
-  async transitionStatus(
-    invoiceId: string,
-    to: InvoiceStatus,
-    nowISO: string,
-  ): Promise<Invoice | null> {
-    const invoiceRef = doc(this.db, WF_INVOICES_COLLECTION, invoiceId);
-    const snap = await getDoc(invoiceRef);
-    if (!snap.exists()) return null;
-
-    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
-    const patch: Record<string, unknown> = {
-      status: validTo,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    };
-    if (validTo === "submitted") patch.submittedAtISO = nowISO;
-    if (validTo === "approved") patch.approvedAtISO = nowISO;
-    if (validTo === "paid") patch.paidAtISO = nowISO;
-    if (validTo === "closed") patch.closedAtISO = nowISO;
-
-    await updateDoc(invoiceRef, patch);
-    const updated = await getDoc(invoiceRef);
-    if (!updated.exists()) return null;
-    return toInvoice(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async addItem(input: AddInvoiceItemInput): Promise<InvoiceItem> {
-    const nowISO = new Date().toISOString();
-    const docRef = await addDoc(this.itemCollectionRef, {
-      invoiceId: input.invoiceId,
-      taskId: input.taskId,
-      amount: input.amount,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    // Update invoice totalAmount
-    await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, input.invoiceId), {
-      totalAmount: increment(input.amount),
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    return {
-      id: docRef.id,
-      invoiceId: input.invoiceId,
-      taskId: input.taskId,
-      amount: input.amount,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async findItemById(invoiceItemId: string): Promise<InvoiceItem | null> {
-    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId));
-    if (!snap.exists()) return null;
-    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null> {
-    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
-    const snap = await getDoc(itemRef);
-    if (!snap.exists()) return null;
-
-    const data = snap.data() as Record<string, unknown>;
-    const oldAmount = typeof data.amount === "number" ? data.amount : 0;
-    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
-    const nowISO = new Date().toISOString();
-
-    await updateDoc(itemRef, { amount, updatedAtISO: nowISO, updatedAt: serverTimestamp() });
-
-    if (invoiceId) {
-      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
-        totalAmount: increment(amount - oldAmount),
-        updatedAtISO: nowISO,
-        updatedAt: serverTimestamp(),
-      });
-    }
-
-    const updated = await getDoc(itemRef);
-    if (!updated.exists()) return null;
-    return toInvoiceItem(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async removeItem(invoiceItemId: string): Promise<void> {
-    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
-    const snap = await getDoc(itemRef);
-    if (!snap.exists()) return;
-
-    const data = snap.data() as Record<string, unknown>;
-    const amount = typeof data.amount === "number" ? data.amount : 0;
-    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
-
-    await deleteDoc(itemRef);
-
-    if (invoiceId) {
-      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
-        totalAmount: increment(-amount),
-        updatedAtISO: new Date().toISOString(),
-        updatedAt: serverTimestamp(),
-      });
-    }
-  }
-
-  async listItems(invoiceId: string): Promise<InvoiceItem[]> {
-    const snaps = await getDocs(
-      query(this.itemCollectionRef, where("invoiceId", "==", invoiceId)),
-    );
-    return snaps.docs.map((d) => toInvoiceItem(d.id, d.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseIssueRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseIssueRepository.ts
- * @description Firebase Firestore implementation of IssueRepository for workspace-flow.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { Issue, OpenIssueInput, UpdateIssueInput } from "../../domain/entities/Issue";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { ISSUE_STATUSES, type IssueStatus } from "../../domain/value-objects/IssueStatus";
-import { toIssue } from "../firebase/issue.converter";
-import { WF_ISSUES_COLLECTION } from "../firebase/workspace-flow.collections";
-
-const VALID_STATUSES = new Set<IssueStatus>(ISSUE_STATUSES);
-const DEFAULT_STATUS: IssueStatus = "open";
-const OPEN_STATUSES: IssueStatus[] = ["open", "investigating", "fixing", "retest"];
-
-export class FirebaseIssueRepository implements IssueRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get collectionRef() {
-    return collection(this.db, WF_ISSUES_COLLECTION);
-  }
-
-  async create(input: OpenIssueInput): Promise<Issue> {
-    const nowISO = new Date().toISOString();
-    const docRef = await addDoc(this.collectionRef, {
-      taskId: input.taskId,
-      stage: input.stage,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      createdBy: input.createdBy,
-      assignedTo: input.assignedTo ?? null,
-      resolvedAtISO: null,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    return {
-      id: docRef.id,
-      taskId: input.taskId,
-      stage: input.stage,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      createdBy: input.createdBy,
-      assignedTo: input.assignedTo,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async update(issueId: string, input: UpdateIssueInput): Promise<Issue | null> {
-    const issueRef = doc(this.db, WF_ISSUES_COLLECTION, issueId);
-    const snap = await getDoc(issueRef);
-    if (!snap.exists()) return null;
-
-    const patch: Record<string, unknown> = {
-      updatedAtISO: new Date().toISOString(),
-      updatedAt: serverTimestamp(),
-    };
-    if (typeof input.title === "string") patch.title = input.title;
-    if (typeof input.description === "string") patch.description = input.description;
-    if (typeof input.assignedTo === "string") patch.assignedTo = input.assignedTo;
-
-    await updateDoc(issueRef, patch);
-    const updated = await getDoc(issueRef);
-    if (!updated.exists()) return null;
-    return toIssue(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async delete(issueId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_ISSUES_COLLECTION, issueId));
-  }
-
-  async findById(issueId: string): Promise<Issue | null> {
-    const snap = await getDoc(doc(this.db, WF_ISSUES_COLLECTION, issueId));
-    if (!snap.exists()) return null;
-    return toIssue(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByTaskId(taskId: string): Promise<Issue[]> {
-    const snaps = await getDocs(
-      query(
-        this.collectionRef,
-        where("taskId", "==", taskId),
-        orderBy("createdAtISO", "desc"),
-      ),
-    );
-    return snaps.docs.map((d) => toIssue(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async countOpenByTaskId(taskId: string): Promise<number> {
-    const snaps = await getDocs(
-      query(
-        this.collectionRef,
-        where("taskId", "==", taskId),
-        where("status", "in", OPEN_STATUSES),
-      ),
-    );
-    return snaps.size;
-  }
-
-  async transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null> {
-    const issueRef = doc(this.db, WF_ISSUES_COLLECTION, issueId);
-    const snap = await getDoc(issueRef);
-    if (!snap.exists()) return null;
-
-    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
-    const patch: Record<string, unknown> = {
-      status: validTo,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    };
-    if (validTo === "resolved") patch.resolvedAtISO = nowISO;
-
-    await updateDoc(issueRef, patch);
-    const updated = await getDoc(issueRef);
-    if (!updated.exists()) return null;
-    return toIssue(updated.id, updated.data() as Record<string, unknown>);
-  }
-}
-````
-
-## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseTaskRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseTaskRepository.ts
- * @description Firebase Firestore implementation of TaskRepository for workspace-flow.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
-import { toTask } from "../firebase/task.converter";
-import { WF_TASKS_COLLECTION } from "../firebase/workspace-flow.collections";
-
-const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
-const DEFAULT_STATUS: TaskStatus = "draft";
-
-export class FirebaseTaskRepository implements TaskRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get collectionRef() {
-    return collection(this.db, WF_TASKS_COLLECTION);
-  }
-
-  async create(input: CreateTaskInput): Promise<Task> {
-    const nowISO = new Date().toISOString();
-    const docData: Record<string, unknown> = {
-      workspaceId: input.workspaceId,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      assigneeId: input.assigneeId ?? null,
-      dueDateISO: input.dueDateISO ?? null,
-      acceptedAtISO: null,
-      archivedAtISO: null,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-    if (input.sourceReference) {
-      docData.sourceReference = { ...input.sourceReference };
-    }
-
-    const docRef = await addDoc(this.collectionRef, docData);
-
-    return {
-      id: docRef.id,
-      workspaceId: input.workspaceId,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      assigneeId: input.assigneeId,
-      dueDateISO: input.dueDateISO,
-      sourceReference: input.sourceReference,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async update(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
-    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
-    const snap = await getDoc(taskRef);
-    if (!snap.exists()) return null;
-
-    const patch: Record<string, unknown> = {
-      updatedAtISO: new Date().toISOString(),
-      updatedAt: serverTimestamp(),
-    };
-    if (typeof input.title === "string") patch.title = input.title;
-    if (typeof input.description === "string") patch.description = input.description;
-    if (typeof input.assigneeId === "string") patch.assigneeId = input.assigneeId;
-    if (typeof input.dueDateISO === "string") patch.dueDateISO = input.dueDateISO;
-
-    await updateDoc(taskRef, patch);
-    const updated = await getDoc(taskRef);
-    if (!updated.exists()) return null;
-    return toTask(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async delete(taskId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
-  }
-
-  async findById(taskId: string): Promise<Task | null> {
-    const snap = await getDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
-    if (!snap.exists()) return null;
-    return toTask(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<Task[]> {
-    const snaps = await getDocs(
-      query(
-        this.collectionRef,
-        where("workspaceId", "==", workspaceId),
-      ),
-    );
-    const tasks = snaps.docs.map((d) => toTask(d.id, d.data() as Record<string, unknown>));
-    return tasks.sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
-  }
-
-  async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null> {
-    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
-    const snap = await getDoc(taskRef);
-    if (!snap.exists()) return null;
-
-    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
-    const patch: Record<string, unknown> = {
-      status: validTo,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    };
-    if (validTo === "accepted") patch.acceptedAtISO = nowISO;
-    if (validTo === "archived") patch.archivedAtISO = nowISO;
-
-    await updateDoc(taskRef, patch);
-    const updated = await getDoc(taskRef);
-    if (!updated.exists()) return null;
-    return toTask(updated.id, updated.data() as Record<string, unknown>);
-  }
-}
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/_actions/workspace-flow-invoice.actions.ts
@@ -40251,19 +38113,18 @@ export function makeNotebookRepo() {
 }
 ````
 
-## File: modules/notebooklm/subdomains/notebook/api/index.ts
+## File: modules/notebooklm/subdomains/notebook/api/server.ts
 ````typescript
-export type {
-  NotebookResponse,
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../domain/entities/AgentGeneration";
+/**
+ * notebook subdomain — server-only API.
+ *
+ * Exports infrastructure implementations that depend on server-only packages.
+ * Must only be imported in Server Actions, route handlers, or server-side infrastructure.
+ */
 
-export type { NotebookRepository } from "../domain/repositories/NotebookRepository";
-
+export { PlatformTextGenerationAdapter } from "../infrastructure/platform/PlatformTextGenerationAdapter";
 export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-notebook-response.use-case";
-
-export { generateNotebookResponse } from "../interfaces/_actions/generate-notebook-response.actions";
+export { makeNotebookRepo } from "./factories";
 ````
 
 ## File: modules/notebooklm/subdomains/notebook/application/dto/notebook.dto.ts
@@ -44087,6 +41948,173 @@ export type { IArticleRepository as IArticlePort } from "../repositories/IArticl
 export type { ICategoryRepository as ICategoryPort } from "../repositories/ICategoryRepository";
 ````
 
+## File: modules/notion/subdomains/authoring/infrastructure/firebase/FirebaseArticleRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/authoring
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/kbArticles/{articleId}
+ * Note: Preserves same collection path as previous knowledge-base module for data continuity.
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../../domain/aggregates/Article";
+import type { IArticleRepository } from "../../domain/repositories/IArticleRepository";
+
+function articlesPath(accountId: string): string {
+  return `accounts/${accountId}/kbArticles`;
+}
+
+function articlePath(accountId: string, articleId: string): string {
+  return `accounts/${accountId}/kbArticles/${articleId}`;
+}
+
+function toSnapshot(id: string, data: Record<string, unknown>): ArticleSnapshot {
+  return {
+    id,
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    categoryId: typeof data.categoryId === "string" ? data.categoryId : null,
+    title: typeof data.title === "string" ? data.title : "",
+    content: typeof data.content === "string" ? data.content : "",
+    tags: Array.isArray(data.tags)
+      ? (data.tags as unknown[]).filter((t): t is string => typeof t === "string")
+      : [],
+    status: (data.status as ArticleStatus) ?? "draft",
+    version: typeof data.version === "number" ? data.version : 1,
+    verificationState: (data.verificationState as ArticleVerificationState) ?? "unverified",
+    ownerId: typeof data.ownerId === "string" ? data.ownerId : null,
+    verifiedByUserId: typeof data.verifiedByUserId === "string" ? data.verifiedByUserId : null,
+    verifiedAtISO: typeof data.verifiedAtISO === "string" ? data.verifiedAtISO : null,
+    verificationExpiresAtISO:
+      typeof data.verificationExpiresAtISO === "string" ? data.verificationExpiresAtISO : null,
+    linkedArticleIds: Array.isArray(data.linkedArticleIds)
+      ? (data.linkedArticleIds as unknown[]).filter((l): l is string => typeof l === "string")
+      : [],
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseArticleRepository implements IArticleRepository {
+  async getById(accountId: string, articleId: string): Promise<ArticleSnapshot | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      articlePath(accountId, articleId),
+    );
+    if (!data) return null;
+    return toSnapshot(articleId, data);
+  }
+
+  async list(params: {
+    accountId: string;
+    workspaceId: string;
+    categoryId?: string;
+    status?: ArticleStatus;
+    limit?: number;
+  }): Promise<ArticleSnapshot[]> {
+    const where = [
+      { field: "workspaceId", op: "==", value: params.workspaceId } as const,
+      ...(params.categoryId ? [{ field: "categoryId", op: "==", value: params.categoryId } as const] : []),
+      ...(params.status ? [{ field: "status", op: "==", value: params.status } as const] : []),
+    ];
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      articlesPath(params.accountId),
+      where,
+      { orderBy: [{ field: "updatedAtISO", direction: "desc" }] },
+    );
+    const limited = typeof params.limit === "number" && params.limit > 0 ? docs.slice(0, params.limit) : docs;
+    return limited.map((d) => toSnapshot(d.id, d.data));
+  }
+
+  async listByLinkedArticleId(accountId: string, articleId: string): Promise<ArticleSnapshot[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      articlesPath(accountId),
+      [{ field: "linkedArticleIds", op: "array-contains", value: articleId }],
+    );
+    return docs.map((d) => toSnapshot(d.id, d.data));
+  }
+
+  async save(snapshot: ArticleSnapshot): Promise<void> {
+    const { id, accountId, ...rest } = snapshot;
+    await firestoreInfrastructureApi.set(articlePath(accountId, id), { ...rest, accountId, id });
+  }
+
+  async delete(accountId: string, articleId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(articlePath(accountId, articleId));
+  }
+}
+````
+
+## File: modules/notion/subdomains/authoring/infrastructure/firebase/FirebaseCategoryRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/authoring
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/kbCategories/{categoryId}
+ * Note: Preserves same collection path as previous knowledge-base module for data continuity.
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import type { CategorySnapshot } from "../../domain/aggregates/Category";
+import type { ICategoryRepository } from "../../domain/repositories/ICategoryRepository";
+
+function categoriesPath(accountId: string): string {
+  return `accounts/${accountId}/kbCategories`;
+}
+
+function categoryPath(accountId: string, categoryId: string): string {
+  return `accounts/${accountId}/kbCategories/${categoryId}`;
+}
+
+function toSnapshot(id: string, data: Record<string, unknown>): CategorySnapshot {
+  return {
+    id,
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    name: typeof data.name === "string" ? data.name : "",
+    slug: typeof data.slug === "string" ? data.slug : "",
+    parentCategoryId: typeof data.parentCategoryId === "string" ? data.parentCategoryId : null,
+    depth: typeof data.depth === "number" ? data.depth : 0,
+    articleIds: Array.isArray(data.articleIds)
+      ? (data.articleIds as unknown[]).filter((a): a is string => typeof a === "string")
+      : [],
+    description: typeof data.description === "string" ? data.description : null,
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseCategoryRepository implements ICategoryRepository {
+  async getById(accountId: string, categoryId: string): Promise<CategorySnapshot | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      categoryPath(accountId, categoryId),
+    );
+    if (!data) return null;
+    return toSnapshot(categoryId, data);
+  }
+
+  async listByWorkspace(accountId: string, workspaceId: string): Promise<CategorySnapshot[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      categoriesPath(accountId),
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+      { orderBy: [{ field: "depth", direction: "asc" }, { field: "name", direction: "asc" }] },
+    );
+    return docs.map((d) => toSnapshot(d.id, d.data));
+  }
+
+  async save(snapshot: CategorySnapshot): Promise<void> {
+    const { id, accountId, ...rest } = snapshot;
+    await firestoreInfrastructureApi.set(categoryPath(accountId, id), { ...rest, accountId, id });
+  }
+
+  async delete(accountId: string, categoryId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(categoryPath(accountId, categoryId));
+  }
+}
+````
+
 ## File: modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx
 ````typescript
 "use client";
@@ -44805,6 +42833,310 @@ export type { IPermissionRepository as IPermissionPort } from "../repositories/I
 export type { IVersionRepository as IVersionPort } from "../repositories/IVersionRepository";
 ````
 
+## File: modules/notion/subdomains/collaboration/infrastructure/firebase/FirebaseCommentRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/collaboration
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/collaborationComments/{commentId}
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { CommentSnapshot, SelectionRange } from "../../domain/aggregates/Comment";
+import type {
+  ICommentRepository,
+  CommentUnsubscribe,
+  CreateCommentInput,
+  UpdateCommentInput,
+  ResolveCommentInput,
+} from "../../domain/repositories/ICommentRepository";
+
+function commentsPath(accountId: string): string {
+  return `accounts/${accountId}/collaborationComments`;
+}
+
+function commentPath(accountId: string, id: string): string {
+  return `accounts/${accountId}/collaborationComments/${id}`;
+}
+
+function toComment(id: string, data: Record<string, unknown>): CommentSnapshot {
+  return {
+    id,
+    contentId: typeof data.contentId === "string" ? data.contentId : "",
+    contentType: data.contentType === "article" ? "article" : "page",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    authorId: typeof data.authorId === "string" ? data.authorId : "",
+    body: typeof data.body === "string" ? data.body : "",
+    parentCommentId: typeof data.parentCommentId === "string" ? data.parentCommentId : null,
+    blockId: typeof data.blockId === "string" ? data.blockId : null,
+    selectionRange: (
+      data.selectionRange !== null &&
+      typeof data.selectionRange === "object" &&
+      typeof (data.selectionRange as Record<string, unknown>).from === "number" &&
+      typeof (data.selectionRange as Record<string, unknown>).to === "number"
+    )
+      ? {
+          from: (data.selectionRange as Record<string, unknown>).from as number,
+          to: (data.selectionRange as Record<string, unknown>).to as number,
+        } as SelectionRange
+      : null,
+    resolvedAt: typeof data.resolvedAt === "string" ? data.resolvedAt : null,
+    resolvedByUserId: typeof data.resolvedByUserId === "string" ? data.resolvedByUserId : null,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseCommentRepository implements ICommentRepository {
+  async create(input: CreateCommentInput): Promise<CommentSnapshot> {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      contentId: input.contentId,
+      contentType: input.contentType,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      authorId: input.authorId,
+      body: input.body,
+      parentCommentId: input.parentCommentId ?? null,
+      blockId: input.blockId ?? null,
+      selectionRange: input.selectionRange ?? null,
+      resolvedAt: null,
+      resolvedByUserId: null,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await firestoreInfrastructureApi.set(commentPath(input.accountId, id), data);
+    return toComment(id, data);
+  }
+
+  async update(input: UpdateCommentInput): Promise<CommentSnapshot | null> {
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      commentPath(input.accountId, input.id),
+    );
+    if (!existing) return null;
+    const now = new Date().toISOString();
+    await firestoreInfrastructureApi.update(commentPath(input.accountId, input.id), {
+      body: input.body,
+      updatedAtISO: now,
+    });
+    return toComment(input.id, { ...existing, body: input.body, updatedAtISO: now });
+  }
+
+  async resolve(input: ResolveCommentInput): Promise<CommentSnapshot | null> {
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      commentPath(input.accountId, input.id),
+    );
+    if (!existing) return null;
+    const now = new Date().toISOString();
+    await firestoreInfrastructureApi.update(commentPath(input.accountId, input.id), {
+      resolvedAt: now,
+      resolvedByUserId: input.resolvedByUserId,
+    });
+    return toComment(input.id, { ...existing, resolvedAt: now, resolvedByUserId: input.resolvedByUserId });
+  }
+
+  async delete(accountId: string, commentId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(commentPath(accountId, commentId));
+  }
+
+  async findById(accountId: string, commentId: string): Promise<CommentSnapshot | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      commentPath(accountId, commentId),
+    );
+    if (!data) return null;
+    return toComment(commentId, data);
+  }
+
+  async listByContent(accountId: string, contentId: string): Promise<CommentSnapshot[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      commentsPath(accountId),
+      [{ field: "contentId", op: "==", value: contentId }],
+      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
+    );
+    return docs.map((d) => toComment(d.id, d.data));
+  }
+
+  subscribe(accountId: string, contentId: string, onUpdate: (comments: CommentSnapshot[]) => void): CommentUnsubscribe {
+    return firestoreInfrastructureApi.watchCollection<Record<string, unknown>>(
+      commentsPath(accountId),
+      {
+        onNext: (documents) => {
+          const mapped = documents
+            .map((d) => toComment(d.id, d.data))
+            .sort((a, b) => a.createdAtISO.localeCompare(b.createdAtISO));
+          onUpdate(mapped);
+        },
+      },
+      [{ field: "contentId", op: "==", value: contentId }],
+    );
+  }
+
+  
+}
+````
+
+## File: modules/notion/subdomains/collaboration/infrastructure/firebase/FirebasePermissionRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/collaboration
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/collaborationPermissions/{id}
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { PermissionSnapshot, PermissionLevel, PrincipalType } from "../../domain/aggregates/Permission";
+import type { IPermissionRepository, GrantPermissionInput } from "../../domain/repositories/IPermissionRepository";
+
+function permissionsPath(accountId: string): string {
+  return `accounts/${accountId}/collaborationPermissions`;
+}
+
+function permissionPath(accountId: string, id: string): string {
+  return `accounts/${accountId}/collaborationPermissions/${id}`;
+}
+
+function toPermission(id: string, data: Record<string, unknown>): PermissionSnapshot {
+  return {
+    id,
+    subjectId: typeof data.subjectId === "string" ? data.subjectId : "",
+    subjectType: (data.subjectType as PermissionSnapshot["subjectType"]) ?? "page",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    principalId: typeof data.principalId === "string" ? data.principalId : "",
+    principalType: (data.principalType as PrincipalType) ?? "user",
+    level: (data.level as PermissionLevel) ?? "view",
+    grantedByUserId: typeof data.grantedByUserId === "string" ? data.grantedByUserId : "",
+    grantedAtISO: typeof data.grantedAtISO === "string" ? data.grantedAtISO : "",
+    expiresAtISO: typeof data.expiresAtISO === "string" ? data.expiresAtISO : null,
+    linkToken: typeof data.linkToken === "string" ? data.linkToken : null,
+  };
+}
+
+export class FirebasePermissionRepository implements IPermissionRepository {
+  async grant(input: GrantPermissionInput): Promise<PermissionSnapshot> {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      subjectId: input.subjectId,
+      subjectType: input.subjectType,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      principalId: input.principalId,
+      principalType: input.principalType,
+      level: input.level,
+      grantedByUserId: input.grantedByUserId,
+      grantedAtISO: now,
+      expiresAtISO: input.expiresAtISO ?? null,
+      linkToken: input.linkToken ?? null,
+    };
+    await firestoreInfrastructureApi.set(permissionPath(input.accountId, id), data);
+    return toPermission(id, data);
+  }
+
+  async revoke(accountId: string, permissionId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(permissionPath(accountId, permissionId));
+  }
+
+  async findById(accountId: string, permissionId: string): Promise<PermissionSnapshot | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      permissionPath(accountId, permissionId),
+    );
+    if (!data) return null;
+    return toPermission(permissionId, data);
+  }
+
+  async listBySubject(accountId: string, subjectId: string): Promise<PermissionSnapshot[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      permissionsPath(accountId),
+      [{ field: "subjectId", op: "==", value: subjectId }],
+    );
+    return docs.map((d) => toPermission(d.id, d.data));
+  }
+}
+````
+
+## File: modules/notion/subdomains/collaboration/infrastructure/firebase/FirebaseVersionRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/collaboration
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/collaborationVersions/{versionId}
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { VersionSnapshot } from "../../domain/aggregates/Version";
+import type { IVersionRepository, CreateVersionInput } from "../../domain/repositories/IVersionRepository";
+
+function versionsPath(accountId: string): string {
+  return `accounts/${accountId}/collaborationVersions`;
+}
+
+function versionPath(accountId: string, id: string): string {
+  return `accounts/${accountId}/collaborationVersions/${id}`;
+}
+
+function toVersion(id: string, data: Record<string, unknown>): VersionSnapshot {
+  return {
+    id,
+    contentId: typeof data.contentId === "string" ? data.contentId : "",
+    contentType: data.contentType === "article" ? "article" : "page",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    snapshotBlocks: Array.isArray(data.snapshotBlocks) ? data.snapshotBlocks : [],
+    label: typeof data.label === "string" ? data.label : null,
+    description: typeof data.description === "string" ? data.description : null,
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+  };
+}
+
+export class FirebaseVersionRepository implements IVersionRepository {
+  async create(input: CreateVersionInput): Promise<VersionSnapshot> {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      contentId: input.contentId,
+      contentType: input.contentType,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      snapshotBlocks: input.snapshotBlocks,
+      label: input.label ?? null,
+      description: input.description ?? null,
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+    };
+    await firestoreInfrastructureApi.set(versionPath(input.accountId, id), data);
+    return toVersion(id, data);
+  }
+
+  async findById(accountId: string, versionId: string): Promise<VersionSnapshot | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      versionPath(accountId, versionId),
+    );
+    if (!data) return null;
+    return toVersion(versionId, data);
+  }
+
+  async listByContent(accountId: string, contentId: string): Promise<VersionSnapshot[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      versionsPath(accountId),
+      [{ field: "contentId", op: "==", value: contentId }],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }] },
+    );
+    return docs.map((d) => toVersion(d.id, d.data));
+  }
+
+  async delete(accountId: string, versionId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(versionPath(accountId, versionId));
+  }
+}
+````
+
 ## File: modules/notion/subdomains/collaboration/interfaces/components/CommentPanel.tsx
 ````typescript
 "use client";
@@ -45197,6 +43529,480 @@ export type { IAutomationRepository as IAutomationPort } from "../repositories/I
 export type { IDatabaseRecordRepository as IDatabaseRecordPort } from "../repositories/IDatabaseRecordRepository";
 export type { IDatabaseRepository as IDatabasePort } from "../repositories/IDatabaseRepository";
 export type { IViewRepository as IViewPort } from "../repositories/IViewRepository";
+````
+
+## File: modules/notion/subdomains/database/infrastructure/firebase/FirebaseAutomationRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/knowledgeDatabases/{databaseId}/automations/{automationId}
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+
+import type {
+  DatabaseAutomationSnapshot,
+  AutomationCondition,
+  AutomationAction,
+} from "../../domain/aggregates/DatabaseAutomation";
+import type { IAutomationRepository, CreateAutomationInput, UpdateAutomationInput } from "../../domain/repositories/IAutomationRepository";
+
+function automationsPath(accountId: string, databaseId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/automations`;
+}
+
+function automationPath(accountId: string, databaseId: string, automationId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/automations/${automationId}`;
+}
+
+function toCondition(c: Record<string, unknown>): AutomationCondition {
+  return {
+    fieldId: typeof c.fieldId === "string" ? c.fieldId : "",
+    operator: (c.operator as AutomationCondition["operator"]) ?? "equals",
+    value: typeof c.value === "string" ? c.value : undefined,
+  };
+}
+
+function toAction(a: Record<string, unknown>): AutomationAction {
+  return {
+    type: (a.type as AutomationAction["type"]) ?? "send_notification",
+    config: typeof a.config === "object" && a.config !== null ? (a.config as Record<string, string>) : {},
+  };
+}
+
+function toAutomation(id: string, data: Record<string, unknown>): DatabaseAutomationSnapshot {
+  return {
+    id,
+    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    name: typeof data.name === "string" ? data.name : "",
+    enabled: data.enabled !== false,
+    trigger: (data.trigger as DatabaseAutomationSnapshot["trigger"]) ?? "record_created",
+    triggerFieldId: typeof data.triggerFieldId === "string" ? data.triggerFieldId : undefined,
+    conditions: Array.isArray(data.conditions) ? (data.conditions as Record<string, unknown>[]).map(toCondition) : [],
+    actions: Array.isArray(data.actions) ? (data.actions as Record<string, unknown>[]).map(toAction) : [],
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : new Date().toISOString(),
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : new Date().toISOString(),
+  };
+}
+
+export class FirebaseAutomationRepository implements IAutomationRepository {
+  async create(input: CreateAutomationInput): Promise<DatabaseAutomationSnapshot> {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const payload = {
+      databaseId: input.databaseId,
+      accountId: input.accountId,
+      name: input.name,
+      enabled: true,
+      trigger: input.trigger,
+      triggerFieldId: input.triggerFieldId ?? null,
+      conditions: input.conditions ?? [],
+      actions: input.actions ?? [],
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await firestoreInfrastructureApi.set(automationPath(input.accountId, input.databaseId, id), payload);
+    return toAutomation(id, payload);
+  }
+
+  async update(input: UpdateAutomationInput): Promise<DatabaseAutomationSnapshot | null> {
+    const { id, accountId, databaseId, ...fields } = input;
+    const path = automationPath(accountId, databaseId, id);
+    const updates: Record<string, unknown> = { ...fields, updatedAtISO: new Date().toISOString() };
+    await firestoreInfrastructureApi.update(path, updates);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+    return toAutomation(id, snap);
+  }
+
+  async delete(id: string, accountId: string, databaseId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(automationPath(accountId, databaseId, id));
+  }
+
+  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAutomationSnapshot[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      automationsPath(accountId, databaseId),
+      [{ field: "databaseId", op: "==", value: databaseId }],
+      { orderBy: [{ field: "createdAtISO", direction: "asc" }] },
+    );
+    return docs.map((d) => toAutomation(d.id, d.data));
+  }
+}
+````
+
+## File: modules/notion/subdomains/database/infrastructure/firebase/FirebaseDatabaseRecordRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: infrastructure/firebase
+ * Purpose: Firestore implementation of IDatabaseRecordRepository.
+ *          Firestore path: accounts/{accountId}/knowledgeDatabases/{databaseId}/records/{recordId}
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { IDatabaseRecordRepository, CreateRecordInput, UpdateRecordInput } from "../../domain/repositories/IDatabaseRecordRepository";
+import type { DatabaseRecordSnapshot } from "../../domain/aggregates/DatabaseRecord";
+
+function recordsPath(accountId: string, databaseId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/records`;
+}
+
+function recordPath(accountId: string, databaseId: string, recordId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/records/${recordId}`;
+}
+
+function toISO(ts: unknown): string {
+  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as { toDate: () => Date }).toDate === "function") {
+    return (ts as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof ts === "string") return ts;
+  return new Date().toISOString();
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toSnapshot(id: string, data: Record<string, any>): DatabaseRecordSnapshot {
+  return {
+    id,
+    databaseId: data.databaseId ?? "",
+    workspaceId: data.workspaceId ?? "",
+    accountId: data.accountId ?? "",
+    pageId: data.pageId ?? null,
+    properties: typeof data.properties === "object" && data.properties !== null ? data.properties : {},
+    order: typeof data.order === "number" ? data.order : 0,
+    createdByUserId: data.createdByUserId ?? "",
+    createdAtISO: toISO(data.createdAt),
+    updatedAtISO: toISO(data.updatedAt),
+  };
+}
+
+export class FirebaseDatabaseRecordRepository implements IDatabaseRecordRepository {
+  async create(input: CreateRecordInput): Promise<DatabaseRecordSnapshot> {
+    const id = generateId();
+    const countDocs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      recordsPath(input.accountId, input.databaseId),
+    );
+    const now = new Date().toISOString();
+    const data = {
+      databaseId: input.databaseId,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      pageId: input.pageId ?? null,
+      properties: input.properties ?? {},
+      order: countDocs.length,
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await firestoreInfrastructureApi.set(recordPath(input.accountId, input.databaseId, id), data);
+    return toSnapshot(id, data);
+  }
+
+  async update(input: UpdateRecordInput): Promise<DatabaseRecordSnapshot> {
+    // We need to find which database this record belongs to. Properties are keyed by field IDs.
+    // The record stores databaseId on the document; we fetch it via a collection-group query approach.
+    // For simplicity, the input should come from a context where databaseId is available.
+    // Here we use a direct path by reading the doc first from a stored databaseId lookup.
+    // Since the record doc lives in accounts/{accountId}/knowledgeDatabases/{databaseId}/records/{id},
+    // and we only have id+accountId, we do collection group query.
+    const { id, accountId, properties } = input;
+    const docs = await firestoreInfrastructureApi.queryCollectionGroup<Record<string, unknown>>(
+      "records",
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    const target = docs.find((d) => d.id === id);
+    if (!target) throw new Error(`Record ${id} not found`);
+    await firestoreInfrastructureApi.update(target.path, { properties, updatedAtISO: new Date().toISOString() });
+    const refreshed = await firestoreInfrastructureApi.get<Record<string, unknown>>(target.path);
+    if (!refreshed) {
+      throw new Error(`Record ${id} not found after update`);
+    }
+    return toSnapshot(id, refreshed);
+  }
+
+  async delete(id: string, accountId: string): Promise<void> {
+    const docs = await firestoreInfrastructureApi.queryCollectionGroup<Record<string, unknown>>(
+      "records",
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    const target = docs.find((d) => d.id === id);
+    if (target) {
+      await firestoreInfrastructureApi.delete(target.path);
+    }
+  }
+
+  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecordSnapshot[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      recordsPath(accountId, databaseId),
+    );
+    return docs.map((d) => toSnapshot(d.id, d.data));
+  }
+}
+````
+
+## File: modules/notion/subdomains/database/infrastructure/firebase/FirebaseDatabaseRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: infrastructure/firebase
+ * Purpose: Firestore implementation of IDatabaseRepository.
+ *          Firestore path: accounts/{accountId}/knowledgeDatabases/{databaseId}
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { generateId } from "@shared-utils";
+import type { IDatabaseRepository, CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../../domain/repositories/IDatabaseRepository";
+import type { DatabaseSnapshot, Field } from "../../domain/aggregates/Database";
+
+function databasesPath(accountId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases`;
+}
+
+function databasePath(accountId: string, id: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${id}`;
+}
+
+function toISO(ts: unknown): string {
+  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as { toDate: () => Date }).toDate === "function") {
+    return (ts as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof ts === "string") return ts;
+  return new Date().toISOString();
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toSnapshot(id: string, data: Record<string, any>): DatabaseSnapshot {
+  return {
+    id,
+    workspaceId: data.workspaceId ?? "",
+    accountId: data.accountId ?? "",
+    name: data.name ?? "",
+    description: data.description ?? null,
+    fields: Array.isArray(data.fields) ? data.fields : [],
+    viewIds: Array.isArray(data.viewIds) ? data.viewIds : [],
+    icon: data.icon ?? null,
+    coverImageUrl: data.coverImageUrl ?? null,
+    createdByUserId: data.createdByUserId ?? "",
+    createdAtISO: toISO(data.createdAt),
+    updatedAtISO: toISO(data.updatedAt),
+  };
+}
+
+export class FirebaseDatabaseRepository implements IDatabaseRepository {
+  async create(input: CreateDatabaseInput): Promise<DatabaseSnapshot> {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      name: input.name,
+      description: input.description ?? null,
+      fields: [],
+      viewIds: [],
+      icon: null,
+      coverImageUrl: null,
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await firestoreInfrastructureApi.set(databasePath(input.accountId, id), data);
+    return toSnapshot(id, data);
+  }
+
+  async update(input: UpdateDatabaseInput): Promise<DatabaseSnapshot> {
+    const path = databasePath(input.accountId, input.id);
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!existing) {
+      throw new Error(`Database ${input.id} not found`);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const changes: Record<string, any> = { updatedAtISO: new Date().toISOString() };
+    if (input.name !== undefined) changes.name = input.name;
+    if (input.description !== undefined) changes.description = input.description;
+    if (input.icon !== undefined) changes.icon = input.icon;
+    if (input.coverImageUrl !== undefined) changes.coverImageUrl = input.coverImageUrl;
+    await firestoreInfrastructureApi.update(path, changes);
+    return toSnapshot(input.id, { ...existing, ...changes });
+  }
+
+  async addField(input: AddFieldInput): Promise<Field> {
+    const path = databasePath(input.accountId, input.databaseId);
+    const data = (await firestoreInfrastructureApi.get<Record<string, unknown>>(path)) ?? {};
+    const fields: Field[] = Array.isArray(data.fields) ? [...data.fields] : [];
+    const newField: Field = {
+      id: generateId(),
+      name: input.name,
+      type: input.type,
+      config: input.config ?? {},
+      required: input.required ?? false,
+      order: fields.length,
+    };
+    fields.push(newField);
+    await firestoreInfrastructureApi.update(path, { fields, updatedAtISO: new Date().toISOString() });
+    return newField;
+  }
+
+  async archive(id: string, accountId: string): Promise<void> {
+    const now = new Date().toISOString();
+    await firestoreInfrastructureApi.update(databasePath(accountId, id), {
+      archived: true,
+      archivedAtISO: now,
+      updatedAtISO: now,
+    });
+  }
+
+  async findById(id: string, accountId: string): Promise<DatabaseSnapshot | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(databasePath(accountId, id));
+    if (!data) return null;
+    return toSnapshot(id, data);
+  }
+
+  async listByWorkspace(accountId: string, workspaceId: string): Promise<DatabaseSnapshot[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      databasesPath(accountId),
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+    return docs
+      .filter((d) => d.data.archived !== true)
+      .map((d) => toSnapshot(d.id, d.data));
+  }
+}
+````
+
+## File: modules/notion/subdomains/database/infrastructure/firebase/FirebaseViewRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/database
+ * Layer: infrastructure/firebase
+ * Purpose: Firestore implementation of IViewRepository.
+ *          Firestore path: accounts/{accountId}/knowledgeDatabases/{databaseId}/views/{viewId}
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { IViewRepository, CreateViewInput, UpdateViewInput } from "../../domain/repositories/IViewRepository";
+import type { ViewSnapshot } from "../../domain/aggregates/View";
+
+function viewsPath(accountId: string, databaseId: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/views`;
+}
+
+function viewPath(accountId: string, databaseId: string, id: string): string {
+  return `accounts/${accountId}/knowledgeDatabases/${databaseId}/views/${id}`;
+}
+
+function toISO(ts: unknown): string {
+  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as { toDate: () => Date }).toDate === "function") {
+    return (ts as { toDate: () => Date }).toDate().toISOString();
+  }
+  if (typeof ts === "string") return ts;
+  return new Date().toISOString();
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toSnapshot(id: string, data: Record<string, any>): ViewSnapshot {
+  return {
+    id,
+    databaseId: data.databaseId ?? "",
+    workspaceId: data.workspaceId ?? "",
+    accountId: data.accountId ?? "",
+    name: data.name ?? "",
+    type: data.type ?? "table",
+    filters: Array.isArray(data.filters) ? data.filters : [],
+    sorts: Array.isArray(data.sorts) ? data.sorts : [],
+    groupBy: data.groupBy ?? null,
+    visibleFieldIds: Array.isArray(data.visibleFieldIds) ? data.visibleFieldIds : [],
+    hiddenFieldIds: Array.isArray(data.hiddenFieldIds) ? data.hiddenFieldIds : [],
+    boardGroupFieldId: data.boardGroupFieldId ?? null,
+    calendarDateFieldId: data.calendarDateFieldId ?? null,
+    timelineStartFieldId: data.timelineStartFieldId ?? null,
+    timelineEndFieldId: data.timelineEndFieldId ?? null,
+    createdByUserId: data.createdByUserId ?? "",
+    createdAtISO: toISO(data.createdAt),
+    updatedAtISO: toISO(data.updatedAt),
+  };
+}
+
+export class FirebaseViewRepository implements IViewRepository {
+  async create(input: CreateViewInput): Promise<ViewSnapshot> {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      databaseId: input.databaseId,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      name: input.name,
+      type: input.type,
+      filters: [],
+      sorts: [],
+      groupBy: null,
+      visibleFieldIds: [],
+      hiddenFieldIds: [],
+      boardGroupFieldId: null,
+      calendarDateFieldId: null,
+      timelineStartFieldId: null,
+      timelineEndFieldId: null,
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await firestoreInfrastructureApi.set(viewPath(input.accountId, input.databaseId, id), data);
+    return toSnapshot(id, data);
+  }
+
+  async update(input: UpdateViewInput): Promise<ViewSnapshot> {
+    const docs = await firestoreInfrastructureApi.queryCollectionGroup<Record<string, unknown>>(
+      "views",
+      [{ field: "accountId", op: "==", value: input.accountId }],
+    );
+    const target = docs.find((d) => d.id === input.id);
+    if (!target) {
+      throw new Error(`View ${input.id} not found`);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const changes: Record<string, any> = { updatedAtISO: new Date().toISOString() };
+    if (input.name !== undefined) changes.name = input.name;
+    if (input.filters !== undefined) changes.filters = input.filters;
+    if (input.sorts !== undefined) changes.sorts = input.sorts;
+    if (input.visibleFieldIds !== undefined) changes.visibleFieldIds = input.visibleFieldIds;
+    if (input.hiddenFieldIds !== undefined) changes.hiddenFieldIds = input.hiddenFieldIds;
+    await firestoreInfrastructureApi.update(target.path, changes);
+    const refreshed = await firestoreInfrastructureApi.get<Record<string, unknown>>(target.path);
+    if (!refreshed) {
+      throw new Error(`View ${input.id} not found after update`);
+    }
+    return toSnapshot(input.id, refreshed);
+  }
+
+  async delete(id: string, accountId: string): Promise<void> {
+    const docs = await firestoreInfrastructureApi.queryCollectionGroup<Record<string, unknown>>(
+      "views",
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    const target = docs.find((d) => d.id === id);
+    if (target) {
+      await firestoreInfrastructureApi.delete(target.path);
+    }
+  }
+
+  async listByDatabase(accountId: string, databaseId: string): Promise<ViewSnapshot[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      viewsPath(accountId, databaseId),
+    );
+    return docs.map((d) => toSnapshot(d.id, d.data));
+  }
+}
 ````
 
 ## File: modules/notion/subdomains/database/interfaces/_actions/database.actions.ts
@@ -47754,6 +46560,438 @@ export type { IBacklinkIndexRepository as IBacklinkIndexPort } from "../reposito
 export type { IContentBlockRepository as IContentBlockPort } from "../repositories/IContentBlockRepository";
 export type { IKnowledgeCollectionRepository as IKnowledgeCollectionPort } from "../repositories/IKnowledgeCollectionRepository";
 export type { IKnowledgePageRepository as IKnowledgePagePort } from "../repositories/IKnowledgePageRepository";
+````
+
+## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseBacklinkIndexRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing IBacklinkIndexRepository.
+ * Firestore paths:
+ *   accounts/{accountId}/backlinkIndex/{targetPageId}
+ *   accounts/{accountId}/backlinkOutbound/{sourcePageId}
+ */
+
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import type { IBacklinkIndexRepository, UpsertBacklinkEntriesInput, RemoveBacklinksFromSourceInput } from "../../domain/repositories/IBacklinkIndexRepository";
+import { BacklinkIndex } from "../../domain/aggregates/BacklinkIndex";
+import type { BacklinkEntry, BacklinkIndexSnapshot } from "../../domain/aggregates/BacklinkIndex";
+
+function backlinkIndexPath(accountId: string, targetPageId: string): string {
+  return `accounts/${accountId}/backlinkIndex/${targetPageId}`;
+}
+
+function backlinkOutboundPath(accountId: string, sourcePageId: string): string {
+  return `accounts/${accountId}/backlinkOutbound/${sourcePageId}`;
+}
+
+function toEntries(raw: unknown): BacklinkEntry[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((e): e is Record<string, unknown> => typeof e === "object" && e !== null)
+    .map((e) => ({
+      sourcePageId: typeof e.sourcePageId === "string" ? e.sourcePageId : "",
+      sourcePageTitle: typeof e.sourcePageTitle === "string" ? e.sourcePageTitle : "",
+      blockId: typeof e.blockId === "string" ? e.blockId : "",
+      lastSeenAtISO: typeof e.lastSeenAtISO === "string" ? e.lastSeenAtISO : "",
+    }));
+}
+
+export class FirebaseBacklinkIndexRepository implements IBacklinkIndexRepository {
+  async upsertFromSource(input: UpsertBacklinkEntriesInput): Promise<void> {
+    const { accountId, targetPageId, sourcePageId, entries } = input;
+    const existingIndex = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      backlinkIndexPath(accountId, targetPageId),
+    );
+    const existing = existingIndex ? toEntries(existingIndex.entries) : [];
+    const nowISO = new Date().toISOString();
+    const filtered = existing.filter((e) => !entries.some((ne) => e.blockId === ne.blockId && e.sourcePageId === sourcePageId));
+    const newEntries: BacklinkEntry[] = entries.map((e) => ({ sourcePageId, sourcePageTitle: (e as BacklinkEntry).sourcePageTitle ?? "", blockId: e.blockId, lastSeenAtISO: nowISO }));
+    const merged = [...filtered, ...newEntries];
+
+    const existingOut = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      backlinkOutboundPath(accountId, sourcePageId),
+    );
+    const currentTargetIds = Array.isArray(existingOut?.targetPageIds)
+      ? existingOut.targetPageIds.filter((item): item is string => typeof item === "string")
+      : [];
+
+    const nextTargetIds = Array.from(new Set([...currentTargetIds, targetPageId]));
+
+    await firestoreInfrastructureApi.setMany([
+      {
+        path: backlinkIndexPath(accountId, targetPageId),
+        data: { targetPageId, accountId, entries: merged, updatedAtISO: nowISO },
+      },
+      {
+        path: backlinkOutboundPath(accountId, sourcePageId),
+        data: { sourcePageId, accountId, targetPageIds: nextTargetIds, updatedAtISO: nowISO },
+      },
+    ]);
+  }
+
+  async removeFromSource(input: RemoveBacklinksFromSourceInput): Promise<void> {
+    const { accountId, sourcePageId } = input;
+    const outbound = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      backlinkOutboundPath(accountId, sourcePageId),
+    );
+    const targetPageIds = Array.isArray(outbound?.targetPageIds)
+      ? outbound.targetPageIds.filter((item): item is string => typeof item === "string")
+      : [];
+
+    const nowISO = new Date().toISOString();
+
+    const writes: { path: string; data: Record<string, unknown> }[] = [];
+    for (const targetPageId of targetPageIds) {
+      const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+        backlinkIndexPath(accountId, targetPageId),
+      );
+      if (!existing) continue;
+      const entries = toEntries(existing.entries).filter((e) => e.sourcePageId !== sourcePageId);
+      writes.push({
+        path: backlinkIndexPath(accountId, targetPageId),
+        data: {
+          targetPageId,
+          accountId,
+          entries,
+          updatedAtISO: nowISO,
+        },
+      });
+    }
+    writes.push({
+      path: backlinkOutboundPath(accountId, sourcePageId),
+      data: { sourcePageId, accountId, targetPageIds: [], updatedAtISO: nowISO },
+    });
+    await firestoreInfrastructureApi.setMany(writes);
+  }
+
+  async findByTargetPage(accountId: string, targetPageId: string): Promise<BacklinkIndex | null> {
+    const d = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      backlinkIndexPath(accountId, targetPageId),
+    );
+    if (!d) return null;
+    const snapshot: BacklinkIndexSnapshot = {
+      targetPageId,
+      accountId,
+      entries: toEntries(d.entries),
+      updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
+    };
+    return BacklinkIndex.reconstitute(snapshot);
+  }
+
+  async listOutboundTargets(accountId: string, sourcePageId: string): Promise<ReadonlyArray<string>> {
+    const d = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      backlinkOutboundPath(accountId, sourcePageId),
+    );
+    if (!d) return [];
+    return Array.isArray(d.targetPageIds) ? (d.targetPageIds as string[]) : [];
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseContentBlockRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing IContentBlockRepository.
+ * Firestore path: accounts/{accountId}/contentBlocks/{blockId}
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as _generateId } from "@lib-uuid";
+import { ContentBlock } from "../../domain/aggregates/ContentBlock";
+import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
+import type { IContentBlockRepository } from "../../domain/repositories/IContentBlockRepository";
+import type { BlockContent } from "../../domain/value-objects/BlockContent";
+import { BLOCK_TYPES } from "../../domain/value-objects/BlockContent";
+
+const VALID_TYPES = new Set<string>(BLOCK_TYPES);
+
+function blocksPath(accountId: string): string {
+  return `accounts/${accountId}/contentBlocks`;
+}
+
+function blockPath(accountId: string, blockId: string): string {
+  return `accounts/${accountId}/contentBlocks/${blockId}`;
+}
+
+function toBlockContent(raw: unknown): BlockContent {
+  if (typeof raw !== "object" || raw === null) return { type: "text", richText: [] };
+  const obj = raw as Record<string, unknown>;
+  const type = typeof obj.type === "string" && VALID_TYPES.has(obj.type) ? (obj.type as BlockContent["type"]) : "text";
+  return {
+    type,
+    richText: Array.isArray(obj.richText) ? (obj.richText as BlockContent["richText"]) : [],
+    properties: typeof obj.properties === "object" && obj.properties !== null ? (obj.properties as Record<string, unknown>) : undefined,
+  };
+}
+
+function toSnapshot(id: string, d: Record<string, unknown>): ContentBlockSnapshot {
+  return {
+    id,
+    pageId: typeof d.pageId === "string" ? d.pageId : "",
+    accountId: typeof d.accountId === "string" ? d.accountId : "",
+    content: toBlockContent(d.content),
+    order: typeof d.order === "number" ? d.order : 0,
+    parentBlockId: typeof d.parentBlockId === "string" ? d.parentBlockId : null,
+    childBlockIds: Array.isArray(d.childBlockIds) ? (d.childBlockIds as string[]) : [],
+    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
+    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
+  };
+}
+
+export class FirebaseContentBlockRepository implements IContentBlockRepository {
+  async save(block: ContentBlock): Promise<void> {
+    const snap = block.getSnapshot();
+    const path = blockPath(snap.accountId, snap.id);
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    const data: Record<string, unknown> = { ...snap };
+    if (!existing) {
+      await firestoreInfrastructureApi.set(path, data);
+    } else {
+      await firestoreInfrastructureApi.update(path, data);
+    }
+  }
+
+  async findById(accountId: string, blockId: string): Promise<ContentBlock | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      blockPath(accountId, blockId),
+    );
+    if (!data) return null;
+    return ContentBlock.reconstitute(toSnapshot(blockId, data));
+  }
+
+  async listByPageId(accountId: string, pageId: string): Promise<ContentBlock[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      blocksPath(accountId),
+      [{ field: "pageId", op: "==", value: pageId }],
+    );
+    return docs.map((d) => ContentBlock.reconstitute(toSnapshot(d.id, d.data)));
+  }
+
+  async delete(accountId: string, blockId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(blockPath(accountId, blockId));
+  }
+
+  async nextOrder(accountId: string, pageId: string): Promise<number> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      blocksPath(accountId),
+      [{ field: "pageId", op: "==", value: pageId }],
+    );
+    return docs.length;
+  }
+
+  async countByPageId(accountId: string, pageId: string): Promise<number> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      blocksPath(accountId),
+      [{ field: "pageId", op: "==", value: pageId }],
+    );
+    return docs.length;
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseKnowledgeCollectionRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing IKnowledgeCollectionRepository.
+ * Firestore path: accounts/{accountId}/knowledgeCollections/{collectionId}
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { KnowledgeCollection } from "../../domain/aggregates/KnowledgeCollection";
+import type { KnowledgeCollectionSnapshot } from "../../domain/aggregates/KnowledgeCollection";
+import type { IKnowledgeCollectionRepository } from "../../domain/repositories/IKnowledgeCollectionRepository";
+
+function collectionsPath(accountId: string): string {
+  return `accounts/${accountId}/knowledgeCollections`;
+}
+
+function collectionPath(accountId: string, id: string): string {
+  return `accounts/${accountId}/knowledgeCollections/${id}`;
+}
+
+function toSnapshot(id: string, d: Record<string, unknown>): KnowledgeCollectionSnapshot {
+  return {
+    id,
+    accountId: typeof d.accountId === "string" ? d.accountId : "",
+    workspaceId: typeof d.workspaceId === "string" ? d.workspaceId : undefined,
+    name: typeof d.name === "string" ? d.name : "",
+    description: typeof d.description === "string" ? d.description : undefined,
+    columns: Array.isArray(d.columns) ? (d.columns as KnowledgeCollectionSnapshot["columns"]) : [],
+    pageIds: Array.isArray(d.pageIds) ? (d.pageIds as string[]) : [],
+    status: d.status === "archived" ? "archived" : "active",
+    spaceType: d.spaceType === "wiki" ? "wiki" : "database",
+    createdByUserId: typeof d.createdByUserId === "string" ? d.createdByUserId : "",
+    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
+    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
+  };
+}
+
+export class FirebaseKnowledgeCollectionRepository implements IKnowledgeCollectionRepository {
+  async save(coll: KnowledgeCollection): Promise<void> {
+    const snap = coll.getSnapshot();
+    const path = collectionPath(snap.accountId, snap.id);
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    const data: Record<string, unknown> = { ...snap, columns: [...snap.columns], pageIds: [...snap.pageIds] };
+    if (!existing) {
+      await firestoreInfrastructureApi.set(path, data);
+    } else {
+      await firestoreInfrastructureApi.update(path, data);
+    }
+  }
+
+  async findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(
+      collectionPath(accountId, collectionId),
+    );
+    if (!data) return null;
+    return KnowledgeCollection.reconstitute(toSnapshot(collectionId, data));
+  }
+
+  async listByAccountId(accountId: string): Promise<KnowledgeCollection[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      collectionsPath(accountId),
+    );
+    return docs.map((d) => KnowledgeCollection.reconstitute(toSnapshot(d.id, d.data)));
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      collectionsPath(accountId),
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+    return docs.map((d) => KnowledgeCollection.reconstitute(toSnapshot(d.id, d.data)));
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseKnowledgePageRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing IKnowledgePageRepository.
+ * Firestore path: accounts/{accountId}/contentPages/{pageId}
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as _generateId } from "@lib-uuid";
+import { KnowledgePage } from "../../domain/aggregates/KnowledgePage";
+import type { KnowledgePageSnapshot } from "../../domain/aggregates/KnowledgePage";
+import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+
+function pagesPath(accountId: string): string {
+  return `accounts/${accountId}/contentPages`;
+}
+
+function pagePath(accountId: string, pageId: string): string {
+  return `accounts/${accountId}/contentPages/${pageId}`;
+}
+
+function toSnapshot(id: string, d: Record<string, unknown>): KnowledgePageSnapshot {
+  return {
+    id,
+    accountId: typeof d.accountId === "string" ? d.accountId : "",
+    workspaceId: typeof d.workspaceId === "string" ? d.workspaceId : undefined,
+    title: typeof d.title === "string" ? d.title : "",
+    slug: typeof d.slug === "string" ? d.slug : "",
+    parentPageId: typeof d.parentPageId === "string" ? d.parentPageId : null,
+    order: typeof d.order === "number" ? d.order : 0,
+    blockIds: Array.isArray(d.blockIds) ? (d.blockIds as string[]) : [],
+    status: d.status === "archived" ? "archived" : "active",
+    approvalState: d.approvalState === "approved" ? "approved" : d.approvalState === "pending" ? "pending" : undefined,
+    approvedAtISO: typeof d.approvedAtISO === "string" ? d.approvedAtISO : undefined,
+    approvedByUserId: typeof d.approvedByUserId === "string" ? d.approvedByUserId : undefined,
+    verificationState: d.verificationState === "verified" ? "verified" : d.verificationState === "needs_review" ? "needs_review" : undefined,
+    ownerId: typeof d.ownerId === "string" ? d.ownerId : undefined,
+    verifiedByUserId: typeof d.verifiedByUserId === "string" ? d.verifiedByUserId : undefined,
+    verifiedAtISO: typeof d.verifiedAtISO === "string" ? d.verifiedAtISO : undefined,
+    verificationExpiresAtISO: typeof d.verificationExpiresAtISO === "string" ? d.verificationExpiresAtISO : undefined,
+    iconUrl: typeof d.iconUrl === "string" ? d.iconUrl : undefined,
+    coverUrl: typeof d.coverUrl === "string" ? d.coverUrl : undefined,
+    createdByUserId: typeof d.createdByUserId === "string" ? d.createdByUserId : "",
+    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
+    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
+  };
+}
+
+export class FirebaseKnowledgePageRepository implements IKnowledgePageRepository {
+  async save(page: KnowledgePage): Promise<void> {
+    const snap = page.getSnapshot();
+    const path = pagePath(snap.accountId, snap.id);
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    const data: Record<string, unknown> = {
+      ...snap,
+      blockIds: [...snap.blockIds],
+    };
+    if (!existing) {
+      await firestoreInfrastructureApi.set(path, data);
+    } else {
+      await firestoreInfrastructureApi.update(path, data);
+    }
+  }
+
+  async findById(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(pagePath(accountId, pageId));
+    if (!data) return null;
+    return KnowledgePage.reconstitute(toSnapshot(pageId, data));
+  }
+
+  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      pagesPath(accountId),
+      [{ field: "status", op: "==", value: "active" }],
+      { orderBy: [{ field: "order", direction: "asc" }] },
+    );
+    return docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data)));
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      pagesPath(accountId),
+      [
+        { field: "workspaceId", op: "==", value: workspaceId },
+        { field: "status", op: "==", value: "active" },
+      ],
+      { orderBy: [{ field: "order", direction: "asc" }] },
+    );
+    return docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data)));
+  }
+
+  async countByParent(accountId: string, parentPageId: string | null): Promise<number> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      pagesPath(accountId),
+      [{ field: "parentPageId", op: "==", value: parentPageId ?? null }],
+    );
+    return docs.length;
+  }
+
+  async findSnapshotById(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
+    const page = await this.findById(accountId, pageId);
+    return page ? page.getSnapshot() : null;
+  }
+
+  async listSnapshotsByAccountId(accountId: string): Promise<KnowledgePageSnapshot[]> {
+    const pages = await this.listByAccountId(accountId);
+    return pages.map((p) => p.getSnapshot());
+  }
+
+  async listSnapshotsByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
+    const pages = await this.listByWorkspaceId(accountId, workspaceId);
+    return pages.map((p) => p.getSnapshot());
+  }
+}
 ````
 
 ## File: modules/notion/subdomains/knowledge/interfaces/_actions/knowledge-block.actions.ts
@@ -52594,76 +51832,6 @@ export function unsafeUserId(raw: string): UserId {
 }
 ````
 
-## File: modules/platform/subdomains/identity/infrastructure/identity-service.ts
-````typescript
-/**
- * identity-service.ts — Adapter-layer composition root.
- *
- * Wires Firebase-backed repositories into identity use cases.
- * Lives in adapters/ because it instantiates infrastructure adapters.
- * Dependency direction: adapters/ -> application/ -> domain/ (correct, no violation).
- */
-
-import type { TokenRefreshReason } from "../domain";
-import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
-import {
-	RegisterUseCase,
-	SendPasswordResetEmailUseCase,
-	SignInAnonymouslyUseCase,
-	SignInUseCase,
-} from "../application/use-cases/identity.use-cases";
-import { FirebaseIdentityRepository } from "./firebase/FirebaseIdentityRepository";
-import { FirebaseTokenRefreshRepository } from "./firebase/FirebaseTokenRefreshRepository";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface EmitTokenRefreshSignalInput {
-	accountId: string;
-	reason: TokenRefreshReason;
-	traceId?: string;
-}
-
-// ─── Server-side token refresh signal emitter ─────────────────────────────────
-
-let _tokenRefreshRepo: FirebaseTokenRefreshRepository | undefined;
-let _emitUseCase: EmitTokenRefreshSignalUseCase | undefined;
-
-function getEmitUseCase(): EmitTokenRefreshSignalUseCase {
-	if (!_emitUseCase) {
-		if (!_tokenRefreshRepo) _tokenRefreshRepo = new FirebaseTokenRefreshRepository();
-		_emitUseCase = new EmitTokenRefreshSignalUseCase(_tokenRefreshRepo);
-	}
-	return _emitUseCase;
-}
-
-/**
- * identityApi — server-side operations for identity management.
- * Intended for use in Server Actions and server-side code paths.
- */
-export const identityApi = {
-	async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void> {
-		await getEmitUseCase().execute(input.accountId, input.reason, input.traceId);
-	},
-} as const;
-
-// ─── Client-side use-case factory ─────────────────────────────────────────────
-
-/**
- * createClientAuthUseCases — creates Firebase-wired client-side auth use cases.
- * Each call returns fresh use-case instances sharing one repository instance.
- * Use only in "use client" components or client-side hooks.
- */
-export function createClientAuthUseCases() {
-	const repo = new FirebaseIdentityRepository();
-	return {
-		signInUseCase: new SignInUseCase(repo),
-		signInAnonymouslyUseCase: new SignInAnonymouslyUseCase(repo),
-		registerUseCase: new RegisterUseCase(repo),
-		sendPasswordResetEmailUseCase: new SendPasswordResetEmailUseCase(repo),
-	};
-}
-````
-
 ## File: modules/platform/subdomains/identity/interfaces/_actions/identity.actions.ts
 ````typescript
 "use server";
@@ -52722,6 +51890,40 @@ export async function signOut(): Promise<CommandResult> {
 	} catch (err) {
 		return commandFailureFrom("SIGN_OUT_FAILED", toIdentityErrorMessage(err, "Unexpected error"));
 	}
+}
+````
+
+## File: modules/platform/subdomains/identity/interfaces/hooks/useTokenRefreshListener.tsx
+````typescript
+"use client";
+
+import { getFirebaseAuth } from "@integration-firebase";
+import { useEffect } from "react";
+import { FirebaseTokenRefreshRepository } from "../../api";
+
+let _tokenRefreshRepo: FirebaseTokenRefreshRepository | undefined;
+
+function getTokenRefreshRepo(): FirebaseTokenRefreshRepository {
+	if (!_tokenRefreshRepo) _tokenRefreshRepo = new FirebaseTokenRefreshRepository();
+	return _tokenRefreshRepo;
+}
+
+export function useTokenRefreshListener(accountId: string | null | undefined): void {
+	useEffect(() => {
+		if (!accountId) return;
+		if (!/^[\w-]+$/.test(accountId)) return;
+
+		const unsubscribe = getTokenRefreshRepo().subscribe(accountId, () => {
+			const auth = getFirebaseAuth();
+			const currentUser = auth.currentUser;
+			if (!currentUser) return;
+			void currentUser.getIdToken(true).catch(() => {
+				// Non-fatal: token refreshes naturally on next expiry cycle.
+			});
+		});
+
+		return () => unsubscribe();
+	}, [accountId]);
 }
 ````
 
@@ -52966,6 +52168,48 @@ export type NotificationId = z.infer<typeof NotificationIdSchema>;
 export function createNotificationId(raw: string): NotificationId {
   return NotificationIdSchema.parse(raw);
 }
+````
+
+## File: modules/platform/subdomains/notification/infrastructure/notification-service.ts
+````typescript
+/**
+ * NotificationService — Composition root for notification use cases.
+ */
+
+import { FirebaseNotificationRepository } from "./firebase/FirebaseNotificationRepository";
+import {
+  DispatchNotificationUseCase,
+  GetNotificationsForRecipientUseCase,
+  GetUnreadCountUseCase,
+  MarkNotificationReadUseCase,
+  MarkAllNotificationsReadUseCase,
+} from "../application/use-cases/notification.use-cases";
+import type { DispatchNotificationInput, NotificationEntity } from "../domain/entities/Notification";
+import type { CommandResult } from "@shared-types";
+
+let _notificationRepo: FirebaseNotificationRepository | undefined;
+
+function getNotifRepo(): FirebaseNotificationRepository {
+  if (!_notificationRepo) _notificationRepo = new FirebaseNotificationRepository();
+  return _notificationRepo;
+}
+
+export const notificationService = {
+  dispatch: (input: DispatchNotificationInput): Promise<CommandResult> =>
+    new DispatchNotificationUseCase(getNotifRepo()).execute(input),
+
+  markAsRead: (notificationId: string, recipientId: string): Promise<CommandResult> =>
+    new MarkNotificationReadUseCase(getNotifRepo()).execute(notificationId, recipientId),
+
+  markAllAsRead: (recipientId: string): Promise<CommandResult> =>
+    new MarkAllNotificationsReadUseCase(getNotifRepo()).execute(recipientId),
+
+  getForRecipient: (recipientId: string, maxCount?: number): Promise<NotificationEntity[]> =>
+    new GetNotificationsForRecipientUseCase(getNotifRepo()).execute(recipientId, maxCount),
+
+  getUnreadCount: (recipientId: string): Promise<number> =>
+    new GetUnreadCountUseCase(getNotifRepo()).execute(recipientId),
+};
 ````
 
 ## File: modules/platform/subdomains/organization/application/dtos/organization.dto.ts
@@ -53553,673 +52797,6 @@ export function canReactivate(status: OrganizationStatus): boolean {
 ## File: modules/platform/subdomains/organization/infrastructure/index.ts
 ````typescript
 export { organizationService, organizationQueryService } from "./organization-service";
-````
-
-## File: modules/platform/subdomains/organization/interfaces/components/MembersPage.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import { dismissMember, inviteMember } from "../_actions/organization.actions";
-import { getOrganizationMembers } from "../queries/organization.queries";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-
-type MemberRole = "Admin" | "Member" | "Guest";
-
-export interface MembersPageProps {
-  organizationId: string | null;
-}
-
-export function MembersPage({ organizationId }: MembersPageProps) {
-  const [members, setMembers] = useState<Awaited<ReturnType<typeof getOrganizationMembers>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<MemberRole>("Member");
-  const [inviteSubmitting, setInviteSubmitting] = useState(false);
-  const [inviteError, setInviteError] = useState<string | null>(null);
-
-  const [removingId, setRemovingId] = useState<string | null>(null);
-
-  async function loadMembers(orgId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getOrganizationMembers(orgId);
-      setMembers(data);
-      setLoadState("loaded");
-    } catch {
-      setMembers([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!organizationId) return;
-    const orgId: string = organizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrganizationMembers(orgId);
-        if (!cancelled) {
-          setMembers(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setMembers([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [organizationId]);
-
-  async function handleInvite() {
-    if (!organizationId || !inviteEmail.trim()) return;
-    setInviteSubmitting(true);
-    setInviteError(null);
-    const result = await inviteMember({
-      organizationId,
-      email: inviteEmail.trim(),
-      teamId: "",
-      role: inviteRole,
-      protocol: "email",
-    });
-    setInviteSubmitting(false);
-    if (result.success) {
-      setInviteOpen(false);
-      setInviteEmail("");
-      setInviteRole("Member");
-      await loadMembers(organizationId);
-    } else {
-      setInviteError(result.error.message);
-    }
-  }
-
-  async function handleDismiss(memberId: string) {
-    if (!organizationId) return;
-    setRemovingId(memberId);
-    await dismissMember(organizationId, memberId);
-    setRemovingId(null);
-    await loadMembers(organizationId);
-  }
-
-  if (!organizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">成員</h1>
-          <p className="mt-1 text-sm text-muted-foreground">組織成員清單與目前角色。</p>
-        </div>
-        <Button onClick={() => setInviteOpen(true)}>邀請成員</Button>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Members</CardTitle>
-          <CardDescription>組織成員清單與目前角色。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入成員資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取成員資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && members.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的成員資料。</p>
-          )}
-          {loadState === "loaded" &&
-            members.map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center justify-between rounded-lg border border-border/40 px-3 py-2"
-              >
-                <div>
-                  <p className="text-sm font-medium">{member.name}</p>
-                  <p className="text-xs text-muted-foreground">{member.email}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{member.role}</Badge>
-                  <Badge variant="secondary">{member.presence}</Badge>
-                  {member.role !== "Owner" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={removingId === member.id}
-                      onClick={() => handleDismiss(member.id)}
-                    >
-                      移除
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>邀請成員</DialogTitle>
-            <DialogDescription>輸入電子信箱以邀請新成員加入組織。</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="invite-email">電子信箱</Label>
-              <Input
-                id="invite-email"
-                type="email"
-                placeholder="member@example.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="invite-role">角色</Label>
-              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as MemberRole)}>
-                <SelectTrigger id="invite-role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Admin">Admin</SelectItem>
-                  <SelectItem value="Member">Member</SelectItem>
-                  <SelectItem value="Guest">Guest</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setInviteOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleInvite} disabled={inviteSubmitting || !inviteEmail.trim()}>
-              {inviteSubmitting ? "邀請中…" : "送出邀請"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-````
-
-## File: modules/platform/subdomains/organization/interfaces/components/PermissionsPage.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import { createOrgPolicy } from "../_actions/organization-policy.actions";
-import { getOrgPolicies } from "../queries/organization.queries";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-
-type PolicyScope = "workspace" | "member" | "global";
-
-export interface PermissionsPageProps {
-  organizationId: string | null;
-}
-
-export function PermissionsPage({ organizationId }: PermissionsPageProps) {
-  const [policies, setPolicies] = useState<Awaited<ReturnType<typeof getOrgPolicies>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newScope, setNewScope] = useState<PolicyScope>("member");
-  const [createSubmitting, setCreateSubmitting] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  async function loadPolicies(orgId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getOrgPolicies(orgId);
-      setPolicies(data);
-      setLoadState("loaded");
-    } catch {
-      setPolicies([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!organizationId) return;
-    const orgId: string = organizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrgPolicies(orgId);
-        if (!cancelled) {
-          setPolicies(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setPolicies([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [organizationId]);
-
-  async function handleCreate() {
-    if (!organizationId || !newName.trim()) return;
-    setCreateSubmitting(true);
-    setCreateError(null);
-    const result = await createOrgPolicy({
-      orgId: organizationId,
-      name: newName.trim(),
-      description: newDescription.trim(),
-      rules: [],
-      scope: newScope,
-    });
-    setCreateSubmitting(false);
-    if (result.success) {
-      setCreateOpen(false);
-      setNewName("");
-      setNewDescription("");
-      setNewScope("member");
-      await loadPolicies(organizationId);
-    } else {
-      setCreateError(result.error.message);
-    }
-  }
-
-  if (!organizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">權限</h1>
-          <p className="mt-1 text-sm text-muted-foreground">組織層級政策規則與 scope。</p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>新增政策</Button>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Permissions</CardTitle>
-          <CardDescription>組織層級政策規則與 scope。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入政策資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取政策資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && policies.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的政策資料。</p>
-          )}
-          {loadState === "loaded" &&
-            policies.map((policy) => (
-              <div key={policy.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium">{policy.name}</p>
-                  <Badge variant="outline">{policy.scope}</Badge>
-                  <Badge variant={policy.isActive ? "default" : "secondary"}>
-                    {policy.isActive ? "active" : "inactive"}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{policy.description}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Rules: {policy.rules.length}</p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>新增政策</DialogTitle>
-            <DialogDescription>建立組織層級存取控制政策。</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="policy-name">名稱</Label>
-              <Input
-                id="policy-name"
-                placeholder="政策名稱"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="policy-description">描述</Label>
-              <Input
-                id="policy-description"
-                placeholder="選填"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="policy-scope">Scope</Label>
-              <Select value={newScope} onValueChange={(v) => setNewScope(v as PolicyScope)}>
-                <SelectTrigger id="policy-scope">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="member">Member（成員）</SelectItem>
-                  <SelectItem value="workspace">Workspace（工作區）</SelectItem>
-                  <SelectItem value="global">Global（全域）</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {createError && <p className="text-sm text-destructive">{createError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
-              {createSubmitting ? "建立中…" : "建立"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-````
-
-## File: modules/platform/subdomains/organization/interfaces/components/TeamsPage.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import { createTeam } from "../_actions/organization.actions";
-import { getOrganizationTeams } from "../queries/organization.queries";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-
-export interface TeamsPageProps {
-  organizationId: string | null;
-}
-
-export function TeamsPage({ organizationId }: TeamsPageProps) {
-  const [teams, setTeams] = useState<Awaited<ReturnType<typeof getOrganizationTeams>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newType, setNewType] = useState<"internal" | "external">("internal");
-  const [createSubmitting, setCreateSubmitting] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  async function loadTeams(orgId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getOrganizationTeams(orgId);
-      setTeams(data);
-      setLoadState("loaded");
-    } catch {
-      setTeams([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!organizationId) return;
-    const orgId: string = organizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrganizationTeams(orgId);
-        if (!cancelled) {
-          setTeams(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setTeams([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [organizationId]);
-
-  async function handleCreate() {
-    if (!organizationId || !newName.trim()) return;
-    setCreateSubmitting(true);
-    setCreateError(null);
-    const result = await createTeam({
-      organizationId,
-      name: newName.trim(),
-      description: newDescription.trim(),
-      type: newType,
-    });
-    setCreateSubmitting(false);
-    if (result.success) {
-      setCreateOpen(false);
-      setNewName("");
-      setNewDescription("");
-      setNewType("internal");
-      await loadTeams(organizationId);
-    } else {
-      setCreateError(result.error.message);
-    }
-  }
-
-  if (!organizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">團隊</h1>
-          <p className="mt-1 text-sm text-muted-foreground">組織團隊與成員關聯。</p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>建立團隊</Button>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Teams</CardTitle>
-          <CardDescription>組織團隊與成員關聯。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入團隊資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取團隊資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && teams.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的團隊資料。</p>
-          )}
-          {loadState === "loaded" &&
-            teams.map((team) => (
-              <div key={team.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">{team.name}</p>
-                  <Badge variant="outline">{team.type}</Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{team.description || "—"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Members: {team.memberIds.length}
-                </p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>建立團隊</DialogTitle>
-            <DialogDescription>填寫團隊名稱與類型以建立新團隊。</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="team-name">名稱</Label>
-              <Input
-                id="team-name"
-                placeholder="團隊名稱"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="team-description">描述</Label>
-              <Input
-                id="team-description"
-                placeholder="選填"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="team-type">類型</Label>
-              <Select
-                value={newType}
-                onValueChange={(v) => setNewType(v as "internal" | "external")}
-              >
-                <SelectTrigger id="team-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="internal">Internal（內部）</SelectItem>
-                  <SelectItem value="external">External（外部）</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {createError && <p className="text-sm text-destructive">{createError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
-              {createSubmitting ? "建立中…" : "建立"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
 ````
 
 ## File: modules/platform/subdomains/organization/interfaces/index.ts
@@ -55568,6 +54145,508 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
+````typescript
+import type {
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../../domain/entities/WorkspaceMemberView";
+import type { WorkspaceQueryRepository } from "../../domain/ports/output/WorkspaceQueryRepository";
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
+import { firestoreInfrastructureApi } from "@/modules/platform/api";
+import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
+
+const personnelLabels = {
+  managerId: "Manager",
+  supervisorId: "Supervisor",
+  safetyOfficerId: "Safety officer",
+} as const;
+
+const personnelLabelEntries = Object.entries(personnelLabels) as Array<
+  [keyof typeof personnelLabels, string]
+>;
+
+interface OrganizationMemberReference {
+  id: string;
+  name: string;
+  email?: string;
+  role?: string;
+  presence?: string;
+  isExternal?: boolean;
+}
+
+interface OrganizationTeam {
+  id: string;
+  name: string;
+  memberIds: string[];
+}
+
+interface OrganizationDirectoryGateway {
+  getOrganizationMembers(organizationId: string): Promise<OrganizationMemberReference[]>;
+  getOrganizationTeams(organizationId: string): Promise<OrganizationTeam[]>;
+}
+
+const defaultOrganizationDirectoryGateway: OrganizationDirectoryGateway = {
+  async getOrganizationMembers() {
+    return [];
+  },
+  async getOrganizationTeams() {
+    return [];
+  },
+};
+
+function toPresence(value: OrganizationMemberReference["presence"] | undefined): WorkspaceMemberPresence {
+  if (value === "active" || value === "away" || value === "offline") {
+    return value;
+  }
+
+  return "unknown";
+}
+
+function createFallbackMember(id: string): WorkspaceMemberView {
+  return {
+    id,
+    displayName: id,
+    presence: "unknown",
+    isExternal: false,
+    accessChannels: [],
+  };
+}
+
+export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
+  constructor(
+    private readonly organizationDirectoryGateway: OrganizationDirectoryGateway = defaultOrganizationDirectoryGateway,
+  ) {}
+
+  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
+
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ) {
+    const normalizedAccountId = accountId.trim();
+    if (!normalizedAccountId) {
+      onUpdate([]);
+      return () => {};
+    }
+
+    return firestoreInfrastructureApi.watchCollection<Record<string, unknown>>(
+      "workspaces",
+      {
+        onNext: (documents) => {
+          const workspaces = documents.map((document) => toWorkspaceEntity(document.id, document.data));
+          onUpdate(workspaces);
+        },
+      },
+      [{ field: "accountId", op: "==", value: normalizedAccountId }],
+    );
+  }
+
+  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
+    const workspace = await this.workspaceRepo.findById(workspaceId);
+    if (!workspace) {
+      return [];
+    }
+
+    const members = new Map<string, WorkspaceMemberView>();
+    const memberChannelKeys = new Map<string, Set<string>>();
+
+    const mergeMember = (
+      memberId: string,
+      channel: WorkspaceMemberAccessChannel,
+      orgMember?: OrganizationMemberReference,
+    ) => {
+      const current = members.get(memberId) ?? createFallbackMember(memberId);
+      const channelKey = [
+        channel.source,
+        channel.label,
+        channel.role ?? "",
+        channel.protocol ?? "",
+        channel.teamId ?? "",
+      ].join("::");
+      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
+      memberChannelKeys.set(memberId, knownChannelKeys);
+      const hasSameChannel = knownChannelKeys.has(channelKey);
+      if (!hasSameChannel) {
+        knownChannelKeys.add(channelKey);
+      }
+
+      members.set(memberId, {
+        id: memberId,
+        displayName: orgMember?.name || current.displayName,
+        email: orgMember?.email ?? current.email,
+        organizationRole: orgMember?.role ?? current.organizationRole,
+        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
+        isExternal: orgMember?.isExternal ?? current.isExternal,
+        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
+      });
+    };
+
+    if (workspace.accountType === "organization") {
+      const [organizationMembers, teams] = await Promise.all([
+        this.organizationDirectoryGateway.getOrganizationMembers(workspace.accountId),
+        this.organizationDirectoryGateway.getOrganizationTeams(workspace.accountId),
+      ]);
+
+      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
+      const teamMap = new Map(teams.map((team) => [team.id, team]));
+
+      const mergeTeam = (team: OrganizationTeam, role?: string, protocol?: string) => {
+        const label = team.name || team.id;
+        team.memberIds.forEach((memberId: string) => {
+          mergeMember(
+            memberId,
+            {
+              source: "team",
+              label,
+              role,
+              protocol,
+              teamId: team.id,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        });
+      };
+
+      workspace.teamIds.forEach((teamId) => {
+        const team = teamMap.get(teamId);
+        if (team) {
+          mergeTeam(team);
+        }
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(
+            grant.userId,
+            {
+              source: "direct",
+              label: "Direct access",
+              role: grant.role,
+              protocol: grant.protocol,
+            },
+            organizationMemberMap.get(grant.userId),
+          );
+        }
+
+        if (grant.teamId) {
+          const team = teamMap.get(grant.teamId);
+          if (team) {
+            mergeTeam(team, grant.role, grant.protocol);
+          }
+        }
+      });
+
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
+        if (memberId) {
+          mergeMember(
+            memberId,
+            {
+              source: "personnel",
+              label,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        }
+      });
+    } else {
+      mergeMember(workspace.accountId, {
+        source: "owner",
+        label: "Workspace owner",
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(grant.userId, {
+            source: "direct",
+            label: "Direct access",
+            role: grant.role,
+            protocol: grant.protocol,
+          });
+        }
+      });
+
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
+        if (memberId) {
+          mergeMember(memberId, {
+            source: "personnel",
+            label,
+          });
+        }
+      });
+    }
+
+    return Array.from(members.values()).sort((left, right) =>
+      left.displayName.localeCompare(right.displayName),
+    );
+  }
+}
+````
+
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
+````typescript
+/**
+ * FirebaseWorkspaceRepository — Infrastructure adapter for workspace persistence.
+ * Translates Firestore documents ↔ Domain WorkspaceEntity.
+ * Firebase SDK only exists in this file.
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import type { WorkspaceRepository } from "../../domain/ports/output/WorkspaceRepository";
+import type { WorkspaceCapabilityRepository } from "../../domain/ports/output/WorkspaceCapabilityRepository";
+import type { WorkspaceAccessRepository } from "../../domain/ports/output/WorkspaceAccessRepository";
+import type { WorkspaceLocationRepository } from "../../domain/ports/output/WorkspaceLocationRepository";
+import type {
+  WorkspaceEntity,
+  Capability,
+  WorkspaceGrant,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceLocation,
+} from "../../domain/aggregates/Workspace";
+import { createAddress } from "../../domain/value-objects/Address";
+import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
+import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
+import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
+
+// ─── Mapper ───────────────────────────────────────────────────────────────────
+
+const VALID_ACCOUNT_TYPES = new Set<WorkspaceEntity["accountType"]>(["user", "organization"]);
+
+export function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity {
+  const accountType = VALID_ACCOUNT_TYPES.has(data.accountType as WorkspaceEntity["accountType"])
+    ? (data.accountType as WorkspaceEntity["accountType"])
+    : "user";
+
+  return {
+    id,
+    name: createWorkspaceName(typeof data.name === "string" ? data.name : "Untitled workspace"),
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    accountType,
+    lifecycleState: createWorkspaceLifecycleState(
+      data.lifecycleState === "active" ||
+        data.lifecycleState === "stopped" ||
+        data.lifecycleState === "preparatory"
+        ? data.lifecycleState
+        : "preparatory",
+    ),
+    visibility: createWorkspaceVisibility(
+      data.visibility === "hidden" || data.visibility === "visible"
+        ? data.visibility
+        : "visible",
+    ),
+    capabilities: Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [],
+    grants: Array.isArray(data.grants) ? (data.grants as WorkspaceGrant[]) : [],
+    teamIds: Array.isArray(data.teamIds) ? (data.teamIds as string[]) : [],
+    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
+    address: data.address != null ? createAddress(data.address as NonNullable<UpdateWorkspaceSettingsCommand["address"]>) : undefined,
+    locations: Array.isArray(data.locations) ? (data.locations as WorkspaceLocation[]) : undefined,
+    personnel: data.personnel != null ? (data.personnel as WorkspaceEntity["personnel"]) : undefined,
+    createdAt: data.createdAt as WorkspaceEntity["createdAt"],
+  };
+}
+
+// ─── Repository ───────────────────────────────────────────────────────────────
+
+export class FirebaseWorkspaceRepository
+  implements
+    WorkspaceRepository,
+    WorkspaceCapabilityRepository,
+    WorkspaceAccessRepository,
+    WorkspaceLocationRepository {
+  private workspacePath(workspaceId: string): string {
+    return `workspaces/${workspaceId}`;
+  }
+
+  async findById(id: string): Promise<WorkspaceEntity | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.workspacePath(id));
+    if (!data) return null;
+    return toWorkspaceEntity(id, data);
+  }
+
+  async findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      "workspaces",
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    const target = docs.find((doc) => doc.id === workspaceId);
+    if (!target) return null;
+    return toWorkspaceEntity(target.id, target.data);
+  }
+
+  async findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      "workspaces",
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    return docs.map((doc) => toWorkspaceEntity(doc.id, doc.data));
+  }
+
+  async save(workspace: WorkspaceEntity): Promise<string> {
+    const payload: Record<string, unknown> = {
+      name: workspace.name,
+      accountId: workspace.accountId,
+      accountType: workspace.accountType,
+      lifecycleState: workspace.lifecycleState,
+      visibility: workspace.visibility,
+      capabilities: workspace.capabilities,
+      grants: workspace.grants,
+      teamIds: workspace.teamIds,
+      createdAtISO: new Date().toISOString(),
+    };
+
+    if (workspace.photoURL !== undefined) payload.photoURL = workspace.photoURL;
+    if (workspace.address !== undefined) payload.address = workspace.address;
+    if (workspace.locations !== undefined) payload.locations = workspace.locations;
+    if (workspace.personnel !== undefined) payload.personnel = workspace.personnel;
+
+    await firestoreInfrastructureApi.set(this.workspacePath(workspace.id), payload);
+    return workspace.id;
+  }
+
+  async updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void> {
+    const updates: Record<string, unknown> = { updatedAtISO: new Date().toISOString() };
+    if (command.name !== undefined) updates.name = command.name;
+    if (command.visibility !== undefined) updates.visibility = command.visibility;
+    if (command.lifecycleState !== undefined) updates.lifecycleState = command.lifecycleState;
+    if (command.address !== undefined) updates.address = command.address;
+    if (command.personnel !== undefined) updates.personnel = command.personnel;
+    await firestoreInfrastructureApi.update(this.workspacePath(command.workspaceId), updates);
+  }
+
+  async delete(id: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(this.workspacePath(id));
+  }
+
+  async mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const existing = Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [];
+    const merged = [...existing];
+    capabilities.forEach((capability) => {
+      if (!merged.some((item) => item.id === capability.id)) {
+        merged.push(capability);
+      }
+    });
+
+    await firestoreInfrastructureApi.update(path, {
+      capabilities: merged,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async unmountCapability(workspaceId: string, capabilityId: string): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const caps = ((data.capabilities as Capability[]) ?? []).filter((c) => c.id !== capabilityId);
+    await firestoreInfrastructureApi.update(path, {
+      capabilities: caps,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async grantTeamAccess(workspaceId: string, teamId: string): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const teamIds = Array.isArray(data.teamIds) ? [...(data.teamIds as string[])] : [];
+    if (!teamIds.includes(teamId)) {
+      teamIds.push(teamId);
+    }
+    await firestoreInfrastructureApi.update(path, {
+      teamIds,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async revokeTeamAccess(workspaceId: string, teamId: string): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const teamIds = (Array.isArray(data.teamIds) ? (data.teamIds as string[]) : []).filter((item) => item !== teamId);
+    await firestoreInfrastructureApi.update(path, {
+      teamIds,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const grants = Array.isArray(data.grants) ? [...(data.grants as WorkspaceGrant[])] : [];
+    const exists = grants.some((item) => item.userId === grant.userId && item.teamId === grant.teamId);
+    if (!exists) {
+      grants.push(grant);
+    }
+    await firestoreInfrastructureApi.update(path, {
+      grants,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async revokeIndividualAccess(workspaceId: string, userId: string): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const grants = ((data.grants as WorkspaceGrant[]) ?? []).filter((g) => g.userId !== userId);
+    await firestoreInfrastructureApi.update(path, {
+      grants,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async createLocation(
+    workspaceId: string,
+    location: Omit<WorkspaceLocation, "locationId">,
+  ): Promise<string> {
+    const locationId = crypto.randomUUID();
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return locationId;
+    const locations = Array.isArray(data.locations) ? [...(data.locations as WorkspaceLocation[])] : [];
+    locations.push({ ...location, locationId });
+    await firestoreInfrastructureApi.update(path, {
+      locations,
+      updatedAtISO: new Date().toISOString(),
+    });
+    return locationId;
+  }
+
+  async updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const locations = ((data.locations as WorkspaceLocation[]) ?? []).map((l) =>
+      l.locationId === location.locationId ? location : l,
+    );
+    await firestoreInfrastructureApi.update(path, {
+      locations,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+
+  async deleteLocation(workspaceId: string, locationId: string): Promise<void> {
+    const path = this.workspacePath(workspaceId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!data) return;
+    const locations = ((data.locations as WorkspaceLocation[]) ?? []).filter(
+      (l) => l.locationId !== locationId,
+    );
+    await firestoreInfrastructureApi.update(path, {
+      locations,
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+}
+````
+
 ## File: modules/workspace/infrastructure/infrastructure.instructions.md
 ````markdown
 ---
@@ -55666,6 +54745,80 @@ export {
   createWorkspaceLifecycleTransitionedEvent,
   createWorkspaceVisibilityChangedEvent,
 } from "../../../application/dtos/workspace-interfaces.dto";
+````
+
+## File: modules/workspace/interfaces/api/runtime/workspace-runtime.ts
+````typescript
+import { WorkspaceCommandApplicationService } from "../../../application/services/WorkspaceCommandApplicationService";
+import { WorkspaceQueryApplicationService } from "../../../application/services/WorkspaceQueryApplicationService";
+import {
+  makeWikiWorkspaceRepo,
+  makeWorkspaceDomainEventPublisher,
+  makeWorkspaceQueryRepo,
+  makeWorkspaceRepo,
+} from "../../../api/runtime/factories";
+import type { WorkspaceCommandPort } from "../../../application/dtos/workspace-interfaces.dto";
+import type { WorkspaceQueryPort } from "../../../application/dtos/workspace-interfaces.dto";
+import { createWorkspaceSessionContext } from "./workspace-session-context";
+
+let _sessionContext: ReturnType<typeof createWorkspaceSessionContext> | undefined;
+
+function getSessionContext() {
+  if (!_sessionContext) {
+    // Lazy-load the organization query functions to break the circular module
+    // evaluation chain: workspace-runtime → platform/api → organization/interfaces
+    // → organization/api → workspace (via barrel re-exports).
+    //
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const platformApi = require("@/modules/platform/api");
+
+    const workspaceRepo = makeWorkspaceRepo();
+    const workspaceQueryRepo = makeWorkspaceQueryRepo({
+      getOrganizationMembers: platformApi.getOrganizationMembers,
+      getOrganizationTeams: platformApi.getOrganizationTeams,
+    });
+    const wikiWorkspaceRepo = makeWikiWorkspaceRepo();
+    const workspaceDomainEventPublisher = makeWorkspaceDomainEventPublisher();
+
+    const commandPort: WorkspaceCommandPort = new WorkspaceCommandApplicationService({
+      workspaceRepo,
+      workspaceCapabilityRepo: workspaceRepo,
+      workspaceAccessRepo: workspaceRepo,
+      workspaceLocationRepo: workspaceRepo,
+      workspaceDomainEventPublisher,
+    });
+
+    const queryPort: WorkspaceQueryPort = new WorkspaceQueryApplicationService({
+      workspaceRepo,
+      workspaceQueryRepo,
+      wikiWorkspaceRepo,
+    });
+
+    _sessionContext = createWorkspaceSessionContext(commandPort, queryPort);
+  }
+  return _sessionContext;
+}
+
+/**
+ * Lazy-initialized workspace ports.
+ * Proxy objects defer all property access until first actual use, breaking
+ * the circular module-evaluation chain at build time while preserving the
+ * same public API as the previous eager singletons.
+ */
+export const workspaceSessionContext = new Proxy(
+  {} as ReturnType<typeof createWorkspaceSessionContext>,
+  { get: (_target, prop) => getSessionContext()[prop as keyof ReturnType<typeof createWorkspaceSessionContext>] },
+);
+
+export const workspaceCommandPort: WorkspaceCommandPort = new Proxy(
+  {} as WorkspaceCommandPort,
+  { get: (_target, prop) => getSessionContext().workspaceCommandPort[prop as keyof WorkspaceCommandPort] },
+);
+
+export const workspaceQueryPort: WorkspaceQueryPort = new Proxy(
+  {} as WorkspaceQueryPort,
+  { get: (_target, prop) => getSessionContext().workspaceQueryPort[prop as keyof WorkspaceQueryPort] },
+);
 ````
 
 ## File: modules/workspace/interfaces/api/runtime/workspace-session-context.ts
@@ -57011,104 +56164,6 @@ export { ActorIdSchema, createActorId, unsafeActorId } from "./ActorId";
 export type { ActorId } from "./ActorId";
 ````
 
-## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
-````typescript
-import {
-  addDoc,
-  collection,
-  getDocs,
-  getFirestore,
-  limit,
-  query,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { AuditEntry } from "../../domain/aggregates/AuditEntry";
-import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
-import type { AuditRepository } from "../../domain/repositories/AuditRepository";
-
-const VALID_AUDIT_LOG_SOURCES = new Set<AuditLogSource>([
-  "workspace",
-  "finance",
-  "notification",
-  "system",
-]);
-
-function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity {
-  const source = VALID_AUDIT_LOG_SOURCES.has(data.source as AuditLogSource)
-    ? (data.source as AuditLogSource)
-    : "workspace";
-
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    actorId: typeof data.actorId === "string" ? data.actorId : "system",
-    action: typeof data.action === "string" ? data.action : "unknown",
-    detail: typeof data.detail === "string" ? data.detail : "",
-    source,
-    occurredAtISO:
-      typeof data.occurredAtISO === "string"
-        ? data.occurredAtISO
-        : "",
-  };
-}
-
-export class FirebaseAuditRepository implements AuditRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async save(entry: AuditEntry): Promise<void> {
-    await addDoc(collection(this.db, "auditLogs"), entry.getSnapshot());
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]> {
-    const snaps = await getDocs(
-      query(collection(this.db, "auditLogs"), where("workspaceId", "==", workspaceId)),
-    );
-
-    return snaps.docs
-      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
-      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO));
-  }
-
-  async findByWorkspaceIds(
-    workspaceIds: string[],
-    maxCount = 200,
-  ): Promise<AuditLogEntity[]> {
-    if (workspaceIds.length === 0) {
-      return [];
-    }
-
-    const chunks: string[][] = [];
-    for (let index = 0; index < workspaceIds.length; index += 10) {
-      chunks.push(workspaceIds.slice(index, index + 10));
-    }
-
-    const perChunkLimit = Math.max(1, Math.ceil(maxCount / chunks.length));
-
-    const snapshots = await Promise.all(
-      chunks.map((chunk) =>
-        getDocs(
-          query(
-            collection(this.db, "auditLogs"),
-            where("workspaceId", "in", chunk),
-            limit(perChunkLimit),
-          ),
-        ),
-      ),
-    );
-
-    return snapshots
-      .flatMap((snapshot) => snapshot.docs)
-      .map((doc) => toAuditLogEntity(doc.id, doc.data() as Record<string, unknown>))
-      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO))
-      .slice(0, maxCount);
-  }
-}
-````
-
 ## File: modules/workspace/subdomains/audit/interfaces/components/AuditStream.tsx
 ````typescript
 "use client";
@@ -57620,6 +56675,290 @@ export type {
   WorkspaceFeedPostRepository as IWorkspaceFeedPostPort,
   WorkspaceFeedInteractionRepository as IWorkspaceFeedInteractionPort,
 } from "../repositories/workspace-feed.repositories";
+````
+
+## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository.ts
+````typescript
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+
+import type { WorkspaceFeedInteractionRepository } from "../../domain/repositories/workspace-feed.repositories";
+
+function postPath(accountId: string, postId: string): string {
+  return `accounts/${accountId}/workspaceFeedPosts/${postId}`;
+}
+
+function likesPath(accountId: string, postId: string, actorAccountId: string): string {
+  return `${postPath(accountId, postId)}/likes/${actorAccountId}`;
+}
+
+function bookmarksPath(accountId: string, postId: string, actorAccountId: string): string {
+  return `${postPath(accountId, postId)}/bookmarks/${actorAccountId}`;
+}
+
+function viewsPath(accountId: string, postId: string): string {
+  return `${postPath(accountId, postId)}/views`;
+}
+
+function sharesPath(accountId: string, postId: string): string {
+  return `${postPath(accountId, postId)}/shares`;
+}
+
+export class FirebaseWorkspaceFeedInteractionRepository implements WorkspaceFeedInteractionRepository {
+  async like(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
+    const path = likesPath(accountId, postId, actorAccountId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (snap) return false;
+
+    await firestoreInfrastructureApi.set(path, {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+    });
+    return true;
+  }
+
+  async bookmark(accountId: string, postId: string, actorAccountId: string): Promise<boolean> {
+    const path = bookmarksPath(accountId, postId, actorAccountId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (snap) return false;
+
+    await firestoreInfrastructureApi.set(path, {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+    });
+    return true;
+  }
+
+  async view(accountId: string, postId: string, actorAccountId: string): Promise<void> {
+    await firestoreInfrastructureApi.set(`${viewsPath(accountId, postId)}/${generateId()}`, {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+    });
+  }
+
+  async share(accountId: string, postId: string, actorAccountId: string): Promise<void> {
+    await firestoreInfrastructureApi.set(`${sharesPath(accountId, postId)}/${generateId()}`, {
+      accountId,
+      postId,
+      actorAccountId,
+      createdAtISO: new Date().toISOString(),
+    });
+  }
+}
+````
+
+## File: modules/workspace/subdomains/feed/infrastructure/firebase/FirebaseWorkspaceFeedPostRepository.ts
+````typescript
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+
+import type {
+  CreateWorkspaceFeedPostInput,
+  CreateWorkspaceFeedReplyInput,
+  CreateWorkspaceFeedRepostInput,
+  WorkspaceFeedCounterPatch,
+  WorkspaceFeedPost,
+} from "../../domain/entities/workspace-feed-post.entity";
+import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
+
+function postsPath(accountId: string): string {
+  return `accounts/${accountId}/workspaceFeedPosts`;
+}
+
+function postPath(accountId: string, postId: string): string {
+  return `accounts/${accountId}/workspaceFeedPosts/${postId}`;
+}
+
+function repostMapPath(accountId: string, actorAccountId: string, sourcePostId: string): string {
+  return `accounts/${accountId}/workspaceFeedReposts/${actorAccountId}__${sourcePostId}`;
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asNumber(value: unknown): number {
+  return typeof value === "number" ? value : 0;
+}
+
+function toWorkspaceFeedPost(id: string, data: Record<string, unknown>): WorkspaceFeedPost {
+  const type = asString(data.type, "post");
+  return {
+    id,
+    accountId: asString(data.accountId),
+    workspaceId: asString(data.workspaceId),
+    authorAccountId: asString(data.authorAccountId),
+    type: type === "reply" || type === "repost" ? type : "post",
+    content: asString(data.content),
+    replyToPostId: typeof data.replyToPostId === "string" ? data.replyToPostId : null,
+    repostOfPostId: typeof data.repostOfPostId === "string" ? data.repostOfPostId : null,
+    likeCount: asNumber(data.likeCount),
+    replyCount: asNumber(data.replyCount),
+    repostCount: asNumber(data.repostCount),
+    viewCount: asNumber(data.viewCount),
+    bookmarkCount: asNumber(data.bookmarkCount),
+    shareCount: asNumber(data.shareCount),
+    createdAtISO: asString(data.createdAtISO),
+    updatedAtISO: asString(data.updatedAtISO),
+  };
+}
+
+function createBasePostData(
+  accountId: string,
+  workspaceId: string,
+  authorAccountId: string,
+  content: string,
+  type: "post" | "reply" | "repost",
+): Record<string, unknown> {
+  const nowISO = new Date().toISOString();
+  return {
+    accountId,
+    workspaceId,
+    authorAccountId,
+    type,
+    content,
+    likeCount: 0,
+    replyCount: 0,
+    repostCount: 0,
+    viewCount: 0,
+    bookmarkCount: 0,
+    shareCount: 0,
+    createdAtISO: nowISO,
+    updatedAtISO: nowISO,
+  };
+}
+
+export class FirebaseWorkspaceFeedPostRepository implements WorkspaceFeedPostRepository {
+  async createPost(input: CreateWorkspaceFeedPostInput): Promise<WorkspaceFeedPost> {
+    const id = generateId();
+    const data = createBasePostData(
+      input.accountId,
+      input.workspaceId,
+      input.authorAccountId,
+      input.content,
+      "post",
+    );
+    await firestoreInfrastructureApi.set(postPath(input.accountId, id), data);
+    return toWorkspaceFeedPost(id, data);
+  }
+
+  async createReply(input: CreateWorkspaceFeedReplyInput): Promise<WorkspaceFeedPost> {
+    const id = generateId();
+    const data: Record<string, unknown> = {
+      ...createBasePostData(
+        input.accountId,
+        input.workspaceId,
+        input.authorAccountId,
+        input.content,
+        "reply",
+      ),
+      replyToPostId: input.parentPostId,
+      repostOfPostId: null,
+    };
+
+    await firestoreInfrastructureApi.set(postPath(input.accountId, id), data);
+    await this.patchCounters(input.accountId, input.parentPostId, { replyDelta: 1 });
+    return toWorkspaceFeedPost(id, data);
+  }
+
+  async createRepost(input: CreateWorkspaceFeedRepostInput): Promise<WorkspaceFeedPost | null> {
+    const mapPath = repostMapPath(input.accountId, input.actorAccountId, input.sourcePostId);
+    const existingMap = await firestoreInfrastructureApi.get<Record<string, unknown>>(mapPath);
+    if (existingMap) {
+      const repostPostId = asString(existingMap.repostPostId);
+      if (!repostPostId) return null;
+      return this.findById(input.accountId, repostPostId);
+    }
+
+    const source = await this.findById(input.accountId, input.sourcePostId);
+    if (!source) return null;
+
+    const id = generateId();
+    const content = input.comment?.trim() || source.content;
+    const data: Record<string, unknown> = {
+      ...createBasePostData(
+        input.accountId,
+        input.workspaceId,
+        input.actorAccountId,
+        content,
+        "repost",
+      ),
+      replyToPostId: null,
+      repostOfPostId: input.sourcePostId,
+    };
+
+    await firestoreInfrastructureApi.set(postPath(input.accountId, id), data);
+    await firestoreInfrastructureApi.set(mapPath, {
+      accountId: input.accountId,
+      workspaceId: input.workspaceId,
+      sourcePostId: input.sourcePostId,
+      actorAccountId: input.actorAccountId,
+      repostPostId: id,
+      createdAtISO: new Date().toISOString(),
+    });
+    await this.patchCounters(input.accountId, input.sourcePostId, { repostDelta: 1 });
+    return toWorkspaceFeedPost(id, data);
+  }
+
+  async patchCounters(accountId: string, postId: string, patch: WorkspaceFeedCounterPatch): Promise<void> {
+    const path = postPath(accountId, postId);
+    const current = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!current) return;
+
+    const updates: Record<string, unknown> = {
+      updatedAtISO: new Date().toISOString(),
+    };
+
+    const applyDelta = (field: string, delta: number | undefined) => {
+      if (!delta) return;
+      const base = asNumber(current[field]);
+      updates[field] = base + delta;
+    };
+
+    applyDelta("likeCount", patch.likeDelta);
+    applyDelta("replyCount", patch.replyDelta);
+    applyDelta("repostCount", patch.repostDelta);
+    applyDelta("viewCount", patch.viewDelta);
+    applyDelta("bookmarkCount", patch.bookmarkDelta);
+    applyDelta("shareCount", patch.shareDelta);
+
+    await firestoreInfrastructureApi.update(path, updates);
+  }
+
+  async findById(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(postPath(accountId, postId));
+    if (!data) return null;
+    return toWorkspaceFeedPost(postId, data);
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      postsPath(accountId),
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }], limit: maxRows },
+    );
+    return docs.map((row) => toWorkspaceFeedPost(row.id, row.data));
+  }
+
+  async listByAccountId(accountId: string, maxRows: number): Promise<WorkspaceFeedPost[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      postsPath(accountId),
+      [],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }], limit: maxRows },
+    );
+    return docs.map((row) => toWorkspaceFeedPost(row.id, row.data));
+  }
+}
 ````
 
 ## File: modules/workspace/subdomains/feed/interfaces/components/WorkspaceFeedAccountView.tsx
@@ -58543,6 +57882,111 @@ export interface AssignMemberInput {
   demandId: string;
   userId: string;
   assignedBy: string;
+}
+````
+
+## File: modules/workspace/subdomains/scheduling/infrastructure/firebase/FirebaseDemandRepository.ts
+````typescript
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+
+import type { WorkDemand } from "../../domain/types";
+import type { IDemandRepository } from "../../domain/repository";
+
+const DEMANDS_COLLECTION = "workspacePlannerDemands";
+
+function toWorkDemand(id: string, data: Record<string, unknown>): WorkDemand {
+  const status = data.status;
+  const priority = data.priority;
+
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    requesterId: typeof data.requesterId === "string" ? data.requesterId : "",
+    title: typeof data.title === "string" ? data.title : "",
+    description: typeof data.description === "string" ? data.description : "",
+    status:
+      status === "draft" || status === "open" || status === "in_progress" || status === "completed"
+        ? status
+        : "draft",
+    priority: priority === "low" || priority === "medium" || priority === "high" ? priority : "medium",
+    scheduledAt: typeof data.scheduledAt === "string" ? data.scheduledAt : "",
+    assignedUserId: typeof data.assignedUserId === "string" ? data.assignedUserId : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseDemandRepository implements IDemandRepository {
+  private demandPath(id: string): string {
+    return `${DEMANDS_COLLECTION}/${id}`;
+  }
+
+  async listByWorkspace(workspaceId: string): Promise<WorkDemand[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      DEMANDS_COLLECTION,
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+    return docs
+      .map((item) => toWorkDemand(item.id, item.data))
+      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
+  }
+
+  async listByAccount(accountId: string): Promise<WorkDemand[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      DEMANDS_COLLECTION,
+      [{ field: "accountId", op: "==", value: accountId }],
+    );
+    return docs
+      .map((item) => toWorkDemand(item.id, item.data))
+      .sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
+  }
+
+  async save(demand: WorkDemand): Promise<void> {
+    const path = this.demandPath(demand.id);
+    const existing = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (existing) {
+      await this.update(demand);
+      return;
+    }
+
+    await firestoreInfrastructureApi.set(path, {
+      workspaceId: demand.workspaceId,
+      accountId: demand.accountId,
+      requesterId: demand.requesterId,
+      title: demand.title,
+      description: demand.description,
+      status: demand.status,
+      priority: demand.priority,
+      scheduledAt: demand.scheduledAt,
+      assignedUserId: demand.assignedUserId ?? null,
+      createdAtISO: demand.createdAtISO,
+      updatedAtISO: demand.updatedAtISO,
+    });
+  }
+
+  async update(demand: WorkDemand): Promise<void> {
+    await firestoreInfrastructureApi.update(this.demandPath(demand.id), {
+      workspaceId: demand.workspaceId,
+      accountId: demand.accountId,
+      requesterId: demand.requesterId,
+      title: demand.title,
+      description: demand.description,
+      status: demand.status,
+      priority: demand.priority,
+      scheduledAt: demand.scheduledAt,
+      assignedUserId: demand.assignedUserId ?? null,
+      updatedAtISO: demand.updatedAtISO,
+    });
+  }
+
+  async findById(id: string): Promise<WorkDemand | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.demandPath(id));
+    if (!data) return null;
+    return toWorkDemand(id, data);
+  }
 }
 ````
 
@@ -59578,6 +59022,512 @@ export type { IInvoicePort, IIssuePort, ITaskPort } from "./ports";
 export type { InvoiceRepository as IInvoicePort } from "../repositories/InvoiceRepository";
 export type { IssueRepository as IIssuePort } from "../repositories/IssueRepository";
 export type { TaskRepository as ITaskPort } from "../repositories/TaskRepository";
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseInvoiceItemRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseInvoiceItemRepository.ts
+ * @description Firebase Firestore repository for InvoiceItem CRUD operations.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add query pagination support
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
+import { toInvoiceItem } from "../firebase/invoice-item.converter";
+import { WF_INVOICE_ITEMS_COLLECTION } from "../firebase/workspace-flow.collections";
+
+export class FirebaseInvoiceItemRepository {
+  private itemPath(itemId: string): string {
+    return `${WF_INVOICE_ITEMS_COLLECTION}/${itemId}`;
+  }
+
+  async findById(itemId: string): Promise<InvoiceItem | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.itemPath(itemId));
+    if (!data) return null;
+    return toInvoiceItem(itemId, data);
+  }
+
+  async findByInvoiceId(invoiceId: string): Promise<InvoiceItem[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_INVOICE_ITEMS_COLLECTION,
+      [{ field: "invoiceId", op: "==", value: invoiceId }],
+    );
+    return docs.map((d) => toInvoiceItem(d.id, d.data));
+  }
+
+  async delete(itemId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(this.itemPath(itemId));
+  }
+}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseInvoiceRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseInvoiceRepository.ts
+ * @description Firebase Firestore implementation of InvoiceRepository for workspace-flow.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add query pagination support and composite indexes
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { Invoice, CreateInvoiceInput } from "../../domain/entities/Invoice";
+import type { InvoiceItem, AddInvoiceItemInput } from "../../domain/entities/InvoiceItem";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import { toInvoice } from "../firebase/invoice.converter";
+import { toInvoiceItem } from "../firebase/invoice-item.converter";
+import {
+  WF_INVOICES_COLLECTION,
+  WF_INVOICE_ITEMS_COLLECTION,
+} from "../firebase/workspace-flow.collections";
+
+const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
+const DEFAULT_STATUS: InvoiceStatus = "draft";
+
+export class FirebaseInvoiceRepository implements InvoiceRepository {
+  private invoicePath(invoiceId: string): string {
+    return `${WF_INVOICES_COLLECTION}/${invoiceId}`;
+  }
+
+  private itemPath(itemId: string): string {
+    return `${WF_INVOICE_ITEMS_COLLECTION}/${itemId}`;
+  }
+
+  async create(input: CreateInvoiceInput): Promise<Invoice> {
+    const nowISO = new Date().toISOString();
+    const docData: Record<string, unknown> = {
+      workspaceId: input.workspaceId,
+      status: DEFAULT_STATUS,
+      totalAmount: 0,
+      submittedAtISO: null,
+      approvedAtISO: null,
+      paidAtISO: null,
+      closedAtISO: null,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+    if (input.sourceReference) {
+      docData.sourceReference = { ...input.sourceReference };
+    }
+
+    const id = generateId();
+    await firestoreInfrastructureApi.set(this.invoicePath(id), docData);
+
+    return {
+      id,
+      workspaceId: input.workspaceId,
+      status: DEFAULT_STATUS,
+      totalAmount: 0,
+      sourceReference: input.sourceReference,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async delete(invoiceId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(this.invoicePath(invoiceId));
+  }
+
+  async findById(invoiceId: string): Promise<Invoice | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.invoicePath(invoiceId));
+    if (!data) return null;
+    return toInvoice(invoiceId, data);
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<Invoice[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_INVOICES_COLLECTION,
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+    const invoices = docs.map((d) => toInvoice(d.id, d.data));
+    return invoices.sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
+  }
+
+  async transitionStatus(
+    invoiceId: string,
+    to: InvoiceStatus,
+    nowISO: string,
+  ): Promise<Invoice | null> {
+    const path = this.invoicePath(invoiceId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+
+    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
+    const patch: Record<string, unknown> = {
+      status: validTo,
+      updatedAtISO: nowISO,
+    };
+    if (validTo === "submitted") patch.submittedAtISO = nowISO;
+    if (validTo === "approved") patch.approvedAtISO = nowISO;
+    if (validTo === "paid") patch.paidAtISO = nowISO;
+    if (validTo === "closed") patch.closedAtISO = nowISO;
+
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toInvoice(invoiceId, updated);
+  }
+
+  async addItem(input: AddInvoiceItemInput): Promise<InvoiceItem> {
+    const nowISO = new Date().toISOString();
+    const itemId = generateId();
+    await firestoreInfrastructureApi.set(this.itemPath(itemId), {
+      invoiceId: input.invoiceId,
+      taskId: input.taskId,
+      amount: input.amount,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    });
+
+    // Update invoice totalAmount
+    const invoicePath = this.invoicePath(input.invoiceId);
+    const invoice = await firestoreInfrastructureApi.get<Record<string, unknown>>(invoicePath);
+    if (invoice) {
+      const totalAmount = typeof invoice.totalAmount === "number" ? invoice.totalAmount : 0;
+      await firestoreInfrastructureApi.update(invoicePath, {
+        totalAmount: totalAmount + input.amount,
+        updatedAtISO: nowISO,
+      });
+    }
+
+    return {
+      id: itemId,
+      invoiceId: input.invoiceId,
+      taskId: input.taskId,
+      amount: input.amount,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async findItemById(invoiceItemId: string): Promise<InvoiceItem | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.itemPath(invoiceItemId));
+    if (!data) return null;
+    return toInvoiceItem(invoiceItemId, data);
+  }
+
+  async updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null> {
+    const itemPath = this.itemPath(invoiceItemId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(itemPath);
+    if (!data) return null;
+
+    const oldAmount = typeof data.amount === "number" ? data.amount : 0;
+    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
+    const nowISO = new Date().toISOString();
+
+    await firestoreInfrastructureApi.update(itemPath, { amount, updatedAtISO: nowISO });
+
+    if (invoiceId) {
+      const invoicePath = this.invoicePath(invoiceId);
+      const invoice = await firestoreInfrastructureApi.get<Record<string, unknown>>(invoicePath);
+      if (invoice) {
+        const totalAmount = typeof invoice.totalAmount === "number" ? invoice.totalAmount : 0;
+        await firestoreInfrastructureApi.update(invoicePath, {
+          totalAmount: totalAmount + (amount - oldAmount),
+          updatedAtISO: nowISO,
+        });
+      }
+    }
+
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(itemPath);
+    if (!updated) return null;
+    return toInvoiceItem(invoiceItemId, updated);
+  }
+
+  async removeItem(invoiceItemId: string): Promise<void> {
+    const itemPath = this.itemPath(invoiceItemId);
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(itemPath);
+    if (!data) return;
+
+    const amount = typeof data.amount === "number" ? data.amount : 0;
+    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
+
+    await firestoreInfrastructureApi.delete(itemPath);
+
+    if (invoiceId) {
+      const invoicePath = this.invoicePath(invoiceId);
+      const invoice = await firestoreInfrastructureApi.get<Record<string, unknown>>(invoicePath);
+      if (invoice) {
+        const totalAmount = typeof invoice.totalAmount === "number" ? invoice.totalAmount : 0;
+        await firestoreInfrastructureApi.update(invoicePath, {
+          totalAmount: totalAmount - amount,
+          updatedAtISO: new Date().toISOString(),
+        });
+      }
+    }
+  }
+
+  async listItems(invoiceId: string): Promise<InvoiceItem[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_INVOICE_ITEMS_COLLECTION,
+      [{ field: "invoiceId", op: "==", value: invoiceId }],
+    );
+    return docs.map((d) => toInvoiceItem(d.id, d.data));
+  }
+}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseIssueRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseIssueRepository.ts
+ * @description Firebase Firestore implementation of IssueRepository for workspace-flow.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add query pagination support and composite indexes
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { Issue, OpenIssueInput, UpdateIssueInput } from "../../domain/entities/Issue";
+import type { IssueRepository } from "../../domain/repositories/IssueRepository";
+import { ISSUE_STATUSES, type IssueStatus } from "../../domain/value-objects/IssueStatus";
+import { toIssue } from "../firebase/issue.converter";
+import { WF_ISSUES_COLLECTION } from "../firebase/workspace-flow.collections";
+
+const VALID_STATUSES = new Set<IssueStatus>(ISSUE_STATUSES);
+const DEFAULT_STATUS: IssueStatus = "open";
+const OPEN_STATUSES: IssueStatus[] = ["open", "investigating", "fixing", "retest"];
+
+export class FirebaseIssueRepository implements IssueRepository {
+  private issuePath(issueId: string): string {
+    return `${WF_ISSUES_COLLECTION}/${issueId}`;
+  }
+
+  async create(input: OpenIssueInput): Promise<Issue> {
+    const nowISO = new Date().toISOString();
+    const issueId = generateId();
+    await firestoreInfrastructureApi.set(this.issuePath(issueId), {
+      taskId: input.taskId,
+      stage: input.stage,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      createdBy: input.createdBy,
+      assignedTo: input.assignedTo ?? null,
+      resolvedAtISO: null,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    });
+
+    return {
+      id: issueId,
+      taskId: input.taskId,
+      stage: input.stage,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      createdBy: input.createdBy,
+      assignedTo: input.assignedTo,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async update(issueId: string, input: UpdateIssueInput): Promise<Issue | null> {
+    const path = this.issuePath(issueId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+
+    const patch: Record<string, unknown> = {
+      updatedAtISO: new Date().toISOString(),
+    };
+    if (typeof input.title === "string") patch.title = input.title;
+    if (typeof input.description === "string") patch.description = input.description;
+    if (typeof input.assignedTo === "string") patch.assignedTo = input.assignedTo;
+
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toIssue(issueId, updated);
+  }
+
+  async delete(issueId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(this.issuePath(issueId));
+  }
+
+  async findById(issueId: string): Promise<Issue | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.issuePath(issueId));
+    if (!data) return null;
+    return toIssue(issueId, data);
+  }
+
+  async findByTaskId(taskId: string): Promise<Issue[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_ISSUES_COLLECTION,
+      [{ field: "taskId", op: "==", value: taskId }],
+      { orderBy: [{ field: "createdAtISO", direction: "desc" }] },
+    );
+    return docs.map((d) => toIssue(d.id, d.data));
+  }
+
+  async countOpenByTaskId(taskId: string): Promise<number> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_ISSUES_COLLECTION,
+      [
+        { field: "taskId", op: "==", value: taskId },
+        { field: "status", op: "in", value: OPEN_STATUSES },
+      ],
+    );
+    return docs.length;
+  }
+
+  async transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null> {
+    const path = this.issuePath(issueId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+
+    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
+    const patch: Record<string, unknown> = {
+      status: validTo,
+      updatedAtISO: nowISO,
+    };
+    if (validTo === "resolved") patch.resolvedAtISO = nowISO;
+
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toIssue(issueId, updated);
+  }
+}
+````
+
+## File: modules/workspace/subdomains/workspace-workflow/infrastructure/repositories/FirebaseTaskRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseTaskRepository.ts
+ * @description Firebase Firestore implementation of TaskRepository for workspace-flow.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add query pagination support and composite indexes
+ */
+
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import { v7 as generateId } from "@lib-uuid";
+import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
+import { toTask } from "../firebase/task.converter";
+import { WF_TASKS_COLLECTION } from "../firebase/workspace-flow.collections";
+
+const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
+const DEFAULT_STATUS: TaskStatus = "draft";
+
+export class FirebaseTaskRepository implements TaskRepository {
+  private taskPath(taskId: string): string {
+    return `${WF_TASKS_COLLECTION}/${taskId}`;
+  }
+
+  async create(input: CreateTaskInput): Promise<Task> {
+    const nowISO = new Date().toISOString();
+    const docData: Record<string, unknown> = {
+      workspaceId: input.workspaceId,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      assigneeId: input.assigneeId ?? null,
+      dueDateISO: input.dueDateISO ?? null,
+      acceptedAtISO: null,
+      archivedAtISO: null,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+    if (input.sourceReference) {
+      docData.sourceReference = { ...input.sourceReference };
+    }
+
+    const taskId = generateId();
+    await firestoreInfrastructureApi.set(this.taskPath(taskId), docData);
+
+    return {
+      id: taskId,
+      workspaceId: input.workspaceId,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      assigneeId: input.assigneeId,
+      dueDateISO: input.dueDateISO,
+      sourceReference: input.sourceReference,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async update(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
+    const path = this.taskPath(taskId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+
+    const patch: Record<string, unknown> = {
+      updatedAtISO: new Date().toISOString(),
+    };
+    if (typeof input.title === "string") patch.title = input.title;
+    if (typeof input.description === "string") patch.description = input.description;
+    if (typeof input.assigneeId === "string") patch.assigneeId = input.assigneeId;
+    if (typeof input.dueDateISO === "string") patch.dueDateISO = input.dueDateISO;
+
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toTask(taskId, updated);
+  }
+
+  async delete(taskId: string): Promise<void> {
+    await firestoreInfrastructureApi.delete(this.taskPath(taskId));
+  }
+
+  async findById(taskId: string): Promise<Task | null> {
+    const data = await firestoreInfrastructureApi.get<Record<string, unknown>>(this.taskPath(taskId));
+    if (!data) return null;
+    return toTask(taskId, data);
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<Task[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      WF_TASKS_COLLECTION,
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+    const tasks = docs.map((d) => toTask(d.id, d.data));
+    return tasks.sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
+  }
+
+  async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null> {
+    const path = this.taskPath(taskId);
+    const snap = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!snap) return null;
+
+    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
+    const patch: Record<string, unknown> = {
+      status: validTo,
+      updatedAtISO: nowISO,
+    };
+    if (validTo === "accepted") patch.acceptedAtISO = nowISO;
+    if (validTo === "archived") patch.archivedAtISO = nowISO;
+
+    await firestoreInfrastructureApi.update(path, patch);
+    const updated = await firestoreInfrastructureApi.get<Record<string, unknown>>(path);
+    if (!updated) return null;
+    return toTask(taskId, updated);
+  }
+}
 ````
 
 ## File: modules/workspace/subdomains/workspace-workflow/interfaces/components/InvoiceRow.tsx
@@ -61138,6 +61088,22 @@ export default function SourceLibrariesPage() {
 }
 ````
 
+## File: modules/notebooklm/api/server.ts
+````typescript
+/**
+ * modules/notebooklm — server-only API barrel.
+ *
+ * Exports concrete notebook implementations that depend on server-only
+ * packages or infrastructure wiring. Must only be imported in Server Actions,
+ * route handlers, or server-side infrastructure.
+ */
+
+export { GenerateNotebookResponseUseCase, PlatformTextGenerationAdapter } from "../subdomains/notebook/api/server";
+
+// Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
+export { createAnswerRagQueryUseCase } from "../subdomains/synthesis/api/server";
+````
+
 ## File: modules/notebooklm/docs/README.md
 ````markdown
 # NotebookLM Documentation
@@ -61383,20 +61349,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notebooklm/subdomains/notebook/api/server.ts
-````typescript
-/**
- * notebook subdomain — server-only API.
- *
- * Exports infrastructure implementations that depend on server-only packages.
- * Must only be imported in Server Actions, route handlers, or server-side infrastructure.
- */
-
-export { PlatformTextGenerationAdapter } from "../infrastructure/platform/PlatformTextGenerationAdapter";
-export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-notebook-response.use-case";
-export { makeNotebookRepo } from "./factories";
 ````
 
 ## File: modules/notebooklm/subdomains/notebook/infrastructure/platform/PlatformTextGenerationAdapter.ts
@@ -64970,6 +64922,97 @@ export * from "./events";
 export * from "./value-objects";
 ````
 
+## File: modules/platform/subdomains/account/infrastructure/account-service.ts
+````typescript
+/**
+ * AccountService — Composition root for account use cases.
+ * Wires repositories and ports; provides a unified service interface.
+ */
+
+import {
+  CreateUserAccountUseCase,
+  UpdateUserProfileUseCase,
+  CreditWalletUseCase,
+  DebitWalletUseCase,
+  AssignAccountRoleUseCase,
+  RevokeAccountRoleUseCase,
+} from "../application/use-cases/account.use-cases";
+import {
+  CreateAccountPolicyUseCase,
+  UpdateAccountPolicyUseCase,
+  DeleteAccountPolicyUseCase,
+} from "../application/use-cases/account-policy.use-cases";
+import { FirebaseAccountRepository } from "./firebase/FirebaseAccountRepository";
+import { FirebaseAccountQueryRepository } from "./firebase/FirebaseAccountQueryRepository";
+import { FirebaseAccountPolicyRepository } from "./firebase/FirebaseAccountPolicyRepository";
+import { tokenRefreshAdapter } from "./identity-token-refresh.adapter";
+import type { UpdateProfileInput, OrganizationRole } from "../domain/entities/Account";
+import type { CreatePolicyInput, UpdatePolicyInput } from "../domain/entities/AccountPolicy";
+import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
+import type { CommandResult } from "@shared-types";
+
+let _accountRepo: FirebaseAccountRepository | undefined;
+let _policyRepo: FirebaseAccountPolicyRepository | undefined;
+
+function getAccountRepo(): FirebaseAccountRepository {
+  if (!_accountRepo) _accountRepo = new FirebaseAccountRepository();
+  return _accountRepo;
+}
+
+function getAcctPolicyRepo(): FirebaseAccountPolicyRepository {
+  if (!_policyRepo) _policyRepo = new FirebaseAccountPolicyRepository();
+  return _policyRepo;
+}
+
+export const accountService = {
+  createUserAccount: (userId: string, name: string, email: string): Promise<CommandResult> =>
+    new CreateUserAccountUseCase(getAccountRepo()).execute(userId, name, email),
+
+  updateUserProfile: (userId: string, data: UpdateProfileInput): Promise<CommandResult> =>
+    new UpdateUserProfileUseCase(getAccountRepo()).execute(userId, data),
+
+  creditWallet: (accountId: string, amount: number, description: string): Promise<CommandResult> =>
+    new CreditWalletUseCase(getAccountRepo()).execute(accountId, amount, description),
+
+  debitWallet: (accountId: string, amount: number, description: string): Promise<CommandResult> =>
+    new DebitWalletUseCase(getAccountRepo()).execute(accountId, amount, description),
+
+  assignRole: (accountId: string, role: OrganizationRole, grantedBy: string, traceId?: string): Promise<CommandResult> =>
+    new AssignAccountRoleUseCase(getAccountRepo(), tokenRefreshAdapter).execute(accountId, role, grantedBy, traceId),
+
+  revokeRole: (accountId: string): Promise<CommandResult> =>
+    new RevokeAccountRoleUseCase(getAccountRepo(), tokenRefreshAdapter).execute(accountId),
+
+  createPolicy: (input: CreatePolicyInput): Promise<CommandResult> =>
+    new CreateAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(input),
+
+  updatePolicy: (policyId: string, accountId: string, data: UpdatePolicyInput, traceId?: string): Promise<CommandResult> =>
+    new UpdateAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(policyId, accountId, data, traceId),
+
+  deletePolicy: (policyId: string, accountId: string): Promise<CommandResult> =>
+    new DeleteAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(policyId, accountId),
+};
+
+/**
+ * Creates a wired set of client-side account use cases.
+ * Keeps infrastructure wiring in the module boundary rather than in UI files.
+ */
+export function createClientAccountUseCases() {
+  const repo = new FirebaseAccountRepository();
+  return {
+    createUserAccountUseCase: new CreateUserAccountUseCase(repo),
+  };
+}
+
+// Internal re-export for the legacy bridge within this subdomain only.
+export { FirebaseAccountQueryRepository };
+
+/** Factory that returns a wired AccountQueryRepository without leaking the concrete class. */
+export function createAccountQueryRepository(): AccountQueryRepository {
+  return new FirebaseAccountQueryRepository();
+}
+````
+
 ## File: modules/platform/subdomains/account/infrastructure/index.ts
 ````typescript
 export { accountService, createClientAccountUseCases } from "./account-service";
@@ -65382,40 +65425,6 @@ export * from "./events";
 export * from "./value-objects";
 ````
 
-## File: modules/platform/subdomains/identity/interfaces/hooks/useTokenRefreshListener.tsx
-````typescript
-"use client";
-
-import { getFirebaseAuth } from "@integration-firebase";
-import { useEffect } from "react";
-import { FirebaseTokenRefreshRepository } from "../../api";
-
-let _tokenRefreshRepo: FirebaseTokenRefreshRepository | undefined;
-
-function getTokenRefreshRepo(): FirebaseTokenRefreshRepository {
-	if (!_tokenRefreshRepo) _tokenRefreshRepo = new FirebaseTokenRefreshRepository();
-	return _tokenRefreshRepo;
-}
-
-export function useTokenRefreshListener(accountId: string | null | undefined): void {
-	useEffect(() => {
-		if (!accountId) return;
-		if (!/^[\w-]+$/.test(accountId)) return;
-
-		const unsubscribe = getTokenRefreshRepo().subscribe(accountId, () => {
-			const auth = getFirebaseAuth();
-			const currentUser = auth.currentUser;
-			if (!currentUser) return;
-			void currentUser.getIdToken(true).catch(() => {
-				// Non-fatal: token refreshes naturally on next expiry cycle.
-			});
-		});
-
-		return () => unsubscribe();
-	}, [accountId]);
-}
-````
-
 ## File: modules/platform/subdomains/identity/README.md
 ````markdown
 # Identity
@@ -65531,48 +65540,6 @@ export type { INotificationPort } from "./ports";
 export * from "./aggregates";
 export * from "./events";
 export * from "./value-objects";
-````
-
-## File: modules/platform/subdomains/notification/infrastructure/notification-service.ts
-````typescript
-/**
- * NotificationService — Composition root for notification use cases.
- */
-
-import { FirebaseNotificationRepository } from "./firebase/FirebaseNotificationRepository";
-import {
-  DispatchNotificationUseCase,
-  GetNotificationsForRecipientUseCase,
-  GetUnreadCountUseCase,
-  MarkNotificationReadUseCase,
-  MarkAllNotificationsReadUseCase,
-} from "../application/use-cases/notification.use-cases";
-import type { DispatchNotificationInput, NotificationEntity } from "../domain/entities/Notification";
-import type { CommandResult } from "@shared-types";
-
-let _notificationRepo: FirebaseNotificationRepository | undefined;
-
-function getNotifRepo(): FirebaseNotificationRepository {
-  if (!_notificationRepo) _notificationRepo = new FirebaseNotificationRepository();
-  return _notificationRepo;
-}
-
-export const notificationService = {
-  dispatch: (input: DispatchNotificationInput): Promise<CommandResult> =>
-    new DispatchNotificationUseCase(getNotifRepo()).execute(input),
-
-  markAsRead: (notificationId: string, recipientId: string): Promise<CommandResult> =>
-    new MarkNotificationReadUseCase(getNotifRepo()).execute(notificationId, recipientId),
-
-  markAllAsRead: (recipientId: string): Promise<CommandResult> =>
-    new MarkAllNotificationsReadUseCase(getNotifRepo()).execute(recipientId),
-
-  getForRecipient: (recipientId: string, maxCount?: number): Promise<NotificationEntity[]> =>
-    new GetNotificationsForRecipientUseCase(getNotifRepo()).execute(recipientId, maxCount),
-
-  getUnreadCount: (recipientId: string): Promise<number> =>
-    new GetUnreadCountUseCase(getNotifRepo()).execute(recipientId),
-};
 ````
 
 ## File: modules/platform/subdomains/notification/interfaces/components/NotificationBell.tsx
@@ -65998,6 +65965,85 @@ User and organization onboarding flows.
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/platform/subdomains/organization/api/index.ts
+````typescript
+/**
+ * Public API boundary for the organization subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * NOTE: We avoid `export * from "../infrastructure"` here because the
+ * infrastructure barrel pulls in Firebase repository constructors during
+ * module evaluation, which causes failures during Next.js static
+ * prerendering. Infrastructure exports are available in the server barrel
+ * (./server.ts) or via direct import from action / service files.
+ */
+
+import { createTeamRepository } from "../../team/api";
+import { configureOrganizationTeamPortFactory } from "../infrastructure/organization-service";
+
+configureOrganizationTeamPortFactory(createTeamRepository);
+
+// --- Domain types ---
+export type {
+  OrganizationEntity,
+  OrganizationRole,
+  Presence,
+  InviteState,
+  PolicyEffect,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  ThemeConfig,
+  OrgPolicy,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../domain";
+export type { OrganizationRepository, Unsubscribe } from "../domain";
+export type { OrgPolicyRepository } from "../domain";
+
+// --- Application use cases ---
+export {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "../application";
+export {
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "../application";
+export {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../application";
+export {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "../application";
+export {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "../application";
+
+// --- Infrastructure (lazy, safe for SSR) ---
+export { organizationService, organizationQueryService } from "../infrastructure";
+
+// --- Interfaces (UI, queries, actions) ---
+export * from "../interfaces";
 ````
 
 ## File: modules/platform/subdomains/organization/application/use-cases/organization-team.use-cases.ts
@@ -67095,80 +67141,6 @@ Strategic architecture documentation lives in `docs/contexts/workspace/`:
 - This `docs/` folder is for implementation-aligned detail only.
 ````
 
-## File: modules/workspace/interfaces/api/runtime/workspace-runtime.ts
-````typescript
-import { WorkspaceCommandApplicationService } from "../../../application/services/WorkspaceCommandApplicationService";
-import { WorkspaceQueryApplicationService } from "../../../application/services/WorkspaceQueryApplicationService";
-import {
-  makeWikiWorkspaceRepo,
-  makeWorkspaceDomainEventPublisher,
-  makeWorkspaceQueryRepo,
-  makeWorkspaceRepo,
-} from "../../../api/runtime/factories";
-import type { WorkspaceCommandPort } from "../../../application/dtos/workspace-interfaces.dto";
-import type { WorkspaceQueryPort } from "../../../application/dtos/workspace-interfaces.dto";
-import { createWorkspaceSessionContext } from "./workspace-session-context";
-
-let _sessionContext: ReturnType<typeof createWorkspaceSessionContext> | undefined;
-
-function getSessionContext() {
-  if (!_sessionContext) {
-    // Lazy-load the organization query functions to break the circular module
-    // evaluation chain: workspace-runtime → platform/api → organization/interfaces
-    // → organization/api → workspace (via barrel re-exports).
-    //
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const platformApi = require("@/modules/platform/api");
-
-    const workspaceRepo = makeWorkspaceRepo();
-    const workspaceQueryRepo = makeWorkspaceQueryRepo({
-      getOrganizationMembers: platformApi.getOrganizationMembers,
-      getOrganizationTeams: platformApi.getOrganizationTeams,
-    });
-    const wikiWorkspaceRepo = makeWikiWorkspaceRepo();
-    const workspaceDomainEventPublisher = makeWorkspaceDomainEventPublisher();
-
-    const commandPort: WorkspaceCommandPort = new WorkspaceCommandApplicationService({
-      workspaceRepo,
-      workspaceCapabilityRepo: workspaceRepo,
-      workspaceAccessRepo: workspaceRepo,
-      workspaceLocationRepo: workspaceRepo,
-      workspaceDomainEventPublisher,
-    });
-
-    const queryPort: WorkspaceQueryPort = new WorkspaceQueryApplicationService({
-      workspaceRepo,
-      workspaceQueryRepo,
-      wikiWorkspaceRepo,
-    });
-
-    _sessionContext = createWorkspaceSessionContext(commandPort, queryPort);
-  }
-  return _sessionContext;
-}
-
-/**
- * Lazy-initialized workspace ports.
- * Proxy objects defer all property access until first actual use, breaking
- * the circular module-evaluation chain at build time while preserving the
- * same public API as the previous eager singletons.
- */
-export const workspaceSessionContext = new Proxy(
-  {} as ReturnType<typeof createWorkspaceSessionContext>,
-  { get: (_target, prop) => getSessionContext()[prop as keyof ReturnType<typeof createWorkspaceSessionContext>] },
-);
-
-export const workspaceCommandPort: WorkspaceCommandPort = new Proxy(
-  {} as WorkspaceCommandPort,
-  { get: (_target, prop) => getSessionContext().workspaceCommandPort[prop as keyof WorkspaceCommandPort] },
-);
-
-export const workspaceQueryPort: WorkspaceQueryPort = new Proxy(
-  {} as WorkspaceQueryPort,
-  { get: (_target, prop) => getSessionContext().workspaceQueryPort[prop as keyof WorkspaceQueryPort] },
-);
-````
-
 ## File: modules/workspace/interfaces/web/navigation/workspace-tabs.ts
 ````typescript
 export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
@@ -67477,6 +67449,92 @@ export function createActorId(raw: string): ActorId {
 
 export function unsafeActorId(raw: string): ActorId {
 	return raw as ActorId;
+}
+````
+
+## File: modules/workspace/subdomains/audit/infrastructure/firebase/FirebaseAuditRepository.ts
+````typescript
+import {
+  firestoreInfrastructureApi,
+} from "@/modules/platform/api";
+import type { AuditEntry } from "../../domain/aggregates/AuditEntry";
+import type { AuditLogEntity, AuditLogSource } from "../../domain/entities/AuditLog";
+import type { AuditRepository } from "../../domain/repositories/AuditRepository";
+
+const VALID_AUDIT_LOG_SOURCES = new Set<AuditLogSource>([
+  "workspace",
+  "finance",
+  "notification",
+  "system",
+]);
+
+function toAuditLogEntity(id: string, data: Record<string, unknown>): AuditLogEntity {
+  const source = VALID_AUDIT_LOG_SOURCES.has(data.source as AuditLogSource)
+    ? (data.source as AuditLogSource)
+    : "workspace";
+
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    actorId: typeof data.actorId === "string" ? data.actorId : "system",
+    action: typeof data.action === "string" ? data.action : "unknown",
+    detail: typeof data.detail === "string" ? data.detail : "",
+    source,
+    occurredAtISO:
+      typeof data.occurredAtISO === "string"
+        ? data.occurredAtISO
+        : "",
+  };
+}
+
+export class FirebaseAuditRepository implements AuditRepository {
+  async save(entry: AuditEntry): Promise<void> {
+    const id = crypto.randomUUID();
+    await firestoreInfrastructureApi.set(`auditLogs/${id}`, entry.getSnapshot());
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<AuditLogEntity[]> {
+    const docs = await firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+      "auditLogs",
+      [{ field: "workspaceId", op: "==", value: workspaceId }],
+    );
+
+    return docs
+      .map((doc) => toAuditLogEntity(doc.id, doc.data))
+      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO));
+  }
+
+  async findByWorkspaceIds(
+    workspaceIds: string[],
+    maxCount = 200,
+  ): Promise<AuditLogEntity[]> {
+    if (workspaceIds.length === 0) {
+      return [];
+    }
+
+    const chunks: string[][] = [];
+    for (let index = 0; index < workspaceIds.length; index += 10) {
+      chunks.push(workspaceIds.slice(index, index + 10));
+    }
+
+    const perChunkLimit = Math.max(1, Math.ceil(maxCount / chunks.length));
+
+    const documents = await Promise.all(
+      chunks.map((chunk) =>
+        firestoreInfrastructureApi.queryDocuments<Record<string, unknown>>(
+          "auditLogs",
+          [{ field: "workspaceId", op: "in", value: chunk }],
+          { limit: perChunkLimit },
+        ),
+      ),
+    );
+
+    return documents
+      .flatMap((document) => document)
+      .map((doc) => toAuditLogEntity(doc.id, doc.data))
+      .sort((left, right) => right.occurredAtISO.localeCompare(left.occurredAtISO))
+      .slice(0, maxCount);
+  }
 }
 ````
 
@@ -68428,22 +68486,6 @@ export default function SettingsProfilePage() {
     />
   );
 }
-````
-
-## File: modules/notebooklm/api/server.ts
-````typescript
-/**
- * modules/notebooklm — server-only API barrel.
- *
- * Exports concrete notebook implementations that depend on server-only
- * packages or infrastructure wiring. Must only be imported in Server Actions,
- * route handlers, or server-side infrastructure.
- */
-
-export { GenerateNotebookResponseUseCase, PlatformTextGenerationAdapter } from "../subdomains/notebook/api/server";
-
-// Q&A subdomain — AnswerRagQueryUseCase factory (now in synthesis subdomain)
-export { createAnswerRagQueryUseCase } from "../subdomains/synthesis/api/server";
 ````
 
 ## File: modules/notebooklm/notebooklm.instructions.md
@@ -69892,97 +69934,6 @@ export async function updateLegacyUserProfile(userId: string, input: UpdateProfi
 }
 ````
 
-## File: modules/platform/subdomains/account/infrastructure/account-service.ts
-````typescript
-/**
- * AccountService — Composition root for account use cases.
- * Wires repositories and ports; provides a unified service interface.
- */
-
-import {
-  CreateUserAccountUseCase,
-  UpdateUserProfileUseCase,
-  CreditWalletUseCase,
-  DebitWalletUseCase,
-  AssignAccountRoleUseCase,
-  RevokeAccountRoleUseCase,
-} from "../application/use-cases/account.use-cases";
-import {
-  CreateAccountPolicyUseCase,
-  UpdateAccountPolicyUseCase,
-  DeleteAccountPolicyUseCase,
-} from "../application/use-cases/account-policy.use-cases";
-import { FirebaseAccountRepository } from "./firebase/FirebaseAccountRepository";
-import { FirebaseAccountQueryRepository } from "./firebase/FirebaseAccountQueryRepository";
-import { FirebaseAccountPolicyRepository } from "./firebase/FirebaseAccountPolicyRepository";
-import { tokenRefreshAdapter } from "./identity-token-refresh.adapter";
-import type { UpdateProfileInput, OrganizationRole } from "../domain/entities/Account";
-import type { CreatePolicyInput, UpdatePolicyInput } from "../domain/entities/AccountPolicy";
-import type { AccountQueryRepository } from "../domain/repositories/AccountQueryRepository";
-import type { CommandResult } from "@shared-types";
-
-let _accountRepo: FirebaseAccountRepository | undefined;
-let _policyRepo: FirebaseAccountPolicyRepository | undefined;
-
-function getAccountRepo(): FirebaseAccountRepository {
-  if (!_accountRepo) _accountRepo = new FirebaseAccountRepository();
-  return _accountRepo;
-}
-
-function getAcctPolicyRepo(): FirebaseAccountPolicyRepository {
-  if (!_policyRepo) _policyRepo = new FirebaseAccountPolicyRepository();
-  return _policyRepo;
-}
-
-export const accountService = {
-  createUserAccount: (userId: string, name: string, email: string): Promise<CommandResult> =>
-    new CreateUserAccountUseCase(getAccountRepo()).execute(userId, name, email),
-
-  updateUserProfile: (userId: string, data: UpdateProfileInput): Promise<CommandResult> =>
-    new UpdateUserProfileUseCase(getAccountRepo()).execute(userId, data),
-
-  creditWallet: (accountId: string, amount: number, description: string): Promise<CommandResult> =>
-    new CreditWalletUseCase(getAccountRepo()).execute(accountId, amount, description),
-
-  debitWallet: (accountId: string, amount: number, description: string): Promise<CommandResult> =>
-    new DebitWalletUseCase(getAccountRepo()).execute(accountId, amount, description),
-
-  assignRole: (accountId: string, role: OrganizationRole, grantedBy: string, traceId?: string): Promise<CommandResult> =>
-    new AssignAccountRoleUseCase(getAccountRepo(), tokenRefreshAdapter).execute(accountId, role, grantedBy, traceId),
-
-  revokeRole: (accountId: string): Promise<CommandResult> =>
-    new RevokeAccountRoleUseCase(getAccountRepo(), tokenRefreshAdapter).execute(accountId),
-
-  createPolicy: (input: CreatePolicyInput): Promise<CommandResult> =>
-    new CreateAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(input),
-
-  updatePolicy: (policyId: string, accountId: string, data: UpdatePolicyInput, traceId?: string): Promise<CommandResult> =>
-    new UpdateAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(policyId, accountId, data, traceId),
-
-  deletePolicy: (policyId: string, accountId: string): Promise<CommandResult> =>
-    new DeleteAccountPolicyUseCase(getAcctPolicyRepo(), tokenRefreshAdapter).execute(policyId, accountId),
-};
-
-/**
- * Creates a wired set of client-side account use cases.
- * Keeps infrastructure wiring in the module boundary rather than in UI files.
- */
-export function createClientAccountUseCases() {
-  const repo = new FirebaseAccountRepository();
-  return {
-    createUserAccountUseCase: new CreateUserAccountUseCase(repo),
-  };
-}
-
-// Internal re-export for the legacy bridge within this subdomain only.
-export { FirebaseAccountQueryRepository };
-
-/** Factory that returns a wired AccountQueryRepository without leaking the concrete class. */
-export function createAccountQueryRepository(): AccountQueryRepository {
-  return new FirebaseAccountQueryRepository();
-}
-````
-
 ## File: modules/platform/subdomains/account/interfaces/_actions/account-policy.actions.ts
 ````typescript
 "use server";
@@ -70149,83 +70100,18 @@ export async function markAllNotificationsRead(recipientId: string): Promise<Com
 }
 ````
 
-## File: modules/platform/subdomains/organization/api/index.ts
+## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
 ````typescript
 /**
- * Public API boundary for the organization subdomain.
- * Cross-module consumers must import through this entry point.
- *
- * NOTE: We avoid `export * from "../infrastructure"` here because the
- * infrastructure barrel pulls in Firebase repository constructors during
- * module evaluation, which causes failures during Next.js static
- * prerendering. Infrastructure exports are available in the server barrel
- * (./server.ts) or via direct import from action / service files.
+ * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
  */
 
-import { createTeamRepository } from "../../team/api";
-import { configureOrganizationTeamPortFactory } from "../infrastructure/organization-service";
+import { notificationService } from "../../api";
+import type { NotificationEntity } from "../../application/dtos/notification.dto";
 
-configureOrganizationTeamPortFactory(createTeamRepository);
-
-// --- Domain types ---
-export type {
-  OrganizationEntity,
-  OrganizationRole,
-  Presence,
-  InviteState,
-  PolicyEffect,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  ThemeConfig,
-  OrgPolicy,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../domain";
-export type { OrganizationRepository, Unsubscribe } from "../domain";
-export type { OrgPolicyRepository } from "../domain";
-
-// --- Application use cases ---
-export {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-} from "../application";
-export {
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-} from "../application";
-export {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../application";
-export {
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../application";
-export {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../application";
-
-// --- Infrastructure (lazy, safe for SSR) ---
-export { organizationService, organizationQueryService } from "../infrastructure";
-
-// --- Interfaces (UI, queries, actions) ---
-export * from "../interfaces";
+export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
+  return notificationService.getForRecipient(recipientId, maxCount);
+}
 ````
 
 ## File: modules/platform/subdomains/organization/interfaces/_actions/organization-policy.actions.ts
@@ -70364,6 +70250,28 @@ export async function dismissPartnerMember(
 ): Promise<CommandResult> {
   try { return await organizationService.dismissPartnerMember(organizationId, teamId, memberId); }
   catch (err) { return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+````
+
+## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
+````typescript
+/**
+ * Organization Queries — delegates to organizationQueryService via the subdomain api/ boundary.
+ */
+
+import { organizationQueryService } from "../../api";
+import type { MemberReference, Team, OrgPolicy } from "../../application/dtos/organization.dto";
+
+export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
+  return organizationQueryService.getMembers(organizationId);
+}
+
+export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
+  return organizationQueryService.getTeams(organizationId);
+}
+
+export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
+  return organizationQueryService.getOrgPolicies(orgId);
 }
 ````
 
@@ -71322,501 +71230,6 @@ Legacy migration (Strangler Pattern):
 5. Replace Infrastructure adapter; remove old path when stable
 ````
 
-## File: modules/platform/api/contracts.ts
-````typescript
-/**
- * platform API contracts boundary.
- *
- * Keep the source of truth in application/domain and re-export here for API consumers.
- */
-
-export * from "../application/dtos";
-export type {
-	PlatformContextView,
-	PolicyCatalogView,
-	SubscriptionEntitlementsView,
-	WorkflowPolicyView,
-} from "../domain/ports/output";
-export * from "../domain/events";
-
-// ── Identity session types ────────────────────────────────────────────────────
-// AuthUser is the canonical projection of an authenticated identity subject.
-// Platform/Identity BC owns this DTO; app/providers/auth-context re-exports it.
-
-/** Minimal authenticated user record surfaced from identity auth state. */
-export interface AuthUser {
-	readonly id: string;
-	readonly name: string;
-	readonly email: string;
-}
-
-// ── Infrastructure API contracts (platform-owned) ───────────────────────────
-
-export type FirestoreWhereOperator =
-	| "<"
-	| "<="
-	| "=="
-	| "!="
-	| ">="
-	| ">"
-	| "array-contains"
-	| "array-contains-any"
-	| "in"
-	| "not-in";
-
-export interface FirestoreWhereClause {
-	readonly field: string;
-	readonly op: FirestoreWhereOperator;
-	readonly value: unknown;
-}
-
-export type FirestoreOrderDirection = "asc" | "desc";
-
-export interface FirestoreOrderByClause {
-	readonly field: string;
-	readonly direction?: FirestoreOrderDirection;
-}
-
-export interface FirestoreQueryOptions {
-	readonly limit?: number;
-	readonly orderBy?: readonly FirestoreOrderByClause[];
-}
-
-export interface FirestoreCollectionDocument<T> {
-	readonly id: string;
-	readonly data: T;
-}
-
-export interface FirestoreCollectionWatchHandlers<T> {
-	readonly onNext: (documents: readonly FirestoreCollectionDocument<T>[]) => void;
-	readonly onError?: (error: unknown) => void;
-}
-
-export interface FirestoreDocumentWatchHandlers<T> {
-	readonly onNext: (document: FirestoreCollectionDocument<T> | null) => void;
-	readonly onError?: (error: unknown) => void;
-}
-
-export interface FirestoreSetDocumentInput<T> {
-	readonly path: string;
-	readonly data: T;
-}
-
-export interface FirestoreAPI {
-	get<T>(path: string): Promise<T | null>;
-	set<T>(path: string, data: T): Promise<void>;
-	setMany<T>(inputs: readonly FirestoreSetDocumentInput<T>[]): Promise<void>;
-	update(path: string, data: Record<string, unknown>): Promise<void>;
-	delete(path: string): Promise<void>;
-	query<T>(
-		collectionPath: string,
-		where?: readonly FirestoreWhereClause[],
-		options?: FirestoreQueryOptions,
-	): Promise<T[]>;
-	queryDocuments<T>(
-		collectionPath: string,
-		where?: readonly FirestoreWhereClause[],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly FirestoreCollectionDocument<T>[]>;
-	queryCollectionGroup<T>(
-		collectionId: string,
-		where?: readonly FirestoreWhereClause[],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly FirestoreCollectionDocument<T>[]>;
-	watchCollection<T>(
-		collectionPath: string,
-		handlers: FirestoreCollectionWatchHandlers<T>,
-		where?: readonly FirestoreWhereClause[],
-	): () => void;
-	watchDocument<T>(path: string, handlers: FirestoreDocumentWatchHandlers<T>): () => void;
-}
-
-export interface StorageUploadOptions {
-	readonly contentType?: string;
-	readonly customMetadata?: Record<string, string>;
-}
-
-export interface StorageAPI {
-	upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>;
-	getUrl(path: string): Promise<string>;
-	delete(path: string): Promise<void>;
-	toGsUri(path: string): string;
-}
-
-export interface GenkitAPI {
-	runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput>;
-}
-
-export interface FunctionsCallOptions {
-	readonly region?: string;
-}
-
-export interface FunctionsAPI {
-	call<TInput, TOutput>(
-		functionName: string,
-		input: TInput,
-		options?: FunctionsCallOptions,
-	): Promise<TOutput>;
-}
-
-// ── Platform Service API contracts (cross-domain) ───────────────────────────
-
-export interface AuthSession {
-	readonly userId: string;
-	readonly email: string | null;
-	readonly displayName: string | null;
-	readonly isAnonymous: boolean;
-}
-
-export interface AuthAPI {
-	getSession(): Promise<AuthSession | null>;
-	requireAuth(): Promise<AuthSession>;
-}
-
-export interface PermissionAPI {
-	can(userId: string, action: string, resource: string): Promise<boolean>;
-}
-
-export interface UploadUserFileInput {
-	readonly file: Blob;
-	readonly ownerId: string;
-	readonly fileName?: string;
-	readonly contentType?: string;
-	readonly metadata?: Record<string, string>;
-	readonly pathHint?: string;
-}
-
-export interface UploadUserFileOutput {
-	readonly url: string;
-	readonly fileId: string;
-	readonly storagePath: string;
-	readonly gcsUri: string;
-}
-
-export interface FileAPI {
-	uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>;
-	deleteFile(fileId: string): Promise<void>;
-}
-
-// ── Cross-cutting account context type ───────────────────────────────────────
-// ActiveAccount is the union of an organization AccountEntity or a personal
-// AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
-import type { AccountEntity } from "../subdomains/account/api";
-export type ActiveAccount = AccountEntity | AuthUser;
-````
-
-## File: modules/platform/api/infrastructure-api.ts
-````typescript
-import {
-	functionsApi,
-	firestoreApi,
-	getFirebaseFirestore,
-	getFirebaseFunctions,
-	getFirebaseStorage,
-	storageApi,
-} from "@integration-firebase";
-import { collectionGroup } from "firebase/firestore";
-
-import type {
-	FirestoreAPI,
-	FunctionsAPI,
-	FunctionsCallOptions,
-	FirestoreQueryOptions,
-	FirestoreWhereClause,
-	GenkitAPI,
-	StorageAPI,
-	StorageUploadOptions,
-} from "./contracts";
-
-const DEFAULT_STORAGE_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
-const DEFAULT_FUNCTION_REGION = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_REGION ?? "asia-east1";
-
-function splitPath(path: string): string[] {
-	const segments = path
-		.split("/")
-		.map((segment) => segment.trim())
-		.filter(Boolean);
-
-	if (segments.length === 0) {
-		throw new Error("Path is required.");
-	}
-
-	return segments;
-}
-
-function resolveDocumentPath(path: string): string[] {
-	const segments = splitPath(path);
-	if (segments.length % 2 !== 0) {
-		throw new Error(`Expected a document path but got collection path: ${path}`);
-	}
-	return segments;
-}
-
-function resolveCollectionPath(path: string): string[] {
-	const segments = splitPath(path);
-	if (segments.length % 2 === 0) {
-		throw new Error(`Expected a collection path but got document path: ${path}`);
-	}
-	return segments;
-}
-
-function resolveStorageBucket(): string {
-	return process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || DEFAULT_STORAGE_BUCKET;
-}
-
-function resolveStoragePath(path: string): string {
-	const normalized = path.trim().replace(/^\/+/, "");
-	if (!normalized) {
-		throw new Error("Storage path is required.");
-	}
-	return normalized;
-}
-
-function toUploadMetadata(options?: StorageUploadOptions) {
-	if (!options) return undefined;
-	return {
-		contentType: options.contentType,
-		customMetadata: options.customMetadata,
-	};
-}
-
-function applyQueryConstraints(
-	baseQuery: ReturnType<typeof firestoreApi.query>,
-	where: readonly FirestoreWhereClause[],
-	options?: FirestoreQueryOptions,
-) {
-	const whereConstraints = where.map((clause) =>
-		firestoreApi.where(clause.field, clause.op, clause.value),
-	);
-
-	const orderByConstraints = (options?.orderBy ?? []).map((clause) =>
-		firestoreApi.orderBy(clause.field, clause.direction ?? "asc"),
-	);
-
-	const limitConstraint =
-		typeof options?.limit === "number" && options.limit > 0
-			? [firestoreApi.limit(options.limit)]
-			: [];
-
-	return firestoreApi.query(baseQuery, ...whereConstraints, ...orderByConstraints, ...limitConstraint);
-}
-
-export const firestoreInfrastructureApi: FirestoreAPI = {
-	async get<T>(path: string): Promise<T | null> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		const snapshot = await firestoreApi.getDoc(ref);
-		if (!snapshot.exists()) return null;
-		return snapshot.data() as T;
-	},
-
-	async set<T>(path: string, data: T): Promise<void> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		await firestoreApi.setDoc(ref, data as Record<string, unknown>);
-	},
-
-	async setMany<T>(inputs: readonly { path: string; data: T }[]): Promise<void> {
-		if (inputs.length === 0) return;
-
-		const db = getFirebaseFirestore();
-		const batch = firestoreApi.writeBatch(db);
-
-		for (const input of inputs) {
-			const ref = firestoreApi.doc(db, resolveDocumentPath(input.path).join("/"));
-			batch.set(ref, input.data as Record<string, unknown>);
-		}
-
-		await batch.commit();
-	},
-
-	async update(path: string, data: Record<string, unknown>): Promise<void> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		await firestoreApi.updateDoc(ref, data);
-	},
-
-	async delete(path: string): Promise<void> {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-		await firestoreApi.deleteDoc(ref);
-	},
-
-	async query<T>(
-		collectionPath: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-	): Promise<T[]> {
-		const documents = await firestoreInfrastructureApi.queryDocuments<T>(collectionPath, where, options);
-		return documents.map((document) => document.data);
-	},
-
-	async queryDocuments<T>(
-		collectionPath: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly { id: string; data: T }[]> {
-		const db = getFirebaseFirestore();
-		const collectionRef = firestoreApi.collection(
-			db,
-			resolveCollectionPath(collectionPath).join("/"),
-		);
-
-		const queryRef = applyQueryConstraints(firestoreApi.query(collectionRef), where, options);
-		const snapshot = await firestoreApi.getDocs(queryRef);
-		return snapshot.docs.map((doc) => ({
-			id: doc.id,
-			data: doc.data() as T,
-		}));
-	},
-
-	async queryCollectionGroup<T>(
-		collectionId: string,
-		where: readonly FirestoreWhereClause[] = [],
-		options?: FirestoreQueryOptions,
-	): Promise<readonly { id: string; data: T }[]> {
-		const normalizedCollectionId = collectionId.trim();
-		if (!normalizedCollectionId) {
-			throw new Error("Collection group id is required.");
-		}
-
-		const db = getFirebaseFirestore();
-		const collectionGroupRef = collectionGroup(db, normalizedCollectionId);
-		const queryRef = applyQueryConstraints(firestoreApi.query(collectionGroupRef), where, options);
-		const snapshot = await firestoreApi.getDocs(queryRef);
-		return snapshot.docs.map((doc) => ({
-			id: doc.id,
-			data: doc.data() as T,
-		}));
-	},
-
-	watchCollection<T>(
-		collectionPath: string,
-		handlers: {
-			onNext: (documents: readonly { id: string; data: T }[]) => void;
-			onError?: (error: unknown) => void;
-		},
-		where: readonly FirestoreWhereClause[] = [],
-	): () => void {
-		const db = getFirebaseFirestore();
-		const collectionRef = firestoreApi.collection(
-			db,
-			resolveCollectionPath(collectionPath).join("/"),
-		);
-
-		const queryConstraints = where.map((clause) =>
-			firestoreApi.where(clause.field, clause.op, clause.value),
-		);
-		const queryRef = firestoreApi.query(collectionRef, ...queryConstraints);
-
-		return firestoreApi.onSnapshot(
-			queryRef,
-			(snapshot) => {
-				handlers.onNext(
-					snapshot.docs.map((doc) => ({
-						id: doc.id,
-						data: doc.data() as T,
-					})),
-				);
-			},
-			(error) => {
-				handlers.onError?.(error);
-			},
-		);
-	},
-
-	watchDocument<T>(
-		path: string,
-		handlers: {
-			onNext: (document: { id: string; data: T } | null) => void;
-			onError?: (error: unknown) => void;
-		},
-	): () => void {
-		const db = getFirebaseFirestore();
-		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
-
-		return firestoreApi.onSnapshot(
-			ref,
-			(snapshot) => {
-				if (!snapshot.exists()) {
-					handlers.onNext(null);
-					return;
-				}
-				handlers.onNext({
-					id: snapshot.id,
-					data: snapshot.data() as T,
-				});
-			},
-			(error) => {
-				handlers.onError?.(error);
-			},
-		);
-	},
-};
-
-export const storageInfrastructureApi: StorageAPI = {
-	async upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		await storageApi.uploadBytes(ref, file, toUploadMetadata(options));
-		return storageApi.getDownloadURL(ref);
-	},
-
-	async getUrl(path: string): Promise<string> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		return storageApi.getDownloadURL(ref);
-	},
-
-	async delete(path: string): Promise<void> {
-		const normalizedPath = resolveStoragePath(path);
-		const storage = getFirebaseStorage(resolveStorageBucket());
-		const ref = storageApi.ref(storage, normalizedPath);
-		await storageApi.deleteObject(ref);
-	},
-
-	toGsUri(path: string): string {
-		const normalizedPath = resolveStoragePath(path);
-		return `gs://${resolveStorageBucket()}/${normalizedPath}`;
-	},
-};
-
-export const genkitInfrastructureApi: GenkitAPI = {
-	async runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput> {
-		const normalizedFlow = flow.trim();
-		if (!normalizedFlow) {
-			throw new Error("Flow name is required.");
-		}
-
-		const functions = getFirebaseFunctions(DEFAULT_FUNCTION_REGION);
-		const runFlow = functionsApi.httpsCallable(functions, "platform_run_genkit_flow");
-		const response = await runFlow({ flow: normalizedFlow, input });
-		return response.data as TOutput;
-	},
-};
-
-export const functionsInfrastructureApi: FunctionsAPI = {
-	async call<TInput, TOutput>(
-		functionName: string,
-		input: TInput,
-		options?: FunctionsCallOptions,
-	): Promise<TOutput> {
-		const normalizedName = functionName.trim();
-		if (!normalizedName) {
-			throw new Error("Function name is required.");
-		}
-
-		const region = options?.region?.trim() || DEFAULT_FUNCTION_REGION;
-		const functions = getFirebaseFunctions(region);
-		const callable = functionsApi.httpsCallable(functions, normalizedName);
-		const response = await callable(input);
-		return response.data as TOutput;
-	},
-};
-````
-
 ## File: modules/platform/application/use-cases/index.ts
 ````typescript
 /**
@@ -71900,6 +71313,82 @@ export {
 } from "./account-profile-service";
 ````
 
+## File: modules/platform/subdomains/account/interfaces/queries/account.queries.ts
+````typescript
+/**
+ * Account Read Queries — thin wrappers over the AccountQueryRepository port.
+ * NOT Server Actions — callable from React components/hooks directly.
+ */
+
+import { createAccountQueryRepository } from "../../api";
+import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
+import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dtos/account.dto";
+
+let _accountQueryRepo: AccountQueryRepository | undefined;
+
+function getAccountQueryRepo(): AccountQueryRepository {
+  if (!_accountQueryRepo) _accountQueryRepo = createAccountQueryRepository();
+  return _accountQueryRepo;
+}
+
+export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
+  return getAccountQueryRepo().getUserProfile(userId);
+}
+
+export function subscribeToUserProfile(
+  userId: string,
+  onUpdate: (profile: AccountEntity | null) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
+}
+
+export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
+  return getAccountQueryRepo().getWalletBalance(accountId);
+}
+
+export function subscribeToWalletBalance(
+  accountId: string,
+  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToWalletBalance(accountId, onUpdate);
+}
+
+export function subscribeToWalletTransactions(
+  accountId: string,
+  maxCount: number,
+  onUpdate: (txs: WalletTransaction[]) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToWalletTransactions(accountId, maxCount, onUpdate);
+}
+
+export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
+  return getAccountQueryRepo().getAccountRole(accountId);
+}
+
+export function subscribeToAccountRoles(
+  accountId: string,
+  onUpdate: (record: AccountRoleRecord | null) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToAccountRoles(accountId, onUpdate);
+}
+
+export function subscribeToAccountsForUser(
+  userId: string,
+  onUpdate: (accounts: Record<string, AccountEntity>) => void,
+): Unsubscribe {
+  return getAccountQueryRepo().subscribeToAccountsForUser(userId, onUpdate);
+}
+
+export async function getAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
+  // Policy reads are server-side only; keep client bundles free of policy repo deps.
+  return [];
+}
+
+export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
+  return [];
+}
+````
+
 ## File: modules/platform/subdomains/ai/api/index.ts
 ````typescript
 /**
@@ -71922,42 +71411,6 @@ export type {
 export interface AIAPI {
 	summarize(text: string, model?: string): Promise<string>;
 	generateText(input: GenerateAiTextInput): Promise<GenerateAiTextOutput>;
-}
-````
-
-## File: modules/platform/subdomains/notification/interfaces/queries/notification.queries.ts
-````typescript
-/**
- * Notification Queries — delegates to notificationService via the subdomain api/ boundary.
- */
-
-import { notificationService } from "../../api";
-import type { NotificationEntity } from "../../application/dtos/notification.dto";
-
-export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
-  return notificationService.getForRecipient(recipientId, maxCount);
-}
-````
-
-## File: modules/platform/subdomains/organization/interfaces/queries/organization.queries.ts
-````typescript
-/**
- * Organization Queries — delegates to organizationQueryService via the subdomain api/ boundary.
- */
-
-import { organizationQueryService } from "../../api";
-import type { MemberReference, Team, OrgPolicy } from "../../application/dtos/organization.dto";
-
-export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
-  return organizationQueryService.getMembers(organizationId);
-}
-
-export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
-  return organizationQueryService.getTeams(organizationId);
-}
-
-export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
-  return organizationQueryService.getOrgPolicies(orgId);
 }
 ````
 
@@ -72553,6 +72006,506 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - [Bounded Context Template](../../docs/bounded-context-subdomain-template.md)
 ````
 
+## File: modules/platform/api/contracts.ts
+````typescript
+/**
+ * platform API contracts boundary.
+ *
+ * Keep the source of truth in application/domain and re-export here for API consumers.
+ */
+
+export * from "../application/dtos";
+export type {
+	PlatformContextView,
+	PolicyCatalogView,
+	SubscriptionEntitlementsView,
+	WorkflowPolicyView,
+} from "../domain/ports/output";
+export * from "../domain/events";
+
+// ── Identity session types ────────────────────────────────────────────────────
+// AuthUser is the canonical projection of an authenticated identity subject.
+// Platform/Identity BC owns this DTO; app/providers/auth-context re-exports it.
+
+/** Minimal authenticated user record surfaced from identity auth state. */
+export interface AuthUser {
+	readonly id: string;
+	readonly name: string;
+	readonly email: string;
+}
+
+// ── Infrastructure API contracts (platform-owned) ───────────────────────────
+
+export type FirestoreWhereOperator =
+	| "<"
+	| "<="
+	| "=="
+	| "!="
+	| ">="
+	| ">"
+	| "array-contains"
+	| "array-contains-any"
+	| "in"
+	| "not-in";
+
+export interface FirestoreWhereClause {
+	readonly field: string;
+	readonly op: FirestoreWhereOperator;
+	readonly value: unknown;
+}
+
+export type FirestoreOrderDirection = "asc" | "desc";
+
+export interface FirestoreOrderByClause {
+	readonly field: string;
+	readonly direction?: FirestoreOrderDirection;
+}
+
+export interface FirestoreQueryOptions {
+	readonly limit?: number;
+	readonly orderBy?: readonly FirestoreOrderByClause[];
+}
+
+export interface FirestoreCollectionDocument<T> {
+	readonly id: string;
+	readonly path: string;
+	readonly data: T;
+}
+
+export interface FirestoreCollectionWatchHandlers<T> {
+	readonly onNext: (documents: readonly FirestoreCollectionDocument<T>[]) => void;
+	readonly onError?: (error: unknown) => void;
+}
+
+export interface FirestoreDocumentWatchHandlers<T> {
+	readonly onNext: (document: FirestoreCollectionDocument<T> | null) => void;
+	readonly onError?: (error: unknown) => void;
+}
+
+export interface FirestoreSetDocumentInput<T> {
+	readonly path: string;
+	readonly data: T;
+}
+
+export interface FirestoreAPI {
+	get<T>(path: string): Promise<T | null>;
+	set<T>(path: string, data: T): Promise<void>;
+	setMany<T>(inputs: readonly FirestoreSetDocumentInput<T>[]): Promise<void>;
+	update(path: string, data: Record<string, unknown>): Promise<void>;
+	delete(path: string): Promise<void>;
+	query<T>(
+		collectionPath: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<T[]>;
+	queryDocuments<T>(
+		collectionPath: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly FirestoreCollectionDocument<T>[]>;
+	queryCollectionGroup<T>(
+		collectionId: string,
+		where?: readonly FirestoreWhereClause[],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly FirestoreCollectionDocument<T>[]>;
+	watchCollection<T>(
+		collectionPath: string,
+		handlers: FirestoreCollectionWatchHandlers<T>,
+		where?: readonly FirestoreWhereClause[],
+	): () => void;
+	watchDocument<T>(path: string, handlers: FirestoreDocumentWatchHandlers<T>): () => void;
+}
+
+export interface StorageUploadOptions {
+	readonly contentType?: string;
+	readonly customMetadata?: Record<string, string>;
+}
+
+export interface StorageAPI {
+	upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string>;
+	getUrl(path: string): Promise<string>;
+	delete(path: string): Promise<void>;
+	toGsUri(path: string): string;
+}
+
+export interface GenkitAPI {
+	runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput>;
+}
+
+export interface FunctionsCallOptions {
+	readonly region?: string;
+}
+
+export interface FunctionsAPI {
+	call<TInput, TOutput>(
+		functionName: string,
+		input: TInput,
+		options?: FunctionsCallOptions,
+	): Promise<TOutput>;
+}
+
+// ── Platform Service API contracts (cross-domain) ───────────────────────────
+
+export interface AuthSession {
+	readonly userId: string;
+	readonly email: string | null;
+	readonly displayName: string | null;
+	readonly isAnonymous: boolean;
+}
+
+export interface AuthAPI {
+	getSession(): Promise<AuthSession | null>;
+	requireAuth(): Promise<AuthSession>;
+}
+
+export interface PermissionAPI {
+	can(userId: string, action: string, resource: string): Promise<boolean>;
+}
+
+export interface UploadUserFileInput {
+	readonly file: Blob;
+	readonly ownerId: string;
+	readonly fileName?: string;
+	readonly contentType?: string;
+	readonly metadata?: Record<string, string>;
+	readonly pathHint?: string;
+}
+
+export interface UploadUserFileOutput {
+	readonly url: string;
+	readonly fileId: string;
+	readonly storagePath: string;
+	readonly gcsUri: string;
+}
+
+export interface FileAPI {
+	uploadUserFile(input: UploadUserFileInput): Promise<UploadUserFileOutput>;
+	deleteFile(fileId: string): Promise<void>;
+}
+
+// ── Cross-cutting account context type ───────────────────────────────────────
+// ActiveAccount is the union of an organization AccountEntity or a personal
+// AuthUser. Owned by Platform BC; app/providers/app-context re-exports it.
+import type { AccountEntity } from "../subdomains/account/api";
+export type ActiveAccount = AccountEntity | AuthUser;
+````
+
+## File: modules/platform/api/infrastructure-api.ts
+````typescript
+import {
+	functionsApi,
+	firestoreApi,
+	getFirebaseFirestore,
+	getFirebaseFunctions,
+	getFirebaseStorage,
+	storageApi,
+} from "@integration-firebase";
+import { collectionGroup } from "firebase/firestore";
+
+import type {
+	FirestoreAPI,
+	FunctionsAPI,
+	FunctionsCallOptions,
+	FirestoreQueryOptions,
+	FirestoreWhereClause,
+	GenkitAPI,
+	StorageAPI,
+	StorageUploadOptions,
+} from "./contracts";
+
+const DEFAULT_STORAGE_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+const DEFAULT_FUNCTION_REGION = process.env.NEXT_PUBLIC_FIREBASE_FUNCTIONS_REGION ?? "asia-east1";
+
+function splitPath(path: string): string[] {
+	const segments = path
+		.split("/")
+		.map((segment) => segment.trim())
+		.filter(Boolean);
+
+	if (segments.length === 0) {
+		throw new Error("Path is required.");
+	}
+
+	return segments;
+}
+
+function resolveDocumentPath(path: string): string[] {
+	const segments = splitPath(path);
+	if (segments.length % 2 !== 0) {
+		throw new Error(`Expected a document path but got collection path: ${path}`);
+	}
+	return segments;
+}
+
+function resolveCollectionPath(path: string): string[] {
+	const segments = splitPath(path);
+	if (segments.length % 2 === 0) {
+		throw new Error(`Expected a collection path but got document path: ${path}`);
+	}
+	return segments;
+}
+
+function resolveStorageBucket(): string {
+	return process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || DEFAULT_STORAGE_BUCKET;
+}
+
+function resolveStoragePath(path: string): string {
+	const normalized = path.trim().replace(/^\/+/, "");
+	if (!normalized) {
+		throw new Error("Storage path is required.");
+	}
+	return normalized;
+}
+
+function toUploadMetadata(options?: StorageUploadOptions) {
+	if (!options) return undefined;
+	return {
+		contentType: options.contentType,
+		customMetadata: options.customMetadata,
+	};
+}
+
+function applyQueryConstraints(
+	baseQuery: ReturnType<typeof firestoreApi.query>,
+	where: readonly FirestoreWhereClause[],
+	options?: FirestoreQueryOptions,
+) {
+	const whereConstraints = where.map((clause) =>
+		firestoreApi.where(clause.field, clause.op, clause.value),
+	);
+
+	const orderByConstraints = (options?.orderBy ?? []).map((clause) =>
+		firestoreApi.orderBy(clause.field, clause.direction ?? "asc"),
+	);
+
+	const limitConstraint =
+		typeof options?.limit === "number" && options.limit > 0
+			? [firestoreApi.limit(options.limit)]
+			: [];
+
+	return firestoreApi.query(baseQuery, ...whereConstraints, ...orderByConstraints, ...limitConstraint);
+}
+
+export const firestoreInfrastructureApi: FirestoreAPI = {
+	async get<T>(path: string): Promise<T | null> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		const snapshot = await firestoreApi.getDoc(ref);
+		if (!snapshot.exists()) return null;
+		return snapshot.data() as T;
+	},
+
+	async set<T>(path: string, data: T): Promise<void> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		await firestoreApi.setDoc(ref, data as Record<string, unknown>);
+	},
+
+	async setMany<T>(inputs: readonly { path: string; data: T }[]): Promise<void> {
+		if (inputs.length === 0) return;
+
+		const db = getFirebaseFirestore();
+		const batch = firestoreApi.writeBatch(db);
+
+		for (const input of inputs) {
+			const ref = firestoreApi.doc(db, resolveDocumentPath(input.path).join("/"));
+			batch.set(ref, input.data as Record<string, unknown>);
+		}
+
+		await batch.commit();
+	},
+
+	async update(path: string, data: Record<string, unknown>): Promise<void> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		await firestoreApi.updateDoc(ref, data);
+	},
+
+	async delete(path: string): Promise<void> {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+		await firestoreApi.deleteDoc(ref);
+	},
+
+	async query<T>(
+		collectionPath: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<T[]> {
+		const documents = await firestoreInfrastructureApi.queryDocuments<T>(collectionPath, where, options);
+		return documents.map((document) => document.data);
+	},
+
+	async queryDocuments<T>(
+		collectionPath: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly { id: string; path: string; data: T }[]> {
+		const db = getFirebaseFirestore();
+		const collectionRef = firestoreApi.collection(
+			db,
+			resolveCollectionPath(collectionPath).join("/"),
+		);
+
+		const queryRef = applyQueryConstraints(firestoreApi.query(collectionRef), where, options);
+		const snapshot = await firestoreApi.getDocs(queryRef);
+		return snapshot.docs.map((doc) => ({
+			id: doc.id,
+			path: doc.ref.path,
+			data: doc.data() as T,
+		}));
+	},
+
+	async queryCollectionGroup<T>(
+		collectionId: string,
+		where: readonly FirestoreWhereClause[] = [],
+		options?: FirestoreQueryOptions,
+	): Promise<readonly { id: string; path: string; data: T }[]> {
+		const normalizedCollectionId = collectionId.trim();
+		if (!normalizedCollectionId) {
+			throw new Error("Collection group id is required.");
+		}
+
+		const db = getFirebaseFirestore();
+		const collectionGroupRef = collectionGroup(db, normalizedCollectionId);
+		const queryRef = applyQueryConstraints(firestoreApi.query(collectionGroupRef), where, options);
+		const snapshot = await firestoreApi.getDocs(queryRef);
+		return snapshot.docs.map((doc) => ({
+			id: doc.id,
+			path: doc.ref.path,
+			data: doc.data() as T,
+		}));
+	},
+
+	watchCollection<T>(
+		collectionPath: string,
+		handlers: {
+			onNext: (documents: readonly { id: string; path: string; data: T }[]) => void;
+			onError?: (error: unknown) => void;
+		},
+		where: readonly FirestoreWhereClause[] = [],
+	): () => void {
+		const db = getFirebaseFirestore();
+		const collectionRef = firestoreApi.collection(
+			db,
+			resolveCollectionPath(collectionPath).join("/"),
+		);
+
+		const queryConstraints = where.map((clause) =>
+			firestoreApi.where(clause.field, clause.op, clause.value),
+		);
+		const queryRef = firestoreApi.query(collectionRef, ...queryConstraints);
+
+		return firestoreApi.onSnapshot(
+			queryRef,
+			(snapshot) => {
+				handlers.onNext(
+					snapshot.docs.map((doc) => ({
+						id: doc.id,
+						path: doc.ref.path,
+						data: doc.data() as T,
+					})),
+				);
+			},
+			(error) => {
+				handlers.onError?.(error);
+			},
+		);
+	},
+
+	watchDocument<T>(
+		path: string,
+		handlers: {
+			onNext: (document: { id: string; path: string; data: T } | null) => void;
+			onError?: (error: unknown) => void;
+		},
+	): () => void {
+		const db = getFirebaseFirestore();
+		const ref = firestoreApi.doc(db, resolveDocumentPath(path).join("/"));
+
+		return firestoreApi.onSnapshot(
+			ref,
+			(snapshot) => {
+				if (!snapshot.exists()) {
+					handlers.onNext(null);
+					return;
+				}
+				handlers.onNext({
+					id: snapshot.id,
+					path: snapshot.ref.path,
+					data: snapshot.data() as T,
+				});
+			},
+			(error) => {
+				handlers.onError?.(error);
+			},
+		);
+	},
+};
+
+export const storageInfrastructureApi: StorageAPI = {
+	async upload(file: Blob, path: string, options?: StorageUploadOptions): Promise<string> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		await storageApi.uploadBytes(ref, file, toUploadMetadata(options));
+		return storageApi.getDownloadURL(ref);
+	},
+
+	async getUrl(path: string): Promise<string> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		return storageApi.getDownloadURL(ref);
+	},
+
+	async delete(path: string): Promise<void> {
+		const normalizedPath = resolveStoragePath(path);
+		const storage = getFirebaseStorage(resolveStorageBucket());
+		const ref = storageApi.ref(storage, normalizedPath);
+		await storageApi.deleteObject(ref);
+	},
+
+	toGsUri(path: string): string {
+		const normalizedPath = resolveStoragePath(path);
+		return `gs://${resolveStorageBucket()}/${normalizedPath}`;
+	},
+};
+
+export const genkitInfrastructureApi: GenkitAPI = {
+	async runFlow<TInput, TOutput>(flow: string, input: TInput): Promise<TOutput> {
+		const normalizedFlow = flow.trim();
+		if (!normalizedFlow) {
+			throw new Error("Flow name is required.");
+		}
+
+		const functions = getFirebaseFunctions(DEFAULT_FUNCTION_REGION);
+		const runFlow = functionsApi.httpsCallable(functions, "platform_run_genkit_flow");
+		const response = await runFlow({ flow: normalizedFlow, input });
+		return response.data as TOutput;
+	},
+};
+
+export const functionsInfrastructureApi: FunctionsAPI = {
+	async call<TInput, TOutput>(
+		functionName: string,
+		input: TInput,
+		options?: FunctionsCallOptions,
+	): Promise<TOutput> {
+		const normalizedName = functionName.trim();
+		if (!normalizedName) {
+			throw new Error("Function name is required.");
+		}
+
+		const region = options?.region?.trim() || DEFAULT_FUNCTION_REGION;
+		const functions = getFirebaseFunctions(region);
+		const callable = functionsApi.httpsCallable(functions, normalizedName);
+		const response = await callable(input);
+		return response.data as TOutput;
+	},
+};
+````
+
 ## File: modules/platform/application/index.ts
 ````typescript
 /**
@@ -72626,82 +72579,6 @@ export * from "../application";
 export * from "../domain";
 export { SettingsProfileRouteScreen } from "../interfaces";
 export type { LegacyAccountProfileDataSource } from "../infrastructure";
-````
-
-## File: modules/platform/subdomains/account/interfaces/queries/account.queries.ts
-````typescript
-/**
- * Account Read Queries — thin wrappers over the AccountQueryRepository port.
- * NOT Server Actions — callable from React components/hooks directly.
- */
-
-import { createAccountQueryRepository } from "../../api";
-import type { AccountQueryRepository } from "../../domain/repositories/AccountQueryRepository";
-import type { AccountEntity, WalletTransaction, AccountRoleRecord, WalletBalanceSnapshot, Unsubscribe, AccountPolicy } from "../../application/dtos/account.dto";
-
-let _accountQueryRepo: AccountQueryRepository | undefined;
-
-function getAccountQueryRepo(): AccountQueryRepository {
-  if (!_accountQueryRepo) _accountQueryRepo = createAccountQueryRepository();
-  return _accountQueryRepo;
-}
-
-export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
-  return getAccountQueryRepo().getUserProfile(userId);
-}
-
-export function subscribeToUserProfile(
-  userId: string,
-  onUpdate: (profile: AccountEntity | null) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToUserProfile(userId, onUpdate);
-}
-
-export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
-  return getAccountQueryRepo().getWalletBalance(accountId);
-}
-
-export function subscribeToWalletBalance(
-  accountId: string,
-  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToWalletBalance(accountId, onUpdate);
-}
-
-export function subscribeToWalletTransactions(
-  accountId: string,
-  maxCount: number,
-  onUpdate: (txs: WalletTransaction[]) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToWalletTransactions(accountId, maxCount, onUpdate);
-}
-
-export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
-  return getAccountQueryRepo().getAccountRole(accountId);
-}
-
-export function subscribeToAccountRoles(
-  accountId: string,
-  onUpdate: (record: AccountRoleRecord | null) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToAccountRoles(accountId, onUpdate);
-}
-
-export function subscribeToAccountsForUser(
-  userId: string,
-  onUpdate: (accounts: Record<string, AccountEntity>) => void,
-): Unsubscribe {
-  return getAccountQueryRepo().subscribeToAccountsForUser(userId, onUpdate);
-}
-
-export async function getAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
-  // Policy reads are server-side only; keep client bundles free of policy repo deps.
-  return [];
-}
-
-export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
-  return [];
-}
 ````
 
 ## File: modules/notebooklm/AGENT.md
