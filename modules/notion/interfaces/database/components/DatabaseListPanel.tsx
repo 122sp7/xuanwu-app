@@ -145,7 +145,7 @@ export function DatabaseListPanel({ database, accountId, workspaceId, currentUse
                       );
                     })}
                     <div className="contents">
-                      <dt className="text-muted-foreground">撱箇???</dt>
+                      <dt className="text-muted-foreground">Created at</dt>
                       <dd className="text-foreground">
                         {new Date(record.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </dd>

@@ -162,7 +162,7 @@ export function KnowledgeDetailPanel({
               onClick={() => setCommentOpen((v) => !v)}
             >
               <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-              ??
+              Comments
             </Button>
             {page.status === "active" && (
               <Button
@@ -172,7 +172,7 @@ export function KnowledgeDetailPanel({
                 disabled={isPending}
               >
                 <Archive className="mr-1.5 h-3.5 w-3.5" />
-                撠?
+                Archive
               </Button>
             )}
           </div>

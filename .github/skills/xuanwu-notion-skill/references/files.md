@@ -11976,7 +11976,7 @@ export function DatabaseListPanel({ database, accountId, workspaceId, currentUse
                       );
                     })}
                     <div className="contents">
-                      <dt className="text-muted-foreground">撱箇???</dt>
+                      <dt className="text-muted-foreground">Created at</dt>
                       <dd className="text-foreground">
                         {new Date(record.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </dd>
@@ -12522,7 +12522,7 @@ export function DatabaseDetailPanel({
       {/* Top bar */}
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="ghost" size="sm" onClick={() => router.push(databasesHref)}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 鞈?摨怠?銵?
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to databases
         </Button>
       </div>
 
@@ -12546,42 +12546,42 @@ export function DatabaseDetailPanel({
           <button
             type="button"
             onClick={() => setViewMode("table")}
-            title="銵冽閬?"
+            title="Table view"
             className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
-            <Table2 className="h-3 w-3" /> 銵冽
+            <Table2 className="h-3 w-3" /> Table
           </button>
           <button
             type="button"
             onClick={() => setViewMode("board")}
-            title="?閬?"
+            title="Board view"
             className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "board" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
-            <Kanban className="h-3 w-3" /> ?
+            <Kanban className="h-3 w-3" /> Board
           </button>
           <button
             type="button"
             onClick={() => setViewMode("list")}
-            title="皜閬?"
+            title="List view"
             className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
-            <List className="h-3 w-3" /> 皜
+            <List className="h-3 w-3" /> List
           </button>
           <button
             type="button"
             onClick={() => setViewMode("calendar")}
-            title="?交?閬?"
+            title="Calendar view"
             className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
-            <Calendar className="h-3 w-3" /> ?交?
+            <Calendar className="h-3 w-3" /> Calendar
           </button>
           <button
             type="button"
             onClick={() => setViewMode("gallery")}
-            title="?澈閬?"
+            title="Gallery view"
             className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "gallery" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
-            <LayoutGrid className="h-3 w-3" /> ?澈
+            <LayoutGrid className="h-3 w-3" /> Gallery
           </button>
           <button
             type="button"
@@ -12834,7 +12834,7 @@ export function KnowledgeDetailPanel({
               onClick={() => setCommentOpen((v) => !v)}
             >
               <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-              ??
+              Comments
             </Button>
             {page.status === "active" && (
               <Button
@@ -12844,7 +12844,7 @@ export function KnowledgeDetailPanel({
                 disabled={isPending}
               >
                 <Archive className="mr-1.5 h-3.5 w-3.5" />
-                撠?
+                Archive
               </Button>
             )}
           </div>
