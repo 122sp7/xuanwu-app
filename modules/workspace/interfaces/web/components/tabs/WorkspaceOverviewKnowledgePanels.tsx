@@ -1,7 +1,7 @@
 "use client";
 
 import { KnowledgeBaseArticlesRouteScreen, KnowledgeDatabasesRouteScreen, KnowledgePagesRouteScreen } from "@/modules/notion/api";
-import { LibrariesView, LibraryTableView } from "@/modules/notebooklm/api";
+import { LibrariesPanel, LibraryTablePanel } from "@/modules/notebooklm/api";
 import type { WorkspaceEntity } from "../../../api/contracts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { TabsContent } from "@ui-shadcn/ui/tabs";
@@ -80,8 +80,8 @@ export function WorkspaceOverviewKnowledgePanels({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <LibraryTableView accountId={workspace.accountId} workspaceId={workspace.id} />
-            <LibrariesView accountId={workspace.accountId} workspaceId={workspace.id} />
+            <LibraryTablePanel accountId={workspace.accountId} workspaceId={workspace.id} />
+            <LibrariesPanel accountId={workspace.accountId} workspaceId={workspace.id} />
           </CardContent>
         </Card>
       </TabsContent>

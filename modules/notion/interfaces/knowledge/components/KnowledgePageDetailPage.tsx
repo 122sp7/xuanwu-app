@@ -21,7 +21,7 @@ import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidge
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-export interface KnowledgePageDetailPageProps {
+export interface KnowledgePageDetailScreenProps {
   accountId: string;
   activeWorkspaceId: string | null;
   currentUserId: string;
@@ -29,11 +29,11 @@ export interface KnowledgePageDetailPageProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function KnowledgePageDetailPage({
+export function KnowledgePageDetailScreen({
   accountId,
   activeWorkspaceId,
   currentUserId,
-}: KnowledgePageDetailPageProps) {
+}: KnowledgePageDetailScreenProps) {
   const params = useParams();
   const router = useRouter();
   const pageId = params.pageId as string;

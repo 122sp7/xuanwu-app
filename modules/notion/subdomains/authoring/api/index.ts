@@ -38,5 +38,5 @@ export { getArticles, getArticle, getCategories, getBacklinks } from "../../../i
 export { ArticleDialog } from "../../../interfaces/authoring/components/ArticleDialog";
 export { KnowledgeBaseArticlesRouteScreen } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesRouteScreen";
 export type { KnowledgeBaseArticlesRouteScreenProps } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesRouteScreen";
-export { ArticleDetailPage } from "../../../interfaces/authoring/components/ArticleDetailPage";
-export type { ArticleDetailPageProps } from "../../../interfaces/authoring/components/ArticleDetailPage";
+export { ArticleDetailScreen } from "../../../interfaces/authoring/components/ArticleDetailPage";
+export type { ArticleDetailScreenProps } from "../../../interfaces/authoring/components/ArticleDetailPage";
