@@ -20,7 +20,7 @@ import {
 type Tab = "login" | "register";
 
 export default function PublicPage() {
-  const { state, dispatch } = useAuth();
+  const { state } = useAuth();
   const router = useRouter();
 
   const [tab, setTab] = useState<Tab>("login");

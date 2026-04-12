@@ -1,1 +1,0 @@
-﻿// Purpose: Application layer placeholder for platform subdomain 'audit-log'.

@@ -2,12 +2,12 @@
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import {
-  createTeamRepository,
   CreateTeamUseCase,
   DeleteTeamUseCase,
   UpdateTeamMembersUseCase,
 } from "../../api";
 import type { CreateTeamInput } from "../../api";
+import { createTeamRepository } from "../../infrastructure/team-composition";
 
 function getRepo() {
   return createTeamRepository();

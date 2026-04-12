@@ -8,7 +8,6 @@
 
 export * from "./contracts";
 export * from "./facade";
-export { createPlatformService } from "./platform-service";
 export {
   firestoreInfrastructureApi,
   storageInfrastructureApi,
