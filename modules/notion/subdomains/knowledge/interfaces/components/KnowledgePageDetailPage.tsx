@@ -45,11 +45,15 @@ export function KnowledgePageDetailPage({
   const workspaceBasePath =
     accountId && activeWorkspaceId
       ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(activeWorkspaceId)}`
-      : "/workspace";
+      : accountId
+        ? `/${encodeURIComponent(accountId)}`
+        : "/";
   const pageListHref =
     accountId && activeWorkspaceId
       ? `${workspaceBasePath}/knowledge/pages`
-      : "/workspace?tab=Overview&panel=knowledge-pages";
+      : accountId
+        ? `/${encodeURIComponent(accountId)}?tab=Overview&panel=knowledge-pages`
+        : "/";
 
   const load = useCallback(async () => {
     if (!accountId || !pageId) { setLoading(false); return; }

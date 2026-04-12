@@ -32,10 +32,14 @@ export function KnowledgeDatabasesRouteScreen() {
   const workspaceBasePath =
     accountId && workspaceId
       ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
+      : accountId
+        ? `/${encodeURIComponent(accountId)}`
+        : "/";
   const overviewHref = workspaceId
     ? `${workspaceBasePath}?tab=Overview&panel=knowledge-databases`
-    : "/workspace";
+    : accountId
+      ? `/${encodeURIComponent(accountId)}`
+      : "/";
 
   const [databases, setDatabases] = useState<Database[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +65,7 @@ export function KnowledgeDatabasesRouteScreen() {
           `${workspaceBasePath}/knowledge-database/databases/${encodeURIComponent(databaseId)}`,
         );
       } else {
-        router.push(`/knowledge-database/databases/${encodeURIComponent(databaseId)}`);
+        router.push(accountId ? `/${encodeURIComponent(accountId)}` : "/");
       }
     } else {
       load();

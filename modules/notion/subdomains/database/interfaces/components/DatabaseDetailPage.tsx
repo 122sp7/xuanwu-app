@@ -55,7 +55,9 @@ export function DatabaseDetailPage({
   const workspaceBasePath =
     accountId && workspaceId
       ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
+      : accountId
+        ? `/${encodeURIComponent(accountId)}`
+        : "/";
   const databasesHref =
     accountId && workspaceId
       ? `${workspaceBasePath}/knowledge-database/databases`

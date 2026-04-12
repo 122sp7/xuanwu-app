@@ -35,10 +35,14 @@ export function KnowledgePagesRouteScreen() {
   const workspaceBasePath =
     accountId && workspaceId
       ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
+      : accountId
+        ? `/${encodeURIComponent(accountId)}`
+        : "/";
   const overviewHref = workspaceId
     ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
-    : "/workspace";
+    : accountId
+      ? `/${encodeURIComponent(accountId)}`
+      : "/";
 
   function buildPageDetailHref(pageId: string) {
     if (accountId && workspaceId) {

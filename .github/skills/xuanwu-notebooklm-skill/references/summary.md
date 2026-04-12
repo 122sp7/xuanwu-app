@@ -38,17 +38,17 @@ This skill contains the following reference files:
 
 ## Statistics
 
-150 files | 7,995 lines
+150 files | 8,013 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 119 | 5,299 |
+| TypeScript | 121 | 5,316 |
 | Markdown | 15 | 514 |
-| TypeScript (TSX) | 11 | 2,177 |
-| No Extension | 5 | 5 |
+| TypeScript (TSX) | 11 | 2,180 |
+| No Extension | 3 | 3 |
 
 **Largest files:**
-- `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (341 lines)
+- `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (344 lines)
 - `modules/notebooklm/subdomains/source/interfaces/components/LibrariesView.tsx` (239 lines)
 - `modules/notebooklm/subdomains/source/interfaces/components/FileProcessingDialog.tsx` (233 lines)
 - `modules/notebooklm/subdomains/source/interfaces/components/LibraryTableView.tsx` (231 lines)

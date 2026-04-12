@@ -52,8 +52,8 @@ export function AiChatPage({ accountId, workspaces, requestedWorkspaceId }: AiCh
   const workspaceName = currentWorkspace?.name ?? null;
   const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
   const workspaceRouteRoot = currentWorkspace
-    ? `/workspace/${encodeURIComponent(currentWorkspace.id)}`
-    : "/workspace";
+    ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(currentWorkspace.id)}`
+    : `/${encodeURIComponent(accountId)}`;
   const latestUserPrompt = [...messages].reverse().find((m) => m.role === "user")?.content ?? null;
 
   // Load persisted thread on mount
@@ -189,7 +189,7 @@ export function AiChatPage({ accountId, workspaces, requestedWorkspaceId }: AiCh
                 <BookOpen className="size-3.5" />
                 知識頁面 / Pages
               </Link>
-              <Link href={`/notebook/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+              <Link href={workspaceQuery ? `${workspaceRouteRoot}/notebook/rag-query${workspaceQuery}` : `${workspaceRouteRoot}/notebook/rag-query`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
                 <Bot className="size-3.5" />
                 Ask / Cite / RAG Query
               </Link>

@@ -48,10 +48,14 @@ export function KnowledgeBaseArticlesRouteScreen() {
   const workspaceBasePath =
     accountId && workspaceId
       ? `/${encodeURIComponent(accountId)}/${encodeURIComponent(workspaceId)}`
-      : "/workspace";
+      : accountId
+        ? `/${encodeURIComponent(accountId)}`
+        : "/";
   const overviewHref = workspaceId
     ? `${workspaceBasePath}?tab=Overview&panel=knowledge-base-articles`
-    : "/workspace";
+    : accountId
+      ? `/${encodeURIComponent(accountId)}`
+      : "/";
 
   const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);

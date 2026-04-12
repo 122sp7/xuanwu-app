@@ -104,13 +104,13 @@ export function KnowledgeSidebarSection({
           {
             href: workspaceBasePath
               ? `${workspaceBasePath}?tab=Overview&panel=knowledge-pages`
-              : "/workspace",
+              : "/",
             label: "Knowledge Hub",
           },
           {
             href: workspaceBasePath
               ? `${workspaceBasePath}/knowledge/block-editor`
-              : "/workspace",
+              : "/",
             label: "區塊編輯器",
           },
         ] as const

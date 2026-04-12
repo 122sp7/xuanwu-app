@@ -38,23 +38,23 @@ This skill contains the following reference files:
 
 ## Statistics
 
-230 files | 11,686 lines
+230 files | 11,754 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 182 | 7,048 |
-| TypeScript (TSX) | 26 | 3,962 |
+| TypeScript | 184 | 7,035 |
+| TypeScript (TSX) | 26 | 4,045 |
 | Markdown | 17 | 671 |
-| No Extension | 5 | 5 |
+| No Extension | 3 | 3 |
 
 **Largest files:**
 - `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
-- `modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx` (298 lines)
-- `modules/notion/subdomains/database/interfaces/components/DatabaseDetailPage.tsx` (258 lines)
-- `modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageDetailPage.tsx` (245 lines)
+- `modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx` (302 lines)
+- `modules/notion/subdomains/database/interfaces/components/DatabaseDetailPage.tsx` (270 lines)
+- `modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageDetailPage.tsx` (253 lines)
 - `modules/notion/subdomains/database/interfaces/components/DatabaseTableView.tsx` (224 lines)
+- `modules/notion/subdomains/authoring/interfaces/components/KnowledgeBaseArticlesRouteScreen.tsx` (214 lines)
 - `modules/notion/subdomains/knowledge/interfaces/components/KnowledgePageHeaderWidgets.tsx` (212 lines)
 - `modules/notion/subdomains/authoring/interfaces/components/ArticleDialog.tsx` (204 lines)
-- `modules/notion/subdomains/authoring/interfaces/components/KnowledgeBaseArticlesRouteScreen.tsx` (201 lines)
+- `modules/notion/subdomains/knowledge/interfaces/components/KnowledgeSidebarSection.tsx` (188 lines)
 - `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgeCollection.ts` (186 lines)
-- `modules/notion/subdomains/database/interfaces/components/DatabaseAutomationView.tsx` (181 lines)
