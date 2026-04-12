@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 /**
  * Module: notion/subdomains/database
  * Layer: interfaces/components
- * Purpose: DatabaseFormView — public-facing form to collect one Record into a Database.
+ * Purpose: DatabaseFormPanel ??public-facing form to collect one Record into a Database.
  */
 
 import { useState, useTransition } from "react";
@@ -17,7 +17,7 @@ import { Textarea } from "@ui-shadcn/ui/textarea";
 import { createRecord } from "../_actions/database.actions";
 import type { DatabaseSnapshot, Field } from "../../../subdomains/database/application/dto/database.dto";
 
-interface DatabaseFormViewProps {
+interface DatabaseFormPanelProps {
   database: DatabaseSnapshot;
   accountId: string;
   workspaceId: string;
@@ -101,7 +101,7 @@ function FieldInput({ field, value, onChange, disabled }: { field: Field; value:
   );
 }
 
-export function DatabaseFormView({ database, accountId, workspaceId, submitterId, fieldIds, title, description }: DatabaseFormViewProps) {
+export function DatabaseFormPanel({ database, accountId, workspaceId, submitterId, fieldIds, title, description }: DatabaseFormPanelProps) {
   const visibleFields = fieldIds && fieldIds.length > 0
     ? database.fields.filter((f) => fieldIds.includes(f.id))
     : database.fields;
@@ -130,7 +130,7 @@ export function DatabaseFormView({ database, accountId, workspaceId, submitterId
         setSubmitted(true);
         setValues({});
       } else {
-        setError("提交失敗，請稍後再試。");
+        setError("?漱憭望?嚗?蝔??岫??);
       }
     });
   }
@@ -139,10 +139,10 @@ export function DatabaseFormView({ database, accountId, workspaceId, submitterId
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
         <CheckCircle2 className="h-10 w-10 text-green-500" />
-        <h2 className="text-lg font-semibold">已成功提交！</h2>
-        <p className="text-sm text-muted-foreground">感謝您的填寫。</p>
+        <h2 className="text-lg font-semibold">撌脫???鈭歹?</h2>
+        <p className="text-sm text-muted-foreground">???函?憛怠神??/p>
         <Button variant="outline" size="sm" onClick={() => setSubmitted(false)}>
-          再次提交
+          ?活?漱
         </Button>
       </div>
     );
@@ -166,9 +166,10 @@ export function DatabaseFormView({ database, accountId, workspaceId, submitterId
         ))}
         {error && <p className="text-sm text-destructive">{error}</p>}
         <Button type="submit" disabled={isPending} className="w-full">
-          {isPending ? "提交中…" : "送出表單"}
+          {isPending ? "?漱銝凌? : "?銵典"}
         </Button>
       </form>
     </div>
   );
 }
+

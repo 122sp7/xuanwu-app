@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 import { DatabaseDetailPanel } from "@/modules/notion/api";
 import { useWorkspaceOrchestrationContext } from "@/modules/workspace/api";
 
-export default function AccountWorkspaceDatabaseDetailPageRoute() {
+export default function AccountWorkspaceDatabaseDetailPanelRoute() {
   const { accountId, workspaceId, currentUserId } = useWorkspaceOrchestrationContext();
 
   return (
@@ -14,3 +14,4 @@ export default function AccountWorkspaceDatabaseDetailPageRoute() {
     />
   );
 }
+

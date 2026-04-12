@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -17,19 +17,19 @@ import { ArticleDialog } from "./ArticleDialog";
 import { CategoryTreePanel } from "./CategoryTreePanel";
 
 const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "草稿", variant: "outline" },
-  published: { label: "已發佈", variant: "default" },
-  archived: { label: "已封存", variant: "secondary" },
+  draft: { label: "?阮", variant: "outline" },
+  published: { label: "撌脩雿?, variant: "default" },
+  archived: { label: "撌脣?摮?, variant: "secondary" },
 };
 
 const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
-  verified: { label: "已驗證", icon: BadgeCheck },
-  needs_review: { label: "待審查", icon: FileClock },
-  unverified: { label: "未驗證", icon: CircleDot },
+  verified: { label: "撌脤?霅?, icon: BadgeCheck },
+  needs_review: { label: "敺祟??, icon: FileClock },
+  unverified: { label: "?芷?霅?, icon: CircleDot },
 };
 
 /**
- * KnowledgeBaseArticlesRouteScreen
+ * KnowledgeBaseArticlesPanel
  * Route-level screen component for /knowledge-base/articles.
  * Encapsulates data-loading, filtering and layout so the Next.js route
  * file stays thin (params/context wiring only).
@@ -114,9 +114,9 @@ export function KnowledgeBaseArticlesPanel({
     <div className="space-y-4">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">??</h1>
         <p className="text-sm text-muted-foreground">
-          組織知識庫的 SOP 文章、通用文件與驗證管治。
+          蝯??亥?摨怎? SOP ????辣??霅恣瘝颯?
         </p>
       </header>
 
@@ -126,7 +126,7 @@ export function KnowledgeBaseArticlesPanel({
           onClick={() => router.push(overviewHref)}
           className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
         >
-          返回 Knowledge Hub
+          餈? Knowledge Hub
         </button>
         <Button
           size="sm"
@@ -135,7 +135,7 @@ export function KnowledgeBaseArticlesPanel({
           onClick={() => setDialogOpen(true)}
         >
           <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增文章
+          ?啣???
         </Button>
       </div>
 
@@ -151,7 +151,7 @@ export function KnowledgeBaseArticlesPanel({
 
       {!resolvedAccountId || !resolvedWorkspaceId ? (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
+          撠??撣唾?/撌乩????嚗???交???撣唾???
         </p>
       ) : loading ? (
         <div className="flex gap-4">
@@ -175,7 +175,7 @@ export function KnowledgeBaseArticlesPanel({
               <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
                 <BookOpen className="h-8 w-8 text-muted-foreground/50" />
                 <p className="text-sm text-muted-foreground">
-                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
+                  {selectedCategoryId ? "甇文?憿??⊥?蝡? : "撠?????憓?蝡?憪遣蝡?}
                 </p>
               </div>
             ) : (
@@ -211,7 +211,7 @@ export function KnowledgeBaseArticlesPanel({
                           </div>
                         )}
                         <p className="text-[10px] text-muted-foreground/70">
-                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+                          v{article.version} 繚 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
                         </p>
                       </CardContent>
                     </Card>
@@ -225,3 +225,4 @@ export function KnowledgeBaseArticlesPanel({
     </div>
   );
 }
+

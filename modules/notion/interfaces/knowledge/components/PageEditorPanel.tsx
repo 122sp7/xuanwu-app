@@ -1,23 +1,23 @@
-"use client";
+﻿"use client";
 
 /**
  * Module: notion/subdomains/knowledge
  * Layer: interfaces/components
- * Purpose: PageEditorView — renders the block editor for a knowledge page.
- *          Connects accountId/pageId context to BlockEditorView.
+ * Purpose: PageEditorPanel ??renders the block editor for a knowledge page.
+ *          Connects accountId/pageId context to BlockEditorPanel.
  */
 
 import { useEffect, useCallback } from "react";
 import { useBlockEditorStore } from "../store/block-editor.store";
 import { getKnowledgeBlocks } from "../queries";
-import { BlockEditorView } from "./BlockEditorView";
+import { BlockEditorPanel } from "./BlockEditorPanel";
 
-export interface PageEditorViewProps {
+export interface PageEditorPanelProps {
   accountId: string;
   pageId: string;
 }
 
-export function PageEditorView({ accountId, pageId }: PageEditorViewProps) {
+export function PageEditorPanel({ accountId, pageId }: PageEditorPanelProps) {
   const { setPage, setBlocks } = useBlockEditorStore();
 
   const loadBlocks = useCallback(async () => {
@@ -37,5 +37,6 @@ export function PageEditorView({ accountId, pageId }: PageEditorViewProps) {
 
   useEffect(() => { void loadBlocks(); }, [loadBlocks]);
 
-  return <BlockEditorView />;
+  return <BlockEditorPanel />;
 }
+

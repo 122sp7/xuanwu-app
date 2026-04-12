@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -12,14 +12,14 @@ import {
   updateKnowledgePageCover,
 } from "../_actions/knowledge-page.actions";
 import type { KnowledgePageSnapshot as KnowledgePage } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
-import { PageEditorView } from "./PageEditorView";
+import { PageEditorPanel } from "./PageEditorPanel";
 import { CommentPanel } from "@/modules/notion/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 import { TitleEditor, IconPicker, CoverEditor } from "./KnowledgePageHeaderWidgets";
 
-// ── Props ─────────────────────────────────────────────────────────────────────
+// ?? Props ?????????????????????????????????????????????????????????????????????
 
 export interface KnowledgeDetailPanelProps {
   accountId: string;
@@ -27,7 +27,7 @@ export interface KnowledgeDetailPanelProps {
   currentUserId: string;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ?? Component ?????????????????????????????????????????????????????????????????
 
 export function KnowledgeDetailPanel({
   accountId,
@@ -102,7 +102,7 @@ export function KnowledgeDetailPanel({
     });
   }
 
-  // ── Loading skeleton ────────────────────────────────────────────────────────
+  // ?? Loading skeleton ????????????????????????????????????????????????????????
 
   if (loading) {
     return (
@@ -114,21 +114,21 @@ export function KnowledgeDetailPanel({
     );
   }
 
-  // ── Not found ───────────────────────────────────────────────────────────────
+  // ?? Not found ???????????????????????????????????????????????????????????????
 
   if (!page) {
     return (
       <div className="space-y-4">
         <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
           <ArrowLeft className="mr-1.5 h-4 w-4" />
-          頁面列表
+          ??”
         </Button>
-        <p className="text-sm text-muted-foreground">找不到此頁面，可能已被封存或刪除。</p>
+        <p className="text-sm text-muted-foreground">?曆??唳迨?嚗?賢歇鋡怠?摮??芷??/p>
       </div>
     );
   }
 
-  // ── Page view ───────────────────────────────────────────────────────────────
+  // ?? Page view ???????????????????????????????????????????????????????????????
 
   const updatedAt = page.updatedAtISO
     ? new Date(page.updatedAtISO).toLocaleDateString("zh-TW", {
@@ -153,7 +153,7 @@ export function KnowledgeDetailPanel({
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => router.push(pageListHref)}>
             <ArrowLeft className="mr-1.5 h-4 w-4" />
-            頁面列表
+            ??”
           </Button>
           <div className="ml-auto flex items-center gap-2">
             <Button
@@ -162,7 +162,7 @@ export function KnowledgeDetailPanel({
               onClick={() => setCommentOpen((v) => !v)}
             >
               <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-              留言
+              ??
             </Button>
             {page.status === "active" && (
               <Button
@@ -172,7 +172,7 @@ export function KnowledgeDetailPanel({
                 disabled={isPending}
               >
                 <Archive className="mr-1.5 h-3.5 w-3.5" />
-                封存
+                撠?
               </Button>
             )}
           </div>
@@ -200,43 +200,43 @@ export function KnowledgeDetailPanel({
           />
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             {page.status === "archived" && (
-              <Badge variant="secondary">已封存</Badge>
+              <Badge variant="secondary">撌脣?摮?/Badge>
             )}
             {page.approvalState === "approved" && (
-              <Badge variant="default">已審核</Badge>
+              <Badge variant="default">撌脣祟??/Badge>
             )}
             {page.verificationState === "verified" && (
-              <Badge variant="outline">已驗證</Badge>
+              <Badge variant="outline">撌脤?霅?/Badge>
             )}
             {page.verificationState === "needs_review" && (
-              <Badge variant="destructive">待審查</Badge>
+              <Badge variant="destructive">敺祟??/Badge>
             )}
-            {updatedAt && <span>更新於 {updatedAt}</span>}
+            {updatedAt && <span>?湔??{updatedAt}</span>}
           </div>
         </header>
 
         {/* Main content + optional comment side panel */}
         <div className={`flex gap-4 ${commentOpen ? "items-start" : ""}`}>
-          {/* Block editor — connected to Firebase */}
+          {/* Block editor ??connected to Firebase */}
           <div className="min-w-0 flex-1">
             {accountId ? (
-              <PageEditorView accountId={accountId} pageId={pageId} />
+              <PageEditorPanel accountId={accountId} pageId={pageId} />
             ) : (
-              <p className="text-sm text-muted-foreground">請先登入以載入內容。</p>
+              <p className="text-sm text-muted-foreground">隢??餃隞亥??亙摰嫘?/p>
             )}
           </div>
 
-          {/* Comment panel — slides in from right */}
+          {/* Comment panel ??slides in from right */}
           {commentOpen && accountId && (
             <aside className="w-72 shrink-0 rounded-xl border border-border/60 bg-card p-4">
               <div className="mb-3 flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-semibold">留言</span>
+                <span className="text-sm font-semibold">??</span>
                 <button
                   type="button"
                   onClick={() => setCommentOpen(false)}
                   className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground"
-                  aria-label="關閉留言面板"
+                  aria-label="?????Ｘ"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -255,3 +255,4 @@ export function KnowledgeDetailPanel({
     </div>
   );
 }
+

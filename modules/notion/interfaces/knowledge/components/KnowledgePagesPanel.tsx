@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -9,10 +9,10 @@ import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
 import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
 import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace } from "../queries";
-import { PageTreeView } from "./PageTreeView";
+import { PageTreePanel } from "./PageTreePanel";
 
 /**
- * KnowledgePagesRouteScreen
+ * KnowledgePagesPanel
  * Route-level screen component for /knowledge/pages.
  * Encapsulates data-loading, scope resolution and layout so that the
  * Next.js route file stays thin (params/context wiring only).
@@ -92,15 +92,15 @@ export function KnowledgePagesPanel({
     <div className="space-y-4">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">?</h1>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={isAccountSummary ? "secondary" : "outline"}>
             {isAccountSummary ? "Account Summary" : "Workspace Scope"}
           </Badge>
           <p className="text-sm text-muted-foreground">
             {isAccountSummary
-              ? "這是顯式 account summary mode。僅用於跨工作區總覽，預設不在此建立新頁面。"
-              : "知識頁面階層樹預設綁定目前工作區。點選頁面進入內容編輯器。"}
+              ? "?憿臬? account summary mode???冽頝典極雿?蝮質汗嚗?閮凋??冽迨撱箇??圈??Ｕ?
+              : "?亥???惜璅寥?閮剔?摰?極雿????賊??ａ脣?批捆蝺刻摩?具?}
           </p>
         </div>
       </header>
@@ -111,17 +111,17 @@ export function KnowledgePagesPanel({
           onClick={() => router.push(overviewHref)}
           className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
         >
-          返回 Knowledge Hub
+          餈? Knowledge Hub
         </button>
       </div>
 
       {!resolvedAccountId ? (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入。
+          撠??撣唾???嚗???乓?
         </p>
       ) : !isAccountSummary && !resolvedWorkspaceId ? (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未選定工作區。請先從工作區進入知識頁面，或在網址帶入 workspaceId 後再查看頁面樹。
+          撠?詨?撌乩??????撌乩???脣?亥??嚗??函雯?撣嗅 workspaceId 敺??亦??璅嫘?
         </p>
       ) : loading ? (
         <div className="space-y-2">
@@ -130,7 +130,7 @@ export function KnowledgePagesPanel({
           ))}
         </div>
       ) : (
-        <PageTreeView
+        <PageTreePanel
           nodes={nodes}
           accountId={resolvedAccountId}
           workspaceId={resolvedWorkspaceId || undefined}
@@ -138,8 +138,8 @@ export function KnowledgePagesPanel({
           allowCreate={!isAccountSummary && Boolean(resolvedWorkspaceId)}
           emptyStateDescription={
             isAccountSummary
-              ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"
-              : "這個工作區尚無頁面。點擊「新增頁面」開始建立。"
+              ? "??account summary ?桀?瘝??舫＊蝷箇?????孵?撌乩??撱箇??雁霅琿??Ｕ?
+              : "?極雿?撠????憓??Ｕ?憪遣蝡?
           }
           onPageClick={(pageId) => router.push(buildPageDetailHref(pageId))}
           onCreated={() => load()}
@@ -148,3 +148,4 @@ export function KnowledgePagesPanel({
     </div>
   );
 }
+

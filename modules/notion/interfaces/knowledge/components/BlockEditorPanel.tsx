@@ -1,14 +1,14 @@
-"use client";
+﻿"use client";
 
 import { useRef } from "react";
 import { useBlockEditorStore } from "../store/block-editor.store";
 import { richTextToPlainText } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
 
 /**
- * Notion knowledge subdomain — minimal block editor.
+ * Notion knowledge subdomain ??minimal block editor.
  * Full drag-and-drop and rich block types are in the extensions/ layer.
  */
-export function BlockEditorView() {
+export function BlockEditorPanel() {
   const { blocks, addBlock, updateBlock, deleteBlock } = useBlockEditorStore();
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +37,7 @@ export function BlockEditorView() {
         <div
           role="textbox"
           aria-multiline="true"
-          aria-label="新區塊內容"
+          aria-label="?啣?憛摰?
           tabIndex={0}
           contentEditable
           suppressContentEditableWarning
@@ -45,7 +45,7 @@ export function BlockEditorView() {
           onKeyDown={(e) => {
             if (e.key === "Enter") { e.preventDefault(); addBlock(null); }
           }}
-          data-placeholder="開始輸入…"
+          data-placeholder="??頛詨??
         />
       </div>
     );
@@ -60,7 +60,7 @@ export function BlockEditorView() {
             key={block.id}
             role="textbox"
             aria-multiline="true"
-            aria-label={`區塊 ${block.id}`}
+            aria-label={`?憛?${block.id}`}
             tabIndex={0}
             contentEditable
             suppressContentEditableWarning
@@ -74,3 +74,4 @@ export function BlockEditorView() {
     </div>
   );
 }
+

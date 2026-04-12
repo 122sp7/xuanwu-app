@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { ChevronDown, ChevronRight, FilePlus, FileText } from "lucide-react";
 import { useState } from "react";
@@ -6,7 +6,7 @@ import { Button } from "@ui-shadcn/ui/button";
 import type { KnowledgePageTreeNode } from "../../../subdomains/knowledge/application/dto/knowledge.dto";
 import { PageDialog } from "./PageDialog";
 
-export interface PageTreeViewProps {
+export interface PageTreePanelProps {
   nodes: KnowledgePageTreeNode[];
   accountId: string;
   workspaceId?: string;
@@ -54,16 +54,16 @@ function TreeNode({
   );
 }
 
-export function PageTreeView({ nodes, accountId, workspaceId, currentUserId, allowCreate = true, emptyStateDescription, onPageClick, onCreated }: PageTreeViewProps) {
+export function PageTreePanel({ nodes, accountId, workspaceId, currentUserId, allowCreate = true, emptyStateDescription, onPageClick, onCreated }: PageTreePanelProps) {
   const [createOpen, setCreateOpen] = useState(false);
   if (!nodes.length) {
     return (
       <div className="flex flex-col items-center gap-3 py-8 text-center text-sm text-muted-foreground">
         <FileText className="h-8 w-8 opacity-40" />
-        <p>{emptyStateDescription ?? "尚無頁面"}</p>
+        <p>{emptyStateDescription ?? "撠?"}</p>
         {allowCreate && workspaceId && (
           <>
-            <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>新增頁面</Button>
+            <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>?啣??</Button>
             <PageDialog open={createOpen} onOpenChange={setCreateOpen} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} parentPageId={null} onSuccess={onCreated} />
           </>
         )}
@@ -72,3 +72,4 @@ export function PageTreeView({ nodes, accountId, workspaceId, currentUserId, all
   }
   return <ul className="space-y-0.5">{nodes.map((n) => <TreeNode key={n.id} node={n} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} allowCreate={allowCreate} onPageClick={onPageClick} onCreated={onCreated} depth={0} />)}</ul>;
 }
+

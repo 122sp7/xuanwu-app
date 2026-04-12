@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Public API boundary for the source subdomain.
  *
  * Cross-module consumers MUST import through this entry point.
@@ -37,7 +37,7 @@ export type {
 } from "../domain/entities/WikiLibrary";
 
 // ---------------------------------------------------------------------------
-// Wiki library use cases (lazy singleton — no module-scope side effects)
+// Wiki library use cases (lazy singleton ??no module-scope side effects)
 // ---------------------------------------------------------------------------
 
 import type { IWikiLibraryRepository } from "../domain/repositories/IWikiLibraryRepository";
@@ -146,10 +146,10 @@ export type {
 // UI components
 // ---------------------------------------------------------------------------
 
-export { SourceDocumentsPanel } from "../../../interfaces/source/components/SourceDocumentsView";
+export { SourceDocumentsPanel } from "../../../interfaces/source/components/SourceDocumentsPanel";
 export { WorkspaceFilesTab } from "../../../interfaces/source/components/WorkspaceFilesTab";
-export { LibrariesPanel } from "../../../interfaces/source/components/LibrariesView";
-export { LibraryTablePanel } from "../../../interfaces/source/components/LibraryTableView";
+export { LibrariesPanel } from "../../../interfaces/source/components/LibrariesPanel";
+export { LibraryTablePanel } from "../../../interfaces/source/components/LibraryTablePanel";
 export { FileProcessingDialog } from "../../../interfaces/source/components/FileProcessingDialog";
 
 // ---------------------------------------------------------------------------
@@ -163,3 +163,4 @@ export { InMemoryWikiLibraryAdapter } from "../../../infrastructure/source/memor
 export { FirebaseSourceDocumentCommandAdapter } from "../../../infrastructure/source/firebase/FirebaseSourceDocumentCommandAdapter";
 export { FirebaseParsedDocumentAdapter } from "../../../infrastructure/source/firebase/FirebaseParsedDocumentAdapter";
 export { NotionKnowledgePageGatewayAdapter } from "../../../infrastructure/source/adapters/NotionKnowledgePageGatewayAdapter";
+

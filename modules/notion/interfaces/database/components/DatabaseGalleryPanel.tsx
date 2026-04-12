@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 /**
  * Module: notion/subdomains/database
  * Layer: interfaces/components
- * Purpose: DatabaseGalleryView — card grid for database records.
+ * Purpose: DatabaseGalleryPanel ??card grid for database records.
  */
 
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -17,7 +17,7 @@ import { getRecords } from "../queries";
 import { createRecord, deleteRecord } from "../_actions/database.actions";
 import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
 
-interface DatabaseGalleryViewProps {
+interface DatabaseGalleryPanelProps {
   database: DatabaseSnapshot;
   accountId: string;
   workspaceId: string;
@@ -31,7 +31,7 @@ function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
   return null;
 }
 
-export function DatabaseGalleryView({ database, accountId, workspaceId, currentUserId }: DatabaseGalleryViewProps) {
+export function DatabaseGalleryPanel({ database, accountId, workspaceId, currentUserId }: DatabaseGalleryPanelProps) {
   const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
@@ -77,10 +77,10 @@ export function DatabaseGalleryView({ database, accountId, workspaceId, currentU
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {records.length === 0 ? (
-          <p className="col-span-full rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">尚無記錄</p>
+          <p className="col-span-full rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">撠閮?</p>
         ) : (
           records.map((record) => {
-            const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "（未命名）" : "（未命名）";
+            const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "嚗?賢?嚗? : "嚗?賢?嚗?;
             return (
               <div key={record.id} className="group relative flex flex-col gap-2 rounded-lg border border-border/60 bg-card p-3 shadow-sm">
                 <p className="truncate text-sm font-medium leading-snug">{title}</p>
@@ -110,8 +110,9 @@ export function DatabaseGalleryView({ database, accountId, workspaceId, currentU
         )}
       </div>
       <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
+        <Plus className="mr-1.5 h-3 w-3" /> ?啣?閮?
       </Button>
     </div>
   );
 }
+

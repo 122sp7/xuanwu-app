@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 /**
  * Module: notion/subdomains/database
  * Layer: interfaces/components
- * Purpose: Manage automation rules for a database — list/create/toggle/delete.
+ * Purpose: Manage automation rules for a database ??list/create/toggle/delete.
  */
 
 import { useEffect, useState, useTransition } from "react";
@@ -31,7 +31,7 @@ const ACTION_OPTIONS: { value: AutomationActionType; label: string }[] = [
   { value: "webhook", label: "Call webhook" },
 ];
 
-export function DatabaseAutomationView({ databaseId, accountId, currentUserId }: Props) {
+export function DatabaseAutomationPanel({ databaseId, accountId, currentUserId }: Props) {
   const [automations, setAutomations] = useState<DatabaseAutomationSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -87,7 +87,7 @@ export function DatabaseAutomationView({ databaseId, accountId, currentUserId }:
     });
   }
 
-  if (loading) return <div className="p-4 text-sm text-muted-foreground">Loading automations…</div>;
+  if (loading) return <div className="p-4 text-sm text-muted-foreground">Loading automations??/div>;
 
   return (
     <div className="p-4 space-y-4">
@@ -155,7 +155,7 @@ export function DatabaseAutomationView({ databaseId, accountId, currentUserId }:
               <div className="space-y-0.5">
                 <p className="font-medium">{a.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  Trigger: {a.trigger} · Action: {a.actions[0]?.type ?? "—"}
+                  Trigger: {a.trigger} 繚 Action: {a.actions[0]?.type ?? "??}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -179,3 +179,4 @@ export function DatabaseAutomationView({ databaseId, accountId, currentUserId }:
     </div>
   );
 }
+

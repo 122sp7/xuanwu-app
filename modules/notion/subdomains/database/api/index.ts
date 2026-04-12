@@ -1,11 +1,11 @@
-/**
+﻿/**
  * Module: notion/subdomains/database
  * Layer: api (public boundary)
  * Purpose: Exposes only what external consumers need.
  *          All cross-module access must go through this file only.
  *
  * Open Host Service contracts:
- *   - getDatabaseById  — consumed by knowledge subdomain (opaque reference resolution)
+ *   - getDatabaseById  ??consumed by knowledge subdomain (opaque reference resolution)
  */
 
 // Domain types
@@ -87,17 +87,18 @@ export {
 
 // UI components
 export { DatabaseDialog } from "../../../interfaces/database/components/DatabaseDialog";
-export { DatabaseTableView } from "../../../interfaces/database/components/DatabaseTableView";
-export { DatabaseBoardView } from "../../../interfaces/database/components/DatabaseBoardView";
-export { DatabaseListView } from "../../../interfaces/database/components/DatabaseListView";
-export { DatabaseCalendarView } from "../../../interfaces/database/components/DatabaseCalendarView";
-export { DatabaseGalleryView } from "../../../interfaces/database/components/DatabaseGalleryView";
-export { DatabaseFormView } from "../../../interfaces/database/components/DatabaseFormView";
-export { DatabaseAutomationView } from "../../../interfaces/database/components/DatabaseAutomationView";
-export { KnowledgeDatabasesPanel } from "../../../interfaces/database/components/KnowledgeDatabasesRouteScreen";
-export type { KnowledgeDatabasesPanelProps } from "../../../interfaces/database/components/KnowledgeDatabasesRouteScreen";
+export { DatabaseTablePanel } from "../../../interfaces/database/components/DatabaseTablePanel";
+export { DatabaseBoardPanel } from "../../../interfaces/database/components/DatabaseBoardPanel";
+export { DatabaseListPanel } from "../../../interfaces/database/components/DatabaseListPanel";
+export { DatabaseCalendarPanel } from "../../../interfaces/database/components/DatabaseCalendarPanel";
+export { DatabaseGalleryPanel } from "../../../interfaces/database/components/DatabaseGalleryPanel";
+export { DatabaseFormPanel } from "../../../interfaces/database/components/DatabaseFormPanel";
+export { DatabaseAutomationPanel } from "../../../interfaces/database/components/DatabaseAutomationPanel";
+export { KnowledgeDatabasesPanel } from "../../../interfaces/database/components/KnowledgeDatabasesPanel";
+export type { KnowledgeDatabasesPanelProps } from "../../../interfaces/database/components/KnowledgeDatabasesPanel";
 export { AddFieldDialog, FIELD_TYPES } from "../../../interfaces/database/components/DatabaseAddFieldDialog";
 export { DatabaseDetailPanel } from "../../../interfaces/database/components/DatabaseDetailPanel";
 export type { DatabaseDetailPanelProps } from "../../../interfaces/database/components/DatabaseDetailPanel";
 export { DatabaseFormsPanel } from "../../../interfaces/database/components/DatabaseFormsPanel";
 export type { DatabaseFormsPanelProps } from "../../../interfaces/database/components/DatabaseFormsPanel";
+

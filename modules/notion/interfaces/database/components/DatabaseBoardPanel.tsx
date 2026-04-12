@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 /**
  * Module: notion/subdomains/database
  * Layer: interfaces/components
- * Purpose: DatabaseBoardView — Kanban board grouped by first select/multi_select field.
+ * Purpose: DatabaseBoardPanel ??Kanban board grouped by first select/multi_select field.
  */
 
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -17,7 +17,7 @@ import { getRecords } from "../queries";
 import { createRecord, deleteRecord } from "../_actions/database.actions";
 import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
 
-interface DatabaseBoardViewProps {
+interface DatabaseBoardPanelProps {
   database: DatabaseSnapshot;
   accountId: string;
   workspaceId: string;
@@ -31,7 +31,7 @@ function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
   return null;
 }
 
-export function DatabaseBoardView({ database, accountId, workspaceId, currentUserId }: DatabaseBoardViewProps) {
+export function DatabaseBoardPanel({ database, accountId, workspaceId, currentUserId }: DatabaseBoardPanelProps) {
   const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
@@ -53,28 +53,28 @@ export function DatabaseBoardView({ database, accountId, workspaceId, currentUse
   function getTitle(record: DatabaseRecordSnapshot): string {
     const textField = database.fields.find((f) => f.type === "text");
     if (!textField) return record.id.slice(0, 8);
-    return String(getProperty(record, textField.id) ?? "—");
+    return String(getProperty(record, textField.id) ?? "??);
   }
 
   const groups: Record<string, DatabaseRecordSnapshot[]> = {};
   if (!groupField) {
-    groups["所有記錄"] = records;
+    groups["?????] = records;
   } else {
     for (const record of records) {
       const val = getProperty(record, groupField.id);
-      const key = val != null && val !== "" ? String(val) : "（無分組）";
+      const key = val != null && val !== "" ? String(val) : "嚗??嚗?;
       (groups[key] ??= []).push(record);
     }
-    if ("（無分組）" in groups) {
-      const noGroup = groups["（無分組）"];
-      delete groups["（無分組）"];
-      groups["（無分組）"] = noGroup;
+    if ("嚗??嚗? in groups) {
+      const noGroup = groups["嚗??嚗?];
+      delete groups["嚗??嚗?];
+      groups["嚗??嚗?] = noGroup;
     }
   }
 
   function handleAdd(groupValue: string) {
     startTransition(async () => {
-      const props: Record<string, unknown> = groupField && groupValue !== "（無分組）" && groupValue !== "所有記錄"
+      const props: Record<string, unknown> = groupField && groupValue !== "嚗??嚗? && groupValue !== "?????
         ? { [groupField.id]: groupValue }
         : {};
       await createRecord({ databaseId: database.id, workspaceId, accountId, properties: props, createdByUserId: currentUserId });
@@ -128,10 +128,11 @@ export function DatabaseBoardView({ database, accountId, workspaceId, currentUse
             disabled={isPending}
             onClick={() => handleAdd(group)}
           >
-            <Plus className="mr-1 h-3 w-3" /> 新增
+            <Plus className="mr-1 h-3 w-3" /> ?啣?
           </Button>
         </div>
       ))}
     </div>
   );
 }
+

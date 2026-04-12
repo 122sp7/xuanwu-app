@@ -1,11 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useParams } from "next/navigation";
 
 import { useWorkspaceContext } from "@/modules/workspace/api";
 import { ConversationPanel } from "@/modules/notebooklm/api";
 
-export default function AccountWorkspaceAiChatPage() {
+export default function AccountWorkspaceConversationPanel() {
   const params = useParams<{ accountId: string; workspaceId: string }>();
   const { state: wsState } = useWorkspaceContext();
 
@@ -20,3 +20,4 @@ export default function AccountWorkspaceAiChatPage() {
     />
   );
 }
+

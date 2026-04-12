@@ -1,8 +1,8 @@
-"use client";
+﻿"use client";
 
 /**
  * Route: /knowledge-database/databases/[databaseId]/forms
- * Purpose: Manage database forms — create and embed form links for a specific database.
+ * Purpose: Manage database forms ??create and embed form links for a specific database.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -10,13 +10,13 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ExternalLink, Plus } from "lucide-react";
 
 import { getDatabase } from "../queries";
-import { DatabaseFormView } from "./DatabaseFormView";
+import { DatabaseFormPanel } from "./DatabaseFormPanel";
 import type { DatabaseSnapshot as Database } from "../../../subdomains/database/application/dto/database.dto";
 import { Button } from "@ui-shadcn/ui/button";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
 
-// ── Props ─────────────────────────────────────────────────────────────────────
+// ?? Props ?????????????????????????????????????????????????????????????????????
 
 export interface DatabaseFormsPanelProps {
   accountId: string;
@@ -24,7 +24,7 @@ export interface DatabaseFormsPanelProps {
   currentUserId: string;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ?? Component ?????????????????????????????????????????????????????????????????
 
 export function DatabaseFormsPanel({
   accountId,
@@ -69,9 +69,9 @@ export function DatabaseFormsPanel({
     return (
       <div className="space-y-4">
         <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 餈?
         </Button>
-        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
+        <p className="text-sm text-muted-foreground">?曆??啗??澈??/p>
       </div>
     );
   }
@@ -87,36 +87,36 @@ export function DatabaseFormsPanel({
           size="sm"
           onClick={() => router.push(databaseDetailHref)}
         >
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回資料庫
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 餈?鞈?摨?
         </Button>
         <div className="ml-auto">
           <Button size="sm" variant="outline" disabled>
-            <Plus className="mr-1.5 h-3.5 w-3.5" /> 建立新表單
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> 撱箇??啗”??
           </Button>
         </div>
       </div>
 
       <header className="space-y-1 border-b border-border/60 pb-4">
-        <h1 className="text-xl font-semibold">{database.name} — 表單</h1>
+        <h1 className="text-xl font-semibold">{database.name} ??銵典</h1>
         <p className="text-sm text-muted-foreground">
-          使用表單讓外部使用者提交記錄到此資料庫。
+          雿輻銵典霈??其蝙?刻?鈭方??甇方??澈??
         </p>
       </header>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "preview" | "share")}>
         <TabsList>
-          <TabsTrigger value="preview">預覽表單</TabsTrigger>
-          <TabsTrigger value="share">分享設定</TabsTrigger>
+          <TabsTrigger value="preview">?汗銵典</TabsTrigger>
+          <TabsTrigger value="share">?澈閮剖?</TabsTrigger>
         </TabsList>
 
         <TabsContent value="preview" className="mt-4">
           <div className="rounded-xl border border-border/60 bg-card px-6 py-2">
-            <DatabaseFormView
+            <DatabaseFormPanel
               database={database}
               accountId={accountId}
               workspaceId={workspaceId}
               submitterId={currentUserId}
-              title={`${database.name} 表單`}
+              title={`${database.name} 銵典`}
               description={database.description ?? undefined}
             />
           </div>
@@ -125,20 +125,20 @@ export function DatabaseFormsPanel({
         <TabsContent value="share" className="mt-4">
           <div className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
             <div className="space-y-1.5">
-              <p className="text-sm font-medium">表單連結</p>
+              <p className="text-sm font-medium">銵典???</p>
               <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
                 <span className="flex-1 truncate">{shareUrl}</span>
                 <button
                   type="button"
                   onClick={() => void navigator.clipboard.writeText(shareUrl)}
                   className="shrink-0 text-muted-foreground hover:text-foreground"
-                  title="複製連結"
+                  title="銴ˊ???"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                 </button>
               </div>
               <p className="text-xs text-muted-foreground">
-                分享此連結讓其他人填寫表單並將記錄直接存入資料庫。
+                ?澈甇日??霈隞犖憛怠神銵典銝血?閮??湔摮鞈?摨怒?
               </p>
             </div>
           </div>
@@ -147,3 +147,4 @@ export function DatabaseFormsPanel({
     </div>
   );
 }
+

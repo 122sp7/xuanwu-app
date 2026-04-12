@@ -1,19 +1,19 @@
-/**
+﻿/**
  * Module: notion/subdomains/authoring
  * Layer: api (public boundary)
  * Purpose: Exposes only what external consumers need.
  *          All cross-module access must go through this file only.
  */
 
-// ─── Read contracts ────────────────────────────────────────────────────────────
+// ??? Read contracts ????????????????????????????????????????????????????????????
 export type { ArticleSnapshot, ArticleStatus, ArticleVerificationState } from "../domain/aggregates/Article";
 export type { CategorySnapshot } from "../domain/aggregates/Category";
 
-// ─── Identifiers used by other BCs ────────────────────────────────────────────
+// ??? Identifiers used by other BCs ????????????????????????????????????????????
 export type ArticleId = string;
 export type CategoryId = string;
 
-// ─── Server Actions (write-side) ──────────────────────────────────────────────
+// ??? Server Actions (write-side) ??????????????????????????????????????????????
 export {
   createArticle,
   updateArticle,
@@ -31,12 +31,13 @@ export {
   deleteCategory,
 } from "../../../interfaces/authoring/_actions/category.actions";
 
-// ─── Queries (read-side) ──────────────────────────────────────────────────────
+// ??? Queries (read-side) ??????????????????????????????????????????????????????
 export { getArticles, getArticle, getCategories, getBacklinks } from "../../../interfaces/authoring/queries";
 
-// ─── UI Components ────────────────────────────────────────────────────────────
+// ??? UI Components ????????????????????????????????????????????????????????????
 export { ArticleDialog } from "../../../interfaces/authoring/components/ArticleDialog";
-export { KnowledgeBaseArticlesPanel } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesRouteScreen";
-export type { KnowledgeBaseArticlesPanelProps } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesRouteScreen";
+export { KnowledgeBaseArticlesPanel } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesPanel";
+export type { KnowledgeBaseArticlesPanelProps } from "../../../interfaces/authoring/components/KnowledgeBaseArticlesPanel";
 export { ArticleDetailPanel } from "../../../interfaces/authoring/components/ArticleDetailPanel";
 export type { ArticleDetailPanelProps } from "../../../interfaces/authoring/components/ArticleDetailPanel";
+

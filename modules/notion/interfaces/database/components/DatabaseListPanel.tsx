@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 /**
  * Module: notion/subdomains/database
  * Layer: interfaces/components
- * Purpose: DatabaseListView — flat record list with fields as readable rows.
+ * Purpose: DatabaseListPanel ??flat record list with fields as readable rows.
  */
 
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -17,7 +17,7 @@ import { getRecords } from "../queries";
 import { createRecord, deleteRecord } from "../_actions/database.actions";
 import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
 
-interface DatabaseListViewProps {
+interface DatabaseListPanelProps {
   database: DatabaseSnapshot;
   accountId: string;
   workspaceId: string;
@@ -33,11 +33,11 @@ function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
 
 function displayValue(val: unknown, type: string): string {
   if (val == null || val === "") return "";
-  if (type === "checkbox") return val ? "✓" : "✗";
+  if (type === "checkbox") return val ? "?? : "??;
   return String(val);
 }
 
-export function DatabaseListView({ database, accountId, workspaceId, currentUserId }: DatabaseListViewProps) {
+export function DatabaseListPanel({ database, accountId, workspaceId, currentUserId }: DatabaseListPanelProps) {
   const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -92,11 +92,11 @@ export function DatabaseListView({ database, accountId, workspaceId, currentUser
   return (
     <div className="space-y-1">
       {records.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">尚無記錄</p>
+        <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">撠閮?</p>
       ) : (
         records.map((record) => {
           const isOpen = expanded.has(record.id);
-          const title = titleField ? displayValue(getProperty(record, titleField.id), titleField.type) || "（未命名）" : record.id.slice(0, 8);
+          const title = titleField ? displayValue(getProperty(record, titleField.id), titleField.type) || "嚗?賢?嚗? : record.id.slice(0, 8);
 
           return (
             <div key={record.id} className="rounded-md border border-border/60 bg-card">
@@ -115,7 +115,7 @@ export function DatabaseListView({ database, accountId, workspaceId, currentUser
                     if (!val) return null;
                     return (
                       <Badge key={field.id} variant="outline" className="text-[10px]">
-                        {field.name}: {val.length > 12 ? `${val.slice(0, 12)}…` : val}
+                        {field.name}: {val.length > 12 ? `${val.slice(0, 12)}?圳 : val}
                       </Badge>
                     );
                   })}
@@ -138,12 +138,12 @@ export function DatabaseListView({ database, accountId, workspaceId, currentUser
                       return (
                         <div key={field.id} className="contents">
                           <dt className="text-muted-foreground">{field.name}</dt>
-                          <dd className="text-foreground">{val || <span className="text-muted-foreground/50">—</span>}</dd>
+                          <dd className="text-foreground">{val || <span className="text-muted-foreground/50">??/span>}</dd>
                         </div>
                       );
                     })}
                     <div className="contents">
-                      <dt className="text-muted-foreground">建立時間</dt>
+                      <dt className="text-muted-foreground">撱箇???</dt>
                       <dd className="text-foreground">
                         {new Date(record.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                       </dd>
@@ -156,8 +156,9 @@ export function DatabaseListView({ database, accountId, workspaceId, currentUser
         })
       )}
       <Button variant="outline" size="sm" disabled={isPending} onClick={handleAdd} className="mt-1 w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
+        <Plus className="mr-1.5 h-3 w-3" /> ?啣?閮?
       </Button>
     </div>
   );
 }
+

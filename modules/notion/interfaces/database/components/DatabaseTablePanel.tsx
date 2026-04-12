@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 /**
  * Module: notion/subdomains/database
  * Layer: interfaces/components
- * Purpose: DatabaseTableView — spreadsheet-style table with inline cell editing.
+ * Purpose: DatabaseTablePanel ??spreadsheet-style table with inline cell editing.
  */
 
 import { useCallback, useEffect, useState, useTransition } from "react";
@@ -17,7 +17,7 @@ import { getRecords } from "../queries";
 import { createRecord, updateRecord, deleteRecord } from "../_actions/database.actions";
 import type { DatabaseSnapshot, Field, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
 
-interface DatabaseTableViewProps {
+interface DatabaseTablePanelProps {
   database: DatabaseSnapshot;
   accountId: string;
   workspaceId: string;
@@ -81,7 +81,7 @@ function CellInput({ field, value, onChange, disabled }: { field: Field; value: 
   );
 }
 
-export function DatabaseTableView({ database, accountId, workspaceId, currentUserId }: DatabaseTableViewProps) {
+export function DatabaseTablePanel({ database, accountId, workspaceId, currentUserId }: DatabaseTablePanelProps) {
   const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [edits, setEdits] = useState<Record<string, Record<string, unknown>>>({});
@@ -152,7 +152,7 @@ export function DatabaseTableView({ database, accountId, workspaceId, currentUse
   if (fields.length === 0) {
     return (
       <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
-        此資料庫尚無欄位。請先新增欄位。
+        甇方??澈撠甈????憓?雿?
       </p>
     );
   }
@@ -176,7 +176,7 @@ export function DatabaseTableView({ database, accountId, workspaceId, currentUse
             {records.length === 0 ? (
               <tr>
                 <td colSpan={fields.length + 1} className="px-3 py-6 text-center text-xs text-muted-foreground">
-                  尚無記錄
+                  撠閮?
                 </td>
               </tr>
             ) : (
@@ -217,8 +217,9 @@ export function DatabaseTableView({ database, accountId, workspaceId, currentUse
         </table>
       </div>
       <Button variant="outline" size="sm" disabled={isPending} onClick={handleAddRecord} className="w-full text-xs">
-        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
+        <Plus className="mr-1.5 h-3 w-3" /> ?啣?閮?
       </Button>
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -14,7 +14,7 @@ import { getDatabases } from "../queries";
 import { DatabaseDialog } from "./DatabaseDialog";
 
 /**
- * KnowledgeDatabasesRouteScreen
+ * KnowledgeDatabasesPanel
  * Route-level screen component for /knowledge-database/databases.
  * Encapsulates data-loading and layout so the Next.js route file stays thin.
  */
@@ -85,9 +85,9 @@ export function KnowledgeDatabasesPanel({
     <div className="space-y-4">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">鞈?摨?/h1>
         <p className="text-sm text-muted-foreground">
-          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
+          蝯????”???踴??憭??恣??撠? Notion Database ?賢???
         </p>
       </header>
 
@@ -97,7 +97,7 @@ export function KnowledgeDatabasesPanel({
           onClick={() => router.push(overviewHref)}
           className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
         >
-          返回 Knowledge Hub
+          餈? Knowledge Hub
         </button>
         <Button
           size="sm"
@@ -106,7 +106,7 @@ export function KnowledgeDatabasesPanel({
           onClick={() => setDialogOpen(true)}
         >
           <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增資料庫
+          ?啣?鞈?摨?
         </Button>
       </div>
 
@@ -121,7 +121,7 @@ export function KnowledgeDatabasesPanel({
 
       {!resolvedAccountId || !resolvedWorkspaceId ? (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
+          撠??撣唾?/撌乩????嚗???交???撣唾???
         </p>
       ) : loading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -132,7 +132,7 @@ export function KnowledgeDatabasesPanel({
       ) : databases.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
           <Table2 className="h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
+          <p className="text-sm text-muted-foreground">撠鞈?摨怒??憓??澈??憪遣蝡?/p>
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -157,9 +157,9 @@ export function KnowledgeDatabasesPanel({
                   <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
                 )}
                 <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
-                  <span>{db.fields.length} 個欄位</span>
-                  <span>·</span>
-                  <span>{db.viewIds.length} 個視圖</span>
+                  <span>{db.fields.length} ??雿?/span>
+                  <span>繚</span>
+                  <span>{db.viewIds.length} ????/span>
                 </div>
                 <p className="text-[10px] text-muted-foreground/50">
                   {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
@@ -172,3 +172,4 @@ export function KnowledgeDatabasesPanel({
     </div>
   );
 }
+

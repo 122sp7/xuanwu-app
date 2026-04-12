@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 /**
  * Module: notion/subdomains/database
  * Layer: interfaces/components
- * Purpose: DatabaseCalendarView — month-grid calendar grouped by a date field.
+ * Purpose: DatabaseCalendarPanel ??month-grid calendar grouped by a date field.
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -16,7 +16,7 @@ import { Badge } from "@ui-shadcn/ui/badge";
 import { getRecords } from "../queries";
 import type { DatabaseSnapshot, DatabaseRecordSnapshot } from "../../../subdomains/database/application/dto/database.dto";
 
-interface DatabaseCalendarViewProps {
+interface DatabaseCalendarPanelProps {
   database: DatabaseSnapshot;
   accountId: string;
 }
@@ -28,7 +28,7 @@ function getProperty(record: DatabaseRecordSnapshot, fieldId: string): unknown {
   return null;
 }
 
-export function DatabaseCalendarView({ database, accountId }: DatabaseCalendarViewProps) {
+export function DatabaseCalendarPanel({ database, accountId }: DatabaseCalendarPanelProps) {
   const [records, setRecords] = useState<DatabaseRecordSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [cursor, setCursor] = useState(() => new Date());
@@ -71,12 +71,12 @@ export function DatabaseCalendarView({ database, accountId }: DatabaseCalendarVi
   function prevMonth() { setCursor(new Date(year, month - 1, 1)); }
   function nextMonth() { setCursor(new Date(year, month + 1, 1)); }
 
-  const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
+  const weekDays = ["??, "銝", "鈭?, "銝?, "??, "鈭?, "??];
 
   if (!dateField) {
     return (
       <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
-        此資料庫未包含「日期」欄位，無法顯示日曆視圖。
+        甇方??澈?芸??怒??雿??⊥?憿舐內?交?閬???
       </p>
     );
   }
@@ -92,7 +92,7 @@ export function DatabaseCalendarView({ database, accountId }: DatabaseCalendarVi
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <span className="text-sm font-medium">
-          {year}年 {month + 1}月
+          {year}撟?{month + 1}??
         </span>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={nextMonth}>
           <ChevronRight className="h-4 w-4" />
@@ -121,7 +121,7 @@ export function DatabaseCalendarView({ database, accountId }: DatabaseCalendarVi
                 <span className={`text-[10px] font-medium ${isToday ? "text-primary" : "text-muted-foreground"}`}>{day}</span>
                 <div className="mt-0.5 flex flex-col gap-0.5">
                   {dayRecords.slice(0, 3).map((record) => {
-                    const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "—" : "—";
+                    const title = titleField ? String(getProperty(record, titleField.id) ?? "") || "?? : "??;
                     return (
                       <Badge key={record.id} variant="secondary" className="w-full justify-start truncate text-[9px]">
                         {title}
@@ -140,3 +140,4 @@ export function DatabaseCalendarView({ database, accountId }: DatabaseCalendarVi
     </div>
   );
 }
+
