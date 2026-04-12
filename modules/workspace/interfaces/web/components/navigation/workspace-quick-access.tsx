@@ -1,4 +1,4 @@
-import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Users } from "lucide-react";
+import { BookOpen, Brain, Database, FileText, FolderOpen, Home, MessageSquare, Notebook, Users } from "lucide-react";
 import type { ReactNode } from "react";
 
 const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
@@ -80,13 +80,25 @@ const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
       isWorkspaceScopedPath(pathname) && options?.tab === "Members",
   },
   {
-    href: "/notebook/rag-query?workspaceId={workspaceId}",
+    href: "/workspace/{workspaceId}?tab=Knowledge",
+    label: "知識庫",
+    icon: <Notebook className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Knowledge",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Notebook",
     label: "RAG 查詢",
     icon: <Brain className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/notebook/rag-query" ||
-      pathname.startsWith("/notebook/rag-query/") ||
-      pathname.includes("/notebook/rag-query"),
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Notebook",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=AiChat",
+    label: "AI 對話",
+    icon: <MessageSquare className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "AiChat",
   },
   {
     href: "/workspace/{workspaceId}?tab=Overview&panel=source-libraries",
@@ -111,10 +123,6 @@ export function buildWorkspaceQuickAccessItems(
     ...item,
     href: item.href
       .replaceAll("/workspace/{workspaceId}", workspaceBaseHref)
-      .replaceAll(
-        "/notebook/rag-query?workspaceId={workspaceId}",
-        `${workspaceBaseHref}/notebook/rag-query`,
-      )
       .replaceAll("{workspaceId}", encodedWorkspaceId),
   }));
 }
