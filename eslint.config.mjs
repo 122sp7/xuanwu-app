@@ -178,5 +178,38 @@ export default defineConfig([
     rules: { [restrictedImports([packageToModules])[0]]: restrictedImports([packageToModules])[1] },
   },
 
+  // notebooklm ai subdomain deprecation guardrail (no new downstream coupling)
+  {
+    files: [
+      "modules/notebooklm/{application,domain,infrastructure,interfaces}/**/*.{ts,tsx,js,jsx}",
+      "modules/notebooklm/subdomains/{conversation,conversation-versioning,evaluation,grounding,ingestion,note,notebook,retrieval,source,synthesis}/**/*.{ts,tsx,js,jsx}",
+    ],
+    rules: {
+      [restrictedImports([
+        {
+          group: [
+            "@/modules/notebooklm/subdomains/ai/**",
+            "**/subdomains/ai/**",
+            "../ai/**",
+            "../../ai/**",
+            "../../../ai/**",
+          ],
+          message: "Legacy ai subdomain is in migration; route new behavior via retrieval/grounding/synthesis/evaluation APIs.",
+        },
+      ])[0]]: restrictedImports([
+        {
+          group: [
+            "@/modules/notebooklm/subdomains/ai/**",
+            "**/subdomains/ai/**",
+            "../ai/**",
+            "../../ai/**",
+            "../../../ai/**",
+          ],
+          message: "Legacy ai subdomain is in migration; route new behavior via retrieval/grounding/synthesis/evaluation APIs.",
+        },
+      ])[1],
+    },
+  },
+
   globalIgnores([".agents/**",".next/**","out/**","build/**","next-env.d.ts"]),
 ]);

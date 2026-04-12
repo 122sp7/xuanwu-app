@@ -13,14 +13,16 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 - `notebooklm` is **downstream** of `platform`, `workspace`, and `notion`; never import from their internals — use `modules/<context>/api` only.
 - Cross-module consumers import from `modules/notebooklm/api` only.
 - AI provider, model policy, quota, and safety guardrails belong to `platform.ai` — do not reimplement governance here.
-- RAG generation and retrieval logic lives in `subdomains/ai`; notebook session orchestration lives in `subdomains/notebook`; source lifecycle lives in `subdomains/source`.
+- Do not add new dependencies on `subdomains/ai`; treat it as legacy transition surface pending removal.
+- Route new RAG capabilities to `subdomains/retrieval`, `subdomains/grounding`, `subdomains/synthesis`, and `subdomains/evaluation`.
+- Notebook session orchestration lives in `subdomains/notebook`; source lifecycle lives in `subdomains/source`.
 - Use ubiquitous language: `Conversation` not `Chat`, `Source` not `Document` (when referring to RAG input), `Notebook` not `Project`.
 
 ## Route to Subdomain When
 
 | Concern | Subdomain |
 |---|---|
-| RAG query, generation, retrieval scoring | `ai` |
+| Legacy RAG query surface (transition only, do not expand) | `ai` |
 | Conversation threads, messages | `conversation` |
 | Notebook session orchestration, agent generation | `notebook` |
 | Source file lifecycle, RAG document registration | `source` |

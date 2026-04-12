@@ -17,13 +17,6 @@ export { saveThread, loadThread } from "../subdomains/conversation/api";
 // ---------------------------------------------------------------------------
 // Q&A subdomain — types and UI (replaces @/modules/search/api)
 // ---------------------------------------------------------------------------
-
-export type {
-  AnswerRagQueryInput,
-  AnswerRagQueryResult,
-  RagCitation,
-  RagRetrievalSummary,
-} from "../subdomains/ai/api";
 export { RagQueryView } from "../subdomains/ai/api";
 
 // ---------------------------------------------------------------------------

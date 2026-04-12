@@ -28,20 +28,23 @@
 
 ---
 
-### ⚠️ VIOLATION #2 (CRITICAL): NotionKnowledgePageGateway — MARKED
+### ✅ VIOLATION #2 (CRITICAL): NotionKnowledgePageGateway — FIXED
 
-**File**: `modules/notebooklm/subdomains/source/infrastructure/adapters/NotionKnowledgePageGatewayAdapter.ts`
+**Files**:
+- `modules/notebooklm/subdomains/source/infrastructure/adapters/NotionKnowledgePageGatewayAdapter.ts`
+- `modules/notebooklm/subdomains/source/api/factories.ts`
 
-**Problem**:
-```typescript
-import { addKnowledgeBlock, createKnowledgePage } from "@/modules/notion/api";
-```
+**Fix Applied**:
+- Removed cross-domain dependency from infrastructure adapter.
+- Introduced constructor injection for `createKnowledgePage` and `addKnowledgeBlock`.
+- Bound notion API dependency in `source/api/factories.ts` (allowed API layer boundary).
+- Added published-language token normalization helper in adapter.
 
-**AGENTS.md Rule**: Published language tokens must cross boundaries, not direct API calls
+**AGENTS.md / Hexagonal Rule Alignment**:
+- infrastructure no longer imports cross-domain API directly.
+- cross-domain binding occurs at API composition layer.
 
-**Status**: ⚠️ MARKED with migration notes + TODO
-
-**Fix Needed**: Extract port interface, implement via published language contract (2-3h)
+**Status**: ✅ FIXED and lint-validated (0 errors).
 
 ---
 
@@ -78,4 +81,4 @@ import { addKnowledgeBlock, createKnowledgePage } from "@/modules/notion/api";
 | #2: NotionKnowledgePageGateway | ⚠️ Marked | 2-3h | ❌ No |
 | #1: notebooklm/ai | 📋 Planned | 4-5h | ❌ No |
 
-**Next Actions**: Fix #2 (straightforward); Schedule #1 for Phase 2 migration sprint
+**Next Actions**: #2 fixed. #1 started with containment guardrails (notebooklm.instructions deprecation + eslint import guard); continue with API export migration slice, then remove ai subdomain.
