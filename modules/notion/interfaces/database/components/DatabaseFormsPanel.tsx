@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-export interface DatabaseFormsScreenProps {
+export interface DatabaseFormsPanelProps {
   accountId: string;
   workspaceId: string;
   currentUserId: string;
@@ -26,11 +26,11 @@ export interface DatabaseFormsScreenProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function DatabaseFormsScreen({
+export function DatabaseFormsPanel({
   accountId,
   workspaceId,
   currentUserId,
-}: DatabaseFormsScreenProps) {
+}: DatabaseFormsPanelProps) {
   const params = useParams();
   const router = useRouter();
   const databaseId = params.databaseId as string;

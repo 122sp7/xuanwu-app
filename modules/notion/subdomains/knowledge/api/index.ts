@@ -60,8 +60,8 @@ export { PageDialog } from "../../../interfaces/knowledge/components/PageDialog"
 export { BlockEditorView } from "../../../interfaces/knowledge/components/BlockEditorView";
 export { PageEditorView } from "../../../interfaces/knowledge/components/PageEditorView";
 export type { PageEditorViewProps } from "../../../interfaces/knowledge/components/PageEditorView";
-export { KnowledgePagesRouteScreen } from "../../../interfaces/knowledge/components/KnowledgePagesRouteScreen";
-export type { KnowledgePagesRouteScreenProps } from "../../../interfaces/knowledge/components/KnowledgePagesRouteScreen";
+export { KnowledgePagesPanel } from "../../../interfaces/knowledge/components/KnowledgePagesRouteScreen";
+export type { KnowledgePagesPanelProps } from "../../../interfaces/knowledge/components/KnowledgePagesRouteScreen";
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 export { useBlockEditorStore } from "../../../interfaces/knowledge/store/block-editor.store";
@@ -81,5 +81,5 @@ export { TitleEditor, IconPicker, CoverEditor } from "../../../interfaces/knowle
 export type { TitleEditorProps, IconPickerProps, CoverEditorProps } from "../../../interfaces/knowledge/components/KnowledgePageHeaderWidgets";
 
 // ── Route screen components ───────────────────────────────────────────────────
-export { KnowledgePageDetailScreen } from "../../../interfaces/knowledge/components/KnowledgePageDetailPage";
-export type { KnowledgePageDetailScreenProps } from "../../../interfaces/knowledge/components/KnowledgePageDetailPage";
+export { KnowledgeDetailPanel } from "../../../interfaces/knowledge/components/KnowledgeDetailPanel";
+export type { KnowledgeDetailPanelProps } from "../../../interfaces/knowledge/components/KnowledgeDetailPanel";

@@ -34,17 +34,17 @@ const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: Reac
  * Encapsulates data-loading, filtering and layout so the Next.js route
  * file stays thin (params/context wiring only).
  */
-export interface KnowledgeBaseArticlesRouteScreenProps {
+export interface KnowledgeBaseArticlesPanelProps {
   readonly accountId: string;
   readonly workspaceId: string;
   readonly currentUserId?: string | null;
 }
 
-export function KnowledgeBaseArticlesRouteScreen({
+export function KnowledgeBaseArticlesPanel({
   accountId,
   workspaceId,
   currentUserId,
-}: KnowledgeBaseArticlesRouteScreenProps) {
+}: KnowledgeBaseArticlesPanelProps) {
   const router = useRouter();
   const { state: authState } = useAuth();
 

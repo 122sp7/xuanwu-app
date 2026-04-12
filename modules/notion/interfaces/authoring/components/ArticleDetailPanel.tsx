@@ -34,7 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-export interface ArticleDetailScreenProps {
+export interface ArticleDetailPanelProps {
   accountId: string;
   workspaceId: string;
   currentUserId: string;
@@ -42,11 +42,11 @@ export interface ArticleDetailScreenProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ArticleDetailScreen({
+export function ArticleDetailPanel({
   accountId,
   workspaceId,
   currentUserId,
-}: ArticleDetailScreenProps) {
+}: ArticleDetailPanelProps) {
   const params = useParams();
   const router = useRouter();
   const articleId = params.articleId as string;

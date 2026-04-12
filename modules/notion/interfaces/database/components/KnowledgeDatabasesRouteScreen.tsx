@@ -18,17 +18,17 @@ import { DatabaseDialog } from "./DatabaseDialog";
  * Route-level screen component for /knowledge-database/databases.
  * Encapsulates data-loading and layout so the Next.js route file stays thin.
  */
-export interface KnowledgeDatabasesRouteScreenProps {
+export interface KnowledgeDatabasesPanelProps {
   readonly accountId: string;
   readonly workspaceId: string;
   readonly currentUserId?: string | null;
 }
 
-export function KnowledgeDatabasesRouteScreen({
+export function KnowledgeDatabasesPanel({
   accountId,
   workspaceId,
   currentUserId,
-}: KnowledgeDatabasesRouteScreenProps) {
+}: KnowledgeDatabasesPanelProps) {
   const router = useRouter();
   const { state: authState } = useAuth();
 

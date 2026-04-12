@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 
-import { RagQueryScreen } from "@/modules/notebooklm/api";
+import { RagQueryPanel } from "@/modules/notebooklm/api";
 
 export default function AccountWorkspaceNotebookRagQueryPage() {
   const params = useParams<{ workspaceId: string }>();
@@ -16,7 +16,7 @@ export default function AccountWorkspaceNotebookRagQueryPage() {
         <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
       </header>
 
-      <RagQueryScreen workspaceId={workspaceId || undefined} />
+      <RagQueryPanel workspaceId={workspaceId || undefined} />
     </div>
   );
 }

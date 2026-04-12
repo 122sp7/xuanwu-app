@@ -30,7 +30,7 @@ import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-export interface DatabaseDetailScreenProps {
+export interface DatabaseDetailPanelProps {
   accountId: string;
   workspaceId: string;
   currentUserId: string;
@@ -38,11 +38,11 @@ export interface DatabaseDetailScreenProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function DatabaseDetailScreen({
+export function DatabaseDetailPanel({
   accountId,
   workspaceId,
   currentUserId,
-}: DatabaseDetailScreenProps) {
+}: DatabaseDetailPanelProps) {
   const params = useParams();
   const router = useRouter();
   const databaseId = params.databaseId as string;

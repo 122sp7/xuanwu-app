@@ -4,8 +4,8 @@
  * Cross-module consumers MUST import through this entry point.
  */
 
-export { ConversationScreen } from "../../../interfaces/conversation/components/AiChatPage";
-export type { ConversationScreenProps } from "../../../interfaces/conversation/components/AiChatPage";
+export { ConversationPanel } from "../../../interfaces/conversation/components/ConversationPanel";
+export type { ConversationPanelProps } from "../../../interfaces/conversation/components/ConversationPanel";
 
 export type { ChatMessage } from "../../../interfaces/conversation/helpers";
 export {

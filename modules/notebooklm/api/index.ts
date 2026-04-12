@@ -17,7 +17,7 @@ export { saveThread, loadThread } from "../subdomains/conversation/api";
 // ---------------------------------------------------------------------------
 // NotebookLM root interfaces — Q&A UI
 // ---------------------------------------------------------------------------
-export { RagQueryScreen } from "../subdomains/synthesis/api";
+export { RagQueryPanel } from "../subdomains/synthesis/api";
 
 // ---------------------------------------------------------------------------
 // Source subdomain — types, hooks, and UI (replaces @/modules/source/api)
@@ -68,8 +68,8 @@ export {
 // conversation subdomain — AI chat UI and helpers
 // ---------------------------------------------------------------------------
 
-export { ConversationScreen } from "../subdomains/conversation/api";
-export type { ConversationScreenProps, ChatMessage } from "../subdomains/conversation/api";
+export { ConversationPanel } from "../subdomains/conversation/api";
+export type { ConversationPanelProps, ChatMessage } from "../subdomains/conversation/api";
 
 // ---------------------------------------------------------------------------
 // Context-wide published language (cross-module reference types)

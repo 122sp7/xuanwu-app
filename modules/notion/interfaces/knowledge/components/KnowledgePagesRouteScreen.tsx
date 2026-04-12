@@ -17,19 +17,19 @@ import { PageTreeView } from "./PageTreeView";
  * Encapsulates data-loading, scope resolution and layout so that the
  * Next.js route file stays thin (params/context wiring only).
  */
-export interface KnowledgePagesRouteScreenProps {
+export interface KnowledgePagesPanelProps {
   readonly accountId: string;
   readonly workspaceId?: string | null;
   readonly currentUserId?: string | null;
   readonly scope?: "workspace" | "account";
 }
 
-export function KnowledgePagesRouteScreen({
+export function KnowledgePagesPanel({
   accountId,
   workspaceId,
   currentUserId,
   scope,
-}: KnowledgePagesRouteScreenProps) {
+}: KnowledgePagesPanelProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { state: authState } = useAuth();

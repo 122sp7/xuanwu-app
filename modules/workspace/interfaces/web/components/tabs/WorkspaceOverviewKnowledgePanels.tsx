@@ -1,6 +1,6 @@
 "use client";
 
-import { KnowledgeBaseArticlesRouteScreen, KnowledgeDatabasesRouteScreen, KnowledgePagesRouteScreen } from "@/modules/notion/api";
+import { KnowledgeBaseArticlesPanel, KnowledgeDatabasesPanel, KnowledgePagesPanel } from "@/modules/notion/api";
 import { LibrariesPanel, LibraryTablePanel } from "@/modules/notebooklm/api";
 import type { WorkspaceEntity } from "../../../api/contracts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
@@ -26,7 +26,7 @@ export function WorkspaceOverviewKnowledgePanels({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <KnowledgePagesRouteScreen
+            <KnowledgePagesPanel
               accountId={workspace.accountId}
               workspaceId={workspace.id}
               currentUserId={currentUserId}
@@ -44,7 +44,7 @@ export function WorkspaceOverviewKnowledgePanels({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <KnowledgeBaseArticlesRouteScreen
+            <KnowledgeBaseArticlesPanel
               accountId={workspace.accountId}
               workspaceId={workspace.id}
               currentUserId={currentUserId}
@@ -62,7 +62,7 @@ export function WorkspaceOverviewKnowledgePanels({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <KnowledgeDatabasesRouteScreen
+            <KnowledgeDatabasesPanel
               accountId={workspace.accountId}
               workspaceId={workspace.id}
               currentUserId={currentUserId}

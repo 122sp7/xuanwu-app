@@ -27,12 +27,12 @@ import { Textarea } from "@ui-shadcn/ui/textarea";
 import type { KnowledgeCitation } from "../../../subdomains/synthesis/api";
 import { runKnowledgeRagQueryAction } from "../_actions/rag-query.actions";
 
-interface RagQueryScreenProps {
+interface RagQueryPanelProps {
   readonly workspaceId?: string;
 }
 
 /** Minimal RAG query chat interface. Uses local useState only — no streaming, no global state. */
-export function RagQueryScreen({ workspaceId }: RagQueryScreenProps) {
+export function RagQueryPanel({ workspaceId }: RagQueryPanelProps) {
   const { state: appState } = useApp();
   const { state: authState } = useAuth();
   const activeAccountId = appState.activeAccount?.id ?? "";
