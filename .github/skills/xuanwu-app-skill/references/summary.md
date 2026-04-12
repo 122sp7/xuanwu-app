@@ -59,6 +59,6 @@ This skill contains the following reference files:
 - `modules/notebooklm/subdomains/conversation/interfaces/components/AiChatPage.tsx` (341 lines)
 - `modules/workspace/subdomains/workspace-workflow/interfaces/components/WorkspaceFlowTab.tsx` (339 lines)
 - `modules/platform/interfaces/web/shell/sidebar/ShellAppRail.tsx` (321 lines)
-- `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
 - `modules/workspace/domain/aggregates/Workspace.ts` (305 lines)
+- `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
 - `modules/notion/subdomains/authoring/interfaces/components/ArticleDetailPage.tsx` (298 lines)
