@@ -51,7 +51,7 @@
 .github/instructions/rag-architecture.instructions.md (19 lines)
 .github/instructions/security-rules.instructions.md (20 lines)
 .github/instructions/shadcn-ui.instructions.md (16 lines)
-.github/instructions/subdomain-rules.instructions.md (82 lines)
+.github/instructions/subdomain-rules.instructions.md (87 lines)
 .github/instructions/tailwind-design-system.instructions.md (16 lines)
 .github/instructions/testing-e2e.instructions.md (16 lines)
 .github/instructions/testing-unit.instructions.md (16 lines)
