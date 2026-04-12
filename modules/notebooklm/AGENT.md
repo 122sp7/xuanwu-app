@@ -4,7 +4,7 @@
 
 ## Mission
 
-保護 notebooklm 主域作為對話、來源處理、推理輸出、引用對齊、衍生評估與輕量筆記的邊界。核心 RAG pipeline 為：**ingestion → retrieval → grounding → synthesis → evaluation**。notebooklm 擁有衍生推理流程，不擁有正典知識內容。
+保護 notebooklm 主域作為對話、來源處理與推理輸出的邊界。notebooklm 擁有衍生推理流程，不擁有正典知識內容。任何變更都應維持 notebooklm 擁有對話生命週期、來源管理與 RAG pipeline 語言，而不是吸收平台治理或正典知識語言。
 
 ## Bounded Context Summary
 
@@ -16,14 +16,21 @@
 | Core invariant | notebooklm 只能持有衍生推理輸出，不得直接修改 notion 的正典內容 |
 | Published language | Notebook reference、Conversation reference、SourceReference、GroundedAnswer |
 
+## Bounded Contexts
+
+| Cluster | Subdomains | Responsibility |
+|---------|------------|----------------|
+| Interaction Core | notebook, conversation | 對話容器與互動生命週期 |
+| Source & RAG Pipeline | source, ai → retrieval/grounding/synthesis/evaluation | 來源管理與 RAG 檢索 / grounding / synthesis / evaluation |
+| Personal Knowledge | note | 輕量筆記與知識連結 |
+
 ## Route Here When
 
-- 問題核心是 notebook、conversation、source ingestion、retrieval、grounding、synthesis。
+- 問題核心是 notebook、conversation、source、retrieval、grounding、synthesis。
 - 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
 - 問題要把知識來源（notion artifact、uploaded file）轉成可對話與可綜合的推理材料。
 - 問題涉及 RAG 問答、向量檢索、chunks 召回、generation 品質。
 - 問題涉及 evaluation、品質評估、回歸比較或 grounding 可信度。
-- 問題涉及 note（輕量個人筆記）或 conversation-versioning（對話快照策略）。
 
 ## Route Elsewhere When
 
@@ -36,61 +43,80 @@
 
 ### Tier 1 — Core (Active)
 
-| Subdomain | Purpose | Status |
-|-----------|---------|--------|
-| conversation | 對話 Thread 與 Message 生命週期管理 | Active |
-| notebook | Notebook 容器組合與 GenKit 回應生成 | Active |
-| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary | Active |
+| Subdomain | Purpose | Key Aggregates / Entities |
+|-----------|---------|---------------------------|
+| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
+| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration, NotebookRepository |
+| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary, SourceRetentionPolicy |
 
-### Tier 2 — RAG Pipeline (Gap Stubs → Migration Target)
+### Tier 2 — RAG Pipeline (Migration Target from `ai`)
 
-這四個子域是 RAG pipeline 的戰略清單邊界，`ai` 子域的所有責任最終應遷移至此。
+這四個子域持有 domain contracts（entities、ports、events），是 `ai` 子域的戰略遷移目標。新的 RAG 功能仍可加入 `ai`，但只有當拆分觸發條件成立時才遷移 use case 到目標子域。
 
-| Subdomain | Purpose | Migration From `ai` |
-|-----------|---------|---------------------|
-| retrieval | 查詢召回與排序策略、向量搜尋 | `IKnowledgeContentRepository`、`IRagRetrievalRepository`、`RagScoringService` |
-| grounding | 引用對齊與可追溯證據、`RagCitation` | `RagCitationBuilder`、`RagRetrievedChunk` |
-| synthesis | RAG 合成、摘要與洞察生成 | `AnswerRagQueryUseCase`、`RagPromptBuilder`、`GenkitRagGenerationAdapter` |
-| evaluation | 品質評估、feedback 收集與回歸比較 | `submit-rag-feedback`、`IRagQueryFeedbackRepository` |
+| Subdomain | Purpose | Migration From `ai` | Split Trigger |
+|-----------|---------|---------------------|---------------|
+| retrieval | 查詢召回與排序策略、向量搜尋 | `IRagRetrievalRepository`、`RagScoringService`、`RagRetrievedChunk` | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
+| grounding | 引用對齊與可追溯證據 | `RagCitationBuilder`、`RagCitation`、`RelevanceScore` | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
+| synthesis | RAG 合成、摘要與洞察生成 | `AnswerRagQueryUseCase`、`RagPromptBuilder`、`GenkitRagGenerationAdapter` | 生成策略需要獨立 use case 群（多模態、多來源融合） |
+| evaluation | 品質評估、feedback 收集與回歸比較 | `IRagQueryFeedbackRepository`、`submit-rag-feedback`、`RagFeedback` | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
 
-### Tier 3 — Baseline Stubs (Low Priority)
+### Planned
 
-| Subdomain | Purpose | Note |
-|-----------|---------|------|
-| ingestion | 來源匯入、正規化與前處理的正典邊界 | TypeScript 側協調 py_fn 匯入任務 |
-| note | 輕量個人筆記與 Notebook 知識連結 | 獨立於 conversation 的筆記物件 |
-| conversation-versioning | 對話版本與快照策略 | 長期從 conversation 切出 |
+| Subdomain | Purpose | Split Trigger |
+|-----------|---------|---------------|
+| note | 輕量個人筆記與 Notebook 知識連結 | 使用者需要獨立於 notebook 的筆記模型 |
 
-## Subdomain Analysis — 子域數量合理性
+### Premature Stubs（目錄保留，不建議擴充）
 
-**10 個戰略子域 + 1 個過渡子域（ai），分析如下：**
+| Subdomain | Reason |
+|-----------|--------|
+| conversation-versioning | 版本化是 conversation 的內部關注，語言與演化速率一致，非獨立子域 |
+| ingestion | source 子域已涵蓋匯入編排（SourceFile → RagDocument 狀態機）；py_fn 擁有實際解析管線，無獨立領域模型需求 |
 
-1. 所有 10 個戰略子域均有獨立語言與責任邊界，不過度重疊。
-2. Tier 2（retrieval/grounding/synthesis/evaluation）是 `ai` 過渡子域的遷移目標，不是額外增加的子域。
-3. `conversation-versioning` 與 `note` 雖低優先，但保留作為清楚邊界比合併進 `conversation` 更安全。
-4. `ingestion` 與 `source` 有分工：`source` 負責來源文件的 TypeScript 側狀態機；`ingestion` 負責 py_fn 工人觸發的協調邊界。分開是正確的。
-5. **沒有子域需要刪除**；缺少的是執行優先順序的清楚標示（本次已補上 Tier 標籤）。
+### Domain Invariants
+
+- notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
+- shared AI capability 由 platform.ai 提供；notebooklm 擁有 retrieval、grounding、synthesis 的本地語義。
+- grounding 應能把輸出對齊到來源證據。
+- retrieval 是 synthesis 的上游能力。
+- evaluation 應描述品質，而不是單純使用量。
+- 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
 
 ## Ubiquitous Language
 
-| Term | Meaning | Do Not Use |
-|------|---------|------------|
-| Notebook | 聚合對話、來源與衍生筆記的工作單位 | Project, Workspace |
-| Conversation | Notebook 內的對話執行邊界（Thread + Messages） | Chat, Session |
-| Message | 一則輸入或輸出對話項 | Turn, Exchange |
-| Source | 被引用與推理的來源材料 | File, Document (generic) |
-| Ingestion | 來源匯入、正規化與前處理流程 | File Import, Upload |
-| Retrieval | 從來源中召回候選 Chunk 的查詢能力 | Search, Lookup |
-| Grounding | 把輸出對齊到來源證據的能力 | Verification, Factcheck |
-| Citation | 輸出指回來源證據的引用關係 | Reference, Link |
-| Synthesis | 綜合多來源後生成的衍生輸出 | Answer, Response (generic) |
-| Note | 與 Notebook 關聯的輕量摘記 | Comment, Annotation |
-| Evaluation | 對輸出品質、回歸結果與效果的評估 | Analytics, Metrics (generic) |
-| VersionSnapshot | 對話或 Notebook 某一時點的不可變快照 | History, Backup |
+| Term | Meaning | Owning Subdomain | Do Not Use |
+|------|---------|------------------|------------|
+| Notebook | 聚合對話、來源與衍生筆記的工作單位 | notebook | Project, Workspace |
+| AgentGeneration | GenKit 代理回應生成 | notebook | - |
+| Conversation | Notebook 內的對話執行邊界 | conversation | Chat, Session |
+| Thread | 一段對話的容器 | conversation | - |
+| Message | 一則輸入或輸出對話項 | conversation | Turn, Exchange |
+| Source | 被引用與推理的來源材料 | source | File, Document (generic) |
+| SourceFile | 使用者上傳的原始檔案 | source | - |
+| RagDocument | 來源文件在 RAG pipeline 中的表示 | source | - |
+| WikiLibrary | 結構化知識來源庫 | source | - |
+| Ingestion | 來源匯入、正規化與前處理流程 | source | File Import, Upload |
+| Retrieval | 從來源中召回候選片段的查詢能力 | ai → retrieval | Search, Lookup |
+| Grounding | 把輸出對齊到來源證據的能力 | ai → grounding | Verification, Factcheck |
+| Citation | 輸出指回來源證據的引用關係 | ai → grounding | Reference, Link |
+| Synthesis | 綜合多來源後生成的衍生輸出 | ai → synthesis | Answer, Response (generic) |
+| Evaluation | 對輸出品質、回歸結果與效果的評估 | ai → evaluation | Analytics, Metrics (generic) |
+| RelevanceScore | 檢索結果的相關性分數 | ai → retrieval | - |
+| Note | 與 Notebook 關聯的輕量摘記 | note (planned) | Comment, Annotation |
 
-## Architecture Note — ai Subdomain Tech Debt
+### Avoid
 
-`ai` 子域是此模組的主要架構技術債。它在早期開發中吸收了四個戰略子域的責任，但 `ai` 本身不在戰略子域清單中。
+| Avoid | Use Instead |
+|-------|-------------|
+| Chat | Conversation |
+| File Import | Ingestion |
+| Search Step | Retrieval |
+| Verified Answer | Grounded Synthesis |
+| Knowledge / Wiki | Synthesis output（正典知識屬 notion） |
+
+## Architecture Note — ai Subdomain Transition
+
+`ai` 子域是過渡名稱，目前持有 RAG pipeline 的所有職責（retrieval、grounding、synthesis、evaluation、feedback）。Tier 2 子域持有 domain contracts 作為遷移目標形狀。
 
 **現況持有責任**：
 - `retrieval`：`IKnowledgeContentRepository`、`IRagRetrievalRepository`、`RagRetrievedChunk`、`RagScoringService`
@@ -99,9 +125,9 @@
 - `evaluation`：`submit-rag-feedback`、`IRagQueryFeedbackRepository`、`RagFeedback`
 
 **遷移規則**：
-- 新功能必須加進對應 Tier 2 目標子域，不得繼續擴大 `ai`。
-- 遷移以單個 use case 為單位（Strangler Pattern），不做一次性大改。
-- 遷移優先順序：retrieval → grounding → synthesis → evaluation。
+- 新的 RAG 功能仍可加入 `ai` 子域。只有當拆分觸發條件成立時，才遷移 use case 到目標子域。不做一次性大改。
+- 遷移以單個 use case 為單位（Strangler Pattern）。
+- 優先順序：retrieval → grounding → synthesis → evaluation。
 
 ## Dependency Direction
 

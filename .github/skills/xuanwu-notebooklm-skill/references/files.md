@@ -6,89 +6,6 @@ export { makeThreadRepo } from "../subdomains/conversation/api/factories";
 export { makeNotebookRepo } from "../subdomains/notebook/api/factories";
 ````
 
-## File: modules/notebooklm/api/index.ts
-````typescript
-/**
- * modules/notebooklm — public API barrel.
- */
-
-export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation/api";
-
-export type {
-  NotebookResponse,
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-  NotebookRepository,
-} from "../subdomains/notebook/api";
-
-export { generateNotebookResponse } from "../subdomains/notebook/api";
-export { saveThread, loadThread } from "../subdomains/conversation/api";
-
-// ---------------------------------------------------------------------------
-// Q&A subdomain — types and UI (replaces @/modules/search/api)
-// ---------------------------------------------------------------------------
-
-export type {
-  AnswerRagQueryInput,
-  AnswerRagQueryResult,
-  RagCitation,
-  RagRetrievalSummary,
-} from "../subdomains/ai/api";
-export { RagQueryView } from "../subdomains/ai/api";
-
-// ---------------------------------------------------------------------------
-// Source subdomain — types, hooks, and UI (replaces @/modules/source/api)
-// ---------------------------------------------------------------------------
-
-export type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-  WikiLibrarySnapshot,
-  CreateWikiLibraryInput,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryRowInput,
-} from "../subdomains/source/api";
-
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../subdomains/source/api";
-
-export {
-  useSourceDocumentsSnapshot,
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../subdomains/source/api";
-
-export {
-  listWikiLibraries,
-  createWikiLibrary,
-  addWikiLibraryField,
-  createWikiLibraryRow,
-  getWikiLibrarySnapshot,
-} from "../subdomains/source/api";
-
-export {
-  SourceDocumentsView,
-  WorkspaceFilesTab,
-  LibrariesView,
-  LibraryTableView,
-  FileProcessingDialog,
-} from "../subdomains/source/api";
-
-// ---------------------------------------------------------------------------
-// conversation subdomain — AI chat UI and helpers
-// ---------------------------------------------------------------------------
-
-export { AiChatPage } from "../subdomains/conversation/api";
-export type { AiChatPageProps, ChatMessage } from "../subdomains/conversation/api";
-````
-
 ## File: modules/notebooklm/api/server.ts
 ````typescript
 /**
@@ -1937,23 +1854,9 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notebooklm/subdomains/evaluation/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
 ## File: modules/notebooklm/subdomains/evaluation/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for notebooklm subdomain 'evaluation'.
-````
-
-## File: modules/notebooklm/subdomains/evaluation/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notebooklm subdomain 'evaluation'.
 ````
 
 ## File: modules/notebooklm/subdomains/evaluation/infrastructure/index.ts
@@ -1961,23 +1864,9 @@ export {};
 // Purpose: Infrastructure layer placeholder for notebooklm subdomain 'evaluation'.
 ````
 
-## File: modules/notebooklm/subdomains/grounding/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
 ## File: modules/notebooklm/subdomains/grounding/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for notebooklm subdomain 'grounding'.
-````
-
-## File: modules/notebooklm/subdomains/grounding/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notebooklm subdomain 'grounding'.
 ````
 
 ## File: modules/notebooklm/subdomains/grounding/infrastructure/index.ts
@@ -2290,23 +2179,9 @@ When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notebooklm/subdomains/retrieval/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
 ## File: modules/notebooklm/subdomains/retrieval/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for notebooklm subdomain 'retrieval'.
-````
-
-## File: modules/notebooklm/subdomains/retrieval/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notebooklm subdomain 'retrieval'.
 ````
 
 ## File: modules/notebooklm/subdomains/retrieval/infrastructure/index.ts
@@ -6599,23 +6474,9 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
-## File: modules/notebooklm/subdomains/synthesis/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
 ## File: modules/notebooklm/subdomains/synthesis/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for notebooklm subdomain 'synthesis'.
-````
-
-## File: modules/notebooklm/subdomains/synthesis/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notebooklm subdomain 'synthesis'.
 ````
 
 ## File: modules/notebooklm/subdomains/synthesis/infrastructure/index.ts
@@ -6646,6 +6507,152 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
+````
+
+## File: modules/notebooklm/api/index.ts
+````typescript
+/**
+ * modules/notebooklm — public API barrel.
+ */
+
+export type { Message, MessageRole, Thread, IThreadRepository } from "../subdomains/conversation/api";
+
+export type {
+  NotebookResponse,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+  NotebookRepository,
+} from "../subdomains/notebook/api";
+
+export { generateNotebookResponse } from "../subdomains/notebook/api";
+export { saveThread, loadThread } from "../subdomains/conversation/api";
+
+// ---------------------------------------------------------------------------
+// Q&A subdomain — types and UI (replaces @/modules/search/api)
+// ---------------------------------------------------------------------------
+
+export type {
+  AnswerRagQueryInput,
+  AnswerRagQueryResult,
+  RagCitation,
+  RagRetrievalSummary,
+} from "../subdomains/ai/api";
+export { RagQueryView } from "../subdomains/ai/api";
+
+// ---------------------------------------------------------------------------
+// Source subdomain — types, hooks, and UI (replaces @/modules/source/api)
+// ---------------------------------------------------------------------------
+
+export type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  WikiLibrarySnapshot,
+  CreateWikiLibraryInput,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryRowInput,
+} from "../subdomains/source/api";
+
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../subdomains/source/api";
+
+export {
+  useSourceDocumentsSnapshot,
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../subdomains/source/api";
+
+export {
+  listWikiLibraries,
+  createWikiLibrary,
+  addWikiLibraryField,
+  createWikiLibraryRow,
+  getWikiLibrarySnapshot,
+} from "../subdomains/source/api";
+
+export {
+  SourceDocumentsView,
+  WorkspaceFilesTab,
+  LibrariesView,
+  LibraryTableView,
+  FileProcessingDialog,
+} from "../subdomains/source/api";
+
+// ---------------------------------------------------------------------------
+// conversation subdomain — AI chat UI and helpers
+// ---------------------------------------------------------------------------
+
+export { AiChatPage } from "../subdomains/conversation/api";
+export type { AiChatPageProps, ChatMessage } from "../subdomains/conversation/api";
+
+// ---------------------------------------------------------------------------
+// Context-wide published language (cross-module reference types)
+// ---------------------------------------------------------------------------
+
+export type {
+  NotebookReference,
+  SourceReference,
+  ConversationReference,
+} from "../domain/published-language";
+
+export type { NotebookLmDomainEvent } from "../domain/events";
+
+// ---------------------------------------------------------------------------
+// Tier 2 — retrieval subdomain (migration target from ai)
+// ---------------------------------------------------------------------------
+
+export type {
+  RetrievedChunk,
+  RetrievalSummary,
+  RetrieveChunksInput,
+  IChunkRetrievalPort,
+  RetrievalCompletedEvent,
+  RetrievalFailedEvent,
+} from "../subdomains/retrieval/api";
+
+// ---------------------------------------------------------------------------
+// Tier 2 — grounding subdomain (migration target from ai)
+// ---------------------------------------------------------------------------
+
+export type {
+  Citation,
+  GroundingEvidence,
+  CitationBuilderInput,
+  ICitationBuilder,
+  GroundingCompletedEvent,
+} from "../subdomains/grounding/api";
+
+// ---------------------------------------------------------------------------
+// Tier 2 — synthesis subdomain (migration target from ai)
+// ---------------------------------------------------------------------------
+
+export type {
+  GenerationCitation,
+  GenerateAnswerInput,
+  GenerateAnswerOutput,
+  GenerateAnswerResult,
+  IGenerationPort,
+  SynthesisCompletedEvent,
+  SynthesisFailedEvent,
+} from "../subdomains/synthesis/api";
+
+// ---------------------------------------------------------------------------
+// Tier 2 — evaluation subdomain (migration target from ai)
+// ---------------------------------------------------------------------------
+
+export type {
+  FeedbackRating,
+  QualityFeedback,
+  SubmitFeedbackInput,
+  IFeedbackPort,
+  FeedbackSubmittedEvent,
+} from "../subdomains/evaluation/api";
 ````
 
 ## File: modules/notebooklm/application/application.instructions.md
@@ -6734,6 +6741,67 @@ For full reference, align with `.github/instructions/domain-modeling.instruction
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
+````
+
+## File: modules/notebooklm/domain/events/index.ts
+````typescript
+export type { NotebookLmDomainEvent } from "./NotebookLmDomainEvent";
+````
+
+## File: modules/notebooklm/domain/events/NotebookLmDomainEvent.ts
+````typescript
+/**
+ * Module: notebooklm
+ * Layer: domain/events (context-wide)
+ * Purpose: Base domain event interface for the notebooklm bounded context.
+ *          All subdomain events should extend this interface.
+ */
+
+export interface NotebookLmDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+````
+
+## File: modules/notebooklm/domain/published-language/index.ts
+````typescript
+/**
+ * Module: notebooklm
+ * Layer: domain (context-wide published language)
+ * Purpose: Reference types consumed by downstream or upstream modules.
+ *
+ * These types represent the notebooklm bounded context's public vocabulary.
+ * Consumers receive opaque references — never raw aggregates.
+ *
+ * Context Map tokens:
+ *   - NotebookReference: identifies a notebook container
+ *   - SourceReference: identifies a source document
+ *   - ConversationReference: identifies a conversation thread
+ */
+
+/** Opaque reference to a Notebook aggregate (cross-module token) */
+export interface NotebookReference {
+  readonly notebookId: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+}
+
+/** Opaque reference to a Source document (cross-module token) */
+export interface SourceReference {
+  readonly sourceId: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly displayName: string;
+  readonly mimeType: string;
+}
+
+/** Opaque reference to a Conversation thread (cross-module token) */
+export interface ConversationReference {
+  readonly threadId: string;
+  readonly accountId: string;
+}
 ````
 
 ## File: modules/notebooklm/domain/services/.gitkeep
@@ -7180,6 +7248,115 @@ export * from "./ports";
 export type { IThreadRepository as IThreadPort } from "../repositories/IThreadRepository";
 ````
 
+## File: modules/notebooklm/subdomains/evaluation/api/index.ts
+````typescript
+/**
+ * Public API boundary for the evaluation subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Status: Tier 2 Migration Target (from ai subdomain)
+ */
+
+// ── Domain types ──────────────────────────────────────────────────────────────
+export type {
+  FeedbackRating,
+  QualityFeedback,
+  SubmitFeedbackInput,
+} from "../domain/entities/QualityFeedback";
+
+// ── Port contracts ────────────────────────────────────────────────────────────
+export type {
+  IFeedbackPort,
+} from "../domain/ports/IFeedbackPort";
+
+// ── Domain events ─────────────────────────────────────────────────────────────
+export type {
+  FeedbackSubmittedEvent,
+} from "../domain/events/EvaluationEvents";
+````
+
+## File: modules/notebooklm/subdomains/evaluation/domain/entities/QualityFeedback.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/evaluation
+ * Layer: domain/entities
+ * Purpose: QualityFeedback — user-quality signal on generated answers.
+ *
+ * Migration source: ai/domain/entities/rag-feedback.entities.ts
+ */
+
+export type FeedbackRating = "helpful" | "not_helpful" | "partially_helpful";
+
+export interface QualityFeedback {
+  readonly id: string;
+  readonly traceId: string;
+  readonly userQuery: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly rating: FeedbackRating;
+  readonly comment?: string;
+  readonly submittedByUserId: string;
+  readonly submittedAtISO: string;
+}
+
+export interface SubmitFeedbackInput {
+  readonly traceId: string;
+  readonly userQuery: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly rating: FeedbackRating;
+  readonly comment?: string;
+  readonly submittedByUserId: string;
+}
+````
+
+## File: modules/notebooklm/subdomains/evaluation/domain/events/EvaluationEvents.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/evaluation
+ * Layer: domain/events
+ * Purpose: Domain events for evaluation/feedback operations.
+ */
+
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+import type { FeedbackRating } from "../entities/QualityFeedback";
+
+export interface FeedbackSubmittedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.evaluation.feedback_submitted";
+  readonly payload: {
+    readonly feedbackId: string;
+    readonly traceId: string;
+    readonly rating: FeedbackRating;
+    readonly organizationId: string;
+  };
+}
+````
+
+## File: modules/notebooklm/subdomains/evaluation/domain/index.ts
+````typescript
+export type { FeedbackRating, QualityFeedback, SubmitFeedbackInput } from "./entities/QualityFeedback";
+export type { IFeedbackPort } from "./ports/IFeedbackPort";
+export type { FeedbackSubmittedEvent } from "./events/EvaluationEvents";
+````
+
+## File: modules/notebooklm/subdomains/evaluation/domain/ports/IFeedbackPort.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/evaluation
+ * Layer: domain/ports
+ * Purpose: IFeedbackPort — output port for persisting quality feedback.
+ *
+ * Migration source: ai/domain/repositories/IRagQueryFeedbackRepository.ts
+ */
+
+import type { QualityFeedback, SubmitFeedbackInput } from "../entities/QualityFeedback";
+
+export interface IFeedbackPort {
+  save(input: SubmitFeedbackInput): Promise<QualityFeedback>;
+  listByOrganization(organizationId: string, limitCount: number): Promise<QualityFeedback[]>;
+}
+````
+
 ## File: modules/notebooklm/subdomains/evaluation/README.md
 ````markdown
 # Evaluation
@@ -7204,6 +7381,117 @@ export type { IThreadRepository as IThreadPort } from "../repositories/IThreadRe
 
 When implementing, follow inside-out:
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notebooklm/subdomains/grounding/api/index.ts
+````typescript
+/**
+ * Public API boundary for the grounding subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Status: Tier 2 Migration Target (from ai subdomain)
+ */
+
+// ── Domain types ──────────────────────────────────────────────────────────────
+export type {
+  Citation,
+  GroundingEvidence,
+} from "../domain/entities/GroundingEvidence";
+
+// ── Domain service contracts ──────────────────────────────────────────────────
+export type {
+  CitationBuilderInput,
+  ICitationBuilder,
+} from "../domain/services/ICitationBuilder";
+
+// ── Domain events ─────────────────────────────────────────────────────────────
+export type {
+  GroundingCompletedEvent,
+} from "../domain/events/GroundingEvents";
+````
+
+## File: modules/notebooklm/subdomains/grounding/domain/entities/GroundingEvidence.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/grounding
+ * Layer: domain/entities
+ * Purpose: GroundingEvidence — attribution record tying an answer claim to its source.
+ *
+ * Migration source: ai/domain/entities/retrieval.entities.ts → RagCitation
+ * Migration source: ai/domain/services/RagCitationBuilder.ts
+ */
+
+/** Attribution record that ties an answer claim to its source chunk */
+export interface Citation {
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  readonly reason: string;
+}
+
+/** Grounding evidence aggregating citations with source metadata */
+export interface GroundingEvidence {
+  readonly traceId: string;
+  readonly citations: readonly Citation[];
+  readonly totalChunksConsidered: number;
+  readonly groundedAt: string;
+}
+````
+
+## File: modules/notebooklm/subdomains/grounding/domain/events/GroundingEvents.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/grounding
+ * Layer: domain/events
+ * Purpose: Domain events for grounding operations.
+ */
+
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+
+export interface GroundingCompletedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.grounding.completed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly citationCount: number;
+    readonly chunksConsidered: number;
+  };
+}
+````
+
+## File: modules/notebooklm/subdomains/grounding/domain/index.ts
+````typescript
+export type { Citation, GroundingEvidence } from "./entities/GroundingEvidence";
+export type { CitationBuilderInput, ICitationBuilder } from "./services/ICitationBuilder";
+export type { GroundingCompletedEvent } from "./events/GroundingEvents";
+````
+
+## File: modules/notebooklm/subdomains/grounding/domain/services/ICitationBuilder.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/grounding
+ * Layer: domain/services
+ * Purpose: ICitationBuilder — domain service interface for constructing citations
+ *          from retrieved chunks and generated answers.
+ *
+ * Migration source: ai/domain/services/RagCitationBuilder.ts
+ */
+
+import type { Citation } from "../entities/GroundingEvidence";
+
+export interface CitationBuilderInput {
+  readonly answer: string;
+  readonly chunks: readonly {
+    readonly docId: string;
+    readonly chunkIndex: number;
+    readonly page?: number;
+    readonly text: string;
+    readonly score: number;
+  }[];
+}
+
+export interface ICitationBuilder {
+  build(input: CitationBuilderInput): readonly Citation[];
+}
 ````
 
 ## File: modules/notebooklm/subdomains/grounding/README.md
@@ -7250,6 +7538,131 @@ export * from "./ports";
  * explicitly visible in the directory structure.
  */
 export type { NotebookRepository as INotebookPort } from "../repositories/NotebookRepository";
+````
+
+## File: modules/notebooklm/subdomains/retrieval/api/index.ts
+````typescript
+/**
+ * Public API boundary for the retrieval subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Status: Tier 2 Migration Target (from ai subdomain)
+ */
+
+// ── Domain types ──────────────────────────────────────────────────────────────
+export type {
+  RetrievedChunk,
+  RetrievalSummary,
+} from "../domain/entities/RetrievedChunk";
+
+// ── Port contracts ────────────────────────────────────────────────────────────
+export type {
+  RetrieveChunksInput,
+  IChunkRetrievalPort,
+} from "../domain/ports/IChunkRetrievalPort";
+
+// ── Domain events ─────────────────────────────────────────────────────────────
+export type {
+  RetrievalCompletedEvent,
+  RetrievalFailedEvent,
+} from "../domain/events/RetrievalEvents";
+````
+
+## File: modules/notebooklm/subdomains/retrieval/domain/entities/RetrievedChunk.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/retrieval
+ * Layer: domain/entities
+ * Purpose: RetrievedChunk — atomic unit of grounding evidence from vector/sparse retrieval.
+ *
+ * Migration source: ai/domain/entities/retrieval.entities.ts → RagRetrievedChunk
+ * This is the target canonical location after Strangler Pattern convergence.
+ */
+
+/** A single text chunk fetched from the vector + sparse retrieval pass */
+export interface RetrievedChunk {
+  readonly chunkId: string;
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  /** Semantic / organisational taxonomy label */
+  readonly taxonomy: string;
+  readonly text: string;
+  /** Similarity score in [0, 1]; higher is more relevant */
+  readonly score: number;
+}
+
+/** Summary of the retrieval execution scope for observability / UX */
+export interface RetrievalSummary {
+  readonly mode: string;
+  readonly scope: "organization" | "workspace";
+  readonly retrievedChunkCount: number;
+  readonly topK: number;
+  readonly taxonomy?: string;
+}
+````
+
+## File: modules/notebooklm/subdomains/retrieval/domain/events/RetrievalEvents.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/retrieval
+ * Layer: domain/events
+ * Purpose: Domain events for retrieval operations.
+ */
+
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+
+export interface RetrievalCompletedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.retrieval.completed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly chunkCount: number;
+    readonly scope: "organization" | "workspace";
+    readonly topK: number;
+  };
+}
+
+export interface RetrievalFailedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.retrieval.failed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly errorCode: string;
+    readonly errorMessage: string;
+  };
+}
+````
+
+## File: modules/notebooklm/subdomains/retrieval/domain/index.ts
+````typescript
+export type { RetrievedChunk, RetrievalSummary } from "./entities/RetrievedChunk";
+export type { RetrieveChunksInput, IChunkRetrievalPort } from "./ports/IChunkRetrievalPort";
+export type { RetrievalCompletedEvent, RetrievalFailedEvent } from "./events/RetrievalEvents";
+````
+
+## File: modules/notebooklm/subdomains/retrieval/domain/ports/IChunkRetrievalPort.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/retrieval
+ * Layer: domain/ports
+ * Purpose: IChunkRetrievalPort — output port for chunk retrieval operations.
+ *
+ * Migration source: ai/domain/repositories/IRagRetrievalRepository.ts
+ * Infrastructure adapters (Firebase, Upstash, etc.) implement this port.
+ */
+
+import type { RetrievedChunk } from "../entities/RetrievedChunk";
+
+export interface RetrieveChunksInput {
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly normalizedQuery: string;
+  readonly taxonomy?: string;
+  readonly topK: number;
+}
+
+export interface IChunkRetrievalPort {
+  retrieve(input: RetrieveChunksInput): Promise<readonly RetrievedChunk[]>;
+}
 ````
 
 ## File: modules/notebooklm/subdomains/retrieval/README.md
@@ -7406,6 +7819,139 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill rag-architecture
 ````
 
+## File: modules/notebooklm/subdomains/synthesis/api/index.ts
+````typescript
+/**
+ * Public API boundary for the synthesis subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Status: Tier 2 Migration Target (from ai subdomain)
+ */
+
+// ── Domain types ──────────────────────────────────────────────────────────────
+export type {
+  GenerationCitation,
+  GenerateAnswerInput,
+  GenerateAnswerOutput,
+  GenerateAnswerResult,
+} from "../domain/entities/SynthesisResult";
+
+// ── Port contracts ────────────────────────────────────────────────────────────
+export type {
+  IGenerationPort,
+} from "../domain/ports/IGenerationPort";
+
+// ── Domain events ─────────────────────────────────────────────────────────────
+export type {
+  SynthesisCompletedEvent,
+  SynthesisFailedEvent,
+} from "../domain/events/SynthesisEvents";
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/entities/SynthesisResult.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/entities
+ * Purpose: SynthesisResult — the generated answer with attribution.
+ *
+ * Migration source: ai/domain/entities/generation.entities.ts
+ */
+
+import type { DomainError } from "@shared-types";
+
+/** Attribution claim within a generated answer */
+export interface GenerationCitation {
+  readonly docId: string;
+  readonly chunkIndex: number;
+  readonly page?: number;
+  readonly reason: string;
+}
+
+/** Input to the generation port */
+export interface GenerateAnswerInput {
+  readonly traceId: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly userQuery: string;
+  readonly chunks: readonly {
+    readonly chunkId: string;
+    readonly docId: string;
+    readonly chunkIndex: number;
+    readonly text: string;
+    readonly score: number;
+  }[];
+  readonly model?: string;
+}
+
+/** Successful generation output */
+export interface GenerateAnswerOutput {
+  readonly answer: string;
+  readonly citations: readonly GenerationCitation[];
+  readonly model: string;
+}
+
+/** Discriminated union result */
+export type GenerateAnswerResult =
+  | { ok: true; data: GenerateAnswerOutput }
+  | { ok: false; error: DomainError };
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/events/SynthesisEvents.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/events
+ * Purpose: Domain events for synthesis operations.
+ */
+
+import type { NotebookLmDomainEvent } from "../../../../domain/events/NotebookLmDomainEvent";
+
+export interface SynthesisCompletedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.synthesis.completed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly model: string;
+    readonly citationCount: number;
+    readonly answerLengthChars: number;
+  };
+}
+
+export interface SynthesisFailedEvent extends NotebookLmDomainEvent {
+  readonly type: "notebooklm.synthesis.failed";
+  readonly payload: {
+    readonly traceId: string;
+    readonly errorCode: string;
+    readonly errorMessage: string;
+  };
+}
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/index.ts
+````typescript
+export type { GenerationCitation, GenerateAnswerInput, GenerateAnswerOutput, GenerateAnswerResult } from "./entities/SynthesisResult";
+export type { IGenerationPort } from "./ports/IGenerationPort";
+export type { SynthesisCompletedEvent, SynthesisFailedEvent } from "./events/SynthesisEvents";
+````
+
+## File: modules/notebooklm/subdomains/synthesis/domain/ports/IGenerationPort.ts
+````typescript
+/**
+ * Module: notebooklm/subdomains/synthesis
+ * Layer: domain/ports
+ * Purpose: IGenerationPort — output port for AI answer generation.
+ *
+ * Migration source: ai/domain/repositories/IRagGenerationRepository.ts
+ * The Genkit adapter (infrastructure) implements this port.
+ */
+
+import type { GenerateAnswerInput, GenerateAnswerResult } from "../entities/SynthesisResult";
+
+export interface IGenerationPort {
+  generate(input: GenerateAnswerInput): Promise<GenerateAnswerResult>;
+}
+````
+
 ## File: modules/notebooklm/subdomains/synthesis/README.md
 ````markdown
 # Synthesis
@@ -7441,7 +7987,7 @@ When implementing, follow inside-out:
 
 ## Mission
 
-保護 notebooklm 主域作為對話、來源處理、推理輸出、引用對齊、衍生評估與輕量筆記的邊界。核心 RAG pipeline 為：**ingestion → retrieval → grounding → synthesis → evaluation**。notebooklm 擁有衍生推理流程，不擁有正典知識內容。
+保護 notebooklm 主域作為對話、來源處理與推理輸出的邊界。notebooklm 擁有衍生推理流程，不擁有正典知識內容。任何變更都應維持 notebooklm 擁有對話生命週期、來源管理與 RAG pipeline 語言，而不是吸收平台治理或正典知識語言。
 
 ## Bounded Context Summary
 
@@ -7453,14 +7999,21 @@ When implementing, follow inside-out:
 | Core invariant | notebooklm 只能持有衍生推理輸出，不得直接修改 notion 的正典內容 |
 | Published language | Notebook reference、Conversation reference、SourceReference、GroundedAnswer |
 
+## Bounded Contexts
+
+| Cluster | Subdomains | Responsibility |
+|---------|------------|----------------|
+| Interaction Core | notebook, conversation | 對話容器與互動生命週期 |
+| Source & RAG Pipeline | source, ai → retrieval/grounding/synthesis/evaluation | 來源管理與 RAG 檢索 / grounding / synthesis / evaluation |
+| Personal Knowledge | note | 輕量筆記與知識連結 |
+
 ## Route Here When
 
-- 問題核心是 notebook、conversation、source ingestion、retrieval、grounding、synthesis。
+- 問題核心是 notebook、conversation、source、retrieval、grounding、synthesis。
 - 問題需要處理引用對齊、來源可追溯、模型輸出品質或衍生筆記。
 - 問題要把知識來源（notion artifact、uploaded file）轉成可對話與可綜合的推理材料。
 - 問題涉及 RAG 問答、向量檢索、chunks 召回、generation 品質。
 - 問題涉及 evaluation、品質評估、回歸比較或 grounding 可信度。
-- 問題涉及 note（輕量個人筆記）或 conversation-versioning（對話快照策略）。
 
 ## Route Elsewhere When
 
@@ -7473,61 +8026,80 @@ When implementing, follow inside-out:
 
 ### Tier 1 — Core (Active)
 
-| Subdomain | Purpose | Status |
-|-----------|---------|--------|
-| conversation | 對話 Thread 與 Message 生命週期管理 | Active |
-| notebook | Notebook 容器組合與 GenKit 回應生成 | Active |
-| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary | Active |
+| Subdomain | Purpose | Key Aggregates / Entities |
+|-----------|---------|---------------------------|
+| conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
+| notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration, NotebookRepository |
+| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary, SourceRetentionPolicy |
 
-### Tier 2 — RAG Pipeline (Gap Stubs → Migration Target)
+### Tier 2 — RAG Pipeline (Migration Target from `ai`)
 
-這四個子域是 RAG pipeline 的戰略清單邊界，`ai` 子域的所有責任最終應遷移至此。
+這四個子域持有 domain contracts（entities、ports、events），是 `ai` 子域的戰略遷移目標。新的 RAG 功能仍可加入 `ai`，但只有當拆分觸發條件成立時才遷移 use case 到目標子域。
 
-| Subdomain | Purpose | Migration From `ai` |
-|-----------|---------|---------------------|
-| retrieval | 查詢召回與排序策略、向量搜尋 | `IKnowledgeContentRepository`、`IRagRetrievalRepository`、`RagScoringService` |
-| grounding | 引用對齊與可追溯證據、`RagCitation` | `RagCitationBuilder`、`RagRetrievedChunk` |
-| synthesis | RAG 合成、摘要與洞察生成 | `AnswerRagQueryUseCase`、`RagPromptBuilder`、`GenkitRagGenerationAdapter` |
-| evaluation | 品質評估、feedback 收集與回歸比較 | `submit-rag-feedback`、`IRagQueryFeedbackRepository` |
+| Subdomain | Purpose | Migration From `ai` | Split Trigger |
+|-----------|---------|---------------------|---------------|
+| retrieval | 查詢召回與排序策略、向量搜尋 | `IRagRetrievalRepository`、`RagScoringService`、`RagRetrievedChunk` | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
+| grounding | 引用對齊與可追溯證據 | `RagCitationBuilder`、`RagCitation`、`RelevanceScore` | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
+| synthesis | RAG 合成、摘要與洞察生成 | `AnswerRagQueryUseCase`、`RagPromptBuilder`、`GenkitRagGenerationAdapter` | 生成策略需要獨立 use case 群（多模態、多來源融合） |
+| evaluation | 品質評估、feedback 收集與回歸比較 | `IRagQueryFeedbackRepository`、`submit-rag-feedback`、`RagFeedback` | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
 
-### Tier 3 — Baseline Stubs (Low Priority)
+### Planned
 
-| Subdomain | Purpose | Note |
-|-----------|---------|------|
-| ingestion | 來源匯入、正規化與前處理的正典邊界 | TypeScript 側協調 py_fn 匯入任務 |
-| note | 輕量個人筆記與 Notebook 知識連結 | 獨立於 conversation 的筆記物件 |
-| conversation-versioning | 對話版本與快照策略 | 長期從 conversation 切出 |
+| Subdomain | Purpose | Split Trigger |
+|-----------|---------|---------------|
+| note | 輕量個人筆記與 Notebook 知識連結 | 使用者需要獨立於 notebook 的筆記模型 |
 
-## Subdomain Analysis — 子域數量合理性
+### Premature Stubs（目錄保留，不建議擴充）
 
-**10 個戰略子域 + 1 個過渡子域（ai），分析如下：**
+| Subdomain | Reason |
+|-----------|--------|
+| conversation-versioning | 版本化是 conversation 的內部關注，語言與演化速率一致，非獨立子域 |
+| ingestion | source 子域已涵蓋匯入編排（SourceFile → RagDocument 狀態機）；py_fn 擁有實際解析管線，無獨立領域模型需求 |
 
-1. 所有 10 個戰略子域均有獨立語言與責任邊界，不過度重疊。
-2. Tier 2（retrieval/grounding/synthesis/evaluation）是 `ai` 過渡子域的遷移目標，不是額外增加的子域。
-3. `conversation-versioning` 與 `note` 雖低優先，但保留作為清楚邊界比合併進 `conversation` 更安全。
-4. `ingestion` 與 `source` 有分工：`source` 負責來源文件的 TypeScript 側狀態機；`ingestion` 負責 py_fn 工人觸發的協調邊界。分開是正確的。
-5. **沒有子域需要刪除**；缺少的是執行優先順序的清楚標示（本次已補上 Tier 標籤）。
+### Domain Invariants
+
+- notebooklm 只擁有衍生推理流程，不擁有正典知識內容。
+- shared AI capability 由 platform.ai 提供；notebooklm 擁有 retrieval、grounding、synthesis 的本地語義。
+- grounding 應能把輸出對齊到來源證據。
+- retrieval 是 synthesis 的上游能力。
+- evaluation 應描述品質，而不是單純使用量。
+- 任何要成為正式知識內容的輸出，都必須交由 notion 吸收。
 
 ## Ubiquitous Language
 
-| Term | Meaning | Do Not Use |
-|------|---------|------------|
-| Notebook | 聚合對話、來源與衍生筆記的工作單位 | Project, Workspace |
-| Conversation | Notebook 內的對話執行邊界（Thread + Messages） | Chat, Session |
-| Message | 一則輸入或輸出對話項 | Turn, Exchange |
-| Source | 被引用與推理的來源材料 | File, Document (generic) |
-| Ingestion | 來源匯入、正規化與前處理流程 | File Import, Upload |
-| Retrieval | 從來源中召回候選 Chunk 的查詢能力 | Search, Lookup |
-| Grounding | 把輸出對齊到來源證據的能力 | Verification, Factcheck |
-| Citation | 輸出指回來源證據的引用關係 | Reference, Link |
-| Synthesis | 綜合多來源後生成的衍生輸出 | Answer, Response (generic) |
-| Note | 與 Notebook 關聯的輕量摘記 | Comment, Annotation |
-| Evaluation | 對輸出品質、回歸結果與效果的評估 | Analytics, Metrics (generic) |
-| VersionSnapshot | 對話或 Notebook 某一時點的不可變快照 | History, Backup |
+| Term | Meaning | Owning Subdomain | Do Not Use |
+|------|---------|------------------|------------|
+| Notebook | 聚合對話、來源與衍生筆記的工作單位 | notebook | Project, Workspace |
+| AgentGeneration | GenKit 代理回應生成 | notebook | - |
+| Conversation | Notebook 內的對話執行邊界 | conversation | Chat, Session |
+| Thread | 一段對話的容器 | conversation | - |
+| Message | 一則輸入或輸出對話項 | conversation | Turn, Exchange |
+| Source | 被引用與推理的來源材料 | source | File, Document (generic) |
+| SourceFile | 使用者上傳的原始檔案 | source | - |
+| RagDocument | 來源文件在 RAG pipeline 中的表示 | source | - |
+| WikiLibrary | 結構化知識來源庫 | source | - |
+| Ingestion | 來源匯入、正規化與前處理流程 | source | File Import, Upload |
+| Retrieval | 從來源中召回候選片段的查詢能力 | ai → retrieval | Search, Lookup |
+| Grounding | 把輸出對齊到來源證據的能力 | ai → grounding | Verification, Factcheck |
+| Citation | 輸出指回來源證據的引用關係 | ai → grounding | Reference, Link |
+| Synthesis | 綜合多來源後生成的衍生輸出 | ai → synthesis | Answer, Response (generic) |
+| Evaluation | 對輸出品質、回歸結果與效果的評估 | ai → evaluation | Analytics, Metrics (generic) |
+| RelevanceScore | 檢索結果的相關性分數 | ai → retrieval | - |
+| Note | 與 Notebook 關聯的輕量摘記 | note (planned) | Comment, Annotation |
 
-## Architecture Note — ai Subdomain Tech Debt
+### Avoid
 
-`ai` 子域是此模組的主要架構技術債。它在早期開發中吸收了四個戰略子域的責任，但 `ai` 本身不在戰略子域清單中。
+| Avoid | Use Instead |
+|-------|-------------|
+| Chat | Conversation |
+| File Import | Ingestion |
+| Search Step | Retrieval |
+| Verified Answer | Grounded Synthesis |
+| Knowledge / Wiki | Synthesis output（正典知識屬 notion） |
+
+## Architecture Note — ai Subdomain Transition
+
+`ai` 子域是過渡名稱，目前持有 RAG pipeline 的所有職責（retrieval、grounding、synthesis、evaluation、feedback）。Tier 2 子域持有 domain contracts 作為遷移目標形狀。
 
 **現況持有責任**：
 - `retrieval`：`IKnowledgeContentRepository`、`IRagRetrievalRepository`、`RagRetrievedChunk`、`RagScoringService`
@@ -7536,9 +8108,9 @@ When implementing, follow inside-out:
 - `evaluation`：`submit-rag-feedback`、`IRagQueryFeedbackRepository`、`RagFeedback`
 
 **遷移規則**：
-- 新功能必須加進對應 Tier 2 目標子域，不得繼續擴大 `ai`。
-- 遷移以單個 use case 為單位（Strangler Pattern），不做一次性大改。
-- 遷移優先順序：retrieval → grounding → synthesis → evaluation。
+- 新的 RAG 功能仍可加入 `ai` 子域。只有當拆分觸發條件成立時，才遷移 use case 到目標子域。不做一次性大改。
+- 遷移以單個 use case 為單位（Strangler Pattern）。
+- 優先順序：retrieval → grounding → synthesis → evaluation。
 
 ## Dependency Direction
 
@@ -7603,23 +8175,25 @@ Legacy migration (Strangler Pattern):
 modules/notebooklm/
 ├── api/              # Public API boundary — cross-module entry point only
 ├── application/      # Context-wide orchestration (empty, use subdomain layers)
-├── domain/           # Context-wide domain concepts (empty, use subdomain layers)
+├── domain/           # Context-wide domain concepts (events, published-language)
 ├── infrastructure/   # Context-wide driven adapters (empty, use subdomain layers)
 ├── interfaces/       # Context-wide driving adapters (empty, use subdomain layers)
 ├── docs/             # Links to strategic documentation
 └── subdomains/
-    ├── ai/                      # ⚠️ TRANSITIONAL ONLY — migrating to Tier 2
+    ├── ai/                      # ⚠️ TRANSITIONAL — migrating to Tier 2
     ├── conversation/            # Tier 1 — Active
     ├── notebook/                # Tier 1 — Active
     ├── source/                  # Tier 1 — Active
-    ├── retrieval/               # Tier 2 — Stub (migration target from ai)
-    ├── grounding/               # Tier 2 — Stub (migration target from ai)
-    ├── synthesis/               # Tier 2 — Stub (migration target from ai)
-    ├── evaluation/              # Tier 2 — Stub (migration target from ai)
-    ├── ingestion/               # Tier 3 — Stub (py_fn orchestration boundary)
-    ├── note/                    # Tier 3 — Stub (lightweight notebook notes)
-    └── conversation-versioning/ # Tier 3 — Stub (snapshot strategy)
+    ├── retrieval/               # Tier 2 — Domain contracts (migration target)
+    ├── grounding/               # Tier 2 — Domain contracts (migration target)
+    ├── synthesis/               # Tier 2 — Domain contracts (migration target)
+    ├── evaluation/              # Tier 2 — Domain contracts (migration target)
+    ├── note/                    # Planned — Stub
+    ├── ingestion/               # Premature — absorbed by source
+    └── conversation-versioning/ # Premature — absorbed by conversation
 ```
+
+> **Premature stubs** — `ingestion/` and `conversation-versioning/` directories exist but are not recommended for expansion. See [Premature Stubs](#premature-stubs) for rationale.
 
 ## Subdomains
 
@@ -7629,57 +8203,63 @@ modules/notebooklm/
 |-----------|---------|--------------------------|
 | conversation | 對話 Thread 與 Message 生命週期管理 | Thread, Message |
 | notebook | Notebook 容器組合與 GenKit 回應生成 | AgentGeneration |
-| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary | RagDocument, WikiLibrary |
+| source | 來源文件匯入生命週期、RagDocument 狀態機、WikiLibrary、ingestion 編排 | SourceFile, SourceFileVersion, RagDocument, WikiLibrary |
 
-### Tier 2 — RAG Pipeline Stubs (Migration Target from `ai`)
+### Tier 2 — RAG Pipeline (Domain Contracts — Migration Target from `ai`)
 
-這四個子域是 `ai` 過渡子域的戰略接收邊界。每次新的 RAG pipeline 功能，優先在此實作，不得擴大 `ai`。
+這四個子域持有 domain contracts（entities、ports、events），是 `ai` 子域的戰略遷移接收邊界。新的 RAG 功能仍可加入 `ai`，但只有當拆分觸發條件成立時才遷移。
 
-| Subdomain | Purpose | 遷移自 `ai` 的責任 |
-|-----------|---------|------------------|
-| retrieval | 查詢召回與排序策略、向量搜尋 | `IRagRetrievalRepository`、`RagScoringService`、`RagRetrievedChunk` |
-| grounding | 引用對齊與可追溯證據 | `RagCitationBuilder`、`RagCitation`、`RelevanceScore` |
-| synthesis | RAG 合成、摘要與洞察生成 | `AnswerRagQueryUseCase`、`RagPromptBuilder`、`GenkitRagGenerationAdapter` |
-| evaluation | 品質評估、feedback 收集與回歸比較 | `IRagQueryFeedbackRepository`、`submit-rag-feedback`、`RagFeedback` |
+| Subdomain | Purpose | 遷移自 `ai` 的責任 | Split Trigger |
+|-----------|---------|------------------|---------------|
+| retrieval | 查詢召回與排序策略、向量搜尋 | `IRagRetrievalRepository`、`RagScoringService`、`RagRetrievedChunk` | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
+| grounding | 引用對齊與可追溯證據 | `RagCitationBuilder`、`RagCitation`、`RelevanceScore` | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
+| synthesis | RAG 合成、摘要與洞察生成 | `AnswerRagQueryUseCase`、`RagPromptBuilder`、`GenkitRagGenerationAdapter` | 生成策略需要獨立 use case 群（多模態、多來源融合） |
+| evaluation | 品質評估、feedback 收集與回歸比較 | `IRagQueryFeedbackRepository`、`submit-rag-feedback`、`RagFeedback` | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
 
-### Tier 3 — Baseline Stubs (Low Priority)
+### Planned
 
-| Subdomain | Purpose | Note |
-|-----------|---------|------|
-| ingestion | 來源匯入、正規化與前處理（TypeScript 側協調 py_fn 任務） | source 負責狀態機；ingestion 負責工人觸發協調 |
-| note | 輕量個人筆記與 Notebook 知識連結 | 獨立於 conversation thread 的筆記物件 |
-| conversation-versioning | 對話版本與快照策略 | 長期從 conversation 切出；保留邊界比合併安全 |
+| Subdomain | Purpose | Split Trigger |
+|-----------|---------|---------------|
+| note | 輕量個人筆記與 Notebook 知識連結 | 使用者需要獨立於 notebook 的筆記模型 |
+
+### Premature Stubs
+
+以下目錄存在但不建議擴充：
+
+| Subdomain | Reason |
+|-----------|--------|
+| conversation-versioning | 版本化是 conversation 的內部關注，語言與演化速率一致，非獨立子域 |
+| ingestion | source 子域已涵蓋匯入編排（SourceFile → RagDocument 狀態機）；py_fn 擁有實際解析管線，無獨立領域模型需求 |
 
 ### Transitional (Non-Strategic)
 
 | Subdomain | Status | Migration Path |
 |-----------|--------|---------------|
-| ai | ⚠️ Tech debt — 零新功能 | Tier 2：retrieval → grounding → synthesis → evaluation（Strangler Pattern） |
+| ai | ⚠️ Transition — 持有 RAG 全部職責 | Tier 2：retrieval → grounding → synthesis → evaluation（Strangler Pattern，按需遷移） |
 
 ## Subdomain Analysis
 
-**子域數量分析（10 戰略 + 1 過渡 = 11 目錄）**
+**子域數量分析（3 Active + 4 Domain Contracts + 1 Planned + 2 Premature + 1 Transitional = 11 目錄）**
 
-- ✅ 無子域需要刪除：每個子域有獨立語言邊界。
-- ✅ `ingestion` 與 `source` 分工正確：`source` 是 TypeScript 側的文件狀態機；`ingestion` 是 py_fn 工人觸發的協調邊界。
-- ✅ `retrieval`/`grounding`/`synthesis`/`evaluation` 是 RAG pipeline 的正確戰略切割，不是額外增加——它們是 `ai` 的替代品。
-- ✅ `conversation-versioning` 與 `note` 保留為獨立邊界比合併進 `conversation` 更符合 DDD。
-- ⚠️ `ai` 是唯一需要主動縮小的子域——新功能一律導向 Tier 2。
+- ✅ Tier 2（retrieval/grounding/synthesis/evaluation）是 `ai` 的遷移目標形狀，持有零成本 domain contracts（interfaces + types），不是額外日常維護負擔。
+- ✅ `source` 吸收了 `ingestion` 的編排責任，`conversation` 吸收了版本化關注。
+- ✅ `note` 保留為 Planned，待使用者需求出現時再充實。
+- ⚠️ `ai` 是唯一需要主動縮小的子域——當拆分觸發條件成立時遷移。
 
-## Architecture Note — ai Subdomain Migration
+## Architecture Note — ai Subdomain Transition
 
-`ai` 子域在早期開發中吸收了四個戰略子域的責任，形成技術債：
+`ai` 子域是過渡名稱，目前持有 RAG pipeline 的所有職責。Tier 2 子域持有 domain contracts（entities、ports、events）作為遷移目標形狀。
 
-| `ai` 中的責任 | 遷移目標 |
-|-------------|---------|
-| `IKnowledgeContentRepository` | `retrieval` |
-| `IRagRetrievalRepository`、`RagScoringService` | `retrieval` |
-| `RagCitationBuilder`、`RagCitation` | `grounding` |
-| `AnswerRagQueryUseCase`、`RagPromptBuilder` | `synthesis` |
-| `GenkitRagGenerationAdapter` | `synthesis` |
-| `IRagQueryFeedbackRepository`、feedback | `evaluation` |
+**拆分觸發條件（Strangler Pattern，按需遷移）：**
 
-遷移規則：以單個 use case 為單位（Strangler Pattern）；每個 use case 先在目標子域建立 domain model → application use case → infrastructure adapter → 切換入口 → 移除舊路徑。
+| Target Subdomain | Trigger Condition |
+|------------------|-------------------|
+| retrieval | 策略複雜到需要獨立領域模型（多重排序、hybrid search） |
+| grounding | 引用追溯需要獨立聚合根（citation chains、evidence alignment） |
+| synthesis | 生成策略需要獨立 use case 群（多模態、多來源融合） |
+| evaluation | 品質語言需要獨立指標模型（回歸測試、benchmark suite） |
+
+**現階段規則：** 新的 RAG 功能仍可加入 `ai` 子域。只有當拆分觸發條件成立時，才遷移 use case 到目標子域。不做一次性大改。
 
 ## Dependency Direction
 

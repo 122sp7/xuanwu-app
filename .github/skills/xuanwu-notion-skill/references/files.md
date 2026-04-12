@@ -10172,23 +10172,9 @@ export {};
 // Purpose: Infrastructure layer placeholder for notion subdomain 'publishing'.
 ````
 
-## File: modules/notion/subdomains/relations/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
 ## File: modules/notion/subdomains/relations/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for notion subdomain 'relations'.
-````
-
-## File: modules/notion/subdomains/relations/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notion subdomain 'relations'.
 ````
 
 ## File: modules/notion/subdomains/relations/infrastructure/index.ts
@@ -10196,23 +10182,9 @@ export {};
 // Purpose: Infrastructure layer placeholder for notion subdomain 'relations'.
 ````
 
-## File: modules/notion/subdomains/taxonomy/api/index.ts
-````typescript
-/**
- * Public API boundary for this subdomain.
- * Cross-module consumers must import through this entry point.
- */
-export {};
-````
-
 ## File: modules/notion/subdomains/taxonomy/application/index.ts
 ````typescript
 // Purpose: Application layer placeholder for notion subdomain 'taxonomy'.
-````
-
-## File: modules/notion/subdomains/taxonomy/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for notion subdomain 'taxonomy'.
 ````
 
 ## File: modules/notion/subdomains/taxonomy/infrastructure/index.ts
@@ -10395,71 +10367,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: modules/notion/api/index.ts
-````typescript
-/**
- * Module: notion
- * Layer: api (top-level public boundary)
- * Purpose: Unified ACL for all notion subdomains.
- *          External consumers (app/, other modules) must only import from here.
- */
-
-// ── knowledge subdomain ───────────────────────────────────────────────────────
-export * from "../subdomains/knowledge/api";
-
-// ── authoring subdomain ───────────────────────────────────────────────────────
-// Migration-Pending: full implementation from modules/knowledge-base/
-export * from "../subdomains/authoring/api";
-
-// ── collaboration subdomain ───────────────────────────────────────────────────
-// Migration-Pending: full implementation from modules/knowledge-collaboration/
-export * from "../subdomains/collaboration/api";
-
-// ── database subdomain ────────────────────────────────────────────────────────
-// Migration-Pending: full implementation from modules/knowledge-database/
-export * from "../subdomains/database/api";
-
-// ── notes subdomain ───────────────────────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/notes/api";
-
-// ── templates subdomain ───────────────────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/templates/api";
-
-// ── attachments subdomain ─────────────────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/attachments/api";
-
-// ── automation subdomain ──────────────────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/automation/api";
-
-// ── knowledge-analytics subdomain ─────────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/knowledge-analytics/api";
-
-// ── knowledge-integration subdomain ───────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/knowledge-integration/api";
-
-// ── knowledge-versioning subdomain ────────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/knowledge-versioning/api";
-
-// ── taxonomy subdomain ────────────────────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/taxonomy/api";
-
-// ── relations subdomain ───────────────────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/relations/api";
-
-// ── publishing subdomain ──────────────────────────────────────────────────────
-// Stub — awaiting use case definition
-export * from "../subdomains/publishing/api";
-````
-
 ## File: modules/notion/application/application.instructions.md
 ````markdown
 ---
@@ -10545,6 +10452,81 @@ For full reference, align with `.github/instructions/domain-modeling.instruction
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
+````
+
+## File: modules/notion/domain/events/index.ts
+````typescript
+export type { NotionDomainEvent } from "./NotionDomainEvent";
+````
+
+## File: modules/notion/domain/events/NotionDomainEvent.ts
+````typescript
+/**
+ * Module: notion
+ * Layer: domain/events (context-wide)
+ * Purpose: Base domain event interface for the notion bounded context.
+ *          All subdomain events (knowledge, authoring, collaboration, database, etc.)
+ *          should extend this interface.
+ *
+ * NOTE: subdomains/knowledge/domain/events/NotionDomainEvent.ts carries the same shape.
+ *       Future convergence should re-export this context-wide version.
+ */
+
+export interface NotionDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string;
+  readonly type: string;
+  readonly payload: object;
+}
+````
+
+## File: modules/notion/domain/published-language/index.ts
+````typescript
+/**
+ * Module: notion
+ * Layer: domain (context-wide published language)
+ * Purpose: Reference types exposed to downstream bounded contexts.
+ *
+ * These types represent notion's public vocabulary as defined in the context map.
+ * Downstream consumers (notebooklm, workspace) receive opaque references — never
+ * raw aggregates or internal domain models.
+ *
+ * Context Map tokens:
+ *   - KnowledgeArtifactReference: opaque ref consumed by notebooklm for retrieval/grounding
+ *   - AttachmentReference: traceable ref to an attachment asset
+ *   - TaxonomyHint: classification hint forwarded as retrieval aid
+ */
+
+/** Opaque reference to a KnowledgePage or Article (cross-module token) */
+export interface KnowledgeArtifactReference {
+  readonly artifactId: string;
+  readonly artifactType: "page" | "article";
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly slug: string;
+}
+
+/** Opaque reference to an attachment asset (cross-module token) */
+export interface AttachmentReference {
+  readonly attachmentId: string;
+  readonly artifactId: string;
+  readonly accountId: string;
+  readonly displayName: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+
+/**
+ * Classification hint forwarded to downstream contexts as retrieval aid.
+ * The downstream context (notebooklm) does not own taxonomy semantics —
+ * it only consumes the hint for filtering and ranking.
+ */
+export interface TaxonomyHint {
+  readonly taxonomyId: string;
+  readonly label: string;
+  readonly path: readonly string[];
+}
 ````
 
 ## File: modules/notion/domain/services/.gitkeep
@@ -11028,47 +11010,6 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - **Bounded Context**: notion
 - **Subdomain Type**: Baseline
 - **Status**: Stub — awaiting use case definition
-
-## Layers
-
-| Layer | Purpose |
-|-------|----------|
-| `api/` | Public boundary for cross-subdomain access |
-| `application/` | Use case orchestration and DTOs |
-| `domain/` | Entities, value objects, and business rules |
-| `infrastructure/` | Adapters, persistence, and external integrations |
-
-## Dependency Direction
-
-```text
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-## Development Order
-
-1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
-````
-
-## File: modules/notion/subdomains/knowledge-versioning/README.md
-````markdown
-# Knowledge Versioning
-
-全域版本快照策略管理。
-
-## Ownership
-
-- **Bounded Context**: notion
-- **Subdomain Type**: Tier 3 — Medium-Term Stub
-- **Status**: Stub — awaiting use case definition
-
-## Distinction from `collaboration.Version`
-
-| | `collaboration.Version` | `knowledge-versioning` |
-|---|---|---|
-| Granularity | 每次編輯的細粒度快照（per-change history） | 全域 Checkpoint 策略（workspace-level snapshot） |
-| Trigger | 協作動作（comment, edit event） | 策略性里程碑（release, sprint end） |
-| Retention | 短期逐次紀錄 | 長期保留策略 |
-| Owner | collaboration subdomain | knowledge-versioning subdomain |
 
 ## Layers
 
@@ -12219,6 +12160,123 @@ interfaces/ → application/ → domain/ ← infrastructure/
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
+## File: modules/notion/subdomains/relations/api/index.ts
+````typescript
+/**
+ * Public API boundary for the relations subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Status: Tier 2 Recommended Gap Subdomain
+ */
+
+// ── Domain types ──────────────────────────────────────────────────────────────
+export type {
+  RelationDirection,
+  Relation,
+  CreateRelationInput,
+} from "../domain/entities/Relation";
+
+// ── Repository contracts ───────────────────────────────────────────────────────
+export type {
+  IRelationRepository,
+} from "../domain/repositories/IRelationRepository";
+
+// ── Domain events ─────────────────────────────────────────────────────────────
+export type {
+  RelationCreatedEvent,
+  RelationRemovedEvent,
+} from "../domain/events/RelationEvents";
+````
+
+## File: modules/notion/subdomains/relations/domain/entities/Relation.ts
+````typescript
+/**
+ * Module: notion/subdomains/relations
+ * Layer: domain/entities
+ * Purpose: Relation — a typed link between two knowledge artifacts.
+ *
+ * Canonical boundary: relations own backlinks, forward links, and reference graphs.
+ * knowledge subdomain already has BacklinkIndex — future convergence or delegation TBD.
+ */
+
+export type RelationDirection = "forward" | "backward";
+
+export interface Relation {
+  readonly relationId: string;
+  readonly sourceArtifactId: string;
+  readonly targetArtifactId: string;
+  readonly relationType: string;
+  readonly direction: RelationDirection;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly createdAtISO: string;
+}
+
+export interface CreateRelationInput {
+  readonly sourceArtifactId: string;
+  readonly targetArtifactId: string;
+  readonly relationType: string;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+}
+````
+
+## File: modules/notion/subdomains/relations/domain/events/RelationEvents.ts
+````typescript
+/**
+ * Module: notion/subdomains/relations
+ * Layer: domain/events
+ * Purpose: Domain events for relation operations.
+ */
+
+import type { NotionDomainEvent } from "../../../../domain/events/NotionDomainEvent";
+
+export interface RelationCreatedEvent extends NotionDomainEvent {
+  readonly type: "notion.relations.relation_created";
+  readonly payload: {
+    readonly relationId: string;
+    readonly sourceArtifactId: string;
+    readonly targetArtifactId: string;
+    readonly relationType: string;
+    readonly organizationId: string;
+  };
+}
+
+export interface RelationRemovedEvent extends NotionDomainEvent {
+  readonly type: "notion.relations.relation_removed";
+  readonly payload: {
+    readonly relationId: string;
+    readonly organizationId: string;
+  };
+}
+````
+
+## File: modules/notion/subdomains/relations/domain/index.ts
+````typescript
+export type { RelationDirection, Relation, CreateRelationInput } from "./entities/Relation";
+export type { IRelationRepository } from "./repositories/IRelationRepository";
+export type { RelationCreatedEvent, RelationRemovedEvent } from "./events/RelationEvents";
+````
+
+## File: modules/notion/subdomains/relations/domain/repositories/IRelationRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/relations
+ * Layer: domain/repositories
+ * Purpose: IRelationRepository — domain port for relation persistence.
+ */
+
+import type { Relation } from "../entities/Relation";
+
+export interface IRelationRepository {
+  findById(relationId: string): Promise<Relation | null>;
+  listBySource(sourceArtifactId: string): Promise<readonly Relation[]>;
+  listByTarget(targetArtifactId: string): Promise<readonly Relation[]>;
+  save(relation: Relation): Promise<void>;
+  remove(relationId: string): Promise<void>;
+}
+````
+
 ## File: modules/notion/subdomains/relations/README.md
 ````markdown
 # Relations
@@ -12275,6 +12333,119 @@ For full reference, align with `.github/instructions/architecture-core.instructi
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
+````
+
+## File: modules/notion/subdomains/taxonomy/api/index.ts
+````typescript
+/**
+ * Public API boundary for the taxonomy subdomain.
+ * Cross-module consumers must import through this entry point.
+ *
+ * Status: Tier 2 Recommended Gap Subdomain
+ */
+
+// ── Domain types ──────────────────────────────────────────────────────────────
+export type {
+  TaxonomyNode,
+  CreateTaxonomyNodeInput,
+} from "../domain/entities/TaxonomyNode";
+
+// ── Repository contracts ───────────────────────────────────────────────────────
+export type {
+  ITaxonomyRepository,
+} from "../domain/repositories/ITaxonomyRepository";
+
+// ── Domain events ─────────────────────────────────────────────────────────────
+export type {
+  TaxonomyNodeCreatedEvent,
+  TaxonomyNodeRemovedEvent,
+} from "../domain/events/TaxonomyEvents";
+````
+
+## File: modules/notion/subdomains/taxonomy/domain/entities/TaxonomyNode.ts
+````typescript
+/**
+ * Module: notion/subdomains/taxonomy
+ * Layer: domain/entities
+ * Purpose: TaxonomyNode — a node in a hierarchical classification system.
+ *
+ * Canonical boundary: taxonomy owns classification hierarchy and semantic tags.
+ * notion/knowledge may reference taxonomy via TaxonomyHint published language.
+ */
+
+export interface TaxonomyNode {
+  readonly nodeId: string;
+  readonly label: string;
+  readonly parentNodeId: string | null;
+  readonly path: readonly string[];
+  readonly depth: number;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+export interface CreateTaxonomyNodeInput {
+  readonly label: string;
+  readonly parentNodeId: string | null;
+  readonly organizationId: string;
+  readonly workspaceId?: string;
+}
+````
+
+## File: modules/notion/subdomains/taxonomy/domain/events/TaxonomyEvents.ts
+````typescript
+/**
+ * Module: notion/subdomains/taxonomy
+ * Layer: domain/events
+ * Purpose: Domain events for taxonomy operations.
+ */
+
+import type { NotionDomainEvent } from "../../../../domain/events/NotionDomainEvent";
+
+export interface TaxonomyNodeCreatedEvent extends NotionDomainEvent {
+  readonly type: "notion.taxonomy.node_created";
+  readonly payload: {
+    readonly nodeId: string;
+    readonly label: string;
+    readonly parentNodeId: string | null;
+    readonly organizationId: string;
+  };
+}
+
+export interface TaxonomyNodeRemovedEvent extends NotionDomainEvent {
+  readonly type: "notion.taxonomy.node_removed";
+  readonly payload: {
+    readonly nodeId: string;
+    readonly organizationId: string;
+  };
+}
+````
+
+## File: modules/notion/subdomains/taxonomy/domain/index.ts
+````typescript
+export type { TaxonomyNode, CreateTaxonomyNodeInput } from "./entities/TaxonomyNode";
+export type { ITaxonomyRepository } from "./repositories/ITaxonomyRepository";
+export type { TaxonomyNodeCreatedEvent, TaxonomyNodeRemovedEvent } from "./events/TaxonomyEvents";
+````
+
+## File: modules/notion/subdomains/taxonomy/domain/repositories/ITaxonomyRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/taxonomy
+ * Layer: domain/repositories
+ * Purpose: ITaxonomyRepository — domain port for taxonomy node persistence.
+ */
+
+import type { TaxonomyNode } from "../entities/TaxonomyNode";
+
+export interface ITaxonomyRepository {
+  findById(nodeId: string): Promise<TaxonomyNode | null>;
+  listChildren(parentNodeId: string): Promise<readonly TaxonomyNode[]>;
+  listRoots(organizationId: string): Promise<readonly TaxonomyNode[]>;
+  save(node: TaxonomyNode): Promise<void>;
+  remove(nodeId: string): Promise<void>;
+}
 ````
 
 ## File: modules/notion/subdomains/taxonomy/README.md
@@ -12339,6 +12510,80 @@ interfaces/ → application/ → domain/ ← infrastructure/
 ## Development Order
 
 1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
+````
+
+## File: modules/notion/api/index.ts
+````typescript
+/**
+ * Module: notion
+ * Layer: api (top-level public boundary)
+ * Purpose: Unified ACL for all notion subdomains.
+ *          External consumers (app/, other modules) must only import from here.
+ */
+
+// ── Context-wide published language ───────────────────────────────────────────
+export type {
+  KnowledgeArtifactReference,
+  AttachmentReference,
+  TaxonomyHint,
+} from "../domain/published-language";
+
+export type { NotionDomainEvent } from "../domain/events";
+
+// ── knowledge subdomain ───────────────────────────────────────────────────────
+export * from "../subdomains/knowledge/api";
+
+// ── authoring subdomain ───────────────────────────────────────────────────────
+// Migration-Pending: full implementation from modules/knowledge-base/
+export * from "../subdomains/authoring/api";
+
+// ── collaboration subdomain ───────────────────────────────────────────────────
+// Migration-Pending: full implementation from modules/knowledge-collaboration/
+export * from "../subdomains/collaboration/api";
+
+// ── database subdomain ────────────────────────────────────────────────────────
+// Migration-Pending: full implementation from modules/knowledge-database/
+export * from "../subdomains/database/api";
+
+// ── notes subdomain ───────────────────────────────────────────────────────────
+// Stub — awaiting use case definition
+export * from "../subdomains/notes/api";
+
+// ── templates subdomain ───────────────────────────────────────────────────────
+// Stub — awaiting use case definition
+export * from "../subdomains/templates/api";
+
+// ── attachments subdomain ─────────────────────────────────────────────────────
+// Stub — awaiting use case definition
+export * from "../subdomains/attachments/api";
+
+// ── automation subdomain ──────────────────────────────────────────────────────
+// Stub — awaiting use case definition
+export * from "../subdomains/automation/api";
+
+// ── knowledge-analytics subdomain ─────────────────────────────────────────────
+// Stub — awaiting use case definition
+export * from "../subdomains/knowledge-analytics/api";
+
+// ── knowledge-integration subdomain ───────────────────────────────────────────
+// Stub — awaiting use case definition
+export * from "../subdomains/knowledge-integration/api";
+
+// ── knowledge-versioning subdomain ────────────────────────────────────────────
+// Stub — awaiting use case definition
+export * from "../subdomains/knowledge-versioning/api";
+
+// ── taxonomy subdomain ────────────────────────────────────────────────────────
+// Tier 2 — classification hierarchy and semantic organization
+export * from "../subdomains/taxonomy/api";
+
+// ── relations subdomain ───────────────────────────────────────────────────────
+// Tier 2 — backlinks, forward links, and reference graphs
+export * from "../subdomains/relations/api";
+
+// ── publishing subdomain ──────────────────────────────────────────────────────
+// Stub — awaiting use case definition
+export * from "../subdomains/publishing/api";
 ````
 
 ## File: modules/notion/README.md
@@ -12667,6 +12912,47 @@ export class DeleteViewUseCase {
 
 // Re-export read queries for backward compatibility
 export { ListViewsUseCase } from "../queries/view.queries";
+````
+
+## File: modules/notion/subdomains/knowledge-versioning/README.md
+````markdown
+# Knowledge Versioning
+
+全域版本快照策略管理。
+
+## Ownership
+
+- **Bounded Context**: notion
+- **Subdomain Type**: Tier 3 — Medium-Term Stub
+- **Status**: Stub — awaiting use case definition
+
+## Distinction from `collaboration.Version`
+
+| | `collaboration.Version` | `knowledge-versioning` |
+|---|---|---|
+| Granularity | 每次編輯的細粒度快照（per-change history） | 全域 Checkpoint 策略（workspace-level snapshot） |
+| Trigger | 協作動作（comment, edit event） | 策略性里程碑（release, sprint end） |
+| Retention | 短期逐次紀錄 | 長期保留策略 |
+| Owner | collaboration subdomain | knowledge-versioning subdomain |
+
+## Layers
+
+| Layer | Purpose |
+|-------|----------|
+| `api/` | Public boundary for cross-subdomain access |
+| `application/` | Use case orchestration and DTOs |
+| `domain/` | Entities, value objects, and business rules |
+| `infrastructure/` | Adapters, persistence, and external integrations |
+
+## Dependency Direction
+
+```text
+interfaces/ → application/ → domain/ ← infrastructure/
+```
+
+## Development Order
+
+1. Domain → 2. Application → 3. Ports (if needed) → 4. Infrastructure → 5. Interfaces
 ````
 
 ## File: modules/notion/subdomains/knowledge/interfaces/_actions/knowledge-page.actions.ts
