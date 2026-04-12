@@ -1,4 +1,4 @@
-import { BookOpen, Brain, Database, FileText, FolderOpen, Home, MessageSquare, Notebook, Users } from "lucide-react";
+import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Library, MessageSquare, Notebook, Shield, User, Users } from "lucide-react";
 import type { ReactNode } from "react";
 
 const NON_ACCOUNT_WORKSPACE_TOP_LEVEL_ROUTES = new Set([
@@ -49,7 +49,7 @@ const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
     isActive: (pathname: string, options) =>
       isWorkspaceScopedPath(pathname) &&
       (options?.tab == null || options.tab === "Overview") &&
-      options?.panel !== "settings",
+      options?.panel == null,
   },
   {
     href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-pages",
@@ -101,11 +101,32 @@ const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
       isWorkspaceScopedPath(pathname) && options?.tab === "AiChat",
   },
   {
-    href: "/workspace/{workspaceId}?tab=Overview&panel=source-libraries",
+    href: "/workspace/{workspaceId}?tab=Overview&panel=knowledge-databases",
     label: "資料庫",
     icon: <Database className="size-3.5" />,
     isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "knowledge-databases",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=source-libraries",
+    label: "來源庫",
+    icon: <Library className="size-3.5" />,
+    isActive: (pathname: string, options) =>
       isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "source-libraries",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=governance",
+    label: "治理",
+    icon: <Shield className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "governance",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Overview&panel=profile",
+    label: "工作區資料",
+    icon: <User className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      isWorkspaceScopedPath(pathname) && options?.tab === "Overview" && options?.panel === "profile",
   },
 ];
 
